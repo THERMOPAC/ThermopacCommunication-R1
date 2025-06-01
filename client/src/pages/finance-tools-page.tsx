@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Settings, Calculator, FileText, BarChart3, TrendingUp, Download, Save, FolderOpen, Database, Ruler, ArrowLeftRight, Plus, Trash2, Calendar, DollarSign } from "lucide-react";
+import { Settings, Calculator, FileText, BarChart3, TrendingUp, Download, Save, FolderOpen, Database, Ruler, ArrowLeftRight, Plus, Trash2, Calendar, DollarSign, Target, Percent } from "lucide-react";
 import Layout from "@/components/layout";
 
 // Loan Calculator Component
@@ -1815,6 +1815,568 @@ function CashFlowAnalyzer() {
   );
 }
 
+// Ratio Analysis Component
+function RatioAnalysis() {
+  const [financialData, setFinancialData] = useState({
+    // Balance Sheet Data
+    currentAssets: "",
+    totalAssets: "",
+    currentLiabilities: "",
+    totalLiabilities: "",
+    totalEquity: "",
+    inventory: "",
+    accountsReceivable: "",
+    cash: "",
+    longTermDebt: "",
+    
+    // Income Statement Data
+    revenue: "",
+    netIncome: "",
+    grossProfit: "",
+    operatingIncome: "",
+    interestExpense: "",
+    costOfGoodsSold: "",
+    
+    // Market Data
+    marketValue: "",
+    numberOfShares: "",
+    dividendsPerShare: ""
+  });
+
+  const [ratios, setRatios] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("liquidity");
+
+  const calculateRatios = () => {
+    const data = financialData;
+    
+    // Convert string inputs to numbers
+    const currentAssets = parseFloat(data.currentAssets) || 0;
+    const totalAssets = parseFloat(data.totalAssets) || 0;
+    const currentLiabilities = parseFloat(data.currentLiabilities) || 0;
+    const totalLiabilities = parseFloat(data.totalLiabilities) || 0;
+    const totalEquity = parseFloat(data.totalEquity) || 0;
+    const inventory = parseFloat(data.inventory) || 0;
+    const accountsReceivable = parseFloat(data.accountsReceivable) || 0;
+    const cash = parseFloat(data.cash) || 0;
+    const longTermDebt = parseFloat(data.longTermDebt) || 0;
+    const revenue = parseFloat(data.revenue) || 0;
+    const netIncome = parseFloat(data.netIncome) || 0;
+    const grossProfit = parseFloat(data.grossProfit) || 0;
+    const operatingIncome = parseFloat(data.operatingIncome) || 0;
+    const interestExpense = parseFloat(data.interestExpense) || 0;
+    const costOfGoodsSold = parseFloat(data.costOfGoodsSold) || 0;
+    const marketValue = parseFloat(data.marketValue) || 0;
+    const numberOfShares = parseFloat(data.numberOfShares) || 0;
+    const dividendsPerShare = parseFloat(data.dividendsPerShare) || 0;
+
+    // Liquidity Ratios
+    const currentRatio = currentLiabilities > 0 ? currentAssets / currentLiabilities : 0;
+    const quickRatio = currentLiabilities > 0 ? (currentAssets - inventory) / currentLiabilities : 0;
+    const cashRatio = currentLiabilities > 0 ? cash / currentLiabilities : 0;
+    const workingCapital = currentAssets - currentLiabilities;
+
+    // Activity/Efficiency Ratios
+    const assetTurnover = totalAssets > 0 ? revenue / totalAssets : 0;
+    const inventoryTurnover = inventory > 0 ? costOfGoodsSold / inventory : 0;
+    const receivablesTurnover = accountsReceivable > 0 ? revenue / accountsReceivable : 0;
+    const daysInInventory = inventoryTurnover > 0 ? 365 / inventoryTurnover : 0;
+    const daysInReceivables = receivablesTurnover > 0 ? 365 / receivablesTurnover : 0;
+
+    // Leverage/Debt Ratios
+    const debtToAssets = totalAssets > 0 ? totalLiabilities / totalAssets : 0;
+    const debtToEquity = totalEquity > 0 ? totalLiabilities / totalEquity : 0;
+    const equityRatio = totalAssets > 0 ? totalEquity / totalAssets : 0;
+    const interestCoverage = interestExpense > 0 ? operatingIncome / interestExpense : 0;
+
+    // Profitability Ratios
+    const grossProfitMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
+    const operatingMargin = revenue > 0 ? (operatingIncome / revenue) * 100 : 0;
+    const netProfitMargin = revenue > 0 ? (netIncome / revenue) * 100 : 0;
+    const returnOnAssets = totalAssets > 0 ? (netIncome / totalAssets) * 100 : 0;
+    const returnOnEquity = totalEquity > 0 ? (netIncome / totalEquity) * 100 : 0;
+
+    // Market Valuation Ratios
+    const earningsPerShare = numberOfShares > 0 ? netIncome / numberOfShares : 0;
+    const priceToEarnings = earningsPerShare > 0 ? (marketValue / numberOfShares) / earningsPerShare : 0;
+    const dividendYield = marketValue > 0 ? (dividendsPerShare * numberOfShares / marketValue) * 100 : 0;
+    const bookValuePerShare = numberOfShares > 0 ? totalEquity / numberOfShares : 0;
+    const priceToBook = bookValuePerShare > 0 ? (marketValue / numberOfShares) / bookValuePerShare : 0;
+
+    const calculatedRatios = {
+      liquidity: {
+        currentRatio: { value: currentRatio, benchmark: "1.5-3.0", status: currentRatio >= 1.5 && currentRatio <= 3.0 ? "good" : currentRatio < 1.5 ? "poor" : "high" },
+        quickRatio: { value: quickRatio, benchmark: "1.0-1.5", status: quickRatio >= 1.0 && quickRatio <= 1.5 ? "good" : quickRatio < 1.0 ? "poor" : "high" },
+        cashRatio: { value: cashRatio, benchmark: "0.1-0.2", status: cashRatio >= 0.1 && cashRatio <= 0.2 ? "good" : cashRatio < 0.1 ? "poor" : "high" },
+        workingCapital: { value: workingCapital, benchmark: "Positive", status: workingCapital > 0 ? "good" : "poor" }
+      },
+      activity: {
+        assetTurnover: { value: assetTurnover, benchmark: "0.5-2.0", status: assetTurnover >= 0.5 && assetTurnover <= 2.0 ? "good" : "review" },
+        inventoryTurnover: { value: inventoryTurnover, benchmark: "4-12", status: inventoryTurnover >= 4 && inventoryTurnover <= 12 ? "good" : "review" },
+        receivablesTurnover: { value: receivablesTurnover, benchmark: "6-12", status: receivablesTurnover >= 6 && receivablesTurnover <= 12 ? "good" : "review" },
+        daysInInventory: { value: daysInInventory, benchmark: "30-90 days", status: daysInInventory >= 30 && daysInInventory <= 90 ? "good" : "review" },
+        daysInReceivables: { value: daysInReceivables, benchmark: "30-60 days", status: daysInReceivables >= 30 && daysInReceivables <= 60 ? "good" : "review" }
+      },
+      leverage: {
+        debtToAssets: { value: debtToAssets * 100, benchmark: "30-60%", status: debtToAssets >= 0.3 && debtToAssets <= 0.6 ? "good" : debtToAssets < 0.3 ? "conservative" : "high" },
+        debtToEquity: { value: debtToEquity, benchmark: "0.3-1.0", status: debtToEquity >= 0.3 && debtToEquity <= 1.0 ? "good" : debtToEquity < 0.3 ? "conservative" : "high" },
+        equityRatio: { value: equityRatio * 100, benchmark: "40-70%", status: equityRatio >= 0.4 && equityRatio <= 0.7 ? "good" : "review" },
+        interestCoverage: { value: interestCoverage, benchmark: "> 2.5", status: interestCoverage > 2.5 ? "good" : "poor" }
+      },
+      profitability: {
+        grossProfitMargin: { value: grossProfitMargin, benchmark: "20-40%", status: grossProfitMargin >= 20 && grossProfitMargin <= 40 ? "good" : "review" },
+        operatingMargin: { value: operatingMargin, benchmark: "10-20%", status: operatingMargin >= 10 && operatingMargin <= 20 ? "good" : "review" },
+        netProfitMargin: { value: netProfitMargin, benchmark: "5-15%", status: netProfitMargin >= 5 && netProfitMargin <= 15 ? "good" : "review" },
+        returnOnAssets: { value: returnOnAssets, benchmark: "5-15%", status: returnOnAssets >= 5 && returnOnAssets <= 15 ? "good" : "review" },
+        returnOnEquity: { value: returnOnEquity, benchmark: "10-20%", status: returnOnEquity >= 10 && returnOnEquity <= 20 ? "good" : "review" }
+      },
+      market: {
+        earningsPerShare: { value: earningsPerShare, benchmark: "Industry Avg", status: "review" },
+        priceToEarnings: { value: priceToEarnings, benchmark: "10-25", status: priceToEarnings >= 10 && priceToEarnings <= 25 ? "good" : "review" },
+        dividendYield: { value: dividendYield, benchmark: "2-6%", status: dividendYield >= 2 && dividendYield <= 6 ? "good" : "review" },
+        bookValuePerShare: { value: bookValuePerShare, benchmark: "Industry Avg", status: "review" },
+        priceToBook: { value: priceToBook, benchmark: "1-3", status: priceToBook >= 1 && priceToBook <= 3 ? "good" : "review" }
+      }
+    };
+
+    setRatios(calculatedRatios);
+  };
+
+  const formatNumber = (value: number, isPercentage = false, isCurrency = false, decimals = 2) => {
+    if (isNaN(value) || !isFinite(value)) return "N/A";
+    
+    if (isCurrency) {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(value);
+    }
+    
+    if (isPercentage) {
+      return `${value.toFixed(decimals)}%`;
+    }
+    
+    return value.toFixed(decimals);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "good": return "text-green-600";
+      case "poor": return "text-red-600";
+      case "high": return "text-orange-600";
+      case "conservative": return "text-blue-600";
+      default: return "text-yellow-600";
+    }
+  };
+
+  const resetForm = () => {
+    setFinancialData({
+      currentAssets: "",
+      totalAssets: "",
+      currentLiabilities: "",
+      totalLiabilities: "",
+      totalEquity: "",
+      inventory: "",
+      accountsReceivable: "",
+      cash: "",
+      longTermDebt: "",
+      revenue: "",
+      netIncome: "",
+      grossProfit: "",
+      operatingIncome: "",
+      interestExpense: "",
+      costOfGoodsSold: "",
+      marketValue: "",
+      numberOfShares: "",
+      dividendsPerShare: ""
+    });
+    setRatios(null);
+  };
+
+  React.useEffect(() => {
+    // Calculate ratios when any financial data changes
+    const hasData = Object.values(financialData).some(value => value !== "");
+    if (hasData) {
+      calculateRatios();
+    }
+  }, [financialData]);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Input Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Financial Data Input</h3>
+            <Button variant="outline" size="sm" onClick={resetForm}>
+              Reset All
+            </Button>
+          </div>
+          
+          <Tabs defaultValue="balance-sheet" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="balance-sheet">Balance Sheet</TabsTrigger>
+              <TabsTrigger value="income">Income Statement</TabsTrigger>
+              <TabsTrigger value="market">Market Data</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="balance-sheet" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="currentAssets">Current Assets (₹)</Label>
+                  <Input
+                    id="currentAssets"
+                    type="number"
+                    placeholder="0"
+                    value={financialData.currentAssets}
+                    onChange={(e) => setFinancialData({...financialData, currentAssets: e.target.value})}
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="totalAssets">Total Assets (₹)</Label>
+                  <Input
+                    id="totalAssets"
+                    type="number"
+                    placeholder="0"
+                    value={financialData.totalAssets}
+                    onChange={(e) => setFinancialData({...financialData, totalAssets: e.target.value})}
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="currentLiabilities">Current Liabilities (₹)</Label>
+                  <Input
+                    id="currentLiabilities"
+                    type="number"
+                    placeholder="0"
+                    value={financialData.currentLiabilities}
+                    onChange={(e) => setFinancialData({...financialData, currentLiabilities: e.target.value})}
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="totalLiabilities">Total Liabilities (₹)</Label>
+                  <Input
+                    id="totalLiabilities"
+                    type="number"
+                    placeholder="0"
+                    value={financialData.totalLiabilities}
+                    onChange={(e) => setFinancialData({...financialData, totalLiabilities: e.target.value})}
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="totalEquity">Total Equity (₹)</Label>
+                  <Input
+                    id="totalEquity"
+                    type="number"
+                    placeholder="0"
+                    value={financialData.totalEquity}
+                    onChange={(e) => setFinancialData({...financialData, totalEquity: e.target.value})}
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="inventory">Inventory (₹)</Label>
+                  <Input
+                    id="inventory"
+                    type="number"
+                    placeholder="0"
+                    value={financialData.inventory}
+                    onChange={(e) => setFinancialData({...financialData, inventory: e.target.value})}
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="accountsReceivable">Accounts Receivable (₹)</Label>
+                  <Input
+                    id="accountsReceivable"
+                    type="number"
+                    placeholder="0"
+                    value={financialData.accountsReceivable}
+                    onChange={(e) => setFinancialData({...financialData, accountsReceivable: e.target.value})}
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cash">Cash & Equivalents (₹)</Label>
+                  <Input
+                    id="cash"
+                    type="number"
+                    placeholder="0"
+                    value={financialData.cash}
+                    onChange={(e) => setFinancialData({...financialData, cash: e.target.value})}
+                    className="text-right"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="income" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="revenue">Revenue (₹)</Label>
+                  <Input
+                    id="revenue"
+                    type="number"
+                    placeholder="0"
+                    value={financialData.revenue}
+                    onChange={(e) => setFinancialData({...financialData, revenue: e.target.value})}
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="netIncome">Net Income (₹)</Label>
+                  <Input
+                    id="netIncome"
+                    type="number"
+                    placeholder="0"
+                    value={financialData.netIncome}
+                    onChange={(e) => setFinancialData({...financialData, netIncome: e.target.value})}
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="grossProfit">Gross Profit (₹)</Label>
+                  <Input
+                    id="grossProfit"
+                    type="number"
+                    placeholder="0"
+                    value={financialData.grossProfit}
+                    onChange={(e) => setFinancialData({...financialData, grossProfit: e.target.value})}
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="operatingIncome">Operating Income (₹)</Label>
+                  <Input
+                    id="operatingIncome"
+                    type="number"
+                    placeholder="0"
+                    value={financialData.operatingIncome}
+                    onChange={(e) => setFinancialData({...financialData, operatingIncome: e.target.value})}
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="costOfGoodsSold">Cost of Goods Sold (₹)</Label>
+                  <Input
+                    id="costOfGoodsSold"
+                    type="number"
+                    placeholder="0"
+                    value={financialData.costOfGoodsSold}
+                    onChange={(e) => setFinancialData({...financialData, costOfGoodsSold: e.target.value})}
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="interestExpense">Interest Expense (₹)</Label>
+                  <Input
+                    id="interestExpense"
+                    type="number"
+                    placeholder="0"
+                    value={financialData.interestExpense}
+                    onChange={(e) => setFinancialData({...financialData, interestExpense: e.target.value})}
+                    className="text-right"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="market" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="marketValue">Market Value (₹)</Label>
+                  <Input
+                    id="marketValue"
+                    type="number"
+                    placeholder="0"
+                    value={financialData.marketValue}
+                    onChange={(e) => setFinancialData({...financialData, marketValue: e.target.value})}
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="numberOfShares">Number of Shares</Label>
+                  <Input
+                    id="numberOfShares"
+                    type="number"
+                    placeholder="0"
+                    value={financialData.numberOfShares}
+                    onChange={(e) => setFinancialData({...financialData, numberOfShares: e.target.value})}
+                    className="text-right"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="dividendsPerShare">Dividends per Share (₹)</Label>
+                  <Input
+                    id="dividendsPerShare"
+                    type="number"
+                    placeholder="0"
+                    value={financialData.dividendsPerShare}
+                    onChange={(e) => setFinancialData({...financialData, dividendsPerShare: e.target.value})}
+                    className="text-right"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Analysis Results */}
+        <div className="space-y-4">
+          {ratios ? (
+            <>
+              <h3 className="font-semibold">Ratio Analysis Results</h3>
+              
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="liquidity">Liquidity</TabsTrigger>
+                  <TabsTrigger value="activity">Activity</TabsTrigger>
+                  <TabsTrigger value="leverage">Leverage</TabsTrigger>
+                  <TabsTrigger value="profitability">Profit</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="liquidity" className="space-y-3">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium">Liquidity Ratios</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3 text-sm">
+                        {Object.entries(ratios.liquidity).map(([key, ratio]: [string, any]) => (
+                          <div key={key} className="flex justify-between items-center">
+                            <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                            <div className="text-right">
+                              <div className={`font-medium ${getStatusColor(ratio.status)}`}>
+                                {key === 'workingCapital' 
+                                  ? formatNumber(ratio.value, false, true)
+                                  : formatNumber(ratio.value)
+                                }
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Target: {ratio.benchmark}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="activity" className="space-y-3">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium">Activity Ratios</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3 text-sm">
+                        {Object.entries(ratios.activity).map(([key, ratio]: [string, any]) => (
+                          <div key={key} className="flex justify-between items-center">
+                            <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                            <div className="text-right">
+                              <div className={`font-medium ${getStatusColor(ratio.status)}`}>
+                                {key.includes('days') ? `${formatNumber(ratio.value, false, false, 0)} days` : formatNumber(ratio.value)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Target: {ratio.benchmark}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="leverage" className="space-y-3">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium">Leverage Ratios</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3 text-sm">
+                        {Object.entries(ratios.leverage).map(([key, ratio]: [string, any]) => (
+                          <div key={key} className="flex justify-between items-center">
+                            <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                            <div className="text-right">
+                              <div className={`font-medium ${getStatusColor(ratio.status)}`}>
+                                {key.includes('Ratio') && !key.includes('equity') 
+                                  ? formatNumber(ratio.value, true)
+                                  : formatNumber(ratio.value)
+                                }
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Target: {ratio.benchmark}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="profitability" className="space-y-3">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium">Profitability Ratios</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3 text-sm">
+                        {Object.entries(ratios.profitability).map(([key, ratio]: [string, any]) => (
+                          <div key={key} className="flex justify-between items-center">
+                            <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                            <div className="text-right">
+                              <div className={`font-medium ${getStatusColor(ratio.status)}`}>
+                                {formatNumber(ratio.value, true)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Target: {ratio.benchmark}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </>
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center text-muted-foreground">
+                  <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Enter financial data to calculate ratios</p>
+                  <p className="text-xs mt-2">Input balance sheet and income statement data</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+        <h3 className="font-semibold mb-2">Ratio Analysis Features:</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <p><strong>Comprehensive Analysis:</strong> Liquidity, activity, leverage, and profitability ratios</p>
+            <p><strong>Industry Benchmarks:</strong> Compare against standard financial benchmarks</p>
+          </div>
+          <div>
+            <p><strong>Real-time Calculations:</strong> Automatic updates as you enter data</p>
+            <p><strong>Visual Indicators:</strong> Color-coded status for quick assessment</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Currency Converter Component
 function CurrencyConverter() {
   const [amount, setAmount] = useState("");
@@ -3248,6 +3810,7 @@ export default function FinanceToolsPage() {
   const [isNumberConverterOpen, setIsNumberConverterOpen] = useState(false);
   const [isUnitConverterOpen, setIsUnitConverterOpen] = useState(false);
   const [isCashFlowAnalyzerOpen, setIsCashFlowAnalyzerOpen] = useState(false);
+  const [isRatioAnalysisOpen, setIsRatioAnalysisOpen] = useState(false);
 
   return (
     <Layout>
@@ -3572,7 +4135,10 @@ export default function FinanceToolsPage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => setIsRatioAnalysisOpen(true)}
+              >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div>
                     <CardTitle className="text-base">Ratio Analysis</CardTitle>
@@ -3583,7 +4149,7 @@ export default function FinanceToolsPage() {
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full">
+                  <Button variant="outline" className="w-full" onClick={(e) => { e.stopPropagation(); setIsRatioAnalysisOpen(true); }}>
                     Open Analyzer
                   </Button>
                 </CardContent>
@@ -3695,6 +4261,22 @@ export default function FinanceToolsPage() {
               </DialogDescription>
             </DialogHeader>
             <CashFlowAnalyzer />
+          </DialogContent>
+        </Dialog>
+
+        {/* Ratio Analysis Dialog */}
+        <Dialog open={isRatioAnalysisOpen} onOpenChange={setIsRatioAnalysisOpen}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5" />
+                Ratio Analysis
+              </DialogTitle>
+              <DialogDescription>
+                Calculate and analyze financial ratios with industry benchmarks
+              </DialogDescription>
+            </DialogHeader>
+            <RatioAnalysis />
           </DialogContent>
         </Dialog>
       </div>
