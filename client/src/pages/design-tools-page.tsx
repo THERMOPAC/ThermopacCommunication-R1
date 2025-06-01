@@ -19,7 +19,7 @@ import {
   Monitor,
   CircuitBoard,
   Gauge,
-  PipeIcon as Pipe,
+  Pipette,
   Factory,
   Target,
   Database,
@@ -151,7 +151,7 @@ export default function DesignToolsPage() {
                       Specialized piping design software
                     </CardDescription>
                   </div>
-                  <Pipe className="h-4 w-4 text-muted-foreground" />
+                  <Pipette className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
@@ -160,7 +160,7 @@ export default function DesignToolsPage() {
                       AutoCAD Plant 3D
                     </Button>
                     <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Pipe className="h-4 w-4 mr-2" />
+                      <Pipette className="h-4 w-4 mr-2" />
                       PDMS/E3D
                     </Button>
                     <Button variant="outline" className="w-full justify-start text-left" disabled>
