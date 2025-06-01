@@ -121,7 +121,8 @@ export default function DailyProductionReportPage() {
 
   const generateReport = () => {
     console.log('Generating report for:', selectedDate, selectedShift, selectedTeam);
-    // In real implementation, this would trigger API call to generate fresh data
+    // Refresh the work orders data
+    queryClient.invalidateQueries({ queryKey: ['/api/production/work-orders'] });
   };
 
   const exportToExcel = () => {
@@ -249,9 +250,13 @@ export default function DailyProductionReportPage() {
                 </Select>
               </div>
               <div className="flex items-end">
-                <Button onClick={generateReport} className="w-full">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Generate Report
+                <Button onClick={generateReport} className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <FileText className="h-4 w-4 mr-2" />
+                  )}
+                  {isLoading ? 'Refreshing...' : 'Generate Report'}
                 </Button>
               </div>
             </div>
