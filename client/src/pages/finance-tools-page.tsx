@@ -22,6 +22,230 @@ import {
 import { Settings, Calculator, FileText, BarChart3, TrendingUp, Download } from "lucide-react";
 import Layout from "@/components/layout";
 
+// Loan Calculator Component
+function LoanCalculator() {
+  const [loanAmount, setLoanAmount] = useState("");
+  const [interestRate, setInterestRate] = useState("");
+  const [loanTerm, setLoanTerm] = useState("");
+  const [termUnit, setTermUnit] = useState("years");
+  const [result, setResult] = useState<{
+    monthlyPayment: number;
+    totalPayment: number;
+    totalInterest: number;
+    amortizationSchedule?: Array<{
+      month: number;
+      payment: number;
+      principal: number;
+      interest: number;
+      balance: number;
+    }>;
+  } | null>(null);
+
+  const calculateLoan = () => {
+    const principal = parseFloat(loanAmount);
+    const annualRate = parseFloat(interestRate) / 100;
+    const term = parseFloat(loanTerm);
+
+    if (isNaN(principal) || isNaN(annualRate) || isNaN(term) || principal <= 0 || annualRate < 0 || term <= 0) {
+      return;
+    }
+
+    // Convert term to months
+    const months = termUnit === "years" ? term * 12 : term;
+    const monthlyRate = annualRate / 12;
+
+    // Calculate monthly payment using loan formula: M = P * [r(1+r)^n] / [(1+r)^n - 1]
+    let monthlyPayment;
+    if (monthlyRate === 0) {
+      monthlyPayment = principal / months;
+    } else {
+      monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
+    }
+
+    const totalPayment = monthlyPayment * months;
+    const totalInterest = totalPayment - principal;
+
+    // Generate amortization schedule
+    const amortizationSchedule = [];
+    let balance = principal;
+
+    for (let month = 1; month <= Math.min(months, 360); month++) { // Limit to 30 years for display
+      const interestPayment = balance * monthlyRate;
+      const principalPayment = monthlyPayment - interestPayment;
+      balance -= principalPayment;
+
+      amortizationSchedule.push({
+        month,
+        payment: monthlyPayment,
+        principal: principalPayment,
+        interest: interestPayment,
+        balance: Math.max(0, balance)
+      });
+
+      if (balance <= 0) break;
+    }
+
+    setResult({
+      monthlyPayment,
+      totalPayment,
+      totalInterest,
+      amortizationSchedule
+    });
+  };
+
+  const resetCalculator = () => {
+    setLoanAmount("");
+    setInterestRate("");
+    setLoanTerm("");
+    setTermUnit("years");
+    setResult(null);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="loanAmount">Loan Amount</Label>
+            <Input
+              id="loanAmount"
+              type="number"
+              placeholder="Enter loan amount"
+              value={loanAmount}
+              onChange={(e) => setLoanAmount(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="interestRate">Annual Interest Rate (%)</Label>
+            <Input
+              id="interestRate"
+              type="number"
+              step="0.01"
+              placeholder="Enter interest rate"
+              value={interestRate}
+              onChange={(e) => setInterestRate(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label htmlFor="loanTerm">Loan Term</Label>
+              <Input
+                id="loanTerm"
+                type="number"
+                step="0.1"
+                placeholder="Enter term"
+                value={loanTerm}
+                onChange={(e) => setLoanTerm(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="termUnit">Unit</Label>
+              <Select value={termUnit} onValueChange={setTermUnit}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="years">Years</SelectItem>
+                  <SelectItem value="months">Months</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button onClick={calculateLoan} className="flex-1">
+              Calculate
+            </Button>
+            <Button onClick={resetCalculator} variant="outline">
+              Reset
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {result && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Loan Calculation Results</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Loan Amount</Label>
+                    <p className="text-lg font-semibold">₹{parseFloat(loanAmount).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Interest Rate</Label>
+                    <p className="text-lg font-semibold">{interestRate}% per annum</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Loan Term</Label>
+                    <p className="text-lg font-semibold">{loanTerm} {termUnit}</p>
+                  </div>
+                </div>
+                
+                <div className="border-t pt-4">
+                  <div className="grid grid-cols-1 gap-4">
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Monthly Payment</Label>
+                      <p className="text-xl font-bold text-blue-600">₹{result.monthlyPayment.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Total Payment</Label>
+                      <p className="text-lg font-semibold">₹{result.totalPayment.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Total Interest</Label>
+                      <p className="text-lg font-semibold text-red-600">₹{result.totalInterest.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {result.amortizationSchedule && result.amortizationSchedule.length > 0 && (
+                  <div className="border-t pt-4">
+                    <Label className="text-sm text-muted-foreground mb-2 block">Amortization Schedule (First 12 months)</Label>
+                    <div className="max-h-48 overflow-y-auto space-y-1">
+                      <div className="grid grid-cols-5 gap-2 text-xs font-semibold border-b pb-1">
+                        <span>Month</span>
+                        <span>Payment</span>
+                        <span>Principal</span>
+                        <span>Interest</span>
+                        <span>Balance</span>
+                      </div>
+                      {result.amortizationSchedule.slice(0, 12).map((entry) => (
+                        <div key={entry.month} className="grid grid-cols-5 gap-2 text-xs">
+                          <span>{entry.month}</span>
+                          <span>₹{Math.round(entry.payment).toLocaleString()}</span>
+                          <span>₹{Math.round(entry.principal).toLocaleString()}</span>
+                          <span>₹{Math.round(entry.interest).toLocaleString()}</span>
+                          <span>₹{Math.round(entry.balance).toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+          
+          {!result && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center text-muted-foreground">
+                  <Calculator className="h-12 w-12 mx-auto mb-4" />
+                  <p>Enter loan details and click Calculate to see results</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Interest Calculator Component
 function InterestCalculator() {
   const [principal, setPrincipal] = useState("");
@@ -235,6 +459,7 @@ function InterestCalculator() {
 export default function FinanceToolsPage() {
   const [activeTab, setActiveTab] = useState("calculators");
   const [isInterestCalculatorOpen, setIsInterestCalculatorOpen] = useState(false);
+  const [isLoanCalculatorOpen, setIsLoanCalculatorOpen] = useState(false);
 
   return (
     <Layout>
@@ -300,9 +525,22 @@ export default function FinanceToolsPage() {
                   <Calculator className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full">
-                    Open Calculator
-                  </Button>
+                  <Dialog open={isLoanCalculatorOpen} onOpenChange={setIsLoanCalculatorOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full">
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Loan Calculator</DialogTitle>
+                        <DialogDescription>
+                          Calculate monthly payments, total costs, and view amortization schedules
+                        </DialogDescription>
+                      </DialogHeader>
+                      <LoanCalculator />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
