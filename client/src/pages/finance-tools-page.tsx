@@ -260,6 +260,7 @@ function TaxCalculator() {
   const [paidMarch, setPaidMarch] = useState("");
   const [selectedFinancialYear, setSelectedFinancialYear] = useState("");
   const [notes, setNotes] = useState("");
+  const [loadDialogOpen, setLoadDialogOpen] = useState(false);
   const [result, setResult] = useState<{
     totalTax: number;
     instalments: Array<{
@@ -401,6 +402,7 @@ function TaxCalculator() {
     setPaidMarch(calculation.paidMarch || "");
     setSelectedFinancialYear(calculation.financialYear);
     setNotes(calculation.notes || "");
+    setLoadDialogOpen(false); // Close the dialog after loading
     
     toast({
       title: "Calculation Loaded",
@@ -504,7 +506,7 @@ Note: Interest under Section 234C may apply if advance tax payments are insuffic
                   <Save className="h-3 w-3" />
                   {saveCalculationMutation.isPending ? "Saving..." : "Save"}
                 </Button>
-                <Dialog>
+                <Dialog open={loadDialogOpen} onOpenChange={setLoadDialogOpen}>
                   <DialogTrigger asChild>
                     <Button type="button" variant="outline" size="sm" className="flex items-center gap-1">
                       <FolderOpen className="h-3 w-3" />
