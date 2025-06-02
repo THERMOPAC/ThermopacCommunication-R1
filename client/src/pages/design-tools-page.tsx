@@ -1396,6 +1396,553 @@ function ChimneyDiameterHeightCalculator() {
   );
 }
 
+// Thermal Oil Heater Sizing Calculator Component
+function ThermalOilHeaterSizingCalculator() {
+  const [heatDuty, setHeatDuty] = useState("");
+  const [inletTemp, setInletTemp] = useState("");
+  const [outletTemp, setOutletTemp] = useState("");
+  const [specificHeat, setSpecificHeat] = useState("2.1");
+  const [oilDensity, setOilDensity] = useState("850");
+  const [result, setResult] = useState<{
+    heaterCapacity: number;
+    oilFlowRate: number;
+    temperatureRise: number;
+  } | null>(null);
+
+  const calculateHeaterSizing = () => {
+    const Q = parseFloat(heatDuty); // kcal/hr
+    const T_in = parseFloat(inletTemp);
+    const T_out = parseFloat(outletTemp);
+    const Cp = parseFloat(specificHeat); // kcal/kg°C
+    const rho = parseFloat(oilDensity); // kg/m³
+
+    if (!Q || !T_in || !T_out || !Cp || !rho || T_out <= T_in) return;
+
+    const deltaT = T_out - T_in;
+    
+    // Mass flow rate: m = Q / (Cp × ΔT)
+    const massFlowRate = Q / (Cp * deltaT); // kg/hr
+    
+    // Volume flow rate: V = m / ρ
+    const volumeFlowRate = massFlowRate / rho; // m³/hr
+    
+    // Heater capacity (add 10% safety margin)
+    const heaterCapacity = Q * 1.1; // kcal/hr
+
+    setResult({
+      heaterCapacity: heaterCapacity,
+      oilFlowRate: volumeFlowRate,
+      temperatureRise: deltaT
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="heatDuty">Heat Duty (kcal/hr)</Label>
+          <Input
+            id="heatDuty"
+            type="number"
+            value={heatDuty}
+            onChange={(e) => setHeatDuty(e.target.value)}
+            placeholder="e.g., 50000"
+          />
+        </div>
+        <div>
+          <Label htmlFor="specificHeat">Specific Heat (kcal/kg°C)</Label>
+          <Input
+            id="specificHeat"
+            type="number"
+            step="0.1"
+            value={specificHeat}
+            onChange={(e) => setSpecificHeat(e.target.value)}
+            placeholder="e.g., 2.1"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="inletTemp">Inlet Oil Temperature (°C)</Label>
+          <Input
+            id="inletTemp"
+            type="number"
+            value={inletTemp}
+            onChange={(e) => setInletTemp(e.target.value)}
+            placeholder="e.g., 180"
+          />
+        </div>
+        <div>
+          <Label htmlFor="outletTemp">Outlet Oil Temperature (°C)</Label>
+          <Input
+            id="outletTemp"
+            type="number"
+            value={outletTemp}
+            onChange={(e) => setOutletTemp(e.target.value)}
+            placeholder="e.g., 220"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="oilDensity">Oil Density (kg/m³)</Label>
+        <Input
+          id="oilDensity"
+          type="number"
+          value={oilDensity}
+          onChange={(e) => setOilDensity(e.target.value)}
+          placeholder="e.g., 850"
+        />
+      </div>
+
+      <Button onClick={calculateHeaterSizing} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Heater Sizing
+      </Button>
+
+      {result !== null && (
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <h4 className="font-semibold text-red-900">Sizing Results</h4>
+          <div className="grid grid-cols-2 gap-4 mt-3 text-red-800">
+            <div>
+              <p className="text-sm text-red-600">Temperature Rise</p>
+              <p className="font-bold">{result.temperatureRise.toFixed(1)} °C</p>
+            </div>
+            <div>
+              <p className="text-sm text-red-600">Oil Flow Rate</p>
+              <p className="font-bold">{result.oilFlowRate.toFixed(2)} m³/hr</p>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-red-300 text-center">
+            <p className="text-sm text-red-600">Required Heater Capacity</p>
+            <p className="font-bold text-xl text-red-900">{result.heaterCapacity.toFixed(0)} kcal/hr</p>
+            <p className="text-sm text-red-600 mt-1">({(result.heaterCapacity * 1.163 / 1000).toFixed(1)} kW)</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Thermal Oil Flow Rate & Pump Sizing Tool Component
+function ThermalOilPumpSizingCalculator() {
+  const [heatLoad, setHeatLoad] = useState("");
+  const [tempRise, setTempRise] = useState("");
+  const [oilSpecificHeat, setOilSpecificHeat] = useState("2.1");
+  const [oilDensity, setOilDensity] = useState("850");
+  const [pipeLength, setPipeLength] = useState("");
+  const [pipeDiameter, setPipeDiameter] = useState("");
+  const [result, setResult] = useState<{
+    flowRate: number;
+    pumpHead: number;
+    pumpPower: number;
+    velocity: number;
+  } | null>(null);
+
+  const calculatePumpSizing = () => {
+    const Q_kW = parseFloat(heatLoad); // kW
+    const deltaT = parseFloat(tempRise); // °C
+    const Cp = parseFloat(oilSpecificHeat); // kcal/kg°C
+    const rho = parseFloat(oilDensity); // kg/m³
+    const L = parseFloat(pipeLength) || 50; // Default 50m
+    const D = parseFloat(pipeDiameter) || 0.1; // Default 100mm
+
+    if (!Q_kW || !deltaT || !Cp || !rho) return;
+
+    // Convert kW to kcal/hr: 1 kW = 860 kcal/hr
+    const Q_kcal = Q_kW * 860;
+    
+    // Mass flow rate: m = Q / (Cp × ΔT)
+    const massFlowRate = Q_kcal / (Cp * deltaT); // kg/hr
+    
+    // Volume flow rate: V = m / ρ
+    const volumeFlowRate = massFlowRate / rho; // m³/hr
+    
+    // Flow velocity in pipe
+    const area = Math.PI * Math.pow(D, 2) / 4;
+    const velocity = (volumeFlowRate / 3600) / area; // m/s
+    
+    // Friction head calculation (simplified)
+    const f = 0.02; // Friction factor for thermal oil
+    const frictionHead = (f * L * Math.pow(velocity, 2)) / (2 * 9.81 * D); // m
+    
+    // Total head (friction + static + fittings)
+    const totalHead = frictionHead + 10 + (frictionHead * 0.3); // m
+    
+    // Pump power: P = ρ × g × Q × H / η
+    const efficiency = 0.75; // 75% pump efficiency
+    const pumpPower = (rho * 9.81 * (volumeFlowRate / 3600) * totalHead) / (efficiency * 1000); // kW
+
+    setResult({
+      flowRate: volumeFlowRate,
+      pumpHead: totalHead,
+      pumpPower: pumpPower,
+      velocity: velocity
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="heatLoad">Heat Load (kW)</Label>
+          <Input
+            id="heatLoad"
+            type="number"
+            value={heatLoad}
+            onChange={(e) => setHeatLoad(e.target.value)}
+            placeholder="e.g., 100"
+          />
+        </div>
+        <div>
+          <Label htmlFor="tempRise">Temperature Rise (°C)</Label>
+          <Input
+            id="tempRise"
+            type="number"
+            value={tempRise}
+            onChange={(e) => setTempRise(e.target.value)}
+            placeholder="e.g., 40"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="oilSpecificHeat">Oil Specific Heat (kcal/kg°C)</Label>
+          <Input
+            id="oilSpecificHeat"
+            type="number"
+            step="0.1"
+            value={oilSpecificHeat}
+            onChange={(e) => setOilSpecificHeat(e.target.value)}
+            placeholder="e.g., 2.1"
+          />
+        </div>
+        <div>
+          <Label htmlFor="oilDensity">Oil Density (kg/m³)</Label>
+          <Input
+            id="oilDensity"
+            type="number"
+            value={oilDensity}
+            onChange={(e) => setOilDensity(e.target.value)}
+            placeholder="e.g., 850"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="pipeLength">Pipe Length (m) - Optional</Label>
+          <Input
+            id="pipeLength"
+            type="number"
+            value={pipeLength}
+            onChange={(e) => setPipeLength(e.target.value)}
+            placeholder="e.g., 50"
+          />
+        </div>
+        <div>
+          <Label htmlFor="pipeDiameter">Pipe Diameter (m) - Optional</Label>
+          <Input
+            id="pipeDiameter"
+            type="number"
+            step="0.001"
+            value={pipeDiameter}
+            onChange={(e) => setPipeDiameter(e.target.value)}
+            placeholder="e.g., 0.1"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculatePumpSizing} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Pump Sizing
+      </Button>
+
+      {result !== null && (
+        <div className="mt-4 p-4 bg-cyan-50 border border-cyan-200 rounded-lg">
+          <h4 className="font-semibold text-cyan-900">Pump Sizing Results</h4>
+          <div className="grid grid-cols-2 gap-4 mt-3 text-cyan-800">
+            <div>
+              <p className="text-sm text-cyan-600">Flow Rate</p>
+              <p className="font-bold">{result.flowRate.toFixed(2)} m³/hr</p>
+            </div>
+            <div>
+              <p className="text-sm text-cyan-600">Flow Velocity</p>
+              <p className="font-bold">{result.velocity.toFixed(2)} m/s</p>
+            </div>
+            <div>
+              <p className="text-sm text-cyan-600">Required Head</p>
+              <p className="font-bold">{result.pumpHead.toFixed(1)} m</p>
+            </div>
+            <div>
+              <p className="text-sm text-cyan-600">Pump Power</p>
+              <p className="font-bold">{result.pumpPower.toFixed(2)} kW</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Combustion Air Requirement Calculator Component
+function CombustionAirCalculator() {
+  const [fuelType, setFuelType] = useState("furnace-oil");
+  const [consumptionRate, setConsumptionRate] = useState("");
+  const [excessAir, setExcessAir] = useState("20");
+  const [result, setResult] = useState<{
+    theoreticalAir: number;
+    totalAir: number;
+    blowerCapacity: number;
+    airVelocity: number;
+  } | null>(null);
+
+  const fuelAirData = {
+    "furnace-oil": { name: "Furnace Oil", airReq: 11.5, unit: "kg/hr" }, // Nm³/kg
+    "diesel": { name: "Diesel", airReq: 11.8, unit: "kg/hr" },
+    "natural-gas": { name: "Natural Gas", airReq: 9.5, unit: "Nm³/hr" }, // Nm³/Nm³
+    "lpg": { name: "LPG", airReq: 23.8, unit: "kg/hr" },
+    "coal": { name: "Coal", airReq: 8.5, unit: "kg/hr" }
+  };
+
+  const calculateCombustionAir = () => {
+    const consumption = parseFloat(consumptionRate);
+    const excess = parseFloat(excessAir);
+    
+    if (!consumption || !excess) return;
+
+    const fuelData = fuelAirData[fuelType as keyof typeof fuelAirData];
+    
+    // Theoretical air requirement
+    const theoreticalAir = consumption * fuelData.airReq; // Nm³/hr
+    
+    // Total air with excess air
+    const totalAir = theoreticalAir * (1 + excess / 100); // Nm³/hr
+    
+    // Blower capacity (add 15% safety margin)
+    const blowerCapacity = totalAir * 1.15; // Nm³/hr
+    
+    // Estimated air velocity in duct (assuming 0.2m diameter)
+    const ductArea = Math.PI * Math.pow(0.2, 2) / 4; // m²
+    const airVelocity = (totalAir / 3600) / ductArea; // m/s
+
+    setResult({
+      theoreticalAir: theoreticalAir,
+      totalAir: totalAir,
+      blowerCapacity: blowerCapacity,
+      airVelocity: airVelocity
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="fuelType">Fuel Type</Label>
+          <Select value={fuelType} onValueChange={setFuelType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(fuelAirData).map(([key, fuel]) => (
+                <SelectItem key={key} value={key}>{fuel.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="consumptionRate">Consumption Rate ({fuelAirData[fuelType as keyof typeof fuelAirData].unit})</Label>
+          <Input
+            id="consumptionRate"
+            type="number"
+            value={consumptionRate}
+            onChange={(e) => setConsumptionRate(e.target.value)}
+            placeholder="e.g., 100"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="excessAir">Excess Air (%)</Label>
+        <Input
+          id="excessAir"
+          type="number"
+          value={excessAir}
+          onChange={(e) => setExcessAir(e.target.value)}
+          placeholder="e.g., 20"
+        />
+      </div>
+
+      <Button onClick={calculateCombustionAir} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Air Requirement
+      </Button>
+
+      {result !== null && (
+        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <h4 className="font-semibold text-yellow-900">Air Requirement Results</h4>
+          <div className="grid grid-cols-2 gap-4 mt-3 text-yellow-800">
+            <div>
+              <p className="text-sm text-yellow-600">Theoretical Air</p>
+              <p className="font-bold">{result.theoreticalAir.toFixed(1)} Nm³/hr</p>
+            </div>
+            <div>
+              <p className="text-sm text-yellow-600">Total Air Required</p>
+              <p className="font-bold">{result.totalAir.toFixed(1)} Nm³/hr</p>
+            </div>
+            <div>
+              <p className="text-sm text-yellow-600">Blower Capacity</p>
+              <p className="font-bold">{result.blowerCapacity.toFixed(1)} Nm³/hr</p>
+            </div>
+            <div>
+              <p className="text-sm text-yellow-600">Air Velocity</p>
+              <p className="font-bold">{result.airVelocity.toFixed(1)} m/s</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Burner Capacity & Efficiency Estimator Component
+function BurnerCapacityCalculator() {
+  const [fuelFlowRate, setFuelFlowRate] = useState("");
+  const [gcv, setGcv] = useState("");
+  const [efficiency, setEfficiency] = useState("85");
+  const [fuelType, setFuelType] = useState("furnace-oil");
+  const [result, setResult] = useState<{
+    burnerOutput: number;
+    fuelUtilization: number;
+    heatInput: number;
+    heatLoss: number;
+  } | null>(null);
+
+  const fuelGCVData = {
+    "furnace-oil": { name: "Furnace Oil", gcv: 10000, unit: "kg/hr" }, // kcal/kg
+    "diesel": { name: "Diesel", gcv: 10200, unit: "kg/hr" },
+    "natural-gas": { name: "Natural Gas", gcv: 8500, unit: "Nm³/hr" }, // kcal/Nm³
+    "lpg": { name: "LPG", gcv: 11000, unit: "kg/hr" }
+  };
+
+  const handleFuelTypeChange = (fuel: string) => {
+    setFuelType(fuel);
+    setGcv(fuelGCVData[fuel as keyof typeof fuelGCVData].gcv.toString());
+  };
+
+  const calculateBurnerCapacity = () => {
+    const flowRate = parseFloat(fuelFlowRate);
+    const grossCV = parseFloat(gcv);
+    const eff = parseFloat(efficiency);
+    
+    if (!flowRate || !grossCV || !eff) return;
+
+    // Heat input = Flow rate × GCV
+    const heatInput = flowRate * grossCV; // kcal/hr
+    
+    // Burner output = Heat input × Efficiency
+    const burnerOutput = heatInput * (eff / 100); // kcal/hr
+    
+    // Heat loss = Heat input - Burner output
+    const heatLoss = heatInput - burnerOutput; // kcal/hr
+    
+    // Fuel utilization rate (same as efficiency)
+    const fuelUtilization = eff; // %
+
+    setResult({
+      burnerOutput: burnerOutput,
+      fuelUtilization: fuelUtilization,
+      heatInput: heatInput,
+      heatLoss: heatLoss
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="fuelType">Fuel Type</Label>
+          <Select value={fuelType} onValueChange={handleFuelTypeChange}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(fuelGCVData).map(([key, fuel]) => (
+                <SelectItem key={key} value={key}>{fuel.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="fuelFlowRate">Fuel Flow Rate ({fuelGCVData[fuelType as keyof typeof fuelGCVData].unit})</Label>
+          <Input
+            id="fuelFlowRate"
+            type="number"
+            value={fuelFlowRate}
+            onChange={(e) => setFuelFlowRate(e.target.value)}
+            placeholder="e.g., 10"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="gcv">Gross Calorific Value (kcal/kg or kcal/Nm³)</Label>
+          <Input
+            id="gcv"
+            type="number"
+            value={gcv}
+            onChange={(e) => setGcv(e.target.value)}
+            placeholder="e.g., 10000"
+          />
+        </div>
+        <div>
+          <Label htmlFor="efficiency">Burner Efficiency (%)</Label>
+          <Input
+            id="efficiency"
+            type="number"
+            value={efficiency}
+            onChange={(e) => setEfficiency(e.target.value)}
+            placeholder="e.g., 85"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculateBurnerCapacity} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Burner Performance
+      </Button>
+
+      {result !== null && (
+        <div className="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+          <h4 className="font-semibold text-indigo-900">Burner Performance Results</h4>
+          <div className="grid grid-cols-2 gap-4 mt-3 text-indigo-800">
+            <div>
+              <p className="text-sm text-indigo-600">Heat Input</p>
+              <p className="font-bold">{result.heatInput.toFixed(0)} kcal/hr</p>
+            </div>
+            <div>
+              <p className="text-sm text-indigo-600">Heat Loss</p>
+              <p className="font-bold">{result.heatLoss.toFixed(0)} kcal/hr</p>
+            </div>
+            <div>
+              <p className="text-sm text-indigo-600">Fuel Utilization</p>
+              <p className="font-bold">{result.fuelUtilization.toFixed(1)} %</p>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-indigo-300 text-center">
+            <p className="text-sm text-indigo-600">Burner Output</p>
+            <p className="font-bold text-xl text-indigo-900">{result.burnerOutput.toFixed(0)} kcal/hr</p>
+            <p className="text-sm text-indigo-600 mt-1">({(result.burnerOutput * 1.163 / 1000).toFixed(1)} kW)</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Nozzle Reinforcement Calculator Component
 function NozzleReinforcementCalculator() {
   const [vesselDiameter, setVesselDiameter] = useState("");
@@ -10870,6 +11417,130 @@ export default function DesignToolsPage() {
                         <DialogTitle>Chimney Diameter & Height Calculator</DialogTitle>
                       </DialogHeader>
                       <ChimneyDiameterHeightCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Thermal Oil Heater Sizing Calculator</CardTitle>
+                    <CardDescription>
+                      Calculate heater capacity and thermal oil flow rate
+                    </CardDescription>
+                  </div>
+                  <Thermometer className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Based on heat duty, temperature rise, and oil properties
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Thermal Oil Heater Sizing Calculator</DialogTitle>
+                      </DialogHeader>
+                      <ThermalOilHeaterSizingCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Thermal Oil Pump Sizing Tool</CardTitle>
+                    <CardDescription>
+                      Calculate flow rate, pump head and power requirements
+                    </CardDescription>
+                  </div>
+                  <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Includes friction head and pump efficiency calculations
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Thermal Oil Flow Rate & Pump Sizing Tool</DialogTitle>
+                      </DialogHeader>
+                      <ThermalOilPumpSizingCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Combustion Air Requirement Calculator</CardTitle>
+                    <CardDescription>
+                      Calculate required combustion air and blower sizing
+                    </CardDescription>
+                  </div>
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Based on fuel type, consumption rate, and excess air percentage
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Combustion Air Requirement Calculator</DialogTitle>
+                      </DialogHeader>
+                      <CombustionAirCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Burner Capacity & Efficiency Estimator</CardTitle>
+                    <CardDescription>
+                      Calculate burner output and fuel utilization efficiency
+                    </CardDescription>
+                  </div>
+                  <Bolt className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Based on fuel flow rate, GCV, and combustion efficiency
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Burner Capacity & Efficiency Estimator</DialogTitle>
+                      </DialogHeader>
+                      <BurnerCapacityCalculator />
                     </DialogContent>
                   </Dialog>
                 </CardContent>
