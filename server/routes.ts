@@ -49,6 +49,7 @@ import { default as cleanPaymentRoutes } from "./clean-payment-routes";
 import { default as basicAllocationApi } from "./basic-allocation-api";
 import { setupDedicatedPaymentCreation } from "./dedicated-payment-creation";
 import { setupCleanPaymentCreation } from "./clean-payment-creation";
+import { setupDebugWorkOrderRoutes } from "./debug-work-orders";
 import { default as simpleAllocationEndpoint } from "./simple-allocation-endpoint";
 import { cleanPaymentUpdateRouter } from "./clean-payment-update";
 import { registerFileUploadTestRoutes } from "./test/file-upload-test";
