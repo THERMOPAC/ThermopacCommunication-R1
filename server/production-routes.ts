@@ -226,13 +226,13 @@ export function setupProductionRoutes(app: Router) {
         where: inArray(workOrderItems.workOrderId, existingWorkOrderIds)
       });
       
-      // Create set of component item IDs that already have work orders
-      const existingComponentWorkOrderIds = new Set();
+      // Create set of item IDs that already have work orders (both project items and potential components)
+      const existingItemWorkOrderIds = new Set();
       existingWorkOrderItems.forEach(woItem => {
-        // Check if this work order item corresponds to a component
+        // Check if this work order item corresponds to a project item
         const projectItem = allProjectMakeItems.find(pi => pi.id === woItem.projectItemId);
         if (projectItem) {
-          existingComponentWorkOrderIds.add(projectItem.itemId);
+          existingItemWorkOrderIds.add(projectItem.itemId);
         }
       });
       
@@ -242,7 +242,7 @@ export function setupProductionRoutes(app: Router) {
         
         if (componentMasterItem && 
             componentMasterItem.makeOrBuy === 'Make' && 
-            !existingComponentWorkOrderIds.has(rel.componentItemId)) {
+            !existingItemWorkOrderIds.has(rel.componentItemId)) {
           
           // This component needs a work order - find its parent project item
           const parentProjectItem = allProjectMakeItems.find(item => item.itemId === rel.parentItemId);
