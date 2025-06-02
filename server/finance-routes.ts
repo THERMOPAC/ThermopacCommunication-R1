@@ -2800,7 +2800,9 @@ router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, re
       const invoices = result.rows;
       
       console.log('Outstanding invoices query result with customer names:');
-      console.log('First invoice sample:', JSON.stringify(invoices[0], null, 2));
+      if (invoices && invoices.length > 0) {
+        console.log('First invoice sample:', JSON.stringify(invoices[0], null, 2));
+      }
       
       // Calculate total outstanding amount
       const totalOutstanding = invoices.reduce(
