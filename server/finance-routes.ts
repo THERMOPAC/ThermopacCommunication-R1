@@ -2832,26 +2832,6 @@ router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, re
 /**
  * Apply available advance payments to an existing invoice
  */
-    
-    console.log('Querying for outstanding invoices with filters:', { customerId, invoiceType });
-    const result = await pool.query(query, params);
-    const invoices = result.rows;
-    
-    // Calculate total outstanding amount
-    const totalOutstanding = invoices.reduce((sum, invoice) => 
-      sum + parseFloat(invoice.outstandingAmount), 0).toFixed(2);
-    
-    res.json({
-      invoices: invoices,
-      totalOutstanding: totalOutstanding,
-      count: invoices.length
-    });
-  } catch (error) {
-    console.error('Error getting outstanding invoices:', error);
-    // Return the empty response structure instead of an error
-    res.json(emptyResponse);
-  }
-});
 
 /**
  * Get customers with outstanding invoices - DIRECT VERSION TO BYPASS ROUTING ISSUES

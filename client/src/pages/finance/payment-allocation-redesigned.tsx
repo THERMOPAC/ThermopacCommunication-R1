@@ -67,7 +67,7 @@ export default function PaymentAllocationRedesigned() {
 
   // Fetch outstanding invoices
   const { data: invoicesData, isLoading: invoicesLoading } = useQuery({
-    queryKey: ['/api/finance/outstanding-invoices', selectedCustomerId, selectedPayment?.paymentType, Date.now()],
+    queryKey: ['/api/finance/outstanding-invoices', selectedCustomerId, selectedPayment?.paymentType],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (selectedCustomerId && selectedCustomerId !== 'all') {
@@ -76,14 +76,13 @@ export default function PaymentAllocationRedesigned() {
       if (selectedPayment?.paymentType && selectedPayment.paymentType !== 'all') {
         params.append('invoiceType', selectedPayment.paymentType);
       }
-      params.append('_t', Date.now().toString()); // Cache buster
       
       const response = await fetch(`/api/finance/outstanding-invoices?${params}`);
       if (!response.ok) {
         throw new Error('Failed to fetch invoices');
       }
       const data = await response.json();
-      console.log('Fresh invoice data from API:', data);
+      console.log('Invoice data from API:', data);
       return data;
     },
     enabled: !!selectedCustomerId,

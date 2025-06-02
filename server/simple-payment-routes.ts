@@ -185,8 +185,12 @@ router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, re
     console.log('Filter by invoice type:', invoiceType || 'All');
     
     let query = `
-      SELECT * FROM invoices 
-      WHERE outstanding_amount > 0
+      SELECT 
+        i.*,
+        c.bp_name as customer_name
+      FROM invoices i
+      LEFT JOIN customers c ON i.customer_id = c.id
+      WHERE i.outstanding_amount > 0
     `;
     
     const params: any[] = [];
@@ -194,7 +198,7 @@ router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, re
     // Add optional filter
     if (invoiceType) {
       params.push(invoiceType);
-      query += ` AND invoice_type = $1`;
+      query += ` AND i.invoice_type = $1`;
     }
     
     query += ` LIMIT 20`;
@@ -218,7 +222,7 @@ router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, re
         : parseFloat(invoice.outstanding_amount) > 0 
           ? 'Partially Paid' 
           : 'Paid',
-      customerName: 'Customer Name' // We'll get this separately if needed
+      customerName: invoice.customer_name || 'Unknown Customer' // Use actual customer name from database
     }));
     
     // Calculate total
