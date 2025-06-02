@@ -21,11 +21,9 @@ function getCurrentFinancialYear(): string {
   }
 }
 
-// Get all advance tax calculations for a user, grouped by financial year
+// Get all advance tax calculations (company-wide data accessible by users with Finance module permission)
 router.get('/api/advance-tax/calculations', ensureAuthenticated, async (req, res) => {
   try {
-    const userId = req.user!.id;
-    
     const calculations = await db
       .select({
         id: advanceTaxCalculations.id,
@@ -49,7 +47,6 @@ router.get('/api/advance-tax/calculations', ensureAuthenticated, async (req, res
         lastPaymentDate: advanceTaxCalculations.lastPaymentDate,
       })
       .from(advanceTaxCalculations)
-      .where(eq(advanceTaxCalculations.userId, userId))
       .orderBy(desc(advanceTaxCalculations.financialYear), desc(advanceTaxCalculations.createdAt));
 
     res.json(calculations);
@@ -59,19 +56,15 @@ router.get('/api/advance-tax/calculations', ensureAuthenticated, async (req, res
   }
 });
 
-// Get a specific calculation by ID
+// Get a specific calculation by ID (company-wide data)
 router.get('/api/advance-tax/calculations/:id', ensureAuthenticated, async (req, res) => {
   try {
-    const userId = req.user!.id;
     const calculationId = parseInt(req.params.id);
 
     const [calculation] = await db
       .select()
       .from(advanceTaxCalculations)
-      .where(and(
-        eq(advanceTaxCalculations.id, calculationId),
-        eq(advanceTaxCalculations.userId, userId)
-      ));
+      .where(eq(advanceTaxCalculations.id, calculationId));
 
     if (!calculation) {
       return res.status(404).json({ error: 'Calculation not found' });
@@ -113,14 +106,11 @@ router.post('/api/advance-tax/calculations', ensureAuthenticated, async (req, re
     const cessAmount = taxPlusSurcharge * cess;
     const totalTaxLiability = taxPlusSurcharge + cessAmount;
 
-    // Check if calculation already exists for this user and financial year
+    // Check if calculation already exists for this financial year (company-wide)
     const [existingCalculation] = await db
       .select()
       .from(advanceTaxCalculations)
-      .where(and(
-        eq(advanceTaxCalculations.userId, userId),
-        eq(advanceTaxCalculations.financialYear, financialYear)
-      ));
+      .where(eq(advanceTaxCalculations.financialYear, financialYear));
 
     let calculation;
 
