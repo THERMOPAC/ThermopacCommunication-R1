@@ -10,6 +10,7 @@ import { generateWorkOrders } from './production/work-order-generator';
 import { generateWorkOrdersForProject } from './optimized-work-order-generation';
 import { generateImprovedWorkOrders } from './production/improved-work-order-generator';
 import { generateDirectWorkOrders } from './production/direct-work-order-generator';
+import { detectComponentsNeedingWorkOrders } from './component-work-order-detector';
 import { cleanupDuplicateWorkOrders } from './production/direct-work-order-generator';
 import { 
   generateWorkOrdersForNewComponents, 
@@ -394,6 +395,46 @@ export function setupProductionRoutes(app: Router) {
     const parentPreviewItems: PreviewItem[] = mapItemsToPreview(parentItems, true);
     const childPreviewItems: PreviewItem[] = mapItemsToPreview(childItems, false);
     const allPreviewItems = [...parentPreviewItems, ...childPreviewItems];
+    
+    // ENHANCED LOGIC: Check for newly added sub-assembly components that need work orders
+    if (allPreviewItems.length === 0 && hasExistingWorkOrders) {
+      console.log('[PREVIEW] No regular items found, checking for components needing work orders...');
+      
+      const componentsNeedingWorkOrders = await detectComponentsNeedingWorkOrders(projectId);
+      
+      if (componentsNeedingWorkOrders.length > 0) {
+        console.log(`[PREVIEW] Found ${componentsNeedingWorkOrders.length} components needing work orders`);
+        
+        // Create preview items for these components
+        const componentPreviewItems = componentsNeedingWorkOrders.map((comp, index) => ({
+          sequenceNumber: index + 1,
+          itemCode: comp.componentCode,
+          description: comp.componentDescription,
+          quantity: comp.quantity,
+          unit: 'EA',
+          makeOrBuy: 'Make',
+          itemType: 'Child' as const,
+          parentItemCode: comp.parentCode
+        }));
+        
+        const nextSeqNumber = (await db.query.workOrders.findMany({
+          where: eq(workOrders.projectId, projectId),
+        })).length + 1;
+        
+        return res.status(200).json({
+          project: {
+            id: project.id,
+            code: project.code,
+            name: project.name
+          },
+          itemCount: componentPreviewItems.length,
+          items: componentPreviewItems,
+          parentWorkOrderNumber: `WO-${project.code}-${nextSeqNumber}`,
+          childWorkOrderNumber: `WO-${project.code}-${nextSeqNumber + 1}`,
+          message: `Found ${componentPreviewItems.length} sub-assembly components that need work orders`
+        });
+      }
+    }
     
     // Check if we have any items to process (including virtual components)
     if (allPreviewItems.length === 0) {
