@@ -45,6 +45,7 @@ import { simplifiedAllocationApi } from "./simplified-allocation-api";
 import { ultraSimpleAllocationApi } from "./ultra-simple-allocation";
 import { default as simplePaymentRoutes } from "./simple-payment-routes";
 import { default as financeWriteOffsRouter } from "./finance-write-offs";
+import { setupDebugWorkOrderRoutes } from "./debug-work-orders";
 import { default as cleanPaymentRoutes } from "./clean-payment-routes";
 import { default as basicAllocationApi } from "./basic-allocation-api";
 import { setupDedicatedPaymentCreation } from "./dedicated-payment-creation";
@@ -2140,6 +2141,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.use('/api/finance/write-offs', financeWriteOffsRouter);
   console.log('Write-off routes registered at /api/finance/write-offs');
+
+  // Setup debug work order routes
+  setupDebugWorkOrderRoutes(app);
+  console.log('Debug work order routes registered');
 
   // Use standalone routes that bypass middleware (for special cases only)
   app.use('/api/standalone', standaloneRoutes);
