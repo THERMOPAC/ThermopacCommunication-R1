@@ -375,7 +375,7 @@ function HelicalCoilPressureLossCalculator() {
     const Dc = parseFloat(coilDiameter) / 1000; // Convert mm to m
     const p = parseFloat(coilPitch) / 1000; // Convert mm to m
     const N = parseFloat(numberOfTurns);
-    const Q = parseFloat(flowRate) / 60000; // Convert L/min to m³/s
+    const Q = parseFloat(flowRate) / 3600; // Convert m³/hr to m³/s
     const rho = parseFloat(density);
     const mu = parseFloat(viscosity);
 
@@ -384,8 +384,8 @@ function HelicalCoilPressureLossCalculator() {
     // Calculate tube length
     const tubeLength = N * Math.sqrt(Math.pow(Math.PI * Dc, 2) + Math.pow(p, 2));
 
-    // Calculate flow velocity
-    const A = Math.PI * Math.pow(Di / 2, 2); // Cross-sectional area
+    // Calculate flow velocity: v = Q / A where A = π * d² / 4
+    const A = Math.PI * Math.pow(Di, 2) / 4; // Cross-sectional area
     const velocity = Q / A;
 
     // Calculate Reynolds number
@@ -485,14 +485,14 @@ function HelicalCoilPressureLossCalculator() {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="flowRate">Flow Rate (L/min)</Label>
+          <Label htmlFor="flowRate">Flow Rate (m³/hr)</Label>
           <Input
             id="flowRate"
             type="number"
             step="0.1"
             value={flowRate}
             onChange={(e) => setFlowRate(e.target.value)}
-            placeholder="e.g., 100"
+            placeholder="e.g., 5.0"
           />
         </div>
         <div>
