@@ -1214,9 +1214,9 @@ router.get('/reports/invoice-aging', ensureAuthenticated, async (req: Request, r
 });
 
 /**
- * Get BRC document info (testing endpoint)
+ * Get BRC document PDF
  */
-router.get('/brc/:id/document', async (req: Request, res: Response) => {
+router.get('/brc/:id/document', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     console.log('🔍 BRC document request received for ID:', req.params.id);
     console.log('🔍 User authenticated:', !!req.user);
@@ -1249,19 +1249,77 @@ router.get('/brc/:id/document', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'No document found for this BRC' });
     }
 
-    // For now, return error asking for cloud storage credentials
-    return res.status(500).json({ 
-      error: 'Cloud storage access requires credentials. Please provide GOOGLE_CLOUD_CREDENTIALS environment variable.',
-      documentPath: brc.document_path,
-      certificateNumber: brc.certificate_number
+    // Import GCS client dynamically
+    const { Storage } = require('@google-cloud/storage');
+    
+    // Initialize Google Cloud Storage with credentials
+    let storage;
+    try {
+      if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
+        const credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS);
+        storage = new Storage({
+          projectId: credentials.project_id,
+          credentials: credentials
+        });
+        console.log('✅ GCS client initialized with credentials');
+      } else {
+        console.log('❌ No Google Cloud credentials found');
+        return res.status(500).json({ error: 'Storage service not configured' });
+      }
+    } catch (error) {
+      console.error('❌ Error initializing GCS client:', error);
+      return res.status(500).json({ error: 'Storage service unavailable' });
+    }
+
+    const bucketName = 'thermopac_storage';
+    const bucket = storage.bucket(bucketName);
+    const file = bucket.file(brc.document_path);
+
+    console.log('🔍 Checking file existence:', brc.document_path);
+
+    // Check if file exists
+    const [exists] = await file.exists();
+    if (!exists) {
+      console.log('❌ File not found in storage:', brc.document_path);
+      return res.status(404).json({ error: 'Document file not found in storage' });
+    }
+
+    console.log('✅ File exists, getting metadata...');
+
+    // Get file metadata to set appropriate headers
+    const [metadata] = await file.getMetadata();
+    
+    // Set appropriate headers for PDF viewing
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${brc.certificate_number}.pdf"`);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    
+    console.log('✅ Headers set, starting file stream...');
+
+    // Stream the file directly to the response
+    const stream = file.createReadStream();
+    
+    stream.on('error', (error) => {
+      console.error('❌ Error streaming file:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Error reading document' });
+      }
     });
+    
+    stream.on('end', () => {
+      console.log('✅ File stream completed successfully');
+    });
+    
+    stream.pipe(res);
     
   } catch (error: any) {
     console.error('❌ Error getting BRC document:', error);
-    return res.status(500).json({ 
-      error: 'Failed to retrieve BRC document',
-      message: error.message
-    });
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: 'Failed to retrieve BRC document',
+        message: error.message
+      });
+    }
   }
 });
 
