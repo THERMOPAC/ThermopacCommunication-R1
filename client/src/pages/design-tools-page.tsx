@@ -334,6 +334,263 @@ function HeadThicknessCalculator() {
   );
 }
 
+// Helical Coil Pressure Loss Calculator Component
+function HelicalCoilPressureLossCalculator() {
+  const [innerDiameter, setInnerDiameter] = useState("");
+  const [coilDiameter, setCoilDiameter] = useState("");
+  const [coilPitch, setCoilPitch] = useState("");
+  const [numberOfTurns, setNumberOfTurns] = useState("");
+  const [flowRate, setFlowRate] = useState("");
+  const [temperature, setTemperature] = useState("");
+  const [fluidPreset, setFluidPreset] = useState("custom");
+  const [density, setDensity] = useState("");
+  const [viscosity, setViscosity] = useState("");
+  const [result, setResult] = useState<{
+    tubeLength: number;
+    velocity: number;
+    reynolds: number;
+    flowRegime: string;
+    deanNumber: number;
+    pressureDrop: number;
+  } | null>(null);
+
+  // Fluid presets for common thermal oils
+  const fluidPresets = {
+    "dowtherm-a": { density: 866, viscosity: 0.00175, name: "Dowtherm A (300°C)" },
+    "therminol-66": { density: 765, viscosity: 0.00085, name: "Therminol 66 (350°C)" },
+    "marlotherm-sh": { density: 820, viscosity: 0.0012, name: "Marlotherm SH (300°C)" },
+    "custom": { density: 0, viscosity: 0, name: "Custom" }
+  };
+
+  const handleFluidPresetChange = (preset: string) => {
+    setFluidPreset(preset);
+    if (preset !== "custom") {
+      setDensity(fluidPresets[preset as keyof typeof fluidPresets].density.toString());
+      setViscosity(fluidPresets[preset as keyof typeof fluidPresets].viscosity.toString());
+    }
+  };
+
+  const calculatePressureLoss = () => {
+    const Di = parseFloat(innerDiameter) / 1000; // Convert mm to m
+    const Dc = parseFloat(coilDiameter) / 1000; // Convert mm to m
+    const p = parseFloat(coilPitch) / 1000; // Convert mm to m
+    const N = parseFloat(numberOfTurns);
+    const Q = parseFloat(flowRate) / 60000; // Convert L/min to m³/s
+    const rho = parseFloat(density);
+    const mu = parseFloat(viscosity);
+
+    if (!Di || !Dc || !p || !N || !Q || !rho || !mu) return;
+
+    // Calculate tube length
+    const tubeLength = N * Math.sqrt(Math.pow(Math.PI * Dc, 2) + Math.pow(p, 2));
+
+    // Calculate flow velocity
+    const A = Math.PI * Math.pow(Di / 2, 2); // Cross-sectional area
+    const velocity = Q / A;
+
+    // Calculate Reynolds number
+    const reynolds = (rho * velocity * Di) / mu;
+
+    // Determine flow regime and friction factor
+    let frictionFactor: number;
+    let flowRegime: string;
+    
+    if (reynolds < 2300) {
+      frictionFactor = 64 / reynolds;
+      flowRegime = "Laminar";
+    } else {
+      frictionFactor = 0.079 * Math.pow(reynolds, -0.25);
+      flowRegime = "Turbulent";
+    }
+
+    // Calculate Dean number for helical correction
+    const deanNumber = reynolds * Math.sqrt(Di / Dc);
+
+    // Apply helical coil correction factor
+    let helicalFactor = 1;
+    if (deanNumber > 11.6) {
+      if (reynolds < 2300) {
+        // Laminar flow helical correction
+        helicalFactor = 1 + 0.033 * Math.pow(deanNumber, 0.5);
+      } else {
+        // Turbulent flow helical correction
+        helicalFactor = 1 + 0.09 * Math.pow(deanNumber, 0.2);
+      }
+    }
+
+    // Calculate pressure drop using Darcy-Weisbach equation
+    const pressureDropPa = helicalFactor * frictionFactor * (tubeLength / Di) * (rho * Math.pow(velocity, 2)) / 2;
+    const pressureDropBar = pressureDropPa / 100000; // Convert Pa to bar
+
+    setResult({
+      tubeLength: tubeLength,
+      velocity: velocity,
+      reynolds: reynolds,
+      flowRegime: flowRegime,
+      deanNumber: deanNumber,
+      pressureDrop: pressureDropBar
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="innerDiameter">Inner Tube Diameter (mm)</Label>
+          <Input
+            id="innerDiameter"
+            type="number"
+            step="0.1"
+            value={innerDiameter}
+            onChange={(e) => setInnerDiameter(e.target.value)}
+            placeholder="e.g., 25.4"
+          />
+        </div>
+        <div>
+          <Label htmlFor="coilDiameter">Coil Diameter - Centerline (mm)</Label>
+          <Input
+            id="coilDiameter"
+            type="number"
+            value={coilDiameter}
+            onChange={(e) => setCoilDiameter(e.target.value)}
+            placeholder="e.g., 500"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="coilPitch">Coil Pitch (mm)</Label>
+          <Input
+            id="coilPitch"
+            type="number"
+            step="0.1"
+            value={coilPitch}
+            onChange={(e) => setCoilPitch(e.target.value)}
+            placeholder="e.g., 50"
+          />
+        </div>
+        <div>
+          <Label htmlFor="numberOfTurns">Number of Turns</Label>
+          <Input
+            id="numberOfTurns"
+            type="number"
+            step="0.5"
+            value={numberOfTurns}
+            onChange={(e) => setNumberOfTurns(e.target.value)}
+            placeholder="e.g., 10"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="flowRate">Flow Rate (L/min)</Label>
+          <Input
+            id="flowRate"
+            type="number"
+            step="0.1"
+            value={flowRate}
+            onChange={(e) => setFlowRate(e.target.value)}
+            placeholder="e.g., 100"
+          />
+        </div>
+        <div>
+          <Label htmlFor="temperature">Fluid Temperature (°C)</Label>
+          <Input
+            id="temperature"
+            type="number"
+            value={temperature}
+            onChange={(e) => setTemperature(e.target.value)}
+            placeholder="e.g., 300"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="fluidPreset">Fluid Properties</Label>
+        <Select value={fluidPreset} onValueChange={handleFluidPresetChange}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(fluidPresets).map(([key, preset]) => (
+              <SelectItem key={key} value={key}>{preset.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="density">Density (kg/m³)</Label>
+          <Input
+            id="density"
+            type="number"
+            step="0.1"
+            value={density}
+            onChange={(e) => setDensity(e.target.value)}
+            placeholder="e.g., 866"
+            disabled={fluidPreset !== "custom"}
+          />
+        </div>
+        <div>
+          <Label htmlFor="viscosity">Dynamic Viscosity (Pa·s)</Label>
+          <Input
+            id="viscosity"
+            type="number"
+            step="0.00001"
+            value={viscosity}
+            onChange={(e) => setViscosity(e.target.value)}
+            placeholder="e.g., 0.00175"
+            disabled={fluidPreset !== "custom"}
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculatePressureLoss} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Pressure Loss
+      </Button>
+
+      {result !== null && (
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h4 className="font-semibold text-blue-900">Calculation Results</h4>
+          <div className="grid grid-cols-2 gap-4 mt-3 text-blue-800">
+            <div>
+              <p className="text-sm text-blue-600">Tube Length</p>
+              <p className="font-bold">{result.tubeLength.toFixed(2)} m</p>
+            </div>
+            <div>
+              <p className="text-sm text-blue-600">Flow Velocity</p>
+              <p className="font-bold">{result.velocity.toFixed(2)} m/s</p>
+            </div>
+            <div>
+              <p className="text-sm text-blue-600">Reynolds Number</p>
+              <p className="font-bold">{result.reynolds.toFixed(0)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-blue-600">Flow Regime</p>
+              <p className="font-bold">{result.flowRegime}</p>
+            </div>
+            <div>
+              <p className="text-sm text-blue-600">Dean Number</p>
+              <p className="font-bold">{result.deanNumber.toFixed(1)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-blue-600">Pressure Drop</p>
+              <p className="font-bold text-lg">{result.pressureDrop.toFixed(4)} bar</p>
+            </div>
+          </div>
+          <p className="text-xs text-blue-600 mt-3">
+            Calculation includes Dean number correction for helical coil curvature effects
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Nozzle Reinforcement Calculator Component
 function NozzleReinforcementCalculator() {
   const [vesselDiameter, setVesselDiameter] = useState("");
@@ -8659,6 +8916,7 @@ export default function DesignToolsPage() {
             <TabsTrigger value="mechanical">Mechanical Design</TabsTrigger>
             <TabsTrigger value="pressure-vessel">Pressure Vessel Design</TabsTrigger>
             <TabsTrigger value="heat-exchanger">Heat Exchanger Design</TabsTrigger>
+            <TabsTrigger value="thermal-heaters">Thermal Heaters</TabsTrigger>
             <TabsTrigger value="piping">Piping Design</TabsTrigger>
             <TabsTrigger value="electrical">Electrical Design</TabsTrigger>
             <TabsTrigger value="analysis">Analysis Tools</TabsTrigger>
@@ -9671,6 +9929,49 @@ export default function DesignToolsPage() {
                         <DialogTitle>Gasket Load/Seating Stress Calculator</DialogTitle>
                       </DialogHeader>
                       <GasketLoadCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+            </div>
+          </TabsContent>
+
+          {/* Thermal Heaters Tab */}
+          <TabsContent value="thermal-heaters" className="space-y-6">
+            <div className="text-center mb-6">
+              <h3 className="text-lg font-semibold mb-2">Thermal Heater Design Tools</h3>
+              <p className="text-muted-foreground">Professional thermal system design and analysis tools</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Helical Coil Pressure Loss Calculator</CardTitle>
+                    <CardDescription>
+                      Calculate pressure drop for thermal oils in helical coils
+                    </CardDescription>
+                  </div>
+                  <Waves className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Includes Dean number correction for helical curvature effects
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Helical Coil Pressure Loss Calculator</DialogTitle>
+                      </DialogHeader>
+                      <HelicalCoilPressureLossCalculator />
                     </DialogContent>
                   </Dialog>
                 </CardContent>
