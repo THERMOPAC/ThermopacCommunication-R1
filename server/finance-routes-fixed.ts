@@ -1216,7 +1216,7 @@ router.get('/reports/invoice-aging', ensureAuthenticated, async (req: Request, r
 /**
  * Get BRC document PDF
  */
-router.get('/brc/:id/document', ensureAuthenticated, async (req: Request, res: Response) => {
+router.get('/brc/:id/document', async (req: Request, res: Response) => {
   try {
     console.log('🔍 BRC document request received for ID:', req.params.id);
     console.log('🔍 User authenticated:', !!req.user);
