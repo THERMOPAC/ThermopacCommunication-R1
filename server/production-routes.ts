@@ -220,11 +220,15 @@ export function setupProductionRoutes(app: Router) {
     
     // If we have existing work orders, check for newly added components that don't have work orders
     if (hasExistingWorkOrders) {
+      console.log(`[DEBUG] Project ${projectId} has existing work orders, checking for components...`);
+      
       // Get existing work order items to see which components already have work orders
       const existingWorkOrderIds = existingWorkOrders.map(wo => wo.id);
       const existingWorkOrderItems = await db.query.workOrderItems.findMany({
         where: inArray(workOrderItems.workOrderId, existingWorkOrderIds)
       });
+      
+      console.log(`[DEBUG] Found ${existingWorkOrderItems.length} existing work order items`);
       
       // Create set of item IDs that already have work orders (both project items and potential components)
       const existingItemWorkOrderIds = new Set();
@@ -236,13 +240,25 @@ export function setupProductionRoutes(app: Router) {
         }
       });
       
+      console.log(`[DEBUG] Items with existing work orders:`, Array.from(existingItemWorkOrderIds));
+      console.log(`[DEBUG] Found ${allItemComponentRelationships.length} component relationships`);
+      
       // Now check each parent item for components that don't have work orders
       allItemComponentRelationships.forEach(rel => {
         const componentMasterItem = masterItemsMap.get(rel.componentItemId);
         
+        console.log(`[DEBUG] Checking component ${rel.componentItemId}:`, {
+          exists: !!componentMasterItem,
+          makeOrBuy: componentMasterItem?.makeOrBuy,
+          hasWorkOrder: existingItemWorkOrderIds.has(rel.componentItemId),
+          itemCode: componentMasterItem?.itemCode
+        });
+        
         if (componentMasterItem && 
             componentMasterItem.makeOrBuy === 'Make' && 
             !existingItemWorkOrderIds.has(rel.componentItemId)) {
+          
+          console.log(`[DEBUG] Component ${componentMasterItem.itemCode} needs a work order`);
           
           // This component needs a work order - find its parent project item
           const parentProjectItem = allProjectMakeItems.find(item => item.itemId === rel.parentItemId);
@@ -254,6 +270,8 @@ export function setupProductionRoutes(app: Router) {
             );
             
             const componentQuantity = componentRelation?.quantity || 1;
+            
+            console.log(`[DEBUG] Creating virtual item for component ${componentMasterItem.itemCode}`);
             
             // Create virtual project item for this component
             virtualChildItems.push({
@@ -269,9 +287,13 @@ export function setupProductionRoutes(app: Router) {
               actualCost: null,
               estimatedCost: null
             });
+          } else {
+            console.log(`[DEBUG] No parent project item found for component ${componentMasterItem.itemCode}`);
           }
         }
       });
+      
+      console.log(`[DEBUG] Created ${virtualChildItems.length} virtual child items`);
     } else {
       // Original logic for projects without existing work orders
       parentsWithComponents.forEach(parentItemId => {
