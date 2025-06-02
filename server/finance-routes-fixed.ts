@@ -895,7 +895,7 @@ router.put('/invoices/:id/mark-domestic', ensureAuthenticated, async (req: Reque
     
     const result = await pool.query(`
       UPDATE invoices 
-      SET is_export = false, updated_at = NOW()
+      SET is_export = false, brc_required = false, updated_at = NOW()
       WHERE id = $1
       RETURNING *
     `, [invoiceId]);
