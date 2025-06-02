@@ -1903,8 +1903,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
       
-      // Only allow Superuser to manually trigger processing
-      if (req.user!.role !== "Superuser") {
+      // Check if user has Task Management edit permissions or is Superuser
+      const userPermissions = await storage.getUserModulePermissions(req.user!.id);
+      const hasTaskManagementEdit = userPermissions?.["Task Management"]?.canEdit || false;
+      
+      if (!hasTaskManagementEdit && req.user!.role !== "Superuser") {
         return res.status(403).json({ message: "Not authorized to process recurring patterns" });
       }
       
