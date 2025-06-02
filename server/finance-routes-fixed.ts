@@ -1250,7 +1250,7 @@ router.get('/brc/:id/document', async (req: Request, res: Response) => {
     }
 
     // Import GCS client dynamically
-    const { Storage } = require('@google-cloud/storage');
+    const { Storage } = await import('@google-cloud/storage');
     
     // Initialize Google Cloud Storage with credentials
     let storage;
