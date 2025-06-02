@@ -192,6 +192,18 @@ export function setupProductionRoutes(app: Router) {
       )
     });
     
+    // We need to ensure masterItemsMap has ALL master items, not just the filtered ones
+    const allMasterItemIds = allProjectMakeItems.map(item => item.itemId);
+    if (allMasterItemIds.length > 0) {
+      const allMasterItems = await db.query.masterItems.findMany({
+        where: inArray(masterItems.id, allMasterItemIds)
+      });
+      
+      allMasterItems.forEach(item => {
+        masterItemsMap.set(item.id, item);
+      });
+    }
+    
     const allParentItemIds = allProjectMakeItems
       .map(item => item.itemId)
       .filter(itemId => {
