@@ -1943,6 +1943,524 @@ function BurnerCapacityCalculator() {
   );
 }
 
+// Flue Gas Temperature & Heat Loss Estimator Component
+function FlueGasHeatLossEstimator() {
+  const [flueGasTemp, setFlueGasTemp] = useState("");
+  const [airFuelRatio, setAirFuelRatio] = useState("");
+  const [fuelType, setFuelType] = useState("furnace-oil");
+  const [ambientTemp, setAmbientTemp] = useState("25");
+  const [excessAir, setExcessAir] = useState("20");
+  const [result, setResult] = useState<{
+    stackLoss: number;
+    heatRecoveryPotential: number;
+    sensibleHeatLoss: number;
+    theoreticalTemp: number;
+  } | null>(null);
+
+  const fuelData = {
+    "furnace-oil": { name: "Furnace Oil", theoreticalTemp: 2100, specificHeat: 0.24 },
+    "diesel": { name: "Diesel", theoreticalTemp: 2080, specificHeat: 0.24 },
+    "natural-gas": { name: "Natural Gas", theoreticalTemp: 1950, specificHeat: 0.26 },
+    "lpg": { name: "LPG", theoreticalTemp: 1980, specificHeat: 0.25 },
+    "coal": { name: "Coal", theoreticalTemp: 2000, specificHeat: 0.23 }
+  };
+
+  const calculateHeatLoss = () => {
+    const T_flue = parseFloat(flueGasTemp);
+    const airFuel = parseFloat(airFuelRatio);
+    const T_ambient = parseFloat(ambientTemp);
+    const excess = parseFloat(excessAir);
+
+    if (!T_flue || !airFuel || !T_ambient) return;
+
+    const fuel = fuelData[fuelType as keyof typeof fuelData];
+    
+    // Stack loss calculation (simplified)
+    // Stack loss % = (T_flue - T_ambient) × Cp × (1 + excess_air/100) / fuel_heating_value × 100
+    const stackLoss = ((T_flue - T_ambient) * fuel.specificHeat * (1 + excess / 100)) / 100 * 10;
+    
+    // Sensible heat loss in flue gases
+    const sensibleHeatLoss = stackLoss * 0.85; // Typical 85% of stack loss is sensible heat
+    
+    // Heat recovery potential (assuming cooling to 150°C)
+    const recoveryTemp = 150;
+    const heatRecoveryPotential = Math.max(0, ((T_flue - recoveryTemp) / (T_flue - T_ambient)) * stackLoss);
+    
+    // Theoretical combustion temperature
+    const theoreticalTemp = fuel.theoreticalTemp - (stackLoss * 15); // Approximate correction
+
+    setResult({
+      stackLoss: Math.min(stackLoss, 35), // Cap at realistic maximum
+      heatRecoveryPotential: heatRecoveryPotential,
+      sensibleHeatLoss: sensibleHeatLoss,
+      theoreticalTemp: theoreticalTemp
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="fuelType">Fuel Type</Label>
+          <Select value={fuelType} onValueChange={setFuelType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(fuelData).map(([key, fuel]) => (
+                <SelectItem key={key} value={key}>{fuel.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="flueGasTemp">Flue Gas Temperature (°C)</Label>
+          <Input
+            id="flueGasTemp"
+            type="number"
+            value={flueGasTemp}
+            onChange={(e) => setFlueGasTemp(e.target.value)}
+            placeholder="e.g., 280"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="airFuelRatio">Air/Fuel Ratio</Label>
+          <Input
+            id="airFuelRatio"
+            type="number"
+            step="0.1"
+            value={airFuelRatio}
+            onChange={(e) => setAirFuelRatio(e.target.value)}
+            placeholder="e.g., 12.5"
+          />
+        </div>
+        <div>
+          <Label htmlFor="excessAir">Excess Air (%)</Label>
+          <Input
+            id="excessAir"
+            type="number"
+            value={excessAir}
+            onChange={(e) => setExcessAir(e.target.value)}
+            placeholder="e.g., 20"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="ambientTemp">Ambient Temperature (°C)</Label>
+        <Input
+          id="ambientTemp"
+          type="number"
+          value={ambientTemp}
+          onChange={(e) => setAmbientTemp(e.target.value)}
+          placeholder="e.g., 25"
+        />
+      </div>
+
+      <Button onClick={calculateHeatLoss} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Heat Loss
+      </Button>
+
+      {result !== null && (
+        <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+          <h4 className="font-semibold text-orange-900">Heat Loss Analysis</h4>
+          <div className="grid grid-cols-2 gap-4 mt-3 text-orange-800">
+            <div>
+              <p className="text-sm text-orange-600">Stack Loss</p>
+              <p className="font-bold">{result.stackLoss.toFixed(1)} %</p>
+            </div>
+            <div>
+              <p className="text-sm text-orange-600">Sensible Heat Loss</p>
+              <p className="font-bold">{result.sensibleHeatLoss.toFixed(1)} %</p>
+            </div>
+            <div>
+              <p className="text-sm text-orange-600">Heat Recovery Potential</p>
+              <p className="font-bold">{result.heatRecoveryPotential.toFixed(1)} %</p>
+            </div>
+            <div>
+              <p className="text-sm text-orange-600">Theoretical Temp</p>
+              <p className="font-bold">{result.theoreticalTemp.toFixed(0)} °C</p>
+            </div>
+          </div>
+          
+          <div className="mt-4 p-3 bg-orange-100 rounded">
+            <h5 className="font-semibold text-orange-900 mb-2">Efficiency Notes:</h5>
+            <ul className="text-xs text-orange-700 space-y-1">
+              <li>• Stack loss represents heat lost through flue gases</li>
+              <li>• Heat recovery potential assumes cooling to 150°C minimum</li>
+              <li>• Consider heat exchanger installation for recovery</li>
+              <li>• Optimize air/fuel ratio to minimize excess air</li>
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Coil Surface Area Calculator Component
+function CoilSurfaceAreaCalculator() {
+  const [heatTransfer, setHeatTransfer] = useState("");
+  const [hotFluidTemp, setHotFluidTemp] = useState("");
+  const [coldFluidTemp, setColdFluidTemp] = useState("");
+  const [hotFilmCoeff, setHotFilmCoeff] = useState("");
+  const [coldFilmCoeff, setColdFilmCoeff] = useState("");
+  const [foulingFactor, setFoulingFactor] = useState("0.0002");
+  const [coilMaterial, setCoilMaterial] = useState("steel");
+  const [result, setResult] = useState<{
+    overallCoeff: number;
+    logMeanTempDiff: number;
+    surfaceArea: number;
+    coilLength: number;
+  } | null>(null);
+
+  const materialData = {
+    "steel": { name: "Carbon Steel", conductivity: 50, thickness: 0.005 },
+    "stainless": { name: "Stainless Steel", conductivity: 16, thickness: 0.003 },
+    "copper": { name: "Copper", conductivity: 400, thickness: 0.002 }
+  };
+
+  const calculateSurfaceArea = () => {
+    const Q = parseFloat(heatTransfer) * 1000; // Convert kW to W
+    const T_hot = parseFloat(hotFluidTemp);
+    const T_cold = parseFloat(coldFluidTemp);
+    const h_hot = parseFloat(hotFilmCoeff);
+    const h_cold = parseFloat(coldFilmCoeff);
+    const Rf = parseFloat(foulingFactor);
+
+    if (!Q || !T_hot || !T_cold || !h_hot || !h_cold || T_hot <= T_cold) return;
+
+    const material = materialData[coilMaterial as keyof typeof materialData];
+    
+    // Log Mean Temperature Difference (LMTD)
+    // Assuming counter-current flow with 80% of inlet temperature approach
+    const deltaT1 = T_hot - (T_cold + (T_hot - T_cold) * 0.8);
+    const deltaT2 = (T_hot - (T_hot - T_cold) * 0.8) - T_cold;
+    const LMTD = (deltaT1 - deltaT2) / Math.log(deltaT1 / deltaT2);
+    
+    // Overall heat transfer coefficient: 1/U = 1/h_hot + Rf + t/k + 1/h_cold
+    const thermalResistance = (1 / h_hot) + Rf + (material.thickness / material.conductivity) + (1 / h_cold);
+    const overallCoeff = 1 / thermalResistance;
+    
+    // Surface area: A = Q / (U × LMTD)
+    const surfaceArea = Q / (overallCoeff * LMTD);
+    
+    // Approximate coil length (assuming 50mm tube diameter)
+    const tubeDiameter = 0.05; // 50mm
+    const coilLength = surfaceArea / (Math.PI * tubeDiameter);
+
+    setResult({
+      overallCoeff: overallCoeff,
+      logMeanTempDiff: LMTD,
+      surfaceArea: surfaceArea,
+      coilLength: coilLength
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="heatTransfer">Heat Transfer Required (kW)</Label>
+          <Input
+            id="heatTransfer"
+            type="number"
+            value={heatTransfer}
+            onChange={(e) => setHeatTransfer(e.target.value)}
+            placeholder="e.g., 100"
+          />
+        </div>
+        <div>
+          <Label htmlFor="coilMaterial">Coil Material</Label>
+          <Select value={coilMaterial} onValueChange={setCoilMaterial}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(materialData).map(([key, material]) => (
+                <SelectItem key={key} value={key}>{material.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="hotFluidTemp">Hot Fluid Temperature (°C)</Label>
+          <Input
+            id="hotFluidTemp"
+            type="number"
+            value={hotFluidTemp}
+            onChange={(e) => setHotFluidTemp(e.target.value)}
+            placeholder="e.g., 250"
+          />
+        </div>
+        <div>
+          <Label htmlFor="coldFluidTemp">Cold Fluid Temperature (°C)</Label>
+          <Input
+            id="coldFluidTemp"
+            type="number"
+            value={coldFluidTemp}
+            onChange={(e) => setColdFluidTemp(e.target.value)}
+            placeholder="e.g., 180"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="hotFilmCoeff">Hot Side Film Coefficient (W/m²K)</Label>
+          <Input
+            id="hotFilmCoeff"
+            type="number"
+            value={hotFilmCoeff}
+            onChange={(e) => setHotFilmCoeff(e.target.value)}
+            placeholder="e.g., 500"
+          />
+        </div>
+        <div>
+          <Label htmlFor="coldFilmCoeff">Cold Side Film Coefficient (W/m²K)</Label>
+          <Input
+            id="coldFilmCoeff"
+            type="number"
+            value={coldFilmCoeff}
+            onChange={(e) => setColdFilmCoeff(e.target.value)}
+            placeholder="e.g., 1000"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="foulingFactor">Fouling Factor (m²K/W)</Label>
+        <Input
+          id="foulingFactor"
+          type="number"
+          step="0.0001"
+          value={foulingFactor}
+          onChange={(e) => setFoulingFactor(e.target.value)}
+          placeholder="e.g., 0.0002"
+        />
+      </div>
+
+      <Button onClick={calculateSurfaceArea} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Surface Area
+      </Button>
+
+      {result !== null && (
+        <div className="mt-4 p-4 bg-teal-50 border border-teal-200 rounded-lg">
+          <h4 className="font-semibold text-teal-900">Surface Area Results</h4>
+          <div className="grid grid-cols-2 gap-4 mt-3 text-teal-800">
+            <div>
+              <p className="text-sm text-teal-600">Overall Heat Transfer Coefficient</p>
+              <p className="font-bold">{result.overallCoeff.toFixed(1)} W/m²K</p>
+            </div>
+            <div>
+              <p className="text-sm text-teal-600">Log Mean Temp Difference</p>
+              <p className="font-bold">{result.logMeanTempDiff.toFixed(1)} °C</p>
+            </div>
+          </div>
+          
+          <div className="mt-4 pt-4 border-t border-teal-300">
+            <div className="grid grid-cols-2 gap-8">
+              <div className="text-center">
+                <p className="text-sm text-teal-600">Required Surface Area</p>
+                <p className="font-bold text-xl text-teal-900">{result.surfaceArea.toFixed(1)} m²</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-teal-600">Approximate Coil Length</p>
+                <p className="font-bold text-xl text-teal-900">{result.coilLength.toFixed(1)} m</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Chimney Draft & Induced Draft Fan Sizing Tool Component
+function ChimneyDraftFanSizingCalculator() {
+  const [flueGasFlow, setFlueGasFlow] = useState("");
+  const [chimneyHeight, setChimneyHeight] = useState("");
+  const [chimneyDiameter, setChimneyDiameter] = useState("");
+  const [flueGasTemp, setFlueGasTemp] = useState("");
+  const [ambientTemp, setAmbientTemp] = useState("25");
+  const [draftType, setDraftType] = useState("induced");
+  const [result, setResult] = useState<{
+    naturalDraft: number;
+    requiredFanCapacity: number;
+    fanPressure: number;
+    fanPower: number;
+  } | null>(null);
+
+  const calculateFanSizing = () => {
+    const Q = parseFloat(flueGasFlow); // m³/hr
+    const H = parseFloat(chimneyHeight); // m
+    const D = parseFloat(chimneyDiameter) / 1000; // Convert mm to m
+    const T_flue = parseFloat(flueGasTemp) + 273.15; // Convert to Kelvin
+    const T_ambient = parseFloat(ambientTemp) + 273.15; // Convert to Kelvin
+
+    if (!Q || !H || !D || !T_flue || !T_ambient) return;
+
+    // Natural draft calculation
+    const rho = 1.225; // Air density at 15°C (kg/m³)
+    const g = 9.81; // Gravity (m/s²)
+    const naturalDraft = rho * g * H * ((1 / T_ambient) - (1 / T_flue)); // Pa
+    
+    // Friction losses in chimney
+    const velocity = (Q / 3600) / (Math.PI * Math.pow(D, 2) / 4); // m/s
+    const frictionFactor = 0.02; // Typical for steel chimney
+    const frictionLoss = (frictionFactor * H * rho * Math.pow(velocity, 2)) / (2 * D); // Pa
+    
+    // Required fan pressure
+    let fanPressure = frictionLoss + 50; // Base losses
+    if (draftType === "induced") {
+      fanPressure = Math.max(0, frictionLoss - naturalDraft + 100); // Overcome natural draft
+    } else {
+      fanPressure = frictionLoss + naturalDraft + 100; // Add to natural draft
+    }
+    
+    // Fan capacity (add 20% safety margin)
+    const fanCapacity = Q * 1.2; // m³/hr
+    
+    // Fan power estimation: P = Q × ΔP / (3600 × η)
+    const fanEfficiency = 0.70; // 70% typical fan efficiency
+    const fanPower = (fanCapacity / 3600) * fanPressure / (fanEfficiency * 1000); // kW
+
+    setResult({
+      naturalDraft: naturalDraft,
+      requiredFanCapacity: fanCapacity,
+      fanPressure: fanPressure,
+      fanPower: fanPower
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="flueGasFlow">Flue Gas Flow Rate (m³/hr)</Label>
+          <Input
+            id="flueGasFlow"
+            type="number"
+            value={flueGasFlow}
+            onChange={(e) => setFlueGasFlow(e.target.value)}
+            placeholder="e.g., 1000"
+          />
+        </div>
+        <div>
+          <Label htmlFor="draftType">Draft Type</Label>
+          <Select value={draftType} onValueChange={setDraftType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="induced">Induced Draft</SelectItem>
+              <SelectItem value="forced">Forced Draft</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="chimneyHeight">Chimney Height (m)</Label>
+          <Input
+            id="chimneyHeight"
+            type="number"
+            value={chimneyHeight}
+            onChange={(e) => setChimneyHeight(e.target.value)}
+            placeholder="e.g., 20"
+          />
+        </div>
+        <div>
+          <Label htmlFor="chimneyDiameter">Chimney Diameter (mm)</Label>
+          <Input
+            id="chimneyDiameter"
+            type="number"
+            value={chimneyDiameter}
+            onChange={(e) => setChimneyDiameter(e.target.value)}
+            placeholder="e.g., 800"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="flueGasTemp">Flue Gas Temperature (°C)</Label>
+          <Input
+            id="flueGasTemp"
+            type="number"
+            value={flueGasTemp}
+            onChange={(e) => setFlueGasTemp(e.target.value)}
+            placeholder="e.g., 180"
+          />
+        </div>
+        <div>
+          <Label htmlFor="ambientTemp">Ambient Temperature (°C)</Label>
+          <Input
+            id="ambientTemp"
+            type="number"
+            value={ambientTemp}
+            onChange={(e) => setAmbientTemp(e.target.value)}
+            placeholder="e.g., 25"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculateFanSizing} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Fan Sizing
+      </Button>
+
+      {result !== null && (
+        <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+          <h4 className="font-semibold text-slate-900">Fan Sizing Results</h4>
+          <div className="grid grid-cols-2 gap-4 mt-3 text-slate-800">
+            <div>
+              <p className="text-sm text-slate-600">Natural Draft Available</p>
+              <p className="font-bold">{result.naturalDraft.toFixed(1)} Pa</p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-600">Fan Pressure Required</p>
+              <p className="font-bold">{result.fanPressure.toFixed(1)} Pa</p>
+            </div>
+          </div>
+          
+          <div className="mt-4 pt-4 border-t border-slate-300">
+            <div className="grid grid-cols-2 gap-8">
+              <div className="text-center">
+                <p className="text-sm text-slate-600">Required Fan Capacity</p>
+                <p className="font-bold text-xl text-slate-900">{result.requiredFanCapacity.toFixed(0)} m³/hr</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-slate-600">Fan Motor Power</p>
+                <p className="font-bold text-xl text-slate-900">{result.fanPower.toFixed(2)} kW</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-4 p-3 bg-slate-100 rounded">
+            <h5 className="font-semibold text-slate-900 mb-2">Design Notes:</h5>
+            <ul className="text-xs text-slate-700 space-y-1">
+              <li>• Fan capacity includes 20% safety margin</li>
+              <li>• {draftType === "induced" ? "Induced draft fan pulls gases through system" : "Forced draft fan pushes air into system"}</li>
+              <li>• Consider variable frequency drive for efficiency</li>
+              <li>• Ensure adequate motor sizing for startup conditions</li>
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Nozzle Reinforcement Calculator Component
 function NozzleReinforcementCalculator() {
   const [vesselDiameter, setVesselDiameter] = useState("");
@@ -11541,6 +12059,99 @@ export default function DesignToolsPage() {
                         <DialogTitle>Burner Capacity & Efficiency Estimator</DialogTitle>
                       </DialogHeader>
                       <BurnerCapacityCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Flue Gas Heat Loss Estimator</CardTitle>
+                    <CardDescription>
+                      Calculate stack losses and heat recovery potential
+                    </CardDescription>
+                  </div>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Based on flue gas temperature, air/fuel ratio, and fuel type
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Flue Gas Temperature & Heat Loss Estimator</DialogTitle>
+                      </DialogHeader>
+                      <FlueGasHeatLossEstimator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Coil Surface Area Calculator</CardTitle>
+                    <CardDescription>
+                      Calculate required heating coil surface area
+                    </CardDescription>
+                  </div>
+                  <CircleDot className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Based on heat transfer requirements and film coefficients
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Coil Surface Area Calculator (for Heaters)</DialogTitle>
+                      </DialogHeader>
+                      <CoilSurfaceAreaCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Chimney Draft Fan Sizing Tool</CardTitle>
+                    <CardDescription>
+                      Calculate induced/forced draft fan requirements
+                    </CardDescription>
+                  </div>
+                  <Fan className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Determines fan capacity, pressure, and power requirements
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Chimney Draft & Induced Draft Fan Sizing Tool</DialogTitle>
+                      </DialogHeader>
+                      <ChimneyDraftFanSizingCalculator />
                     </DialogContent>
                   </Dialog>
                 </CardContent>
