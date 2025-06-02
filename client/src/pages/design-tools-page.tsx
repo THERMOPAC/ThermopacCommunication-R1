@@ -2461,6 +2461,444 @@ function ChimneyDraftFanSizingCalculator() {
   );
 }
 
+// Firebox Heat Flux Calculator Component
+function FireboxHeatFluxCalculator() {
+  const [fuelRate, setFuelRate] = useState("");
+  const [flameLength, setFlameLength] = useState("");
+  const [flameDiameter, setFlameDiameter] = useState("");
+  const [emissivity, setEmissivity] = useState("0.8");
+  const [fireboxHeight, setFireboxHeight] = useState("");
+  const [fireboxDiameter, setFireboxDiameter] = useState("");
+  const [result, setResult] = useState<{
+    maxHeatFlux: number;
+    avgHeatFlux: number;
+    flameVolume: number;
+    heatReleaseRate: number;
+    fluxDistribution: Array<{position: string, flux: number}>;
+  } | null>(null);
+
+  const calculateHeatFlux = () => {
+    const Q = parseFloat(fuelRate); // kg/hr
+    const L_flame = parseFloat(flameLength); // m
+    const D_flame = parseFloat(flameDiameter); // m
+    const epsilon = parseFloat(emissivity);
+    const H_box = parseFloat(fireboxHeight); // m
+    const D_box = parseFloat(fireboxDiameter); // m
+
+    if (!Q || !L_flame || !D_flame || !epsilon || !H_box || !D_box) return;
+
+    // Calculate flame volume (simplified as cylinder)
+    const flameVolume = Math.PI * Math.pow(D_flame / 2, 2) * L_flame; // m³
+    
+    // Heat release rate (assuming 10,000 kcal/kg fuel)
+    const heatReleaseRate = Q * 10000 / 3600; // kcal/s
+    
+    // Convert to watts: 1 kcal/s = 4186 W
+    const powerOutput = heatReleaseRate * 4186; // W
+    
+    // Firebox wall surface area
+    const wallArea = Math.PI * D_box * H_box; // m²
+    
+    // Stefan-Boltzmann constant
+    const sigma = 5.67e-8; // W/m²K⁴
+    
+    // Estimated flame temperature (°C to K)
+    const T_flame = 1200 + 273.15; // K
+    const T_wall = 300 + 273.15; // K (assumed wall temperature)
+    
+    // Radiative heat flux: q = ε × σ × (T_flame⁴ - T_wall⁴)
+    const radiativeFlux = epsilon * sigma * (Math.pow(T_flame, 4) - Math.pow(T_wall, 4)); // W/m²
+    
+    // Average heat flux distribution on walls
+    const avgHeatFlux = powerOutput / wallArea; // W/m²
+    
+    // Maximum heat flux (typically 1.5-2x average near flame zone)
+    const maxHeatFlux = avgHeatFlux * 1.8;
+    
+    // Heat flux distribution along firebox height
+    const fluxDistribution = [
+      { position: "Bottom (0-25%)", flux: maxHeatFlux },
+      { position: "Lower Mid (25-50%)", flux: maxHeatFlux * 0.8 },
+      { position: "Upper Mid (50-75%)", flux: avgHeatFlux * 0.6 },
+      { position: "Top (75-100%)", flux: avgHeatFlux * 0.4 }
+    ];
+
+    setResult({
+      maxHeatFlux: maxHeatFlux / 1000, // Convert to kW/m²
+      avgHeatFlux: avgHeatFlux / 1000, // Convert to kW/m²
+      flameVolume: flameVolume,
+      heatReleaseRate: heatReleaseRate,
+      fluxDistribution: fluxDistribution.map(item => ({
+        ...item,
+        flux: item.flux / 1000 // Convert to kW/m²
+      }))
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="fuelRate">Fuel Rate (kg/hr)</Label>
+          <Input
+            id="fuelRate"
+            type="number"
+            value={fuelRate}
+            onChange={(e) => setFuelRate(e.target.value)}
+            placeholder="e.g., 50"
+          />
+        </div>
+        <div>
+          <Label htmlFor="emissivity">Flame Emissivity</Label>
+          <Input
+            id="emissivity"
+            type="number"
+            step="0.1"
+            value={emissivity}
+            onChange={(e) => setEmissivity(e.target.value)}
+            placeholder="e.g., 0.8"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="flameLength">Flame Length (m)</Label>
+          <Input
+            id="flameLength"
+            type="number"
+            step="0.1"
+            value={flameLength}
+            onChange={(e) => setFlameLength(e.target.value)}
+            placeholder="e.g., 2.5"
+          />
+        </div>
+        <div>
+          <Label htmlFor="flameDiameter">Flame Diameter (m)</Label>
+          <Input
+            id="flameDiameter"
+            type="number"
+            step="0.1"
+            value={flameDiameter}
+            onChange={(e) => setFlameDiameter(e.target.value)}
+            placeholder="e.g., 0.8"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="fireboxHeight">Firebox Height (m)</Label>
+          <Input
+            id="fireboxHeight"
+            type="number"
+            step="0.1"
+            value={fireboxHeight}
+            onChange={(e) => setFireboxHeight(e.target.value)}
+            placeholder="e.g., 4.0"
+          />
+        </div>
+        <div>
+          <Label htmlFor="fireboxDiameter">Firebox Diameter (m)</Label>
+          <Input
+            id="fireboxDiameter"
+            type="number"
+            step="0.1"
+            value={fireboxDiameter}
+            onChange={(e) => setFireboxDiameter(e.target.value)}
+            placeholder="e.g., 2.0"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculateHeatFlux} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Heat Flux Distribution
+      </Button>
+
+      {result !== null && (
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <h4 className="font-semibold text-red-900">Heat Flux Analysis</h4>
+          <div className="grid grid-cols-2 gap-4 mt-3 text-red-800">
+            <div>
+              <p className="text-sm text-red-600">Flame Volume</p>
+              <p className="font-bold">{result.flameVolume.toFixed(2)} m³</p>
+            </div>
+            <div>
+              <p className="text-sm text-red-600">Heat Release Rate</p>
+              <p className="font-bold">{result.heatReleaseRate.toFixed(1)} kcal/s</p>
+            </div>
+          </div>
+          
+          <div className="mt-4 pt-4 border-t border-red-300">
+            <div className="grid grid-cols-2 gap-8">
+              <div className="text-center">
+                <p className="text-sm text-red-600">Maximum Heat Flux</p>
+                <p className="font-bold text-xl text-red-900">{result.maxHeatFlux.toFixed(1)} kW/m²</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-red-600">Average Heat Flux</p>
+                <p className="font-bold text-xl text-red-900">{result.avgHeatFlux.toFixed(1)} kW/m²</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 p-3 bg-red-100 rounded">
+            <h5 className="font-semibold text-red-900 mb-2">Heat Flux Distribution:</h5>
+            <div className="space-y-2">
+              {result.fluxDistribution.map((item, index) => (
+                <div key={index} className="flex justify-between text-sm text-red-700">
+                  <span>{item.position}</span>
+                  <span className="font-bold">{item.flux.toFixed(1)} kW/m²</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Shell & Tube Heat Exchanger Selector Component
+function ShellTubeHeatExchangerSelector() {
+  const [heatDuty, setHeatDuty] = useState("");
+  const [hotFluidTemp, setHotFluidTemp] = useState("");
+  const [coldFluidTemp, setColdFluidTemp] = useState("");
+  const [hotFluidFlow, setHotFluidFlow] = useState("");
+  const [coldFluidFlow, setColdFluidFlow] = useState("");
+  const [hotFluidType, setHotFluidType] = useState("thermal-oil");
+  const [coldFluidType, setColdFluidType] = useState("water");
+  const [result, setResult] = useState<{
+    tubeSize: string;
+    tubeCount: number;
+    surfaceArea: number;
+    hotVelocity: number;
+    coldVelocity: number;
+    shellDiameter: number;
+    tubeLength: number;
+  } | null>(null);
+
+  const fluidProperties = {
+    "thermal-oil": { name: "Thermal Oil", density: 850, viscosity: 5.0, specificHeat: 2.1 },
+    "water": { name: "Water", density: 1000, viscosity: 1.0, specificHeat: 4.18 },
+    "steam": { name: "Steam", density: 0.6, viscosity: 0.02, specificHeat: 2.1 },
+    "air": { name: "Air", density: 1.2, viscosity: 0.018, specificHeat: 1.0 }
+  };
+
+  const tubeStandards = [
+    { size: "19.05 x 2.11", od: 0.01905, thickness: 0.00211, area: 0.0598 },
+    { size: "25.4 x 2.77", od: 0.0254, thickness: 0.00277, area: 0.0799 },
+    { size: "31.75 x 3.38", od: 0.03175, thickness: 0.00338, area: 0.0998 },
+    { size: "38.1 x 3.68", od: 0.0381, thickness: 0.00368, area: 0.1197 }
+  ];
+
+  const calculateHeatExchanger = () => {
+    const Q = parseFloat(heatDuty) * 1000; // Convert kW to W
+    const T_hot = parseFloat(hotFluidTemp);
+    const T_cold = parseFloat(coldFluidTemp);
+    const m_hot = parseFloat(hotFluidFlow); // kg/s
+    const m_cold = parseFloat(coldFluidFlow); // kg/s
+
+    if (!Q || !T_hot || !T_cold || !m_hot || !m_cold || T_hot <= T_cold) return;
+
+    const hotFluid = fluidProperties[hotFluidType as keyof typeof fluidProperties];
+    const coldFluid = fluidProperties[coldFluidType as keyof typeof fluidProperties];
+
+    // Log Mean Temperature Difference (simplified)
+    const deltaT_hot = T_hot - T_cold;
+    const deltaT_cold = (T_hot - 20) - T_cold; // Assuming 20°C temperature approach
+    const LMTD = (deltaT_hot - deltaT_cold) / Math.log(deltaT_hot / deltaT_cold);
+
+    // Overall heat transfer coefficient (typical for oil-water: 500-800 W/m²K)
+    const U = 600; // W/m²K
+
+    // Required surface area: A = Q / (U × LMTD)
+    const surfaceArea = Q / (U * LMTD);
+
+    // Select tube size based on flow rates and velocities
+    let selectedTube = tubeStandards[1]; // Default to 25.4mm
+    if (m_hot < 5) selectedTube = tubeStandards[0];
+    else if (m_hot > 20) selectedTube = tubeStandards[2];
+    else if (m_hot > 50) selectedTube = tubeStandards[3];
+
+    // Tube length (standard: 3-6m, use 4m)
+    const tubeLength = 4.0; // m
+
+    // Calculate tube count: N = A / (π × D × L)
+    const tubeCount = Math.ceil(surfaceArea / (Math.PI * selectedTube.od * tubeLength));
+
+    // Shell diameter estimation (triangular pitch, 1.25 × tube OD)
+    const pitch = selectedTube.od * 1.25;
+    const shellDiameter = Math.sqrt(tubeCount) * pitch * 1.2; // m
+
+    // Flow velocities
+    const tubeInternalArea = Math.PI * Math.pow((selectedTube.od - 2 * selectedTube.thickness) / 2, 2);
+    const hotVelocity = (m_hot / hotFluid.density) / (tubeCount * tubeInternalArea); // m/s
+    
+    const shellArea = Math.PI * Math.pow(shellDiameter / 2, 2) - (tubeCount * Math.PI * Math.pow(selectedTube.od / 2, 2));
+    const coldVelocity = (m_cold / coldFluid.density) / shellArea; // m/s
+
+    setResult({
+      tubeSize: selectedTube.size,
+      tubeCount: tubeCount,
+      surfaceArea: surfaceArea,
+      hotVelocity: hotVelocity,
+      coldVelocity: coldVelocity,
+      shellDiameter: shellDiameter * 1000, // Convert to mm
+      tubeLength: tubeLength
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="heatDuty">Heat Duty (kW)</Label>
+          <Input
+            id="heatDuty"
+            type="number"
+            value={heatDuty}
+            onChange={(e) => setHeatDuty(e.target.value)}
+            placeholder="e.g., 500"
+          />
+        </div>
+        <div>
+          <Label htmlFor="hotFluidType">Hot Fluid Type</Label>
+          <Select value={hotFluidType} onValueChange={setHotFluidType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(fluidProperties).map(([key, fluid]) => (
+                <SelectItem key={key} value={key}>{fluid.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="hotFluidTemp">Hot Fluid Temperature (°C)</Label>
+          <Input
+            id="hotFluidTemp"
+            type="number"
+            value={hotFluidTemp}
+            onChange={(e) => setHotFluidTemp(e.target.value)}
+            placeholder="e.g., 180"
+          />
+        </div>
+        <div>
+          <Label htmlFor="hotFluidFlow">Hot Fluid Flow Rate (kg/s)</Label>
+          <Input
+            id="hotFluidFlow"
+            type="number"
+            step="0.1"
+            value={hotFluidFlow}
+            onChange={(e) => setHotFluidFlow(e.target.value)}
+            placeholder="e.g., 10"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="coldFluidType">Cold Fluid Type</Label>
+          <Select value={coldFluidType} onValueChange={setColdFluidType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(fluidProperties).map(([key, fluid]) => (
+                <SelectItem key={key} value={key}>{fluid.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="coldFluidTemp">Cold Fluid Temperature (°C)</Label>
+          <Input
+            id="coldFluidTemp"
+            type="number"
+            value={coldFluidTemp}
+            onChange={(e) => setColdFluidTemp(e.target.value)}
+            placeholder="e.g., 40"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="coldFluidFlow">Cold Fluid Flow Rate (kg/s)</Label>
+        <Input
+          id="coldFluidFlow"
+          type="number"
+          step="0.1"
+          value={coldFluidFlow}
+          onChange={(e) => setColdFluidFlow(e.target.value)}
+          placeholder="e.g., 15"
+        />
+      </div>
+
+      <Button onClick={calculateHeatExchanger} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Select Heat Exchanger
+      </Button>
+
+      {result !== null && (
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h4 className="font-semibold text-blue-900">Heat Exchanger Selection</h4>
+          <div className="grid grid-cols-2 gap-4 mt-3 text-blue-800">
+            <div>
+              <p className="text-sm text-blue-600">Tube Size (OD x Thickness)</p>
+              <p className="font-bold">{result.tubeSize} mm</p>
+            </div>
+            <div>
+              <p className="text-sm text-blue-600">Tube Length</p>
+              <p className="font-bold">{result.tubeLength.toFixed(1)} m</p>
+            </div>
+            <div>
+              <p className="text-sm text-blue-600">Shell Diameter</p>
+              <p className="font-bold">{result.shellDiameter.toFixed(0)} mm</p>
+            </div>
+            <div>
+              <p className="text-sm text-blue-600">Hot Fluid Velocity</p>
+              <p className="font-bold">{result.hotVelocity.toFixed(2)} m/s</p>
+            </div>
+            <div>
+              <p className="text-sm text-blue-600">Cold Fluid Velocity</p>
+              <p className="font-bold">{result.coldVelocity.toFixed(2)} m/s</p>
+            </div>
+          </div>
+          
+          <div className="mt-4 pt-4 border-t border-blue-300">
+            <div className="grid grid-cols-2 gap-8">
+              <div className="text-center">
+                <p className="text-sm text-blue-600">Number of Tubes</p>
+                <p className="font-bold text-xl text-blue-900">{result.tubeCount}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-blue-600">Surface Area</p>
+                <p className="font-bold text-xl text-blue-900">{result.surfaceArea.toFixed(1)} m²</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-4 p-3 bg-blue-100 rounded">
+            <h5 className="font-semibold text-blue-900 mb-2">Design Notes:</h5>
+            <ul className="text-xs text-blue-700 space-y-1">
+              <li>• Tube arrangement: Triangular pitch (1.25 × OD)</li>
+              <li>• Recommended velocities: Tube side 1-3 m/s, Shell side 0.3-1 m/s</li>
+              <li>• Consider fouling factors for final design</li>
+              <li>• Verify pressure drop calculations</li>
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Nozzle Reinforcement Calculator Component
 function NozzleReinforcementCalculator() {
   const [vesselDiameter, setVesselDiameter] = useState("");
@@ -12152,6 +12590,68 @@ export default function DesignToolsPage() {
                         <DialogTitle>Chimney Draft & Induced Draft Fan Sizing Tool</DialogTitle>
                       </DialogHeader>
                       <ChimneyDraftFanSizingCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Firebox Heat Flux Calculator</CardTitle>
+                    <CardDescription>
+                      Calculate heat flux distribution on coil walls
+                    </CardDescription>
+                  </div>
+                  <Flame className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Based on fuel rate, flame geometry, and emissivity
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Firebox Heat Flux Calculator</DialogTitle>
+                      </DialogHeader>
+                      <FireboxHeatFluxCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Shell & Tube Heat Exchanger Selector</CardTitle>
+                    <CardDescription>
+                      Select tube size, count, and calculate surface area
+                    </CardDescription>
+                  </div>
+                  <Container className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Based on oil and utility specifications with velocity analysis
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Shell & Tube Heat Exchanger Selector</DialogTitle>
+                      </DialogHeader>
+                      <ShellTubeHeatExchangerSelector />
                     </DialogContent>
                   </Dialog>
                 </CardContent>
