@@ -1218,9 +1218,14 @@ router.get('/reports/invoice-aging', ensureAuthenticated, async (req: Request, r
  */
 router.get('/brc/:id/document', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    console.log('BRC document request received for ID:', req.params.id);
+    console.log('User authenticated:', !!req.user);
+    console.log('User details:', req.user ? { id: req.user.id, username: req.user.username } : 'None');
+    
     const brcId = parseInt(req.params.id);
     
     if (isNaN(brcId)) {
+      console.log('Invalid BRC ID provided:', req.params.id);
       return res.status(400).json({ error: 'Invalid BRC ID' });
     }
 
