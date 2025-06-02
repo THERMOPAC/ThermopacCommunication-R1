@@ -1122,6 +1122,280 @@ function ExpansionTankCapacityCalculator() {
   );
 }
 
+// Chimney Diameter & Height Calculator Component
+function ChimneyDiameterHeightCalculator() {
+  const [fuelType, setFuelType] = useState("furnace-oil");
+  const [consumptionRate, setConsumptionRate] = useState("");
+  const [consumptionUnit, setConsumptionUnit] = useState("kg/hr");
+  const [flueGasTemp, setFlueGasTemp] = useState("");
+  const [ambientTemp, setAmbientTemp] = useState("");
+  const [draftLoss, setDraftLoss] = useState("50");
+  const [heightConstraint, setHeightConstraint] = useState("");
+  const [stackMaterial, setStackMaterial] = useState("steel");
+  const [result, setResult] = useState<{
+    flueGasFlow: number;
+    minDiameter: number;
+    recommendedHeight: number;
+    flueGasVelocity: number;
+    availableDraft: number;
+  } | null>(null);
+
+  // Fuel type properties
+  const fuelProperties = {
+    "furnace-oil": { 
+      name: "Furnace Oil", 
+      specificFlueGas: 12.5, // m³/kg
+      recommendedVelocity: 13,
+      unit: "kg/hr"
+    },
+    "diesel": { 
+      name: "Diesel", 
+      specificFlueGas: 13.2, // m³/kg
+      recommendedVelocity: 13,
+      unit: "kg/hr"
+    },
+    "natural-gas": { 
+      name: "Natural Gas", 
+      specificFlueGas: 11.5, // m³/Nm³
+      recommendedVelocity: 14,
+      unit: "Nm³/hr"
+    },
+    "biomass": { 
+      name: "Biomass", 
+      specificFlueGas: 8.5, // m³/kg
+      recommendedVelocity: 7,
+      unit: "kg/hr"
+    },
+    "coal": { 
+      name: "Coal", 
+      specificFlueGas: 10.8, // m³/kg
+      recommendedVelocity: 8,
+      unit: "kg/hr"
+    },
+    "lpg": { 
+      name: "LPG", 
+      specificFlueGas: 12.8, // m³/kg
+      recommendedVelocity: 14,
+      unit: "kg/hr"
+    }
+  };
+
+  const handleFuelTypeChange = (fuel: string) => {
+    setFuelType(fuel);
+    const fuelProp = fuelProperties[fuel as keyof typeof fuelProperties];
+    setConsumptionUnit(fuelProp.unit);
+  };
+
+  const calculateChimney = () => {
+    const consumption = parseFloat(consumptionRate);
+    const T_flue = parseFloat(flueGasTemp) + 273.15; // Convert to Kelvin
+    const T_ambient = parseFloat(ambientTemp) + 273.15; // Convert to Kelvin
+    const deltaP_loss = parseFloat(draftLoss);
+    const heightLimit = parseFloat(heightConstraint) || 30; // Default max height
+
+    if (!consumption || !T_flue || !T_ambient) return;
+
+    const fuelProp = fuelProperties[fuelType as keyof typeof fuelProperties];
+    
+    // 1. Calculate flue gas flow rate: Q = (Fuel consumption × specific flue gas volume) / 3600
+    const flueGasFlow = (consumption * fuelProp.specificFlueGas) / 3600; // m³/s
+
+    // 2. Calculate minimum chimney diameter based on recommended velocity
+    const velocity = fuelProp.recommendedVelocity;
+    const area = flueGasFlow / velocity; // m²
+    const diameter = Math.sqrt((4 * area) / Math.PI) * 1000; // Convert to mm
+
+    // 3. Calculate required chimney height for natural draft
+    // ΔP = ρ × g × H × (1/T_a - 1/T_g)
+    // Rearranging: H = ΔP / [ρ × g × (1/T_a - 1/T_g)]
+    const rho = 1.225; // Air density at 15°C (kg/m³)
+    const g = 9.81; // Gravity (m/s²)
+    const tempDiff = (1 / T_ambient) - (1 / T_flue);
+    
+    // Required draft pressure (Pa) - includes friction losses
+    const requiredDraft = deltaP_loss + 20; // Base draft + losses
+    
+    let recommendedHeight = requiredDraft / (rho * g * tempDiff);
+    
+    // Apply minimum height constraints (environmental standards)
+    const minHeight = Math.max(11, 2.5 * 6); // Assume 6m building height minimum
+    recommendedHeight = Math.max(recommendedHeight, minHeight);
+    
+    // Limit to height constraint if provided
+    if (heightConstraint) {
+      recommendedHeight = Math.min(recommendedHeight, heightLimit);
+    }
+
+    // 4. Calculate available draft at recommended height
+    const availableDraft = rho * g * recommendedHeight * tempDiff;
+
+    setResult({
+      flueGasFlow: flueGasFlow * 3600, // Convert back to m³/hr for display
+      minDiameter: diameter,
+      recommendedHeight: recommendedHeight,
+      flueGasVelocity: velocity,
+      availableDraft: availableDraft
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="fuelType">Fuel Type</Label>
+          <Select value={fuelType} onValueChange={handleFuelTypeChange}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(fuelProperties).map(([key, fuel]) => (
+                <SelectItem key={key} value={key}>{fuel.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="consumptionRate">Fuel Consumption Rate</Label>
+          <div className="flex gap-2">
+            <Input
+              id="consumptionRate"
+              type="number"
+              step="0.1"
+              value={consumptionRate}
+              onChange={(e) => setConsumptionRate(e.target.value)}
+              placeholder="e.g., 100"
+              className="flex-1"
+            />
+            <div className="w-20 text-sm text-muted-foreground flex items-center justify-center bg-muted rounded-md px-2">
+              {consumptionUnit}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="flueGasTemp">Flue Gas Temperature at Inlet (°C)</Label>
+          <Input
+            id="flueGasTemp"
+            type="number"
+            value={flueGasTemp}
+            onChange={(e) => setFlueGasTemp(e.target.value)}
+            placeholder="e.g., 180"
+          />
+        </div>
+        <div>
+          <Label htmlFor="ambientTemp">Ambient Temperature (°C)</Label>
+          <Input
+            id="ambientTemp"
+            type="number"
+            value={ambientTemp}
+            onChange={(e) => setAmbientTemp(e.target.value)}
+            placeholder="e.g., 25"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="draftLoss">Chimney Draft Loss (Pa) - Optional</Label>
+          <Input
+            id="draftLoss"
+            type="number"
+            step="1"
+            value={draftLoss}
+            onChange={(e) => setDraftLoss(e.target.value)}
+            placeholder="e.g., 50"
+          />
+        </div>
+        <div>
+          <Label htmlFor="heightConstraint">Height Constraint (m) - Optional</Label>
+          <Input
+            id="heightConstraint"
+            type="number"
+            step="0.5"
+            value={heightConstraint}
+            onChange={(e) => setHeightConstraint(e.target.value)}
+            placeholder="e.g., 25"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="stackMaterial">Stack Material</Label>
+        <Select value={stackMaterial} onValueChange={setStackMaterial}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="steel">Carbon Steel</SelectItem>
+            <SelectItem value="stainless">Stainless Steel</SelectItem>
+            <SelectItem value="refractory">Refractory Lined</SelectItem>
+            <SelectItem value="concrete">Concrete</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Button onClick={calculateChimney} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Chimney Dimensions
+      </Button>
+
+      {result !== null && (
+        <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+          <h4 className="font-semibold text-purple-900">Calculation Results</h4>
+          <div className="grid grid-cols-2 gap-4 mt-3 text-purple-800">
+            <div>
+              <p className="text-sm text-purple-600">Flue Gas Flow Rate</p>
+              <p className="font-bold">{result.flueGasFlow.toFixed(1)} m³/hr</p>
+            </div>
+            <div>
+              <p className="text-sm text-purple-600">Flue Gas Velocity</p>
+              <p className="font-bold">{result.flueGasVelocity.toFixed(1)} m/s</p>
+            </div>
+            <div>
+              <p className="text-sm text-purple-600">Available Draft</p>
+              <p className="font-bold">{result.availableDraft.toFixed(1)} Pa</p>
+            </div>
+            <div>
+              <p className="text-sm text-purple-600">Draft Status</p>
+              <p className="font-bold">
+                {result.availableDraft > parseFloat(draftLoss) ? "✓ Adequate" : "⚠ Insufficient"}
+              </p>
+            </div>
+          </div>
+          
+          <div className="mt-4 pt-4 border-t border-purple-300">
+            <div className="grid grid-cols-2 gap-8">
+              <div className="text-center">
+                <p className="text-sm text-purple-600">Minimum Chimney Diameter</p>
+                <p className="font-bold text-xl text-purple-900">{result.minDiameter.toFixed(0)} mm</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-purple-600">Recommended Height</p>
+                <p className="font-bold text-xl text-purple-900">{result.recommendedHeight.toFixed(1)} m</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-4 p-3 bg-purple-100 rounded">
+            <h5 className="font-semibold text-purple-900 mb-2">Design Notes:</h5>
+            <ul className="text-xs text-purple-700 space-y-1">
+              <li>• Diameter calculation based on optimal flue gas velocity for {fuelProperties[fuelType as keyof typeof fuelProperties].name}</li>
+              <li>• Height ensures adequate natural draft for combustion air supply</li>
+              <li>• Consider local building codes and environmental regulations</li>
+              <li>• Add safety margin for temperature variations and fouling</li>
+              <li>• {stackMaterial === "steel" ? "Steel construction suitable for moderate temperatures" : 
+                     stackMaterial === "refractory" ? "Refractory lining recommended for high temperatures" :
+                     "Material selection appropriate for application"}</li>
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Nozzle Reinforcement Calculator Component
 function NozzleReinforcementCalculator() {
   const [vesselDiameter, setVesselDiameter] = useState("");
@@ -10565,6 +10839,37 @@ export default function DesignToolsPage() {
                         <DialogTitle>Expansion Tank Capacity Calculator</DialogTitle>
                       </DialogHeader>
                       <ExpansionTankCapacityCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Chimney Diameter & Height Calculator</CardTitle>
+                    <CardDescription>
+                      Calculate minimum chimney diameter and height for natural draft
+                    </CardDescription>
+                  </div>
+                  <Factory className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Based on combustion parameters and environmental standards
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Chimney Diameter & Height Calculator</DialogTitle>
+                      </DialogHeader>
+                      <ChimneyDiameterHeightCalculator />
                     </DialogContent>
                   </Dialog>
                 </CardContent>
