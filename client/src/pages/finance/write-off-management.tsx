@@ -464,6 +464,7 @@ const WriteOffManagementPage = () => {
                       <TableHead>Customer</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Reason</TableHead>
+                      <TableHead>Additional Notes</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Status</TableHead>
                       {activeTab === "pending" && <TableHead>Actions</TableHead>}
@@ -490,6 +491,11 @@ const WriteOffManagementPage = () => {
                         <TableCell>
                           <div className="max-w-[200px] truncate" title={writeOff.reason}>
                             {writeOff.reason}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-w-[200px] truncate" title={writeOff.notes || '-'}>
+                            {writeOff.notes || '-'}
                           </div>
                         </TableCell>
                         <TableCell>{formatDate(writeOff.dateCreated)}</TableCell>
