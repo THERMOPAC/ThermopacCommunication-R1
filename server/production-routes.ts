@@ -200,9 +200,11 @@ export function setupProductionRoutes(app: Router) {
       });
     
     // Get all component relationships for ALL parent items in the project
+    console.log(`[DEBUG] Looking for components of parent items:`, allParentItemIds);
     const allItemComponentRelationships = await db.query.itemComponents.findMany({
       where: inArray(itemComponents.parentItemId, allParentItemIds)
     });
+    console.log(`[DEBUG] Raw component relationships found:`, allItemComponentRelationships.length);
     
     // Create map of all component master items
     const allComponentItemIds = allItemComponentRelationships.map(rel => rel.componentItemId);
