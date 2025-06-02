@@ -58,9 +58,31 @@ export default function PaymentAllocationRedesigned() {
     queryKey: ['/api/finance/unallocated-advances'],
   });
 
+  // Auto-set customer when payment is selected
+  useEffect(() => {
+    if (selectedPayment && selectedPayment.customerId.toString() !== selectedCustomerId) {
+      setSelectedCustomerId(selectedPayment.customerId.toString());
+    }
+  }, [selectedPayment]);
+
   // Fetch outstanding invoices
   const { data: invoicesData, isLoading: invoicesLoading } = useQuery({
-    queryKey: ['/api/finance/outstanding-invoices', selectedCustomerId],
+    queryKey: ['/api/finance/outstanding-invoices', selectedCustomerId, selectedPayment?.paymentType],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedCustomerId && selectedCustomerId !== 'all') {
+        params.append('customerId', selectedCustomerId);
+      }
+      if (selectedPayment?.paymentType && selectedPayment.paymentType !== 'all') {
+        params.append('invoiceType', selectedPayment.paymentType);
+      }
+      
+      const response = await fetch(`/api/finance/outstanding-invoices?${params}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch invoices');
+      }
+      return response.json();
+    },
     enabled: !!selectedCustomerId,
     staleTime: 0,
   });
@@ -196,13 +218,9 @@ export default function PaymentAllocationRedesigned() {
     ? payments.filter(p => p.customerId.toString() === selectedCustomerId)
     : [];
 
-  // Filter invoices by payment type matching
-  // Filter invoices that match payment type and aren't already allocated to this payment
+  // Filter invoices to exclude those already allocated to the selected payment
   const filteredInvoices = selectedPayment 
     ? invoices.filter(i => {
-        // Check payment type match
-        if (i.invoiceType !== selectedPayment.paymentType) return false;
-        
         // Check if this payment-invoice combination already exists
         const existingAllocation = existingLinks.find(
           (link: any) => link.payment_id === selectedPayment.id && link.invoice_id === i.id
