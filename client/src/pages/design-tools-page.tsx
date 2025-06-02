@@ -12103,7 +12103,7 @@ export default function DesignToolsPage() {
                       Calculate required heating coil surface area
                     </CardDescription>
                   </div>
-                  <CircleDot className="h-4 w-4 text-muted-foreground" />
+                  <Circle className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground mb-4">
@@ -12134,7 +12134,7 @@ export default function DesignToolsPage() {
                       Calculate induced/forced draft fan requirements
                     </CardDescription>
                   </div>
-                  <Fan className="h-4 w-4 text-muted-foreground" />
+                  <Wind className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground mb-4">
