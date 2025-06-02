@@ -865,6 +865,263 @@ function CombustionChamberPressureLossCalculator() {
   );
 }
 
+// Expansion Tank Capacity Calculator Component
+function ExpansionTankCapacityCalculator() {
+  const [totalVolume, setTotalVolume] = useState("");
+  const [volumeUnit, setVolumeUnit] = useState("liters");
+  const [minTemperature, setMinTemperature] = useState("");
+  const [maxTemperature, setMaxTemperature] = useState("");
+  const [fluidPreset, setFluidPreset] = useState("custom");
+  const [expansionCoefficient, setExpansionCoefficient] = useState("");
+  const [safetyMargin, setSafetyMargin] = useState("10");
+  const [preChargePresssure, setPreChargePresssure] = useState("");
+  const [operatingPressure, setOperatingPressure] = useState("");
+  const [result, setResult] = useState<{
+    expansionVolume: number;
+    tankSize: number;
+    pressurizedTankSize: number;
+    temperatureRise: number;
+    tankType: string;
+  } | null>(null);
+
+  // Fluid presets with thermal expansion coefficients
+  const fluidPresets = {
+    "therminol-55": { coefficient: 0.00073, name: "Therminol 55" },
+    "therminol-66": { coefficient: 0.00085, name: "Therminol 66" },
+    "vp1": { coefficient: 0.00095, name: "VP1 Thermal Oil" },
+    "dowtherm-a": { coefficient: 0.00088, name: "Dowtherm A" },
+    "marlotherm-sh": { coefficient: 0.00078, name: "Marlotherm SH" },
+    "hot-water": { coefficient: 0.00021, name: "Hot Water" },
+    "ethylene-glycol": { coefficient: 0.00065, name: "Ethylene Glycol 50%" },
+    "custom": { coefficient: 0, name: "Custom Fluid" }
+  };
+
+  const handleFluidPresetChange = (preset: string) => {
+    setFluidPreset(preset);
+    if (preset !== "custom") {
+      setExpansionCoefficient(fluidPresets[preset as keyof typeof fluidPresets].coefficient.toString());
+    }
+  };
+
+  const calculateTankCapacity = () => {
+    const V_total = parseFloat(totalVolume) * (volumeUnit === "liters" ? 1 : 1000); // Convert to liters
+    const T_min = parseFloat(minTemperature);
+    const T_max = parseFloat(maxTemperature);
+    const alpha = parseFloat(expansionCoefficient);
+    const margin = parseFloat(safetyMargin) / 100;
+    const P0 = parseFloat(preChargePresssure) || 0;
+    const Ps = parseFloat(operatingPressure) || 0;
+
+    if (!V_total || !T_min || !T_max || !alpha || T_max <= T_min) return;
+
+    // Calculate temperature rise
+    const temperatureRise = T_max - T_min;
+
+    // Calculate volume expansion: ΔV = V_total × α × (T_max - T_min)
+    const expansionVolume = V_total * alpha * temperatureRise;
+
+    // Apply safety margin: V_required = ΔV × (1 + Safety Margin)
+    const requiredVolume = expansionVolume * (1 + margin);
+
+    // Standard tank size (atmospheric)
+    const tankSize = requiredVolume;
+
+    // Pressurized tank calculation (if pressures are provided)
+    let pressurizedTankSize = tankSize;
+    let tankType = "Open/Atmospheric Tank";
+
+    if (P0 > 0 && Ps > 0 && Ps > P0) {
+      // V_tank = V_required / (1 - P0/Ps)
+      pressurizedTankSize = requiredVolume / (1 - P0 / Ps);
+      tankType = "Pressurized Tank";
+    }
+
+    setResult({
+      expansionVolume: expansionVolume,
+      tankSize: tankSize,
+      pressurizedTankSize: pressurizedTankSize,
+      temperatureRise: temperatureRise,
+      tankType: tankType
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="totalVolume">Total Fluid Volume in System</Label>
+          <div className="flex gap-2">
+            <Input
+              id="totalVolume"
+              type="number"
+              step="0.1"
+              value={totalVolume}
+              onChange={(e) => setTotalVolume(e.target.value)}
+              placeholder="e.g., 500"
+              className="flex-1"
+            />
+            <Select value={volumeUnit} onValueChange={setVolumeUnit}>
+              <SelectTrigger className="w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="liters">L</SelectItem>
+                <SelectItem value="m3">m³</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div>
+          <Label htmlFor="fluidPreset">Fluid Type</Label>
+          <Select value={fluidPreset} onValueChange={handleFluidPresetChange}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(fluidPresets).map(([key, preset]) => (
+                <SelectItem key={key} value={key}>{preset.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="minTemperature">Minimum Operating Temperature (°C)</Label>
+          <Input
+            id="minTemperature"
+            type="number"
+            value={minTemperature}
+            onChange={(e) => setMinTemperature(e.target.value)}
+            placeholder="e.g., 20"
+          />
+        </div>
+        <div>
+          <Label htmlFor="maxTemperature">Maximum Operating Temperature (°C)</Label>
+          <Input
+            id="maxTemperature"
+            type="number"
+            value={maxTemperature}
+            onChange={(e) => setMaxTemperature(e.target.value)}
+            placeholder="e.g., 300"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="expansionCoefficient">Thermal Expansion Coefficient (1/°C)</Label>
+          <Input
+            id="expansionCoefficient"
+            type="number"
+            step="0.00001"
+            value={expansionCoefficient}
+            onChange={(e) => setExpansionCoefficient(e.target.value)}
+            placeholder="e.g., 0.00085"
+            disabled={fluidPreset !== "custom"}
+          />
+        </div>
+        <div>
+          <Label htmlFor="safetyMargin">Safety Expansion Margin (%)</Label>
+          <Input
+            id="safetyMargin"
+            type="number"
+            step="1"
+            value={safetyMargin}
+            onChange={(e) => setSafetyMargin(e.target.value)}
+            placeholder="e.g., 10"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="preChargePresssure">Tank Pre-charge Pressure (bar) - Optional</Label>
+          <Input
+            id="preChargePresssure"
+            type="number"
+            step="0.1"
+            value={preChargePresssure}
+            onChange={(e) => setPreChargePresssure(e.target.value)}
+            placeholder="e.g., 1.5"
+          />
+        </div>
+        <div>
+          <Label htmlFor="operatingPressure">System Operating Pressure (bar) - Optional</Label>
+          <Input
+            id="operatingPressure"
+            type="number"
+            step="0.1"
+            value={operatingPressure}
+            onChange={(e) => setOperatingPressure(e.target.value)}
+            placeholder="e.g., 5.0"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculateTankCapacity} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Tank Capacity
+      </Button>
+
+      {result !== null && (
+        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <h4 className="font-semibold text-green-900">Calculation Results</h4>
+          <div className="grid grid-cols-2 gap-4 mt-3 text-green-800">
+            <div>
+              <p className="text-sm text-green-600">Temperature Rise (ΔT)</p>
+              <p className="font-bold">{result.temperatureRise.toFixed(1)} °C</p>
+            </div>
+            <div>
+              <p className="text-sm text-green-600">Fluid Expansion Volume</p>
+              <p className="font-bold">{result.expansionVolume.toFixed(2)} liters</p>
+            </div>
+            <div>
+              <p className="text-sm text-green-600">Standard Tank Size</p>
+              <p className="font-bold">{result.tankSize.toFixed(2)} liters</p>
+            </div>
+            <div>
+              <p className="text-sm text-green-600">Recommended Tank Type</p>
+              <p className="font-bold">{result.tankType}</p>
+            </div>
+          </div>
+          
+          {result.pressurizedTankSize !== result.tankSize && (
+            <div className="mt-4 pt-4 border-t border-green-300">
+              <div className="text-center">
+                <p className="text-sm text-green-600">Pressurized Tank Size</p>
+                <p className="font-bold text-xl text-green-900">{result.pressurizedTankSize.toFixed(2)} liters</p>
+              </div>
+            </div>
+          )}
+          
+          <div className="mt-4 pt-4 border-t border-green-300">
+            <div className="text-center">
+              <p className="text-sm text-green-600">Final Recommended Tank Capacity</p>
+              <p className="font-bold text-xl text-green-900">
+                {Math.max(result.tankSize, result.pressurizedTankSize).toFixed(2)} liters
+              </p>
+            </div>
+          </div>
+          
+          <div className="mt-4 p-3 bg-green-100 rounded">
+            <h5 className="font-semibold text-green-900 mb-2">Design Notes:</h5>
+            <ul className="text-xs text-green-700 space-y-1">
+              <li>• Tank should accommodate thermal expansion with safety margin</li>
+              <li>• {result.tankType === "Open/Atmospheric Tank" 
+                  ? "Open tank suitable for low-pressure systems" 
+                  : "Pressurized tank recommended for higher system pressures"}</li>
+              <li>• Consider installation of overflow and make-up connections</li>
+              <li>• Insulation may be required to minimize heat loss</li>
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Nozzle Reinforcement Calculator Component
 function NozzleReinforcementCalculator() {
   const [vesselDiameter, setVesselDiameter] = useState("");
@@ -10277,6 +10534,37 @@ export default function DesignToolsPage() {
                         <DialogTitle>Combustion Chamber Pressure Loss Calculator</DialogTitle>
                       </DialogHeader>
                       <CombustionChamberPressureLossCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Expansion Tank Capacity Calculator</CardTitle>
+                    <CardDescription>
+                      Calculate required expansion tank volume for thermal systems
+                    </CardDescription>
+                  </div>
+                  <Container className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Handles thermal fluid expansion with safety margins and pressure considerations
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Expansion Tank Capacity Calculator</DialogTitle>
+                      </DialogHeader>
+                      <ExpansionTankCapacityCalculator />
                     </DialogContent>
                   </Dialog>
                 </CardContent>
