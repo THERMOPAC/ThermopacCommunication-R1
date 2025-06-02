@@ -127,7 +127,7 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
       invoiceId: parseInt(selectedInvoice),
       amount: parseFloat(writeOffAmount),
       reason,
-      description,
+      notes: description,
       currency: invoice?.currency || 'USD',
       postingDate
     });
