@@ -294,11 +294,32 @@ export default function BrcManagementPage() {
     setDialogOpen(true);
   };
 
-  const handleViewDocument = (brc: any) => {
+  const handleViewDocument = async (brc: any) => {
     if (brc.document_path) {
-      const bucketName = 'thermopac_storage';
-      const documentUrl = `https://storage.cloud.google.com/${bucketName}/${brc.document_path}`;
-      window.open(documentUrl, '_blank');
+      try {
+        // Use the backend API to get the document with proper authentication
+        const response = await fetch(`/api/finance/brc/${brc.id}/document`, {
+          method: 'GET',
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          window.open(url, '_blank');
+          // Clean up the URL object after a delay
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } else {
+          throw new Error(`Failed to fetch document: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Error viewing document:', error);
+        toast({
+          title: "Error",
+          description: "Unable to open the document. Please try again or contact support.",
+          variant: "destructive",
+        });
+      }
     } else {
       toast({
         title: "No Document",
