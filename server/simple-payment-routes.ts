@@ -181,7 +181,9 @@ router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, re
   try {
     console.log('Fetching outstanding invoices (simple version)');
     
+    const customerId = req.query.customerId as string;
     const invoiceType = req.query.invoiceType as string;
+    console.log('Filter by customer ID:', customerId || 'All');
     console.log('Filter by invoice type:', invoiceType || 'All');
     
     let query = `
@@ -195,10 +197,16 @@ router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, re
     
     const params: any[] = [];
     
-    // Add optional filter
-    if (invoiceType) {
+    // Add customer filter
+    if (customerId && customerId !== 'all') {
+      params.push(customerId);
+      query += ` AND i.customer_id = $${params.length}`;
+    }
+    
+    // Add invoice type filter
+    if (invoiceType && invoiceType !== 'all') {
       params.push(invoiceType);
-      query += ` AND i.invoice_type = $1`;
+      query += ` AND i.invoice_type = $${params.length}`;
     }
     
     query += ` LIMIT 20`;
