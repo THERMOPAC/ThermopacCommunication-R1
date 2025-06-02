@@ -331,6 +331,7 @@ export default function PaymentAllocationRedesigned() {
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="font-medium">{invoice.invoiceNumber}</p>
+                          <p className="text-sm text-gray-600">Customer: {invoice.customerName}</p>
                           <p className="text-sm text-gray-600">Date: {invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString() : 'N/A'}</p>
                           <p className="text-sm text-gray-600">Type: {invoice.invoiceType}</p>
                         </div>
