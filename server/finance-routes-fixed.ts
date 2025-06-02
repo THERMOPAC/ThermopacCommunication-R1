@@ -1227,7 +1227,7 @@ router.get('/brc/:id/document', ensureAuthenticated, async (req: Request, res: R
     // Get BRC document path from database
     const query = `
       SELECT document_path, certificate_number 
-      FROM finance_brc_certificates 
+      FROM bank_realization_certificates 
       WHERE id = $1
     `;
     
