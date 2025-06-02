@@ -1209,7 +1209,8 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/customers', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       // Check if the user has permission to create customers
-      if (!canManage(req.user!.role, 'Manager')) {
+      const managementRoles = ['Superuser', 'General Manager', 'Senior Manager', 'Manager'];
+      if (!managementRoles.includes(req.user!.role)) {
         return res.status(403).json({ error: 'Not authorized to create customers' });
       }
       
@@ -1240,7 +1241,8 @@ export function setupProjectRoutes(app: express.Express) {
       const customerId = parseInt(req.params.id);
       
       // Check if the user has permission to update customers
-      if (!canManage(req.user!.role, 'Manager')) {
+      const managementRoles = ['Superuser', 'General Manager', 'Senior Manager', 'Manager'];
+      if (!managementRoles.includes(req.user!.role)) {
         return res.status(403).json({ error: 'Not authorized to update customers' });
       }
       
@@ -1277,7 +1279,8 @@ export function setupProjectRoutes(app: express.Express) {
       const customerId = parseInt(req.params.id);
       
       // Check if the user has permission to delete customers
-      if (!canManage(req.user!.role, 'Senior Manager')) {
+      const managementRoles = ['Superuser', 'General Manager', 'Senior Manager'];
+      if (!managementRoles.includes(req.user!.role)) {
         return res.status(403).json({ error: 'Not authorized to delete customers' });
       }
       
