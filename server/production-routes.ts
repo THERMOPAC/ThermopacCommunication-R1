@@ -194,13 +194,18 @@ export function setupProductionRoutes(app: Router) {
     
     // We need to ensure masterItemsMap has ALL master items, not just the filtered ones
     const allMasterItemIds = allProjectMakeItems.map(item => item.itemId);
+    console.log(`[DEBUG] Project has ${allProjectMakeItems.length} project items with IDs:`, allMasterItemIds);
+    
     if (allMasterItemIds.length > 0) {
       const allMasterItems = await db.query.masterItems.findMany({
         where: inArray(masterItems.id, allMasterItemIds)
       });
       
+      console.log(`[DEBUG] Found ${allMasterItems.length} master items for project items`);
+      
       allMasterItems.forEach(item => {
         masterItemsMap.set(item.id, item);
+        console.log(`[DEBUG] Added master item: ${item.itemCode} (ID: ${item.id}, Make/Buy: ${item.makeOrBuy})`);
       });
     }
     
@@ -208,7 +213,11 @@ export function setupProductionRoutes(app: Router) {
       .map(item => item.itemId)
       .filter(itemId => {
         const masterItem = masterItemsMap.get(itemId);
-        return masterItem && masterItem.makeOrBuy === 'Make';
+        const isMake = masterItem && masterItem.makeOrBuy === 'Make';
+        if (isMake) {
+          console.log(`[DEBUG] Found Make item: ${masterItem.itemCode} (ID: ${itemId})`);
+        }
+        return isMake;
       });
     
     // Get all component relationships for ALL parent items in the project
