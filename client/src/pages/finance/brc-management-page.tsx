@@ -440,13 +440,14 @@ export default function BrcManagementPage() {
                         <TableHead>Customer</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead>Amount</TableHead>
+                        <TableHead>Invoice Type</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredData.pending.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          <TableCell colSpan={7} className="text-center text-muted-foreground">
                             No pending BRC invoices found
                           </TableCell>
                         </TableRow>
@@ -460,6 +461,7 @@ export default function BrcManagementPage() {
                               {invoice.issueDate ? format(new Date(invoice.issueDate), 'dd/MM/yyyy') : '-'}
                             </TableCell>
                             <TableCell>{parseFloat(invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {invoice.currency}</TableCell>
+                            <TableCell>{invoice.invoiceType || '-'}</TableCell>
                             <TableCell>
                               <div className="flex gap-2">
                                 <Button 
@@ -520,6 +522,7 @@ export default function BrcManagementPage() {
                         <TableHead>BRC Date</TableHead>
                         <TableHead>Bank Name</TableHead>
                         <TableHead>Amount Realized</TableHead>
+                        <TableHead>Invoice Type</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
@@ -527,7 +530,7 @@ export default function BrcManagementPage() {
                     <TableBody>
                       {filteredData.received.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center text-muted-foreground">
+                          <TableCell colSpan={9} className="text-center text-muted-foreground">
                             No BRC records found
                           </TableCell>
                         </TableRow>
@@ -548,6 +551,7 @@ export default function BrcManagementPage() {
                             <TableCell>
                               {(brc.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {brc.currency}
                             </TableCell>
+                            <TableCell>{brc.invoice_type || '-'}</TableCell>
                             <TableCell>
                               <Badge variant="default">Received</Badge>
                             </TableCell>
