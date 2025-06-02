@@ -108,7 +108,11 @@ export function setupProductionRoutes(app: Router) {
       where: eq(workOrders.projectId, projectId)
     });
     
+    let filteredMakeItems = makeItems;
+    let hasExistingWorkOrders = false;
+    
     if (existingWorkOrders.length > 0) {
+      hasExistingWorkOrders = true;
       // Get all work order items for this project
       const existingWorkOrderIds = existingWorkOrders.map(wo => wo.id);
       const existingWorkOrderItems = await db.query.workOrderItems.findMany({
@@ -119,24 +123,10 @@ export function setupProductionRoutes(app: Router) {
       const existingProjectItemIds = new Set(existingWorkOrderItems.map(item => item.projectItemId));
       
       // Filter out items that already have work orders
-      const filteredMakeItems = makeItems.filter(item => !existingProjectItemIds.has(item.id));
-      
-      if (filteredMakeItems.length === 0) {
-        return res.status(200).json({ 
-          project: {
-            id: project.id,
-            code: project.code,
-            name: project.name
-          },
-          itemCount: 0,
-          items: [],
-          message: 'All "Make" items already have work orders'
-        });
-      }
-      
-      // Update makeItems to only include items that don't already have work orders
-      makeItems = filteredMakeItems;
+      filteredMakeItems = makeItems.filter(item => !existingProjectItemIds.has(item.id));
     }
+    
+    makeItems = filteredMakeItems;
     
     // Get item components relationships for separation
     const itemComponentRelationships = await db.query.itemComponents.findMany({
@@ -191,44 +181,88 @@ export function setupProductionRoutes(app: Router) {
       }
     });
     
-    // Now, for each parent with components, add virtual project items for component items
-    // that are not already included in the project
+    // Enhanced logic: Detect newly added sub-assembly components that need work orders
     const virtualChildItems: typeof makeItems = [];
     
-    parentsWithComponents.forEach(parentItemId => {
-      // Find the original project item for this parent
-      const parentProjectItem = makeItems.find(item => item.itemId === parentItemId);
-      if (!parentProjectItem) return;
+    // First, get ALL parent items from the original project (not just filtered ones)
+    const allProjectMakeItems = await db.query.projectItems.findMany({
+      where: and(
+        eq(projectItems.projectId, projectId),
+        eq(projectItems.status, 'active')
+      )
+    });
+    
+    const allParentItemIds = allProjectMakeItems
+      .map(item => item.itemId)
+      .filter(itemId => {
+        const masterItem = masterItemsMap.get(itemId);
+        return masterItem && masterItem.makeOrBuy === 'Make';
+      });
+    
+    // Get all component relationships for ALL parent items in the project
+    const allItemComponentRelationships = await db.query.itemComponents.findMany({
+      where: inArray(itemComponents.parentItemId, allParentItemIds)
+    });
+    
+    // Create map of all component master items
+    const allComponentItemIds = allItemComponentRelationships.map(rel => rel.componentItemId);
+    if (allComponentItemIds.length > 0) {
+      const allComponentMasterItems = await db.query.masterItems.findMany({
+        where: inArray(masterItems.id, allComponentItemIds)
+      });
       
-      // Get all component items for this parent
-      const componentItemIds = parentToChildMap.get(parentItemId) || [];
+      allComponentMasterItems.forEach(item => {
+        if (!masterItemsMap.has(item.id)) {
+          masterItemsMap.set(item.id, item);
+        }
+      });
+    }
+    
+    // If we have existing work orders, check for newly added components that don't have work orders
+    if (hasExistingWorkOrders) {
+      // Get existing work order items to see which components already have work orders
+      const existingWorkOrderIds = existingWorkOrders.map(wo => wo.id);
+      const existingWorkOrderItems = await db.query.workOrderItems.findMany({
+        where: inArray(workOrderItems.workOrderId, existingWorkOrderIds)
+      });
       
-      componentItemIds.forEach(componentItemId => {
-        // Check if this component already exists as a project item
-        const existingComponentItem = makeItems.find(item => item.itemId === componentItemId);
+      // Create set of component item IDs that already have work orders
+      const existingComponentWorkOrderIds = new Set();
+      existingWorkOrderItems.forEach(woItem => {
+        // Check if this work order item corresponds to a component
+        const projectItem = allProjectMakeItems.find(pi => pi.id === woItem.projectItemId);
+        if (projectItem) {
+          existingComponentWorkOrderIds.add(projectItem.itemId);
+        }
+      });
+      
+      // Now check each parent item for components that don't have work orders
+      allItemComponentRelationships.forEach(rel => {
+        const componentMasterItem = masterItemsMap.get(rel.componentItemId);
         
-        if (!existingComponentItem) {
-          // If component is not already a project item, create a virtual one
-          const masterComponentItem = masterItemsMap.get(componentItemId);
-          if (masterComponentItem && masterComponentItem.makeOrBuy === 'Make') {
-            // Get the parent item's quantity to calculate child component quantity
-            const parentQuantity = typeof parentProjectItem.quantity === 'string' 
-              ? parseFloat(parentProjectItem.quantity) 
-              : parentProjectItem.quantity;
-              
-            const validParentQuantity = !isNaN(parentQuantity) && parentQuantity > 0 
-              ? parentQuantity 
-              : 1;
-              
-            // Create a virtual project item for this component with all required fields
-            // Use negative ID to mark as virtual items (important for later processing)
+        if (componentMasterItem && 
+            componentMasterItem.makeOrBuy === 'Make' && 
+            !existingComponentWorkOrderIds.has(rel.componentItemId)) {
+          
+          // This component needs a work order - find its parent project item
+          const parentProjectItem = allProjectMakeItems.find(item => item.itemId === rel.parentItemId);
+          
+          if (parentProjectItem) {
+            // Get component quantity from the relationship
+            const componentRelation = allItemComponentRelationships.find(
+              r => r.parentItemId === rel.parentItemId && r.componentItemId === rel.componentItemId
+            );
+            
+            const componentQuantity = componentRelation?.quantity || 1;
+            
+            // Create virtual project item for this component
             virtualChildItems.push({
-              id: -componentItemId, // Use negative ID to indicate virtual item
+              id: -rel.componentItemId, // Use negative ID to indicate virtual item
               projectId: parentProjectItem.projectId,
               projectCode: project.code,
-              itemId: componentItemId,
-              quantity: validParentQuantity.toString(), // Use parent's quantity for components
-              notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}`,
+              itemId: rel.componentItemId,
+              quantity: componentQuantity.toString(),
+              notes: `Sub-component of ${masterItemsMap.get(rel.parentItemId)?.itemCode || 'parent item'}`,
               status: 'active',
               createdAt: new Date(),
               updatedAt: new Date(),
@@ -238,7 +272,46 @@ export function setupProductionRoutes(app: Router) {
           }
         }
       });
-    });
+    } else {
+      // Original logic for projects without existing work orders
+      parentsWithComponents.forEach(parentItemId => {
+        const parentProjectItem = makeItems.find(item => item.itemId === parentItemId);
+        if (!parentProjectItem) return;
+        
+        const componentItemIds = parentToChildMap.get(parentItemId) || [];
+        
+        componentItemIds.forEach(componentItemId => {
+          const existingComponentItem = makeItems.find(item => item.itemId === componentItemId);
+          
+          if (!existingComponentItem) {
+            const masterComponentItem = masterItemsMap.get(componentItemId);
+            if (masterComponentItem && masterComponentItem.makeOrBuy === 'Make') {
+              const parentQuantity = typeof parentProjectItem.quantity === 'string' 
+                ? parseFloat(parentProjectItem.quantity) 
+                : parentProjectItem.quantity;
+                
+              const validParentQuantity = !isNaN(parentQuantity) && parentQuantity > 0 
+                ? parentQuantity 
+                : 1;
+                
+              virtualChildItems.push({
+                id: -componentItemId,
+                projectId: parentProjectItem.projectId,
+                projectCode: project.code,
+                itemId: componentItemId,
+                quantity: validParentQuantity.toString(),
+                notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}`,
+                status: 'active',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                actualCost: null,
+                estimatedCost: null
+              });
+            }
+          }
+        });
+      });
+    }
     
     // Add virtual items to child items
     childItems.push(...virtualChildItems);
@@ -276,6 +349,22 @@ export function setupProductionRoutes(app: Router) {
     const parentPreviewItems: PreviewItem[] = mapItemsToPreview(parentItems, true);
     const childPreviewItems: PreviewItem[] = mapItemsToPreview(childItems, false);
     const allPreviewItems = [...parentPreviewItems, ...childPreviewItems];
+    
+    // Check if we have any items to process (including virtual components)
+    if (allPreviewItems.length === 0) {
+      return res.status(200).json({ 
+        project: {
+          id: project.id,
+          code: project.code,
+          name: project.name
+        },
+        itemCount: 0,
+        items: [],
+        message: hasExistingWorkOrders 
+          ? 'All items and sub-components already have work orders'
+          : 'No "Make" items found for work order generation'
+      });
+    }
     
     // Get the count of existing work orders for this project to determine the sequence number
     const workOrderCount = await db.query.workOrders.findMany({
