@@ -591,6 +591,280 @@ function HelicalCoilPressureLossCalculator() {
   );
 }
 
+// Combustion Chamber Pressure Loss Calculator Component
+function CombustionChamberPressureLossCalculator() {
+  const [inletPressure, setInletPressure] = useState("");
+  const [pressureUnit, setPressureUnit] = useState("bar");
+  const [inletTemperature, setInletTemperature] = useState("");
+  const [massFlowRate, setMassFlowRate] = useState("");
+  const [chamberLength, setChamberLength] = useState("");
+  const [chamberDiameter, setChamberDiameter] = useState("");
+  const [surfaceRoughness, setSurfaceRoughness] = useState("");
+  const [density, setDensity] = useState("");
+  const [viscosity, setViscosity] = useState("");
+  const [heatCapacityRatio, setHeatCapacityRatio] = useState("1.4");
+  const [kFactor, setKFactor] = useState("0.5");
+  const [result, setResult] = useState<{
+    velocity: number;
+    reynolds: number;
+    flowRegime: string;
+    frictionFactor: number;
+    frictionLoss: number;
+    localLoss: number;
+    totalLoss: number;
+  } | null>(null);
+
+  const calculatePressureLoss = () => {
+    const P_inlet = parseFloat(inletPressure) * (pressureUnit === "bar" ? 100000 : 100); // Convert to Pa
+    const T_inlet = parseFloat(inletTemperature);
+    const m_dot = parseFloat(massFlowRate);
+    const L = parseFloat(chamberLength);
+    const D = parseFloat(chamberDiameter);
+    const roughness = parseFloat(surfaceRoughness) / 1000 || 0; // Convert mm to m, default 0
+    const rho = parseFloat(density);
+    const mu = parseFloat(viscosity);
+    const gamma = parseFloat(heatCapacityRatio);
+    const K = parseFloat(kFactor);
+
+    if (!P_inlet || !T_inlet || !m_dot || !L || !D || !rho || !mu) return;
+
+    // Calculate cross-sectional area: A = π * D² / 4
+    const A = Math.PI * Math.pow(D, 2) / 4;
+
+    // Calculate flow velocity: v = m_dot / (ρ * A)
+    const velocity = m_dot / (rho * A);
+
+    // Calculate Reynolds number: Re = ρ * v * D / μ
+    const reynolds = (rho * velocity * D) / mu;
+
+    // Determine flow regime and friction factor
+    let frictionFactor: number;
+    let flowRegime: string;
+
+    if (reynolds < 2300) {
+      frictionFactor = 64 / reynolds;
+      flowRegime = "Laminar";
+    } else {
+      // Turbulent flow - Swamee-Jain equation (simplified)
+      if (roughness > 0) {
+        const relativeRoughness = roughness / D;
+        frictionFactor = 0.25 / Math.pow(Math.log10(relativeRoughness / 3.7 + 5.74 / Math.pow(reynolds, 0.9)), 2);
+      } else {
+        // Smooth pipe - Blasius equation for turbulent flow
+        frictionFactor = 0.316 / Math.pow(reynolds, 0.25);
+      }
+      flowRegime = "Turbulent";
+    }
+
+    // Calculate pressure drop due to friction: ΔP_f = f * (L/D) * (ρ * v²) / 2
+    const frictionLossPa = frictionFactor * (L / D) * (rho * Math.pow(velocity, 2)) / 2;
+
+    // Calculate pressure drop from local losses: ΔP_l = K * (ρ * v²) / 2
+    const localLossPa = K * (rho * Math.pow(velocity, 2)) / 2;
+
+    // Convert to mbar: 1 Pa = 0.01 mbar
+    const frictionLoss = frictionLossPa / 100;
+    const localLoss = localLossPa / 100;
+    const totalLoss = frictionLoss + localLoss;
+
+    setResult({
+      velocity: velocity,
+      reynolds: reynolds,
+      flowRegime: flowRegime,
+      frictionFactor: frictionFactor,
+      frictionLoss: frictionLoss,
+      localLoss: localLoss,
+      totalLoss: totalLoss
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="inletPressure">Inlet Pressure</Label>
+          <div className="flex gap-2">
+            <Input
+              id="inletPressure"
+              type="number"
+              step="0.01"
+              value={inletPressure}
+              onChange={(e) => setInletPressure(e.target.value)}
+              placeholder="e.g., 2.5"
+              className="flex-1"
+            />
+            <Select value={pressureUnit} onValueChange={setPressureUnit}>
+              <SelectTrigger className="w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="bar">bar</SelectItem>
+                <SelectItem value="mbar">mbar</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div>
+          <Label htmlFor="inletTemperature">Inlet Temperature (°C)</Label>
+          <Input
+            id="inletTemperature"
+            type="number"
+            value={inletTemperature}
+            onChange={(e) => setInletTemperature(e.target.value)}
+            placeholder="e.g., 800"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="massFlowRate">Mass Flow Rate (kg/s)</Label>
+          <Input
+            id="massFlowRate"
+            type="number"
+            step="0.001"
+            value={massFlowRate}
+            onChange={(e) => setMassFlowRate(e.target.value)}
+            placeholder="e.g., 0.5"
+          />
+        </div>
+        <div>
+          <Label htmlFor="chamberLength">Chamber Length (m)</Label>
+          <Input
+            id="chamberLength"
+            type="number"
+            step="0.1"
+            value={chamberLength}
+            onChange={(e) => setChamberLength(e.target.value)}
+            placeholder="e.g., 2.0"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="chamberDiameter">Chamber Diameter (m)</Label>
+          <Input
+            id="chamberDiameter"
+            type="number"
+            step="0.01"
+            value={chamberDiameter}
+            onChange={(e) => setChamberDiameter(e.target.value)}
+            placeholder="e.g., 0.5"
+          />
+        </div>
+        <div>
+          <Label htmlFor="surfaceRoughness">Surface Roughness (mm) - Optional</Label>
+          <Input
+            id="surfaceRoughness"
+            type="number"
+            step="0.001"
+            value={surfaceRoughness}
+            onChange={(e) => setSurfaceRoughness(e.target.value)}
+            placeholder="e.g., 0.05"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="density">Gas Density (kg/m³)</Label>
+          <Input
+            id="density"
+            type="number"
+            step="0.01"
+            value={density}
+            onChange={(e) => setDensity(e.target.value)}
+            placeholder="e.g., 0.8"
+          />
+        </div>
+        <div>
+          <Label htmlFor="viscosity">Dynamic Viscosity (Pa·s)</Label>
+          <Input
+            id="viscosity"
+            type="number"
+            step="0.000001"
+            value={viscosity}
+            onChange={(e) => setViscosity(e.target.value)}
+            placeholder="e.g., 0.000025"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="heatCapacityRatio">Heat Capacity Ratio (γ)</Label>
+          <Input
+            id="heatCapacityRatio"
+            type="number"
+            step="0.01"
+            value={heatCapacityRatio}
+            onChange={(e) => setHeatCapacityRatio(e.target.value)}
+            placeholder="e.g., 1.4"
+          />
+        </div>
+        <div>
+          <Label htmlFor="kFactor">K-factor for Local Losses</Label>
+          <Input
+            id="kFactor"
+            type="number"
+            step="0.1"
+            value={kFactor}
+            onChange={(e) => setKFactor(e.target.value)}
+            placeholder="e.g., 0.5"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculatePressureLoss} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Pressure Loss
+      </Button>
+
+      {result !== null && (
+        <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+          <h4 className="font-semibold text-orange-900">Calculation Results</h4>
+          <div className="grid grid-cols-2 gap-4 mt-3 text-orange-800">
+            <div>
+              <p className="text-sm text-orange-600">Flow Velocity</p>
+              <p className="font-bold">{result.velocity.toFixed(2)} m/s</p>
+            </div>
+            <div>
+              <p className="text-sm text-orange-600">Reynolds Number</p>
+              <p className="font-bold">{result.reynolds.toFixed(0)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-orange-600">Flow Regime</p>
+              <p className="font-bold">{result.flowRegime}</p>
+            </div>
+            <div>
+              <p className="text-sm text-orange-600">Friction Factor</p>
+              <p className="font-bold">{result.frictionFactor.toFixed(6)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-orange-600">Friction Loss</p>
+              <p className="font-bold">{result.frictionLoss.toFixed(2)} mbar</p>
+            </div>
+            <div>
+              <p className="text-sm text-orange-600">Local Losses</p>
+              <p className="font-bold">{result.localLoss.toFixed(2)} mbar</p>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-orange-300">
+            <div className="text-center">
+              <p className="text-sm text-orange-600">Total Pressure Loss</p>
+              <p className="font-bold text-xl text-orange-900">{result.totalLoss.toFixed(2)} mbar</p>
+            </div>
+          </div>
+          <p className="text-xs text-orange-600 mt-3">
+            Calculation based on Darcy-Weisbach equation with Swamee-Jain friction factor for turbulent flow
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Nozzle Reinforcement Calculator Component
 function NozzleReinforcementCalculator() {
   const [vesselDiameter, setVesselDiameter] = useState("");
@@ -9972,6 +10246,37 @@ export default function DesignToolsPage() {
                         <DialogTitle>Helical Coil Pressure Loss Calculator</DialogTitle>
                       </DialogHeader>
                       <HelicalCoilPressureLossCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Combustion Chamber Pressure Loss Calculator</CardTitle>
+                    <CardDescription>
+                      Calculate total pressure loss for gases in cylindrical combustion chambers
+                    </CardDescription>
+                  </div>
+                  <Flame className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Includes friction and local losses with Swamee-Jain correlation
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Combustion Chamber Pressure Loss Calculator</DialogTitle>
+                      </DialogHeader>
+                      <CombustionChamberPressureLossCalculator />
                     </DialogContent>
                   </Dialog>
                 </CardContent>
