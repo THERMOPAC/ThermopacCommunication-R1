@@ -11,6 +11,10 @@ import { generateWorkOrdersForProject } from './optimized-work-order-generation'
 import { generateImprovedWorkOrders } from './production/improved-work-order-generator';
 import { generateDirectWorkOrders } from './production/direct-work-order-generator';
 import { cleanupDuplicateWorkOrders } from './production/direct-work-order-generator';
+import { 
+  generateWorkOrdersForNewComponents, 
+  previewNewComponentWorkOrders 
+} from './production/enhanced-work-order-generator';
 
 // Authentication middleware
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
@@ -2404,4 +2408,12 @@ export function setupProductionRoutes(app: Router) {
       res.status(500).json({ error: 'Failed to delete machine allocation' });
     }
   });
+
+  // ==================== ENHANCED SUB-ASSEMBLY COMPONENT DETECTION ====================
+  
+  // Preview newly added sub-assembly components that need work orders
+  app.get('/api/production/work-orders/new-components/preview/:projectId', ensureAuthenticated, previewNewComponentWorkOrders);
+  
+  // Generate work orders for newly added sub-assembly components
+  app.post('/api/production/work-orders/new-components/generate/:projectId', ensureAuthenticated, generateWorkOrdersForNewComponents);
 }
