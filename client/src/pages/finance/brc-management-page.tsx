@@ -461,7 +461,19 @@ export default function BrcManagementPage() {
                               {invoice.issueDate ? format(new Date(invoice.issueDate), 'dd/MM/yyyy') : '-'}
                             </TableCell>
                             <TableCell>{parseFloat(invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {invoice.currency}</TableCell>
-                            <TableCell>{invoice.invoiceType || '-'}</TableCell>
+                            <TableCell>
+                              <span 
+                                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  invoice.invoiceType === 'Service' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : invoice.invoiceType === 'Product'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}
+                              >
+                                {invoice.invoiceType || '-'}
+                              </span>
+                            </TableCell>
                             <TableCell>
                               <div className="flex gap-2">
                                 <Button 
@@ -551,7 +563,19 @@ export default function BrcManagementPage() {
                             <TableCell>
                               {(brc.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {brc.currency}
                             </TableCell>
-                            <TableCell>{brc.invoice_type || '-'}</TableCell>
+                            <TableCell>
+                              <span 
+                                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  brc.invoice_type === 'Service' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : brc.invoice_type === 'Product'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}
+                              >
+                                {brc.invoice_type || '-'}
+                              </span>
+                            </TableCell>
                             <TableCell>
                               <Badge variant="default">Received</Badge>
                             </TableCell>
