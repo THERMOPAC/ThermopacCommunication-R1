@@ -1213,4 +1213,94 @@ router.get('/reports/invoice-aging', ensureAuthenticated, async (req: Request, r
   }
 });
 
+/**
+ * Get BRC document
+ */
+router.get('/brc/:id/document', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const brcId = parseInt(req.params.id);
+    
+    if (isNaN(brcId)) {
+      return res.status(400).json({ error: 'Invalid BRC ID' });
+    }
+
+    // Get BRC document path from database
+    const query = `
+      SELECT document_path, certificate_number 
+      FROM finance_brc_certificates 
+      WHERE id = $1
+    `;
+    
+    const result = await pool.query(query, [brcId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'BRC not found' });
+    }
+    
+    const brc = result.rows[0];
+    
+    if (!brc.document_path) {
+      return res.status(404).json({ error: 'No document found for this BRC' });
+    }
+
+    // Import GCS client dynamically
+    const { Storage } = require('@google-cloud/storage');
+    
+    // Initialize Google Cloud Storage
+    let storage;
+    try {
+      if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
+        const credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS);
+        storage = new Storage({
+          projectId: credentials.project_id,
+          credentials: credentials
+        });
+      } else {
+        storage = new Storage();
+      }
+    } catch (error) {
+      console.error('Error initializing GCS client:', error);
+      return res.status(500).json({ error: 'Storage service unavailable' });
+    }
+
+    const bucketName = 'thermopac_storage';
+    const bucket = storage.bucket(bucketName);
+    const file = bucket.file(brc.document_path);
+
+    // Check if file exists
+    const [exists] = await file.exists();
+    if (!exists) {
+      return res.status(404).json({ error: 'Document file not found in storage' });
+    }
+
+    // Get file metadata to set appropriate headers
+    const [metadata] = await file.getMetadata();
+    
+    // Set appropriate headers
+    res.setHeader('Content-Type', metadata.contentType || 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${brc.certificate_number}.pdf"`);
+    
+    // Stream the file directly to the response
+    const stream = file.createReadStream();
+    
+    stream.on('error', (error) => {
+      console.error('Error streaming file:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Error reading document' });
+      }
+    });
+    
+    stream.pipe(res);
+    
+  } catch (error: any) {
+    console.error('Error getting BRC document:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: 'Failed to retrieve BRC document',
+        message: error.message
+      });
+    }
+  }
+});
+
 export default router;
