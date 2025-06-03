@@ -1757,10 +1757,11 @@ function ThermalOilPumpSizingCalculator() {
     const Cp = parseFloat(oilSpecificHeat); // kcal/kg°C
     const rho = parseFloat(oilDensity); // kg/m³
     const L = parseFloat(pipeLength); // m
-    const D = parseFloat(pipeDiameter); // m
+    const D_mm = parseFloat(pipeDiameter); // mm
+    const D = D_mm / 1000; // Convert mm to m
 
     // Validate all required inputs
-    if (!Q_kcal || !deltaT || !Cp || !rho || !L || !D) {
+    if (!Q_kcal || !deltaT || !Cp || !rho || !L || !D_mm) {
       console.log("Missing required values for pump sizing");
       return;
     }
@@ -1848,7 +1849,7 @@ function ThermalOilPumpSizingCalculator() {
       `Oil Specific Heat: ${oilSpecificHeat} kcal/kg°C`,
       `Oil Density: ${oilDensity} kg/m³`,
       `Pipe Length: ${pipeLength} m`,
-      `Pipe Diameter: ${pipeDiameter} m`
+      `Pipe Internal Diameter: ${pipeDiameter} mm`
     ];
     
     inputs.forEach((input, index) => {
@@ -1988,18 +1989,18 @@ function ThermalOilPumpSizingCalculator() {
             </p>
           </div>
           <div>
-            <Label htmlFor="pipeDiameter">Pipe Internal Diameter (m) *</Label>
+            <Label htmlFor="pipeDiameter">Pipe Internal Diameter (mm) *</Label>
             <Input
               id="pipeDiameter"
               type="number"
-              step="0.001"
+              step="1"
               value={pipeDiameter}
               onChange={(e) => setPipeDiameter(e.target.value)}
-              placeholder="e.g., 0.1"
+              placeholder="e.g., 100"
               required
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Internal diameter (ID) of the pipe
+              Internal diameter (ID) of the pipe in millimeters
             </p>
           </div>
         </div>
