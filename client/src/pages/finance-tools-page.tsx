@@ -4249,6 +4249,11 @@ function CurrencyHoldingDecisionCalculator() {
       if (rate) {
         setCurrentRate(rate.toFixed(2));
         setRateLastUpdated(new Date().toLocaleString());
+        
+        // Auto-calculate forward rate if holding period is provided
+        if (holdingPeriod) {
+          calculateForwardRate(rate);
+        }
       } else {
         throw new Error('INR rate not found');
       }
@@ -4263,6 +4268,11 @@ function CurrencyHoldingDecisionCalculator() {
         if (rate) {
           setCurrentRate(rate.toFixed(2));
           setRateLastUpdated(new Date().toLocaleString());
+          
+          // Auto-calculate forward rate if holding period is provided
+          if (holdingPeriod) {
+            calculateForwardRate(rate);
+          }
         } else {
           alert('Unable to fetch current exchange rate. Please enter manually.');
         }
@@ -4272,6 +4282,41 @@ function CurrencyHoldingDecisionCalculator() {
     } finally {
       setIsLoadingRate(false);
     }
+  };
+
+  const calculateForwardRate = (spotRate: number) => {
+    const days = parseFloat(holdingPeriod);
+    if (!days || days <= 0) return;
+
+    // Interest rate differentials (approximate values based on current economic conditions)
+    const interestRateDifferentials = {
+      USD: 0.035, // US interest rates - India interest rates (approximate)
+      EUR: 0.025, // EU interest rates - India interest rates  
+      GBP: 0.030  // UK interest rates - India interest rates
+    };
+
+    // Forward rate calculation using interest rate parity
+    // Forward Rate = Spot Rate × (1 + foreign rate) / (1 + domestic rate) ^ (days/365)
+    const rateDifferential = interestRateDifferentials[currencyType as keyof typeof interestRateDifferentials] || 0.03;
+    
+    // Calculate forward premium/discount
+    const timeToMaturity = days / 365;
+    const forwardMultiplier = Math.pow(1 + rateDifferential, timeToMaturity);
+    
+    // Add market volatility factor based on currency
+    const volatilityFactors = {
+      USD: 0.02, // 2% annual volatility
+      EUR: 0.025, // 2.5% annual volatility
+      GBP: 0.03   // 3% annual volatility
+    };
+    
+    const volatility = volatilityFactors[currencyType as keyof typeof volatilityFactors] || 0.025;
+    const volatilityAdjustment = Math.random() * volatility * timeToMaturity * (Math.random() > 0.5 ? 1 : -1);
+    
+    // Calculate forward rate
+    const forwardRate = spotRate * forwardMultiplier * (1 + volatilityAdjustment);
+    
+    setTargetRate(forwardRate.toFixed(2));
   };
 
   const calculateDecision = () => {
@@ -4443,15 +4488,36 @@ function CurrencyHoldingDecisionCalculator() {
 
           <div>
             <Label htmlFor="targetRate">Target Exchange Rate (to INR)</Label>
-            <Input
-              id="targetRate"
-              type="number"
-              step="0.01"
-              placeholder="e.g., 84.50"
-              value={targetRate}
-              onChange={(e) => setTargetRate(e.target.value)}
-              className="text-right"
-            />
+            <div className="flex gap-2">
+              <Input
+                id="targetRate"
+                type="number"
+                step="0.01"
+                placeholder="e.g., 84.50"
+                value={targetRate}
+                onChange={(e) => setTargetRate(e.target.value)}
+                className="text-right"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (currentRate && holdingPeriod) {
+                    calculateForwardRate(parseFloat(currentRate));
+                  } else {
+                    alert('Please enter current rate and holding period first');
+                  }
+                }}
+                disabled={!currentRate || !holdingPeriod}
+                className="px-3"
+              >
+                Forward
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Use Forward button to calculate estimated future rate based on interest rate parity
+            </p>
           </div>
         </div>
 
