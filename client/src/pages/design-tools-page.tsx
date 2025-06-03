@@ -1750,7 +1750,7 @@ function ThermalOilPumpSizingCalculator() {
   } | null>(null);
 
   const calculatePumpSizing = () => {
-    const Q_kW = parseFloat(heatLoad); // kW
+    const Q_kcal = parseFloat(heatLoad); // kcal/hr
     const deltaT = parseFloat(tempRise); // °C
     const Cp = parseFloat(oilSpecificHeat); // kcal/kg°C
     const rho = parseFloat(oilDensity); // kg/m³
@@ -1758,13 +1758,10 @@ function ThermalOilPumpSizingCalculator() {
     const D = parseFloat(pipeDiameter); // m
 
     // Validate all required inputs
-    if (!Q_kW || !deltaT || !Cp || !rho || !L || !D) {
+    if (!Q_kcal || !deltaT || !Cp || !rho || !L || !D) {
       console.log("Missing required values for pump sizing");
       return;
     }
-
-    // Convert kW to kcal/hr: 1 kW = 860 kcal/hr
-    const Q_kcal = Q_kW * 860;
     
     // Mass flow rate: m = Q / (Cp × ΔT)
     const massFlowRate = Q_kcal / (Cp * deltaT); // kg/hr
@@ -1825,13 +1822,13 @@ function ThermalOilPumpSizingCalculator() {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="heatLoad">Heat Load (kW)</Label>
+          <Label htmlFor="heatLoad">Heat Load (kcal/hr)</Label>
           <Input
             id="heatLoad"
             type="number"
             value={heatLoad}
             onChange={(e) => setHeatLoad(e.target.value)}
-            placeholder="e.g., 100"
+            placeholder="e.g., 86000"
           />
         </div>
         <div>
