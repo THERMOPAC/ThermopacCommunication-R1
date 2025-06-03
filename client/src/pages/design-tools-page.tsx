@@ -1916,12 +1916,12 @@ function ThermalOilPumpSizingCalculator() {
     doc.setFont('helvetica', 'normal');
     doc.text(`Report Generated: ${currentDate}`, 105, 48, { align: 'center' });
     
-    // Input Parameters with proper spacing
-    doc.setFontSize(14);
+    // Input Parameters with compact spacing
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('INPUT PARAMETERS', 20, 65);
+    doc.text('INPUT PARAMETERS', 20, 60);
     
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     const inputs = [
       `Heat Load: ${heatLoad} kcal/hr`,
@@ -1933,15 +1933,15 @@ function ThermalOilPumpSizingCalculator() {
     ];
     
     inputs.forEach((input, index) => {
-      doc.text(input, 25, 75 + (index * 8));
+      doc.text(input, 25, 70 + (index * 6));
     });
     
     // Results Section
-    doc.setFontSize(14);
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('CALCULATION RESULTS', 20, 135);
+    doc.text('CALCULATION RESULTS', 20, 115);
     
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     const results = [
       `Required Flow Rate: ${result.flowRate.toFixed(2)} m³/hr`,
@@ -1951,15 +1951,15 @@ function ThermalOilPumpSizingCalculator() {
     ];
     
     results.forEach((resultText, index) => {
-      doc.text(resultText, 25, 145 + (index * 8));
+      doc.text(resultText, 25, 125 + (index * 6));
     });
     
     // Engineering Analysis
-    doc.setFontSize(14);
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('ENGINEERING ANALYSIS', 20, 185);
+    doc.text('ENGINEERING ANALYSIS', 20, 160);
     
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     const analysis = [
       `Reynolds Number: ${result.reynoldsNumber.toFixed(0)} (${result.reynoldsNumber < 2300 ? "Laminar Flow" : "Turbulent Flow"})`,
@@ -1971,15 +1971,15 @@ function ThermalOilPumpSizingCalculator() {
     ];
     
     analysis.forEach((item, index) => {
-      doc.text(item, 25, 195 + (index * 8));
+      doc.text(item, 25, 170 + (index * 6));
     });
     
     // Head Loss Breakdown
-    doc.setFontSize(14);
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('HEAD LOSS BREAKDOWN', 20, 245);
+    doc.text('HEAD LOSS BREAKDOWN', 20, 215);
     
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     const breakdown = [
       `Friction Head Loss: ${result.frictionHead.toFixed(2)} m`,
@@ -1990,13 +1990,13 @@ function ThermalOilPumpSizingCalculator() {
     ];
     
     breakdown.forEach((item, index) => {
-      doc.text(item, 25, 255 + (index * 8));
+      doc.text(item, 25, 225 + (index * 6));
     });
     
-    // Footer with proper spacing to avoid overlap
-    doc.setFontSize(10);
+    // Footer with methodology
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'italic');
-    doc.text('Calculations based on Darcy-Weisbach equation and standard fluid mechanics principles', 105, 305, { align: 'center' });
+    doc.text('Calculations based on Darcy-Weisbach equation and standard fluid mechanics principles', 105, 265, { align: 'center' });
     
     // Save the PDF
     doc.save('thermopac-thermal-oil-pump-sizing-calculation.pdf')
