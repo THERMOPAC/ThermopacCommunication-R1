@@ -4209,6 +4209,8 @@ function CurrencyHoldingDecisionCalculator() {
   const [holdingPeriod, setHoldingPeriod] = useState("");
   const [fdInterestRate, setFdInterestRate] = useState("");
   const [inflationRate, setInflationRate] = useState("");
+  const [isLoadingRate, setIsLoadingRate] = useState(false);
+  const [rateLastUpdated, setRateLastUpdated] = useState<string | null>(null);
   const [result, setResult] = useState<{
     inrNow: number;
     fdGain: number;
@@ -4230,6 +4232,47 @@ function CurrencyHoldingDecisionCalculator() {
     { value: "EUR", label: "Euro (EUR)", symbol: "€" },
     { value: "GBP", label: "British Pound (GBP)", symbol: "£" }
   ];
+
+  const fetchCurrentExchangeRate = async () => {
+    setIsLoadingRate(true);
+    try {
+      // Using ExchangeRate-API which provides free access
+      const response = await fetch(`https://api.exchangerate-api.com/v4/latest/${currencyType}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch exchange rate');
+      }
+      
+      const data = await response.json();
+      const rate = data.rates.INR;
+      
+      if (rate) {
+        setCurrentRate(rate.toFixed(2));
+        setRateLastUpdated(new Date().toLocaleString());
+      } else {
+        throw new Error('INR rate not found');
+      }
+    } catch (error) {
+      console.error('Error fetching exchange rate:', error);
+      // Fallback: try alternative API
+      try {
+        const fallbackResponse = await fetch(`https://open.er-api.com/v6/latest/${currencyType}`);
+        const fallbackData = await fallbackResponse.json();
+        const rate = fallbackData.rates.INR;
+        
+        if (rate) {
+          setCurrentRate(rate.toFixed(2));
+          setRateLastUpdated(new Date().toLocaleString());
+        } else {
+          alert('Unable to fetch current exchange rate. Please enter manually.');
+        }
+      } catch (fallbackError) {
+        alert('Unable to fetch current exchange rate. Please enter manually.');
+      }
+    } finally {
+      setIsLoadingRate(false);
+    }
+  };
 
   const calculateDecision = () => {
     const amt = parseFloat(amount);
@@ -4366,15 +4409,36 @@ function CurrencyHoldingDecisionCalculator() {
 
           <div>
             <Label htmlFor="currentRate">Current Exchange Rate (to INR)</Label>
-            <Input
-              id="currentRate"
-              type="number"
-              step="0.01"
-              placeholder="e.g., 83.25"
-              value={currentRate}
-              onChange={(e) => setCurrentRate(e.target.value)}
-              className="text-right"
-            />
+            <div className="flex gap-2">
+              <Input
+                id="currentRate"
+                type="number"
+                step="0.01"
+                placeholder="e.g., 83.25"
+                value={currentRate}
+                onChange={(e) => setCurrentRate(e.target.value)}
+                className="text-right"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={fetchCurrentExchangeRate}
+                disabled={isLoadingRate}
+                className="px-3"
+              >
+                {isLoadingRate ? (
+                  <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  "Fetch"
+                )}
+              </Button>
+            </div>
+            {rateLastUpdated && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Last updated: {rateLastUpdated}
+              </p>
+            )}
           </div>
 
           <div>
