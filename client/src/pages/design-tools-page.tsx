@@ -2342,10 +2342,22 @@ function CoilSurfaceAreaCalculator() {
     const h_cold = parseFloat(coldFilmCoeff);
     const Rf = parseFloat(foulingFactor);
 
-    if (!Q_kcal || !T_hot_in || !T_hot_out || !T_cold_in || !T_cold_out || !h_hot || !h_cold) return;
+    // Debug logging
+    console.log("Input values:", {
+      Q_kcal, T_hot_in, T_hot_out, T_cold_in, T_cold_out, h_hot, h_cold, Rf
+    });
+
+    // Check for missing values
+    if (isNaN(Q_kcal) || isNaN(T_hot_in) || isNaN(T_hot_out) || isNaN(T_cold_in) || isNaN(T_cold_out) || isNaN(h_hot) || isNaN(h_cold)) {
+      console.log("Missing required values");
+      return;
+    }
     
     // Validate temperature profiles
-    if (T_hot_in <= T_hot_out || T_cold_out <= T_cold_in) return;
+    if (T_hot_in <= T_hot_out || T_cold_out <= T_cold_in) {
+      console.log("Invalid temperature profile");
+      return;
+    }
 
     // Convert kcal/hr to watts: 1 kcal/hr = 1.163 W
     const Q_watts = Q_kcal * 1.163;
