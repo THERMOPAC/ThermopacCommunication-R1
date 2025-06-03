@@ -1135,6 +1135,7 @@ function ChimneyDiameterHeightCalculator() {
   const [draftType, setDraftType] = useState("natural");
   const [so2EmissionRate, setSo2EmissionRate] = useState("");
   const [heatEmissionRate, setHeatEmissionRate] = useState("");
+  const [sulfurContent, setSulfurContent] = useState("");
   const [result, setResult] = useState<{
     flueGasFlow: number;
     minDiameter: number;
@@ -1149,37 +1150,49 @@ function ChimneyDiameterHeightCalculator() {
       name: "Furnace Oil", 
       specificFlueGas: 12.5, // m³/kg
       recommendedVelocity: 13,
-      unit: "kg/hr"
+      unit: "kg/hr",
+      calorificValue: 10200, // kcal/kg
+      defaultSulfur: 2.5 // % by weight
     },
     "diesel": { 
       name: "Diesel", 
       specificFlueGas: 13.2, // m³/kg
       recommendedVelocity: 13,
-      unit: "kg/hr"
+      unit: "kg/hr",
+      calorificValue: 10500, // kcal/kg
+      defaultSulfur: 0.05 // % by weight
     },
     "natural-gas": { 
       name: "Natural Gas", 
       specificFlueGas: 11.5, // m³/Nm³
       recommendedVelocity: 14,
-      unit: "Nm³/hr"
+      unit: "Nm³/hr",
+      calorificValue: 8900, // kcal/Nm³
+      defaultSulfur: 0.001 // % by volume
     },
     "biomass": { 
       name: "Biomass", 
       specificFlueGas: 8.5, // m³/kg
       recommendedVelocity: 7,
-      unit: "kg/hr"
+      unit: "kg/hr",
+      calorificValue: 3500, // kcal/kg
+      defaultSulfur: 0.1 // % by weight
     },
     "coal": { 
       name: "Coal", 
       specificFlueGas: 10.8, // m³/kg
       recommendedVelocity: 8,
-      unit: "kg/hr"
+      unit: "kg/hr",
+      calorificValue: 6000, // kcal/kg
+      defaultSulfur: 1.5 // % by weight
     },
     "lpg": { 
       name: "LPG", 
       specificFlueGas: 12.8, // m³/kg
       recommendedVelocity: 14,
-      unit: "kg/hr"
+      unit: "kg/hr",
+      calorificValue: 11900, // kcal/kg
+      defaultSulfur: 0.002 // % by weight
     }
   };
 
@@ -1187,6 +1200,46 @@ function ChimneyDiameterHeightCalculator() {
     setFuelType(fuel);
     const fuelProp = fuelProperties[fuel as keyof typeof fuelProperties];
     setConsumptionUnit(fuelProp.unit);
+    setSulfurContent(fuelProp.defaultSulfur.toString());
+    
+    // Auto-calculate emissions if consumption rate is available
+    if (consumptionRate) {
+      calculateEmissions(fuel, parseFloat(consumptionRate), fuelProp.defaultSulfur);
+    }
+  };
+
+  const calculateEmissions = (fuel: string, consumption: number, sulfur: number) => {
+    const fuelProp = fuelProperties[fuel as keyof typeof fuelProperties];
+    
+    // 1. Calculate Heat Emission (MW)
+    // Heat Rate = Fuel Consumption × Calorific Value
+    const heatRateKcalHr = consumption * fuelProp.calorificValue; // kcal/hr
+    const heatRateMW = (heatRateKcalHr * 4.184) / 3600000; // Convert kcal/hr to MW
+    setHeatEmissionRate(heatRateMW.toFixed(2));
+    
+    // 2. Calculate SO₂ Emission Rate (kg/hr)
+    // SO₂ = Fuel Consumption × Sulfur % × 2 (molecular weight conversion S to SO₂)
+    // Factor of 2 because: MW of SO₂ (64) / MW of S (32) = 2
+    const so2Rate = consumption * (sulfur / 100) * 2; // kg/hr
+    setSo2EmissionRate(so2Rate.toFixed(3));
+  };
+
+  const handleConsumptionChange = (value: string) => {
+    setConsumptionRate(value);
+    
+    // Auto-calculate emissions when consumption changes
+    if (value && sulfurContent) {
+      calculateEmissions(fuelType, parseFloat(value), parseFloat(sulfurContent));
+    }
+  };
+
+  const handleSulfurChange = (value: string) => {
+    setSulfurContent(value);
+    
+    // Auto-calculate emissions when sulfur content changes
+    if (consumptionRate && value) {
+      calculateEmissions(fuelType, parseFloat(consumptionRate), parseFloat(value));
+    }
   };
 
   const calculateChimney = () => {
@@ -1310,7 +1363,7 @@ function ChimneyDiameterHeightCalculator() {
               type="number"
               step="0.1"
               value={consumptionRate}
-              onChange={(e) => setConsumptionRate(e.target.value)}
+              onChange={(e) => handleConsumptionChange(e.target.value)}
               placeholder="e.g., 100"
               className="flex-1"
             />
@@ -1319,6 +1372,21 @@ function ChimneyDiameterHeightCalculator() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div>
+        <Label htmlFor="sulfurContent">Sulfur Content (% by weight)</Label>
+        <Input
+          id="sulfurContent"
+          type="number"
+          step="0.001"
+          value={sulfurContent}
+          onChange={(e) => handleSulfurChange(e.target.value)}
+          placeholder="e.g., 2.5"
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Auto-populates based on fuel type. Modify as needed for accurate emissions calculation.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -1406,27 +1474,39 @@ function ChimneyDiameterHeightCalculator() {
           </div>
           <div>
             <Label htmlFor="so2EmissionRate">SO₂ Emission Rate (kg/hr)</Label>
-            <Input
-              id="so2EmissionRate"
-              type="number"
-              step="0.1"
-              value={so2EmissionRate}
-              onChange={(e) => setSo2EmissionRate(e.target.value)}
-              placeholder="e.g., 2.5"
-            />
-            <p className="text-xs text-blue-600 mt-1">For CPCB formula: H = 14 × Q^0.3</p>
+            <div className="flex gap-2">
+              <Input
+                id="so2EmissionRate"
+                type="number"
+                step="0.001"
+                value={so2EmissionRate}
+                onChange={(e) => setSo2EmissionRate(e.target.value)}
+                placeholder="e.g., 2.5"
+                className="flex-1"
+              />
+              <div className="w-16 text-xs text-green-600 flex items-center justify-center bg-green-50 rounded-md px-2 border">
+                Auto
+              </div>
+            </div>
+            <p className="text-xs text-blue-600 mt-1">Auto-calculated from fuel consumption × sulfur % × 2</p>
           </div>
           <div>
             <Label htmlFor="heatEmissionRate">Heat Emission (MW)</Label>
-            <Input
-              id="heatEmissionRate"
-              type="number"
-              step="0.1"
-              value={heatEmissionRate}
-              onChange={(e) => setHeatEmissionRate(e.target.value)}
-              placeholder="e.g., 5.0"
-            />
-            <p className="text-xs text-blue-600 mt-1">For thermal load approach</p>
+            <div className="flex gap-2">
+              <Input
+                id="heatEmissionRate"
+                type="number"
+                step="0.01"
+                value={heatEmissionRate}
+                onChange={(e) => setHeatEmissionRate(e.target.value)}
+                placeholder="e.g., 5.0"
+                className="flex-1"
+              />
+              <div className="w-16 text-xs text-green-600 flex items-center justify-center bg-green-50 rounded-md px-2 border">
+                Auto
+              </div>
+            </div>
+            <p className="text-xs text-blue-600 mt-1">Auto-calculated from fuel consumption × calorific value</p>
           </div>
         </div>
       )}
