@@ -1845,9 +1845,15 @@ function ThermalOilPumpSizingCalculator() {
                 return;
               }
               
-              // Set canvas size based on desired logo size
-              const logoWidth = 30;
+              // Calculate proper aspect ratio to maintain proportions
+              const originalWidth = img.width;
+              const originalHeight = img.height;
+              const aspectRatio = originalWidth / originalHeight;
+              
+              // Set desired logo dimensions maintaining aspect ratio
               const logoHeight = 20;
+              const logoWidth = logoHeight * aspectRatio;
+              
               canvas.width = logoWidth * 4; // Higher resolution
               canvas.height = logoHeight * 4;
               
@@ -1857,7 +1863,7 @@ function ThermalOilPumpSizingCalculator() {
               // Convert to base64
               const imgData = canvas.toDataURL('image/jpeg', 0.8);
               
-              // Add logo to PDF (top left corner)
+              // Add logo to PDF (top left corner) with proper proportions
               doc.addImage(imgData, 'JPEG', 15, 10, logoWidth, logoHeight);
               resolve(true);
             } catch (error) {
