@@ -4171,7 +4171,27 @@ function CoilSurfaceAreaCalculator() {
 
       {result !== null && (
         <div className="mt-4 p-4 bg-teal-50 border border-teal-200 rounded-lg">
-          <h4 className="font-semibold text-teal-900">Coil Design Results</h4>
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="font-semibold text-teal-900">Coil Design Results</h4>
+            <Button 
+              onClick={async () => {
+                const doc = new jsPDF();
+                doc.text('THERMOPAC PROCESS ENGINEERING LLP', 105, 20, { align: 'center' });
+                doc.text('COIL SURFACE AREA CALCULATION', 105, 40, { align: 'center' });
+                doc.text(`Heat Transfer Required: ${heatTransfer} kcal/hr`, 20, 70);
+                doc.text(`Overall Heat Transfer Coefficient: ${result.overallCoeff.toFixed(1)} W/m²K`, 20, 80);
+                doc.text(`Required Surface Area: ${result.surfaceArea.toFixed(2)} m²`, 20, 90);
+                doc.text(`Coil Length: ${result.coilLength.toFixed(1)} m`, 20, 100);
+                doc.save('thermopac-coil-surface-area-calculation.pdf');
+              }}
+              variant="outline" 
+              size="sm"
+              className="text-teal-700 border-teal-300 hover:bg-teal-100"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
           <div className="grid grid-cols-3 gap-4 mt-3 text-teal-800">
             <div>
               <p className="text-sm text-teal-600">Overall U-Value</p>
@@ -4352,7 +4372,27 @@ function ChimneyDraftFanSizingCalculator() {
 
       {result !== null && (
         <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-lg">
-          <h4 className="font-semibold text-slate-900">Fan Sizing Results</h4>
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="font-semibold text-slate-900">Fan Sizing Results</h4>
+            <Button 
+              onClick={async () => {
+                const doc = new jsPDF();
+                doc.text('THERMOPAC PROCESS ENGINEERING LLP', 105, 20, { align: 'center' });
+                doc.text('CHIMNEY DRAFT FAN SIZING CALCULATION', 105, 40, { align: 'center' });
+                doc.text(`Flue Gas Flow: ${flueGasFlow} m³/hr`, 20, 70);
+                doc.text(`Natural Draft Available: ${result.naturalDraft.toFixed(1)} Pa`, 20, 80);
+                doc.text(`Required Fan Capacity: ${result.requiredFanCapacity.toFixed(0)} m³/hr`, 20, 90);
+                doc.text(`Fan Motor Power: ${result.fanPower.toFixed(2)} kW`, 20, 100);
+                doc.save('thermopac-chimney-draft-fan-sizing.pdf');
+              }}
+              variant="outline" 
+              size="sm"
+              className="text-slate-700 border-slate-300 hover:bg-slate-100"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
           <div className="grid grid-cols-2 gap-4 mt-3 text-slate-800">
             <div>
               <p className="text-sm text-slate-600">Natural Draft Available</p>
@@ -4549,7 +4589,27 @@ function FireboxHeatFluxCalculator() {
 
       {result !== null && (
         <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <h4 className="font-semibold text-red-900">Heat Flux Analysis</h4>
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="font-semibold text-red-900">Heat Flux Analysis</h4>
+            <Button 
+              onClick={async () => {
+                const doc = new jsPDF();
+                doc.text('THERMOPAC PROCESS ENGINEERING LLP', 105, 20, { align: 'center' });
+                doc.text('FIREBOX HEAT FLUX CALCULATION', 105, 40, { align: 'center' });
+                doc.text(`Fuel Rate: ${fuelRate} kg/hr`, 20, 70);
+                doc.text(`Maximum Heat Flux: ${result.maxHeatFlux.toFixed(1)} kW/m²`, 20, 80);
+                doc.text(`Average Heat Flux: ${result.avgHeatFlux.toFixed(1)} kW/m²`, 20, 90);
+                doc.text(`Heat Release Rate: ${result.heatReleaseRate.toFixed(1)} kcal/s`, 20, 100);
+                doc.save('thermopac-firebox-heat-flux-calculation.pdf');
+              }}
+              variant="outline" 
+              size="sm"
+              className="text-red-700 border-red-300 hover:bg-red-100"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
           <div className="grid grid-cols-2 gap-4 mt-3 text-red-800">
             <div>
               <p className="text-sm text-red-600">Flame Volume</p>
