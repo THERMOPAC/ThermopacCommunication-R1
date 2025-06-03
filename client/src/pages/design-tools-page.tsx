@@ -1993,10 +1993,10 @@ function ThermalOilPumpSizingCalculator() {
       doc.text(item, 25, 255 + (index * 8));
     });
     
-    // Footer
+    // Footer with proper spacing to avoid overlap
     doc.setFontSize(10);
     doc.setFont('helvetica', 'italic');
-    doc.text('Calculations based on Darcy-Weisbach equation and standard fluid mechanics principles', 105, 280, { align: 'center' });
+    doc.text('Calculations based on Darcy-Weisbach equation and standard fluid mechanics principles', 105, 305, { align: 'center' });
     
     // Save the PDF
     doc.save('thermopac-thermal-oil-pump-sizing-calculation.pdf')
