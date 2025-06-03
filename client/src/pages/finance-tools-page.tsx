@@ -4200,6 +4200,395 @@ function InterestCalculator() {
   );
 }
 
+// Currency Holding Decision Calculator Component
+function CurrencyHoldingDecisionCalculator() {
+  const [currencyType, setCurrencyType] = useState("USD");
+  const [amount, setAmount] = useState("");
+  const [currentRate, setCurrentRate] = useState("");
+  const [targetRate, setTargetRate] = useState("");
+  const [holdingPeriod, setHoldingPeriod] = useState("");
+  const [fdInterestRate, setFdInterestRate] = useState("");
+  const [inflationRate, setInflationRate] = useState("");
+  const [result, setResult] = useState<{
+    inrNow: number;
+    fdGain: number;
+    inrFuture: number;
+    fxGain: number;
+    netBenefit: number;
+    recommendation: string;
+    realGainAfterInflation: number;
+    analysis: {
+      convertNowTotal: number;
+      holdTotal: number;
+      breakEvenRate: number;
+      riskAssessment: string;
+    };
+  } | null>(null);
+
+  const currencyOptions = [
+    { value: "USD", label: "US Dollar (USD)", symbol: "$" },
+    { value: "EUR", label: "Euro (EUR)", symbol: "€" },
+    { value: "GBP", label: "British Pound (GBP)", symbol: "£" }
+  ];
+
+  const calculateDecision = () => {
+    const amt = parseFloat(amount);
+    const currentExRate = parseFloat(currentRate);
+    const targetExRate = parseFloat(targetRate);
+    const days = parseFloat(holdingPeriod);
+    const fdRate = parseFloat(fdInterestRate);
+    const inflation = parseFloat(inflationRate) || 0;
+
+    if (!amt || !currentExRate || !targetExRate || !days || !fdRate) return;
+
+    // Immediate INR conversion
+    const inrNow = amt * currentExRate;
+
+    // FD interest earnings (if converted now)
+    const fdGain = inrNow * (fdRate / 100) * (days / 365);
+
+    // Future INR if held and converted later
+    const inrFuture = amt * targetExRate;
+
+    // FX Gain/Loss
+    const fxGain = inrFuture - inrNow;
+
+    // Net benefit comparison
+    const netBenefit = fxGain - fdGain;
+
+    // Real gain after inflation adjustment
+    const inflationLoss = inrNow * (inflation / 100) * (days / 365);
+    const realGainAfterInflation = netBenefit - inflationLoss;
+
+    // Break-even exchange rate
+    const breakEvenRate = currentExRate + (fdGain / amt);
+
+    // Analysis
+    const convertNowTotal = inrNow + fdGain;
+    const holdTotal = inrFuture;
+
+    // Risk assessment
+    let riskAssessment = "";
+    const rateChange = ((targetExRate - currentExRate) / currentExRate) * 100;
+    
+    if (Math.abs(rateChange) < 2) {
+      riskAssessment = "Low volatility expected";
+    } else if (Math.abs(rateChange) < 5) {
+      riskAssessment = "Moderate volatility expected";
+    } else {
+      riskAssessment = "High volatility expected";
+    }
+
+    // Recommendation
+    let recommendation = "";
+    if (fxGain > fdGain * 1.1) { // 10% buffer for risk
+      recommendation = "Hold Currency - Potential FX gains outweigh FD earnings";
+    } else if (fdGain >= fxGain) {
+      recommendation = "Convert Now - FD earnings are safer and comparable";
+    } else {
+      recommendation = "Marginal Benefit - Consider risk tolerance and market conditions";
+    }
+
+    setResult({
+      inrNow,
+      fdGain,
+      inrFuture,
+      fxGain,
+      netBenefit,
+      recommendation,
+      realGainAfterInflation,
+      analysis: {
+        convertNowTotal,
+        holdTotal,
+        breakEvenRate,
+        riskAssessment
+      }
+    });
+  };
+
+  const formatCurrency = (amount: number, currency = "INR") => {
+    if (currency === "INR") {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(amount);
+    }
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 2
+    }).format(amount);
+  };
+
+  const resetCalculator = () => {
+    setAmount("");
+    setCurrentRate("");
+    setTargetRate("");
+    setHoldingPeriod("");
+    setFdInterestRate("");
+    setInflationRate("");
+    setResult(null);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="currencyType">Currency Type</Label>
+            <Select value={currencyType} onValueChange={setCurrencyType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {currencyOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="amount">Amount in {currencyType}</Label>
+            <Input
+              id="amount"
+              type="number"
+              placeholder="e.g., 10000"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="text-right"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="currentRate">Current Exchange Rate (to INR)</Label>
+            <Input
+              id="currentRate"
+              type="number"
+              step="0.01"
+              placeholder="e.g., 83.25"
+              value={currentRate}
+              onChange={(e) => setCurrentRate(e.target.value)}
+              className="text-right"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="targetRate">Target Exchange Rate (to INR)</Label>
+            <Input
+              id="targetRate"
+              type="number"
+              step="0.01"
+              placeholder="e.g., 84.50"
+              value={targetRate}
+              onChange={(e) => setTargetRate(e.target.value)}
+              className="text-right"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="holdingPeriod">Holding Period (days)</Label>
+            <Input
+              id="holdingPeriod"
+              type="number"
+              placeholder="e.g., 30"
+              value={holdingPeriod}
+              onChange={(e) => setHoldingPeriod(e.target.value)}
+              className="text-right"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="fdInterestRate">INR FD Interest Rate (% per annum)</Label>
+            <Input
+              id="fdInterestRate"
+              type="number"
+              step="0.01"
+              placeholder="e.g., 7.5"
+              value={fdInterestRate}
+              onChange={(e) => setFdInterestRate(e.target.value)}
+              className="text-right"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="inflationRate">INR Inflation Rate (% per annum) - Optional</Label>
+            <Input
+              id="inflationRate"
+              type="number"
+              step="0.01"
+              placeholder="e.g., 6.0"
+              value={inflationRate}
+              onChange={(e) => setInflationRate(e.target.value)}
+              className="text-right"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <Button onClick={calculateDecision} className="flex-1">
+              <Calculator className="h-4 w-4 mr-2" />
+              Calculate Decision
+            </Button>
+            <Button onClick={resetCalculator} variant="outline">
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {result && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">INR Value Today</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl font-bold text-blue-600">
+                  {formatCurrency(result.inrNow)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  If converted immediately
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">FD Interest Earnings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl font-bold text-green-600">
+                  {formatCurrency(result.fdGain)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  For {holdingPeriod} days
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Future INR Value</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl font-bold text-purple-600">
+                  {formatCurrency(result.inrFuture)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  At target exchange rate
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">FX Gain/Loss</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className={`text-xl font-bold ${result.fxGain >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {result.fxGain >= 0 ? '+' : ''}{formatCurrency(result.fxGain)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Currency appreciation/depreciation
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Recommendation</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={`p-4 rounded-lg mb-4 ${
+                result.recommendation.includes('Hold') ? 'bg-green-50 border border-green-200' :
+                result.recommendation.includes('Convert') ? 'bg-blue-50 border border-blue-200' :
+                'bg-yellow-50 border border-yellow-200'
+              }`}>
+                <p className="font-semibold text-lg">{result.recommendation}</p>
+                <p className="text-sm mt-2">
+                  Net Benefit: <span className={`font-bold ${result.netBenefit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {result.netBenefit >= 0 ? '+' : ''}{formatCurrency(result.netBenefit)}
+                  </span>
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold mb-2">Convert Now Scenario:</h4>
+                  <p className="text-sm">Total Value: {formatCurrency(result.analysis.convertNowTotal)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    (Principal + FD Interest for {holdingPeriod} days)
+                  </p>
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-2">Hold Currency Scenario:</h4>
+                  <p className="text-sm">Total Value: {formatCurrency(result.analysis.holdTotal)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    (At target rate of ₹{targetRate})
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-4 border-t">
+                <h4 className="font-semibold mb-2">Additional Analysis:</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p><strong>Break-even Rate:</strong> ₹{result.analysis.breakEvenRate.toFixed(2)}</p>
+                    <p><strong>Risk Assessment:</strong> {result.analysis.riskAssessment}</p>
+                  </div>
+                  <div>
+                    {inflationRate && (
+                      <p><strong>Real Gain (after inflation):</strong> 
+                        <span className={`ml-1 ${result.realGainAfterInflation >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatCurrency(result.realGainAfterInflation)}
+                        </span>
+                      </p>
+                    )}
+                    <p><strong>Rate Change Required:</strong> {((parseFloat(targetRate) - parseFloat(currentRate)) / parseFloat(currentRate) * 100).toFixed(2)}%</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {!result && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center text-muted-foreground">
+              <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Enter currency details to analyze the holding decision</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+        <h3 className="font-semibold mb-2">Key Considerations:</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <p><strong>Market Risk:</strong> Exchange rates can be volatile and unpredictable</p>
+            <p><strong>Opportunity Cost:</strong> FD earnings provide guaranteed returns</p>
+          </div>
+          <div>
+            <p><strong>Time Factor:</strong> Longer holding periods increase uncertainty</p>
+            <p><strong>Inflation Impact:</strong> Consider real returns after inflation</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function FinanceToolsPage() {
   const [activeTab, setActiveTab] = useState("calculators");
   const [isInterestCalculatorOpen, setIsInterestCalculatorOpen] = useState(false);
@@ -4214,6 +4603,7 @@ export default function FinanceToolsPage() {
   const [isCashFlowAnalyzerOpen, setIsCashFlowAnalyzerOpen] = useState(false);
   const [isRatioAnalysisOpen, setIsRatioAnalysisOpen] = useState(false);
   const [isBudgetAnalyzerOpen, setIsBudgetAnalyzerOpen] = useState(false);
+  const [isCurrencyHoldingDecisionOpen, setIsCurrencyHoldingDecisionOpen] = useState(false);
 
   return (
     <Layout>
@@ -4448,6 +4838,36 @@ export default function FinanceToolsPage() {
                         </DialogDescription>
                       </DialogHeader>
                       <CurrencyConverter />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Currency Holding Decision Calculator</CardTitle>
+                    <CardDescription>
+                      Decide whether to convert foreign currency or hold for better rates
+                    </CardDescription>
+                  </div>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog open={isCurrencyHoldingDecisionOpen} onOpenChange={setIsCurrencyHoldingDecisionOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full">
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Currency Holding Decision Calculator</DialogTitle>
+                        <DialogDescription>
+                          Compare the benefits of converting foreign currency immediately vs holding for potential exchange rate improvements
+                        </DialogDescription>
+                      </DialogHeader>
+                      <CurrencyHoldingDecisionCalculator />
                     </DialogContent>
                   </Dialog>
                 </CardContent>
