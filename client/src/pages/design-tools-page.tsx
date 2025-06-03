@@ -2308,13 +2308,13 @@ function FlueGasHeatLossEstimator() {
 
 // Coil Surface Area Calculator Component
 function CoilSurfaceAreaCalculator() {
-  const [heatTransfer, setHeatTransfer] = useState("");
-  const [hotFluidTempIn, setHotFluidTempIn] = useState("");
-  const [hotFluidTempOut, setHotFluidTempOut] = useState("");
-  const [coldFluidTempIn, setColdFluidTempIn] = useState("");
-  const [coldFluidTempOut, setColdFluidTempOut] = useState("");
-  const [hotFilmCoeff, setHotFilmCoeff] = useState("");
-  const [coldFilmCoeff, setColdFilmCoeff] = useState("");
+  const [heatTransfer, setHeatTransfer] = useState("50000");
+  const [hotFluidTempIn, setHotFluidTempIn] = useState("250");
+  const [hotFluidTempOut, setHotFluidTempOut] = useState("200");
+  const [coldFluidTempIn, setColdFluidTempIn] = useState("80");
+  const [coldFluidTempOut, setColdFluidTempOut] = useState("180");
+  const [hotFilmCoeff, setHotFilmCoeff] = useState("500");
+  const [coldFilmCoeff, setColdFilmCoeff] = useState("1000");
   const [foulingFactor, setFoulingFactor] = useState("0.0002");
   const [coilMaterial, setCoilMaterial] = useState("steel");
   const [flowConfiguration, setFlowConfiguration] = useState("counter");
@@ -2348,14 +2348,26 @@ function CoilSurfaceAreaCalculator() {
     });
 
     // Check for missing values
-    if (isNaN(Q_kcal) || isNaN(T_hot_in) || isNaN(T_hot_out) || isNaN(T_cold_in) || isNaN(T_cold_out) || isNaN(h_hot) || isNaN(h_cold)) {
-      console.log("Missing required values");
+    if (isNaN(Q_kcal) || Q_kcal <= 0) {
+      console.log("Invalid heat transfer value");
+      return;
+    }
+    if (isNaN(T_hot_in) || isNaN(T_hot_out) || isNaN(T_cold_in) || isNaN(T_cold_out)) {
+      console.log("Missing temperature values");
+      return;
+    }
+    if (isNaN(h_hot) || h_hot <= 0 || isNaN(h_cold) || h_cold <= 0) {
+      console.log("Invalid film coefficient values");
       return;
     }
     
     // Validate temperature profiles
-    if (T_hot_in <= T_hot_out || T_cold_out <= T_cold_in) {
-      console.log("Invalid temperature profile");
+    if (T_hot_in <= T_hot_out) {
+      console.log("Hot fluid inlet must be greater than outlet");
+      return;
+    }
+    if (T_cold_out <= T_cold_in) {
+      console.log("Cold fluid outlet must be greater than inlet");
       return;
     }
 
