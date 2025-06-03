@@ -1132,6 +1132,9 @@ function ChimneyDiameterHeightCalculator() {
   const [draftLoss, setDraftLoss] = useState("50");
   const [heightConstraint, setHeightConstraint] = useState("");
   const [stackMaterial, setStackMaterial] = useState("steel");
+  const [draftType, setDraftType] = useState("natural");
+  const [so2EmissionRate, setSo2EmissionRate] = useState("");
+  const [heatEmissionRate, setHeatEmissionRate] = useState("");
   const [result, setResult] = useState<{
     flueGasFlow: number;
     minDiameter: number;
@@ -1212,29 +1215,67 @@ function ChimneyDiameterHeightCalculator() {
     const area = flueGasFlow / velocity; // m²
     const diameter = Math.sqrt((4 * area) / Math.PI) * 1000; // Convert to mm
 
-    // 3. Calculate required chimney height for natural draft
-    // ΔP = ρ × g × H × (1/T_a - 1/T_g)
-    // Rearranging: H = ΔP / [ρ × g × (1/T_a - 1/T_g)]
-    const rho = 1.225; // Air density at 15°C (kg/m³)
-    const g = 9.81; // Gravity (m/s²)
-    const tempDiff = (1 / T_ambient) - (1 / T_flue);
+    // 3. Calculate required chimney height based on draft type
+    let recommendedHeight: number;
+    let availableDraft: number;
     
-    // Required draft pressure (Pa) - includes friction losses
-    const requiredDraft = deltaP_loss + 20; // Base draft + losses
-    
-    let recommendedHeight = requiredDraft / (rho * g * tempDiff);
-    
-    // Apply minimum height constraints (environmental standards)
-    const minHeight = Math.max(11, 2.5 * 6); // Assume 6m building height minimum
-    recommendedHeight = Math.max(recommendedHeight, minHeight);
+    if (draftType === "natural") {
+      // Natural draft calculation
+      // ΔP = ρ × g × H × (1/T_a - 1/T_g)
+      // Rearranging: H = ΔP / [ρ × g × (1/T_a - 1/T_g)]
+      const rho = 1.225; // Air density at 15°C (kg/m³)
+      const g = 9.81; // Gravity (m/s²)
+      const tempDiff = (1 / T_ambient) - (1 / T_flue);
+      
+      // Required draft pressure (Pa) - includes friction losses
+      const requiredDraft = deltaP_loss + 20; // Base draft + losses
+      
+      recommendedHeight = requiredDraft / (rho * g * tempDiff);
+      
+      // Apply minimum height constraints (environmental standards)
+      const minHeight = Math.max(11, 2.5 * 6); // Assume 6m building height minimum
+      recommendedHeight = Math.max(recommendedHeight, minHeight);
+      
+      // Calculate available draft at recommended height
+      availableDraft = rho * g * recommendedHeight * tempDiff;
+      
+    } else {
+      // Forced draft calculation - focus on dispersion and regulatory requirements
+      let heightByDispersion = 11; // Minimum regulatory height
+      
+      // Method 1: CPCB formula for SO2 emissions (if provided)
+      if (so2EmissionRate) {
+        const so2Rate = parseFloat(so2EmissionRate);
+        heightByDispersion = 14 * Math.pow(so2Rate, 0.3); // H = 14 × Q^0.3
+      }
+      
+      // Method 2: Heat load approach (if provided)
+      if (heatEmissionRate) {
+        const heatRate = parseFloat(heatEmissionRate);
+        const k = 0.7; // Empirical constant for industrial applications
+        const heightByHeat = k * Math.sqrt(heatRate); // H = k × √Q
+        heightByDispersion = Math.max(heightByDispersion, heightByHeat);
+      }
+      
+      // Method 3: Exit velocity approach for adequate dispersion
+      // Ensure exit velocity > 15 m/s to minimize downwash
+      const targetExitVelocity = 15; // m/s
+      const areaForVelocity = flueGasFlow / targetExitVelocity;
+      const diameterForVelocity = Math.sqrt((4 * areaForVelocity) / Math.PI) * 1000;
+      
+      // Minimum height based on building clearance (3m above nearby structures)
+      const buildingClearanceHeight = 15; // Assume 12m building + 3m clearance
+      
+      recommendedHeight = Math.max(heightByDispersion, buildingClearanceHeight, 11);
+      
+      // For forced draft, available draft is not relevant (fan provides pressure)
+      availableDraft = 0; // Not applicable for forced draft
+    }
     
     // Limit to height constraint if provided
     if (heightConstraint) {
       recommendedHeight = Math.min(recommendedHeight, heightLimit);
     }
-
-    // 4. Calculate available draft at recommended height
-    const availableDraft = rho * g * recommendedHeight * tempDiff;
 
     setResult({
       flueGasFlow: flueGasFlow * 3600, // Convert back to m³/hr for display
@@ -1328,20 +1369,67 @@ function ChimneyDiameterHeightCalculator() {
         </div>
       </div>
 
-      <div>
-        <Label htmlFor="stackMaterial">Stack Material</Label>
-        <Select value={stackMaterial} onValueChange={setStackMaterial}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="steel">Carbon Steel</SelectItem>
-            <SelectItem value="stainless">Stainless Steel</SelectItem>
-            <SelectItem value="refractory">Refractory Lined</SelectItem>
-            <SelectItem value="concrete">Concrete</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="draftType">Draft System Type</Label>
+          <Select value={draftType} onValueChange={setDraftType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="natural">Natural Draft</SelectItem>
+              <SelectItem value="forced">Forced Draft (FD)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="stackMaterial">Stack Material</Label>
+          <Select value={stackMaterial} onValueChange={setStackMaterial}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="steel">Carbon Steel</SelectItem>
+              <SelectItem value="stainless">Stainless Steel</SelectItem>
+              <SelectItem value="refractory">Refractory Lined</SelectItem>
+              <SelectItem value="concrete">Concrete</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+
+      {draftType === "forced" && (
+        <div className="grid grid-cols-2 gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="col-span-2">
+            <Label className="text-blue-900 font-semibold">Forced Draft - Emission Data (Optional)</Label>
+            <p className="text-sm text-blue-700 mt-1">Provide emission data for regulatory height calculations</p>
+          </div>
+          <div>
+            <Label htmlFor="so2EmissionRate">SO₂ Emission Rate (kg/hr)</Label>
+            <Input
+              id="so2EmissionRate"
+              type="number"
+              step="0.1"
+              value={so2EmissionRate}
+              onChange={(e) => setSo2EmissionRate(e.target.value)}
+              placeholder="e.g., 2.5"
+            />
+            <p className="text-xs text-blue-600 mt-1">For CPCB formula: H = 14 × Q^0.3</p>
+          </div>
+          <div>
+            <Label htmlFor="heatEmissionRate">Heat Emission (MW)</Label>
+            <Input
+              id="heatEmissionRate"
+              type="number"
+              step="0.1"
+              value={heatEmissionRate}
+              onChange={(e) => setHeatEmissionRate(e.target.value)}
+              placeholder="e.g., 5.0"
+            />
+            <p className="text-xs text-blue-600 mt-1">For thermal load approach</p>
+          </div>
+        </div>
+      )}
 
       <Button onClick={calculateChimney} className="w-full">
         <Calculator className="h-4 w-4 mr-2" />
@@ -1360,16 +1448,31 @@ function ChimneyDiameterHeightCalculator() {
               <p className="text-sm text-purple-600">Flue Gas Velocity</p>
               <p className="font-bold">{result.flueGasVelocity.toFixed(1)} m/s</p>
             </div>
-            <div>
-              <p className="text-sm text-purple-600">Available Draft</p>
-              <p className="font-bold">{result.availableDraft.toFixed(1)} Pa</p>
-            </div>
-            <div>
-              <p className="text-sm text-purple-600">Draft Status</p>
-              <p className="font-bold">
-                {result.availableDraft > parseFloat(draftLoss) ? "✓ Adequate" : "⚠ Insufficient"}
-              </p>
-            </div>
+            {draftType === "natural" ? (
+              <>
+                <div>
+                  <p className="text-sm text-purple-600">Available Draft</p>
+                  <p className="font-bold">{result.availableDraft.toFixed(1)} Pa</p>
+                </div>
+                <div>
+                  <p className="text-sm text-purple-600">Draft Status</p>
+                  <p className="font-bold">
+                    {result.availableDraft > parseFloat(draftLoss) ? "✓ Adequate" : "⚠ Insufficient"}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <p className="text-sm text-purple-600">Exit Velocity</p>
+                  <p className="font-bold">{(result.flueGasFlow / 3600 / (Math.PI * Math.pow(result.minDiameter / 2000, 2))).toFixed(1)} m/s</p>
+                </div>
+                <div>
+                  <p className="text-sm text-purple-600">Design Basis</p>
+                  <p className="font-bold">Dispersion & Regulatory</p>
+                </div>
+              </>
+            )}
           </div>
           
           <div className="mt-4 pt-4 border-t border-purple-300">
@@ -1389,7 +1492,21 @@ function ChimneyDiameterHeightCalculator() {
             <h5 className="font-semibold text-purple-900 mb-2">Design Notes:</h5>
             <ul className="text-xs text-purple-700 space-y-1">
               <li>• Diameter calculation based on optimal flue gas velocity for {fuelProperties[fuelType as keyof typeof fuelProperties].name}</li>
-              <li>• Height ensures adequate natural draft for combustion air supply</li>
+              <li>• Flue gas flow rate calculated at actual inlet temperature ({flueGasTemp}°C)</li>
+              {draftType === "natural" ? (
+                <>
+                  <li>• Height ensures adequate natural draft for combustion air supply</li>
+                  <li>• Natural draft calculation: H = ΔP / [ρ × g × (1/T_ambient - 1/T_flue)]</li>
+                  <li>• Temperature difference creates buoyancy for draft effect</li>
+                </>
+              ) : (
+                <>
+                  <li>• Height based on pollutant dispersion and regulatory requirements</li>
+                  <li>• {so2EmissionRate ? `CPCB formula applied: H = 14 × (${so2EmissionRate})^0.3` : "Minimum dispersion height applied"}</li>
+                  <li>• Exit velocity greater than 15 m/s recommended to minimize downwash</li>
+                  <li>• Fan provides required draft pressure (natural draft not applicable)</li>
+                </>
+              )}
               <li>• Consider local building codes and environmental regulations</li>
               <li>• Add safety margin for temperature variations and fouling</li>
               <li>• {stackMaterial === "steel" ? "Steel construction suitable for moderate temperatures" : 
