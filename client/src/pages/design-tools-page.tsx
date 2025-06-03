@@ -1197,8 +1197,15 @@ function ChimneyDiameterHeightCalculator() {
 
     const fuelProp = fuelProperties[fuelType as keyof typeof fuelProperties];
     
-    // 1. Calculate flue gas flow rate: Q = (Fuel consumption × specific flue gas volume) / 3600
-    const flueGasFlow = (consumption * fuelProp.specificFlueGas) / 3600; // m³/s
+    // 1. Calculate flue gas flow rate at actual temperature
+    // Standard calculation: Q_std = (Fuel consumption × specific flue gas volume) / 3600
+    const flueGasFlowStd = (consumption * fuelProp.specificFlueGas) / 3600; // m³/s at 0°C
+    
+    // Temperature correction: Q_actual = Q_std × (T_actual / T_standard)
+    // T_standard = 273.15 K (0°C), T_actual = inlet temperature in K
+    const T_standard = 273.15; // 0°C in Kelvin
+    const temperatureCorrectionFactor = T_flue / T_standard;
+    const flueGasFlow = flueGasFlowStd * temperatureCorrectionFactor; // m³/s at actual temperature
 
     // 2. Calculate minimum chimney diameter based on recommended velocity
     const velocity = fuelProp.recommendedVelocity;
