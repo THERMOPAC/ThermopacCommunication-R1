@@ -1821,11 +1821,71 @@ function ThermalOilPumpSizingCalculator() {
     });
   };
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     if (!result) return;
 
     const doc = new jsPDF();
     const currentDate = new Date().toLocaleDateString();
+    
+    // Function to load and add logo
+    const addCompanyLogo = async () => {
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        return new Promise((resolve, reject) => {
+          img.onload = function() {
+            try {
+              // Create canvas to convert image to base64
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              
+              // Set canvas size based on desired logo size
+              const logoWidth = 30;
+              const logoHeight = 20;
+              canvas.width = logoWidth * 4; // Higher resolution
+              canvas.height = logoHeight * 4;
+              
+              // Draw image on canvas
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              
+              // Convert to base64
+              const imgData = canvas.toDataURL('image/jpeg', 0.8);
+              
+              // Add logo to PDF (top left corner)
+              doc.addImage(imgData, 'JPEG', 15, 10, logoWidth, logoHeight);
+              resolve(true);
+            } catch (error) {
+              console.error('Error processing logo:', error);
+              reject(error);
+            }
+          };
+          
+          img.onerror = function() {
+            console.error('Failed to load logo image');
+            reject(new Error('Logo load failed'));
+          };
+          
+          // Load the logo image
+          img.src = '/attached_assets/Thermopac logo_1743671233876.jpg';
+        });
+      } catch (error) {
+        console.error('Logo loading error:', error);
+        return false;
+      }
+    };
+
+    // Try to add logo, continue with or without it
+    try {
+      await addCompanyLogo();
+    } catch (error) {
+      console.log('Continuing without logo due to:', error);
+      // Add simple text-based logo as fallback
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.rect(15, 10, 25, 15);
+      doc.text('TPE', 27.5, 20, { align: 'center' });
+    }
     
     // Company header with proper spacing
     doc.setFontSize(14);
@@ -1844,12 +1904,6 @@ function ThermalOilPumpSizingCalculator() {
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     doc.text(`Report Generated: ${currentDate}`, 105, 48, { align: 'center' });
-    
-    // Add simple logo placeholder (company initial in a box)
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.rect(15, 10, 25, 15); // Draw rectangle
-    doc.text('TPE', 27.5, 20, { align: 'center' }); // Company initials
     
     // Input Parameters with proper spacing
     doc.setFontSize(14);
