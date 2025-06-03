@@ -1742,6 +1742,11 @@ function ThermalOilPumpSizingCalculator() {
     pumpHead: number;
     pumpPower: number;
     velocity: number;
+    reynoldsNumber: number;
+    frictionFactor: number;
+    frictionHead: number;
+    staticHead: number;
+    minorLosses: number;
   } | null>(null);
 
   const calculatePumpSizing = () => {
@@ -1749,10 +1754,14 @@ function ThermalOilPumpSizingCalculator() {
     const deltaT = parseFloat(tempRise); // °C
     const Cp = parseFloat(oilSpecificHeat); // kcal/kg°C
     const rho = parseFloat(oilDensity); // kg/m³
-    const L = parseFloat(pipeLength) || 50; // Default 50m
-    const D = parseFloat(pipeDiameter) || 0.1; // Default 100mm
+    const L = parseFloat(pipeLength); // m
+    const D = parseFloat(pipeDiameter); // m
 
-    if (!Q_kW || !deltaT || !Cp || !rho) return;
+    // Validate all required inputs
+    if (!Q_kW || !deltaT || !Cp || !rho || !L || !D) {
+      console.log("Missing required values for pump sizing");
+      return;
+    }
 
     // Convert kW to kcal/hr: 1 kW = 860 kcal/hr
     const Q_kcal = Q_kW * 860;
@@ -1767,12 +1776,33 @@ function ThermalOilPumpSizingCalculator() {
     const area = Math.PI * Math.pow(D, 2) / 4;
     const velocity = (volumeFlowRate / 3600) / area; // m/s
     
-    // Friction head calculation (simplified)
-    const f = 0.02; // Friction factor for thermal oil
+    // Reynolds Number for thermal oil flow
+    const viscosity = 5e-3; // Pa·s (typical for thermal oil at operating temperature)
+    const Re = (rho * velocity * D) / viscosity;
+    
+    // Friction factor calculation (Moody diagram approximation)
+    let f;
+    if (Re < 2300) {
+      f = 64 / Re; // Laminar flow
+    } else {
+      // Turbulent flow (smooth pipe approximation)
+      f = 0.316 / Math.pow(Re, 0.25);
+    }
+    
+    // Friction head loss (Darcy-Weisbach equation)
     const frictionHead = (f * L * Math.pow(velocity, 2)) / (2 * 9.81 * D); // m
     
-    // Total head (friction + static + fittings)
-    const totalHead = frictionHead + 10 + (frictionHead * 0.3); // m
+    // Minor losses (fittings, valves, etc.) - typically 20-30% of friction loss
+    const minorLosses = frictionHead * 0.25;
+    
+    // Static head (elevation changes) - assume 5m minimum
+    const staticHead = 5;
+    
+    // Safety margin for pump sizing
+    const safetyFactor = 1.15;
+    
+    // Total head calculation
+    const totalHead = (frictionHead + minorLosses + staticHead) * safetyFactor; // m
     
     // Pump power: P = ρ × g × Q × H / η
     const efficiency = 0.75; // 75% pump efficiency
@@ -1782,7 +1812,12 @@ function ThermalOilPumpSizingCalculator() {
       flowRate: volumeFlowRate,
       pumpHead: totalHead,
       pumpPower: pumpPower,
-      velocity: velocity
+      velocity: velocity,
+      reynoldsNumber: Re,
+      frictionFactor: f,
+      frictionHead: frictionHead,
+      staticHead: staticHead,
+      minorLosses: minorLosses
     });
   };
 
@@ -1835,27 +1870,38 @@ function ThermalOilPumpSizingCalculator() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="pipeLength">Pipe Length (m) - Optional</Label>
-          <Input
-            id="pipeLength"
-            type="number"
-            value={pipeLength}
-            onChange={(e) => setPipeLength(e.target.value)}
-            placeholder="e.g., 50"
-          />
-        </div>
-        <div>
-          <Label htmlFor="pipeDiameter">Pipe Diameter (m) - Optional</Label>
-          <Input
-            id="pipeDiameter"
-            type="number"
-            step="0.001"
-            value={pipeDiameter}
-            onChange={(e) => setPipeDiameter(e.target.value)}
-            placeholder="e.g., 0.1"
-          />
+      <div className="space-y-4">
+        <h4 className="font-semibold text-cyan-900">Piping System Parameters (Required)</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="pipeLength">Total Pipe Length (m) *</Label>
+            <Input
+              id="pipeLength"
+              type="number"
+              value={pipeLength}
+              onChange={(e) => setPipeLength(e.target.value)}
+              placeholder="e.g., 50"
+              required
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Include supply and return piping length
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="pipeDiameter">Pipe Internal Diameter (m) *</Label>
+            <Input
+              id="pipeDiameter"
+              type="number"
+              step="0.001"
+              value={pipeDiameter}
+              onChange={(e) => setPipeDiameter(e.target.value)}
+              placeholder="e.g., 0.1"
+              required
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Internal diameter (ID) of the pipe
+            </p>
+          </div>
         </div>
       </div>
 
@@ -1865,24 +1911,84 @@ function ThermalOilPumpSizingCalculator() {
       </Button>
 
       {result !== null && (
-        <div className="mt-4 p-4 bg-cyan-50 border border-cyan-200 rounded-lg">
-          <h4 className="font-semibold text-cyan-900">Pump Sizing Results</h4>
-          <div className="grid grid-cols-2 gap-4 mt-3 text-cyan-800">
-            <div>
-              <p className="text-sm text-cyan-600">Flow Rate</p>
-              <p className="font-bold">{result.flowRate.toFixed(2)} m³/hr</p>
+        <div className="mt-4 space-y-4">
+          {/* Main Results */}
+          <div className="p-4 bg-cyan-50 border border-cyan-200 rounded-lg">
+            <h4 className="font-semibold text-cyan-900 mb-3">Pump Sizing Results</h4>
+            <div className="grid grid-cols-2 gap-4 text-cyan-800">
+              <div>
+                <p className="text-sm text-cyan-600">Required Flow Rate</p>
+                <p className="font-bold">{result.flowRate.toFixed(2)} m³/hr</p>
+              </div>
+              <div>
+                <p className="text-sm text-cyan-600">Flow Velocity</p>
+                <p className="font-bold">{result.velocity.toFixed(2)} m/s</p>
+                <p className="text-xs text-cyan-500">
+                  {result.velocity < 1.5 ? "✓ Optimal" : result.velocity < 3 ? "⚠ Acceptable" : "⚠ High velocity"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-cyan-600">Total Pump Head</p>
+                <p className="font-bold">{result.pumpHead.toFixed(1)} m</p>
+              </div>
+              <div>
+                <p className="text-sm text-cyan-600">Pump Power Required</p>
+                <p className="font-bold">{result.pumpPower.toFixed(2)} kW</p>
+                <p className="text-xs text-cyan-500">({(result.pumpPower * 1.34).toFixed(2)} HP)</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-cyan-600">Flow Velocity</p>
-              <p className="font-bold">{result.velocity.toFixed(2)} m/s</p>
+          </div>
+
+          {/* Engineering Details */}
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="font-semibold text-blue-900 mb-3">Engineering Analysis</h4>
+            <div className="grid grid-cols-2 gap-4 text-blue-800">
+              <div>
+                <p className="text-sm text-blue-600">Reynolds Number</p>
+                <p className="font-bold">{result.reynoldsNumber.toFixed(0)}</p>
+                <p className="text-xs text-blue-500">
+                  {result.reynoldsNumber < 2300 ? "Laminar Flow" : "Turbulent Flow"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-blue-600">Friction Factor</p>
+                <p className="font-bold">{result.frictionFactor.toFixed(4)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-blue-600">Friction Head Loss</p>
+                <p className="font-bold">{result.frictionHead.toFixed(2)} m</p>
+              </div>
+              <div>
+                <p className="text-sm text-blue-600">Minor Losses</p>
+                <p className="font-bold">{result.minorLosses.toFixed(2)} m</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-cyan-600">Required Head</p>
-              <p className="font-bold">{result.pumpHead.toFixed(1)} m</p>
-            </div>
-            <div>
-              <p className="text-sm text-cyan-600">Pump Power</p>
-              <p className="font-bold">{result.pumpPower.toFixed(2)} kW</p>
+          </div>
+
+          {/* Head Loss Breakdown */}
+          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <h4 className="font-semibold text-gray-900 mb-3">Head Loss Breakdown</h4>
+            <div className="space-y-2 text-gray-800">
+              <div className="flex justify-between">
+                <span>Friction Head Loss:</span>
+                <span className="font-medium">{result.frictionHead.toFixed(2)} m</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Minor Losses (Fittings):</span>
+                <span className="font-medium">{result.minorLosses.toFixed(2)} m</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Static Head:</span>
+                <span className="font-medium">{result.staticHead.toFixed(1)} m</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Safety Factor (15%):</span>
+                <span className="font-medium">{((result.pumpHead / 1.15) * 0.15).toFixed(2)} m</span>
+              </div>
+              <div className="border-t pt-2 flex justify-between font-bold">
+                <span>Total Head Required:</span>
+                <span>{result.pumpHead.toFixed(1)} m</span>
+              </div>
             </div>
           </div>
         </div>
