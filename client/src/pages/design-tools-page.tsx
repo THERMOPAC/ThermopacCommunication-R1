@@ -2309,17 +2309,21 @@ function FlueGasHeatLossEstimator() {
 // Coil Surface Area Calculator Component
 function CoilSurfaceAreaCalculator() {
   const [heatTransfer, setHeatTransfer] = useState("");
-  const [hotFluidTemp, setHotFluidTemp] = useState("");
-  const [coldFluidTemp, setColdFluidTemp] = useState("");
+  const [hotFluidTempIn, setHotFluidTempIn] = useState("");
+  const [hotFluidTempOut, setHotFluidTempOut] = useState("");
+  const [coldFluidTempIn, setColdFluidTempIn] = useState("");
+  const [coldFluidTempOut, setColdFluidTempOut] = useState("");
   const [hotFilmCoeff, setHotFilmCoeff] = useState("");
   const [coldFilmCoeff, setColdFilmCoeff] = useState("");
   const [foulingFactor, setFoulingFactor] = useState("0.0002");
   const [coilMaterial, setCoilMaterial] = useState("steel");
+  const [flowConfiguration, setFlowConfiguration] = useState("counter");
   const [result, setResult] = useState<{
     overallCoeff: number;
     logMeanTempDiff: number;
     surfaceArea: number;
     coilLength: number;
+    heatDutyCheck: number;
   } | null>(null);
 
   const materialData = {
@@ -2330,26 +2334,47 @@ function CoilSurfaceAreaCalculator() {
 
   const calculateSurfaceArea = () => {
     const Q_kcal = parseFloat(heatTransfer); // kcal/hr
-    const T_hot = parseFloat(hotFluidTemp);
-    const T_cold = parseFloat(coldFluidTemp);
+    const T_hot_in = parseFloat(hotFluidTempIn);
+    const T_hot_out = parseFloat(hotFluidTempOut);
+    const T_cold_in = parseFloat(coldFluidTempIn);
+    const T_cold_out = parseFloat(coldFluidTempOut);
     const h_hot = parseFloat(hotFilmCoeff);
     const h_cold = parseFloat(coldFilmCoeff);
     const Rf = parseFloat(foulingFactor);
 
-    if (!Q_kcal || !T_hot || !T_cold || !h_hot || !h_cold || T_hot <= T_cold) return;
+    if (!Q_kcal || !T_hot_in || !T_hot_out || !T_cold_in || !T_cold_out || !h_hot || !h_cold) return;
+    
+    // Validate temperature profiles
+    if (T_hot_in <= T_hot_out || T_cold_out <= T_cold_in) return;
 
     // Convert kcal/hr to watts: 1 kcal/hr = 1.163 W
     const Q_watts = Q_kcal * 1.163;
 
     const material = materialData[coilMaterial as keyof typeof materialData];
     
-    // Log Mean Temperature Difference (LMTD)
-    // Assuming counter-current flow with 80% of inlet temperature approach
-    const deltaT1 = T_hot - (T_cold + (T_hot - T_cold) * 0.8);
-    const deltaT2 = (T_hot - (T_hot - T_cold) * 0.8) - T_cold;
-    const LMTD = Math.abs(deltaT1 - deltaT2) < 0.1 ? 
-      (deltaT1 + deltaT2) / 2 : 
-      (deltaT1 - deltaT2) / Math.log(deltaT1 / deltaT2);
+    // Proper Log Mean Temperature Difference (LMTD) calculation
+    let deltaT1, deltaT2;
+    
+    if (flowConfiguration === "counter") {
+      // Counter-current flow: Hot inlet vs Cold outlet, Hot outlet vs Cold inlet
+      deltaT1 = T_hot_in - T_cold_out;
+      deltaT2 = T_hot_out - T_cold_in;
+    } else {
+      // Co-current flow: Hot inlet vs Cold inlet, Hot outlet vs Cold outlet
+      deltaT1 = T_hot_in - T_cold_in;
+      deltaT2 = T_hot_out - T_cold_out;
+    }
+    
+    // Ensure valid temperature differences
+    if (deltaT1 <= 0 || deltaT2 <= 0) return;
+    
+    // Calculate LMTD
+    let LMTD;
+    if (Math.abs(deltaT1 - deltaT2) < 0.1) {
+      LMTD = (deltaT1 + deltaT2) / 2; // Arithmetic mean for small differences
+    } else {
+      LMTD = (deltaT1 - deltaT2) / Math.log(deltaT1 / deltaT2);
+    }
     
     // Overall heat transfer coefficient: 1/U = 1/h_hot + Rf + t/k + 1/h_cold
     const thermalResistance = (1 / h_hot) + Rf + (material.thickness / material.conductivity) + (1 / h_cold);
@@ -2361,12 +2386,16 @@ function CoilSurfaceAreaCalculator() {
     // Approximate coil length (assuming 50mm tube diameter)
     const tubeDiameter = 0.05; // 50mm
     const coilLength = surfaceArea / (Math.PI * tubeDiameter);
+    
+    // Heat duty verification check (Q = U × A × LMTD)
+    const heatDutyCheck = (overallCoeff * surfaceArea * LMTD) / 1.163; // Convert back to kcal/hr
 
     setResult({
       overallCoeff: overallCoeff,
       logMeanTempDiff: LMTD,
       surfaceArea: surfaceArea,
-      coilLength: coilLength
+      coilLength: coilLength,
+      heatDutyCheck: heatDutyCheck
     });
   };
 
@@ -2398,26 +2427,71 @@ function CoilSurfaceAreaCalculator() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="hotFluidTemp">Hot Fluid Temperature (°C)</Label>
-          <Input
-            id="hotFluidTemp"
-            type="number"
-            value={hotFluidTemp}
-            onChange={(e) => setHotFluidTemp(e.target.value)}
-            placeholder="e.g., 250"
-          />
+      <div>
+        <Label htmlFor="flowConfiguration">Flow Configuration</Label>
+        <Select value={flowConfiguration} onValueChange={setFlowConfiguration}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="counter">Counter-Current Flow</SelectItem>
+            <SelectItem value="cocurrent">Co-Current Flow</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground mt-1">
+          Counter-current provides better heat transfer efficiency
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        <h4 className="font-semibold text-blue-900">Temperature Profile (°C)</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="hotFluidTempIn">Hot Fluid Inlet Temperature</Label>
+            <Input
+              id="hotFluidTempIn"
+              type="number"
+              step="0.1"
+              value={hotFluidTempIn}
+              onChange={(e) => setHotFluidTempIn(e.target.value)}
+              placeholder="e.g., 250"
+            />
+          </div>
+          <div>
+            <Label htmlFor="hotFluidTempOut">Hot Fluid Outlet Temperature</Label>
+            <Input
+              id="hotFluidTempOut"
+              type="number"
+              step="0.1"
+              value={hotFluidTempOut}
+              onChange={(e) => setHotFluidTempOut(e.target.value)}
+              placeholder="e.g., 200"
+            />
+          </div>
         </div>
-        <div>
-          <Label htmlFor="coldFluidTemp">Cold Fluid Temperature (°C)</Label>
-          <Input
-            id="coldFluidTemp"
-            type="number"
-            value={coldFluidTemp}
-            onChange={(e) => setColdFluidTemp(e.target.value)}
-            placeholder="e.g., 180"
-          />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="coldFluidTempIn">Cold Fluid Inlet Temperature</Label>
+            <Input
+              id="coldFluidTempIn"
+              type="number"
+              step="0.1"
+              value={coldFluidTempIn}
+              onChange={(e) => setColdFluidTempIn(e.target.value)}
+              placeholder="e.g., 80"
+            />
+          </div>
+          <div>
+            <Label htmlFor="coldFluidTempOut">Cold Fluid Outlet Temperature</Label>
+            <Input
+              id="coldFluidTempOut"
+              type="number"
+              step="0.1"
+              value={coldFluidTempOut}
+              onChange={(e) => setColdFluidTempOut(e.target.value)}
+              placeholder="e.g., 180"
+            />
+          </div>
         </div>
       </div>
 
@@ -2463,15 +2537,19 @@ function CoilSurfaceAreaCalculator() {
 
       {result !== null && (
         <div className="mt-4 p-4 bg-teal-50 border border-teal-200 rounded-lg">
-          <h4 className="font-semibold text-teal-900">Surface Area Results</h4>
-          <div className="grid grid-cols-2 gap-4 mt-3 text-teal-800">
+          <h4 className="font-semibold text-teal-900">Coil Design Results</h4>
+          <div className="grid grid-cols-3 gap-4 mt-3 text-teal-800">
             <div>
-              <p className="text-sm text-teal-600">Overall Heat Transfer Coefficient</p>
+              <p className="text-sm text-teal-600">Overall U-Value</p>
               <p className="font-bold">{result.overallCoeff.toFixed(1)} W/m²K</p>
             </div>
             <div>
-              <p className="text-sm text-teal-600">Log Mean Temp Difference</p>
+              <p className="text-sm text-teal-600">LMTD ({flowConfiguration === 'counter' ? 'Counter' : 'Co'}-current)</p>
               <p className="font-bold">{result.logMeanTempDiff.toFixed(1)} °C</p>
+            </div>
+            <div>
+              <p className="text-sm text-teal-600">Heat Duty Check</p>
+              <p className="font-bold">{result.heatDutyCheck.toFixed(0)} kcal/hr</p>
             </div>
           </div>
           
@@ -2482,9 +2560,19 @@ function CoilSurfaceAreaCalculator() {
                 <p className="font-bold text-xl text-teal-900">{result.surfaceArea.toFixed(1)} m²</p>
               </div>
               <div className="text-center">
-                <p className="text-sm text-teal-600">Approximate Coil Length</p>
+                <p className="text-sm text-teal-600">Coil Length (50mm dia)</p>
                 <p className="font-bold text-xl text-teal-900">{result.coilLength.toFixed(1)} m</p>
               </div>
+            </div>
+          </div>
+
+          <div className="mt-4 p-3 bg-teal-100 rounded">
+            <h5 className="font-semibold text-teal-900 mb-2">Design Verification:</h5>
+            <div className="text-sm text-teal-700 space-y-1">
+              <p><strong>LMTD Formula:</strong> LMTD = (ΔT₁ - ΔT₂) / ln(ΔT₁/ΔT₂)</p>
+              <p><strong>Heat Transfer:</strong> Q = U × A × LMTD</p>
+              <p><strong>Material:</strong> {materialData[coilMaterial as keyof typeof materialData].name}</p>
+              <p><strong>Flow Configuration:</strong> {flowConfiguration === 'counter' ? 'Counter-current (optimal)' : 'Co-current'}</p>
             </div>
           </div>
         </div>
