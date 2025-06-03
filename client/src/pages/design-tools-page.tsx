@@ -45,13 +45,15 @@ import {
   ArrowLeftRight,
   ArrowUpDown,
   Container,
-  Bolt
+  Bolt,
+  Download
 } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import jsPDF from 'jspdf';
 
 // Shell Thickness Calculator Component
 function ShellThicknessCalculator() {
@@ -1818,6 +1820,107 @@ function ThermalOilPumpSizingCalculator() {
     });
   };
 
+  const generatePDF = () => {
+    if (!result) return;
+
+    const doc = new jsPDF();
+    const currentDate = new Date().toLocaleDateString();
+    
+    // Header
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('THERMAL OIL PUMP SIZING CALCULATION', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Report Generated: ${currentDate}`, 105, 30, { align: 'center' });
+    
+    // Input Parameters
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('INPUT PARAMETERS', 20, 50);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const inputs = [
+      `Heat Load: ${heatLoad} kcal/hr`,
+      `Temperature Rise: ${tempRise} °C`,
+      `Oil Specific Heat: ${oilSpecificHeat} kcal/kg°C`,
+      `Oil Density: ${oilDensity} kg/m³`,
+      `Pipe Length: ${pipeLength} m`,
+      `Pipe Diameter: ${pipeDiameter} m`
+    ];
+    
+    inputs.forEach((input, index) => {
+      doc.text(input, 25, 60 + (index * 8));
+    });
+    
+    // Results Section
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CALCULATION RESULTS', 20, 120);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const results = [
+      `Required Flow Rate: ${result.flowRate.toFixed(2)} m³/hr`,
+      `Flow Velocity: ${result.velocity.toFixed(2)} m/s (${result.velocity < 1.5 ? "Optimal" : result.velocity < 3 ? "Acceptable" : "High velocity"})`,
+      `Total Pump Head: ${result.pumpHead.toFixed(1)} m`,
+      `Pump Power Required: ${result.pumpPower.toFixed(2)} kW (${(result.pumpPower * 1.34).toFixed(2)} HP)`
+    ];
+    
+    results.forEach((resultText, index) => {
+      doc.text(resultText, 25, 130 + (index * 8));
+    });
+    
+    // Engineering Analysis
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ENGINEERING ANALYSIS', 20, 170);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const analysis = [
+      `Reynolds Number: ${result.reynoldsNumber.toFixed(0)} (${result.reynoldsNumber < 2300 ? "Laminar Flow" : "Turbulent Flow"})`,
+      `Friction Factor: ${result.frictionFactor.toFixed(4)}`,
+      `Friction Head Loss: ${result.frictionHead.toFixed(2)} m`,
+      `Minor Losses (Fittings): ${result.minorLosses.toFixed(2)} m`,
+      `Static Head: ${result.staticHead.toFixed(1)} m`,
+      `Safety Factor Applied: 15%`
+    ];
+    
+    analysis.forEach((item, index) => {
+      doc.text(item, 25, 180 + (index * 8));
+    });
+    
+    // Head Loss Breakdown
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('HEAD LOSS BREAKDOWN', 20, 230);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const breakdown = [
+      `Friction Head Loss: ${result.frictionHead.toFixed(2)} m`,
+      `Minor Losses: ${result.minorLosses.toFixed(2)} m`,
+      `Static Head: ${result.staticHead.toFixed(1)} m`,
+      `Safety Factor (15%): ${((result.pumpHead / 1.15) * 0.15).toFixed(2)} m`,
+      `Total Head Required: ${result.pumpHead.toFixed(1)} m`
+    ];
+    
+    breakdown.forEach((item, index) => {
+      doc.text(item, 25, 240 + (index * 8));
+    });
+    
+    // Footer
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'italic');
+    doc.text('Calculations based on Darcy-Weisbach equation and standard fluid mechanics principles', 105, 280, { align: 'center' });
+    
+    // Save the PDF
+    doc.save('thermal-oil-pump-sizing-calculation.pdf');
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -1987,6 +2090,14 @@ function ThermalOilPumpSizingCalculator() {
                 <span>{result.pumpHead.toFixed(1)} m</span>
               </div>
             </div>
+          </div>
+
+          {/* PDF Download Button */}
+          <div className="mt-4 flex justify-center">
+            <Button onClick={generatePDF} className="bg-blue-600 hover:bg-blue-700">
+              <Download className="h-4 w-4 mr-2" />
+              Download PDF Report
+            </Button>
           </div>
         </div>
       )}
