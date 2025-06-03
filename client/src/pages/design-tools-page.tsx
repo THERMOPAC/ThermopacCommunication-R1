@@ -1815,6 +1815,166 @@ function ChimneyDiameterHeightCalculator() {
     });
   };
 
+  const generateChimneyPDF = async () => {
+    if (!result) return;
+
+    const doc = new jsPDF();
+    const currentDate = new Date().toLocaleDateString();
+    
+    // Function to load and add logo
+    const addCompanyLogo = async () => {
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        return new Promise((resolve, reject) => {
+          img.onload = function() {
+            try {
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              
+              if (!ctx) {
+                reject(new Error('Canvas context not available'));
+                return;
+              }
+              
+              const originalWidth = img.width;
+              const originalHeight = img.height;
+              const aspectRatio = originalWidth / originalHeight;
+              
+              const logoHeight = 20;
+              const logoWidth = logoHeight * aspectRatio;
+              
+              canvas.width = logoWidth * 4;
+              canvas.height = logoHeight * 4;
+              
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              
+              const imgData = canvas.toDataURL('image/jpeg', 0.8);
+              
+              doc.addImage(imgData, 'JPEG', 15, 10, logoWidth, logoHeight);
+              resolve(true);
+            } catch (error) {
+              console.error('Error processing logo:', error);
+              reject(error);
+            }
+          };
+          
+          img.onerror = function() {
+            console.error('Failed to load logo image');
+            reject(new Error('Logo load failed'));
+          };
+          
+          img.src = '/assets/thermopac-logo.jpg';
+        });
+      } catch (error) {
+        console.error('Logo loading error:', error);
+        return false;
+      }
+    };
+
+    // Try to add logo, continue with or without it
+    try {
+      await addCompanyLogo();
+    } catch (error) {
+      console.log('Continuing without logo due to:', error);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.rect(15, 10, 25, 15);
+      doc.text('TPE', 27.5, 20, { align: 'center' });
+    }
+    
+    // Company header
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('THERMOPAC PROCESS ENGINEERING LLP', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Thermal Engineering Solutions', 105, 26, { align: 'center' });
+    
+    // Main title
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CHIMNEY DIAMETER & HEIGHT CALCULATION', 105, 40, { align: 'center' });
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Report Generated: ${currentDate}`, 105, 48, { align: 'center' });
+    
+    // Input Parameters
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('INPUT PARAMETERS', 20, 65);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const fuelProp = fuelProperties[fuelType as keyof typeof fuelProperties];
+    const inputs = [
+      `Fuel Type: ${fuelProp.name}`,
+      `Fuel Consumption: ${consumptionRate} ${consumptionUnit}`,
+      `Sulfur Content: ${sulfurContent}% by weight`,
+      `Flue Gas Temperature: ${flueGasTemp} °C`,
+      `Ambient Temperature: ${ambientTemp} °C`,
+      `Draft System: ${draftType === 'natural' ? 'Natural Draft' : 'Forced Draft'}`,
+      `Stack Material: ${stackMaterial}`,
+      `Draft Loss: ${draftLoss} Pa`,
+      `Height Constraint: ${heightConstraint || 'None'} m`
+    ];
+    
+    inputs.forEach((input, index) => {
+      doc.text(input, 25, 78 + (index * 8));
+    });
+    
+    // Results Section
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CALCULATION RESULTS', 20, 160);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const results = [
+      `Flue Gas Flow Rate: ${result.flueGasFlow.toFixed(1)} m³/hr`,
+      `Recommended Velocity: ${result.flueGasVelocity} m/s`,
+      `Minimum Chimney Diameter: ${result.minDiameter.toFixed(0)} mm`,
+      `Recommended Height: ${result.recommendedHeight.toFixed(1)} m`,
+      `Available Draft: ${result.availableDraft.toFixed(1)} Pa ${draftType === 'natural' ? '' : '(N/A for forced draft)'}`
+    ];
+    
+    results.forEach((resultText, index) => {
+      doc.text(resultText, 25, 173 + (index * 10));
+    });
+    
+    // Emissions Data (if available)
+    if (so2EmissionRate || heatEmissionRate) {
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('EMISSION DATA', 20, 230);
+      
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      const emissions = [];
+      if (so2EmissionRate) emissions.push(`SO₂ Emission Rate: ${so2EmissionRate} kg/hr`);
+      if (heatEmissionRate) emissions.push(`Heat Emission Rate: ${heatEmissionRate} MW`);
+      
+      emissions.forEach((emission, index) => {
+        doc.text(emission, 25, 243 + (index * 8));
+      });
+    }
+    
+    // Footer
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'italic');
+    doc.text('Calculation based on standard chimney design principles and emission regulations', 105, 270, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Generated by Thermopac Process Engineering LLP - Thermal Engineering Solutions', 105, 280, { align: 'center' });
+    
+    // Save the PDF
+    doc.save('thermopac-chimney-diameter-height-calculation.pdf');
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -1994,7 +2154,18 @@ function ChimneyDiameterHeightCalculator() {
 
       {result !== null && (
         <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-          <h4 className="font-semibold text-purple-900">Calculation Results</h4>
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="font-semibold text-purple-900">Calculation Results</h4>
+            <Button 
+              onClick={generateChimneyPDF}
+              variant="outline" 
+              size="sm"
+              className="text-purple-700 border-purple-300 hover:bg-purple-100"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
           <div className="grid grid-cols-2 gap-4 mt-3 text-purple-800">
             <div>
               <p className="text-sm text-purple-600">Flue Gas Flow Rate</p>
@@ -2116,6 +2287,162 @@ function ThermalOilHeaterSizingCalculator() {
     });
   };
 
+  const generateThermalHeaterPDF = async () => {
+    if (!result) return;
+
+    const doc = new jsPDF();
+    const currentDate = new Date().toLocaleDateString();
+    
+    // Function to load and add logo
+    const addCompanyLogo = async () => {
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        return new Promise((resolve, reject) => {
+          img.onload = function() {
+            try {
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              
+              if (!ctx) {
+                reject(new Error('Canvas context not available'));
+                return;
+              }
+              
+              const originalWidth = img.width;
+              const originalHeight = img.height;
+              const aspectRatio = originalWidth / originalHeight;
+              
+              const logoHeight = 20;
+              const logoWidth = logoHeight * aspectRatio;
+              
+              canvas.width = logoWidth * 4;
+              canvas.height = logoHeight * 4;
+              
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              
+              const imgData = canvas.toDataURL('image/jpeg', 0.8);
+              
+              doc.addImage(imgData, 'JPEG', 15, 10, logoWidth, logoHeight);
+              resolve(true);
+            } catch (error) {
+              console.error('Error processing logo:', error);
+              reject(error);
+            }
+          };
+          
+          img.onerror = function() {
+            console.error('Failed to load logo image');
+            reject(new Error('Logo load failed'));
+          };
+          
+          img.src = '/assets/thermopac-logo.jpg';
+        });
+      } catch (error) {
+        console.error('Logo loading error:', error);
+        return false;
+      }
+    };
+
+    // Try to add logo, continue with or without it
+    try {
+      await addCompanyLogo();
+    } catch (error) {
+      console.log('Continuing without logo due to:', error);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.rect(15, 10, 25, 15);
+      doc.text('TPE', 27.5, 20, { align: 'center' });
+    }
+    
+    // Company header
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('THERMOPAC PROCESS ENGINEERING LLP', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Thermal Engineering Solutions', 105, 26, { align: 'center' });
+    
+    // Main title
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('THERMAL OIL HEATER SIZING CALCULATION', 105, 40, { align: 'center' });
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Report Generated: ${currentDate}`, 105, 48, { align: 'center' });
+    
+    // Input Parameters
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('INPUT PARAMETERS', 20, 65);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const inputs = [
+      `Heat Duty Required: ${heatDuty} kcal/hr`,
+      `Inlet Oil Temperature: ${inletTemp} °C`,
+      `Outlet Oil Temperature: ${outletTemp} °C`,
+      `Oil Specific Heat: ${specificHeat} kcal/kg°C`,
+      `Oil Density: ${oilDensity} kg/m³`
+    ];
+    
+    inputs.forEach((input, index) => {
+      doc.text(input, 25, 78 + (index * 10));
+    });
+    
+    // Results Section
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CALCULATION RESULTS', 20, 140);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const results = [
+      `Temperature Rise: ${result.temperatureRise.toFixed(1)} °C`,
+      `Required Oil Flow Rate: ${result.oilFlowRate.toFixed(2)} m³/hr`,
+      `Heater Capacity (with 10% safety): ${result.heaterCapacity.toFixed(0)} kcal/hr`,
+      `Heater Capacity (kW): ${(result.heaterCapacity * 1.163 / 1000).toFixed(1)} kW`
+    ];
+    
+    results.forEach((resultText, index) => {
+      doc.text(resultText, 25, 153 + (index * 10));
+    });
+    
+    // Design Notes
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DESIGN NOTES', 20, 200);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const notes = [
+      '• Heater capacity includes 10% safety margin for process variations',
+      '• Oil flow rate based on required heat duty and temperature rise',
+      '• Consider thermal oil properties at operating temperature',
+      '• Ensure adequate expansion tank capacity for system volume',
+      '• Install temperature control and safety systems'
+    ];
+    
+    notes.forEach((note, index) => {
+      doc.text(note, 25, 213 + (index * 8));
+    });
+    
+    // Footer
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'italic');
+    doc.text('Calculation based on energy balance: Q = m × Cp × ΔT', 105, 260, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Generated by Thermopac Process Engineering LLP - Thermal Engineering Solutions', 105, 275, { align: 'center' });
+    
+    // Save the PDF
+    doc.save('thermopac-thermal-oil-heater-sizing-calculation.pdf');
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -2183,7 +2510,18 @@ function ThermalOilHeaterSizingCalculator() {
 
       {result !== null && (
         <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <h4 className="font-semibold text-red-900">Sizing Results</h4>
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="font-semibold text-red-900">Sizing Results</h4>
+            <Button 
+              onClick={generateThermalHeaterPDF}
+              variant="outline" 
+              size="sm"
+              className="text-red-700 border-red-300 hover:bg-red-100"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
           <div className="grid grid-cols-2 gap-4 mt-3 text-red-800">
             <div>
               <p className="text-sm text-red-600">Temperature Rise</p>
@@ -2585,7 +2923,18 @@ function ThermalOilPumpSizingCalculator() {
         <div className="mt-4 space-y-4">
           {/* Main Results */}
           <div className="p-4 bg-cyan-50 border border-cyan-200 rounded-lg">
-            <h4 className="font-semibold text-cyan-900 mb-3">Pump Sizing Results</h4>
+            <div className="flex justify-between items-center mb-3">
+              <h4 className="font-semibold text-cyan-900">Pump Sizing Results</h4>
+              <Button 
+                onClick={generatePumpPDF}
+                variant="outline" 
+                size="sm"
+                className="text-cyan-700 border-cyan-300 hover:bg-cyan-100"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export PDF
+              </Button>
+            </div>
             <div className="grid grid-cols-2 gap-4 text-cyan-800">
               <div>
                 <p className="text-sm text-cyan-600">Required Flow Rate</p>
