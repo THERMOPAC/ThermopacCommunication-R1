@@ -2125,14 +2125,17 @@ function CoilSurfaceAreaCalculator() {
   };
 
   const calculateSurfaceArea = () => {
-    const Q = parseFloat(heatTransfer) * 1000; // Convert kW to W
+    const Q_kcal = parseFloat(heatTransfer); // kcal/hr
     const T_hot = parseFloat(hotFluidTemp);
     const T_cold = parseFloat(coldFluidTemp);
     const h_hot = parseFloat(hotFilmCoeff);
     const h_cold = parseFloat(coldFilmCoeff);
     const Rf = parseFloat(foulingFactor);
 
-    if (!Q || !T_hot || !T_cold || !h_hot || !h_cold || T_hot <= T_cold) return;
+    if (!Q_kcal || !T_hot || !T_cold || !h_hot || !h_cold || T_hot <= T_cold) return;
+
+    // Convert kcal/hr to watts: 1 kcal/hr = 1.163 W
+    const Q_watts = Q_kcal * 1.163;
 
     const material = materialData[coilMaterial as keyof typeof materialData];
     
@@ -2140,14 +2143,16 @@ function CoilSurfaceAreaCalculator() {
     // Assuming counter-current flow with 80% of inlet temperature approach
     const deltaT1 = T_hot - (T_cold + (T_hot - T_cold) * 0.8);
     const deltaT2 = (T_hot - (T_hot - T_cold) * 0.8) - T_cold;
-    const LMTD = (deltaT1 - deltaT2) / Math.log(deltaT1 / deltaT2);
+    const LMTD = Math.abs(deltaT1 - deltaT2) < 0.1 ? 
+      (deltaT1 + deltaT2) / 2 : 
+      (deltaT1 - deltaT2) / Math.log(deltaT1 / deltaT2);
     
     // Overall heat transfer coefficient: 1/U = 1/h_hot + Rf + t/k + 1/h_cold
     const thermalResistance = (1 / h_hot) + Rf + (material.thickness / material.conductivity) + (1 / h_cold);
     const overallCoeff = 1 / thermalResistance;
     
     // Surface area: A = Q / (U × LMTD)
-    const surfaceArea = Q / (overallCoeff * LMTD);
+    const surfaceArea = Q_watts / (overallCoeff * LMTD);
     
     // Approximate coil length (assuming 50mm tube diameter)
     const tubeDiameter = 0.05; // 50mm
@@ -2165,13 +2170,13 @@ function CoilSurfaceAreaCalculator() {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="heatTransfer">Heat Transfer Required (kW)</Label>
+          <Label htmlFor="heatTransfer">Heat Transfer Required (kcal/hr)</Label>
           <Input
             id="heatTransfer"
             type="number"
             value={heatTransfer}
             onChange={(e) => setHeatTransfer(e.target.value)}
-            placeholder="e.g., 100"
+            placeholder="e.g., 50000"
           />
         </div>
         <div>
