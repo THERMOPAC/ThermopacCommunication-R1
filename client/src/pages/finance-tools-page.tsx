@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Settings, Calculator, FileText, BarChart3, TrendingUp, Download, Save, FolderOpen, Database, Ruler, ArrowLeftRight, Plus, Trash2, Calendar, DollarSign, Target, Percent, PieChart, AlertTriangle } from "lucide-react";
+import { Settings, Calculator, FileText, BarChart3, TrendingUp, Download, Save, FolderOpen, Database, Ruler, ArrowLeftRight, Plus, Trash2, Calendar, DollarSign, Target, Percent, PieChart, AlertTriangle, RotateCcw } from "lucide-react";
 import Layout from "@/components/layout";
 
 // Loan Calculator Component
