@@ -2663,8 +2663,10 @@ function FireboxHeatFluxCalculator() {
 // Shell & Tube Heat Exchanger Selector Component
 function ShellTubeHeatExchangerSelector() {
   const [heatDuty, setHeatDuty] = useState("");
-  const [hotFluidTemp, setHotFluidTemp] = useState("");
-  const [coldFluidTemp, setColdFluidTemp] = useState("");
+  const [hotFluidTempIn, setHotFluidTempIn] = useState("");
+  const [hotFluidTempOut, setHotFluidTempOut] = useState("");
+  const [coldFluidTempIn, setColdFluidTempIn] = useState("");
+  const [coldFluidTempOut, setColdFluidTempOut] = useState("");
   const [hotFluidFlow, setHotFluidFlow] = useState("");
   const [coldFluidFlow, setColdFluidFlow] = useState("");
   const [hotFluidType, setHotFluidType] = useState("thermal-oil");
@@ -2677,13 +2679,16 @@ function ShellTubeHeatExchangerSelector() {
     coldVelocity: number;
     shellDiameter: number;
     tubeLength: number;
+    lmtd: number;
+    overallCoeff: number;
   } | null>(null);
 
   const fluidProperties = {
     "thermal-oil": { name: "Thermal Oil", density: 850, viscosity: 5.0, specificHeat: 2.1 },
     "water": { name: "Water", density: 1000, viscosity: 1.0, specificHeat: 4.18 },
     "steam": { name: "Steam", density: 0.6, viscosity: 0.02, specificHeat: 2.1 },
-    "air": { name: "Air", density: 1.2, viscosity: 0.018, specificHeat: 1.0 }
+    "air": { name: "Air", density: 1.2, viscosity: 0.018, specificHeat: 1.0 },
+    "glycol": { name: "Ethylene Glycol", density: 1100, viscosity: 2.5, specificHeat: 2.4 }
   };
 
   const tubeStandards = [
@@ -2694,50 +2699,79 @@ function ShellTubeHeatExchangerSelector() {
   ];
 
   const calculateHeatExchanger = () => {
-    const Q = parseFloat(heatDuty) * 1000; // Convert kW to W
-    const T_hot = parseFloat(hotFluidTemp);
-    const T_cold = parseFloat(coldFluidTemp);
-    const m_hot = parseFloat(hotFluidFlow); // kg/s
-    const m_cold = parseFloat(coldFluidFlow); // kg/s
+    const Q_kcal = parseFloat(heatDuty); // kcal/hr
+    const T_hot_in = parseFloat(hotFluidTempIn);
+    const T_hot_out = parseFloat(hotFluidTempOut);
+    const T_cold_in = parseFloat(coldFluidTempIn);
+    const T_cold_out = parseFloat(coldFluidTempOut);
+    const V_hot = parseFloat(hotFluidFlow); // m³/hr
+    const V_cold = parseFloat(coldFluidFlow); // m³/hr
 
-    if (!Q || !T_hot || !T_cold || !m_hot || !m_cold || T_hot <= T_cold) return;
+    if (!Q_kcal || !T_hot_in || !T_hot_out || !T_cold_in || !T_cold_out || !V_hot || !V_cold) return;
+    if (T_hot_in <= T_hot_out || T_cold_out <= T_cold_in) return;
 
     const hotFluid = fluidProperties[hotFluidType as keyof typeof fluidProperties];
     const coldFluid = fluidProperties[coldFluidType as keyof typeof fluidProperties];
 
-    // Log Mean Temperature Difference (simplified)
-    const deltaT_hot = T_hot - T_cold;
-    const deltaT_cold = (T_hot - 20) - T_cold; // Assuming 20°C temperature approach
-    const LMTD = (deltaT_hot - deltaT_cold) / Math.log(deltaT_hot / deltaT_cold);
+    // Convert flow rates to mass flow rates
+    const m_hot = (V_hot * hotFluid.density) / 3600; // kg/s
+    const m_cold = (V_cold * coldFluid.density) / 3600; // kg/s
 
-    // Overall heat transfer coefficient (typical for oil-water: 500-800 W/m²K)
-    const U = 600; // W/m²K
+    // Convert heat duty to watts: 1 kcal/hr = 1.163 W
+    const Q_watts = Q_kcal * 1.163;
+
+    // Log Mean Temperature Difference (LMTD)
+    const deltaT1 = T_hot_in - T_cold_out; // Hot inlet - Cold outlet
+    const deltaT2 = T_hot_out - T_cold_in; // Hot outlet - Cold inlet
+    
+    let LMTD;
+    if (Math.abs(deltaT1 - deltaT2) < 0.1) {
+      LMTD = (deltaT1 + deltaT2) / 2; // Arithmetic mean for small differences
+    } else {
+      LMTD = (deltaT1 - deltaT2) / Math.log(deltaT1 / deltaT2);
+    }
+
+    // Overall heat transfer coefficient selection based on fluid types
+    let U; // W/m²K
+    if (hotFluidType === "thermal-oil" && coldFluidType === "water") {
+      U = 600;
+    } else if (hotFluidType === "steam" && coldFluidType === "water") {
+      U = 1500;
+    } else if (hotFluidType === "water" && coldFluidType === "water") {
+      U = 1200;
+    } else {
+      U = 400; // Conservative default
+    }
 
     // Required surface area: A = Q / (U × LMTD)
-    const surfaceArea = Q / (U * LMTD);
+    const surfaceArea = Q_watts / (U * LMTD);
 
-    // Select tube size based on flow rates and velocities
+    // Select tube size based on flow rates
     let selectedTube = tubeStandards[1]; // Default to 25.4mm
-    if (m_hot < 5) selectedTube = tubeStandards[0];
-    else if (m_hot > 20) selectedTube = tubeStandards[2];
-    else if (m_hot > 50) selectedTube = tubeStandards[3];
+    const totalFlow = V_hot + V_cold;
+    if (totalFlow < 10) selectedTube = tubeStandards[0];
+    else if (totalFlow > 50) selectedTube = tubeStandards[2];
+    else if (totalFlow > 100) selectedTube = tubeStandards[3];
 
-    // Tube length (standard: 3-6m, use 4m)
-    const tubeLength = 4.0; // m
+    // Tube length (standard: 3-6m, optimize based on size)
+    let tubeLength = 4.0; // m
+    if (surfaceArea > 100) tubeLength = 6.0;
+    else if (surfaceArea < 20) tubeLength = 3.0;
 
     // Calculate tube count: N = A / (π × D × L)
     const tubeCount = Math.ceil(surfaceArea / (Math.PI * selectedTube.od * tubeLength));
 
     // Shell diameter estimation (triangular pitch, 1.25 × tube OD)
     const pitch = selectedTube.od * 1.25;
-    const shellDiameter = Math.sqrt(tubeCount) * pitch * 1.2; // m
+    const shellDiameter = Math.sqrt(tubeCount) * pitch * 1.15; // m
 
     // Flow velocities
     const tubeInternalArea = Math.PI * Math.pow((selectedTube.od - 2 * selectedTube.thickness) / 2, 2);
-    const hotVelocity = (m_hot / hotFluid.density) / (tubeCount * tubeInternalArea); // m/s
+    const hotVelocity = (V_hot / 3600) / (tubeCount * tubeInternalArea); // m/s
     
-    const shellArea = Math.PI * Math.pow(shellDiameter / 2, 2) - (tubeCount * Math.PI * Math.pow(selectedTube.od / 2, 2));
-    const coldVelocity = (m_cold / coldFluid.density) / shellArea; // m/s
+    // Shell side velocity (simplified)
+    const shellCrossArea = shellDiameter * selectedTube.od * 0.25; // Approximate baffle spacing
+    const coldVelocity = (V_cold / 3600) / shellCrossArea; // m/s
 
     setResult({
       tubeSize: selectedTube.size,
@@ -2746,7 +2780,9 @@ function ShellTubeHeatExchangerSelector() {
       hotVelocity: hotVelocity,
       coldVelocity: coldVelocity,
       shellDiameter: shellDiameter * 1000, // Convert to mm
-      tubeLength: tubeLength
+      tubeLength: tubeLength,
+      lmtd: LMTD,
+      overallCoeff: U
     });
   };
 
@@ -2754,13 +2790,13 @@ function ShellTubeHeatExchangerSelector() {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="heatDuty">Heat Duty (kW)</Label>
+          <Label htmlFor="heatDuty">Heat Duty (kcal/hr)</Label>
           <Input
             id="heatDuty"
             type="number"
             value={heatDuty}
             onChange={(e) => setHeatDuty(e.target.value)}
-            placeholder="e.g., 500"
+            placeholder="e.g., 50000"
           />
         </div>
         <div>
@@ -2780,24 +2816,46 @@ function ShellTubeHeatExchangerSelector() {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="hotFluidTemp">Hot Fluid Temperature (°C)</Label>
+          <Label htmlFor="hotFluidTempIn">Hot Fluid Inlet Temperature (°C)</Label>
           <Input
-            id="hotFluidTemp"
+            id="hotFluidTempIn"
             type="number"
-            value={hotFluidTemp}
-            onChange={(e) => setHotFluidTemp(e.target.value)}
+            value={hotFluidTempIn}
+            onChange={(e) => setHotFluidTempIn(e.target.value)}
             placeholder="e.g., 180"
           />
         </div>
         <div>
-          <Label htmlFor="hotFluidFlow">Hot Fluid Flow Rate (kg/s)</Label>
+          <Label htmlFor="hotFluidTempOut">Hot Fluid Outlet Temperature (°C)</Label>
           <Input
-            id="hotFluidFlow"
+            id="hotFluidTempOut"
             type="number"
-            step="0.1"
-            value={hotFluidFlow}
-            onChange={(e) => setHotFluidFlow(e.target.value)}
-            placeholder="e.g., 10"
+            value={hotFluidTempOut}
+            onChange={(e) => setHotFluidTempOut(e.target.value)}
+            placeholder="e.g., 160"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="coldFluidTempIn">Cold Fluid Inlet Temperature (°C)</Label>
+          <Input
+            id="coldFluidTempIn"
+            type="number"
+            value={coldFluidTempIn}
+            onChange={(e) => setColdFluidTempIn(e.target.value)}
+            placeholder="e.g., 40"
+          />
+        </div>
+        <div>
+          <Label htmlFor="coldFluidTempOut">Cold Fluid Outlet Temperature (°C)</Label>
+          <Input
+            id="coldFluidTempOut"
+            type="number"
+            value={coldFluidTempOut}
+            onChange={(e) => setColdFluidTempOut(e.target.value)}
+            placeholder="e.g., 80"
           />
         </div>
       </div>
@@ -2816,28 +2874,31 @@ function ShellTubeHeatExchangerSelector() {
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label htmlFor="coldFluidTemp">Cold Fluid Temperature (°C)</Label>
-          <Input
-            id="coldFluidTemp"
-            type="number"
-            value={coldFluidTemp}
-            onChange={(e) => setColdFluidTemp(e.target.value)}
-            placeholder="e.g., 40"
-          />
-        </div>
       </div>
 
-      <div>
-        <Label htmlFor="coldFluidFlow">Cold Fluid Flow Rate (kg/s)</Label>
-        <Input
-          id="coldFluidFlow"
-          type="number"
-          step="0.1"
-          value={coldFluidFlow}
-          onChange={(e) => setColdFluidFlow(e.target.value)}
-          placeholder="e.g., 15"
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="hotFluidFlow">Hot Fluid Flow Rate (m³/hr)</Label>
+          <Input
+            id="hotFluidFlow"
+            type="number"
+            step="0.1"
+            value={hotFluidFlow}
+            onChange={(e) => setHotFluidFlow(e.target.value)}
+            placeholder="e.g., 10"
+          />
+        </div>
+        <div>
+          <Label htmlFor="coldFluidFlow">Cold Fluid Flow Rate (m³/hr)</Label>
+          <Input
+            id="coldFluidFlow"
+            type="number"
+            step="0.1"
+            value={coldFluidFlow}
+            onChange={(e) => setColdFluidFlow(e.target.value)}
+            placeholder="e.g., 15"
+          />
+        </div>
       </div>
 
       <Button onClick={calculateHeatExchanger} className="w-full">
@@ -2849,6 +2910,14 @@ function ShellTubeHeatExchangerSelector() {
         <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <h4 className="font-semibold text-blue-900">Heat Exchanger Selection</h4>
           <div className="grid grid-cols-2 gap-4 mt-3 text-blue-800">
+            <div>
+              <p className="text-sm text-blue-600">LMTD</p>
+              <p className="font-bold">{result.lmtd.toFixed(1)} °C</p>
+            </div>
+            <div>
+              <p className="text-sm text-blue-600">Overall Heat Transfer Coefficient</p>
+              <p className="font-bold">{result.overallCoeff} W/m²K</p>
+            </div>
             <div>
               <p className="text-sm text-blue-600">Tube Size (OD x Thickness)</p>
               <p className="font-bold">{result.tubeSize} mm</p>
@@ -2862,11 +2931,11 @@ function ShellTubeHeatExchangerSelector() {
               <p className="font-bold">{result.shellDiameter.toFixed(0)} mm</p>
             </div>
             <div>
-              <p className="text-sm text-blue-600">Hot Fluid Velocity</p>
+              <p className="text-sm text-blue-600">Hot Fluid Velocity (Tube Side)</p>
               <p className="font-bold">{result.hotVelocity.toFixed(2)} m/s</p>
             </div>
             <div>
-              <p className="text-sm text-blue-600">Cold Fluid Velocity</p>
+              <p className="text-sm text-blue-600">Cold Fluid Velocity (Shell Side)</p>
               <p className="font-bold">{result.coldVelocity.toFixed(2)} m/s</p>
             </div>
           </div>
@@ -2878,7 +2947,7 @@ function ShellTubeHeatExchangerSelector() {
                 <p className="font-bold text-xl text-blue-900">{result.tubeCount}</p>
               </div>
               <div className="text-center">
-                <p className="text-sm text-blue-600">Surface Area</p>
+                <p className="text-sm text-blue-600">Required Surface Area</p>
                 <p className="font-bold text-xl text-blue-900">{result.surfaceArea.toFixed(1)} m²</p>
               </div>
             </div>
@@ -2889,8 +2958,9 @@ function ShellTubeHeatExchangerSelector() {
             <ul className="text-xs text-blue-700 space-y-1">
               <li>• Tube arrangement: Triangular pitch (1.25 × OD)</li>
               <li>• Recommended velocities: Tube side 1-3 m/s, Shell side 0.3-1 m/s</li>
-              <li>• Consider fouling factors for final design</li>
-              <li>• Verify pressure drop calculations</li>
+              <li>• Heat duty: {parseFloat(heatDuty || "0").toLocaleString()} kcal/hr ({(parseFloat(heatDuty || "0") * 1.163 / 1000).toFixed(1)} kW)</li>
+              <li>• Consider fouling factors and pressure drop in final design</li>
+              <li>• Verify baffle spacing and tube sheet design requirements</li>
             </ul>
           </div>
         </div>
