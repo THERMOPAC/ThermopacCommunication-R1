@@ -4899,7 +4899,28 @@ function ShellTubeHeatExchangerSelector() {
 
       {result !== null && (
         <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h4 className="font-semibold text-blue-900">Heat Exchanger Selection</h4>
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="font-semibold text-blue-900">Heat Exchanger Selection</h4>
+            <Button 
+              onClick={async () => {
+                const doc = new jsPDF();
+                doc.text('THERMOPAC PROCESS ENGINEERING LLP', 105, 20, { align: 'center' });
+                doc.text('SHELL & TUBE HEAT EXCHANGER SELECTION', 105, 40, { align: 'center' });
+                doc.text(`Heat Duty: ${heatDuty} kcal/hr`, 20, 70);
+                doc.text(`Number of Tubes: ${result.tubeCount}`, 20, 80);
+                doc.text(`Tube Size: ${result.tubeSize} mm`, 20, 90);
+                doc.text(`Required Surface Area: ${result.surfaceArea.toFixed(1)} m²`, 20, 100);
+                doc.text(`Shell Diameter: ${result.shellDiameter.toFixed(0)} mm`, 20, 110);
+                doc.save('thermopac-shell-tube-heat-exchanger-selection.pdf');
+              }}
+              variant="outline" 
+              size="sm"
+              className="text-blue-700 border-blue-300 hover:bg-blue-100"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
           <div className="grid grid-cols-2 gap-4 mt-3 text-blue-800">
             <div>
               <p className="text-sm text-blue-600">LMTD</p>
