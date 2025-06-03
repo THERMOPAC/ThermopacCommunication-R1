@@ -3074,6 +3074,153 @@ function CombustionAirCalculator() {
     });
   };
 
+  const generateCombustionAirPDF = async () => {
+    if (!result) return;
+
+    const doc = new jsPDF();
+    const currentDate = new Date().toLocaleDateString();
+    
+    const addCompanyLogo = async () => {
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        return new Promise((resolve, reject) => {
+          img.onload = function() {
+            try {
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              
+              if (!ctx) {
+                reject(new Error('Canvas context not available'));
+                return;
+              }
+              
+              const originalWidth = img.width;
+              const originalHeight = img.height;
+              const aspectRatio = originalWidth / originalHeight;
+              
+              const logoHeight = 20;
+              const logoWidth = logoHeight * aspectRatio;
+              
+              canvas.width = logoWidth * 4;
+              canvas.height = logoHeight * 4;
+              
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              
+              const imgData = canvas.toDataURL('image/jpeg', 0.8);
+              
+              doc.addImage(imgData, 'JPEG', 15, 10, logoWidth, logoHeight);
+              resolve(true);
+            } catch (error) {
+              console.error('Error processing logo:', error);
+              reject(error);
+            }
+          };
+          
+          img.onerror = function() {
+            console.error('Failed to load logo image');
+            reject(new Error('Logo load failed'));
+          };
+          
+          img.src = '/assets/thermopac-logo.jpg';
+        });
+      } catch (error) {
+        console.error('Logo loading error:', error);
+        return false;
+      }
+    };
+
+    try {
+      await addCompanyLogo();
+    } catch (error) {
+      console.log('Continuing without logo due to:', error);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.rect(15, 10, 25, 15);
+      doc.text('TPE', 27.5, 20, { align: 'center' });
+    }
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('THERMOPAC PROCESS ENGINEERING LLP', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Thermal Engineering Solutions', 105, 26, { align: 'center' });
+    
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('COMBUSTION AIR REQUIREMENT CALCULATION', 105, 40, { align: 'center' });
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Report Generated: ${currentDate}`, 105, 48, { align: 'center' });
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('INPUT PARAMETERS', 20, 65);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const fuelData = fuelAirData[fuelType as keyof typeof fuelAirData];
+    const inputs = [
+      `Fuel Type: ${fuelData.name}`,
+      `Fuel Consumption: ${consumptionRate} ${fuelData.unit}`,
+      `Theoretical Air Requirement: ${fuelData.airReq} Nm³/${fuelData.unit.split('/')[1] || 'unit'}`,
+      `Excess Air: ${excessAir}%`
+    ];
+    
+    inputs.forEach((input, index) => {
+      doc.text(input, 25, 78 + (index * 10));
+    });
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CALCULATION RESULTS', 20, 130);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const results = [
+      `Theoretical Air Requirement: ${result.theoreticalAir.toFixed(1)} Nm³/hr`,
+      `Total Air Required (with excess): ${result.totalAir.toFixed(1)} Nm³/hr`,
+      `Recommended Blower Capacity: ${result.blowerCapacity.toFixed(1)} Nm³/hr`,
+      `Air Velocity in Duct: ${result.airVelocity.toFixed(1)} m/s`
+    ];
+    
+    results.forEach((resultText, index) => {
+      doc.text(resultText, 25, 143 + (index * 10));
+    });
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DESIGN NOTES', 20, 190);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const notes = [
+      '• Blower capacity includes 15% safety margin for pressure losses',
+      '• Air velocity should be maintained between 8-15 m/s in ducts',
+      '• Excess air percentage may vary based on burner type and fuel quality',
+      '• Consider preheating air for improved combustion efficiency',
+      '• Install dampers for air flow control and safety'
+    ];
+    
+    notes.forEach((note, index) => {
+      doc.text(note, 25, 203 + (index * 8));
+    });
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'italic');
+    doc.text('Calculation based on stoichiometric air requirements and combustion principles', 105, 250, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Generated by Thermopac Process Engineering LLP - Thermal Engineering Solutions', 105, 265, { align: 'center' });
+    
+    doc.save('thermopac-combustion-air-requirement-calculation.pdf');
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -3120,7 +3267,18 @@ function CombustionAirCalculator() {
 
       {result !== null && (
         <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <h4 className="font-semibold text-yellow-900">Air Requirement Results</h4>
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="font-semibold text-yellow-900">Air Requirement Results</h4>
+            <Button 
+              onClick={generateCombustionAirPDF}
+              variant="outline" 
+              size="sm"
+              className="text-yellow-700 border-yellow-300 hover:bg-yellow-100"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
           <div className="grid grid-cols-2 gap-4 mt-3 text-yellow-800">
             <div>
               <p className="text-sm text-yellow-600">Theoretical Air</p>
@@ -3197,6 +3355,154 @@ function BurnerCapacityCalculator() {
     });
   };
 
+  const generateBurnerCapacityPDF = async () => {
+    if (!result) return;
+
+    const doc = new jsPDF();
+    const currentDate = new Date().toLocaleDateString();
+    
+    const addCompanyLogo = async () => {
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        return new Promise((resolve, reject) => {
+          img.onload = function() {
+            try {
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              
+              if (!ctx) {
+                reject(new Error('Canvas context not available'));
+                return;
+              }
+              
+              const originalWidth = img.width;
+              const originalHeight = img.height;
+              const aspectRatio = originalWidth / originalHeight;
+              
+              const logoHeight = 20;
+              const logoWidth = logoHeight * aspectRatio;
+              
+              canvas.width = logoWidth * 4;
+              canvas.height = logoHeight * 4;
+              
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              
+              const imgData = canvas.toDataURL('image/jpeg', 0.8);
+              
+              doc.addImage(imgData, 'JPEG', 15, 10, logoWidth, logoHeight);
+              resolve(true);
+            } catch (error) {
+              console.error('Error processing logo:', error);
+              reject(error);
+            }
+          };
+          
+          img.onerror = function() {
+            console.error('Failed to load logo image');
+            reject(new Error('Logo load failed'));
+          };
+          
+          img.src = '/assets/thermopac-logo.jpg';
+        });
+      } catch (error) {
+        console.error('Logo loading error:', error);
+        return false;
+      }
+    };
+
+    try {
+      await addCompanyLogo();
+    } catch (error) {
+      console.log('Continuing without logo due to:', error);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.rect(15, 10, 25, 15);
+      doc.text('TPE', 27.5, 20, { align: 'center' });
+    }
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('THERMOPAC PROCESS ENGINEERING LLP', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Thermal Engineering Solutions', 105, 26, { align: 'center' });
+    
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('BURNER CAPACITY & EFFICIENCY CALCULATION', 105, 40, { align: 'center' });
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Report Generated: ${currentDate}`, 105, 48, { align: 'center' });
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('INPUT PARAMETERS', 20, 65);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const fuelData = fuelGCVData[fuelType as keyof typeof fuelGCVData];
+    const inputs = [
+      `Fuel Type: ${fuelData.name}`,
+      `Fuel Flow Rate: ${fuelFlowRate} ${fuelData.unit}`,
+      `Gross Calorific Value: ${gcv} kcal/${fuelData.unit.split('/')[1] || 'unit'}`,
+      `Burner Efficiency: ${efficiency}%`
+    ];
+    
+    inputs.forEach((input, index) => {
+      doc.text(input, 25, 78 + (index * 10));
+    });
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CALCULATION RESULTS', 20, 130);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const results = [
+      `Heat Input: ${result.heatInput.toFixed(0)} kcal/hr`,
+      `Burner Output: ${result.burnerOutput.toFixed(0)} kcal/hr`,
+      `Heat Loss: ${result.heatLoss.toFixed(0)} kcal/hr`,
+      `Fuel Utilization: ${result.fuelUtilization.toFixed(1)}%`,
+      `Burner Output (kW): ${(result.burnerOutput * 1.163 / 1000).toFixed(1)} kW`
+    ];
+    
+    results.forEach((resultText, index) => {
+      doc.text(resultText, 25, 143 + (index * 10));
+    });
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('EFFICIENCY ANALYSIS', 20, 200);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const notes = [
+      '• Heat input calculation: Flow Rate × Gross Calorific Value',
+      '• Burner output calculation: Heat Input × Efficiency ÷ 100',
+      '• Heat loss represents energy not converted to useful output',
+      '• Consider installing heat recovery systems to utilize waste heat',
+      '• Regular maintenance ensures optimal burner efficiency'
+    ];
+    
+    notes.forEach((note, index) => {
+      doc.text(note, 25, 213 + (index * 8));
+    });
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'italic');
+    doc.text('Calculation based on energy balance and combustion efficiency principles', 105, 260, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Generated by Thermopac Process Engineering LLP - Thermal Engineering Solutions', 105, 275, { align: 'center' });
+    
+    doc.save('thermopac-burner-capacity-efficiency-calculation.pdf');
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -3255,7 +3561,18 @@ function BurnerCapacityCalculator() {
 
       {result !== null && (
         <div className="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-          <h4 className="font-semibold text-indigo-900">Burner Performance Results</h4>
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="font-semibold text-indigo-900">Burner Performance Results</h4>
+            <Button 
+              onClick={generateBurnerCapacityPDF}
+              variant="outline" 
+              size="sm"
+              className="text-indigo-700 border-indigo-300 hover:bg-indigo-100"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
           <div className="grid grid-cols-2 gap-4 mt-3 text-indigo-800">
             <div>
               <p className="text-sm text-indigo-600">Heat Input</p>
@@ -3335,6 +3652,154 @@ function FlueGasHeatLossEstimator() {
     });
   };
 
+  const generateFlueGasHeatLossPDF = async () => {
+    if (!result) return;
+
+    const doc = new jsPDF();
+    const currentDate = new Date().toLocaleDateString();
+    
+    const addCompanyLogo = async () => {
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        return new Promise((resolve, reject) => {
+          img.onload = function() {
+            try {
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              
+              if (!ctx) {
+                reject(new Error('Canvas context not available'));
+                return;
+              }
+              
+              const originalWidth = img.width;
+              const originalHeight = img.height;
+              const aspectRatio = originalWidth / originalHeight;
+              
+              const logoHeight = 20;
+              const logoWidth = logoHeight * aspectRatio;
+              
+              canvas.width = logoWidth * 4;
+              canvas.height = logoHeight * 4;
+              
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              
+              const imgData = canvas.toDataURL('image/jpeg', 0.8);
+              
+              doc.addImage(imgData, 'JPEG', 15, 10, logoWidth, logoHeight);
+              resolve(true);
+            } catch (error) {
+              console.error('Error processing logo:', error);
+              reject(error);
+            }
+          };
+          
+          img.onerror = function() {
+            console.error('Failed to load logo image');
+            reject(new Error('Logo load failed'));
+          };
+          
+          img.src = '/assets/thermopac-logo.jpg';
+        });
+      } catch (error) {
+        console.error('Logo loading error:', error);
+        return false;
+      }
+    };
+
+    try {
+      await addCompanyLogo();
+    } catch (error) {
+      console.log('Continuing without logo due to:', error);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.rect(15, 10, 25, 15);
+      doc.text('TPE', 27.5, 20, { align: 'center' });
+    }
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('THERMOPAC PROCESS ENGINEERING LLP', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Thermal Engineering Solutions', 105, 26, { align: 'center' });
+    
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('FLUE GAS HEAT LOSS ANALYSIS', 105, 40, { align: 'center' });
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Report Generated: ${currentDate}`, 105, 48, { align: 'center' });
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('INPUT PARAMETERS', 20, 65);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const fuel = fuelData[fuelType as keyof typeof fuelData];
+    const inputs = [
+      `Fuel Type: ${fuel.name}`,
+      `Flue Gas Temperature: ${flueGasTemp} °C`,
+      `Air/Fuel Ratio: ${airFuelRatio}`,
+      `Ambient Temperature: ${ambientTemp} °C`,
+      `Excess Air: ${excessAir}%`
+    ];
+    
+    inputs.forEach((input, index) => {
+      doc.text(input, 25, 78 + (index * 10));
+    });
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('HEAT LOSS ANALYSIS RESULTS', 20, 140);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const results = [
+      `Stack Loss: ${result.stackLoss.toFixed(1)}%`,
+      `Sensible Heat Loss: ${result.sensibleHeatLoss.toFixed(1)}%`,
+      `Heat Recovery Potential: ${result.heatRecoveryPotential.toFixed(1)}%`,
+      `Theoretical Combustion Temperature: ${result.theoreticalTemp.toFixed(0)} °C`
+    ];
+    
+    results.forEach((resultText, index) => {
+      doc.text(resultText, 25, 153 + (index * 10));
+    });
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('EFFICIENCY RECOMMENDATIONS', 20, 200);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const recommendations = [
+      '• Install heat recovery equipment to capture waste heat from flue gases',
+      '• Reduce excess air to optimal levels (typically 15-25%)',
+      '• Consider preheating combustion air using recovered heat',
+      '• Regular maintenance of heat transfer surfaces to prevent fouling',
+      '• Monitor flue gas temperature to optimize combustion efficiency'
+    ];
+    
+    recommendations.forEach((rec, index) => {
+      doc.text(rec, 25, 213 + (index * 8));
+    });
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'italic');
+    doc.text('Analysis based on flue gas composition and thermodynamic principles', 105, 260, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Generated by Thermopac Process Engineering LLP - Thermal Engineering Solutions', 105, 275, { align: 'center' });
+    
+    doc.save('thermopac-flue-gas-heat-loss-analysis.pdf');
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -3405,7 +3870,18 @@ function FlueGasHeatLossEstimator() {
 
       {result !== null && (
         <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-          <h4 className="font-semibold text-orange-900">Heat Loss Analysis</h4>
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="font-semibold text-orange-900">Heat Loss Analysis</h4>
+            <Button 
+              onClick={generateFlueGasHeatLossPDF}
+              variant="outline" 
+              size="sm"
+              className="text-orange-700 border-orange-300 hover:bg-orange-100"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
           <div className="grid grid-cols-2 gap-4 mt-3 text-orange-800">
             <div>
               <p className="text-sm text-orange-600">Stack Loss</p>
