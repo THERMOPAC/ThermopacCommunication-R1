@@ -1827,28 +1827,34 @@ function ThermalOilPumpSizingCalculator() {
     const doc = new jsPDF();
     const currentDate = new Date().toLocaleDateString();
     
-    // Simplified approach - create PDF with company header
-    // Header
-    doc.setFontSize(20);
-    doc.setFont('helvetica', 'bold');
-    doc.text('THERMAL OIL PUMP SIZING CALCULATION', 105, 25, { align: 'center' });
-    
-    // Company info header
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('THERMOPAC INDIA PVT. LTD.', 105, 15, { align: 'center' });
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Thermal Engineering Solutions', 105, 20, { align: 'center' });
-    
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Report Generated: ${currentDate}`, 105, 35, { align: 'center' });
-    
-    // Input Parameters
+    // Company header with proper spacing
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('INPUT PARAMETERS', 20, 55);
+    doc.text('THERMOPAC PROCESS ENGINEERING LLP', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Thermal Engineering Solutions', 105, 26, { align: 'center' });
+    
+    // Main title with proper spacing
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('THERMAL OIL PUMP SIZING CALCULATION', 105, 40, { align: 'center' });
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Report Generated: ${currentDate}`, 105, 48, { align: 'center' });
+    
+    // Add simple logo placeholder (company initial in a box)
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.rect(15, 10, 25, 15); // Draw rectangle
+    doc.text('TPE', 27.5, 20, { align: 'center' }); // Company initials
+    
+    // Input Parameters with proper spacing
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('INPUT PARAMETERS', 20, 65);
     
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
@@ -1862,13 +1868,13 @@ function ThermalOilPumpSizingCalculator() {
     ];
     
     inputs.forEach((input, index) => {
-      doc.text(input, 25, 65 + (index * 8));
+      doc.text(input, 25, 75 + (index * 8));
     });
     
     // Results Section
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('CALCULATION RESULTS', 20, 125);
+    doc.text('CALCULATION RESULTS', 20, 135);
     
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
@@ -1880,13 +1886,13 @@ function ThermalOilPumpSizingCalculator() {
     ];
     
     results.forEach((resultText, index) => {
-      doc.text(resultText, 25, 135 + (index * 8));
+      doc.text(resultText, 25, 145 + (index * 8));
     });
     
     // Engineering Analysis
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('ENGINEERING ANALYSIS', 20, 175);
+    doc.text('ENGINEERING ANALYSIS', 20, 185);
     
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
@@ -1900,13 +1906,13 @@ function ThermalOilPumpSizingCalculator() {
     ];
     
     analysis.forEach((item, index) => {
-      doc.text(item, 25, 185 + (index * 8));
+      doc.text(item, 25, 195 + (index * 8));
     });
     
     // Head Loss Breakdown
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('HEAD LOSS BREAKDOWN', 20, 235);
+    doc.text('HEAD LOSS BREAKDOWN', 20, 245);
     
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
@@ -1919,7 +1925,7 @@ function ThermalOilPumpSizingCalculator() {
     ];
     
     breakdown.forEach((item, index) => {
-      doc.text(item, 25, 245 + (index * 8));
+      doc.text(item, 25, 255 + (index * 8));
     });
     
     // Footer
