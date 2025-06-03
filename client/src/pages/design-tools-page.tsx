@@ -1840,6 +1840,11 @@ function ThermalOilPumpSizingCalculator() {
               const canvas = document.createElement('canvas');
               const ctx = canvas.getContext('2d');
               
+              if (!ctx) {
+                reject(new Error('Canvas context not available'));
+                return;
+              }
+              
               // Set canvas size based on desired logo size
               const logoWidth = 30;
               const logoHeight = 20;
@@ -1867,7 +1872,7 @@ function ThermalOilPumpSizingCalculator() {
           };
           
           // Load the logo image
-          img.src = '/attached_assets/Thermopac logo_1743671233876.jpg';
+          img.src = '/assets/thermopac-logo.jpg';
         });
       } catch (error) {
         console.error('Logo loading error:', error);
