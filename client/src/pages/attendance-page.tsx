@@ -249,6 +249,26 @@ export default function AttendancePage() {
         </CardContent>
       </Card>
 
+      {/* Daily Buddha Quote */}
+      {dailyQuote && (
+        <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+          <CardContent className="pt-6">
+            <div className="text-center max-w-3xl mx-auto">
+              <div className="text-4xl text-amber-600 mb-4">"</div>
+              <blockquote className="text-lg italic text-gray-800 leading-relaxed mb-4">
+                {dailyQuote.quoteText}
+              </blockquote>
+              <footer className="text-sm text-gray-600">
+                — {dailyQuote.attribution}
+                {dailyQuote.source && (
+                  <span className="text-amber-600 ml-2">({dailyQuote.source})</span>
+                )}
+              </footer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Current Status Card */}
       <Card>
         <CardHeader>
