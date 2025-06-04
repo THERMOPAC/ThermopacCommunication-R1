@@ -1,8 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { db } from './db';
-import { attendanceRecords, attendanceSettings, workLocations, users } from '@shared/schema';
-import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
+import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations, users } from '@shared/schema';
+import { eq, and, gte, lte, desc, sql, isNull } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
+import { attendanceMidnightProcessor } from './attendance-midnight-processor';
 
 const router = Router();
 
@@ -429,5 +430,115 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 
   return R * c; // Distance in meters
 }
+
+// Get attendance issues for management review
+router.get('/issues', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { status = 'pending', limit = '50', offset = '0' } = req.query;
+
+    const issues = await db
+      .select({
+        issue: attendanceIssues,
+        user: {
+          id: users.id,
+          username: users.username,
+          email: users.email
+        },
+        attendanceRecord: {
+          id: attendanceRecords.id,
+          date: attendanceRecords.date,
+          checkInTime: attendanceRecords.checkInTime,
+          checkOutTime: attendanceRecords.checkOutTime,
+          status: attendanceRecords.status
+        }
+      })
+      .from(attendanceIssues)
+      .leftJoin(users, eq(attendanceIssues.userId, users.id))
+      .leftJoin(attendanceRecords, eq(attendanceIssues.attendanceRecordId, attendanceRecords.id))
+      .where(eq(attendanceIssues.status, status as string))
+      .orderBy(desc(attendanceIssues.detectedAt))
+      .limit(Number(limit))
+      .offset(Number(offset));
+
+    res.json(issues);
+  } catch (error) {
+    console.error('Error getting attendance issues:', error);
+    res.status(500).json({ error: 'Failed to get attendance issues' });
+  }
+});
+
+// Resolve attendance issue
+router.patch('/issues/:id/resolve', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const issueId = parseInt(req.params.id);
+    const { resolutionNotes } = req.body;
+    const userId = req.user!.id;
+
+    const [updatedIssue] = await db
+      .update(attendanceIssues)
+      .set({
+        status: 'resolved',
+        resolvedAt: new Date(),
+        resolvedBy: userId,
+        resolutionNotes,
+        updatedAt: new Date()
+      })
+      .where(eq(attendanceIssues.id, issueId))
+      .returning();
+
+    res.json({
+      success: true,
+      message: 'Attendance issue resolved',
+      issue: updatedIssue
+    });
+  } catch (error) {
+    console.error('Error resolving attendance issue:', error);
+    res.status(500).json({ error: 'Failed to resolve attendance issue' });
+  }
+});
+
+// Approve incomplete attendance record
+router.patch('/records/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const recordId = parseInt(req.params.id);
+    const { approvalNotes } = req.body;
+    const userId = req.user!.id;
+
+    const [updatedRecord] = await db
+      .update(attendanceRecords)
+      .set({
+        requiresApproval: false,
+        approvedBy: userId,
+        approvalDate: new Date(),
+        approvalNotes,
+        updatedAt: new Date()
+      })
+      .where(eq(attendanceRecords.id, recordId))
+      .returning();
+
+    res.json({
+      success: true,
+      message: 'Attendance record approved',
+      record: updatedRecord
+    });
+  } catch (error) {
+    console.error('Error approving attendance record:', error);
+    res.status(500).json({ error: 'Failed to approve attendance record' });
+  }
+});
+
+// Manual trigger for midnight processing (for testing)
+router.post('/process-midnight', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const result = await attendanceMidnightProcessor.manualTrigger();
+    res.json(result);
+  } catch (error) {
+    console.error('Error in manual midnight processing:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to trigger midnight processing' 
+    });
+  }
+});
 
 export default router;

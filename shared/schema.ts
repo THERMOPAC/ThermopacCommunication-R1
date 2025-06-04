@@ -3734,11 +3734,23 @@ export type InsertWorkLocation = z.infer<typeof insertWorkLocationSchema>;
 export const insertAttendanceRecordSchema = createInsertSchema(attendanceRecords)
   .omit({ id: true, createdAt: true, updatedAt: true })
   .extend({
-    status: z.enum(['present', 'absent', 'partial', 'late']).default('present'),
+    status: z.enum(['present', 'absent', 'partial', 'late', 'incomplete']).default('present'),
   });
 
 export type AttendanceRecord = typeof attendanceRecords.$inferSelect;
 export type InsertAttendanceRecord = z.infer<typeof insertAttendanceRecordSchema>;
+
+// Attendance Issues schemas and types
+export const insertAttendanceIssueSchema = createInsertSchema(attendanceIssues)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    issueType: z.enum(['incomplete_checkout', 'no_dwar', 'late_arrival', 'early_departure']),
+    severity: z.enum(['low', 'medium', 'high']).default('medium'),
+    status: z.enum(['pending', 'resolved', 'escalated']).default('pending'),
+  });
+
+export type AttendanceIssue = typeof attendanceIssues.$inferSelect;
+export type InsertAttendanceIssue = z.infer<typeof insertAttendanceIssueSchema>;
 
 // Attendance Settings schemas and types
 export const insertAttendanceSettingsSchema = createInsertSchema(attendanceSettings)

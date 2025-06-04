@@ -254,5 +254,14 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Start the attendance midnight processor
+    try {
+      const { attendanceMidnightProcessor } = require('./attendance-midnight-processor');
+      attendanceMidnightProcessor.startScheduler();
+      console.log('✅ Attendance midnight processor started successfully');
+    } catch (error) {
+      console.error('❌ Failed to start attendance midnight processor:', error);
+    }
   });
 })();
