@@ -360,8 +360,8 @@ export default function DwarPage() {
               <div className="space-y-4">
                 <div>
                   <Label>Link to Existing Task (Optional)</Label>
-                  <Select value={newActivity.taskId?.toString() || ''} onValueChange={(value) => {
-                    const taskId = value ? parseInt(value) : undefined;
+                  <Select value={newActivity.taskId?.toString() || 'none'} onValueChange={(value) => {
+                    const taskId = value === 'none' ? undefined : parseInt(value);
                     const selectedTask = availableTasks.find(t => t.id === taskId);
                     setNewActivity({
                       ...newActivity, 
@@ -374,7 +374,7 @@ export default function DwarPage() {
                       <SelectValue placeholder="Select a task (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No task selected</SelectItem>
+                      <SelectItem value="none">No task selected</SelectItem>
                       {availableTasks.map((task) => (
                         <SelectItem key={task.id} value={task.id.toString()}>
                           {task.title} ({task.priority})
