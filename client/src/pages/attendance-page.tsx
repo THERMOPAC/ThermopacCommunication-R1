@@ -58,7 +58,7 @@ export default function AttendancePage() {
   // Check if DWAR is completed for today
   const { data: todayDwar } = useQuery({
     queryKey: ["/api/dwar/today"],
-    enabled: !!attendanceStatus?.canCheckOut, // Only check when user can check out
+    refetchInterval: 10000, // Refresh every 10 seconds to catch DWAR updates
   });
 
   // Get attendance summary for current month

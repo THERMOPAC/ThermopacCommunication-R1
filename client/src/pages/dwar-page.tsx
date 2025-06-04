@@ -168,6 +168,8 @@ export default function DwarPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/dwar/today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dwar/my-reports"] });
+      // Also invalidate attendance queries to refresh checkout availability
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance/status"] });
       toast({
         title: "Report Submitted",
         description: isFromCheckout 
