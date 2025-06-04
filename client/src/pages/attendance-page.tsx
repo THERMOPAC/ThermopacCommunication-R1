@@ -38,6 +38,14 @@ interface WorkLocation {
   city: string;
 }
 
+interface DailyQuote {
+  id: number;
+  dayOfYear: number;
+  quoteText: string;
+  attribution: string;
+  source: string;
+}
+
 export default function AttendancePage() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -63,6 +71,12 @@ export default function AttendancePage() {
   // Get work locations
   const { data: workLocations = [] } = useQuery<WorkLocation[]>({
     queryKey: ["/api/work-locations/active"],
+  });
+
+  // Get daily Buddha quote
+  const { data: dailyQuote } = useQuery<DailyQuote>({
+    queryKey: ["/api/attendance/daily-quote"],
+    staleTime: 24 * 60 * 60 * 1000, // Cache for 24 hours
   });
 
   // Check if DWAR is completed for today

@@ -2918,6 +2918,17 @@ export const insertInspectionOrderSchema = createInsertSchema(inspectionOrders)
 export const insertInspectionOrderItemSchema = createInsertSchema(inspectionOrderItems)
   .omit({ id: true, createdAt: true, updatedAt: true });
 
+// Daily Buddha Quotes Table
+export const dailyQuotes = pgTable('daily_quotes', {
+  id: serial('id').primaryKey(),
+  dayOfYear: integer('day_of_year').notNull().unique(),
+  quoteText: text('quote_text').notNull(),
+  attribution: varchar('attribution', { length: 100 }).default('Buddha'),
+  source: varchar('source', { length: 200 }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
 // Payroll Management Tables
 
 // Employee salary information

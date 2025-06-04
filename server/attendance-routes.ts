@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from './db';
-import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations, users } from '@shared/schema';
+import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations, users, dailyQuotes } from '@shared/schema';
 import { eq, and, gte, lte, desc, sql, isNull } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 import { attendanceMidnightProcessor } from './attendance-midnight-processor';
@@ -538,6 +538,43 @@ router.post('/process-midnight', ensureAuthenticated, async (req: Request, res: 
       success: false, 
       message: 'Failed to trigger midnight processing' 
     });
+  }
+});
+
+// Get daily Buddha quote
+router.get('/daily-quote', async (req: Request, res: Response) => {
+  try {
+    const today = new Date();
+    const start = new Date(today.getFullYear(), 0, 0);
+    const diff = today.getTime() - start.getTime();
+    const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    // Handle leap years by capping at 365
+    const quoteDayOfYear = dayOfYear > 365 ? 365 : dayOfYear;
+    
+    const [quote] = await db
+      .select()
+      .from(dailyQuotes)
+      .where(eq(dailyQuotes.dayOfYear, quoteDayOfYear));
+
+    if (!quote) {
+      // Fallback to day 1 if specific day not found
+      const [fallbackQuote] = await db
+        .select()
+        .from(dailyQuotes)
+        .where(eq(dailyQuotes.dayOfYear, 1));
+      
+      return res.json(fallbackQuote || {
+        quoteText: "Three things cannot be long hidden: the sun, the moon, and the truth.",
+        attribution: "Buddha",
+        source: "Dhammapada"
+      });
+    }
+
+    res.json(quote);
+  } catch (error) {
+    console.error('Error getting daily quote:', error);
+    res.status(500).json({ error: 'Failed to get daily quote' });
   }
 });
 
