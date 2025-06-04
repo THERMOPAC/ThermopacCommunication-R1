@@ -849,6 +849,46 @@ export default function DwarPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Submit DWAR */}
+      {todayReport && todayReport.status === 'draft' && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-semibold">Ready to Submit?</h3>
+                <p className="text-sm text-muted-foreground">
+                  Once submitted, you cannot make changes to today's report.
+                </p>
+              </div>
+              <Button 
+                onClick={() => {
+                  submitReportMutation.mutate(todayReport.id);
+                }}
+                disabled={submitReportMutation.isPending}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                {submitReportMutation.isPending ? 'Submitting...' : 'Submit DWAR'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {todayReport && todayReport.status === 'submitted' && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-600" />
+              <h3 className="text-lg font-semibold text-green-600">DWAR Submitted Successfully</h3>
+              <p className="text-sm text-muted-foreground">
+                Your Daily Work Activity Report for {format(new Date(), "MMMM d, yyyy")} has been submitted.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

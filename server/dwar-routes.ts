@@ -52,16 +52,16 @@ router.get('/todays-completed-tasks', ensureAuthenticated, async (req: Request, 
         description: tasks.description,
         priority: tasks.priority,
         status: tasks.status,
-        completedAt: tasks.updatedAt
+        completedAt: tasks.completedAt
       })
       .from(tasks)
       .where(and(
         eq(tasks.assignedTo, userId),
         eq(tasks.status, 'completed'),
-        gte(tasks.updatedAt, new Date(today + 'T00:00:00.000Z')),
-        lte(tasks.updatedAt, new Date(today + 'T23:59:59.999Z'))
+        gte(tasks.completedAt, today + 'T00:00:00.000Z'),
+        lte(tasks.completedAt, today + 'T23:59:59.999Z')
       ))
-      .orderBy(desc(tasks.updatedAt));
+      .orderBy(desc(tasks.completedAt));
 
     res.json(completedTasks);
   } catch (error) {
