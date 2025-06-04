@@ -76,6 +76,25 @@ export const leadSources = [
 
 export type LeadSource = typeof leadSources[number];
 
+// Work Location Management
+export const workLocations = pgTable('work_locations', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  address: text('address').notNull(),
+  city: text('city').notNull(),
+  state: text('state').notNull(),
+  pincode: text('pincode').notNull(),
+  country: text('country').notNull().default('India'),
+  latitude: doublePrecision('latitude'),
+  longitude: doublePrecision('longitude'),
+  radiusMeters: integer('radius_meters').default(100),
+  ipRestrictions: text('ip_restrictions').array(),
+  timezone: text('timezone').notNull().default('Asia/Kolkata'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
 // Sales and Marketing tables
 export const leadSourcesTable = pgTable('lead_sources', {
   id: serial('id').primaryKey(),
@@ -336,6 +355,7 @@ const userSchema = {
 export const users = pgTable('users', {
   ...userSchema,
   reportingManagerId: integer('reporting_manager_id'),
+  workLocationId: integer('work_location_id').references(() => workLocations.id),
 });
 
 // Recurring patterns table for task templates
@@ -3327,3 +3347,10 @@ export type AdvanceTaxCalculation = typeof advanceTaxCalculations.$inferSelect;
 export type InsertAdvanceTaxCalculation = z.infer<typeof insertAdvanceTaxCalculationSchema>;
 export type AdvanceTaxPayment = typeof advanceTaxPayments.$inferSelect;
 export type InsertAdvanceTaxPayment = z.infer<typeof insertAdvanceTaxPaymentSchema>;
+
+// Work Location insert schemas and types
+export const insertWorkLocationSchema = createInsertSchema(workLocations)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+export type WorkLocation = typeof workLocations.$inferSelect;
+export type InsertWorkLocation = z.infer<typeof insertWorkLocationSchema>;
