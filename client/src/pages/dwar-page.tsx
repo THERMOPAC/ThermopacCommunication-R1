@@ -172,7 +172,7 @@ export default function DwarPage() {
   });
 
   const handleAddActivity = () => {
-    if (!todayReport) return;
+    if (!todayReport || todayReport.status !== 'draft') return;
 
     const updatedActivities = [...(todayReport.activities || []), newActivity];
     const totalHours = updatedActivities.reduce((sum, a) => sum + a.timeSpent, 0);
@@ -200,7 +200,7 @@ export default function DwarPage() {
   };
 
   const handleRemoveActivity = (index: number) => {
-    if (!todayReport) return;
+    if (!todayReport || todayReport.status !== 'draft') return;
 
     const updatedActivities = todayReport.activities.filter((_, i) => i !== index);
     const totalHours = updatedActivities.reduce((sum, a) => sum + a.timeSpent, 0);
@@ -216,7 +216,7 @@ export default function DwarPage() {
   };
 
   const handleAddPriorityTask = () => {
-    if (!todayReport) return;
+    if (!todayReport || todayReport.status !== 'draft') return;
 
     const updatedTasks = [...(todayReport.priorityTasks || []), newTask];
     updateReportMutation.mutate({
@@ -232,7 +232,7 @@ export default function DwarPage() {
   };
 
   const handleRemovePriorityTask = (index: number) => {
-    if (!todayReport) return;
+    if (!todayReport || todayReport.status !== 'draft') return;
 
     const updatedTasks = todayReport.priorityTasks.filter((_, i) => i !== index);
     updateReportMutation.mutate({
@@ -240,8 +240,8 @@ export default function DwarPage() {
     });
   };
 
-  const handleUpdateText = (field: string, value: string) => {
-    if (!todayReport) return;
+  const handleUpdateText = (field: string, value: string | number) => {
+    if (!todayReport || todayReport.status !== 'draft') return;
     updateReportMutation.mutate({ [field]: value });
   };
 
@@ -325,14 +325,15 @@ export default function DwarPage() {
             <BarChart3 className="h-5 w-5" />
             Today's Activities
           </CardTitle>
-          <Dialog open={isAddActivityOpen} onOpenChange={setIsAddActivityOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <PlusCircle className="h-4 w-4 mr-2" />
-                Add Activity
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
+          {todayReport?.status === 'draft' && (
+            <Dialog open={isAddActivityOpen} onOpenChange={setIsAddActivityOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Add Activity
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add New Activity</DialogTitle>
               </DialogHeader>
