@@ -2926,7 +2926,7 @@ function ThermalOilPumpSizingCalculator() {
             <div className="flex justify-between items-center mb-3">
               <h4 className="font-semibold text-cyan-900">Pump Sizing Results</h4>
               <Button 
-                onClick={generatePumpPDF}
+                onClick={generatePDF}
                 variant="outline" 
                 size="sm"
                 className="text-cyan-700 border-cyan-300 hover:bg-cyan-100"
