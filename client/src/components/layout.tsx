@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Link, useLocation } from "wouter";
 import UserProfile from "@/components/user-profile";
+import AttendanceGatekeeper from "@/components/attendance-gatekeeper";
 import { Separator } from "@/components/ui/separator";
 import {
   LayoutDashboard,
@@ -58,6 +59,7 @@ export default function Layout({ children }: LayoutProps) {
   const [isProductionMenuOpen, setIsProductionMenuOpen] = useState(false);
   const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
   const [isFinanceMenuOpen, setIsFinanceMenuOpen] = useState(false);
+  const [attendanceCheckCompleted, setAttendanceCheckCompleted] = useState(false);
 
   // Get all module permissions for the current user
   const { data: modulePermissions, isLoading: isLoadingPermissions } = useAllModulePermissions();
@@ -482,7 +484,9 @@ export default function Layout({ children }: LayoutProps) {
       {/* Main Content */}
       <main className="flex-1 p-8 overflow-x-hidden">
         <div className="max-w-[calc(100vw-260px)] mx-auto">
-          {children}
+          <AttendanceGatekeeper onAccessGranted={() => setAttendanceCheckCompleted(true)}>
+            {children}
+          </AttendanceGatekeeper>
         </div>
       </main>
     </div>

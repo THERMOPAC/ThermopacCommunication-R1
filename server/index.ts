@@ -257,9 +257,10 @@ app.use((req, res, next) => {
     
     // Start the attendance midnight processor
     try {
-      const { attendanceMidnightProcessor } = require('./attendance-midnight-processor');
-      attendanceMidnightProcessor.startScheduler();
-      console.log('✅ Attendance midnight processor started successfully');
+      import('./attendance-midnight-processor').then(({ attendanceMidnightProcessor }) => {
+        attendanceMidnightProcessor.startScheduler();
+        console.log('✅ Attendance midnight processor started successfully');
+      });
     } catch (error) {
       console.error('❌ Failed to start attendance midnight processor:', error);
     }
