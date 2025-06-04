@@ -463,12 +463,34 @@ export default function DwarPage() {
                       <Badge variant={activity.priority === 'high' ? 'destructive' : activity.priority === 'medium' ? 'secondary' : 'outline'}>
                         {activity.priority}
                       </Badge>
-                      <Badge variant={activity.status === 'completed' ? 'default' : activity.status === 'in_progress' ? 'secondary' : 'outline'}>
+                      <Badge variant={
+                        activity.status === 'completed' ? 'default' : 
+                        activity.status === 'in_progress' ? 'secondary' : 
+                        activity.status === 'blocked' ? 'destructive' : 'outline'
+                      }>
                         {activity.status.replace('_', ' ')}
                       </Badge>
+                      {activity.taskId && (
+                        <Badge variant="outline">Task #{activity.taskId}</Badge>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground">{activity.description}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{activity.timeSpent}h spent</p>
+                    <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
+                      <span>Actual: {activity.timeSpent}h</span>
+                      {activity.plannedHours && (
+                        <span>Planned: {activity.plannedHours}h</span>
+                      )}
+                      {activity.plannedHours && activity.timeSpent && (
+                        <span className={
+                          activity.timeSpent <= activity.plannedHours ? 'text-green-600' : 'text-red-600'
+                        }>
+                          {activity.timeSpent <= activity.plannedHours ? 'On track' : 'Over estimate'}
+                        </span>
+                      )}
+                    </div>
+                    {activity.status === 'blocked' && activity.blockedReason && (
+                      <p className="text-xs text-red-600 mt-1">Blocked: {activity.blockedReason}</p>
+                    )}
                   </div>
                   <Button
                     variant="ghost"
@@ -484,6 +506,62 @@ export default function DwarPage() {
             <div className="text-center py-8 text-muted-foreground">
               <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No activities added yet. Start by adding your first activity.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Satisfaction and Challenge Ratings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Daily Reflection</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>How satisfied are you with today's work? (1-5)</Label>
+              <Select 
+                value={todayReport?.satisfactionRating?.toString() || ''} 
+                onValueChange={(value) => handleUpdateText('satisfactionRating', parseInt(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Rate your satisfaction" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 - Very Unsatisfied</SelectItem>
+                  <SelectItem value="2">2 - Unsatisfied</SelectItem>
+                  <SelectItem value="3">3 - Neutral</SelectItem>
+                  <SelectItem value="4">4 - Satisfied</SelectItem>
+                  <SelectItem value="5">5 - Very Satisfied</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>How challenging was today's work? (1-5)</Label>
+              <Select 
+                value={todayReport?.challengeLevel?.toString() || ''} 
+                onValueChange={(value) => handleUpdateText('challengeLevel', parseInt(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Rate the challenge level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 - Very Easy</SelectItem>
+                  <SelectItem value="2">2 - Easy</SelectItem>
+                  <SelectItem value="3">3 - Moderate</SelectItem>
+                  <SelectItem value="4">4 - Challenging</SelectItem>
+                  <SelectItem value="5">5 - Very Challenging</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          {todayReport?.satisfactionRating && todayReport?.challengeLevel && (
+            <div className="mt-4 p-3 bg-muted rounded-lg">
+              <p className="text-sm">
+                <strong>Satisfaction:</strong> {todayReport.satisfactionRating}/5 • 
+                <strong> Challenge Level:</strong> {todayReport.challengeLevel}/5
+              </p>
             </div>
           )}
         </CardContent>
