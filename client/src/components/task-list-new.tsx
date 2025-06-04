@@ -296,7 +296,7 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
       status: "pending",
       priority: "Medium",
       startDate: new Date().toISOString().split('T')[0],
-      finishDate: "",
+      finishDate: urlParams?.get('dueDate') || "",
       assignedTo: null,
       createdBy: user!.id,
       createdAt: new Date().toISOString(),
