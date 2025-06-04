@@ -2797,34 +2797,134 @@ function ThermalOilPumpSizingCalculator() {
     doc.setFont('helvetica', 'normal');
     doc.text('(Continued)', 105, 42, { align: 'center' });
     
-    // Head Loss Breakdown on second page
+    // Detailed Formulas and Calculations Section
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('HEAD LOSS BREAKDOWN', 20, 65);
+    doc.text('DETAILED CALCULATIONS & FORMULAS', 20, 65);
     
-    doc.setFontSize(11);
+    // Flow Rate Calculation
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('1. Flow Rate Calculation:', 20, 85);
+    
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    const breakdown = [
-      `Friction Head Loss: ${result.frictionHead.toFixed(2)} m`,
-      `Minor Losses: ${result.minorLosses.toFixed(2)} m`,
-      `Static Head: ${result.staticHead.toFixed(1)} m`,
-      `Safety Factor (15%): ${((result.pumpHead / 1.15) * 0.15).toFixed(2)} m`,
-      `Total Head Required: ${result.pumpHead.toFixed(1)} m`
+    doc.text('Formula: Q = Heat Load / (ρ × Cp × ΔT)', 25, 95);
+    doc.text(`Q = ${heatLoad} kcal/hr / (${(rho / 1000).toFixed(3)} kg/L × ${cp.toFixed(3)} kcal/kg°C × ${tempRise}°C)`, 25, 105);
+    doc.text(`Q = ${result.flowRate.toFixed(2)} m³/hr`, 25, 115);
+    
+    // Velocity Calculation
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('2. Flow Velocity:', 20, 130);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Formula: v = Q / (π × D² / 4)', 25, 140);
+    doc.text(`v = ${result.flowRate.toFixed(2)} m³/hr / (π × (${pipeSize})² / 4) × (1/3600)`, 25, 150);
+    doc.text(`v = ${result.velocity.toFixed(2)} m/s`, 25, 160);
+    
+    // Reynolds Number
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('3. Reynolds Number:', 20, 175);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Formula: Re = (ρ × v × D) / μ', 25, 185);
+    doc.text(`Re = (${rho.toFixed(0)} kg/m³ × ${result.velocity.toFixed(2)} m/s × ${pipeSize} m) / ${viscosity} Pa.s`, 25, 195);
+    doc.text(`Re = ${result.reynoldsNumber.toFixed(0)} (${result.reynoldsNumber < 2300 ? "Laminar Flow" : "Turbulent Flow"})`, 25, 205);
+    
+    // Friction Factor
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('4. Friction Factor:', 20, 220);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const frictionFormula = result.reynoldsNumber < 2300 ? 
+      'Formula: f = 64 / Re (Laminar Flow)' : 
+      'Formula: f = 0.316 / Re^0.25 (Turbulent Flow)';
+    doc.text(frictionFormula, 25, 230);
+    doc.text(`f = ${result.frictionFactor.toFixed(4)}`, 25, 240);
+    
+    // Add third page for head loss calculations
+    doc.addPage();
+    
+    // Add header on third page
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('THERMAL OIL PUMP SIZING CALCULATION', 105, 30, { align: 'center' });
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text('(Head Loss Calculations)', 105, 42, { align: 'center' });
+    
+    // Friction Head Loss
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('5. Friction Head Loss (Darcy-Weisbach):', 20, 65);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Formula: hf = (f × L × v²) / (2 × g × D)', 25, 75);
+    doc.text(`hf = (${result.frictionFactor.toFixed(4)} × ${pipeLength} m × (${result.velocity.toFixed(2)})²) / (2 × 9.81 × ${pipeSize})`, 25, 85);
+    doc.text(`hf = ${result.frictionHead.toFixed(2)} m`, 25, 95);
+    
+    // Minor Losses
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('6. Minor Losses (Fittings & Valves):', 20, 110);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Estimated as 25% of friction losses for typical fittings', 25, 120);
+    doc.text(`Minor Losses = ${result.frictionHead.toFixed(2)} × 0.25 = ${result.minorLosses.toFixed(2)} m`, 25, 130);
+    
+    // Total Head Calculation
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('7. Total Pump Head:', 20, 145);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Formula: H = (hf + hm + hs) × SF', 25, 155);
+    doc.text(`H = (${result.frictionHead.toFixed(2)} + ${result.minorLosses.toFixed(2)} + ${result.staticHead.toFixed(1)}) × 1.15`, 25, 165);
+    doc.text(`H = ${result.pumpHead.toFixed(1)} m`, 25, 175);
+    
+    // Pump Power Calculation
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('8. Pump Power Calculation:', 20, 190);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Formula: P = (ρ × g × Q × H) / η', 25, 200);
+    doc.text(`P = (${rho.toFixed(0)} × 9.81 × ${(result.flowRate/3600).toFixed(4)} × ${result.pumpHead.toFixed(1)}) / 0.75`, 25, 210);
+    doc.text(`P = ${result.pumpPower.toFixed(2)} kW (${(result.pumpPower * 1.34).toFixed(2)} HP)`, 25, 220);
+    
+    // Engineering Notes
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ENGINEERING NOTES:', 20, 240);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const notes = [
+      '• Safety factor of 15% applied to account for system variations',
+      '• Pump efficiency assumed at 75% (typical for centrifugal pumps)',
+      '• Minor losses estimated at 25% of friction losses',
+      '• Static head includes elevation changes and system pressure',
+      '• Calculations follow ASME and API standards for pump sizing'
     ];
     
-    breakdown.forEach((item, index) => {
-      doc.text(item, 25, 78 + (index * 10));
+    notes.forEach((note, index) => {
+      doc.text(note, 25, 250 + (index * 8));
     });
     
     // Footer with methodology
     doc.setFontSize(10);
     doc.setFont('helvetica', 'italic');
-    doc.text('Calculations based on Darcy-Weisbach equation and standard fluid mechanics principles', 105, 150, { align: 'center' });
-    
-    // Additional footer information
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Generated by Thermopac Process Engineering LLP - Thermal Engineering Solutions', 105, 170, { align: 'center' });
+    doc.text('Calculations based on Darcy-Weisbach equation and standard fluid mechanics principles', 105, 280, { align: 'center' });
     
     // Save the PDF
     doc.save('thermopac-thermal-oil-pump-sizing-calculation.pdf')
