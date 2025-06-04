@@ -450,8 +450,9 @@ export default function DwarPage() {
                   <Button onClick={handleAddActivity}>Add Activity</Button>
                 </div>
               </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          )}
         </CardHeader>
         <CardContent>
           {todayReport?.activities && todayReport.activities.length > 0 ? (
@@ -493,13 +494,15 @@ export default function DwarPage() {
                       <p className="text-xs text-red-600 mt-1">Blocked: {activity.blockedReason}</p>
                     )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleRemoveActivity(index)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {todayReport?.status === 'draft' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveActivity(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
@@ -524,6 +527,7 @@ export default function DwarPage() {
               <Select 
                 value={todayReport?.satisfactionRating?.toString() || ''} 
                 onValueChange={(value) => handleUpdateText('satisfactionRating', parseInt(value))}
+                disabled={todayReport?.status !== 'draft'}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Rate your satisfaction" />
@@ -542,6 +546,7 @@ export default function DwarPage() {
               <Select 
                 value={todayReport?.challengeLevel?.toString() || ''} 
                 onValueChange={(value) => handleUpdateText('challengeLevel', parseInt(value))}
+                disabled={todayReport?.status !== 'draft'}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Rate the challenge level" />
