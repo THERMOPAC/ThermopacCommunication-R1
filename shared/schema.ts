@@ -123,9 +123,18 @@ export const attendanceRecords = pgTable('attendance_records', {
   overtimeHours: decimal('overtime_hours', { precision: 5, scale: 2 }).default('0'),
   
   // Status and validation
-  status: varchar('status', { length: 20 }).notNull().default('present'), // present, absent, partial, late
+  status: varchar('status', { length: 30 }).notNull().default('present'), // present, absent, partial, late, incomplete
   isLocationVerified: boolean('is_location_verified').default(false),
   isIpVerified: boolean('is_ip_verified').default(false),
+  
+  // Incomplete attendance tracking
+  isIncomplete: boolean('is_incomplete').default(false),
+  incompleteReason: text('incomplete_reason'),
+  flaggedAt: timestamp('flagged_at'),
+  requiresApproval: boolean('requires_approval').default(false),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvalDate: timestamp('approval_date'),
+  approvalNotes: text('approval_notes'),
   
   // Admin adjustments
   adminAdjustment: jsonb('admin_adjustment'), // For manual corrections
@@ -164,6 +173,33 @@ export const attendanceSettings = pgTable('attendance_settings', {
   requireLocationVerification: boolean('require_location_verification').default(true),
   requireIpVerification: boolean('require_ip_verification').default(false),
   allowOfflineCheckIn: boolean('allow_offline_check_in').default(false),
+  
+  // Tracking
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Attendance Issues table for tracking incomplete attendance and requiring management attention
+export const attendanceIssues = pgTable('attendance_issues', {
+  id: serial('id').primaryKey(),
+  attendanceRecordId: integer('attendance_record_id').notNull().references(() => attendanceRecords.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  
+  // Issue details
+  issueType: varchar('issue_type', { length: 50 }).notNull(), // 'incomplete_checkout', 'no_dwar', 'late_arrival', 'early_departure'
+  description: text('description').notNull(),
+  severity: varchar('severity', { length: 20 }).notNull().default('medium'), // 'low', 'medium', 'high'
+  status: varchar('status', { length: 20 }).notNull().default('pending'), // 'pending', 'resolved', 'escalated'
+  
+  // Timeline
+  detectedAt: timestamp('detected_at').notNull().defaultNow(),
+  resolvedAt: timestamp('resolved_at'),
+  resolvedBy: integer('resolved_by').references(() => users.id),
+  resolutionNotes: text('resolution_notes'),
+  
+  // Notifications
+  managerNotified: boolean('manager_notified').default(false),
+  hrNotified: boolean('hr_notified').default(false),
   
   // Tracking
   createdAt: timestamp('created_at').notNull().defaultNow(),
