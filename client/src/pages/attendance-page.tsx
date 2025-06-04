@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Clock,
@@ -39,10 +40,19 @@ interface WorkLocation {
 
 export default function AttendancePage() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [location, setLocation] = useLocation();
   const [currentLocation, setCurrentLocation] = useState<{latitude: number, longitude: number} | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null);
+
+  // Function to get greeting based on current time
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 17) return "Good Afternoon";
+    return "Good Evening";
+  };
 
   // Get current attendance status
   const { data: attendanceStatus, isLoading: statusLoading } = useQuery<AttendanceStatus>({
@@ -211,6 +221,20 @@ export default function AttendancePage() {
 
   return (
     <div className="space-y-6">
+      {/* Welcome Message */}
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <CardContent className="pt-6">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              {getGreeting()}, {user?.username}!
+            </h1>
+            <p className="text-gray-600">
+              Great to see you today — let's achieve today's targets together!
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Current Status Card */}
       <Card>
         <CardHeader>
