@@ -35,7 +35,8 @@ import {
   TrendingUp,
   Calendar,
   FileText,
-  Award
+  Award,
+  Plus
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -131,6 +132,11 @@ export default function DwarPage() {
   // Get available tasks for auto-association
   const { data: availableTasks = [] } = useQuery<AvailableTask[]>({
     queryKey: ["/api/dwar/available-tasks"],
+  });
+
+  // Get today's completed tasks
+  const { data: todaysCompletedTasks = [] } = useQuery<AvailableTask[]>({
+    queryKey: ["/api/dwar/todays-completed-tasks"],
   });
 
   // Update DWAR mutation
@@ -524,6 +530,80 @@ export default function DwarPage() {
             <div className="text-center py-8 text-muted-foreground">
               <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No activities added yet. Start by adding your first activity.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Today's Completed Tasks from Project Management */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            Today's Completed Tasks
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {todaysCompletedTasks && todaysCompletedTasks.length > 0 ? (
+            <div className="space-y-3">
+              {todaysCompletedTasks.map((task, index) => (
+                <div key={index} className="flex items-center justify-between p-3 border rounded-lg bg-green-50">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium">{task.title}</span>
+                      <Badge variant={task.priority === 'high' ? 'destructive' : task.priority === 'medium' ? 'secondary' : 'outline'}>
+                        {task.priority}
+                      </Badge>
+                      <Badge variant="default" className="bg-green-600">
+                        Completed
+                      </Badge>
+                    </div>
+                    {task.description && (
+                      <p className="text-sm text-muted-foreground">{task.description}</p>
+                    )}
+                    <p className="text-xs text-green-600 mt-1">✓ Task completed today</p>
+                  </div>
+                  {todayReport?.status === 'draft' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Auto-add this completed task as an activity
+                        const newActivity = {
+                          type: 'Task Work',
+                          description: task.title,
+                          timeSpent: 1, // Default 1 hour, user can edit
+                          plannedHours: 1,
+                          priority: task.priority?.toLowerCase() || 'medium',
+                          status: 'completed' as const,
+                          taskId: task.id,
+                          blockedReason: ''
+                        };
+                        
+                        const updatedActivities = [...(todayReport.activities || []), newActivity];
+                        const totalHours = updatedActivities.reduce((sum, a) => sum + a.timeSpent, 0);
+                        const completedTasks = updatedActivities.filter(a => a.status === 'completed').length;
+                        const inProgressTasks = updatedActivities.filter(a => a.status === 'in_progress').length;
+
+                        updateReportMutation.mutate({
+                          activities: updatedActivities,
+                          hoursWorked: totalHours,
+                          tasksCompleted: completedTasks,
+                          tasksInProgress: inProgressTasks
+                        });
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add to DWAR
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No tasks completed today yet.</p>
             </div>
           )}
         </CardContent>

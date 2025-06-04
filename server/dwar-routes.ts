@@ -38,6 +38,38 @@ router.get('/available-tasks', ensureAuthenticated, async (req: Request, res: Re
   }
 });
 
+// Get today's completed tasks for DWAR integration
+router.get('/todays-completed-tasks', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Get tasks completed today
+    const completedTasks = await db
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        description: tasks.description,
+        priority: tasks.priority,
+        status: tasks.status,
+        completedAt: tasks.updatedAt
+      })
+      .from(tasks)
+      .where(and(
+        eq(tasks.assignedTo, userId),
+        eq(tasks.status, 'completed'),
+        gte(tasks.updatedAt, new Date(today + 'T00:00:00.000Z')),
+        lte(tasks.updatedAt, new Date(today + 'T23:59:59.999Z'))
+      ))
+      .orderBy(desc(tasks.updatedAt));
+
+    res.json(completedTasks);
+  } catch (error) {
+    console.error('Error fetching today\'s completed tasks:', error);
+    res.json([]); // Return empty array if tasks table doesn't exist yet
+  }
+});
+
 // Auto-create DWAR activity when task is completed
 router.post('/auto-activity-from-task', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
