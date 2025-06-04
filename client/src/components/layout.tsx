@@ -241,6 +241,7 @@ export default function Layout({ children }: LayoutProps) {
     { icon: Users, label: "Team", href: "/team" },
     { icon: CalendarClock, label: "Attendance", href: "/attendance" },
     { icon: FileText, label: "Daily Work Report", href: "/dwar" },
+    { icon: IndianRupee, label: "Payroll", href: "/payroll" },
     { icon: Lightbulb, label: "Recommendations", href: "/recommendations" },
     { icon: Award, label: "Leaderboard", href: "/leaderboard" },
     { icon: Mail, label: "Emails", href: "/emails" },
@@ -408,7 +409,15 @@ export default function Layout({ children }: LayoutProps) {
             <div>
               <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-2 px-3">General</h3>
               <ul className="space-y-1">
-                {menuItems.slice(menuItems.findIndex(item => item.href === '/team'), -3).map((item, index) => {
+                {menuItems.filter(item => 
+                  item.href === '/team' || 
+                  item.href === '/attendance' || 
+                  item.href === '/dwar' || 
+                  item.href === '/payroll' || 
+                  item.href === '/recommendations' || 
+                  item.href === '/leaderboard' || 
+                  item.href === '/emails'
+                ).map((item, index) => {
                   const Icon = item.icon;
                   const isActive = item.href ? location === item.href : false;
                   
