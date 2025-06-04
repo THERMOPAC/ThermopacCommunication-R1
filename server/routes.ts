@@ -50,6 +50,7 @@ import { default as cleanPaymentRoutes } from "./clean-payment-routes";
 import { default as basicAllocationApi } from "./basic-allocation-api";
 import { default as workLocationRoutes } from "./work-location-routes";
 import { default as attendanceRoutes } from "./attendance-routes";
+import { default as dwarRoutes } from "./dwar-routes";
 import { setupDedicatedPaymentCreation } from "./dedicated-payment-creation";
 import { setupCleanPaymentCreation } from "./clean-payment-creation";
 import { setupDebugWorkOrderRoutes } from "./debug-work-orders";
@@ -157,6 +158,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up attendance management routes
   app.use('/api/attendance', attendanceRoutes);
   console.log('Attendance routes registered at /api/attendance');
+  
+  // Set up DWAR (Daily Work Activity Report) routes
+  app.use('/api/dwar', dwarRoutes);
+  console.log('DWAR routes registered at /api/dwar');
 
   // DIRECT WRITE-OFF APPROVAL ENDPOINT - COMPLETELY SEPARATE FROM FINANCE ROUTES
   app.post('/api/approve-writeoff/:id', async (req: any, res: any) => {

@@ -170,6 +170,96 @@ export const attendanceSettings = pgTable('attendance_settings', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
+// Daily Work Activity Reports (DWAR) table
+export const dailyWorkReports = pgTable('daily_work_reports', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  reportDate: date('report_date').notNull(),
+  
+  // Work summary
+  tasksCompleted: integer('tasks_completed').notNull().default(0),
+  tasksInProgress: integer('tasks_in_progress').notNull().default(0),
+  hoursWorked: decimal('hours_worked', { precision: 4, scale: 2 }).notNull().default('0'),
+  productivityScore: decimal('productivity_score', { precision: 5, scale: 2 }).default('0'), // Auto-calculated
+  
+  // Detailed activities (JSON array of activity objects)
+  activities: jsonb('activities').notNull().default([]), // [{type, description, timeSpent, priority, status}]
+  
+  // Issues and challenges
+  challenges: text('challenges'),
+  issuesEncountered: text('issues_encountered'),
+  supportRequired: text('support_required'),
+  
+  // Next day planning
+  tomorrowPlans: text('tomorrow_plans'),
+  priorityTasks: jsonb('priority_tasks').default([]), // Array of task objects
+  
+  // KPI tracking (auto-calculated from activities and attendance)
+  qualityScore: decimal('quality_score', { precision: 5, scale: 2 }).default('0'),
+  efficiencyRating: decimal('efficiency_rating', { precision: 5, scale: 2 }).default('0'),
+  collaborationScore: decimal('collaboration_score', { precision: 5, scale: 2 }).default('0'),
+  
+  // Status and approvals
+  status: varchar('status', { length: 20 }).notNull().default('draft'), // draft, submitted, approved, rejected
+  submittedAt: timestamp('submitted_at'),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  
+  // Manager feedback
+  managerFeedback: text('manager_feedback'),
+  managerRating: integer('manager_rating'), // 1-5 scale
+  
+  // Tracking
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  
+  // Ensure one report per user per date
+  // Commented out due to unique constraint conflicts during development
+  // UNIQUE(user_id, report_date)
+});
+
+// Monthly KPI Summary table (auto-generated from DWAR and attendance data)
+export const monthlyKpiSummary = pgTable('monthly_kpi_summary', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  month: integer('month').notNull(), // 1-12
+  year: integer('year').notNull(),
+  
+  // Attendance KPIs
+  totalWorkingDays: integer('total_working_days').notNull().default(0),
+  daysPresent: integer('days_present').notNull().default(0),
+  daysAbsent: integer('days_absent').notNull().default(0),
+  daysLate: integer('days_late').notNull().default(0),
+  totalHoursWorked: decimal('total_hours_worked', { precision: 6, scale: 2 }).default('0'),
+  overtimeHours: decimal('overtime_hours', { precision: 6, scale: 2 }).default('0'),
+  attendancePercentage: decimal('attendance_percentage', { precision: 5, scale: 2 }).default('0'),
+  
+  // Performance KPIs from DWAR
+  totalTasksCompleted: integer('total_tasks_completed').default(0),
+  averageProductivityScore: decimal('average_productivity_score', { precision: 5, scale: 2 }).default('0'),
+  averageQualityScore: decimal('average_quality_score', { precision: 5, scale: 2 }).default('0'),
+  averageEfficiencyRating: decimal('average_efficiency_rating', { precision: 5, scale: 2 }).default('0'),
+  averageCollaborationScore: decimal('average_collaboration_score', { precision: 5, scale: 2 }).default('0'),
+  dwarSubmissionRate: decimal('dwar_submission_rate', { precision: 5, scale: 2 }).default('0'), // Percentage of days with DWAR
+  
+  // Manager evaluation KPIs
+  averageManagerRating: decimal('average_manager_rating', { precision: 3, scale: 2 }).default('0'),
+  totalApprovedReports: integer('total_approved_reports').default(0),
+  totalRejectedReports: integer('total_rejected_reports').default(0),
+  
+  // Overall performance score (calculated from all KPIs)
+  overallPerformanceScore: decimal('overall_performance_score', { precision: 5, scale: 2 }).default('0'),
+  performanceGrade: varchar('performance_grade', { length: 2 }).default('C'), // A+, A, B+, B, C+, C, D
+  
+  // Tracking
+  calculatedAt: timestamp('calculated_at').notNull().defaultNow(),
+  lastUpdated: timestamp('last_updated').notNull().defaultNow(),
+  
+  // One summary per user per month
+  // Commented out due to unique constraint conflicts during development
+  // UNIQUE(user_id, month, year)
+});
+
 // Sales and Marketing tables
 export const leadSourcesTable = pgTable('lead_sources', {
   id: serial('id').primaryKey(),
@@ -3452,6 +3542,24 @@ export const workLocationsRelations = relations(workLocations, ({ many }) => ({
   users: many(users),
 }));
 
+export const dailyWorkReportsRelations = relations(dailyWorkReports, ({ one }) => ({
+  user: one(users, {
+    fields: [dailyWorkReports.userId],
+    references: [users.id],
+  }),
+  approver: one(users, {
+    fields: [dailyWorkReports.approvedBy],
+    references: [users.id],
+  }),
+}));
+
+export const monthlyKpiSummaryRelations = relations(monthlyKpiSummary, ({ one }) => ({
+  user: one(users, {
+    fields: [monthlyKpiSummary.userId],
+    references: [users.id],
+  }),
+}));
+
 // Work Location insert schemas and types
 export const insertWorkLocationSchema = createInsertSchema(workLocations)
   .omit({ id: true, createdAt: true, updatedAt: true });
@@ -3475,3 +3583,33 @@ export const insertAttendanceSettingsSchema = createInsertSchema(attendanceSetti
 
 export type AttendanceSettings = typeof attendanceSettings.$inferSelect;
 export type InsertAttendanceSettings = z.infer<typeof insertAttendanceSettingsSchema>;
+
+// Daily Work Reports schemas and types
+export const insertDailyWorkReportSchema = createInsertSchema(dailyWorkReports)
+  .omit({ id: true, createdAt: true, updatedAt: true, submittedAt: true, approvedAt: true })
+  .extend({
+    status: z.enum(['draft', 'submitted', 'approved', 'rejected']).default('draft'),
+    managerRating: z.number().min(1).max(5).optional(),
+    activities: z.array(z.object({
+      type: z.string(),
+      description: z.string(),
+      timeSpent: z.number(),
+      priority: z.enum(['low', 'medium', 'high']),
+      status: z.enum(['completed', 'in_progress', 'pending'])
+    })).default([]),
+    priorityTasks: z.array(z.object({
+      task: z.string(),
+      priority: z.enum(['low', 'medium', 'high']),
+      estimatedTime: z.number().optional()
+    })).default([])
+  });
+
+export type DailyWorkReport = typeof dailyWorkReports.$inferSelect;
+export type InsertDailyWorkReport = z.infer<typeof insertDailyWorkReportSchema>;
+
+// Monthly KPI Summary schemas and types
+export const insertMonthlyKpiSummarySchema = createInsertSchema(monthlyKpiSummary)
+  .omit({ id: true, calculatedAt: true, lastUpdated: true });
+
+export type MonthlyKpiSummary = typeof monthlyKpiSummary.$inferSelect;
+export type InsertMonthlyKpiSummary = z.infer<typeof insertMonthlyKpiSummarySchema>;
