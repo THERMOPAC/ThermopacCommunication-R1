@@ -24,8 +24,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, Plus } from "lucide-react";
-import { useState } from "react";
+import { Pencil, Trash2, Plus, Search, Filter } from "lucide-react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -40,10 +40,55 @@ export default function UserManagement() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  
+  // Search and filter states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [managerFilter, setManagerFilter] = useState<string>("all");
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
   });
+
+  // Filter and search users
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) => {
+      // Search by name, email, or phone
+      const searchMatch = searchQuery === "" || 
+        user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.mobileNumber.includes(searchQuery);
+
+      // Filter by role
+      const roleMatch = roleFilter === "all" || user.role === roleFilter;
+
+      // Filter by reporting manager
+      const managerMatch = managerFilter === "all" || 
+        user.reportingManagerId?.toString() === managerFilter;
+
+      return searchMatch && roleMatch && managerMatch;
+    });
+  }, [users, searchQuery, roleFilter, managerFilter]);
+
+  // Get unique roles for filter dropdown
+  const availableRoles = useMemo(() => {
+    const roleSet = new Set(users.map(user => user.role));
+    return Array.from(roleSet).sort();
+  }, [users]);
+
+  // Get unique managers for filter dropdown
+  const availableManagers = useMemo(() => {
+    const managerMap = new Map();
+    users.forEach(user => {
+      if (user.reportingManagerId && user.reportingManagerId !== user.id) {
+        const manager = users.find(u => u.id === user.reportingManagerId);
+        if (manager) {
+          managerMap.set(user.reportingManagerId.toString(), manager.username);
+        }
+      }
+    });
+    return Array.from(managerMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [users]);
 
   const addUserMutation = useMutation({
     mutationFn: async (data: InsertUser) => {
@@ -209,6 +254,70 @@ export default function UserManagement() {
         </Button>
       </CardHeader>
       <CardContent>
+        {/* Search and Filter Section */}
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, email, or phone..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Filter by role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Roles</SelectItem>
+                  {availableRoles.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Select value={managerFilter} onValueChange={setManagerFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filter by manager" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Managers</SelectItem>
+                  {availableManagers.map(([id, name]) => (
+                    <SelectItem key={id} value={id}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          {/* Results Summary */}
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span>
+              Showing {filteredUsers.length} of {users.length} users
+            </span>
+            {(searchQuery || roleFilter !== "all" || managerFilter !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery("");
+                  setRoleFilter("all");
+                  setManagerFilter("all");
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </div>
+        </div>
+        
         <Table>
           <TableHeader>
             <TableRow>
@@ -222,7 +331,7 @@ export default function UserManagement() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((user) => (
+            {filteredUsers.map((user) => (
               <TableRow key={user.id}>
                 <TableCell className="font-medium">{user.id}</TableCell>
                 <TableCell>{user.username}</TableCell>
