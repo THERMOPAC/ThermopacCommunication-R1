@@ -282,7 +282,7 @@ export default function DwarPage() {
                 <div className="text-sm text-muted-foreground">Hours Worked</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600">{todayReport.productivityScore.toFixed(1)}</div>
+                <div className="text-2xl font-bold text-orange-600">{Number(todayReport.productivityScore || 0).toFixed(1)}</div>
                 <div className="text-sm text-muted-foreground">Productivity Score</div>
               </div>
             </div>
@@ -560,19 +560,19 @@ export default function DwarPage() {
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{todayReport.productivityScore.toFixed(1)}</div>
+                <div className="text-2xl font-bold text-blue-600">{Number(todayReport.productivityScore || 0).toFixed(1)}</div>
                 <div className="text-sm text-muted-foreground">Productivity</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{todayReport.qualityScore.toFixed(1)}</div>
+                <div className="text-2xl font-bold text-green-600">{Number(todayReport.qualityScore || 0).toFixed(1)}</div>
                 <div className="text-sm text-muted-foreground">Quality</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">{todayReport.efficiencyRating.toFixed(1)}</div>
+                <div className="text-2xl font-bold text-purple-600">{Number(todayReport.efficiencyRating || 0).toFixed(1)}</div>
                 <div className="text-sm text-muted-foreground">Efficiency</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600">{todayReport.collaborationScore.toFixed(1)}</div>
+                <div className="text-2xl font-bold text-orange-600">{Number(todayReport.collaborationScore || 0).toFixed(1)}</div>
                 <div className="text-sm text-muted-foreground">Collaboration</div>
               </div>
             </div>
