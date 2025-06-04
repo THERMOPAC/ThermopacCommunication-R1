@@ -48,6 +48,7 @@ import { default as financeWriteOffsRouter } from "./finance-write-offs";
 import { setupDebugWorkOrderRoutes } from "./debug-work-orders";
 import { default as cleanPaymentRoutes } from "./clean-payment-routes";
 import { default as basicAllocationApi } from "./basic-allocation-api";
+import { default as workLocationRoutes } from "./work-location-routes";
 import { setupDedicatedPaymentCreation } from "./dedicated-payment-creation";
 import { setupCleanPaymentCreation } from "./clean-payment-creation";
 import { setupDebugWorkOrderRoutes } from "./debug-work-orders";
@@ -147,6 +148,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up advance tax calculation routes
   app.use(advanceTaxRoutes);
+  
+  // Set up work location management routes
+  app.use('/api', workLocationRoutes);
+  console.log('Work location routes registered at /api/work-locations');
 
   // DIRECT WRITE-OFF APPROVAL ENDPOINT - COMPLETELY SEPARATE FROM FINANCE ROUTES
   app.post('/api/approve-writeoff/:id', async (req: any, res: any) => {
