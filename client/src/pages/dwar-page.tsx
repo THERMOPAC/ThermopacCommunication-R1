@@ -85,7 +85,9 @@ interface AvailableTask {
   description: string;
   priority: string;
   status: string;
-  estimatedHours?: number;
+  dueDate?: string;
+  startDate: string;
+  finishDate: string;
 }
 
 export default function DwarPage() {
@@ -97,8 +99,11 @@ export default function DwarPage() {
     type: '',
     description: '',
     timeSpent: 0,
+    plannedHours: 0,
     priority: 'medium',
-    status: 'pending'
+    status: 'pending',
+    taskId: undefined,
+    blockedReason: ''
   });
   const [newTask, setNewTask] = useState<PriorityTask>({
     task: '',
@@ -116,6 +121,11 @@ export default function DwarPage() {
   const { data: recentReports = [] } = useQuery({
     queryKey: ["/api/dwar/my-reports"],
     queryParams: { limit: 5 }
+  });
+
+  // Get available tasks for auto-association
+  const { data: availableTasks = [] } = useQuery<AvailableTask[]>({
+    queryKey: ["/api/dwar/available-tasks"],
   });
 
   // Update DWAR mutation
@@ -180,8 +190,11 @@ export default function DwarPage() {
       type: '',
       description: '',
       timeSpent: 0,
+      plannedHours: 0,
       priority: 'medium',
-      status: 'pending'
+      status: 'pending',
+      taskId: undefined,
+      blockedReason: ''
     });
     setIsAddActivityOpen(false);
   };
@@ -325,6 +338,32 @@ export default function DwarPage() {
               </DialogHeader>
               <div className="space-y-4">
                 <div>
+                  <Label>Link to Existing Task (Optional)</Label>
+                  <Select value={newActivity.taskId?.toString() || ''} onValueChange={(value) => {
+                    const taskId = value ? parseInt(value) : undefined;
+                    const selectedTask = availableTasks.find(t => t.id === taskId);
+                    setNewActivity({
+                      ...newActivity, 
+                      taskId,
+                      type: selectedTask ? 'Task Work' : newActivity.type,
+                      description: selectedTask ? selectedTask.title : newActivity.description
+                    });
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a task (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No task selected</SelectItem>
+                      {availableTasks.map((task) => (
+                        <SelectItem key={task.id} value={task.id.toString()}>
+                          {task.title} ({task.priority})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
                   <Label>Activity Type</Label>
                   <Input
                     value={newActivity.type}
@@ -340,9 +379,20 @@ export default function DwarPage() {
                     placeholder="Describe what you worked on..."
                   />
                 </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Time Spent (hours)</Label>
+                    <Label>Planned Hours</Label>
+                    <Input
+                      type="number"
+                      step="0.5"
+                      value={newActivity.plannedHours || ''}
+                      onChange={(e) => setNewActivity({...newActivity, plannedHours: parseFloat(e.target.value) || 0})}
+                      placeholder="0.0"
+                    />
+                  </div>
+                  <div>
+                    <Label>Actual Time Spent (hours)</Label>
                     <Input
                       type="number"
                       step="0.5"
@@ -350,6 +400,9 @@ export default function DwarPage() {
                       onChange={(e) => setNewActivity({...newActivity, timeSpent: parseFloat(e.target.value) || 0})}
                     />
                   </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Priority</Label>
                     <Select value={newActivity.priority} onValueChange={(value: any) => setNewActivity({...newActivity, priority: value})}>
@@ -363,20 +416,32 @@ export default function DwarPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div>
+                    <Label>Status</Label>
+                    <Select value={newActivity.status} onValueChange={(value: any) => setNewActivity({...newActivity, status: value})}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="blocked">Blocked</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div>
-                  <Label>Status</Label>
-                  <Select value={newActivity.status} onValueChange={(value: any) => setNewActivity({...newActivity, status: value})}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                
+                {newActivity.status === 'blocked' && (
+                  <div>
+                    <Label>Reason for Blocking</Label>
+                    <Textarea
+                      value={newActivity.blockedReason || ''}
+                      onChange={(e) => setNewActivity({...newActivity, blockedReason: e.target.value})}
+                      placeholder="Explain why this task is blocked..."
+                    />
+                  </div>
+                )}
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline" onClick={() => setIsAddActivityOpen(false)}>
                     Cancel
