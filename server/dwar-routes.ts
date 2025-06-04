@@ -1,10 +1,39 @@
 import { Router, Request, Response } from 'express';
 import { db } from './db';
-import { dailyWorkReports, monthlyKpiSummary, attendanceRecords, users } from '@shared/schema';
+import { dailyWorkReports, monthlyKpiSummary, attendanceRecords, users, tasks } from '@shared/schema';
 import { eq, and, gte, lte, desc, sql, avg, sum, count } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 
 const router = Router();
+
+// Get available tasks for auto-association
+router.get('/available-tasks', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    
+    // Get active tasks assigned to the user or unassigned
+    const availableTasks = await db
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        description: tasks.description,
+        priority: tasks.priority,
+        status: tasks.status,
+        estimatedHours: tasks.estimatedHours
+      })
+      .from(tasks)
+      .where(and(
+        eq(tasks.assignedTo, userId),
+        eq(tasks.status, 'pending') // Only show pending tasks
+      ))
+      .orderBy(desc(tasks.createdAt));
+
+    res.json(availableTasks);
+  } catch (error) {
+    console.error('Error fetching available tasks:', error);
+    res.status(500).json({ error: 'Failed to fetch available tasks' });
+  }
+});
 
 // Get or create today's DWAR for current user
 router.get('/today', ensureAuthenticated, async (req: Request, res: Response) => {

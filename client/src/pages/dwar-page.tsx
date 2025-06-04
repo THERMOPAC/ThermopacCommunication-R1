@@ -42,8 +42,11 @@ interface Activity {
   type: string;
   description: string;
   timeSpent: number;
+  plannedHours?: number;
   priority: 'low' | 'medium' | 'high';
-  status: 'completed' | 'in_progress' | 'pending';
+  status: 'completed' | 'in_progress' | 'pending' | 'blocked';
+  taskId?: number;
+  blockedReason?: string;
 }
 
 interface PriorityTask {
@@ -71,6 +74,18 @@ interface DailyWorkReport {
   status: 'draft' | 'submitted' | 'approved' | 'rejected';
   managerFeedback?: string;
   managerRating?: number;
+  satisfactionRating?: number;
+  challengeLevel?: number;
+  blockedTasks?: number;
+}
+
+interface AvailableTask {
+  id: number;
+  title: string;
+  description: string;
+  priority: string;
+  status: string;
+  estimatedHours?: number;
 }
 
 export default function DwarPage() {

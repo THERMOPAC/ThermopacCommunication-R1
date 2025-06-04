@@ -183,7 +183,7 @@ export const dailyWorkReports = pgTable('daily_work_reports', {
   productivityScore: decimal('productivity_score', { precision: 5, scale: 2 }).default('0'), // Auto-calculated
   
   // Detailed activities (JSON array of activity objects)
-  activities: jsonb('activities').notNull().default([]), // [{type, description, timeSpent, priority, status}]
+  activities: jsonb('activities').notNull().default([]), // [{type, description, timeSpent, plannedHours, priority, status, taskId, blockedReason}]
   
   // Issues and challenges
   challenges: text('challenges'),
@@ -208,6 +208,11 @@ export const dailyWorkReports = pgTable('daily_work_reports', {
   // Manager feedback
   managerFeedback: text('manager_feedback'),
   managerRating: integer('manager_rating'), // 1-5 scale
+  
+  // Satisfaction and challenge ratings
+  satisfactionRating: integer('satisfaction_rating'), // 1-5 scale for daily satisfaction
+  challengeLevel: integer('challenge_level'), // 1-5 scale for difficulty level
+  blockedTasks: integer('blocked_tasks').default(0), // Number of blocked tasks
   
   // Tracking
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -3590,12 +3595,17 @@ export const insertDailyWorkReportSchema = createInsertSchema(dailyWorkReports)
   .extend({
     status: z.enum(['draft', 'submitted', 'approved', 'rejected']).default('draft'),
     managerRating: z.number().min(1).max(5).optional(),
+    satisfactionRating: z.number().min(1).max(5).optional(),
+    challengeLevel: z.number().min(1).max(5).optional(),
     activities: z.array(z.object({
       type: z.string(),
       description: z.string(),
       timeSpent: z.number(),
+      plannedHours: z.number().optional(),
       priority: z.enum(['low', 'medium', 'high']),
-      status: z.enum(['completed', 'in_progress', 'pending'])
+      status: z.enum(['completed', 'in_progress', 'pending', 'blocked']),
+      taskId: z.number().optional(), // Link to existing task system
+      blockedReason: z.string().optional()
     })).default([]),
     priorityTasks: z.array(z.object({
       task: z.string(),
