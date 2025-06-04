@@ -2642,9 +2642,9 @@ function ThermalOilPumpSizingCalculator() {
     // Define variables needed for PDF generation
     const rho = parseFloat(oilDensity); // kg/m³
     const cp = parseFloat(oilSpecificHeat); // kcal/kg°C
-    const viscosity = parseFloat(oilViscosity); // Pa.s
+    const viscosity = 5e-3; // Pa.s (typical for thermal oil at operating temperature)
     const pipeSize = parseFloat(pipeDiameter) / 1000; // Convert mm to m
-    const pipeLength = parseFloat(pipeLength); // m
+    const pipeLengthValue = parseFloat(pipeLength); // m
     
     // Function to load and add logo
     const addCompanyLogo = async () => {
@@ -2874,7 +2874,7 @@ function ThermalOilPumpSizingCalculator() {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.text('Formula: hf = (f × L × v²) / (2 × g × D)', 25, 75);
-    doc.text(`hf = (${result.frictionFactor.toFixed(4)} × ${pipeLength} m × (${result.velocity.toFixed(2)})²) / (2 × 9.81 × ${pipeSize})`, 25, 85);
+    doc.text(`hf = (${result.frictionFactor.toFixed(4)} × ${pipeLengthValue} m × (${result.velocity.toFixed(2)})²) / (2 × 9.81 × ${pipeSize})`, 25, 85);
     doc.text(`hf = ${result.frictionHead.toFixed(2)} m`, 25, 95);
     
     // Minor Losses
