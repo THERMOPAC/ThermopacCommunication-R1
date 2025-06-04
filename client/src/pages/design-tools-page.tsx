@@ -2639,6 +2639,13 @@ function ThermalOilPumpSizingCalculator() {
     const doc = new jsPDF();
     const currentDate = new Date().toLocaleDateString();
     
+    // Define variables needed for PDF generation
+    const rho = parseFloat(oilDensity); // kg/m³
+    const cp = parseFloat(oilSpecificHeat); // kcal/kg°C
+    const viscosity = parseFloat(oilViscosity); // Pa.s
+    const pipeSize = parseFloat(pipeDiameter) / 1000; // Convert mm to m
+    const pipeLength = parseFloat(pipeLength); // m
+    
     // Function to load and add logo
     const addCompanyLogo = async () => {
       try {
