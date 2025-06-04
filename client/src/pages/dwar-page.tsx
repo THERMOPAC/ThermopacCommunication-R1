@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -92,9 +93,13 @@ interface AvailableTask {
 
 export default function DwarPage() {
   const { toast } = useToast();
+  const [location, setLocation] = useLocation();
   const [isAddActivityOpen, setIsAddActivityOpen] = useState(false);
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<number | null>(null);
+  
+  // Check if coming from checkout flow
+  const isFromCheckout = new URLSearchParams(window.location.search).get('checkout') === 'true';
   const [newActivity, setNewActivity] = useState<Activity>({
     type: '',
     description: '',
@@ -159,8 +164,17 @@ export default function DwarPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/dwar/my-reports"] });
       toast({
         title: "Report Submitted",
-        description: "Your daily work report has been submitted for approval",
+        description: isFromCheckout 
+          ? "Your daily work report has been submitted. You can now complete checkout."
+          : "Your daily work report has been submitted for approval",
       });
+      
+      // If coming from checkout flow, redirect back to attendance
+      if (isFromCheckout) {
+        setTimeout(() => {
+          setLocation('/attendance');
+        }, 2000); // 2 second delay to show the toast
+      }
     },
     onError: (error: any) => {
       toast({
