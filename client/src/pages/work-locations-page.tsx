@@ -324,66 +324,92 @@ export default function WorkLocationsPage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
-                    <FormField
-                      control={addForm.control}
-                      name="latitude"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Latitude (Optional)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              step="any"
-                              placeholder="19.0760"
-                              {...field}
-                              value={field.value || ""}
-                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={addForm.control}
-                      name="longitude"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Longitude (Optional)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              step="any"
-                              placeholder="72.8777"
-                              {...field}
-                              value={field.value || ""}
-                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={addForm.control}
-                      name="radiusMeters"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Radius (meters)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="100"
-                              {...field}
-                              value={field.value || ""}
-                              onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  {/* GPS Location Settings */}
+                  <div className="space-y-4">
+                    <div className="border rounded-lg p-4">
+                      <h4 className="font-medium mb-2 flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        GPS Location Tracking (Optional)
+                      </h4>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Set coordinates for precise location-based attendance. Leave empty to skip GPS verification.
+                      </p>
+                      <div className="grid grid-cols-3 gap-4">
+                        <FormField
+                          control={addForm.control}
+                          name="latitude"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Latitude</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  step="any"
+                                  placeholder="19.0760"
+                                  {...field}
+                                  value={field.value || ""}
+                                  onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={addForm.control}
+                          name="longitude"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Longitude</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  step="any"
+                                  placeholder="72.8777"
+                                  {...field}
+                                  value={field.value || ""}
+                                  onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={addForm.control}
+                          name="radiusMeters"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Allowed Radius (meters)</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  placeholder="100"
+                                  {...field}
+                                  value={field.value || ""}
+                                  onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    {/* IP Restrictions */}
+                    <div className="border rounded-lg p-4">
+                      <h4 className="font-medium mb-2 flex items-center gap-2">
+                        <span className="text-xs bg-secondary px-2 py-1 rounded">OPTIONAL</span>
+                        Network IP Restrictions
+                      </h4>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Restrict attendance to specific office networks. Leave empty to allow attendance from any network.
+                      </p>
+                      <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                        <strong>Examples:</strong> 192.168.1.0/24 (office network), 203.0.113.1 (specific IP)
+                      </div>
+                    </div>
                   </div>
 
                   <FormField
@@ -609,6 +635,94 @@ export default function WorkLocationsPage() {
                     </FormItem>
                   )}
                 />
+              </div>
+
+              {/* GPS Location Settings for Edit */}
+              <div className="space-y-4">
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-medium mb-2 flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    GPS Location Tracking (Optional)
+                  </h4>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Set coordinates for precise location-based attendance. Leave empty to skip GPS verification.
+                  </p>
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      control={editForm.control}
+                      name="latitude"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Latitude</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="any"
+                              placeholder="19.0760"
+                              {...field}
+                              value={field.value || ""}
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={editForm.control}
+                      name="longitude"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Longitude</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="any"
+                              placeholder="72.8777"
+                              {...field}
+                              value={field.value || ""}
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={editForm.control}
+                      name="radiusMeters"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Allowed Radius (meters)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              placeholder="100"
+                              {...field}
+                              value={field.value || ""}
+                              onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* IP Restrictions for Edit */}
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-medium mb-2 flex items-center gap-2">
+                    <span className="text-xs bg-secondary px-2 py-1 rounded">OPTIONAL</span>
+                    Network IP Restrictions
+                  </h4>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Restrict attendance to specific office networks. Leave empty to allow attendance from any network.
+                  </p>
+                  <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                    <strong>Examples:</strong> 192.168.1.0/24 (office network), 203.0.113.1 (specific IP)
+                  </div>
+                </div>
               </div>
 
               <FormField
