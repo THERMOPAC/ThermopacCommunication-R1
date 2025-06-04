@@ -2882,6 +2882,128 @@ export const insertInspectionOrderSchema = createInsertSchema(inspectionOrders)
 export const insertInspectionOrderItemSchema = createInsertSchema(inspectionOrderItems)
   .omit({ id: true, createdAt: true, updatedAt: true });
 
+// Payroll Management Tables
+
+// Employee salary information
+export const employeeSalaries = pgTable('employee_salaries', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  baseSalary: decimal('base_salary', { precision: 12, scale: 2 }).notNull(),
+  currency: varchar('currency', { length: 3 }).default('INR'),
+  payFrequency: varchar('pay_frequency', { length: 20 }).default('monthly'),
+  effectiveDate: date('effective_date').notNull(),
+  endDate: date('end_date'),
+  isActive: boolean('is_active').default(true),
+  salaryGrade: varchar('salary_grade', { length: 10 }),
+  department: varchar('department', { length: 100 }),
+  position: varchar('position', { length: 100 }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+  createdBy: integer('created_by').references(() => users.id),
+});
+
+// Payroll periods
+export const payrollPeriods = pgTable('payroll_periods', {
+  id: serial('id').primaryKey(),
+  periodName: varchar('period_name', { length: 50 }).notNull(),
+  startDate: date('start_date').notNull(),
+  endDate: date('end_date').notNull(),
+  payDate: date('pay_date').notNull(),
+  status: varchar('status', { length: 20 }).default('draft'),
+  totalEmployees: integer('total_employees').default(0),
+  totalGrossPay: decimal('total_gross_pay', { precision: 15, scale: 2 }).default('0'),
+  totalDeductions: decimal('total_deductions', { precision: 15, scale: 2 }).default('0'),
+  totalNetPay: decimal('total_net_pay', { precision: 15, scale: 2 }).default('0'),
+  createdAt: timestamp('created_at').defaultNow(),
+  processedAt: timestamp('processed_at'),
+  processedBy: integer('processed_by').references(() => users.id),
+});
+
+// Individual payroll records
+export const payrollRecords = pgTable('payroll_records', {
+  id: serial('id').primaryKey(),
+  periodId: integer('period_id').notNull().references(() => payrollPeriods.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  baseSalary: decimal('base_salary', { precision: 12, scale: 2 }).notNull(),
+  
+  // KPI-based bonuses from DWAR
+  productivityBonus: decimal('productivity_bonus', { precision: 10, scale: 2 }).default('0'),
+  attendanceBonus: decimal('attendance_bonus', { precision: 10, scale: 2 }).default('0'),
+  taskCompletionBonus: decimal('task_completion_bonus', { precision: 10, scale: 2 }).default('0'),
+  satisfactionBonus: decimal('satisfaction_bonus', { precision: 10, scale: 2 }).default('0'),
+  
+  // Other allowances
+  overtimeHours: decimal('overtime_hours', { precision: 5, scale: 2 }).default('0'),
+  overtimePay: decimal('overtime_pay', { precision: 10, scale: 2 }).default('0'),
+  otherAllowances: decimal('other_allowances', { precision: 10, scale: 2 }).default('0'),
+  
+  // Total gross
+  grossPay: decimal('gross_pay', { precision: 12, scale: 2 }).notNull(),
+  
+  // Deductions
+  incomeTax: decimal('income_tax', { precision: 10, scale: 2 }).default('0'),
+  professionalTax: decimal('professional_tax', { precision: 10, scale: 2 }).default('0'),
+  providentFund: decimal('provident_fund', { precision: 10, scale: 2 }).default('0'),
+  esiDeduction: decimal('esi_deduction', { precision: 10, scale: 2 }).default('0'),
+  otherDeductions: decimal('other_deductions', { precision: 10, scale: 2 }).default('0'),
+  totalDeductions: decimal('total_deductions', { precision: 10, scale: 2 }).default('0'),
+  
+  // Net pay
+  netPay: decimal('net_pay', { precision: 12, scale: 2 }).notNull(),
+  
+  // KPI metrics for reference
+  dwarProductivityScore: decimal('dwar_productivity_score', { precision: 5, scale: 2 }),
+  attendancePercentage: decimal('attendance_percentage', { precision: 5, scale: 2 }),
+  tasksCompleted: integer('tasks_completed').default(0),
+  averageSatisfactionRating: decimal('average_satisfaction_rating', { precision: 3, scale: 2 }),
+  
+  status: varchar('status', { length: 20 }).default('draft'),
+  paymentReference: varchar('payment_reference', { length: 100 }),
+  paymentDate: date('payment_date'),
+  
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Payroll settings
+export const payrollSettings = pgTable('payroll_settings', {
+  id: serial('id').primaryKey(),
+  settingName: varchar('setting_name', { length: 100 }).notNull().unique(),
+  settingValue: text('setting_value').notNull(),
+  dataType: varchar('data_type', { length: 20 }).default('string'),
+  description: text('description'),
+  isActive: boolean('is_active').default(true),
+  updatedAt: timestamp('updated_at').defaultNow(),
+  updatedBy: integer('updated_by').references(() => users.id),
+});
+
+// Bonus calculation rules
+export const bonusRules = pgTable('bonus_rules', {
+  id: serial('id').primaryKey(),
+  ruleName: varchar('rule_name', { length: 100 }).notNull(),
+  ruleType: varchar('rule_type', { length: 30 }).notNull(),
+  minThreshold: decimal('min_threshold', { precision: 5, scale: 2 }).notNull(),
+  maxThreshold: decimal('max_threshold', { precision: 5, scale: 2 }),
+  bonusPercentage: decimal('bonus_percentage', { precision: 5, scale: 2 }),
+  fixedAmount: decimal('fixed_amount', { precision: 10, scale: 2 }),
+  isPercentage: boolean('is_percentage').default(true),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Payroll approval workflow
+export const payrollApprovals = pgTable('payroll_approvals', {
+  id: serial('id').primaryKey(),
+  periodId: integer('period_id').notNull().references(() => payrollPeriods.id, { onDelete: 'cascade' }),
+  approvedBy: integer('approved_by').notNull().references(() => users.id),
+  approvalLevel: integer('approval_level').default(1),
+  approvalStatus: varchar('approval_status', { length: 20 }).default('pending'),
+  approvalComments: text('approval_comments'),
+  approvedAt: timestamp('approved_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 // Material Inspection Links - for traceability
 export const materialInspectionLinks = pgTable('material_inspection_links', {
   id: serial('id').primaryKey(),
@@ -3623,3 +3745,117 @@ export const insertMonthlyKpiSummarySchema = createInsertSchema(monthlyKpiSummar
 
 export type MonthlyKpiSummary = typeof monthlyKpiSummary.$inferSelect;
 export type InsertMonthlyKpiSummary = z.infer<typeof insertMonthlyKpiSummarySchema>;
+
+// Payroll Management Relations
+export const employeeSalariesRelations = relations(employeeSalaries, ({ one, many }) => ({
+  employee: one(users, {
+    fields: [employeeSalaries.userId],
+    references: [users.id],
+  }),
+  creator: one(users, {
+    fields: [employeeSalaries.createdBy],
+    references: [users.id],
+  }),
+  payrollRecords: many(payrollRecords),
+}));
+
+export const payrollPeriodsRelations = relations(payrollPeriods, ({ one, many }) => ({
+  processor: one(users, {
+    fields: [payrollPeriods.processedBy],
+    references: [users.id],
+  }),
+  records: many(payrollRecords),
+  approvals: many(payrollApprovals),
+}));
+
+export const payrollRecordsRelations = relations(payrollRecords, ({ one }) => ({
+  period: one(payrollPeriods, {
+    fields: [payrollRecords.periodId],
+    references: [payrollPeriods.id],
+  }),
+  employee: one(users, {
+    fields: [payrollRecords.userId],
+    references: [users.id],
+  }),
+}));
+
+export const payrollSettingsRelations = relations(payrollSettings, ({ one }) => ({
+  updater: one(users, {
+    fields: [payrollSettings.updatedBy],
+    references: [users.id],
+  }),
+}));
+
+export const payrollApprovalsRelations = relations(payrollApprovals, ({ one }) => ({
+  period: one(payrollPeriods, {
+    fields: [payrollApprovals.periodId],
+    references: [payrollPeriods.id],
+  }),
+  approver: one(users, {
+    fields: [payrollApprovals.approvedBy],
+    references: [users.id],
+  }),
+}));
+
+// Payroll Management Schemas and Types
+export const insertEmployeeSalarySchema = createInsertSchema(employeeSalaries)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    payFrequency: z.enum(['monthly', 'bi-weekly', 'weekly']).default('monthly'),
+    effectiveDate: z.string().transform(dateStringToDate),
+    endDate: z.string().optional().transform(dateStringToDate),
+  });
+
+export const insertPayrollPeriodSchema = createInsertSchema(payrollPeriods)
+  .omit({ id: true, createdAt: true, processedAt: true })
+  .extend({
+    status: z.enum(['draft', 'processing', 'completed', 'closed']).default('draft'),
+    startDate: z.string().transform(dateStringToDate),
+    endDate: z.string().transform(dateStringToDate),
+    payDate: z.string().transform(dateStringToDate),
+  });
+
+export const insertPayrollRecordSchema = createInsertSchema(payrollRecords)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    status: z.enum(['draft', 'approved', 'paid']).default('draft'),
+    paymentDate: z.string().optional().transform(dateStringToDate),
+  });
+
+export const insertPayrollSettingSchema = createInsertSchema(payrollSettings)
+  .omit({ id: true, updatedAt: true })
+  .extend({
+    dataType: z.enum(['string', 'number', 'boolean', 'json']).default('string'),
+  });
+
+export const insertBonusRuleSchema = createInsertSchema(bonusRules)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    ruleType: z.enum(['productivity', 'attendance', 'task_completion', 'satisfaction']),
+  });
+
+export const insertPayrollApprovalSchema = createInsertSchema(payrollApprovals)
+  .omit({ id: true, createdAt: true, approvedAt: true })
+  .extend({
+    approvalLevel: z.number().min(1).max(3),
+    approvalStatus: z.enum(['pending', 'approved', 'rejected']).default('pending'),
+  });
+
+// Payroll Management Types
+export type EmployeeSalary = typeof employeeSalaries.$inferSelect;
+export type InsertEmployeeSalary = z.infer<typeof insertEmployeeSalarySchema>;
+
+export type PayrollPeriod = typeof payrollPeriods.$inferSelect;
+export type InsertPayrollPeriod = z.infer<typeof insertPayrollPeriodSchema>;
+
+export type PayrollRecord = typeof payrollRecords.$inferSelect;
+export type InsertPayrollRecord = z.infer<typeof insertPayrollRecordSchema>;
+
+export type PayrollSetting = typeof payrollSettings.$inferSelect;
+export type InsertPayrollSetting = z.infer<typeof insertPayrollSettingSchema>;
+
+export type BonusRule = typeof bonusRules.$inferSelect;
+export type InsertBonusRule = z.infer<typeof insertBonusRuleSchema>;
+
+export type PayrollApproval = typeof payrollApprovals.$inferSelect;
+export type InsertPayrollApproval = z.infer<typeof insertPayrollApprovalSchema>;
