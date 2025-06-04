@@ -696,7 +696,7 @@ export default function DwarPage() {
                 const tomorrow = new Date();
                 tomorrow.setDate(tomorrow.getDate() + 1);
                 const tomorrowISO = tomorrow.toISOString().split('T')[0];
-                setLocation(`/dashboard?tab=tasks&action=create&dueDate=${tomorrowISO}&source=dwar`);
+                setLocation(`/tasks?action=create&dueDate=${tomorrowISO}&source=dwar`);
               }}
             >
               <PlusCircle className="h-4 w-4 mr-2" />

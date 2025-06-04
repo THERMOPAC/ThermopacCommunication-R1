@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { Task, User } from "@shared/schema";
@@ -38,6 +38,13 @@ import {
 export default function TaskDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("my");
+  const [urlParams, setUrlParams] = useState<URLSearchParams | null>(null);
+
+  // Parse URL parameters on component mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setUrlParams(params);
+  }, []);
   // Removed due date filter as per requirement
   const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
@@ -332,6 +339,7 @@ export default function TaskDashboard() {
               tasks={filteredTasks} 
               subordinates={subordinates} 
               initialShowCompleted={true}
+              urlParams={urlParams}
             />
           ) : (
             <Card>

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Task, User, insertTaskSchema } from "@shared/schema";
 import { useForm } from "react-hook-form";
@@ -57,6 +57,7 @@ type TaskListProps = {
   tasks: Task[];
   subordinates: User[];
   initialShowCompleted?: boolean;
+  urlParams?: URLSearchParams | null;
 };
 
 const forwardTaskSchema = z.object({
@@ -65,7 +66,7 @@ const forwardTaskSchema = z.object({
 
 type ForwardTaskForm = z.infer<typeof forwardTaskSchema>;
 
-export default function TaskList({ tasks, subordinates, initialShowCompleted = false }: TaskListProps) {
+export default function TaskList({ tasks, subordinates, initialShowCompleted = false, urlParams }: TaskListProps) {
   const [open, setOpen] = useState(false);
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
@@ -116,6 +117,13 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
 
   // Wait for allUsers to be loaded before performing filtering that depends on it
   const isDataReady = allUsers.length > 0;
+
+  // Handle automatic dialog opening from URL parameters
+  useEffect(() => {
+    if (urlParams && urlParams.get('action') === 'create' && isDataReady) {
+      setOpen(true);
+    }
+  }, [urlParams, isDataReady]);
   
   // Get creator's name helper function - memoized to prevent recreation
   const getCreatorName = useCallback((creatorId: number) => {
