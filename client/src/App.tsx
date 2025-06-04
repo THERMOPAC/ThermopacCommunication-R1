@@ -86,6 +86,7 @@ import DesignToolsPage from "@/pages/design-tools-page";
 import WorkLocationsPage from "@/pages/work-locations-page";
 import AttendancePage from "@/pages/attendance-page";
 import DwarPage from "@/pages/dwar-page";
+import PayrollPage from "@/pages/payroll-page";
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
 import { Loader2 } from "lucide-react";
@@ -245,6 +246,7 @@ function Router() {
       <SuperuserRoute path="/work-locations" component={() => <Layout><WorkLocationsPage /></Layout>} />
       <ProtectedRoute path="/attendance" component={() => <Layout><AttendancePage /></Layout>} />
       <ProtectedRoute path="/dwar" component={() => <Layout><DwarPage /></Layout>} />
+      <ProtectedRoute path="/payroll" component={() => <Layout><PayrollPage /></Layout>} />
       <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
       <SuperuserRoute path="/module-permissions" component={ModulePermissionsPage} />
       <SuperuserRoute path="/gcs-diagnostic" component={GcsDiagnosticPage} />
