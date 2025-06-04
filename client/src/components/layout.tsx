@@ -288,7 +288,7 @@ export default function Layout({ children }: LayoutProps) {
             <div>
               <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-2 px-3">Main</h3>
               <ul className="space-y-1">
-                {menuItems.filter(item => !item.isSubmenu && (item.href === '/' || item.href === '/tasks' || item.href === '/recurring-tasks' || item.href === '/messages')).map((item, index) => {
+                {menuItems.filter(item => !item.isSubmenu && (item.href === '/attendance' || item.href === '/' || item.href === '/tasks' || item.href === '/recurring-tasks' || item.href === '/messages')).map((item, index) => {
                   const Icon = item.icon;
                   const isActive = item.href ? location === item.href : false;
                   
@@ -413,7 +413,6 @@ export default function Layout({ children }: LayoutProps) {
                 {menuItems.filter(item => 
                   item.href === '/team' || 
                   item.href === '/work-locations' || 
-                  item.href === '/attendance' || 
                   item.href === '/dwar' || 
                   item.href === '/payroll' || 
                   item.href === '/recommendations' || 

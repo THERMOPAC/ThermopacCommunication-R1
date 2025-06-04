@@ -132,7 +132,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
-      <ProtectedRoute path="/" component={Dashboard} />
+      <ProtectedRoute path="/" component={() => <Redirect to="/attendance" />} />
       <ProtectedRoute path="/tasks" component={Dashboard} />
       <ProtectedRoute path="/team" component={Dashboard} />
       <ProtectedRoute path="/recommendations" component={Dashboard} />
