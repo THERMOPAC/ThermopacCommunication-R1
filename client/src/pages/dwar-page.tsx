@@ -96,7 +96,7 @@ export default function DwarPage() {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   const [isAddActivityOpen, setIsAddActivityOpen] = useState(false);
-  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+
   const [editingActivity, setEditingActivity] = useState<number | null>(null);
   
   // Check if coming from checkout flow
@@ -111,11 +111,7 @@ export default function DwarPage() {
     taskId: undefined,
     blockedReason: ''
   });
-  const [newTask, setNewTask] = useState<PriorityTask>({
-    task: '',
-    priority: 'medium',
-    estimatedTime: 0
-  });
+
 
   // Get today's DWAR
   const { data: todayReport, isLoading } = useQuery<DailyWorkReport>({
@@ -235,22 +231,6 @@ export default function DwarPage() {
       tasksCompleted: completedTasks,
       tasksInProgress: inProgressTasks
     });
-  };
-
-  const handleAddPriorityTask = () => {
-    if (!todayReport || todayReport.status !== 'draft') return;
-
-    const updatedTasks = [...(todayReport.priorityTasks || []), newTask];
-    updateReportMutation.mutate({
-      priorityTasks: updatedTasks
-    });
-
-    setNewTask({
-      task: '',
-      priority: 'medium',
-      estimatedTime: 0
-    });
-    setIsAddTaskOpen(false);
   };
 
   const handleRemovePriorityTask = (index: number) => {
@@ -709,59 +689,19 @@ export default function DwarPage() {
               <Target className="h-5 w-5" />
               Tomorrow's Priority Tasks
             </CardTitle>
-            <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  Add Task
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add Priority Task</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label>Task</Label>
-                    <Textarea
-                      value={newTask.task}
-                      onChange={(e) => setNewTask({...newTask, task: e.target.value})}
-                      placeholder="Describe the task for tomorrow..."
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Priority</Label>
-                      <Select value={newTask.priority} onValueChange={(value: any) => setNewTask({...newTask, priority: value})}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Estimated Time (hours)</Label>
-                      <Input
-                        type="number"
-                        step="0.5"
-                        value={newTask.estimatedTime || ''}
-                        onChange={(e) => setNewTask({...newTask, estimatedTime: parseFloat(e.target.value) || undefined})}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={() => setIsAddTaskOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleAddPriorityTask}>Add Task</Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button 
+              size="sm"
+              onClick={() => {
+                // Navigate to tasks page with context for creating a task due tomorrow
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const tomorrowISO = tomorrow.toISOString().split('T')[0];
+                setLocation(`/dashboard?tab=tasks&action=create&dueDate=${tomorrowISO}&source=dwar`);
+              }}
+            >
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Add Task
+            </Button>
           </CardHeader>
           <CardContent className="space-y-4">
             {todayReport?.priorityTasks && todayReport.priorityTasks.length > 0 ? (
