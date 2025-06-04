@@ -85,6 +85,7 @@ import GcsTestPage from "@/pages/gcs-test-page";
 import DesignToolsPage from "@/pages/design-tools-page";
 import WorkLocationsPage from "@/pages/work-locations-page";
 import AttendancePage from "@/pages/attendance-page";
+import DwarPage from "@/pages/dwar-page";
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
 import { Loader2 } from "lucide-react";
@@ -243,6 +244,7 @@ function Router() {
       <SuperuserRoute path="/users" component={Dashboard} />
       <SuperuserRoute path="/work-locations" component={() => <Layout><WorkLocationsPage /></Layout>} />
       <ProtectedRoute path="/attendance" component={() => <Layout><AttendancePage /></Layout>} />
+      <ProtectedRoute path="/dwar" component={() => <Layout><DwarPage /></Layout>} />
       <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
       <SuperuserRoute path="/module-permissions" component={ModulePermissionsPage} />
       <SuperuserRoute path="/gcs-diagnostic" component={GcsDiagnosticPage} />

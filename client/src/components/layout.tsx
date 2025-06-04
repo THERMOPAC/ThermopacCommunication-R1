@@ -239,6 +239,8 @@ export default function Layout({ children }: LayoutProps) {
     ...(hasViewPermission("After-Sales") ? [{ icon: HeartPulse, label: "After-Sales", href: "/after-sales" }] : []),
     { icon: MessageSquare, label: "Messages", href: "/messages" },
     { icon: Users, label: "Team", href: "/team" },
+    { icon: CalendarClock, label: "Attendance", href: "/attendance" },
+    { icon: FileText, label: "Daily Work Report", href: "/dwar" },
     { icon: Lightbulb, label: "Recommendations", href: "/recommendations" },
     { icon: Award, label: "Leaderboard", href: "/leaderboard" },
     { icon: Mail, label: "Emails", href: "/emails" },
