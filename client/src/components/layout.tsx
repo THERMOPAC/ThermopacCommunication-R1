@@ -239,6 +239,7 @@ export default function Layout({ children }: LayoutProps) {
     ...(hasViewPermission("After-Sales") ? [{ icon: HeartPulse, label: "After-Sales", href: "/after-sales" }] : []),
     { icon: MessageSquare, label: "Messages", href: "/messages" },
     { icon: Users, label: "Team", href: "/team" },
+    ...(user?.role === "Superuser" ? [{ icon: Factory, label: "Work Locations", href: "/work-locations" }] : []),
     { icon: CalendarClock, label: "Attendance", href: "/attendance" },
     { icon: FileText, label: "Daily Work Report", href: "/dwar" },
     { icon: IndianRupee, label: "Payroll", href: "/payroll" },
@@ -411,6 +412,7 @@ export default function Layout({ children }: LayoutProps) {
               <ul className="space-y-1">
                 {menuItems.filter(item => 
                   item.href === '/team' || 
+                  item.href === '/work-locations' || 
                   item.href === '/attendance' || 
                   item.href === '/dwar' || 
                   item.href === '/payroll' || 

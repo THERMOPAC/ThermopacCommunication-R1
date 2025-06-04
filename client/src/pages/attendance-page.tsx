@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,7 @@ interface WorkLocation {
 
 export default function AttendancePage() {
   const { toast } = useToast();
+  const [location, setLocation] = useLocation();
   const [currentLocation, setCurrentLocation] = useState<{latitude: number, longitude: number} | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null);
@@ -51,6 +53,12 @@ export default function AttendancePage() {
   // Get work locations
   const { data: workLocations = [] } = useQuery<WorkLocation[]>({
     queryKey: ["/api/work-locations/active"],
+  });
+
+  // Check if DWAR is completed for today
+  const { data: todayDwar } = useQuery({
+    queryKey: ["/api/dwar/today"],
+    enabled: canCheckOut, // Only check when user can check out
   });
 
   // Get attendance summary for current month
@@ -159,6 +167,19 @@ export default function AttendancePage() {
   };
 
   const handleCheckOut = () => {
+    // Check if DWAR is completed for today
+    if (!todayDwar || todayDwar.status !== 'submitted') {
+      // Redirect to DWAR page with checkout=true parameter
+      setLocation('/dwar?checkout=true');
+      toast({
+        title: "Complete Daily Work Report",
+        description: "Please complete your Daily Work Activity Report before checking out.",
+        variant: "default",
+      });
+      return;
+    }
+
+    // Proceed with normal checkout if DWAR is completed
     const deviceInfo = {
       userAgent: navigator.userAgent,
       platform: navigator.platform,
