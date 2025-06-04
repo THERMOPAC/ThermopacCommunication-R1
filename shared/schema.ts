@@ -95,6 +95,81 @@ export const workLocations = pgTable('work_locations', {
   updatedAt: timestamp('updated_at').notNull().defaultNow()
 });
 
+// Attendance Records table
+export const attendanceRecords = pgTable('attendance_records', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  workLocationId: integer('work_location_id').references(() => workLocations.id, { onDelete: 'set null' }),
+  date: date('date').notNull(),
+  
+  // Check-in details
+  checkInTime: timestamp('check_in_time'),
+  checkInLatitude: doublePrecision('check_in_latitude'),
+  checkInLongitude: doublePrecision('check_in_longitude'),
+  checkInAddress: text('check_in_address'),
+  checkInIpAddress: varchar('check_in_ip_address', { length: 45 }),
+  checkInDeviceInfo: jsonb('check_in_device_info'),
+  
+  // Check-out details
+  checkOutTime: timestamp('check_out_time'),
+  checkOutLatitude: doublePrecision('check_out_latitude'),
+  checkOutLongitude: doublePrecision('check_out_longitude'),
+  checkOutAddress: text('check_out_address'),
+  checkOutIpAddress: varchar('check_out_ip_address', { length: 45 }),
+  checkOutDeviceInfo: jsonb('check_out_device_info'),
+  
+  // Calculated fields
+  workingHours: decimal('working_hours', { precision: 5, scale: 2 }),
+  overtimeHours: decimal('overtime_hours', { precision: 5, scale: 2 }).default('0'),
+  
+  // Status and validation
+  status: varchar('status', { length: 20 }).notNull().default('present'), // present, absent, partial, late
+  isLocationVerified: boolean('is_location_verified').default(false),
+  isIpVerified: boolean('is_ip_verified').default(false),
+  
+  // Admin adjustments
+  adminAdjustment: jsonb('admin_adjustment'), // For manual corrections
+  adjustedBy: integer('adjusted_by').references(() => users.id),
+  adjustmentReason: text('adjustment_reason'),
+  adjustmentDate: timestamp('adjustment_date'),
+  
+  // Notes and remarks
+  employeeNotes: text('employee_notes'),
+  adminNotes: text('admin_notes'),
+  
+  // Tracking
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Attendance Settings table
+export const attendanceSettings = pgTable('attendance_settings', {
+  id: serial('id').primaryKey(),
+  workLocationId: integer('work_location_id').references(() => workLocations.id, { onDelete: 'cascade' }),
+  
+  // Working hours
+  standardWorkingHours: decimal('standard_working_hours', { precision: 3, scale: 1 }).notNull().default('8.0'),
+  overtimeThreshold: decimal('overtime_threshold', { precision: 3, scale: 1 }).notNull().default('8.0'),
+  
+  // Time slots
+  earliestCheckIn: varchar('earliest_check_in', { length: 8 }).notNull().default('06:00:00'),
+  latestCheckOut: varchar('latest_check_out', { length: 8 }).notNull().default('22:00:00'),
+  lateThreshold: integer('late_threshold_minutes').notNull().default(15), // Minutes after standard time
+  
+  // Break settings
+  lunchBreakDuration: integer('lunch_break_duration_minutes').default(60),
+  automaticBreakDeduction: boolean('automatic_break_deduction').default(true),
+  
+  // Location verification
+  requireLocationVerification: boolean('require_location_verification').default(true),
+  requireIpVerification: boolean('require_ip_verification').default(false),
+  allowOfflineCheckIn: boolean('allow_offline_check_in').default(false),
+  
+  // Tracking
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 // Sales and Marketing tables
 export const leadSourcesTable = pgTable('lead_sources', {
   id: serial('id').primaryKey(),
@@ -3348,9 +3423,55 @@ export type InsertAdvanceTaxCalculation = z.infer<typeof insertAdvanceTaxCalcula
 export type AdvanceTaxPayment = typeof advanceTaxPayments.$inferSelect;
 export type InsertAdvanceTaxPayment = z.infer<typeof insertAdvanceTaxPaymentSchema>;
 
+// Attendance Management Relations
+export const attendanceRecordsRelations = relations(attendanceRecords, ({ one }) => ({
+  user: one(users, {
+    fields: [attendanceRecords.userId],
+    references: [users.id],
+  }),
+  workLocation: one(workLocations, {
+    fields: [attendanceRecords.workLocationId],
+    references: [workLocations.id],
+  }),
+  adjustedByUser: one(users, {
+    fields: [attendanceRecords.adjustedBy],
+    references: [users.id],
+  }),
+}));
+
+export const attendanceSettingsRelations = relations(attendanceSettings, ({ one }) => ({
+  workLocation: one(workLocations, {
+    fields: [attendanceSettings.workLocationId],
+    references: [workLocations.id],
+  }),
+}));
+
+export const workLocationsRelations = relations(workLocations, ({ many }) => ({
+  attendanceRecords: many(attendanceRecords),
+  attendanceSettings: many(attendanceSettings),
+  users: many(users),
+}));
+
 // Work Location insert schemas and types
 export const insertWorkLocationSchema = createInsertSchema(workLocations)
   .omit({ id: true, createdAt: true, updatedAt: true });
 
 export type WorkLocation = typeof workLocations.$inferSelect;
 export type InsertWorkLocation = z.infer<typeof insertWorkLocationSchema>;
+
+// Attendance Records schemas and types
+export const insertAttendanceRecordSchema = createInsertSchema(attendanceRecords)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    status: z.enum(['present', 'absent', 'partial', 'late']).default('present'),
+  });
+
+export type AttendanceRecord = typeof attendanceRecords.$inferSelect;
+export type InsertAttendanceRecord = z.infer<typeof insertAttendanceRecordSchema>;
+
+// Attendance Settings schemas and types
+export const insertAttendanceSettingsSchema = createInsertSchema(attendanceSettings)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+export type AttendanceSettings = typeof attendanceSettings.$inferSelect;
+export type InsertAttendanceSettings = z.infer<typeof insertAttendanceSettingsSchema>;
