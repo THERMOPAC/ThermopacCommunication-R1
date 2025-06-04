@@ -277,11 +277,16 @@ router.get('/my-records', ensureAuthenticated, async (req: Request, res: Respons
       .leftJoin(workLocations, eq(attendanceRecords.workLocationId, workLocations.id))
       .where(eq(attendanceRecords.userId, userId));
 
+    const conditions = [];
     if (startDate) {
-      query = query.where(gte(attendanceRecords.date, startDate as string));
+      conditions.push(gte(attendanceRecords.date, startDate as string));
     }
     if (endDate) {
-      query = query.where(lte(attendanceRecords.date, endDate as string));
+      conditions.push(lte(attendanceRecords.date, endDate as string));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(eq(attendanceRecords.userId, userId), ...conditions));
     }
 
     const records = await query
