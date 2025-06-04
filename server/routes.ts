@@ -1151,6 +1151,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
           oldValue: task.status || 'pending',
           newValue: 'completed'
         });
+
+        // Auto-create DWAR activity for completed task
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          
+          // Get or create today's DWAR
+          let [todayReport] = await db
+            .select()
+            .from(dailyWorkReports)
+            .where(and(
+              eq(dailyWorkReports.userId, req.user!.id),
+              eq(dailyWorkReports.reportDate, today)
+            ));
+
+          if (!todayReport) {
+            [todayReport] = await db
+              .insert(dailyWorkReports)
+              .values({
+                userId: req.user!.id,
+                reportDate: today,
+                activities: [],
+                priorityTasks: [],
+                status: 'draft'
+              })
+              .returning();
+          }
+
+          // Create activity from completed task
+          const newActivity = {
+            type: 'Task Work',
+            description: task.title,
+            timeSpent: 1, // Default 1 hour
+            plannedHours: 1,
+            priority: task.priority?.toLowerCase() || 'medium',
+            status: 'completed',
+            taskId: task.id,
+            blockedReason: ''
+          };
+
+          const updatedActivities = [...(todayReport.activities || []), newActivity];
+          const totalHours = updatedActivities.reduce((sum, a) => sum + (a.timeSpent || 0), 0);
+          const completedTasks = updatedActivities.filter(a => a.status === 'completed').length;
+          const inProgressTasks = updatedActivities.filter(a => a.status === 'in_progress').length;
+
+          // Calculate productivity score
+          let productivityScore = 0;
+          if (updatedActivities.length > 0) {
+            const completedActivities = updatedActivities.filter(a => a.status === 'completed');
+            const totalActivities = updatedActivities.length;
+            const avgTimeSpent = updatedActivities.reduce((sum, a) => sum + (a.timeSpent || 0), 0) / totalActivities;
+            
+            productivityScore = (completedActivities.length / totalActivities) * 50 + 
+                               Math.min(avgTimeSpent / 8, 1) * 30 + 
+                               completedTasks * 5;
+            productivityScore = Math.min(productivityScore, 100);
+          }
+
+          // Update DWAR with new activity
+          await db
+            .update(dailyWorkReports)
+            .set({
+              activities: updatedActivities,
+              hoursWorked: totalHours,
+              tasksCompleted: completedTasks,
+              tasksInProgress: inProgressTasks,
+              productivityScore: Number(productivityScore.toFixed(2)),
+              updatedAt: new Date()
+            })
+            .where(eq(dailyWorkReports.id, todayReport.id));
+
+          console.log(`Auto-created DWAR activity for completed task ${taskId}`);
+        } catch (dwarError) {
+          console.error('Error auto-creating DWAR activity:', dwarError);
+          // Don't fail the task completion if DWAR update fails
+        }
         
         res.json(updatedTask);
         return;
@@ -2051,6 +2126,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Check and award achievements
         await storage.checkAndAwardAchievements(req.user!.id);
+
+        // Auto-create DWAR activity for completed recurring task
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          
+          // Get or create today's DWAR
+          let [todayReport] = await db
+            .select()
+            .from(dailyWorkReports)
+            .where(and(
+              eq(dailyWorkReports.userId, req.user!.id),
+              eq(dailyWorkReports.reportDate, today)
+            ));
+
+          if (!todayReport) {
+            [todayReport] = await db
+              .insert(dailyWorkReports)
+              .values({
+                userId: req.user!.id,
+                reportDate: today,
+                activities: [],
+                priorityTasks: [],
+                status: 'draft'
+              })
+              .returning();
+          }
+
+          // Create activity from completed recurring task
+          const newActivity = {
+            type: 'Recurring Task',
+            description: task.title,
+            timeSpent: 1, // Default 1 hour
+            plannedHours: 1,
+            priority: task.priority?.toLowerCase() || 'medium',
+            status: 'completed',
+            taskId: task.id,
+            blockedReason: ''
+          };
+
+          const updatedActivities = [...(todayReport.activities || []), newActivity];
+          const totalHours = updatedActivities.reduce((sum, a) => sum + (a.timeSpent || 0), 0);
+          const completedTasks = updatedActivities.filter(a => a.status === 'completed').length;
+          const inProgressTasks = updatedActivities.filter(a => a.status === 'in_progress').length;
+
+          // Calculate productivity score
+          let productivityScore = 0;
+          if (updatedActivities.length > 0) {
+            const completedActivities = updatedActivities.filter(a => a.status === 'completed');
+            const totalActivities = updatedActivities.length;
+            const avgTimeSpent = updatedActivities.reduce((sum, a) => sum + (a.timeSpent || 0), 0) / totalActivities;
+            
+            productivityScore = (completedActivities.length / totalActivities) * 50 + 
+                               Math.min(avgTimeSpent / 8, 1) * 30 + 
+                               completedTasks * 5;
+            productivityScore = Math.min(productivityScore, 100);
+          }
+
+          // Update DWAR with new activity
+          await db
+            .update(dailyWorkReports)
+            .set({
+              activities: updatedActivities,
+              hoursWorked: totalHours,
+              tasksCompleted: completedTasks,
+              tasksInProgress: inProgressTasks,
+              productivityScore: Number(productivityScore.toFixed(2)),
+              updatedAt: new Date()
+            })
+            .where(eq(dailyWorkReports.id, todayReport.id));
+
+          console.log(`Auto-created DWAR activity for completed recurring task ${taskId}`);
+        } catch (dwarError) {
+          console.error('Error auto-creating DWAR activity for recurring task:', dwarError);
+          // Don't fail the task completion if DWAR update fails
+        }
         
         return res.json(updatedTask);
       }

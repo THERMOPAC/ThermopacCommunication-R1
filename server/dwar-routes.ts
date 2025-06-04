@@ -9,11 +9,127 @@ const router = Router();
 // Get available tasks for auto-association
 router.get('/available-tasks', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    // Return empty array for now as task integration can be added later
-    res.json([]);
+    const userId = req.user!.id;
+    
+    // Get active tasks assigned to the user
+    const availableTasks = await db
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        description: tasks.description,
+        priority: tasks.priority,
+        status: tasks.status,
+        startDate: tasks.startDate,
+        finishDate: tasks.finishDate,
+        dueDate: tasks.dueDate
+      })
+      .from(tasks)
+      .where(and(
+        eq(tasks.assignedTo, userId),
+        eq(tasks.status, 'pending')
+      ))
+      .orderBy(desc(tasks.createdAt))
+      .limit(20);
+
+    res.json(availableTasks);
   } catch (error) {
     console.error('Error fetching available tasks:', error);
-    res.status(500).json({ error: 'Failed to fetch available tasks' });
+    res.json([]); // Return empty array if tasks table doesn't exist yet
+  }
+});
+
+// Auto-create DWAR activity when task is completed
+router.post('/auto-activity-from-task', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { taskId, timeSpent, status } = req.body;
+    const userId = req.user!.id;
+    const today = new Date().toISOString().split('T')[0];
+
+    // Get or create today's DWAR
+    let [todayReport] = await db
+      .select()
+      .from(dailyWorkReports)
+      .where(and(
+        eq(dailyWorkReports.userId, userId),
+        eq(dailyWorkReports.reportDate, today)
+      ));
+
+    if (!todayReport) {
+      [todayReport] = await db
+        .insert(dailyWorkReports)
+        .values({
+          userId,
+          reportDate: today,
+          activities: [],
+          priorityTasks: [],
+          status: 'draft'
+        })
+        .returning();
+    }
+
+    // Get task details
+    const [task] = await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.id, taskId));
+
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    // Create activity from completed task
+    const newActivity = {
+      type: 'Task Work',
+      description: task.title,
+      timeSpent: timeSpent || 1,
+      plannedHours: 1, // Default planned hours
+      priority: task.priority?.toLowerCase() || 'medium',
+      status: status === 'completed' ? 'completed' : 'in_progress',
+      taskId: task.id,
+      blockedReason: ''
+    };
+
+    const updatedActivities = [...(todayReport.activities || []), newActivity];
+    const totalHours = updatedActivities.reduce((sum, a) => sum + (a.timeSpent || 0), 0);
+    const completedTasks = updatedActivities.filter(a => a.status === 'completed').length;
+    const inProgressTasks = updatedActivities.filter(a => a.status === 'in_progress').length;
+
+    // Calculate productivity score
+    let productivityScore = 0;
+    if (updatedActivities.length > 0) {
+      const completedActivities = updatedActivities.filter(a => a.status === 'completed');
+      const totalActivities = updatedActivities.length;
+      const avgTimeSpent = updatedActivities.reduce((sum, a) => sum + (a.timeSpent || 0), 0) / totalActivities;
+      
+      productivityScore = (completedActivities.length / totalActivities) * 50 + 
+                         Math.min(avgTimeSpent / 8, 1) * 30 + 
+                         completedTasks * 5;
+      productivityScore = Math.min(productivityScore, 100);
+    }
+
+    // Update DWAR with new activity
+    const [updatedReport] = await db
+      .update(dailyWorkReports)
+      .set({
+        activities: updatedActivities,
+        hoursWorked: totalHours,
+        tasksCompleted: completedTasks,
+        tasksInProgress: inProgressTasks,
+        productivityScore: Number(productivityScore.toFixed(2)),
+        updatedAt: new Date()
+      })
+      .where(eq(dailyWorkReports.id, todayReport.id))
+      .returning();
+
+    res.json({ 
+      message: 'Task activity auto-added to DWAR', 
+      report: updatedReport,
+      activity: newActivity 
+    });
+
+  } catch (error) {
+    console.error('Error auto-creating DWAR activity from task:', error);
+    res.status(500).json({ error: 'Failed to auto-create activity from task' });
   }
 });
 
