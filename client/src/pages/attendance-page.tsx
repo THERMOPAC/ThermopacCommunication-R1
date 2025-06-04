@@ -229,7 +229,7 @@ export default function AttendancePage() {
               {getGreeting()}, {user?.username}!
             </h1>
             <p className="text-gray-600">
-              Great to see you today — let's achieve today's targets together!
+              Great to see you — let's achieve today's goals together!
             </p>
           </div>
         </CardContent>
