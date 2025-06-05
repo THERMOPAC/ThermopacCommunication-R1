@@ -8,6 +8,7 @@ import { canManage, roleHierarchy } from "@shared/roles";
 import { scrypt, timingSafeEqual, randomBytes } from "crypto";
 import { promisify } from "util";
 import { eq, sql } from "drizzle-orm";
+import { getUserModulePermissions } from "./utils/permission-utils";
 import { setupGmailRoutes } from "./gmail-routes";
 import { setupGoogleAuth } from "./google-auth";
 import { setupInternalMessagesRoutes } from "./internal-messages-routes";
@@ -2001,7 +2002,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
       
       // Check if user has Task Management edit permissions or is Superuser
-      const userPermissions = await storage.getUserModulePermissions(req.user!.id);
+      const userPermissions = await getUserModulePermissions(req.user!.id);
       const hasTaskManagementEdit = userPermissions?.["Task Management"]?.canEdit || false;
       
       if (!hasTaskManagementEdit && req.user!.role !== "Superuser") {
