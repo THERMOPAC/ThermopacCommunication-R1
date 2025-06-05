@@ -175,9 +175,14 @@ export default function DwarPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/attendance/my-records"] });
       queryClient.invalidateQueries({ queryKey: ["/api/attendance/my-summary"] });
       
+      // Debug: Log the response to see what we're getting
+      console.log('DWAR Submit Response:', response);
+      
       // Handle auto-checkout result
       if (response.autoCheckout) {
+        console.log('Auto-checkout result:', response.autoCheckout);
         if (response.autoCheckout.success) {
+          console.log('Setting gratitude dialog with message:', response.autoCheckout.gratitudeMessage);
           // Use setTimeout to ensure dialog shows after state updates
           setTimeout(() => {
             setGratitudeDialog({
@@ -194,6 +199,7 @@ export default function DwarPage() {
           });
         }
       } else {
+        console.log('No autoCheckout in response');
         toast({
           title: "Report Submitted",
           description: isFromCheckout 
