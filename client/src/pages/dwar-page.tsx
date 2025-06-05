@@ -12,6 +12,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -100,7 +101,8 @@ export default function DwarPage() {
     open: boolean;
     message: string;
     workingHours: number;
-  }>({ open: false, message: '', workingHours: 0 });
+    countdown: number;
+  }>({ open: false, message: '', workingHours: 0, countdown: 10 });
 
   const [editingActivity, setEditingActivity] = useState<number | null>(null);
   
@@ -181,8 +183,20 @@ export default function DwarPage() {
           setGratitudeDialog({
             open: true,
             message: response.autoCheckout.gratitudeMessage || `Work day completed successfully. Total hours: ${response.autoCheckout.workingHours}`,
-            workingHours: response.autoCheckout.workingHours || 0
+            workingHours: response.autoCheckout.workingHours || 0,
+            countdown: 10
           });
+          
+          // Start countdown timer
+          const countdownInterval = setInterval(() => {
+            setGratitudeDialog(prev => {
+              if (prev.countdown <= 1) {
+                clearInterval(countdownInterval);
+                return { ...prev, open: false, countdown: 10 };
+              }
+              return { ...prev, countdown: prev.countdown - 1 };
+            });
+          }, 1000);
         } else {
           toast({
             title: "DWAR Submitted",
@@ -865,20 +879,27 @@ export default function DwarPage() {
             <DialogTitle className="text-center text-xl font-semibold text-green-600">
               DWAR Submitted & Auto Checkout Complete
             </DialogTitle>
+            <DialogDescription className="text-center text-muted-foreground">
+              Your work day has been completed successfully
+            </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center space-y-4 py-6">
-            <div className="text-4xl">🙏</div>
-            <div className="text-center space-y-2">
-              <p className="text-base font-medium">{gratitudeDialog.message}</p>
+            <div className="text-6xl">🙏</div>
+            <div className="text-center space-y-3">
+              <p className="text-base font-medium leading-relaxed">{gratitudeDialog.message}</p>
               <p className="text-sm text-muted-foreground">
                 Total working hours: {gratitudeDialog.workingHours} hours
               </p>
+              <p className="text-xs text-muted-foreground">
+                Auto-closing in {gratitudeDialog.countdown} seconds
+              </p>
             </div>
             <Button 
-              onClick={() => setGratitudeDialog(prev => ({ ...prev, open: false }))}
+              onClick={() => setGratitudeDialog(prev => ({ ...prev, open: false, countdown: 10 }))}
               className="w-full mt-4"
+              variant="outline"
             >
-              Thank You
+              Close Now
             </Button>
           </div>
         </DialogContent>
