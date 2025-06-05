@@ -108,25 +108,29 @@ export default function DwarPage() {
 
   // Handle countdown timer for gratitude dialog
   useEffect(() => {
+    let timeout: NodeJS.Timeout | null = null;
     let interval: NodeJS.Timeout | null = null;
     
-    if (gratitudeDialog.open) {
+    if (gratitudeDialog.open && gratitudeDialog.countdown === 20) {
+      // Auto close after 20 seconds
+      timeout = setTimeout(() => {
+        setGratitudeDialog(prev => ({ ...prev, open: false, countdown: 20 }));
+      }, 20000);
+      
+      // Update countdown display every second
       interval = setInterval(() => {
-        setGratitudeDialog(prev => {
-          if (prev.countdown <= 1) {
-            return { ...prev, open: false, countdown: 20 };
-          }
-          return { ...prev, countdown: prev.countdown - 1 };
-        });
+        setGratitudeDialog(prev => ({
+          ...prev,
+          countdown: Math.max(0, prev.countdown - 1)
+        }));
       }, 1000);
     }
 
     return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
+      if (timeout) clearTimeout(timeout);
+      if (interval) clearInterval(interval);
     };
-  }, [gratitudeDialog.open]);
+  }, [gratitudeDialog.open, gratitudeDialog.countdown === 20]);
   
   // Check if coming from checkout flow
   const isFromCheckout = new URLSearchParams(window.location.search).get('checkout') === 'true';
