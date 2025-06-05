@@ -101,36 +101,9 @@ export default function DwarPage() {
     open: boolean;
     message: string;
     workingHours: number;
-    countdown: number;
-  }>({ open: false, message: '', workingHours: 0, countdown: 20 });
+  }>({ open: false, message: '', workingHours: 0 });
 
   const [editingActivity, setEditingActivity] = useState<number | null>(null);
-
-  // Handle countdown timer for gratitude dialog
-  useEffect(() => {
-    let timeout: NodeJS.Timeout | null = null;
-    let interval: NodeJS.Timeout | null = null;
-    
-    if (gratitudeDialog.open && gratitudeDialog.countdown === 20) {
-      // Auto close after 20 seconds
-      timeout = setTimeout(() => {
-        setGratitudeDialog(prev => ({ ...prev, open: false, countdown: 20 }));
-      }, 20000);
-      
-      // Update countdown display every second
-      interval = setInterval(() => {
-        setGratitudeDialog(prev => ({
-          ...prev,
-          countdown: Math.max(0, prev.countdown - 1)
-        }));
-      }, 1000);
-    }
-
-    return () => {
-      if (timeout) clearTimeout(timeout);
-      if (interval) clearInterval(interval);
-    };
-  }, [gratitudeDialog.open, gratitudeDialog.countdown === 20]);
   
   // Check if coming from checkout flow
   const isFromCheckout = new URLSearchParams(window.location.search).get('checkout') === 'true';
@@ -209,8 +182,7 @@ export default function DwarPage() {
           setGratitudeDialog({
             open: true,
             message: response.autoCheckout.gratitudeMessage || `Work day completed successfully. Total hours: ${response.autoCheckout.workingHours}`,
-            workingHours: response.autoCheckout.workingHours || 0,
-            countdown: 20
+            workingHours: response.autoCheckout.workingHours || 0
           });
         } else {
           toast({
@@ -905,16 +877,12 @@ export default function DwarPage() {
               <p className="text-sm text-muted-foreground">
                 Total working hours: {gratitudeDialog.workingHours} hours
               </p>
-              <p className="text-xs text-muted-foreground">
-                Auto-closing in {gratitudeDialog.countdown} seconds
-              </p>
             </div>
             <Button 
-              onClick={() => setGratitudeDialog(prev => ({ ...prev, open: false, countdown: 20 }))}
+              onClick={() => setGratitudeDialog(prev => ({ ...prev, open: false }))}
               className="w-full mt-4"
-              variant="outline"
             >
-              Close Now
+              Thank You
             </Button>
           </div>
         </DialogContent>
