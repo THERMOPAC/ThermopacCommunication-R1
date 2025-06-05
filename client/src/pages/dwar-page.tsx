@@ -110,7 +110,7 @@ export default function DwarPage() {
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     
-    if (gratitudeDialog.open && gratitudeDialog.countdown > 0) {
+    if (gratitudeDialog.open) {
       interval = setInterval(() => {
         setGratitudeDialog(prev => {
           if (prev.countdown <= 1) {
@@ -126,7 +126,7 @@ export default function DwarPage() {
         clearInterval(interval);
       }
     };
-  }, [gratitudeDialog.open, gratitudeDialog.countdown]);
+  }, [gratitudeDialog.open]);
   
   // Check if coming from checkout flow
   const isFromCheckout = new URLSearchParams(window.location.search).get('checkout') === 'true';
