@@ -178,12 +178,14 @@ export default function DwarPage() {
       // Handle auto-checkout result
       if (response.autoCheckout) {
         if (response.autoCheckout.success) {
-          // Show gratitude dialog instead of toast
-          setGratitudeDialog({
-            open: true,
-            message: response.autoCheckout.gratitudeMessage || `Work day completed successfully. Total hours: ${response.autoCheckout.workingHours}`,
-            workingHours: response.autoCheckout.workingHours || 0
-          });
+          // Use setTimeout to ensure dialog shows after state updates
+          setTimeout(() => {
+            setGratitudeDialog({
+              open: true,
+              message: response.autoCheckout.gratitudeMessage || `Work day completed successfully. Total hours: ${response.autoCheckout.workingHours}`,
+              workingHours: response.autoCheckout.workingHours || 0
+            });
+          }, 100);
         } else {
           toast({
             title: "DWAR Submitted",
@@ -200,11 +202,11 @@ export default function DwarPage() {
         });
       }
       
-      // If coming from checkout flow or auto-checkout succeeded, redirect to attendance
-      if (isFromCheckout || (response.autoCheckout && response.autoCheckout.success)) {
+      // If coming from checkout flow, redirect to attendance (but not for auto-checkout to allow gratitude dialog)
+      if (isFromCheckout && !(response.autoCheckout && response.autoCheckout.success)) {
         setTimeout(() => {
           setLocation('/attendance');
-        }, 2000); // 2 second delay to show the toast
+        }, 2000);
       }
     },
     onError: (error: any) => {
@@ -879,7 +881,11 @@ export default function DwarPage() {
               </p>
             </div>
             <Button 
-              onClick={() => setGratitudeDialog(prev => ({ ...prev, open: false }))}
+              onClick={() => {
+                setGratitudeDialog(prev => ({ ...prev, open: false }));
+                // Navigate to attendance page after closing gratitude dialog
+                setTimeout(() => setLocation('/attendance'), 500);
+              }}
               className="w-full mt-4"
             >
               Thank You
