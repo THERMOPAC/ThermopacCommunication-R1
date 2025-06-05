@@ -105,6 +105,28 @@ export default function DwarPage() {
   }>({ open: false, message: '', workingHours: 0, countdown: 20 });
 
   const [editingActivity, setEditingActivity] = useState<number | null>(null);
+
+  // Handle countdown timer for gratitude dialog
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (gratitudeDialog.open && gratitudeDialog.countdown > 0) {
+      interval = setInterval(() => {
+        setGratitudeDialog(prev => {
+          if (prev.countdown <= 1) {
+            return { ...prev, open: false, countdown: 20 };
+          }
+          return { ...prev, countdown: prev.countdown - 1 };
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [gratitudeDialog.open, gratitudeDialog.countdown]);
   
   // Check if coming from checkout flow
   const isFromCheckout = new URLSearchParams(window.location.search).get('checkout') === 'true';
@@ -186,17 +208,6 @@ export default function DwarPage() {
             workingHours: response.autoCheckout.workingHours || 0,
             countdown: 20
           });
-          
-          // Start countdown timer
-          const countdownInterval = setInterval(() => {
-            setGratitudeDialog(prev => {
-              if (prev.countdown <= 1) {
-                clearInterval(countdownInterval);
-                return { ...prev, open: false, countdown: 20 };
-              }
-              return { ...prev, countdown: prev.countdown - 1 };
-            });
-          }, 1000);
         } else {
           toast({
             title: "DWAR Submitted",
