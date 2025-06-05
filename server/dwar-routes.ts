@@ -121,7 +121,7 @@ router.post('/auto-activity-from-task', ensureAuthenticated, async (req: Request
       blockedReason: ''
     };
 
-    const updatedActivities = [...(todayReport.activities || []), newActivity];
+    const updatedActivities = [...(Array.isArray(todayReport.activities) ? todayReport.activities : []), newActivity];
     const totalHours = updatedActivities.reduce((sum, a) => sum + (a.timeSpent || 0), 0);
     const completedTasks = updatedActivities.filter(a => a.status === 'completed').length;
     const inProgressTasks = updatedActivities.filter(a => a.status === 'in_progress').length;
@@ -289,10 +289,65 @@ router.post('/submit/:id', ensureAuthenticated, async (req: Request, res: Respon
       return res.status(404).json({ error: 'Report not found or already submitted' });
     }
 
+    // Auto-checkout functionality
+    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+
+    // Find today's attendance record
+    const [attendanceRecord] = await db
+      .select()
+      .from(attendanceRecords)
+      .where(and(
+        eq(attendanceRecords.userId, userId),
+        eq(attendanceRecords.date, today)
+      ));
+
+    let checkoutResult = null;
+    
+    // Only proceed with checkout if user has checked in but not checked out
+    if (attendanceRecord && attendanceRecord.checkInTime && !attendanceRecord.checkOutTime) {
+      try {
+        // Calculate working hours
+        const checkInTime = new Date(attendanceRecord.checkInTime);
+        const workingHours = (now.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+
+        // Update attendance record with checkout
+        const [updatedAttendance] = await db
+          .update(attendanceRecords)
+          .set({
+            checkOutTime: now,
+            workingHours: workingHours.toFixed(2),
+            employeeNotes: 'Auto-checkout via DWAR submission',
+            updatedAt: now
+          })
+          .where(eq(attendanceRecords.id, attendanceRecord.id))
+          .returning();
+
+        checkoutResult = {
+          success: true,
+          workingHours: Number(workingHours.toFixed(2)),
+          checkOutTime: now
+        };
+
+        console.log(`Auto-checkout completed for user ${userId} after DWAR submission`);
+      } catch (checkoutError) {
+        console.error('Error during auto-checkout:', checkoutError);
+        // Don't fail the DWAR submission if checkout fails
+        checkoutResult = {
+          success: false,
+          error: 'Auto-checkout failed, please checkout manually'
+        };
+      }
+    }
+
     // Trigger monthly KPI calculation if it's month-end
     await calculateMonthlyKPIs(userId);
 
-    res.json({ message: 'Report submitted successfully', report: updatedReport });
+    res.json({ 
+      message: 'Report submitted successfully', 
+      report: updatedReport,
+      autoCheckout: checkoutResult
+    });
   } catch (error) {
     console.error('Error submitting DWAR:', error);
     res.status(500).json({ error: 'Failed to submit report' });

@@ -161,20 +161,39 @@ export default function DwarPage() {
     mutationFn: async () => {
       return await apiRequest("POST", `/api/dwar/submit/${todayReport?.id}`, {});
     },
-    onSuccess: () => {
+    onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/dwar/today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dwar/my-reports"] });
       // Also invalidate attendance queries to refresh checkout availability
       queryClient.invalidateQueries({ queryKey: ["/api/attendance/status"] });
-      toast({
-        title: "Report Submitted",
-        description: isFromCheckout 
-          ? "Your daily work report has been submitted. You can now complete checkout."
-          : "Your daily work report has been submitted for approval",
-      });
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance/my-records"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance/my-summary"] });
       
-      // If coming from checkout flow, redirect back to attendance
-      if (isFromCheckout) {
+      // Handle auto-checkout result
+      if (response.autoCheckout) {
+        if (response.autoCheckout.success) {
+          toast({
+            title: "DWAR Submitted & Auto Checkout Complete",
+            description: `Work day completed successfully. Total hours: ${response.autoCheckout.workingHours}`,
+          });
+        } else {
+          toast({
+            title: "DWAR Submitted",
+            description: response.autoCheckout.error || "Please complete checkout manually",
+            variant: "default",
+          });
+        }
+      } else {
+        toast({
+          title: "Report Submitted",
+          description: isFromCheckout 
+            ? "Your daily work report has been submitted. You can now complete checkout."
+            : "Your daily work report has been submitted for approval",
+        });
+      }
+      
+      // If coming from checkout flow or auto-checkout succeeded, redirect to attendance
+      if (isFromCheckout || (response.autoCheckout && response.autoCheckout.success)) {
         setTimeout(() => {
           setLocation('/attendance');
         }, 2000); // 2 second delay to show the toast
