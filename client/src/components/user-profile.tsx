@@ -143,10 +143,10 @@ export default function UserProfile({ user }: UserProfileProps) {
               DWAR Submission Required
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2 text-left">
-              <p>
+              <div>
                 Daily Work Assessment Report (DWAR) is mandatory for attendance compliance. 
                 Are you sure you want to log out without submitting your DWAR?
-              </p>
+              </div>
               <div className="text-sm text-amber-700 bg-amber-50 p-2 rounded">
                 <strong>Note:</strong> Incomplete DWAR may affect your attendance record and compliance status.
               </div>

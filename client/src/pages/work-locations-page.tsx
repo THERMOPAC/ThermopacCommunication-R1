@@ -214,7 +214,7 @@ export default function WorkLocationsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6 min-h-screen overflow-y-auto">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>

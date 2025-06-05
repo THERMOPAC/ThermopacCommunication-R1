@@ -482,7 +482,7 @@ export default function Layout({ children }: LayoutProps) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-8 overflow-x-hidden">
+      <main className="flex-1 h-screen overflow-y-auto overflow-x-hidden">
         <div className="max-w-[calc(100vw-260px)] mx-auto">
           <AttendanceGatekeeper onAccessGranted={() => setAttendanceCheckCompleted(true)}>
             {children}
