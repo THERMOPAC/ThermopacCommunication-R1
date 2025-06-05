@@ -233,9 +233,12 @@ export default function WorkLocationsPage() {
                 Add Location
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto" aria-describedby="add-location-description">
               <DialogHeader>
                 <DialogTitle>Add New Work Location</DialogTitle>
+                <p id="add-location-description" className="text-sm text-muted-foreground">
+                  Create a new work location with GPS tracking and network restrictions for attendance management.
+                </p>
               </DialogHeader>
               <Form {...addForm}>
                 <form onSubmit={addForm.handleSubmit(onSubmitAdd)} className="space-y-4">
@@ -546,9 +549,12 @@ export default function WorkLocationsPage() {
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto" aria-describedby="edit-location-description">
           <DialogHeader>
             <DialogTitle>Edit Work Location</DialogTitle>
+            <p id="edit-location-description" className="text-sm text-muted-foreground">
+              Update work location settings including GPS tracking and network restrictions.
+            </p>
           </DialogHeader>
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(onSubmitEdit)} className="space-y-4">
