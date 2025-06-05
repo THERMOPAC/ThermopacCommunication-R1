@@ -102,7 +102,7 @@ export default function DwarPage() {
     message: string;
     workingHours: number;
     countdown: number;
-  }>({ open: false, message: '', workingHours: 0, countdown: 10 });
+  }>({ open: false, message: '', workingHours: 0, countdown: 20 });
 
   const [editingActivity, setEditingActivity] = useState<number | null>(null);
   
@@ -184,7 +184,7 @@ export default function DwarPage() {
             open: true,
             message: response.autoCheckout.gratitudeMessage || `Work day completed successfully. Total hours: ${response.autoCheckout.workingHours}`,
             workingHours: response.autoCheckout.workingHours || 0,
-            countdown: 10
+            countdown: 20
           });
           
           // Start countdown timer
@@ -192,7 +192,7 @@ export default function DwarPage() {
             setGratitudeDialog(prev => {
               if (prev.countdown <= 1) {
                 clearInterval(countdownInterval);
-                return { ...prev, open: false, countdown: 10 };
+                return { ...prev, open: false, countdown: 20 };
               }
               return { ...prev, countdown: prev.countdown - 1 };
             });
@@ -895,7 +895,7 @@ export default function DwarPage() {
               </p>
             </div>
             <Button 
-              onClick={() => setGratitudeDialog(prev => ({ ...prev, open: false, countdown: 10 }))}
+              onClick={() => setGratitudeDialog(prev => ({ ...prev, open: false, countdown: 20 }))}
               className="w-full mt-4"
               variant="outline"
             >
