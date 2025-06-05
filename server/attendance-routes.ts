@@ -251,13 +251,13 @@ router.post('/check-out', ensureAuthenticated, async (req: Request, res: Respons
     let gratitudeMessage;
     
     if (isFriday) {
-      gratitudeMessage = `Thank you for your contributions today, ${user?.username || 'User'}! Have a great weekend! Looking forward to working with you on Monday.`;
+      gratitudeMessage = `🙏 Thank you for your contributions today, ${user?.username || 'User'}! Have a great weekend! Looking forward to working with you on Monday.`;
     } else if (isSaturday) {
-      gratitudeMessage = `Thank you for your contributions today, ${user?.username || 'User'}! Enjoy your weekend! See you on Monday.`;
+      gratitudeMessage = `🙏 Thank you for your contributions today, ${user?.username || 'User'}! Enjoy your weekend! See you on Monday.`;
     } else if (isThursday) {
-      gratitudeMessage = `Thank you for your contributions today, ${user?.username || 'User'}! One more day to the weekend! Looking forward to working with you tomorrow.`;
+      gratitudeMessage = `🙏 Thank you for your contributions today, ${user?.username || 'User'}! One more day to the weekend! Looking forward to working with you tomorrow.`;
     } else {
-      gratitudeMessage = `Thank you for your contributions today, ${user?.username || 'User'}! Looking forward to working with you tomorrow.`;
+      gratitudeMessage = `🙏 Thank you for your contributions today, ${user?.username || 'User'}! Looking forward to working with you tomorrow.`;
     }
 
     res.json({

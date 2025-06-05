@@ -96,6 +96,11 @@ export default function DwarPage() {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   const [isAddActivityOpen, setIsAddActivityOpen] = useState(false);
+  const [gratitudeDialog, setGratitudeDialog] = useState<{
+    open: boolean;
+    message: string;
+    workingHours: number;
+  }>({ open: false, message: '', workingHours: 0 });
 
   const [editingActivity, setEditingActivity] = useState<number | null>(null);
   
@@ -172,10 +177,11 @@ export default function DwarPage() {
       // Handle auto-checkout result
       if (response.autoCheckout) {
         if (response.autoCheckout.success) {
-          toast({
-            title: "DWAR Submitted & Auto Checkout Complete",
-            description: response.autoCheckout.gratitudeMessage || `Work day completed successfully. Total hours: ${response.autoCheckout.workingHours}`,
-            duration: 5000, // Show message longer for gratitude
+          // Show gratitude dialog instead of toast
+          setGratitudeDialog({
+            open: true,
+            message: response.autoCheckout.gratitudeMessage || `Work day completed successfully. Total hours: ${response.autoCheckout.workingHours}`,
+            workingHours: response.autoCheckout.workingHours || 0
           });
         } else {
           toast({
@@ -851,6 +857,32 @@ export default function DwarPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Gratitude Dialog */}
+      <Dialog open={gratitudeDialog.open} onOpenChange={(open) => setGratitudeDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl font-semibold text-green-600">
+              DWAR Submitted & Auto Checkout Complete
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center space-y-4 py-6">
+            <div className="text-4xl">🙏</div>
+            <div className="text-center space-y-2">
+              <p className="text-base font-medium">{gratitudeDialog.message}</p>
+              <p className="text-sm text-muted-foreground">
+                Total working hours: {gratitudeDialog.workingHours} hours
+              </p>
+            </div>
+            <Button 
+              onClick={() => setGratitudeDialog(prev => ({ ...prev, open: false }))}
+              className="w-full mt-4"
+            >
+              Thank You
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
