@@ -228,20 +228,45 @@ router.post('/check-out', ensureAuthenticated, async (req: Request, res: Respons
         checkOutAddress: address,
         checkOutIpAddress: ipAddress,
         checkOutDeviceInfo: deviceInfo,
-        workingHours: Number(workingHours.toFixed(2)),
-        overtimeHours: Number(overtimeHours.toFixed(2)),
+        workingHours: workingHours.toFixed(2),
+        overtimeHours: overtimeHours.toFixed(2),
         employeeNotes,
         updatedAt: now
       })
       .where(eq(attendanceRecords.id, existingRecord.id))
       .returning();
 
+    // Get user details for personalized message
+    const [user] = await db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, userId));
+
+    // Generate dynamic gratitude message
+    const dayOfWeek = now.getDay(); // 0 = Sunday, 5 = Friday, 6 = Saturday
+    const isFriday = dayOfWeek === 5;
+    const isSaturday = dayOfWeek === 6;
+    const isThursday = dayOfWeek === 4;
+    
+    let gratitudeMessage;
+    
+    if (isFriday) {
+      gratitudeMessage = `Thank you for your contributions today, ${user?.username || 'User'}! Have a great weekend! Looking forward to working with you on Monday.`;
+    } else if (isSaturday) {
+      gratitudeMessage = `Thank you for your contributions today, ${user?.username || 'User'}! Enjoy your weekend! See you on Monday.`;
+    } else if (isThursday) {
+      gratitudeMessage = `Thank you for your contributions today, ${user?.username || 'User'}! One more day to the weekend! Looking forward to working with you tomorrow.`;
+    } else {
+      gratitudeMessage = `Thank you for your contributions today, ${user?.username || 'User'}! Looking forward to working with you tomorrow.`;
+    }
+
     res.json({
       success: true,
       message: 'Checked out successfully',
       record: updatedRecord,
       workingHours: Number(workingHours.toFixed(2)),
-      overtimeHours: Number(overtimeHours.toFixed(2))
+      overtimeHours: Number(overtimeHours.toFixed(2)),
+      gratitudeMessage
     });
   } catch (error) {
     console.error('Error during check-out:', error);

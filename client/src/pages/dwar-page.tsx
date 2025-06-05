@@ -174,7 +174,8 @@ export default function DwarPage() {
         if (response.autoCheckout.success) {
           toast({
             title: "DWAR Submitted & Auto Checkout Complete",
-            description: `Work day completed successfully. Total hours: ${response.autoCheckout.workingHours}`,
+            description: response.autoCheckout.gratitudeMessage || `Work day completed successfully. Total hours: ${response.autoCheckout.workingHours}`,
+            duration: 5000, // Show message longer for gratitude
           });
         } else {
           toast({

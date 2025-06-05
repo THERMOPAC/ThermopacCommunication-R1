@@ -134,7 +134,8 @@ export default function AttendancePage() {
       
       toast({
         title: "Check-out Successful",
-        description: `Work completed: ${response.workingHours} hours${response.overtimeHours > 0 ? ` (${response.overtimeHours} overtime)` : ''}`,
+        description: response.gratitudeMessage || `Work completed: ${response.workingHours} hours${response.overtimeHours > 0 ? ` (${response.overtimeHours} overtime)` : ''}`,
+        duration: 5000, // Show gratitude message longer
       });
     },
     onError: (error: any) => {

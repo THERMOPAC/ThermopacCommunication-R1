@@ -323,10 +323,35 @@ router.post('/submit/:id', ensureAuthenticated, async (req: Request, res: Respon
           .where(eq(attendanceRecords.id, attendanceRecord.id))
           .returning();
 
+        // Get user details for personalized message
+        const [user] = await db
+          .select({ username: users.username })
+          .from(users)
+          .where(eq(users.id, userId));
+
+        // Generate dynamic gratitude message
+        const dayOfWeek = now.getDay(); // 0 = Sunday, 5 = Friday, 6 = Saturday
+        const isFriday = dayOfWeek === 5;
+        const isSaturday = dayOfWeek === 6;
+        const isThursday = dayOfWeek === 4;
+        
+        let gratitudeMessage;
+        
+        if (isFriday) {
+          gratitudeMessage = `Thank you for your contributions today, ${user?.username || 'User'}! Have a great weekend! Looking forward to working with you on Monday.`;
+        } else if (isSaturday) {
+          gratitudeMessage = `Thank you for your contributions today, ${user?.username || 'User'}! Enjoy your weekend! See you on Monday.`;
+        } else if (isThursday) {
+          gratitudeMessage = `Thank you for your contributions today, ${user?.username || 'User'}! One more day to the weekend! Looking forward to working with you tomorrow.`;
+        } else {
+          gratitudeMessage = `Thank you for your contributions today, ${user?.username || 'User'}! Looking forward to working with you tomorrow.`;
+        }
+
         checkoutResult = {
           success: true,
           workingHours: Number(workingHours.toFixed(2)),
-          checkOutTime: now
+          checkOutTime: now,
+          gratitudeMessage
         };
 
         console.log(`Auto-checkout completed for user ${userId} after DWAR submission`);
