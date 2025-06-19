@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
@@ -78,10 +78,7 @@ export default function InvoicesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [customerFilter, setCustomerFilter] = useState('all');
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({
-    from: undefined, // Remove default date filter to show all invoices
-    to: undefined
-  });
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Query for invoices using direct database connection with proper cache invalidation
@@ -110,8 +107,7 @@ export default function InvoicesPage() {
     // Status filter to match exact values from the database (case-sensitive)
     let matchesStatus = false;
     
-    // Direct console debugging to see what we're dealing with
-    console.log(`Filtering invoice ${invoice.invoiceNumber} with status ${invoice.status} against filter ${statusFilter}`);
+    // Status filtering logic
     
     if (statusFilter === 'all') {
       matchesStatus = true;
@@ -130,10 +126,7 @@ export default function InvoicesPage() {
     let matchesDateRange = true;
     const invoiceDate = invoice.issueDate || invoice.invoiceDate || invoice.issue_date || invoice.invoice_date;
     
-    // Debug: Log invoice data to understand structure
-    if (invoice.invoiceNumber === 'INV-2425-001') {
-      console.log('Debug invoice data:', JSON.stringify(invoice, null, 2));
-    }
+    // Date filtering logic
     
     if (dateRange.from && invoiceDate) {
       const invDate = new Date(invoiceDate);
@@ -152,18 +145,7 @@ export default function InvoicesPage() {
       }
     }
     
-    // Debug: Log filter results
-    if (invoice.invoiceNumber === 'INV-2425-001') {
-      console.log(`Filter results for ${invoice.invoiceNumber}:`, {
-        matchesSearch,
-        matchesCustomer, 
-        matchesStatus,
-        matchesDateRange,
-        invoiceDate,
-        dateRangeFrom: dateRange.from,
-        dateRangeTo: dateRange.to
-      });
-    }
+    // Return filtered results
     
     return matchesSearch && matchesCustomer && matchesStatus && matchesDateRange;
   }) || [];
