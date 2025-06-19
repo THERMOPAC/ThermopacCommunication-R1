@@ -108,7 +108,6 @@ export default function InvoicesPage() {
     let matchesStatus = false;
     
     // Status filtering logic
-    
     if (statusFilter === 'all') {
       matchesStatus = true;
     } else if (statusFilter === 'pending' && (invoice.status === 'Pending' || invoice.status === 'Partially Paid')) {
@@ -120,6 +119,12 @@ export default function InvoicesPage() {
       matchesStatus = dueDate < today && (invoice.status === 'Pending' || invoice.status === 'Partially Paid');
     } else if (statusFilter === 'paid' && invoice.status === 'Paid') {
       matchesStatus = true;
+    }
+    
+    // Debug logging for tab filtering
+    if (statusFilter === 'paid' || statusFilter === 'overdue') {
+      console.log(`Tab changed to:`, statusFilter);
+      console.log(`Checking invoice ${invoice.invoiceNumber}: status="${invoice.status}", outstandingAmount=${invoice.outstandingAmount}, matchesStatus=${matchesStatus}`);
     }
     
     // Date range filtering - check multiple possible date field names

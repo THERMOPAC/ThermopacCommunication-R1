@@ -188,6 +188,7 @@ router.get('/invoices-list', ensureAuthenticated, async (req: Request, res: Resp
         console.log('Found invoices in database:', result.rows.length);
         console.log('First invoice raw data:', result.rows[0]);
         console.log('All invoice numbers found:', result.rows.map(inv => inv.invoiceNumber));
+        console.log('Invoice statuses:', result.rows.map(inv => `${inv.invoiceNumber}: ${inv.status}`).slice(0, 10));
         
         // Format dates for frontend display
         const formattedInvoices = result.rows.map(invoice => ({
