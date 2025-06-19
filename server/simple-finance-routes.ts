@@ -196,6 +196,7 @@ router.get('/invoices-list', ensureAuthenticated, async (req: Request, res: Resp
         console.log('First invoice raw data:', result.rows[0]);
         console.log('All invoice numbers found:', result.rows.map(inv => inv.invoiceNumber));
         console.log('Invoice statuses:', result.rows.map(inv => `${inv.invoiceNumber}: ${inv.status}`).slice(0, 10));
+        console.log('Due dates for overdue check:', result.rows.map(inv => `${inv.invoiceNumber}: due ${inv.dueDate}, status ${inv.status}`).slice(0, 10));
         
         // Format dates for frontend display
         const formattedInvoices = result.rows.map(invoice => ({
