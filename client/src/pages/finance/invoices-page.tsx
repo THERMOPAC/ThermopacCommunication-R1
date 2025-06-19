@@ -121,12 +121,6 @@ export default function InvoicesPage() {
       matchesStatus = true;
     }
     
-    // Debug logging for tab filtering
-    if (statusFilter === 'paid' || statusFilter === 'overdue') {
-      console.log(`Tab changed to:`, statusFilter);
-      console.log(`Checking invoice ${invoice.invoiceNumber}: status="${invoice.status}", outstandingAmount=${invoice.outstandingAmount}, matchesStatus=${matchesStatus}`);
-    }
-    
     // Date range filtering - check multiple possible date field names
     let matchesDateRange = true;
     const invoiceDate = invoice.issueDate || invoice.invoiceDate || invoice.issue_date || invoice.invoice_date;
