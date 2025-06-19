@@ -116,14 +116,7 @@ export default function InvoicesPage() {
       // Check if the invoice is overdue by comparing the due date with today's date
       const dueDate = new Date(invoice.dueDate);
       const today = new Date();
-      const isOverdue = dueDate < today && (invoice.status === 'Pending' || invoice.status === 'Partially Paid');
-      
-      // Debug overdue filtering
-      if (invoice.status === 'Pending' || invoice.status === 'Partially Paid') {
-        console.log(`Overdue check for ${invoice.invoiceNumber}: due=${invoice.dueDate}, today=${today.toISOString().split('T')[0]}, isOverdue=${isOverdue}, status=${invoice.status}`);
-      }
-      
-      matchesStatus = isOverdue;
+      matchesStatus = dueDate < today && (invoice.status === 'Pending' || invoice.status === 'Partially Paid');
     } else if (statusFilter === 'paid' && invoice.status === 'Paid') {
       matchesStatus = true;
     }
