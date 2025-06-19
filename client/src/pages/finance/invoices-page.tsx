@@ -78,7 +78,10 @@ export default function InvoicesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [customerFilter, setCustomerFilter] = useState('all');
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({
+    from: undefined, // Remove default date filter to show all invoices
+    to: undefined
+  });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Query for invoices using direct database connection with proper cache invalidation
@@ -123,13 +126,43 @@ export default function InvoicesPage() {
       matchesStatus = true;
     }
     
-    // Date range filtering
+    // Date range filtering - check multiple possible date field names
     let matchesDateRange = true;
-    if (dateRange.from) {
-      matchesDateRange = matchesDateRange && new Date(invoice.issueDate) >= dateRange.from;
+    const invoiceDate = invoice.issueDate || invoice.invoiceDate || invoice.issue_date || invoice.invoice_date;
+    
+    // Debug: Log invoice data to understand structure
+    if (invoice.invoiceNumber === 'INV-2425-001') {
+      console.log('Debug invoice data:', JSON.stringify(invoice, null, 2));
     }
-    if (dateRange.to) {
-      matchesDateRange = matchesDateRange && new Date(invoice.issueDate) <= dateRange.to;
+    
+    if (dateRange.from && invoiceDate) {
+      const invDate = new Date(invoiceDate);
+      if (isNaN(invDate.getTime())) {
+        console.log(`Invalid date for invoice ${invoice.invoiceNumber}:`, invoiceDate);
+      } else {
+        matchesDateRange = matchesDateRange && invDate >= dateRange.from;
+      }
+    }
+    if (dateRange.to && invoiceDate) {
+      const invDate = new Date(invoiceDate);
+      if (isNaN(invDate.getTime())) {
+        console.log(`Invalid date for invoice ${invoice.invoiceNumber}:`, invoiceDate);
+      } else {
+        matchesDateRange = matchesDateRange && invDate <= dateRange.to;
+      }
+    }
+    
+    // Debug: Log filter results
+    if (invoice.invoiceNumber === 'INV-2425-001') {
+      console.log(`Filter results for ${invoice.invoiceNumber}:`, {
+        matchesSearch,
+        matchesCustomer, 
+        matchesStatus,
+        matchesDateRange,
+        invoiceDate,
+        dateRangeFrom: dateRange.from,
+        dateRangeTo: dateRange.to
+      });
     }
     
     return matchesSearch && matchesCustomer && matchesStatus && matchesDateRange;
