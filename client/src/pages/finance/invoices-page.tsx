@@ -238,14 +238,30 @@ export default function InvoicesPage() {
                 />
               </div>
               
-              <Button
-                variant="outline" 
-                onClick={() => setIsFilterOpen(!isFilterOpen)}
-                className="w-full sm:w-auto"
-              >
-                <Filter className="mr-2 h-4 w-4" />
-                Filters
-              </Button>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <Button
+                  variant="outline" 
+                  onClick={() => setIsFilterOpen(!isFilterOpen)}
+                  className="flex-1 sm:w-auto"
+                >
+                  <Filter className="mr-2 h-4 w-4" />
+                  Filters
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setStatusFilter('all');
+                    setCustomerFilter('all');
+                    setDateRange({ from: undefined, to: undefined });
+                  }}
+                  className="flex-1 sm:w-auto"
+                  title="Clear all filters"
+                >
+                  Clear
+                </Button>
+              </div>
             </div>
 
             {isFilterOpen && (
