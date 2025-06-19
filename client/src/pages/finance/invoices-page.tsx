@@ -83,10 +83,10 @@ export default function InvoicesPage() {
 
   // Query for invoices using direct database connection with proper cache invalidation
   const { data, isLoading, error } = useQuery({
-    queryKey: ['/api/simple-finance/invoices-list', Date.now()], // Force fresh data with timestamp
+    queryKey: ['/api/simple-finance/invoices-list'],
     retry: 2,
-    staleTime: 0, // Always fetch fresh data
-    gcTime: 0  // Don't cache the data (React Query v5 uses gcTime instead of cacheTime)
+    staleTime: 30000, // Cache for 30 seconds for better performance
+    refetchOnWindowFocus: false // Prevent automatic refetching on focus
   });
 
 

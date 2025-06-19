@@ -156,6 +156,8 @@ router.get('/invoices-list', ensureAuthenticated, async (req: Request, res: Resp
     
     // Use a simple direct query to get all invoices
     try {
+      // Limit to 30 most recent invoices for faster loading
+
       const query = `
         SELECT 
           id,
@@ -177,6 +179,7 @@ router.get('/invoices-list', ensureAuthenticated, async (req: Request, res: Resp
           updated_at AS "updatedAt"
         FROM invoices 
         ORDER BY created_at DESC, invoice_number DESC
+        LIMIT 30
       `;
       
       const result = await pool.query(query);
