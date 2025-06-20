@@ -178,14 +178,7 @@ router.get('/invoices-list', ensureAuthenticated, async (req: Request, res: Resp
           created_at AS "createdAt",
           updated_at AS "updatedAt"
         FROM invoices 
-        ORDER BY 
-          CASE 
-            WHEN status = 'Paid' THEN 1 
-            WHEN status = 'Pending' THEN 2 
-            ELSE 3 
-          END,
-          created_at DESC, 
-          invoice_number DESC
+        ORDER BY invoice_number ASC
         LIMIT 50
       `;
       
