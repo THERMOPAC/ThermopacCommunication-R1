@@ -149,6 +149,13 @@ export default function InvoicesPage() {
     return matchesSearch && matchesCustomer && matchesStatus && matchesDateRange;
   }) || [];
 
+  // Sort filtered invoices by Invoice # in ascending order
+  const sortedInvoices = filteredInvoices.sort((a: any, b: any) => {
+    const aNum = a.invoiceNumber || '';
+    const bNum = b.invoiceNumber || '';
+    return aNum.localeCompare(bNum, undefined, { numeric: true, sensitivity: 'base' });
+  });
+
   // Extract unique customer names for the dropdown
   const uniqueCustomers = Array.from(new Set(
     invoices
@@ -363,8 +370,8 @@ export default function InvoicesPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredInvoices.length > 0 ? (
-                filteredInvoices.map((invoice: any) => (
+              {sortedInvoices.length > 0 ? (
+                sortedInvoices.map((invoice: any) => (
                   <tr key={invoice.id} className="border-t hover:bg-muted/50">
                     <td className="px-4 py-3 text-left text-sm">
                       <Link href={`/finance/invoices/view/${invoice.id}`} className="text-primary hover:underline">
