@@ -3563,9 +3563,13 @@ function TaxCalculator() {
       { dueDate: "15 March", percentage: 100, paid: parseFloat(paidMarch) || 0 }
     ];
 
+    // Calculate cumulative balances
+    let cumulativePaid = 0;
     const instalments = instalmentSchedule.map((instalment, index) => {
       const taxDue = (totalTax * instalment.percentage) / 100;
-      const balance = taxDue - instalment.paid;
+      cumulativePaid += instalment.paid;
+      const cumulativeTaxDue = (totalTax * instalment.percentage) / 100;
+      const balance = cumulativeTaxDue - cumulativePaid;
       
       // Interest under Section 234C is applicable if:
       // 1. June instalment: Less than 15% paid by due date
