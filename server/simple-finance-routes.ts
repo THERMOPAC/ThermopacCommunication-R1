@@ -179,7 +179,6 @@ router.get('/invoices-list', ensureAuthenticated, async (req: Request, res: Resp
           updated_at AS "updatedAt"
         FROM invoices 
         ORDER BY invoice_number ASC
-        LIMIT 50
       `;
       
       const result = await pool.query(query);
