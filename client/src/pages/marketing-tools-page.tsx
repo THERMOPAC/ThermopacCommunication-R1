@@ -26,7 +26,7 @@ export default function MarketingToolsPage() {
       tools: [
         {
           title: "ROI Calculator",
-          description: "Calculate return on investment for marketing campaigns and initiatives",
+          description: "Calculate return on investment for re-refining plant projects",
           icon: Calculator,
           status: "Available",
           action: "Launch Tool"
@@ -115,7 +115,9 @@ export default function MarketingToolsPage() {
   };
 
   const handleToolAction = (tool: any) => {
-    if (tool.status === "Coming Soon") {
+    if (tool.title === "ROI Calculator") {
+      window.location.href = '/roi-calculator';
+    } else if (tool.status === "Coming Soon") {
       alert(`${tool.title} is coming soon! Stay tuned for updates.`);
     } else if (tool.status === "Beta") {
       alert(`${tool.title} is in beta. Some features may be limited.`);
