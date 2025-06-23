@@ -42,33 +42,16 @@ interface ROIData {
   customerName: string;
   projectName: string;
   
-  // Step 2: Tank Farm & Utility Setup
-  usedOilStorageSize: string;
-  usedOilStorageQty: string;
-  lightBaseOilSize: string;
-  lightBaseOilQty: string;
-  heavyBaseOilSize: string;
-  heavyBaseOilQty: string;
-  lightBaseOilIntermediateSize: string;
-  lightBaseOilIntermediateQty: string;
-  heavyBaseOilIntermediateSize: string;
-  heavyBaseOilIntermediateQty: string;
-  finishLightBaseOilSize: string;
-  finishLightBaseOilQty: string;
-  finishHeavyBaseOilSize: string;
-  finishHeavyBaseOilQty: string;
-  wasteWaterTankSize: string;
-  wasteWaterTankQty: string;
-  naphthaGasOilSize: string;
-  naphthaGasOilQty: string;
-  residueStorageSize: string;
-  residueStorageQty: string;
-  processWaterTankSize: string;
-  processWaterTankQty: string;
-  fireWaterStorageSize: string;
-  fireWaterStorageQty: string;
-  fuelOilTankSize: string;
-  fuelOilTankQty: string;
+  // Step 2: Tank Farm & Utility Setup - Auto-calculated tanks
+  tanks: Array<{
+    description: string;
+    percentCapacity: number;
+    storageDays: number;
+    requiredKL: number;
+    suggestedTankSize: number;
+    suggestedQuantity: number;
+    editable: boolean;
+  }>;
   boilerCapacity: string;
   heaterCapacity: string;
   powerRequirement: string;
@@ -109,32 +92,21 @@ export default function MarketingToolsPage() {
     currency: 'USD',
     customerName: '',
     projectName: '',
-    usedOilStorageSize: '',
-    usedOilStorageQty: '',
-    lightBaseOilSize: '',
-    lightBaseOilQty: '',
-    heavyBaseOilSize: '',
-    heavyBaseOilQty: '',
-    lightBaseOilIntermediateSize: '',
-    lightBaseOilIntermediateQty: '',
-    heavyBaseOilIntermediateSize: '',
-    heavyBaseOilIntermediateQty: '',
-    finishLightBaseOilSize: '',
-    finishLightBaseOilQty: '',
-    finishHeavyBaseOilSize: '',
-    finishHeavyBaseOilQty: '',
-    wasteWaterTankSize: '',
-    wasteWaterTankQty: '',
-    naphthaGasOilSize: '',
-    naphthaGasOilQty: '',
-    residueStorageSize: '',
-    residueStorageQty: '',
-    processWaterTankSize: '',
-    processWaterTankQty: '',
-    fireWaterStorageSize: '',
-    fireWaterStorageQty: '',
-    fuelOilTankSize: '',
-    fuelOilTankQty: '',
+    tanks: [
+      { description: 'Used oil storage tanks', percentCapacity: 150, storageDays: 7, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
+      { description: 'Light Base Oil', percentCapacity: 80, storageDays: 5, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
+      { description: 'Heavy Base Oil', percentCapacity: 60, storageDays: 5, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
+      { description: 'Light Base Oil Intermediate tank', percentCapacity: 40, storageDays: 3, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
+      { description: 'Heavy Base Oil Intermediate tank', percentCapacity: 30, storageDays: 3, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
+      { description: 'Finish Light Base Oil', percentCapacity: 70, storageDays: 7, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
+      { description: 'Finish Heavy Base Oil', percentCapacity: 50, storageDays: 7, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
+      { description: 'Waste Water tank', percentCapacity: 25, storageDays: 2, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
+      { description: 'Naphtha / Gas Oil storage tank', percentCapacity: 35, storageDays: 4, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
+      { description: 'Residue storage tank', percentCapacity: 20, storageDays: 3, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
+      { description: 'Process water tank', percentCapacity: 30, storageDays: 2, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
+      { description: 'Fire water storage tank', percentCapacity: 100, storageDays: 30, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
+      { description: 'Fuel oil Tank', percentCapacity: 15, storageDays: 5, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true }
+    ],
     boilerCapacity: '',
     heaterCapacity: '',
     powerRequirement: '',
@@ -251,9 +223,85 @@ export default function MarketingToolsPage() {
     }
   };
 
+  // Standard tank sizes in KL
+  const standardTankSizes = [50, 100, 200, 300, 400, 600];
+
+  // Tank calculation functions
+  const calculateTankRequirements = (plantCapacityLPH: number) => {
+    return roiData.tanks.map(tank => {
+      // Capacity (KL) = (LPH × % × Days × 24) / 1000
+      const requiredKL = (plantCapacityLPH * (tank.percentCapacity / 100) * tank.storageDays * 24) / 1000;
+      
+      // Find optimal tank size and quantity
+      let bestTankSize = standardTankSizes[0];
+      let bestQuantity = Math.ceil(requiredKL / bestTankSize);
+      
+      // Try to keep quantity under 10 where possible
+      for (const tankSize of standardTankSizes) {
+        const quantity = Math.ceil(requiredKL / tankSize);
+        if (quantity <= 10) {
+          bestTankSize = tankSize;
+          bestQuantity = quantity;
+          break;
+        }
+      }
+      
+      return {
+        ...tank,
+        requiredKL: Math.round(requiredKL * 10) / 10, // Round to 1 decimal
+        suggestedTankSize: bestTankSize,
+        suggestedQuantity: bestQuantity
+      };
+    });
+  };
+
+  const updateTankData = (index: number, field: string, value: string | number) => {
+    const updatedTanks = [...roiData.tanks];
+    updatedTanks[index] = { ...updatedTanks[index], [field]: value };
+    
+    // Recalculate if percentage or days changed
+    if (field === 'percentCapacity' || field === 'storageDays') {
+      const plantCapacity = parseFloat(roiData.capacity) || 0;
+      if (plantCapacity > 0) {
+        const tank = updatedTanks[index];
+        const requiredKL = (plantCapacity * (tank.percentCapacity / 100) * tank.storageDays * 24) / 1000;
+        
+        let bestTankSize = standardTankSizes[0];
+        let bestQuantity = Math.ceil(requiredKL / bestTankSize);
+        
+        for (const tankSize of standardTankSizes) {
+          const quantity = Math.ceil(requiredKL / tankSize);
+          if (quantity <= 10) {
+            bestTankSize = tankSize;
+            bestQuantity = quantity;
+            break;
+          }
+        }
+        
+        updatedTanks[index] = {
+          ...updatedTanks[index],
+          requiredKL: Math.round(requiredKL * 10) / 10,
+          suggestedTankSize: bestTankSize,
+          suggestedQuantity: bestQuantity
+        };
+      }
+    }
+    
+    setROIData(prev => ({ ...prev, tanks: updatedTanks }));
+  };
+
   // ROI Calculator Functions
   const updateData = (field: keyof ROIData, value: string | number) => {
     setROIData(prev => ({ ...prev, [field]: value }));
+    
+    // Auto-calculate tanks when capacity changes
+    if (field === 'capacity' && value) {
+      const plantCapacity = parseFloat(value as string);
+      if (plantCapacity > 0) {
+        const calculatedTanks = calculateTankRequirements(plantCapacity);
+        setROIData(prev => ({ ...prev, tanks: calculatedTanks }));
+      }
+    }
   };
 
   const calculateROI = () => {
@@ -595,295 +643,95 @@ export default function MarketingToolsPage() {
                   </div>
                 )}
 
-                {/* Step 2: Tank Farm & Utilities */}
+                {/* Step 2: Tank Farm & Utilities - Auto-calculated */}
                 {currentStep === 2 && (
                   <div className="space-y-6">
+                    {!roiData.capacity && (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <p className="text-yellow-800 text-sm">
+                          Please go back to Step 1 and select a plant capacity to auto-calculate tank requirements.
+                        </p>
+                      </div>
+                    )}
+                    
                     <div className="overflow-x-auto">
-                      <table className="w-full border-collapse border border-gray-300">
+                      <table className="w-full border-collapse border border-gray-300 text-sm">
                         <thead>
                           <tr className="bg-gray-50">
-                            <th className="border border-gray-300 px-4 py-2 text-left font-medium">Tank Description</th>
-                            <th className="border border-gray-300 px-4 py-2 text-center font-medium">KL</th>
-                            <th className="border border-gray-300 px-4 py-2 text-center font-medium">QTY</th>
+                            <th className="border border-gray-300 px-3 py-2 text-left font-medium">Tank Description</th>
+                            <th className="border border-gray-300 px-2 py-2 text-center font-medium">% of Plant Capacity</th>
+                            <th className="border border-gray-300 px-2 py-2 text-center font-medium">Days of Storage</th>
+                            <th className="border border-gray-300 px-2 py-2 text-center font-medium">Required Capacity (KL)</th>
+                            <th className="border border-gray-300 px-2 py-2 text-center font-medium">Suggested Tank Size (KL)</th>
+                            <th className="border border-gray-300 px-2 py-2 text-center font-medium">Suggested Quantity</th>
                           </tr>
                         </thead>
                         <tbody>
-                          <tr>
-                            <td className="border border-gray-300 px-4 py-2">Used oil storage tanks</td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.usedOilStorageSize}
-                                onChange={(e) => updateData('usedOilStorageSize', e.target.value)}
-                                placeholder="KL"
-                                className="w-full"
-                              />
-                            </td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.usedOilStorageQty}
-                                onChange={(e) => updateData('usedOilStorageQty', e.target.value)}
-                                placeholder="Qty"
-                                className="w-full"
-                              />
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="border border-gray-300 px-4 py-2">Light Base Oil</td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.lightBaseOilSize}
-                                onChange={(e) => updateData('lightBaseOilSize', e.target.value)}
-                                placeholder="KL"
-                                className="w-full"
-                              />
-                            </td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.lightBaseOilQty}
-                                onChange={(e) => updateData('lightBaseOilQty', e.target.value)}
-                                placeholder="Qty"
-                                className="w-full"
-                              />
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="border border-gray-300 px-4 py-2">Heavy Base Oil</td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.heavyBaseOilSize}
-                                onChange={(e) => updateData('heavyBaseOilSize', e.target.value)}
-                                placeholder="KL"
-                                className="w-full"
-                              />
-                            </td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.heavyBaseOilQty}
-                                onChange={(e) => updateData('heavyBaseOilQty', e.target.value)}
-                                placeholder="Qty"
-                                className="w-full"
-                              />
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="border border-gray-300 px-4 py-2">Light Base Oil Intermediate tank</td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.lightBaseOilIntermediateSize}
-                                onChange={(e) => updateData('lightBaseOilIntermediateSize', e.target.value)}
-                                placeholder="KL"
-                                className="w-full"
-                              />
-                            </td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.lightBaseOilIntermediateQty}
-                                onChange={(e) => updateData('lightBaseOilIntermediateQty', e.target.value)}
-                                placeholder="Qty"
-                                className="w-full"
-                              />
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="border border-gray-300 px-4 py-2">Heavy Base Oil Intermediate tank</td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.heavyBaseOilIntermediateSize}
-                                onChange={(e) => updateData('heavyBaseOilIntermediateSize', e.target.value)}
-                                placeholder="KL"
-                                className="w-full"
-                              />
-                            </td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.heavyBaseOilIntermediateQty}
-                                onChange={(e) => updateData('heavyBaseOilIntermediateQty', e.target.value)}
-                                placeholder="Qty"
-                                className="w-full"
-                              />
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="border border-gray-300 px-4 py-2">Finish Light Base Oil</td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.finishLightBaseOilSize}
-                                onChange={(e) => updateData('finishLightBaseOilSize', e.target.value)}
-                                placeholder="KL"
-                                className="w-full"
-                              />
-                            </td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.finishLightBaseOilQty}
-                                onChange={(e) => updateData('finishLightBaseOilQty', e.target.value)}
-                                placeholder="Qty"
-                                className="w-full"
-                              />
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="border border-gray-300 px-4 py-2">Finish Heavy Base Oil</td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.finishHeavyBaseOilSize}
-                                onChange={(e) => updateData('finishHeavyBaseOilSize', e.target.value)}
-                                placeholder="KL"
-                                className="w-full"
-                              />
-                            </td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.finishHeavyBaseOilQty}
-                                onChange={(e) => updateData('finishHeavyBaseOilQty', e.target.value)}
-                                placeholder="Qty"
-                                className="w-full"
-                              />
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="border border-gray-300 px-4 py-2">Waste Water tank</td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.wasteWaterTankSize}
-                                onChange={(e) => updateData('wasteWaterTankSize', e.target.value)}
-                                placeholder="KL"
-                                className="w-full"
-                              />
-                            </td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.wasteWaterTankQty}
-                                onChange={(e) => updateData('wasteWaterTankQty', e.target.value)}
-                                placeholder="Qty"
-                                className="w-full"
-                              />
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="border border-gray-300 px-4 py-2">Naphtha / Gas Oil storage tank</td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.naphthaGasOilSize}
-                                onChange={(e) => updateData('naphthaGasOilSize', e.target.value)}
-                                placeholder="KL"
-                                className="w-full"
-                              />
-                            </td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.naphthaGasOilQty}
-                                onChange={(e) => updateData('naphthaGasOilQty', e.target.value)}
-                                placeholder="Qty"
-                                className="w-full"
-                              />
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="border border-gray-300 px-4 py-2">Residue storage tank</td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.residueStorageSize}
-                                onChange={(e) => updateData('residueStorageSize', e.target.value)}
-                                placeholder="KL"
-                                className="w-full"
-                              />
-                            </td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.residueStorageQty}
-                                onChange={(e) => updateData('residueStorageQty', e.target.value)}
-                                placeholder="Qty"
-                                className="w-full"
-                              />
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="border border-gray-300 px-4 py-2">Process water tank</td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.processWaterTankSize}
-                                onChange={(e) => updateData('processWaterTankSize', e.target.value)}
-                                placeholder="KL"
-                                className="w-full"
-                              />
-                            </td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.processWaterTankQty}
-                                onChange={(e) => updateData('processWaterTankQty', e.target.value)}
-                                placeholder="Qty"
-                                className="w-full"
-                              />
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="border border-gray-300 px-4 py-2">Fire water storage tank</td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.fireWaterStorageSize}
-                                onChange={(e) => updateData('fireWaterStorageSize', e.target.value)}
-                                placeholder="KL"
-                                className="w-full"
-                              />
-                            </td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.fireWaterStorageQty}
-                                onChange={(e) => updateData('fireWaterStorageQty', e.target.value)}
-                                placeholder="Qty"
-                                className="w-full"
-                              />
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="border border-gray-300 px-4 py-2">Fuel oil Tank</td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.fuelOilTankSize}
-                                onChange={(e) => updateData('fuelOilTankSize', e.target.value)}
-                                placeholder="KL"
-                                className="w-full"
-                              />
-                            </td>
-                            <td className="border border-gray-300 px-2 py-1">
-                              <Input
-                                type="number"
-                                value={roiData.fuelOilTankQty}
-                                onChange={(e) => updateData('fuelOilTankQty', e.target.value)}
-                                placeholder="Qty"
-                                className="w-full"
-                              />
-                            </td>
-                          </tr>
+                          {roiData.tanks.map((tank, index) => (
+                            <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                              <td className="border border-gray-300 px-3 py-2 font-medium">{tank.description}</td>
+                              <td className="border border-gray-300 px-1 py-1">
+                                <Input
+                                  type="number"
+                                  value={tank.percentCapacity}
+                                  onChange={(e) => updateTankData(index, 'percentCapacity', parseFloat(e.target.value) || 0)}
+                                  className="w-16 text-center text-xs"
+                                  step="0.1"
+                                />
+                              </td>
+                              <td className="border border-gray-300 px-1 py-1">
+                                <Input
+                                  type="number"
+                                  value={tank.storageDays}
+                                  onChange={(e) => updateTankData(index, 'storageDays', parseFloat(e.target.value) || 0)}
+                                  className="w-16 text-center text-xs"
+                                  step="0.1"
+                                />
+                              </td>
+                              <td className="border border-gray-300 px-2 py-2 text-center font-semibold text-blue-600">
+                                {tank.requiredKL.toFixed(1)}
+                              </td>
+                              <td className="border border-gray-300 px-2 py-2 text-center">
+                                <Select 
+                                  value={tank.suggestedTankSize.toString()} 
+                                  onValueChange={(value) => updateTankData(index, 'suggestedTankSize', parseInt(value))}
+                                >
+                                  <SelectTrigger className="w-20 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {standardTankSizes.map(size => (
+                                      <SelectItem key={size} value={size.toString()}>{size}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </td>
+                              <td className="border border-gray-300 px-1 py-1">
+                                <Input
+                                  type="number"
+                                  value={tank.suggestedQuantity}
+                                  onChange={(e) => updateTankData(index, 'suggestedQuantity', parseInt(e.target.value) || 0)}
+                                  className="w-16 text-center text-xs"
+                                />
+                              </td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
                     </div>
+                    
+                    {roiData.capacity && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-start gap-2">
+                          <Info className="h-4 w-4 text-blue-600 mt-0.5" />
+                          <div className="text-sm text-blue-800">
+                            <p className="font-medium mb-1">Auto-calculation Formula:</p>
+                            <p>Required Capacity (KL) = (Plant LPH × % × Days × 24) / 1000</p>
+                            <p className="mt-2">Tank suggestions optimize for quantities under 10 units using standard sizes: 50, 100, 200, 300, 400, 600 KL</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     
                     <Separator />
                     
