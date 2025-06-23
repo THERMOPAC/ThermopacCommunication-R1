@@ -251,7 +251,7 @@ export default function MarketingToolsPage() {
         const quantity = Math.ceil(requiredLoad / heaterSize);
         const totalLoad = heaterSize * quantity;
         
-        if (totalLoad >= requiredLoad && quantity < bestConfig.quantity) {
+        if (totalLoad >= requiredLoad && (quantity < bestConfig.quantity || (quantity === bestConfig.quantity && heaterSize < bestConfig.size))) {
           bestConfig = { size: heaterSize, quantity, totalLoad };
         }
       }
