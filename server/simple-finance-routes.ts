@@ -517,7 +517,7 @@ router.get('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
 /**
  * Get all items for an invoice
  */
-router.get('/invoices/:id/items', ensureAuthenticated, async (req: Request, res: Response) => {
+router.get('/invoice-items/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const invoiceId = parseInt(req.params.id);
     if (isNaN(invoiceId)) {
