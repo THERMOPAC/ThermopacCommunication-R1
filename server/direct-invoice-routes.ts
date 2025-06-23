@@ -43,9 +43,9 @@ router.post('/invoices/direct', async (req: Request, res: Response) => {
       const insertInvoiceQuery = `
         INSERT INTO invoices (
           invoice_number, customer_id, project_id, issue_date, due_date, 
-          total_amount, outstanding_amount, paid_amount, currency, status, notes, created_by, sap_invoice_no, invoice_type,
+          total_amount, outstanding_amount, paid_amount, currency, exchange_rate, status, notes, created_by, sap_invoice_no, invoice_type,
           is_export, brc_required, shipping_bill_number
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) 
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) 
         RETURNING *
       `;
       
@@ -59,6 +59,7 @@ router.post('/invoices/direct', async (req: Request, res: Response) => {
         totalAmount, // outstanding_amount = total_amount initially
         0, // paid_amount = 0 initially
         invoice.currency || 'USD',
+        parseFloat(invoice.exchangeRate || '1.0000'),
         'Pending',
         invoice.notes || null,
         req.user?.id || 1,
@@ -176,14 +177,15 @@ router.put('/invoices/direct/:id', async (req: Request, res: Response) => {
           due_date = $5,
           total_amount = $6,
           currency = $7,
-          status = $8,
-          notes = $9,
-          sap_invoice_no = $10,
-          invoice_type = $11,
-          shipping_bill_number = $12,
-          is_export = $13,
-          brc_required = $14
-        WHERE id = $15
+          exchange_rate = $8,
+          status = $9,
+          notes = $10,
+          sap_invoice_no = $11,
+          invoice_type = $12,
+          shipping_bill_number = $13,
+          is_export = $14,
+          brc_required = $15
+        WHERE id = $16
         RETURNING *
       `;
       
@@ -195,6 +197,7 @@ router.put('/invoices/direct/:id', async (req: Request, res: Response) => {
         invoice.dueDate,
         invoice.totalAmount,
         invoice.currency || 'USD',
+        parseFloat(invoice.exchangeRate || '1.0000'),
         currentInvoice.status, // Preserve original status
         invoice.notes || null,
         invoice.sapInvoiceNo || null,
