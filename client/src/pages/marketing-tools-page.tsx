@@ -109,6 +109,8 @@ export default function MarketingToolsPage() {
     ],
     boilerCapacity: '',
     heaterCapacity: '',
+    heaterQuantity: '',
+    heaterTotalLoad: '',
     powerRequirement: '',
     feedstockCost: '',
     powerCost: '',
@@ -233,6 +235,31 @@ export default function MarketingToolsPage() {
       : Math.ceil(value / 100) * 100;  // round up to nearest 100
   };
 
+  // Heater sizing logic
+  const availableHeaterSizes = [600000, 10000000, 15000000, 20000000, 25000000, 30000000];
+  
+  const calculateOptimalHeaterConfig = (requiredLoad: number, plantCapacity: number) => {
+    if (plantCapacity <= 3000) {
+      // For small plants, pick the smallest heater size ≥ required load
+      const optimalSize = availableHeaterSizes.find(size => size >= requiredLoad) || availableHeaterSizes[availableHeaterSizes.length - 1];
+      return { size: optimalSize, quantity: 1, totalLoad: optimalSize };
+    } else {
+      // For large plants, select multiple heaters with fewest quantity
+      let bestConfig = { size: availableHeaterSizes[availableHeaterSizes.length - 1], quantity: Math.ceil(requiredLoad / availableHeaterSizes[availableHeaterSizes.length - 1]), totalLoad: 0 };
+      
+      for (const heaterSize of availableHeaterSizes) {
+        const quantity = Math.ceil(requiredLoad / heaterSize);
+        const totalLoad = heaterSize * quantity;
+        
+        if (totalLoad >= requiredLoad && quantity < bestConfig.quantity) {
+          bestConfig = { size: heaterSize, quantity, totalLoad };
+        }
+      }
+      
+      return bestConfig;
+    }
+  };
+
   // Optimal tank size and quantity calculation
   const getOptimalTankSizeAndQuantity = (requiredKL: number) => {
     const SIZES = [50, 100, 200, 300, 400, 600];
@@ -321,14 +348,17 @@ export default function MarketingToolsPage() {
         
         // Calculate utility requirements based on plant capacity
         const compressorCapacity = Math.round(20 * (plantCapacity / 1000));
-        const heaterCapacity = Math.round(600000 * (plantCapacity / 1000));
+        const requiredHeaterLoad = 600000 * (plantCapacity / 1000);
+        const heaterConfig = calculateOptimalHeaterConfig(requiredHeaterLoad, plantCapacity);
         const powerRequirement = Math.round(350 * (plantCapacity / 1000));
         
         setROIData(prev => ({ 
           ...prev, 
           tanks: calculatedTanks,
           boilerCapacity: compressorCapacity.toString(),
-          heaterCapacity: heaterCapacity.toString(),
+          heaterCapacity: heaterConfig.size.toString(),
+          heaterQuantity: heaterConfig.quantity.toString(),
+          heaterTotalLoad: heaterConfig.totalLoad.toString(),
           powerRequirement: powerRequirement.toString()
         }));
       }
@@ -763,7 +793,7 @@ export default function MarketingToolsPage() {
                             <p className="mt-1">Safety: Ensures minimum 1 tank and 50 KL capacity when required capacity &gt; 0</p>
                             <p className="mt-2 font-medium text-blue-700">Utility Auto-calculations:</p>
                             <p className="text-xs">• Compressor: 20 × (LPH/1000) m³/hr</p>
-                            <p className="text-xs">• Heater: 600,000 × (LPH/1000) kcal/hr</p>
+                            <p className="text-xs">• Heater: Smart sizing with optimal quantity selection</p>
                             <p className="text-xs">• Power: 350 × (LPH/1000) kW</p>
                           </div>
                         </div>
@@ -789,17 +819,43 @@ export default function MarketingToolsPage() {
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <Label>Heater Capacity (kcal/hr)</Label>
+                          <Label>Heater Size (kcal/hr)</Label>
                           <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Auto-calculated</span>
                         </div>
-                        <Input
-                          type="number"
-                          value={roiData.heaterCapacity}
-                          onChange={(e) => updateData('heaterCapacity', e.target.value)}
-                          placeholder="Auto-calculated based on plant capacity"
-                          className="bg-blue-50"
-                        />
-                        <p className="text-xs text-gray-500">Formula: 600,000 × (Plant LPH / 1000)</p>
+                        <Select value={roiData.heaterCapacity} onValueChange={(value) => updateData('heaterCapacity', value)}>
+                          <SelectTrigger className="bg-blue-50">
+                            <SelectValue placeholder="Select heater size" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="600000">600,000 kcal/hr</SelectItem>
+                            <SelectItem value="10000000">10,000,000 kcal/hr</SelectItem>
+                            <SelectItem value="15000000">15,000,000 kcal/hr</SelectItem>
+                            <SelectItem value="20000000">20,000,000 kcal/hr</SelectItem>
+                            <SelectItem value="25000000">25,000,000 kcal/hr</SelectItem>
+                            <SelectItem value="30000000">30,000,000 kcal/hr</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs text-gray-600">Quantity</Label>
+                            <Input
+                              type="number"
+                              value={roiData.heaterQuantity}
+                              readOnly
+                              className="bg-gray-50 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-gray-600">Total Load (kcal/hr)</Label>
+                            <Input
+                              type="number"
+                              value={roiData.heaterTotalLoad}
+                              readOnly
+                              className="bg-gray-50 text-sm"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-500">Smart sizing: ≤3000 LPH = single optimal heater, &gt;3000 LPH = multiple heaters with minimum quantity</p>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
