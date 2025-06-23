@@ -104,7 +104,7 @@ export default function MarketingToolsPage() {
       { description: 'Naphtha / Gas Oil storage tank', percentCapacity: 35, storageDays: 4, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
       { description: 'Residue storage tank', percentCapacity: 20, storageDays: 3, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
       { description: 'Process water tank', percentCapacity: 30, storageDays: 2, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
-      { description: 'Fire water storage tank', percentCapacity: 100, storageDays: 30, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
+      { description: 'Fire water storage tank', percentCapacity: 20, storageDays: 30, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
       { description: 'Fuel oil Tank', percentCapacity: 15, storageDays: 5, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true }
     ],
     boilerCapacity: '',
