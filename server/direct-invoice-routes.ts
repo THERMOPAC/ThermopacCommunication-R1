@@ -79,8 +79,8 @@ router.post('/invoices/direct', async (req: Request, res: Response) => {
         const itemInsertPromises = items.map((item: any) => {
           const insertItemQuery = `
             INSERT INTO invoice_items (
-              invoice_id, description, quantity, unit_price, amount
-            ) VALUES ($1, $2, $3, $4, $5) 
+              invoice_id, description, quantity, unit_price, amount, amount_lc
+            ) VALUES ($1, $2, $3, $4, $5, $6) 
             RETURNING *
           `;
           
@@ -89,7 +89,8 @@ router.post('/invoices/direct', async (req: Request, res: Response) => {
             item.description || '',
             parseFloat(item.quantity) || 1,
             parseFloat(item.unitPrice) || parseFloat(item.amount) || 0,
-            parseFloat(item.amount) || 0
+            parseFloat(item.amount) || 0,
+            parseFloat(item.amountLC) || 0
           ];
           
           return client.query(insertItemQuery, itemValues);
@@ -226,8 +227,8 @@ router.put('/invoices/direct/:id', async (req: Request, res: Response) => {
         const itemInsertPromises = items.map((item: any) => {
           const insertItemQuery = `
             INSERT INTO invoice_items (
-              invoice_id, description, quantity, unit_price, amount
-            ) VALUES ($1, $2, $3, $4, $5) 
+              invoice_id, description, quantity, unit_price, amount, amount_lc
+            ) VALUES ($1, $2, $3, $4, $5, $6) 
             RETURNING *
           `;
           
@@ -236,7 +237,8 @@ router.put('/invoices/direct/:id', async (req: Request, res: Response) => {
             item.description || '',
             parseFloat(item.quantity) || 1,
             parseFloat(item.unitPrice) || parseFloat(item.amount) || 0,
-            parseFloat(item.amount) || 0
+            parseFloat(item.amount) || 0,
+            parseFloat(item.amountLC) || 0
           ];
           
           return client.query(insertItemQuery, itemValues);

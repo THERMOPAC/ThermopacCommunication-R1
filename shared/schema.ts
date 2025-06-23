@@ -3434,6 +3434,7 @@ export const invoiceItems = pgTable('invoice_items', {
   quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
   unitPrice: decimal('unit_price', { precision: 15, scale: 2 }).notNull(),
   amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),
+  amountLc: decimal('amount_lc', { precision: 15, scale: 2 }).default('0'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow()
 });

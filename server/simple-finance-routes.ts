@@ -647,8 +647,8 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
       for (const item of items) {
         const itemQuery = `
           INSERT INTO invoice_items (
-            invoice_id, description, quantity, unit_price, amount, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+            invoice_id, description, quantity, unit_price, amount, amount_lc, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
         `;
         
         const itemValues = [
@@ -656,7 +656,8 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
           item.description || '',
           parseFloat(item.quantity) || 1,
           parseFloat(item.unitPrice) || 0,
-          parseFloat(item.amount) || 0
+          parseFloat(item.amount) || 0,
+          parseFloat(item.amountLC) || 0
         ];
         
         await pool.query(itemQuery, itemValues);
