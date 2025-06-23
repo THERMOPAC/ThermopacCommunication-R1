@@ -1,3 +1,4 @@
+import Layout from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -124,125 +125,127 @@ export default function MarketingToolsPage() {
   };
 
   return (
-    <div className="p-6 space-y-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Marketing Tools</h1>
-        <p className="text-muted-foreground">
-          Comprehensive marketing tools to enhance your campaigns and analyze performance
-        </p>
-      </div>
+    <Layout>
+      <div className="p-6 space-y-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Marketing Tools</h1>
+          <p className="text-muted-foreground">
+            Comprehensive marketing tools to enhance your campaigns and analyze performance
+          </p>
+        </div>
 
-      {/* Category Tabs */}
-      <div className="flex gap-6 border-b border-gray-200 mb-8">
-        {categories.map((category) => (
-          <button
-            key={category.name}
-            className="px-4 py-2 font-medium text-gray-600 border-b-2 border-transparent hover:text-gray-800 hover:border-gray-300 transition-colors"
-          >
-            {category.name}
-          </button>
+        {/* Category Tabs */}
+        <div className="flex gap-6 border-b border-gray-200 mb-8">
+          {categories.map((category) => (
+            <button
+              key={category.name}
+              className="px-4 py-2 font-medium text-gray-600 border-b-2 border-transparent hover:text-gray-800 hover:border-gray-300 transition-colors"
+            >
+              {category.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Tools Sections */}
+        {categories.map((category, categoryIndex) => (
+          <div key={category.name} className="space-y-4">
+            <h2 className="text-xl font-semibold text-gray-800">{category.name}</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {category.tools.map((tool, toolIndex) => {
+                const IconComponent = tool.icon;
+                return (
+                  <Card key={`${categoryIndex}-${toolIndex}`} className="relative group hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-gray-100 rounded-lg">
+                            <IconComponent className="h-5 w-5 text-gray-600" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-base font-medium">{tool.title}</CardTitle>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(tool.status)}
+                          <button className="p-1 rounded hover:bg-gray-100">
+                            <MoreHorizontal className="h-4 w-4 text-gray-400" />
+                          </button>
+                        </div>
+                      </div>
+                      <CardDescription className="text-sm text-gray-600 mt-2">
+                        {tool.description}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <button className="text-xs text-blue-600 hover:text-blue-700">
+                            {category.name}
+                          </button>
+                        </div>
+                        <Button 
+                          variant={tool.status === "Available" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handleToolAction(tool)}
+                          disabled={tool.status === "Coming Soon"}
+                          className="text-xs px-3 py-1 h-7"
+                        >
+                          {tool.action}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
         ))}
-      </div>
 
-      {/* Tools Sections */}
-      {categories.map((category, categoryIndex) => (
-        <div key={category.name} className="space-y-4">
-          <h2 className="text-xl font-semibold text-gray-800">{category.name}</h2>
+        {/* Summary Statistics */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 pt-8 border-t">
+          <div className="text-center">
+            <div className="flex items-center justify-center mb-2">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <PieChart className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold">9</p>
+            <p className="text-sm text-muted-foreground">Total Tools</p>
+          </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {category.tools.map((tool, toolIndex) => {
-              const IconComponent = tool.icon;
-              return (
-                <Card key={`${categoryIndex}-${toolIndex}`} className="relative group hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-gray-100 rounded-lg">
-                          <IconComponent className="h-5 w-5 text-gray-600" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-base font-medium">{tool.title}</CardTitle>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {getStatusBadge(tool.status)}
-                        <button className="p-1 rounded hover:bg-gray-100">
-                          <MoreHorizontal className="h-4 w-4 text-gray-400" />
-                        </button>
-                      </div>
-                    </div>
-                    <CardDescription className="text-sm text-gray-600 mt-2">
-                      {tool.description}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <button className="text-xs text-blue-600 hover:text-blue-700">
-                          {category.name}
-                        </button>
-                      </div>
-                      <Button 
-                        variant={tool.status === "Available" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handleToolAction(tool)}
-                        disabled={tool.status === "Coming Soon"}
-                        className="text-xs px-3 py-1 h-7"
-                      >
-                        {tool.action}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-
-      {/* Summary Statistics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 pt-8 border-t">
-        <div className="text-center">
-          <div className="flex items-center justify-center mb-2">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-              <PieChart className="h-6 w-6 text-blue-600" />
+          <div className="text-center">
+            <div className="flex items-center justify-center mb-2">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <Target className="h-6 w-6 text-green-600" />
+              </div>
             </div>
+            <p className="text-2xl font-bold">6</p>
+            <p className="text-sm text-muted-foreground">Available</p>
           </div>
-          <p className="text-2xl font-bold">9</p>
-          <p className="text-sm text-muted-foreground">Total Tools</p>
-        </div>
-        
-        <div className="text-center">
-          <div className="flex items-center justify-center mb-2">
-            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-              <Target className="h-6 w-6 text-green-600" />
+          
+          <div className="text-center">
+            <div className="flex items-center justify-center mb-2">
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                <Zap className="h-6 w-6 text-yellow-600" />
+              </div>
             </div>
+            <p className="text-2xl font-bold">1</p>
+            <p className="text-sm text-muted-foreground">Beta</p>
           </div>
-          <p className="text-2xl font-bold">6</p>
-          <p className="text-sm text-muted-foreground">Available</p>
-        </div>
-        
-        <div className="text-center">
-          <div className="flex items-center justify-center mb-2">
-            <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-              <Zap className="h-6 w-6 text-yellow-600" />
+          
+          <div className="text-center">
+            <div className="flex items-center justify-center mb-2">
+              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                <Clock className="h-6 w-6 text-gray-600" />
+              </div>
             </div>
+            <p className="text-2xl font-bold">2</p>
+            <p className="text-sm text-muted-foreground">Coming Soon</p>
           </div>
-          <p className="text-2xl font-bold">1</p>
-          <p className="text-sm text-muted-foreground">Beta</p>
-        </div>
-        
-        <div className="text-center">
-          <div className="flex items-center justify-center mb-2">
-            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-              <Clock className="h-6 w-6 text-gray-600" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold">2</p>
-          <p className="text-sm text-muted-foreground">Coming Soon</p>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }
