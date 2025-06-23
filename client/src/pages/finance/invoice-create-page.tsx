@@ -313,7 +313,8 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         if (invoiceData.items && invoiceData.items.length > 0) {
           formItems = invoiceData.items.map((item: any) => ({
             description: item.description || '',
-            amount: String(item.amount || invoice.totalAmount || '0')
+            amount: String(item.amount || invoice.totalAmount || '0'),
+            amountLC: String(item.amountLC || '0')
           }));
         } else {
           // If no items exist, create one with the invoice total amount
@@ -321,9 +322,15 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
             ? 'Service as per SAP invoice' 
             : 'Items as per SAP invoice';
             
+          // Calculate Amount LC from stored values
+          const amount = parseFloat(invoice.totalAmount || '0');
+          const exchangeRate = parseFloat(invoice.exchangeRate || '1');
+          const amountLC = amount * exchangeRate;
+            
           formItems = [{
             description: defaultDescription,
-            amount: String(invoice.totalAmount || '0')
+            amount: String(invoice.totalAmount || '0'),
+            amountLC: String(amountLC.toFixed(2))
           }];
         }
         

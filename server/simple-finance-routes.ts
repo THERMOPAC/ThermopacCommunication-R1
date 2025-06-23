@@ -524,7 +524,7 @@ router.get('/invoice-items/:id', ensureAuthenticated, async (req: Request, res: 
       return res.status(400).json({ error: 'Invalid invoice ID' });
     }
     
-    // Use direct query for invoice items
+    // Use direct query for invoice items  
     const query = `
       SELECT 
         id,
@@ -534,14 +534,6 @@ router.get('/invoice-items/:id', ensureAuthenticated, async (req: Request, res: 
         unit_price as "unitPrice",
         amount,
         amount_lc as "amountLC",
-        tax_rate as "taxRate",
-        tax_amount as "taxAmount",
-        discount_percent as "discountPercent",
-        discount_amount as "discountAmount",
-        line_total as "lineTotal",
-        project_item_id as "projectItemId",
-        master_item_id as "masterItemId",
-        hsn_code as "hsnCode",
         created_at as "createdAt",
         updated_at as "updatedAt"
       FROM invoice_items
