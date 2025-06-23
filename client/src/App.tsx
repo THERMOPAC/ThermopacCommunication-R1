@@ -149,6 +149,7 @@ function Router() {
       <ProtectedRoute path="/leads" component={LeadsPage} />
       <ProtectedRoute path="/campaigns" component={CampaignsPage} />
       <ProtectedRoute path="/marketing-dashboard" component={MarketingDashboardPage} />
+      <ProtectedRoute path="/marketing-tools" component={MarketingToolsPage} />
       
       {/* Finance Module Routes */}
       <ProtectedRoute path="/finance" component={FinanceDashboardPage} />

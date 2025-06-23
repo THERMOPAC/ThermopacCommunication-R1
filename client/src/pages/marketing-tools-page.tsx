@@ -11,7 +11,8 @@ import {
   Users,
   Zap,
   FileText,
-  Globe
+  Globe,
+  Clock
 } from 'lucide-react';
 
 export default function MarketingToolsPage() {
