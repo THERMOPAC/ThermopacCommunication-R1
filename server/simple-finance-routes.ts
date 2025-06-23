@@ -533,6 +533,7 @@ router.get('/invoices/:id/items', ensureAuthenticated, async (req: Request, res:
         quantity,
         unit_price as "unitPrice",
         amount,
+        amount_lc as "amountLC",
         tax_rate as "taxRate",
         tax_amount as "taxAmount",
         discount_percent as "discountPercent",
