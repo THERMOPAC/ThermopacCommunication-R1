@@ -285,6 +285,7 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       paidAmount: 0, // Initialize with 0 (no payments yet)
       outstandingAmount: totalAmount, // Initialize with full amount outstanding
       currency: invoice.currency || 'USD',
+      exchangeRate: invoice.exchangeRate || '1.0000',
       status: 'Pending',
       notes: invoice.notes || null,
       shippingBillNumber: invoice.shippingBillNumber || null,
@@ -393,7 +394,8 @@ router.get('/invoices', ensureAuthenticated, async (req: Request, res: Response)
           i.total_amount as "totalAmount", 
           COALESCE(i.paid_amount, 0) as "paidAmount",
           COALESCE(i.outstanding_amount, i.total_amount) as "outstandingAmount",
-          i.currency, 
+          i.currency,
+          COALESCE(i.exchange_rate, 1.0000) as "exchangeRate",
           i.status,
           i.sap_invoice_no as "sapInvoiceNo", 
           i.invoice_type as "invoiceType",
@@ -453,7 +455,8 @@ router.get('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
         i.issue_date as "issueDate", 
         i.due_date as "dueDate", 
         i.total_amount as "totalAmount", 
-        i.currency, 
+        i.currency,
+        COALESCE(i.exchange_rate, 1.0000) as "exchangeRate",
         i.status,
         i.sap_invoice_no as "sapInvoiceNo", 
         i.invoice_type as "invoiceType",
@@ -597,14 +600,15 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
         due_date = $5,
         total_amount = $6,
         currency = $7,
-        sap_invoice_no = $8,
-        invoice_type = $9,
-        shipping_bill_number = $10,
-        is_export = $11,
-        brc_required = $12,
-        notes = $13,
+        exchange_rate = $8,
+        sap_invoice_no = $9,
+        invoice_type = $10,
+        shipping_bill_number = $11,
+        is_export = $12,
+        brc_required = $13,
+        notes = $14,
         updated_at = NOW()
-      WHERE id = $14
+      WHERE id = $15
       RETURNING *
     `;
     
@@ -616,6 +620,7 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
       new Date(invoice.dueDate),
       parseFloat(invoice.totalAmount),
       invoice.currency || 'USD',
+      parseFloat(invoice.exchangeRate || '1.0000'),
       invoice.sapInvoiceNo || null,
       invoice.invoiceType || 'Product',
       invoice.shippingBillNumber || null,
