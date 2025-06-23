@@ -313,12 +313,24 @@ export default function MarketingToolsPage() {
   const updateData = (field: keyof ROIData, value: string | number) => {
     setROIData(prev => ({ ...prev, [field]: value }));
     
-    // Auto-calculate tanks when capacity changes
+    // Auto-calculate tanks and utilities when capacity changes
     if (field === 'capacity' && value) {
       const plantCapacity = parseFloat(value as string);
       if (plantCapacity > 0) {
         const calculatedTanks = calculateTankRequirements(plantCapacity);
-        setROIData(prev => ({ ...prev, tanks: calculatedTanks }));
+        
+        // Calculate utility requirements based on plant capacity
+        const compressorCapacity = Math.round(20 * (plantCapacity / 1000));
+        const heaterCapacity = Math.round(600000 * (plantCapacity / 1000));
+        const powerRequirement = Math.round(350 * (plantCapacity / 1000));
+        
+        setROIData(prev => ({ 
+          ...prev, 
+          tanks: calculatedTanks,
+          boilerCapacity: compressorCapacity.toString(),
+          heaterCapacity: heaterCapacity.toString(),
+          powerRequirement: powerRequirement.toString()
+        }));
       }
     }
   };
