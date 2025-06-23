@@ -1589,10 +1589,9 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                className={`text-right ${hideNumberInputArrows} bg-muted cursor-not-allowed`}
+                                className={`text-right ${hideNumberInputArrows}`}
                                 {...field}
-                                readOnly
-                                placeholder="Auto-calculated"
+                                placeholder="0.00"
                               />
                             </FormControl>
                             <FormMessage />
