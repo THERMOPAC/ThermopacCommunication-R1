@@ -256,6 +256,7 @@ export default function MarketingToolsPage() {
         }
       }
       
+      bestConfig.totalLoad = bestConfig.size * bestConfig.quantity;
       return bestConfig;
     }
   };
