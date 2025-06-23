@@ -84,6 +84,7 @@ const invoiceFormSchema = z.object({
     required_error: "Due date is required",
   }),
   currency: z.string().default("INR"),
+  exchangeRate: z.string().min(1, "Exchange rate is required"),
   sapInvoiceNo: z.string().min(1, "SAP Invoice No is required"),
   invoiceType: z.enum(["Product", "Service"]),
   shippingBillNumber: z.string().optional(),
@@ -194,6 +195,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
             dueDate: invoice.dueDate,
             totalAmount: invoice.totalAmount,
             currency: invoice.currency || 'USD',
+            exchangeRate: invoice.exchangeRate || '1.0000',
             sapInvoiceNo: invoice.sapInvoiceNo || '',
             invoiceType: invoice.invoiceType || 'Product',
             shippingBillNumber: invoice.shippingBillNumber || '',
@@ -230,6 +232,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         ? new Date(invoiceData.invoice.dueDate)
         : new Date(new Date().setDate(new Date().getDate() + 30)), // Due in 30 days
       currency: isEditMode && invoiceData?.invoice ? invoiceData.invoice.currency : 'USD',
+      exchangeRate: isEditMode && invoiceData?.invoice ? String(invoiceData.invoice.exchangeRate || '1.0000') : '1.0000',
       sapInvoiceNo: isEditMode && invoiceData?.invoice ? invoiceData.invoice.sapInvoiceNo || '' : '',
       invoiceType: isEditMode && invoiceData?.invoice && invoiceData.invoice.invoiceType
         ? invoiceData.invoice.invoiceType
@@ -333,6 +336,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           issueDate: new Date(invoice.issueDate),
           dueDate: new Date(invoice.dueDate),
           currency: invoice.currency || 'USD',
+          exchangeRate: invoice.exchangeRate || '1.0000',
           sapInvoiceNo: invoice.sapInvoiceNo || '',
           invoiceType: invoice.invoiceType || 'Product',
           shippingBillNumber: invoice.shippingBillNumber || '',
@@ -1009,6 +1013,25 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                           onChange={() => {}} 
                           readOnly 
                           className="bg-muted cursor-not-allowed"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="exchangeRate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Exchange Rate</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number"
+                          step="0.0001"
+                          placeholder="1.0000" 
+                          {...field}
                         />
                       </FormControl>
                       <FormMessage />

@@ -3410,6 +3410,7 @@ export const invoices = pgTable('invoices', {
   dueDate: date('due_date').notNull(),
   totalAmount: decimal('total_amount', { precision: 15, scale: 2 }).notNull(),
   currency: varchar('currency', { length: 3 }).notNull().default('INR'),
+  exchangeRate: decimal('exchange_rate', { precision: 10, scale: 4 }).default('1.0000'),
   status: varchar('status', { length: 20 }).notNull().default('Pending'),
   notes: text('notes'),
   // Export tracking fields
