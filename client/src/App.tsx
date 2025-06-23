@@ -33,6 +33,7 @@ import SpecialFixesPage from "@/pages/special-fixes-page";
 import LeadsPage from "@/pages/leads-page";
 import CampaignsPage from "@/pages/campaigns-page";
 import MarketingDashboardPage from "@/pages/marketing-dashboard-page";
+import MarketingToolsPage from "@/pages/marketing-tools-page";
 
 // Finance module pages
 import FinanceDashboardPage from "@/pages/finance/finance-dashboard-page";

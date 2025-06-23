@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Factory,
   BadgeCheck,
+  Wrench,
   Truck,
   HeartPulse,
   Lock,
@@ -67,7 +68,8 @@ export default function Layout({ children }: LayoutProps) {
   // Check if we're on any sales and marketing related page
   const isOnSalesAndMarketingPage = location === '/leads' ||
                                   location === '/campaigns' ||
-                                  location === '/marketing-dashboard';
+                                  location === '/marketing-dashboard' ||
+                                  location === '/marketing-tools';
   
   // Check if we're on any project-related page
   const isOnProjectsPage = location.startsWith('/project') || 
@@ -159,7 +161,8 @@ export default function Layout({ children }: LayoutProps) {
       children: [
         { icon: UsersRound, label: "Leads", href: "/leads" },
         { icon: BarChart4, label: "Marketing Dashboard", href: "/marketing-dashboard" },
-        { icon: TrendingUp, label: "Campaigns", href: "/campaigns" }
+        { icon: TrendingUp, label: "Campaigns", href: "/campaigns" },
+        { icon: Wrench, label: "Marketing Tools", href: "/marketing-tools" }
       ]
     }] : []),
     ...(hasViewPermission("Finance") ? [{ 
