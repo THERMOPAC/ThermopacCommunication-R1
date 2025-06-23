@@ -115,6 +115,7 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 - June 23, 2025. Added Exchange Rate and Amount LC fields to invoice management system with auto-calculation functionality and database persistence
 - June 23, 2025. Added Marketing Tools sub-tab under Sales and Marketing with categorized layout similar to Design Tools page
 - June 23, 2025. Created comprehensive ROI Calculator tool for re-refining plant projects with 6-step wizard, real-time calculations, and report generation capabilities
+- June 23, 2025. Integrated ROI Calculator as a tab within Marketing Tools page instead of separate page for better user experience
 
 # User Preferences
 Preferred communication style: Simple, everyday language.
