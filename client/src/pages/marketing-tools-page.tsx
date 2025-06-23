@@ -244,11 +244,13 @@ export default function MarketingToolsPage() {
       const optimalSize = availableHeaterSizes.find(size => size >= requiredLoad) || availableHeaterSizes[availableHeaterSizes.length - 1];
       return { size: optimalSize, quantity: 1, totalLoad: optimalSize };
     } else {
-      // For large plants, select multiple heaters with fewest quantity
-      let bestConfig = { size: availableHeaterSizes[availableHeaterSizes.length - 1], quantity: Math.ceil(requiredLoad / availableHeaterSizes[availableHeaterSizes.length - 1]), totalLoad: 0 };
+      // For large plants, select multiple heaters (minimum 2) with fewest quantity
+      let bestConfig = { size: availableHeaterSizes[availableHeaterSizes.length - 1], quantity: Math.max(2, Math.ceil(requiredLoad / availableHeaterSizes[availableHeaterSizes.length - 1])), totalLoad: 0 };
       
       for (const heaterSize of availableHeaterSizes) {
-        const quantity = Math.ceil(requiredLoad / heaterSize);
+        // Ensure minimum 2 heaters for plants > 3000 LPH
+        const minQuantity = Math.max(2, Math.ceil(requiredLoad / heaterSize));
+        const quantity = minQuantity;
         const totalLoad = heaterSize * quantity;
         
         if (totalLoad >= requiredLoad && (quantity < bestConfig.quantity || (quantity === bestConfig.quantity && heaterSize < bestConfig.size))) {
@@ -856,7 +858,7 @@ export default function MarketingToolsPage() {
                             />
                           </div>
                         </div>
-                        <p className="text-xs text-gray-500">Smart sizing: ≤3000 LPH = single optimal heater, &gt;3000 LPH = multiple heaters with minimum quantity</p>
+                        <p className="text-xs text-gray-500">Smart sizing: ≤3000 LPH = single optimal heater, &gt;3000 LPH = minimum 2 heaters with optimal quantity</p>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
