@@ -96,6 +96,7 @@ const invoiceFormSchema = z.object({
     z.object({
       description: z.string().min(1, "Description is required"),
       amount: z.string().min(1, "Amount is required"),
+      amountLC: z.string().optional(),
     })
   ).min(1, "At least one item is required"),
   // Fields for advance payment application
@@ -163,7 +164,8 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
               invoiceItems = itemsData.map((item: any) => ({
                 id: item.id,
                 description: item.description || 'Item description',
-                amount: String(item.amount || item.lineTotal || invoice.totalAmount)
+                amount: String(item.amount || item.lineTotal || invoice.totalAmount),
+                amountLC: String((parseFloat(item.amount || item.lineTotal || invoice.totalAmount || '0') * parseFloat(invoice.exchangeRate || '1')).toFixed(2))
               }));
             }
           }
@@ -179,7 +181,8 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
               description: invoice.invoiceType === 'Service' 
                 ? 'Service as per SAP invoice' 
                 : 'Items as per SAP invoice',
-              amount: String(invoice.totalAmount || '0')
+              amount: String(invoice.totalAmount || '0'),
+              amountLC: String((parseFloat(invoice.totalAmount || '0') * parseFloat(invoice.exchangeRate || '1')).toFixed(2))
             }
           ];
         }
@@ -246,11 +249,13 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         ? invoiceData.items.map((item: any) => ({
             description: item.description || '',
             amount: String(item.amount) || '0',
+            amountLC: String(item.amountLC || (parseFloat(item.amount || '0') * parseFloat(invoiceData.invoice?.exchangeRate || '1')).toFixed(2)),
           }))
         : [
             {
               description: 'Items as per SAP invoice',
               amount: '0',
+              amountLC: '0.00',
             },
           ],
       // Add the new advance payment fields
@@ -1032,6 +1037,14 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                           step="0.0001"
                           placeholder="1.0000" 
                           {...field}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            // Auto-calculate Amount LC when exchange rate changes
+                            const amount = parseFloat(form.getValues('items.0.amount')) || 0;
+                            const exchangeRate = parseFloat(e.target.value) || 1;
+                            const amountLC = amount * exchangeRate;
+                            form.setValue('items.0.amountLC', amountLC.toFixed(2));
+                          }}
                         />
                       </FormControl>
                       <FormMessage />
