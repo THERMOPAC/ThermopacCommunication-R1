@@ -518,13 +518,22 @@ export default function MarketingToolsPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="capacity">Plant Capacity (Liters/Hour) *</Label>
-                      <Input
-                        id="capacity"
-                        type="number"
-                        value={roiData.capacity}
-                        onChange={(e) => updateData('capacity', e.target.value)}
-                        placeholder="e.g., 1000"
-                      />
+                      <Select value={roiData.capacity} onValueChange={(value) => updateData('capacity', value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select capacity" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1000">1000</SelectItem>
+                          <SelectItem value="1500">1500</SelectItem>
+                          <SelectItem value="2000">2000</SelectItem>
+                          <SelectItem value="3000">3000</SelectItem>
+                          <SelectItem value="4000">4000</SelectItem>
+                          <SelectItem value="6000">6000</SelectItem>
+                          <SelectItem value="8000">8000</SelectItem>
+                          <SelectItem value="12000">12000</SelectItem>
+                          <SelectItem value="16000">16000</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="currency">Currency *</Label>
