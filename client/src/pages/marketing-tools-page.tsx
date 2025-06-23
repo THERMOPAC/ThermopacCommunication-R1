@@ -758,7 +758,7 @@ export default function MarketingToolsPage() {
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label>Boiler Capacity (kg/hr)</Label>
+                        <Label>Compressor Capacity (m³/hr)</Label>
                         <Input
                           type="number"
                           value={roiData.boilerCapacity}
@@ -767,7 +767,7 @@ export default function MarketingToolsPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Heater Capacity (kW)</Label>
+                        <Label>Heater Capacity (kcal/hr)</Label>
                         <Input
                           type="number"
                           value={roiData.heaterCapacity}
