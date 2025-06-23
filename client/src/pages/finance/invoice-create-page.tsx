@@ -165,7 +165,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                 id: item.id,
                 description: item.description || 'Item description',
                 amount: String(item.amount || item.lineTotal || invoice.totalAmount),
-                amountLC: String((parseFloat(item.amount || item.lineTotal || invoice.totalAmount || '0') * parseFloat(invoice.exchangeRate || '1')).toFixed(2))
+                amountLC: String(item.amountLC || (parseFloat(item.amount || item.lineTotal || invoice.totalAmount || '0') * parseFloat(invoice.exchangeRate || '1')).toFixed(2))
               }));
             }
           }
@@ -249,7 +249,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         ? invoiceData.items.map((item: any) => ({
             description: item.description || '',
             amount: String(item.amount) || '0',
-            amountLC: String(item.amountLC || (parseFloat(item.amount || '0') * parseFloat(invoiceData.invoice?.exchangeRate || '1')).toFixed(2)),
+            amountLC: String(item.amountLC || '0'),
           }))
         : [
             {
