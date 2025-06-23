@@ -979,7 +979,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="grid grid-cols-6 gap-4">
                 <FormField
                   control={form.control}
                   name="invoiceNumber"
@@ -1508,8 +1508,8 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                     <h4 className="font-medium">Invoice Line</h4>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                    <div className="md:col-span-8">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
                       <FormField
                         control={form.control}
                         name="items.0.description"
@@ -1529,7 +1529,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                       />
                     </div>
                     
-                    <div className="md:col-span-4">
+                    <div>
                       <FormField
                         control={form.control}
                         name="items.0.amount"
@@ -1544,6 +1544,38 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                                 className={`text-right ${hideNumberInputArrows} ${isEditMode ? "bg-muted cursor-not-allowed" : ""}`}
                                 {...field}
                                 readOnly={isEditMode}
+                                onChange={(e) => {
+                                  field.onChange(e);
+                                  // Auto-calculate Amount LC when amount changes
+                                  const amount = parseFloat(e.target.value) || 0;
+                                  const exchangeRate = parseFloat(form.getValues('exchangeRate')) || 1;
+                                  const amountLC = amount * exchangeRate;
+                                  form.setValue('items.0.amountLC', amountLC.toFixed(2));
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <div>
+                      <FormField
+                        control={form.control}
+                        name="items.0.amountLC"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Amount LC</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                className={`text-right ${hideNumberInputArrows} bg-muted cursor-not-allowed`}
+                                {...field}
+                                readOnly
+                                placeholder="Auto-calculated"
                               />
                             </FormControl>
                             <FormMessage />
