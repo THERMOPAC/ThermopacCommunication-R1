@@ -113,6 +113,7 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 # Changelog
 - June 19, 2025. Initial setup
 - June 23, 2025. Added Exchange Rate and Amount LC fields to invoice management system with auto-calculation functionality and database persistence
+- June 23, 2025. Added Marketing Tools sub-tab under Sales and Marketing with categorized layout similar to Design Tools page
 
 # User Preferences
 Preferred communication style: Simple, everyday language.
