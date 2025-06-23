@@ -236,7 +236,7 @@ export default function MarketingToolsPage() {
   // Optimal tank size and quantity calculation
   const getOptimalTankSizeAndQuantity = (requiredKL: number) => {
     const SIZES = [50, 100, 200, 300, 400, 600];
-    let best = { size: 600, qty: Math.ceil(requiredKL / 600) };
+    let bestOption = null;
 
     for (let size of SIZES) {
       const qty = Math.ceil(requiredKL / size);
@@ -244,13 +244,13 @@ export default function MarketingToolsPage() {
 
       if (
         totalCapacity >= requiredKL &&
-        qty <= best.qty
+        (!bestOption || qty < bestOption.qty || (qty === bestOption.qty && size < bestOption.size))
       ) {
-        best = { size, qty };
+        bestOption = { size, qty };
       }
     }
 
-    return best;
+    return bestOption || { size: 600, qty: Math.ceil(requiredKL / 600) }; // fallback
   };
 
   // Enhanced tank calculation functions
