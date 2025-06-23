@@ -794,7 +794,7 @@ export default function MarketingToolsPage() {
                             <p className="mt-2 font-medium text-blue-700">Utility Auto-calculations:</p>
                             <p className="text-xs">• Compressor: 20 × (LPH/1000) m³/hr</p>
                             <p className="text-xs">• Heater: Smart sizing with optimal quantity selection</p>
-                            <p className="text-xs">• Power: 350 × (LPH/1000) kW</p>
+                            <p className="text-xs">• Connected Load: 350 × (LPH/1000) kW</p>
                           </div>
                         </div>
                       </div>
@@ -859,7 +859,7 @@ export default function MarketingToolsPage() {
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <Label>Total Power Requirement (kW)</Label>
+                          <Label>Total Connected Load (kW)</Label>
                           <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Auto-calculated</span>
                         </div>
                         <Input
