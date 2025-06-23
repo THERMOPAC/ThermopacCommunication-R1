@@ -749,6 +749,10 @@ export default function MarketingToolsPage() {
                             <p className="mt-2">Smart Rounding: Capacities &lt;300 KL round UP to nearest 50 KL, larger capacities round UP to nearest 100 KL</p>
                             <p className="mt-1">Optimization: Minimizes tank quantity while meeting capacity requirements using standard sizes: 50, 100, 200, 300, 400, 600 KL</p>
                             <p className="mt-1">Safety: Ensures minimum 1 tank and 50 KL capacity when required capacity &gt; 0</p>
+                            <p className="mt-2 font-medium text-blue-700">Utility Auto-calculations:</p>
+                            <p className="text-xs">• Compressor: 20 × (LPH/1000) m³/hr</p>
+                            <p className="text-xs">• Heater: 600,000 × (LPH/1000) kcal/hr</p>
+                            <p className="text-xs">• Power: 350 × (LPH/1000) kW</p>
                           </div>
                         </div>
                       </div>
@@ -758,31 +762,46 @@ export default function MarketingToolsPage() {
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label>Compressor Capacity (m³/hr)</Label>
+                        <div className="flex items-center justify-between">
+                          <Label>Compressor Capacity (m³/hr)</Label>
+                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Auto-calculated</span>
+                        </div>
                         <Input
                           type="number"
                           value={roiData.boilerCapacity}
                           onChange={(e) => updateData('boilerCapacity', e.target.value)}
-                          placeholder="e.g., 1000"
+                          placeholder="Auto-calculated based on plant capacity"
+                          className="bg-blue-50"
                         />
+                        <p className="text-xs text-gray-500">Formula: 20 × (Plant LPH / 1000)</p>
                       </div>
                       <div className="space-y-2">
-                        <Label>Heater Capacity (kcal/hr)</Label>
+                        <div className="flex items-center justify-between">
+                          <Label>Heater Capacity (kcal/hr)</Label>
+                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Auto-calculated</span>
+                        </div>
                         <Input
                           type="number"
                           value={roiData.heaterCapacity}
                           onChange={(e) => updateData('heaterCapacity', e.target.value)}
-                          placeholder="e.g., 200"
+                          placeholder="Auto-calculated based on plant capacity"
+                          className="bg-blue-50"
                         />
+                        <p className="text-xs text-gray-500">Formula: 600,000 × (Plant LPH / 1000)</p>
                       </div>
                       <div className="space-y-2">
-                        <Label>Total Power Requirement (kW)</Label>
+                        <div className="flex items-center justify-between">
+                          <Label>Total Power Requirement (kW)</Label>
+                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Auto-calculated</span>
+                        </div>
                         <Input
                           type="number"
                           value={roiData.powerRequirement}
                           onChange={(e) => updateData('powerRequirement', e.target.value)}
-                          placeholder="e.g., 500"
+                          placeholder="Auto-calculated based on plant capacity"
+                          className="bg-blue-50"
                         />
+                        <p className="text-xs text-gray-500">Formula: 350 × (Plant LPH / 1000)</p>
                       </div>
                     </div>
                   </div>
