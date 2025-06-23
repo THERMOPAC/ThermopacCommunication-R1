@@ -226,51 +226,54 @@ export default function MarketingToolsPage() {
   // Standard tank sizes in KL
   const standardTankSizes = [50, 100, 200, 300, 400, 600];
 
-  // Capacity rounding functions
-  const roundToNearest50 = (value: number) => {
-    return Math.round(value / 50) * 50;
+  // Enhanced capacity rounding functions
+  const roundCapacitySmart = (value: number) => {
+    return value < 300
+      ? Math.ceil(value / 50) * 50  // round up to nearest 50
+      : Math.ceil(value / 100) * 100;  // round up to nearest 100
   };
 
-  const roundToNearest100 = (value: number) => {
-    return Math.round(value / 100) * 100;
-  };
+  // Optimal tank size and quantity calculation
+  const getOptimalTankSizeAndQuantity = (requiredKL: number) => {
+    const SIZES = [50, 100, 200, 300, 400, 600];
+    let best = { size: 600, qty: Math.ceil(requiredKL / 600) };
 
-  const smartRoundCapacity = (value: number) => {
-    if (value < 300) {
-      return roundToNearest50(value);
-    } else {
-      return roundToNearest100(value);
+    for (let size of SIZES) {
+      const qty = Math.ceil(requiredKL / size);
+      const totalCapacity = size * qty;
+
+      if (
+        totalCapacity >= requiredKL &&
+        qty <= best.qty
+      ) {
+        best = { size, qty };
+      }
     }
+
+    return best;
   };
 
-  // Tank calculation functions
+  // Enhanced tank calculation functions
   const calculateTankRequirements = (plantCapacityLPH: number) => {
     return roiData.tanks.map(tank => {
       // Capacity (KL) = (LPH × % × Days × 24) / 1000
-      const rawRequiredKL = (plantCapacityLPH * (tank.percentCapacity / 100) * tank.storageDays * 24) / 1000;
+      const rawKL = (plantCapacityLPH * (tank.percentCapacity / 100) * tank.storageDays * 24) / 1000;
       
-      // Apply smart rounding to the required capacity
-      const requiredKL = smartRoundCapacity(rawRequiredKL);
+      // Apply smart rounding (rounds up to nearest 50/100)
+      const roundedKL = roundCapacitySmart(rawKL);
       
-      // Find optimal tank size and quantity
-      let bestTankSize = standardTankSizes[0];
-      let bestQuantity = Math.ceil(requiredKL / bestTankSize);
+      // Get optimal tank size and quantity
+      const { size, qty } = getOptimalTankSizeAndQuantity(roundedKL);
       
-      // Try to keep quantity under 10 where possible
-      for (const tankSize of standardTankSizes) {
-        const quantity = Math.ceil(requiredKL / tankSize);
-        if (quantity <= 10) {
-          bestTankSize = tankSize;
-          bestQuantity = quantity;
-          break;
-        }
-      }
+      // Apply safety checks
+      const finalSize = size || 50; // fallback safety
+      const finalQty = qty > 0 ? qty : 1; // ensure min 1 tank if required KL > 0
       
       return {
         ...tank,
-        requiredKL: requiredKL, // Use rounded value
-        suggestedTankSize: bestTankSize,
-        suggestedQuantity: bestQuantity
+        requiredKL: roundedKL,
+        suggestedTankSize: finalSize,
+        suggestedQuantity: finalQty
       };
     });
   };
@@ -284,28 +287,21 @@ export default function MarketingToolsPage() {
       const plantCapacity = parseFloat(roiData.capacity) || 0;
       if (plantCapacity > 0) {
         const tank = updatedTanks[index];
-        const rawRequiredKL = (plantCapacity * (tank.percentCapacity / 100) * tank.storageDays * 24) / 1000;
+        const rawKL = (plantCapacity * (tank.percentCapacity / 100) * tank.storageDays * 24) / 1000;
         
-        // Apply smart rounding
-        const requiredKL = smartRoundCapacity(rawRequiredKL);
+        // Apply enhanced calculation logic
+        const roundedKL = roundCapacitySmart(rawKL);
+        const { size, qty } = getOptimalTankSizeAndQuantity(roundedKL);
         
-        let bestTankSize = standardTankSizes[0];
-        let bestQuantity = Math.ceil(requiredKL / bestTankSize);
-        
-        for (const tankSize of standardTankSizes) {
-          const quantity = Math.ceil(requiredKL / tankSize);
-          if (quantity <= 10) {
-            bestTankSize = tankSize;
-            bestQuantity = quantity;
-            break;
-          }
-        }
+        // Apply safety checks
+        const finalSize = size || 50;
+        const finalQty = qty > 0 ? qty : 1;
         
         updatedTanks[index] = {
           ...updatedTanks[index],
-          requiredKL: requiredKL,
-          suggestedTankSize: bestTankSize,
-          suggestedQuantity: bestQuantity
+          requiredKL: roundedKL,
+          suggestedTankSize: finalSize,
+          suggestedQuantity: finalQty
         };
       }
     }
@@ -748,10 +744,11 @@ export default function MarketingToolsPage() {
                         <div className="flex items-start gap-2">
                           <Info className="h-4 w-4 text-blue-600 mt-0.5" />
                           <div className="text-sm text-blue-800">
-                            <p className="font-medium mb-1">Auto-calculation Formula:</p>
+                            <p className="font-medium mb-1">Enhanced Auto-calculation Logic:</p>
                             <p>Required Capacity (KL) = (Plant LPH × % × Days × 24) / 1000</p>
-                            <p className="mt-2">Smart Rounding: Capacities &lt;300 KL are rounded to nearest 50 KL, larger capacities to nearest 100 KL</p>
-                            <p className="mt-1">Tank suggestions optimize for quantities under 10 units using standard sizes: 50, 100, 200, 300, 400, 600 KL</p>
+                            <p className="mt-2">Smart Rounding: Capacities &lt;300 KL round UP to nearest 50 KL, larger capacities round UP to nearest 100 KL</p>
+                            <p className="mt-1">Optimization: Minimizes tank quantity while meeting capacity requirements using standard sizes: 50, 100, 200, 300, 400, 600 KL</p>
+                            <p className="mt-1">Safety: Ensures minimum 1 tank and 50 KL capacity when required capacity &gt; 0</p>
                           </div>
                         </div>
                       </div>

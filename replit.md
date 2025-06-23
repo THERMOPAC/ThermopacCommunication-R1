@@ -117,6 +117,7 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 - June 23, 2025. Created comprehensive ROI Calculator tool for re-refining plant projects with 6-step wizard, real-time calculations, and report generation capabilities
 - June 23, 2025. Integrated ROI Calculator as a tab within Marketing Tools page instead of separate page for better user experience
 - June 23, 2025. Implemented auto-calculation for Tank Farm & Utilities in ROI Calculator with formula-based capacity calculations, standard tank size optimization, and editable parameters
+- June 23, 2025. Enhanced tank calculation logic with smart rounding (rounds UP to nearest 50/100 KL), quantity minimization algorithm, and safety checks to prevent zero capacities
 
 # User Preferences
 Preferred communication style: Simple, everyday language.
