@@ -118,7 +118,8 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 - June 23, 2025. Integrated ROI Calculator as a tab within Marketing Tools page instead of separate page for better user experience
 - June 23, 2025. Implemented auto-calculation for Tank Farm & Utilities in ROI Calculator with formula-based capacity calculations, standard tank size optimization, and editable parameters
 - June 23, 2025. Enhanced tank calculation logic with smart rounding (rounds UP to nearest 50/100 KL), quantity minimization algorithm, and safety checks to prevent zero capacities
-- June 23, 2025. Added automatic utility calculations for Step 2: Compressor (20×LPH/1000), Heater (600,000×LPH/1000), Power (350×LPH/1000) with real-time updates based on plant capacity
+- June 23, 2025. Added automatic utility calculations for Step 2: Compressor (20×LPH/1000), Heater (600,000×LPH/1000), Total Connected Load (350×LPH/1000) with real-time updates based on plant capacity
+- June 23, 2025. Updated heater selection logic for large plants (>3000 LPH) to require minimum 2 heaters while optimizing for fewest quantity, providing operational redundancy and flexibility
 
 # User Preferences
 Preferred communication style: Simple, everyday language.
