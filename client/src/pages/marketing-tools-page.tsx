@@ -2174,12 +2174,30 @@ export default function MarketingToolsPage() {
                           </div>
                         </div>
                         
-                        {/* Total Utilities Cost */}
+                        {/* Total Revenue */}
                         <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                           <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-green-900">Total Utilities Cost:</span>
+                            <span className="text-sm font-medium text-green-900">Total Revenue (Monthly):</span>
                             <span className="text-lg font-bold text-green-900">
-                              ${(roiData.utilities || []).reduce((total, utility) => total + utility.totalCost, 0).toLocaleString()}
+                              {getCurrencySymbol(roiData.currency)}{(() => {
+                                const monthlyLiters = (parseFloat(roiData.capacity) || 0) * (parseFloat(roiData.plantOperationDays) || 0) * 24;
+                                const products = [
+                                  { yield: roiData.naphthaGasOilYield, price: roiData.naphthaGasOilPrice, density: 0.80 },
+                                  { yield: roiData.lightBaseOilYield, price: roiData.lightBaseOilPrice, density: 0.85 },
+                                  { yield: roiData.heavyBaseOilYield, price: roiData.heavyBaseOilPrice, density: 0.87 },
+                                  { yield: roiData.residueYield, price: roiData.residuePrice, density: 1.8 },
+                                  { yield: roiData.wasteWaterYield, price: roiData.wasteWaterPrice, density: 1.0 }
+                                ];
+                                
+                                const totalRevenue = products.reduce((total, product) => {
+                                  const productLiters = monthlyLiters * (parseFloat(product.yield) || 0) / 100;
+                                  const productTons = productLiters * product.density / 1000;
+                                  const revenue = productTons * (parseFloat(product.price) || 0);
+                                  return total + revenue;
+                                }, 0);
+                                
+                                return totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                              })()}
                             </span>
                           </div>
                         </div>
