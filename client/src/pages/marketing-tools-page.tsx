@@ -1633,7 +1633,7 @@ export default function MarketingToolsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {roiData.tanks.map((tank, index) => (
+                          {(roiData.tanks || []).map((tank, index) => (
                             <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                               <td className="border border-gray-300 px-3 py-2 font-medium">{tank.description}</td>
                               <td className="border border-gray-300 px-1 py-1">
