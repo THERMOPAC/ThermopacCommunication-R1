@@ -1416,30 +1416,31 @@ export default function MarketingToolsPage() {
           { name: 'Contingency', value: parseFloat(roiData.contingency || '0') || 0 }
         ];
         
-        // Display major cost components
-        doc.text(`• Base Plant Cost: ${getCurrencySymbol(roiData.currency)}${basePlantCost.toLocaleString()}`, margin + 5, yPosition);
+        // Display major cost components with safe number formatting
+        doc.text(`• Base Plant Cost: ${getCurrencySymbol(roiData.currency)}${(basePlantCost || 0).toLocaleString()}`, margin + 5, yPosition);
         yPosition += 6;
-        doc.text(`• Tank Farm Cost: ${getCurrencySymbol(roiData.currency)}${tankCost.toLocaleString()}`, margin + 5, yPosition);
+        doc.text(`• Tank Farm Cost: ${getCurrencySymbol(roiData.currency)}${(tankCost || 0).toLocaleString()}`, margin + 5, yPosition);
         yPosition += 6;
-        doc.text(`• Utilities Cost: ${getCurrencySymbol(roiData.currency)}${utilityCost.toLocaleString()}`, margin + 5, yPosition);
+        doc.text(`• Utilities Cost: ${getCurrencySymbol(roiData.currency)}${(utilityCost || 0).toLocaleString()}`, margin + 5, yPosition);
         yPosition += 6;
-        doc.text(`• Additional Equipment: ${getCurrencySymbol(roiData.currency)}${equipmentTotal.toLocaleString()}`, margin + 5, yPosition);
+        doc.text(`• Additional Equipment: ${getCurrencySymbol(roiData.currency)}${(equipmentTotal || 0).toLocaleString()}`, margin + 5, yPosition);
         yPosition += 6;
         
-        // Additional costs
-        const additionalTotal = additionalCostFields.reduce((sum, item) => sum + item.value, 0);
-        doc.text(`• Additional Project Costs: ${getCurrencySymbol(roiData.currency)}${additionalTotal.toLocaleString()}`, margin + 5, yPosition);
+        // Additional costs with safe calculations
+        const additionalTotal = additionalCostFields.reduce((sum, item) => sum + (item.value || 0), 0);
+        doc.text(`• Additional Project Costs: ${getCurrencySymbol(roiData.currency)}${(additionalTotal || 0).toLocaleString()}`, margin + 5, yPosition);
         yPosition += 8;
         
-        const totalCapex = basePlantCost + tankCost + utilityCost + equipmentTotal + additionalTotal;
+        const safeEquipmentTotal = equipmentTotal || 0;
+        const totalCapex = (basePlantCost || 0) + (tankCost || 0) + (utilityCost || 0) + safeEquipmentTotal + (additionalTotal || 0);
         const workingCapitalAmount = totalCapex * 0.15;
         
         doc.setFont('helvetica', 'bold');
-        doc.text(`Total CAPEX: ${getCurrencySymbol(roiData.currency)}${totalCapex.toLocaleString()}`, margin + 5, yPosition);
+        doc.text(`Total CAPEX: ${getCurrencySymbol(roiData.currency)}${(totalCapex || 0).toLocaleString()}`, margin + 5, yPosition);
         yPosition += 6;
-        doc.text(`Working Capital (15%): ${getCurrencySymbol(roiData.currency)}${workingCapitalAmount.toLocaleString()}`, margin + 5, yPosition);
+        doc.text(`Working Capital (15%): ${getCurrencySymbol(roiData.currency)}${(workingCapitalAmount || 0).toLocaleString()}`, margin + 5, yPosition);
         yPosition += 6;
-        doc.text(`TOTAL INVESTMENT: ${getCurrencySymbol(roiData.currency)}${(totalCapex + workingCapitalAmount).toLocaleString()}`, margin + 5, yPosition);
+        doc.text(`TOTAL INVESTMENT: ${getCurrencySymbol(roiData.currency)}${((totalCapex + workingCapitalAmount) || 0).toLocaleString()}`, margin + 5, yPosition);
         yPosition += 15;
         
         // ROI Analysis
@@ -1619,17 +1620,21 @@ export default function MarketingToolsPage() {
         doc.setFont('helvetica', 'normal');
         const profitMargin = (reportData.financials?.totalRevenue || 0) > 0 ? ((reportData.financials?.grossProfit || 0) / (reportData.financials?.totalRevenue || 1)) * 100 : 0;
         
-        const capacityText = reportData.projectInfo?.capacity ? reportData.projectInfo.capacity.toLocaleString() : (roiData.capacity || '0');
+        const capacityValue = reportData.projectInfo?.capacity || parseFloat(roiData.capacity || '0') || 0;
+        const capacityText = capacityValue.toLocaleString();
         const totalInvestmentText = (totalCapex + workingCapitalAmount).toLocaleString();
-        const profitText = reportData.financials?.grossProfit ? reportData.financials.grossProfit.toLocaleString() : '0';
-        const roiText = reportData.financials?.annualROI ? reportData.financials.annualROI.toFixed(1) : '0.0';
-        const paybackText = reportData.financials?.paybackPeriod ? reportData.financials.paybackPeriod.toFixed(1) : '0.0';
+        const profitValue = reportData.financials?.grossProfit || 0;
+        const profitText = profitValue.toLocaleString();
+        const roiValue = reportData.financials?.annualROI || 0;
+        const roiText = roiValue.toFixed(1);
+        const paybackValue = reportData.financials?.paybackPeriod || 0;
+        const paybackText = paybackValue.toFixed(1);
         
         doc.text(`This ${capacityText} LPH re-refining plant requires a total investment of`, margin, yPosition);
         yPosition += 6;
         doc.text(`${getCurrencySymbol(roiData.currency)}${totalInvestmentText} and generates an annual profit of ${getCurrencySymbol(roiData.currency)}${profitText}`, margin, yPosition);
         yPosition += 6;
-        doc.text(`(${profitMargin.toFixed(1)}% margin). The project offers a ${roiText}% ROI with payback in ${paybackText} years.`, margin, yPosition);
+        doc.text(`(${(profitMargin || 0).toFixed(1)}% margin). The project offers a ${roiText}% ROI with payback in ${paybackText} years.`, margin, yPosition);
         
         // Footer
         doc.setFontSize(8);
