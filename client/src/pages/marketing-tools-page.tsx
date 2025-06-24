@@ -757,16 +757,41 @@ export default function MarketingToolsPage() {
             contingency: 2.0            // 2%
           };
           
+          // Auto-calculate additional equipment costs based on percentages
+          const additionalEquipmentPercentages = {
+            additionalPumpsFilters: 1.5,    // 1.5%
+            tankLevelTransmitters: 1.0,     // 1.0%
+            pccMccPanels: 2.0,              // 2.0%
+            pipesValvesFlanges: 3.0,        // 3.0%
+            electricalCablesAccessories: 2.0, // 2.0%
+            chimneyDucting: 1.0,            // 1.0%
+            airCompressor: 1.0,             // 1.0%
+            coolingTower: 0.75,             // 0.75%
+            dieselGenerator: 2.5,           // 2.5%
+            qualityControlEquipment: 1.0,   // 1.0%
+            thermicFluid: 2.0,              // 2.0%
+            expansionStructure: 1.5,        // 1.5%
+            craneHireCharges: 0.5,          // 0.5%
+            laborErectionCommissioning: 3.0  // 3.0%
+          };
+          
           // Calculate each component cost and round to nearest 1,000
           const baseCost = selectedCurrency === 'USD' ? basePlantCostUSD : basePlantCostLocal;
           const calculatedCosts: any = {};
           
+          // Calculate project cost breakdown
           Object.entries(costBreakdownPercentages).forEach(([key, percentage]) => {
             const componentCost = Math.round((baseCost * percentage / 100) / 1000) * 1000;
             calculatedCosts[key] = componentCost.toString();
           });
           
-          // Update all cost breakdown fields
+          // Calculate additional equipment costs
+          Object.entries(additionalEquipmentPercentages).forEach(([key, percentage]) => {
+            const componentCost = Math.round((baseCost * percentage / 100) / 1000) * 1000;
+            calculatedCosts[key] = componentCost.toString();
+          });
+          
+          // Update all cost breakdown and additional equipment fields
           setROIData(prev => ({ 
             ...prev, 
             ...calculatedCosts
