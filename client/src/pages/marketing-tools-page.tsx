@@ -405,6 +405,50 @@ export default function MarketingToolsPage() {
       maximumFractionDigits: 0
     })}`;
   };
+
+  // Helper function to calculate total additional costs
+  const getTotalAdditionalCosts = () => {
+    const currency = currencies[roiData.currency] || currencies.USD;
+    const additionalCosts = [
+      'freightInsurance', 'importDutyVAT', 'plotCost', 'civilCost', 'refineryShed',
+      'utilityShed', 'officeBuilding', 'mechanicalElectrical', 'fireSuppressionSystem',
+      'insulationCost', 'legalFees', 'preFormationExpenses', 'commissioningTravel', 'contingency'
+    ];
+    
+    const total = additionalCosts.reduce((sum, field) => {
+      const value = parseFloat(roiData[field as keyof ROIData] as string) || 0;
+      return sum + value;
+    }, 0);
+    
+    return `${currency.symbol}${total.toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    })}`;
+  };
+
+  // Helper function to calculate total project cost
+  const getTotalProjectCost = () => {
+    const currency = currencies[roiData.currency] || currencies.USD;
+    const basePlantCost = getCurrentPlantCost() * currency.rate;
+    
+    const additionalCosts = [
+      'freightInsurance', 'importDutyVAT', 'plotCost', 'civilCost', 'refineryShed',
+      'utilityShed', 'officeBuilding', 'mechanicalElectrical', 'fireSuppressionSystem',
+      'insulationCost', 'legalFees', 'preFormationExpenses', 'commissioningTravel', 'contingency'
+    ];
+    
+    const totalAdditional = additionalCosts.reduce((sum, field) => {
+      const value = parseFloat(roiData[field as keyof ROIData] as string) || 0;
+      return sum + value;
+    }, 0);
+    
+    const totalCost = basePlantCost + totalAdditional;
+    
+    return `${currency.symbol}${totalCost.toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    })}`;
+  };
   // ===== END PRICING CONFIGURATION =====
 
   // Enhanced capacity rounding functions

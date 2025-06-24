@@ -121,6 +121,7 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 - June 23, 2025. Added automatic utility calculations for Step 2: Compressor (20×LPH/1000), Heater (600,000×LPH/1000), Total Connected Load (350×LPH/1000) with real-time updates based on plant capacity
 - June 23, 2025. Updated heater selection logic for large plants (>3000 LPH) to require minimum 2 heaters while optimizing for fewest quantity, providing operational redundancy and flexibility
 - June 24, 2025. Created database-driven plant costs management system with edit dialog for ROI Calculator, replacing hardcoded pricing with dynamic database storage and admin interface
+- June 24, 2025. Enhanced ROI Calculator Plant Configuration section with comprehensive cost breakdown including 14 additional cost fields (Freight & Insurance, Import Duty & VAT, Plot Cost, Civil Cost, Refinery Shed, Utility Shed, Office Building, Mechanical & Electrical, Fire Suppression, Insulation, Legal Fees, Pre Formation Expenses, Commissioning & Travel, Contingency) with real-time total project cost calculation
 
 # User Preferences
 Preferred communication style: Simple, everyday language.
