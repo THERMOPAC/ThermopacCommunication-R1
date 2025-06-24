@@ -32,6 +32,7 @@ import { setupTestWelderRoute } from "./quality/test-welder-route";
 import { setupApiTestRoutes } from "./api-test-route";
 import { setupDedicatedTestRoutes } from "./dedicated-test-route";
 import { setupSalesMarketingRoutes } from "./sales-marketing-routes";
+import { saveRoiStep, loadRoiProject, getRoiProjectProgress } from "./roi-routes";
 // Temporarily disable main finance routes due to syntax errors
 // import { default as financeRoutes } from "./finance-routes";
 import { default as financeRoutes } from "./finance-routes-fixed";
@@ -118,6 +119,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up sales and marketing routes
   setupSalesMarketingRoutes(app);
+
+  // Register ROI Calculator routes  
+  app.post('/api/roi/save-step', async (req: any, res: any) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    return saveRoiStep(req, res);
+  });
+  app.get('/api/roi/load-project/:id', async (req: any, res: any) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    return loadRoiProject(req, res);
+  });
+  app.get('/api/roi/project-progress/:id', async (req: any, res: any) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    return getRoiProjectProgress(req, res);
+  });
+  console.log('ROI Calculator routes registered');
 
   // Register plant costs routes directly here
   const { db } = await import('./db');

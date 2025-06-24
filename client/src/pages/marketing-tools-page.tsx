@@ -171,6 +171,8 @@ export default function MarketingToolsPage() {
   const queryClient = useQueryClient();
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [projectId, setProjectId] = useState<string | undefined>(undefined);
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
   // Load project data from backend
   const loadProjectData = async (projectId: string) => {
@@ -389,6 +391,146 @@ export default function MarketingToolsPage() {
     npv: 0,
     irr: 0
   });
+
+  // Generate or get project ID
+  useEffect(() => {
+    if (!roiData.roiProjectId) {
+      const newProjectId = crypto.randomUUID();
+      setProjectId(newProjectId);
+      setROIData(prev => ({ ...prev, roiProjectId: newProjectId }));
+    } else {
+      setProjectId(roiData.roiProjectId);
+    }
+  }, []);
+
+  // Save step data function
+  const saveStepData = async (stepNumber: number, stepData: any) => {
+    if (!projectId) return;
+    
+    setIsAutoSaving(true);
+    try {
+      const response = await fetch('/api/roi/save-step', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          roiProjectId: projectId,
+          stepNumber,
+          stepData
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save step data');
+      }
+
+      setCompletedSteps(prev => new Set([...prev, stepNumber]));
+      toast({
+        title: 'Step Saved',
+        description: `Step ${stepNumber} data saved successfully`
+      });
+    } catch (error) {
+      console.error('Error saving step:', error);
+      toast({
+        title: 'Save Failed',
+        description: 'Failed to save step data. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsAutoSaving(false);
+    }
+  };
+
+  // Get current step data function
+  const getCurrentStepData = () => {
+    switch (currentStep) {
+      case 1:
+        return {
+          capacity: roiData.capacity,
+          currency: roiData.currency,
+          customerName: roiData.customerName,
+          projectName: roiData.projectName,
+          projectCostUSD: roiData.projectCostUSD,
+          projectCostLocal: roiData.projectCostLocal,
+          freightInsurance: roiData.freightInsurance,
+          importDutyVAT: roiData.importDutyVAT,
+          plotCost: roiData.plotCost,
+          civilCost: roiData.civilCost,
+          refineryShed: roiData.refineryShed,
+          utilityShed: roiData.utilityShed,
+          officeBuilding: roiData.officeBuilding,
+          mechanicalElectrical: roiData.mechanicalElectrical,
+          fireSuppressionSystem: roiData.fireSuppressionSystem,
+          insulationCost: roiData.insulationCost,
+          legalFees: roiData.legalFees,
+          preFormationExpenses: roiData.preFormationExpenses,
+          commissioningTravel: roiData.commissioningTravel,
+          contingency: roiData.contingency
+        };
+      case 2:
+        return {
+          tanks: roiData.tanks,
+          boilerCapacity: roiData.boilerCapacity,
+          heaterCapacity: roiData.heaterCapacity,
+          heaterQuantity: roiData.heaterQuantity,
+          heaterTotalLoad: roiData.heaterTotalLoad,
+          powerRequirement: roiData.powerRequirement
+        };
+      case 3:
+        return {
+          additionalPumpsFilters: roiData.additionalPumpsFilters,
+          tankLevelTransmitters: roiData.tankLevelTransmitters,
+          pipesValvesFlanges: roiData.pipesValvesFlanges,
+          electricalCablesAccessories: roiData.electricalCablesAccessories,
+          pccMccPanels: roiData.pccMccPanels,
+          chimneyDucting: roiData.chimneyDucting,
+          airCompressor: roiData.airCompressor,
+          coolingTower: roiData.coolingTower,
+          dieselGenerator: roiData.dieselGenerator,
+          qualityControlEquipment: roiData.qualityControlEquipment,
+          thermicFluid: roiData.thermicFluid,
+          expansionStructure: roiData.expansionStructure,
+          craneHireCharges: roiData.craneHireCharges,
+          laborErectionCommissioning: roiData.laborErectionCommissioning
+        };
+      case 4:
+        return {
+          feedstockCost: roiData.feedstockCost,
+          powerCost: roiData.powerCost,
+          fuelCost: roiData.fuelCost,
+          chemicalCost: roiData.chemicalCost,
+          laborCost: roiData.laborCost,
+          maintenanceCost: roiData.maintenanceCost
+        };
+      case 5:
+        return {
+          naphthaGasOilYield: roiData.naphthaGasOilYield,
+          lightBaseOilYield: roiData.lightBaseOilYield,
+          heavyBaseOilYield: roiData.heavyBaseOilYield,
+          residueYield: roiData.residueYield,
+          wasteWaterYield: roiData.wasteWaterYield,
+          processLossYield: roiData.processLossYield,
+          naphthaGasOilPrice: roiData.naphthaGasOilPrice,
+          lightBaseOilPrice: roiData.lightBaseOilPrice,
+          heavyBaseOilPrice: roiData.heavyBaseOilPrice,
+          residuePrice: roiData.residuePrice,
+          wasteWaterPrice: roiData.wasteWaterPrice
+        };
+      case 6:
+        return {
+          capexEstimation: roiData.capexEstimation,
+          paybackPeriod: roiData.paybackPeriod,
+          annualROI: roiData.annualROI,
+          npv: roiData.npv,
+          irr: roiData.irr
+        };
+      default:
+        return {};
+    }
+  };
+
   const categories = [
     {
       name: "Analytics",
