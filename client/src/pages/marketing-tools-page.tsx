@@ -4299,7 +4299,7 @@ export default function MarketingToolsPage() {
               <div className="flex gap-2 text-xs">
                 {[1, 2, 3, 4, 5, 6].map(step => (
                   <div key={step} className="flex items-center gap-1">
-                    {completedSteps.includes(step) ? (
+                    {completedSteps.has(step) ? (
                       <>
                         <span className="text-green-600">✓</span>
                         <span className="text-green-600">Step {step}</span>
