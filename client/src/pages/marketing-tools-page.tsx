@@ -304,12 +304,27 @@ export default function MarketingToolsPage() {
   const [editingCost, setEditingCost] = useState<any>(null);
   const [showLoadDialog, setShowLoadDialog] = useState(false);
   const [loadProjectId, setLoadProjectId] = useState('');
+  const [selectedProjectFromList, setSelectedProjectFromList] = useState('');
   const [newCost, setNewCost] = useState({ capacity: '', priceUSD: '' });
   const [plantCosts, setPlantCosts] = useState<Array<{ id: number; capacity: number; priceUSD: number }>>([]);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingCapacity, setEditingCapacity] = useState<{ id: number; capacity: number; priceUSD: number } | null>(null);
   const [tankPrices, setTankPrices] = useState<Array<{ id: number; capacity: number; priceUSD: number }>>([]);
   const [isTankPriceDialogOpen, setIsTankPriceDialogOpen] = useState(false);
+
+  // Fetch saved ROI projects for dropdown
+  const { data: savedProjects } = useQuery({
+    queryKey: ['/api/roi/list-projects'],
+    queryFn: async () => {
+      const response = await fetch('/api/roi/list-projects', {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch saved projects');
+      const data = await response.json();
+      return data.success ? data.projects : [];
+    },
+    enabled: showLoadDialog, // Only fetch when dialog is open
+  });
   const [roiData, setROIData] = useState<ROIData>({
     roiProjectId: undefined,
     capacity: '',
@@ -1284,9 +1299,9 @@ export default function MarketingToolsPage() {
   };
 
   // Load saved project data
-  const loadProject = async (loadProjectId: string) => {
+  const loadProject = async (projectIdToLoad: string) => {
     try {
-      const response = await fetch(`/api/roi/load-project/${loadProjectId}`);
+      const response = await fetch(`/api/roi/load-project/${projectIdToLoad}`);
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.steps) {
@@ -1296,7 +1311,7 @@ export default function MarketingToolsPage() {
             Object.assign(mergedData, stepData);
           });
           setRoiData(mergedData);
-          setProjectId(loadProjectId);
+          setProjectId(projectIdToLoad);
           setCompletedSteps(new Set(Object.keys(data.steps).map(Number)));
           
           // Navigate to the next incomplete step
@@ -1311,6 +1326,7 @@ export default function MarketingToolsPage() {
           
           setShowLoadDialog(false);
           setLoadProjectId('');
+          setSelectedProjectFromList('');
         }
       } else {
         throw new Error('Project not found');
@@ -4592,17 +4608,62 @@ export default function MarketingToolsPage() {
 
       {/* Load Project Dialog */}
       <Dialog open={showLoadDialog} onOpenChange={setShowLoadDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Load Saved ROI Project</DialogTitle>
             <DialogDescription>
-              Enter your Project ID to continue working on a saved ROI calculation
+              Select from your saved ROI projects or enter a specific Project ID
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Saved Projects Dropdown */}
+            {savedProjects && savedProjects.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="savedProjects">Select from Saved Projects</Label>
+                <Select value={selectedProjectFromList} onValueChange={setSelectedProjectFromList}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a saved project..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {savedProjects.map((project: any) => (
+                      <SelectItem key={project.roiProjectId} value={project.roiProjectId}>
+                        <div className="flex flex-col items-start">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">
+                              {project.customerName || 'Unnamed Customer'} - {project.projectName || 'Unnamed Project'}
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                              {project.completedSteps} steps
+                            </Badge>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {project.capacity ? `${project.capacity} LPH` : 'No capacity'} • 
+                            Last updated: {new Date(project.lastUpdated).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Divider */}
+            {savedProjects && savedProjects.length > 0 && (
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Or</span>
+                </div>
+              </div>
+            )}
+
+            {/* Manual Project ID Input */}
             <div className="space-y-2">
-              <Label htmlFor="projectId">Project ID</Label>
+              <Label htmlFor="projectId">Enter Project ID Manually</Label>
               <Input
                 id="projectId"
                 placeholder="Enter your project ID (e.g., 550e8400-e29b-41d4...)"
@@ -4611,7 +4672,7 @@ export default function MarketingToolsPage() {
                 className="font-mono text-sm"
               />
               <p className="text-xs text-muted-foreground">
-                You can find your Project ID from the previous session or from saved project records
+                Use this if you have a specific Project ID not shown in the list above
               </p>
             </div>
           </div>
@@ -4622,13 +4683,19 @@ export default function MarketingToolsPage() {
               onClick={() => {
                 setShowLoadDialog(false);
                 setLoadProjectId('');
+                setSelectedProjectFromList('');
               }}
             >
               Cancel
             </Button>
             <Button 
-              onClick={() => loadProject(loadProjectId)}
-              disabled={!loadProjectId.trim()}
+              onClick={() => {
+                const projectToLoad = selectedProjectFromList || loadProjectId;
+                if (projectToLoad) {
+                  loadProject(projectToLoad);
+                }
+              }}
+              disabled={!selectedProjectFromList && !loadProjectId.trim()}
             >
               Load Project
             </Button>
