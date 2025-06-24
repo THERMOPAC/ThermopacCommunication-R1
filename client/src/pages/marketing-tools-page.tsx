@@ -386,12 +386,9 @@ export default function MarketingToolsPage() {
     capacity: item.capacity,
     priceUSD: parseFloat(item.priceUSD)
   })) : fallbackCapacities;
-    capacity: cost.capacity,
-    priceUSD: parseFloat(cost.priceUSD || cost.price_usd)
-  }));
 
   // Debug logging
-  console.log('Plant costs loading:', loadingCosts);
+  console.log('Plant costs loading:', plantCostsLoading);
   console.log('Plant costs data:', plantCostsData);
   console.log('Plant costs error:', plantCostsError);
   console.log('Processed capacities:', plantCapacities);
@@ -2446,7 +2443,7 @@ export default function MarketingToolsPage() {
         </Dialog>
 
         {/* Plant Costs Edit Dialog */}
-      <Dialog open={showPlantCostsDialog} onOpenChange={setShowPlantCostsDialog}>
+        <Dialog open={showPlantCostsDialog} onOpenChange={setShowPlantCostsDialog}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Manage Plant Costs</DialogTitle>
@@ -2588,7 +2585,7 @@ export default function MarketingToolsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Layout>
+    </div>
   );
 }
 
