@@ -100,12 +100,11 @@ export const loadRoiProject = async (req: Request, res: Response) => {
     console.log('ROI Load Project API called for project:', roiProjectId);
     console.log('User from request:', req.user);
     
-    if (!req.user?.id) {
+    const userId = req.user?.id;
+    if (!userId) {
       console.log('User not authenticated, req.user:', req.user);
       return res.status(401).json({ error: 'User not authenticated' });
     }
-    
-    const userId = req.user.id;
 
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
