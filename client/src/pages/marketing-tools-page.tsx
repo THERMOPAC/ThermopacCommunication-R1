@@ -2995,7 +2995,7 @@ export default function MarketingToolsPage() {
                       <Card className="bg-blue-50 border-blue-200">
                         <CardContent className="p-4">
                           <div className="flex items-center space-x-2">
-                            <Building className="h-6 w-6 text-blue-600" />
+                            <Factory className="h-6 w-6 text-blue-600" />
                             <div>
                               <p className="text-xl font-bold text-blue-900">
                                 {getCurrencySymbol(roiData.currency)}{(() => {
