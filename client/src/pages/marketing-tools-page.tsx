@@ -380,18 +380,16 @@ export default function MarketingToolsPage() {
       const selectedCurrency = field === 'currency' ? value as string : roiData.currency;
       
       if (plantCapacity > 0) {
-        // Find plant price in USD
+        // Find plant price in USD and calculate local currency
         const plantConfig = plantCapacities.find(p => p.capacity === plantCapacity);
         if (plantConfig) {
           const priceUSD = plantConfig.priceUSD;
           const exchangeRate = currencies[selectedCurrency]?.rate || 1;
           const priceLocal = Math.round(priceUSD * exchangeRate);
           
-          setROIData(prev => ({ 
-            ...prev, 
-            projectCostUSD: priceUSD.toString(),
-            projectCostLocal: priceLocal.toString()
-          }));
+          // Update costs immediately
+          updateData('projectCostUSD', priceUSD.toString());
+          updateData('projectCostLocal', priceLocal.toString());
         }
         
         const calculatedTanks = calculateTankRequirements(plantCapacity);
@@ -744,6 +742,35 @@ export default function MarketingToolsPage() {
                         </SelectContent>
                       </Select>
                     </div>
+                    
+                    {/* Plant Costs Display */}
+                    {roiData.capacity && (
+                      <div className="space-y-2">
+                        <Label htmlFor="plantCosts">Plant Costs</Label>
+                        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label className="text-sm text-green-700">Cost in {roiData.currency}</Label>
+                              <div className="text-xl font-bold text-green-800">
+                                {currencies[roiData.currency]?.symbol}{parseInt(roiData.projectCostLocal || '0').toLocaleString()}
+                              </div>
+                            </div>
+                            <div>
+                              <Label className="text-sm text-green-700">Cost in USD</Label>
+                              <div className="text-xl font-bold text-green-600">
+                                ${parseInt(roiData.projectCostUSD || '0').toLocaleString()}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mt-2 text-xs text-green-600">
+                            Rate: 1 USD = {currencies[roiData.currency]?.rate} {roiData.currency} | Capacity: {parseInt(roiData.capacity).toLocaleString()} LPH
+                          </div>
+                          <div className="mt-1 text-xs text-gray-600">
+                            <strong>Edit costs:</strong> Lines 237-247 in marketing-tools-page.tsx
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
