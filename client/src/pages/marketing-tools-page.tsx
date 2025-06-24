@@ -43,6 +43,9 @@ import {
 
 // ROI Calculator Data Interface
 interface ROIData {
+  // Project tracking
+  roiProjectId?: string;
+  
   // Step 1: Plant Configuration
   capacity: string;
   currency: string;
@@ -166,6 +169,61 @@ const TankPriceEditor = ({ price, onUpdate }: { price: any, onUpdate: (updatedPr
 export default function MarketingToolsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+
+  // Load project data from backend
+  const loadProjectData = async (projectId: string) => {
+    try {
+      const response = await fetch(`/api/roi/load-project/${projectId}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to load project data');
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.steps) {
+        // Merge all step data into roiData
+        const mergedData = { ...roiData, roiProjectId: projectId };
+        
+        Object.keys(result.steps).forEach(stepNum => {
+          const stepData = result.steps[stepNum];
+          Object.assign(mergedData, stepData);
+        });
+        
+        setROIData(mergedData);
+        setCompletedSteps(Object.keys(result.steps).map(Number).sort());
+        
+        toast({
+          title: 'Project Loaded',
+          description: `Loaded ${Object.keys(result.steps).length} saved steps`,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading project:', error);
+      toast({
+        title: 'Load Failed',
+        description: 'Failed to load project. Please check the Project ID.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  // Generate or get existing project ID
+  const getProjectId = () => {
+    if (roiData.roiProjectId) return roiData.roiProjectId;
+    
+    // Generate new UUID for the project
+    const newProjectId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+    
+    setRoiData(prev => ({ ...prev, roiProjectId: newProjectId }));
+    return newProjectId;
+  };
 
   // Fetch plant costs from API
   const { data: plantCostsData, isLoading: plantCostsLoading, error: plantCostsError } = useQuery({
@@ -249,6 +307,7 @@ export default function MarketingToolsPage() {
   const [tankPrices, setTankPrices] = useState<Array<{ id: number; capacity: number; priceUSD: number }>>([]);
   const [isTankPriceDialogOpen, setIsTankPriceDialogOpen] = useState(false);
   const [roiData, setROIData] = useState<ROIData>({
+    roiProjectId: undefined,
     capacity: '',
     currency: 'USD',
     customerName: '',
@@ -4060,6 +4119,49 @@ export default function MarketingToolsPage() {
             </Card>
 
             {/* Navigation Buttons */}
+            {/* Progress Indicator */}
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="flex-1 bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                    style={{ width: `${((currentStep - 1) / 6) * 100}%` }}
+                  ></div>
+                </div>
+                <span className="text-sm text-gray-600">{currentStep}/7</span>
+                {isAutoSaving && (
+                  <span className="text-xs text-blue-600 flex items-center gap-1">
+                    <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </span>
+                )}
+              </div>
+              
+              {/* Step Completion Status */}
+              <div className="flex gap-2 text-xs">
+                {[1, 2, 3, 4, 5, 6].map(step => (
+                  <div key={step} className="flex items-center gap-1">
+                    {completedSteps.includes(step) ? (
+                      <>
+                        <span className="text-green-600">✓</span>
+                        <span className="text-green-600">Step {step}</span>
+                      </>
+                    ) : step === currentStep ? (
+                      <>
+                        <span className="text-blue-600">→</span>
+                        <span className="text-blue-600">Step {step}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-gray-400">○</span>
+                        <span className="text-gray-400">Step {step}</span>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="flex justify-between">
               <Button 
                 variant="outline" 
@@ -4071,31 +4173,53 @@ export default function MarketingToolsPage() {
                 Previous
               </Button>
               
-              {currentStep < 6 ? (
+              <div className="flex gap-2">
                 <Button 
-                  onClick={nextStep}
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      const currentStepData = getCurrentStepData();
+                      await saveStepData(currentStep, currentStepData);
+                    } catch (error) {
+                      // Error already handled in saveStepData
+                    }
+                  }}
+                  disabled={isAutoSaving}
                   className="flex items-center gap-2"
                 >
-                  Next
-                  <ArrowRight className="h-4 w-4" />
+                  <Download className="w-4 h-4" />
+                  Save Step
                 </Button>
-              ) : currentStep === 6 ? (
-                <Button 
-                  onClick={calculateROI}
-                  className="flex items-center gap-2"
-                >
-                  <Calculator className="h-4 w-4" />
-                  Generate ROI Analysis
-                </Button>
-              ) : (
-                <Button 
-                  onClick={calculateROI}
-                  className="flex items-center gap-2"
-                >
-                  <Calculator className="h-4 w-4" />
-                  Regenerate Report
-                </Button>
-              )}
+                
+                {currentStep < 6 ? (
+                  <Button 
+                    onClick={nextStep}
+                    disabled={isAutoSaving}
+                    className="flex items-center gap-2"
+                  >
+                    Next
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                ) : currentStep === 6 ? (
+                  <Button 
+                    onClick={calculateROI}
+                    disabled={isAutoSaving}
+                    className="flex items-center gap-2"
+                  >
+                    <Calculator className="h-4 w-4" />
+                    Generate ROI Analysis
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={calculateROI}
+                    disabled={isAutoSaving}
+                    className="flex items-center gap-2"
+                  >
+                    <Calculator className="h-4 w-4" />
+                    Regenerate Report
+                  </Button>
+                )}
+              </div>
             </div>
           </TabsContent>
         </Tabs>
