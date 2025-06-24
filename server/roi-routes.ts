@@ -95,13 +95,17 @@ export const saveRoiStep = async (req: Request, res: Response) => {
 // Load project data API
 export const loadRoiProject = async (req: Request, res: Response) => {
   try {
-    const { roiProjectId } = req.params;
+    const roiProjectId = req.params.roiProjectId || req.params.id;
     
     console.log('ROI Load Project API called for project:', roiProjectId);
+    console.log('User from request:', req.user);
     
     if (!req.user?.id) {
+      console.log('User not authenticated, req.user:', req.user);
       return res.status(401).json({ error: 'User not authenticated' });
     }
+    
+    const userId = req.user.id;
 
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -109,11 +113,16 @@ export const loadRoiProject = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid project ID format' });
     }
 
-    // Fetch all steps for the project
+    // Fetch all steps for the project belonging to this user
     const steps = await db
       .select()
       .from(roiProjectSteps)
-      .where(eq(roiProjectSteps.roiProjectId, roiProjectId))
+      .where(
+        and(
+          eq(roiProjectSteps.roiProjectId, roiProjectId),
+          eq(roiProjectSteps.updatedBy, userId)
+        )
+      )
       .orderBy(roiProjectSteps.stepNumber);
 
     console.log(`Found ${steps.length} steps for project ${roiProjectId}`);

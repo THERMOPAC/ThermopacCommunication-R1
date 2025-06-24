@@ -1301,7 +1301,9 @@ export default function MarketingToolsPage() {
   // Load saved project data
   const loadProject = async (projectIdToLoad: string) => {
     try {
-      const response = await fetch(`/api/roi/load-project/${projectIdToLoad}`);
+      const response = await fetch(`/api/roi/load-project/${projectIdToLoad}`, {
+        credentials: 'include',
+      });
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.steps) {

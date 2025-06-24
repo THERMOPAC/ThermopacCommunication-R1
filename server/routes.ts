@@ -125,7 +125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
     return saveRoiStep(req, res);
   });
-  app.get('/api/roi/load-project/:id', async (req: any, res: any) => {
+  app.get('/api/roi/load-project/:roiProjectId', async (req: any, res: any) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
     return loadRoiProject(req, res);
   });
