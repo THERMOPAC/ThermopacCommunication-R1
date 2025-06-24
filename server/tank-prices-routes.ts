@@ -10,7 +10,7 @@ const router = Router();
 // GET /api/tank-prices - Get all tank prices
 router.get('/', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('Tank prices GET route hit');
+    console.log('===== TANK PRICES API CALLED =====');
     
     // Use raw SQL to get tank prices directly
     const result = await db.execute(sql`
@@ -20,12 +20,12 @@ router.get('/', ensureAuthenticated, async (req, res) => {
       ORDER BY capacity
     `);
     
-    console.log('Raw SQL result:', result.rows);
+    console.log('SQL Query executed, rows:', result.rows.length);
     
-    // Convert to proper format
+    // Convert to proper format  
     const formattedPrices = result.rows.map((row: any) => {
       const numericPrice = parseFloat(row.price_usd?.toString() || '0');
-      console.log(`Tank ${row.capacity} KL: price_usd=${row.price_usd} -> priceUSD=${numericPrice}`);
+      console.log(`Tank ${row.capacity} KL: ${row.price_usd} -> ${numericPrice}`);
       return {
         id: row.id,
         capacity: row.capacity,
@@ -38,7 +38,7 @@ router.get('/', ensureAuthenticated, async (req, res) => {
       };
     });
     
-    console.log('Final formatted tank prices:', formattedPrices);
+    console.log('SENDING RESPONSE:', JSON.stringify(formattedPrices, null, 2));
 
     res.json(formattedPrices);
   } catch (error) {

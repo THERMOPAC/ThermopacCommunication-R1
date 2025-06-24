@@ -183,11 +183,23 @@ export default function MarketingToolsPage() {
   const { data: tankPricesData, isLoading: tankPricesLoading, error: tankPricesError } = useQuery({
     queryKey: ['/api/tank-prices'],
     queryFn: async () => {
-      const response = await fetch('/api/tank-prices');
+      console.log('===== FRONTEND: Fetching tank prices =====');
+      const response = await fetch('/api/tank-prices', {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log('Tank prices response status:', response.status);
+      
       if (!response.ok) {
+        console.error('Tank prices fetch failed:', response.status, response.statusText);
         throw new Error('Failed to fetch tank prices');
       }
+      
       const data = await response.json();
+      console.log('Tank prices raw response:', data);
       return data;
     }
   });
@@ -416,20 +428,14 @@ export default function MarketingToolsPage() {
 
   // Function to get tank price from database
   const getTankPrice = (capacity: number): number => {
-    console.log(`Getting tank price for capacity: ${capacity}`);
-    console.log('Available tank prices:', tankPrices);
     if (!tankPrices || tankPrices.length === 0) {
-      console.log('No tank prices available');
       return 0;
     }
     const tankPrice = tankPrices.find(price => price.capacity === capacity);
-    console.log(`Found tank price for ${capacity}:`, tankPrice);
     if (!tankPrice) {
-      console.log(`No price found for capacity ${capacity}`);
       return 0;
     }
     const price = typeof tankPrice.priceUSD === 'string' ? parseFloat(tankPrice.priceUSD) : tankPrice.priceUSD;
-    console.log(`Final price for ${capacity} KL: ${price}`);
     return price || 0;
   };
 
