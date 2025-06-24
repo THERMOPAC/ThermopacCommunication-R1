@@ -169,7 +169,6 @@ const TankPriceEditor = ({ price, onUpdate }: { price: any, onUpdate: (updatedPr
 export default function MarketingToolsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [projectId, setProjectId] = useState<string | undefined>(undefined);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
@@ -1246,12 +1245,22 @@ export default function MarketingToolsPage() {
     });
   };
 
-  const nextStep = () => {
-    if (currentStep < 6) {
-      setCurrentStep(currentStep + 1);
-    }
-    if (currentStep === 5) {
-      calculateROI();
+  const nextStep = async () => {
+    if (currentStep < 7) {
+      // Auto-save current step before moving to next
+      try {
+        const currentStepData = getCurrentStepData();
+        await saveStepData(currentStep, currentStepData);
+      } catch (error) {
+        // Continue navigation even if save fails
+        console.error('Save failed during navigation:', error);
+      }
+      
+      setCurrentStep(Math.min(currentStep + 1, 7));
+      
+      if (currentStep === 5) {
+        calculateROI();
+      }
     }
   };
 
@@ -2165,9 +2174,16 @@ export default function MarketingToolsPage() {
                   Generate comprehensive ROI reports for re-refining plant projects
                 </p>
               </div>
-              <Badge variant="outline" className="text-sm">
-                Step {currentStep} of 6
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-sm">
+                  Step {currentStep} of 7
+                </Badge>
+                {projectId && (
+                  <div className="text-xs text-muted-foreground">
+                    Project ID: {projectId.slice(0, 8)}...
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Progress Steps */}
