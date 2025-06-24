@@ -12,6 +12,8 @@ router.get('/', ensureAuthenticated, async (req, res) => {
     console.log('Tank prices GET route hit');
     const prices = await db.select().from(tankPrices).where(eq(tankPrices.isActive, true)).orderBy(tankPrices.capacity);
     console.log('Found tank prices:', prices.length);
+    console.log('Raw tank prices from DB:', JSON.stringify(prices, null, 2));
+    
     // Convert database field names to frontend format
     const formattedPrices = prices.map(price => ({
       id: price.id,
@@ -23,8 +25,7 @@ router.get('/', ensureAuthenticated, async (req, res) => {
       createdBy: price.createdBy,
       updatedBy: price.updatedBy
     }));
-    console.log('Raw tank prices from DB:', prices);
-    console.log('Formatted tank prices:', formattedPrices);
+    console.log('Formatted tank prices:', JSON.stringify(formattedPrices, null, 2));
     res.json(formattedPrices);
   } catch (error) {
     console.error('Error fetching tank prices:', error);

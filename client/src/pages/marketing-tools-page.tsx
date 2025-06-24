@@ -183,11 +183,14 @@ export default function MarketingToolsPage() {
   const { data: tankPricesData, isLoading: tankPricesLoading, error: tankPricesError } = useQuery({
     queryKey: ['/api/tank-prices'],
     queryFn: async () => {
-      console.log('Tank prices loading:', true);
+      console.log('Fetching tank prices...');
       const response = await fetch('/api/tank-prices');
-      if (!response.ok) throw new Error('Failed to fetch tank prices');
+      if (!response.ok) {
+        console.error('Tank prices fetch failed:', response.status, response.statusText);
+        throw new Error('Failed to fetch tank prices');
+      }
       const data = await response.json();
-      console.log('Tank prices data:', data);
+      console.log('Tank prices API response:', data);
       return data;
     }
   });
