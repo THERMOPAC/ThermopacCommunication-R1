@@ -1301,43 +1301,59 @@ export default function MarketingToolsPage() {
   // Load saved project data
   const loadProject = async (projectIdToLoad: string) => {
     try {
+      console.log('Loading project:', projectIdToLoad);
       const response = await fetch(`/api/roi/load-project/${projectIdToLoad}`, {
         credentials: 'include',
       });
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Load response:', data);
+        
         if (data.success && data.steps) {
           // Merge step data back into roiData
           const mergedData = { ...roiData };
           Object.values(data.steps).forEach((stepData: any) => {
             Object.assign(mergedData, stepData);
           });
+          
+          // Set the project ID for future saves
+          mergedData.roiProjectId = projectIdToLoad;
+          
+          console.log('Setting merged data:', mergedData);
           setRoiData(mergedData);
           setProjectId(projectIdToLoad);
           setCompletedSteps(new Set(Object.keys(data.steps).map(Number)));
           
-          // Navigate to the next incomplete step
+          // Navigate to the next incomplete step (Step 6 for 5 completed steps)
           const completedStepNumbers = Object.keys(data.steps).map(Number).sort();
-          const nextStep = completedStepNumbers.length < 7 ? completedStepNumbers.length + 1 : 7;
+          const nextStep = Math.min(Math.max(...completedStepNumbers) + 1, 7);
+          console.log('Setting current step to:', nextStep);
           setCurrentStep(nextStep);
-          
-          toast({
-            title: "Project Loaded Successfully",
-            description: `Loaded project with ${Object.keys(data.steps).length} completed steps. Continue from Step ${nextStep}.`,
-          });
           
           setShowLoadDialog(false);
           setLoadProjectId('');
           setSelectedProjectFromList('');
+          
+          toast({
+            title: "Project Loaded Successfully",
+            description: `Loaded "${mergedData.customerName} - ${mergedData.projectName}" with ${completedStepNumbers.length} completed steps. Moving to Step ${nextStep}.`,
+          });
+        } else {
+          console.error('Invalid response structure:', data);
+          throw new Error(data.error || 'Invalid response from server');
         }
       } else {
-        throw new Error('Project not found');
+        const errorData = await response.json();
+        console.error('Load failed with status:', response.status, errorData);
+        throw new Error(errorData.message || 'Failed to load project');
       }
     } catch (error) {
       console.error('Error loading project:', error);
+      setShowLoadDialog(false);
       toast({
         title: "Load Failed",
-        description: "Project not found or failed to load project data",
+        description: error instanceof Error ? error.message : "Failed to load project data",
         variant: "destructive",
       });
     }
