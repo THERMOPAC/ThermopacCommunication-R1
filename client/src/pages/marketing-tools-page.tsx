@@ -1025,8 +1025,8 @@ export default function MarketingToolsPage() {
     }));
 
     // Ensure tanks and utilities are stored in roiData before moving to results
-    const currentTanks = roiData.tanks || calculatedTanks;
-    const currentUtilities = roiData.utilities || calculatedUtilities;
+    const currentTanks = roiData.tanks || calculateTanks(plantCapacityLPH);
+    const currentUtilities = roiData.utilities || calculateUtilities(plantCapacityLPH);
     
     if (!roiData.tanks) {
       updateData('tanks', currentTanks);
