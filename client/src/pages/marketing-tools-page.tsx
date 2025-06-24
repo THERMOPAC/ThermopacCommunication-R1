@@ -1594,6 +1594,19 @@ export default function MarketingToolsPage() {
                           ))}
                         </tbody>
                       </table>
+                      
+                      {/* Total Tank Cost Summary */}
+                      <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-blue-900">Total Tank Cost:</span>
+                          <span className="text-lg font-bold text-blue-900">
+                            ${roiData.tanks.reduce((total, tank) => total + (getTankPrice(tank.suggestedTankSize) * tank.suggestedQuantity), 0).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="text-xs text-blue-700 mt-1">
+                          Sum of {roiData.tanks.filter(tank => tank.suggestedQuantity > 0).length} tank configurations
+                        </div>
+                      </div>
                     </div>
                     
                     {roiData.capacity && (
@@ -2016,6 +2029,16 @@ export default function MarketingToolsPage() {
                             </tr>
                           </tbody>
                         </table>
+                        
+                        {/* Total Utilities Cost */}
+                        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-green-900">Total Utilities Cost:</span>
+                            <span className="text-lg font-bold text-green-900">
+                              ${roiData.utilities.reduce((total, utility) => total + utility.totalCost, 0).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
