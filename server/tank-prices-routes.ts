@@ -3,6 +3,7 @@ import { tankPrices } from '@shared/schema';
 import { db } from './db';
 import { eq } from 'drizzle-orm';
 import { ensureAuthenticated } from './storage';
+import { sql } from 'drizzle-orm';
 
 const router = Router();
 
@@ -10,30 +11,34 @@ const router = Router();
 router.get('/', ensureAuthenticated, async (req, res) => {
   try {
     console.log('Tank prices GET route hit');
-    const prices = await db.select().from(tankPrices).where(eq(tankPrices.isActive, true)).orderBy(tankPrices.capacity);
-    console.log('Found tank prices:', prices.length);
     
-    // Log raw database response first
-    console.log('Raw DB prices:', prices);
+    // Use raw SQL to get tank prices directly
+    const result = await db.execute(sql`
+      SELECT id, capacity, price_usd, is_active, created_at, updated_at, created_by, updated_by
+      FROM tank_prices 
+      WHERE is_active = true 
+      ORDER BY capacity
+    `);
     
-    // Convert database field names to frontend format
-    const formattedPrices = prices.map(price => {
-      console.log('Processing price record:', price);
-      const result = {
-        id: price.id,
-        capacity: price.capacity,
-        priceUSD: parseFloat(price.priceUSD?.toString() || '0'),
-        isActive: price.isActive,
-        createdAt: price.createdAt,
-        updatedAt: price.updatedAt,
-        createdBy: price.createdBy,
-        updatedBy: price.updatedBy
+    console.log('Raw SQL result:', result.rows);
+    
+    // Convert to proper format
+    const formattedPrices = result.rows.map((row: any) => {
+      const numericPrice = parseFloat(row.price_usd?.toString() || '0');
+      console.log(`Tank ${row.capacity} KL: price_usd=${row.price_usd} -> priceUSD=${numericPrice}`);
+      return {
+        id: row.id,
+        capacity: row.capacity,
+        priceUSD: numericPrice,
+        isActive: row.is_active,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        createdBy: row.created_by,
+        updatedBy: row.updated_by
       };
-      console.log(`Tank ${price.capacity}: ${price.priceUSD} -> ${result.priceUSD}`);
-      return result;
     });
     
-    console.log('Final formatted response:', formattedPrices);
+    console.log('Final formatted tank prices:', formattedPrices);
 
     res.json(formattedPrices);
   } catch (error) {
