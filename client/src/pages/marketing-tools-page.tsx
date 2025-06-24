@@ -1174,84 +1174,216 @@ export default function MarketingToolsPage() {
       // Create and download the report
       if (format === 'pdf') {
         const { jsPDF } = await import('jspdf');
-        const doc = new jsPDF();
+        const doc = new jsPDF('p', 'mm', 'a4');
         
-        // Header with branding
-        doc.setFillColor(37, 99, 235); // Blue background
-        doc.rect(0, 0, 210, 30, 'F');
+        // Page dimensions
+        const pageWidth = doc.internal.pageSize.width;
+        const pageHeight = doc.internal.pageSize.height;
+        const margin = 20;
+        const contentWidth = pageWidth - (2 * margin);
+        
+        // Colors
+        const primaryColor = [41, 128, 185]; // Blue
+        const secondaryColor = [52, 73, 94]; // Dark gray
+        const accentColor = [231, 76, 60]; // Red
+        const lightGray = [236, 240, 241];
+        const successColor = [46, 204, 113]; // Green
+        
+        // Professional Header with gradient background
+        doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.rect(0, 0, pageWidth, 50, 'F');
+        
+        // Company Logo placeholder (THERMOPAC branding)
+        doc.setFillColor(255, 255, 255);
+        doc.circle(30, 25, 15, 'F');
+        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('THERMOPAC', 20, 30);
+        
+        // Header Title
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(24);
-        doc.text('ROI ANALYSIS REPORT', 20, 20);
-        doc.setFontSize(12);
-        doc.text(`Generated on ${reportData.projectInfo.generatedDate}`, 150, 25);
+        doc.setFont('helvetica', 'bold');
+        doc.text('ROI ANALYSIS REPORT', pageWidth - 20, 25, { align: 'right' });
         
-        // Reset text color
-        doc.setTextColor(0, 0, 0);
+        // Project Information
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`${reportData.projectInfo.projectName}`, pageWidth - 20, 35, { align: 'right' });
+        doc.text(`Generated: ${reportData.projectInfo.generatedDate}`, pageWidth - 20, 42, { align: 'right' });
+        
+        let yPosition = 70;
         
         // Project Summary Section
+        doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+        doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+        doc.rect(margin, yPosition - 5, contentWidth, 10, 'F');
         doc.setFontSize(16);
-        doc.setTextColor(37, 99, 235);
-        doc.text('PROJECT SUMMARY', 20, 45);
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(12);
-        doc.text(`Customer: ${reportData.projectInfo.customerName}`, 20, 55);
-        doc.text(`Project: ${reportData.projectInfo.projectName}`, 20, 63);
-        doc.text(`Plant Capacity: ${reportData.projectInfo.capacity.toLocaleString()} LPH`, 20, 71);
-        doc.text(`Currency: ${reportData.projectInfo.currency}`, 20, 79);
-        doc.text(`Operating Days: ${reportData.projectInfo.operatingDays}/month`, 20, 87);
+        doc.setFont('helvetica', 'bold');
+        doc.text('PROJECT SUMMARY', margin + 5, yPosition);
+        yPosition += 20;
+        
+        // Project details in two columns
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Customer: ${reportData.projectInfo.customerName}`, margin, yPosition);
+        doc.text(`Currency: ${reportData.projectInfo.currency}`, pageWidth/2, yPosition);
+        yPosition += 8;
+        doc.text(`Plant Capacity: ${reportData.projectInfo.capacity.toLocaleString()} LPH`, margin, yPosition);
+        doc.text(`Operating Days: ${reportData.projectInfo.operatingDays}/month`, pageWidth/2, yPosition);
+        yPosition += 8;
+        doc.text(`Total Investment: ${getCurrencySymbol(roiData.currency)}${totalInvestment.toLocaleString()}`, margin, yPosition);
+        yPosition += 15;
         
         // Financial Summary Section
+        doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+        doc.rect(margin, yPosition - 5, contentWidth, 10, 'F');
         doc.setFontSize(16);
-        doc.setTextColor(37, 99, 235);
-        doc.text('FINANCIAL SUMMARY', 20, 105);
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(12);
-        doc.text(`Total Investment: ${getCurrencySymbol(roiData.currency)}${totalInvestment.toLocaleString()}`, 20, 115);
-        doc.text(`Annual Revenue: ${getCurrencySymbol(roiData.currency)}${reportData.financials.totalRevenue.toLocaleString()}`, 20, 123);
-        doc.text(`Annual Operating Costs: ${getCurrencySymbol(roiData.currency)}${reportData.financials.operatingCostsAnnual.toLocaleString()}`, 20, 131);
-        doc.text(`Gross Profit: ${getCurrencySymbol(roiData.currency)}${reportData.financials.grossProfit.toLocaleString()}`, 20, 139);
-        doc.text(`Payback Period: ${reportData.financials.paybackPeriod.toFixed(1)} years`, 20, 147);
-        doc.text(`Annual ROI: ${reportData.financials.annualROI.toFixed(1)}%`, 20, 155);
-        doc.text(`NPV (5 years): ${getCurrencySymbol(roiData.currency)}${reportData.financials.npv.toLocaleString()}`, 20, 163);
-        doc.text(`IRR: ${reportData.financials.irr.toFixed(1)}%`, 20, 171);
+        doc.setFont('helvetica', 'bold');
+        doc.text('FINANCIAL SUMMARY', margin + 5, yPosition);
+        yPosition += 20;
         
-        // Product Revenue Analysis
+        // Financial metrics in cards
+        const cardWidth = (contentWidth - 10) / 3;
+        const cardHeight = 25;
+        
+        // Revenue Card
+        doc.setFillColor(successColor[0], successColor[1], successColor[2]);
+        doc.rect(margin, yPosition, cardWidth, cardHeight, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('TOTAL REVENUE', margin + 5, yPosition + 8);
+        doc.setFontSize(14);
+        doc.text(`${getCurrencySymbol(roiData.currency)}${reportData.financials.totalRevenue.toLocaleString()}`, margin + 5, yPosition + 18);
+        
+        // Operating Cost Card
+        doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
+        doc.rect(margin + cardWidth + 5, yPosition, cardWidth, cardHeight, 'F');
+        doc.text('OPERATING COST', margin + cardWidth + 10, yPosition + 8);
+        doc.text(`${getCurrencySymbol(roiData.currency)}${reportData.financials.operatingCostsAnnual.toLocaleString()}`, margin + cardWidth + 10, yPosition + 18);
+        
+        // Profit Card
+        doc.setFillColor(155, 89, 182); // Purple
+        doc.rect(margin + 2 * cardWidth + 10, yPosition, cardWidth, cardHeight, 'F');
+        doc.text('GROSS PROFIT', margin + 2 * cardWidth + 15, yPosition + 8);
+        doc.text(`${getCurrencySymbol(roiData.currency)}${reportData.financials.grossProfit.toLocaleString()}`, margin + 2 * cardWidth + 15, yPosition + 18);
+        
+        yPosition += 40;
+        
+        // ROI and Payback Period - Visual Display
+        doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+        doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+        doc.rect(margin, yPosition - 5, contentWidth, 10, 'F');
         doc.setFontSize(16);
-        doc.setTextColor(37, 99, 235);
-        doc.text('PRODUCT REVENUE ANALYSIS', 20, 190);
-        doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'bold');
+        doc.text('KEY PERFORMANCE INDICATORS', margin + 5, yPosition);
+        yPosition += 20;
+        
+        // ROI Circle
+        const roiRadius = 20;
+        const roiCenterX = margin + 50;
+        const roiCenterY = yPosition + 20;
+        doc.setFillColor(successColor[0], successColor[1], successColor[2]);
+        doc.circle(roiCenterX, roiCenterY, roiRadius, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${reportData.financials.annualROI.toFixed(1)}%`, roiCenterX, roiCenterY - 3, { align: 'center' });
         doc.setFontSize(10);
-        let yPos = 200;
-        reportData.products.forEach(product => {
+        doc.text('ROI', roiCenterX, roiCenterY + 5, { align: 'center' });
+        
+        // Payback Period
+        const paybackCenterX = pageWidth - margin - 50;
+        doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.circle(paybackCenterX, roiCenterY, roiRadius, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${reportData.financials.paybackPeriod.toFixed(1)}`, paybackCenterX, roiCenterY - 3, { align: 'center' });
+        doc.setFontSize(10);
+        doc.text('Years', paybackCenterX, roiCenterY + 5, { align: 'center' });
+        
+        yPosition += 50;
+        
+        // Product Revenue Breakdown Section
+        doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+        doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+        doc.rect(margin, yPosition - 5, contentWidth, 10, 'F');
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('PRODUCT REVENUE BREAKDOWN', margin + 5, yPosition);
+        yPosition += 20;
+        
+        // Product bar chart (simplified)
+        const maxRevenue = Math.max(...reportData.products.map(p => p.annualRevenue));
+        const barHeight = 8;
+        const barSpacing = 12;
+        
+        reportData.products.forEach((product, index) => {
+          const barWidth = (product.annualRevenue / maxRevenue) * (contentWidth - 100);
+          const y = yPosition + (index * barSpacing);
           const percentage = reportData.financials.totalRevenue > 0 ? (product.annualRevenue / reportData.financials.totalRevenue) * 100 : 0;
-          doc.text(`${product.name}:`, 20, yPos);
-          doc.text(`${product.annualTons.toFixed(1)} tons/year`, 70, yPos);
-          doc.text(`${getCurrencySymbol(roiData.currency)}${product.annualRevenue.toLocaleString()}`, 120, yPos);
-          doc.text(`(${percentage.toFixed(1)}%)`, 160, yPos);
-          yPos += 8;
+          
+          // Product name
+          doc.setFontSize(10);
+          doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+          doc.text(product.name, margin, y + 3);
+          
+          // Bar
+          doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+          doc.rect(margin + 50, y, barWidth, barHeight, 'F');
+          
+          // Value
+          doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+          doc.text(`${getCurrencySymbol(roiData.currency)}${product.annualRevenue.toLocaleString()}`, margin + 55 + barWidth, y + 3);
+          
+          // Percentage
+          doc.text(`${percentage.toFixed(1)}%`, pageWidth - margin - 20, y + 3, { align: 'right' });
         });
         
-        // Operating Costs Breakdown
-        yPos += 10;
+        yPosition += (reportData.products.length * barSpacing) + 20;
+        
+        // Operating Cost Breakdown
+        if (yPosition > pageHeight - 60) {
+          doc.addPage();
+          yPosition = 30;
+        }
+        
+        doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+        doc.rect(margin, yPosition - 5, contentWidth, 10, 'F');
         doc.setFontSize(16);
-        doc.setTextColor(37, 99, 235);
-        doc.text('OPERATING COSTS BREAKDOWN', 20, yPos);
-        doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'bold');
+        doc.text('OPERATING COST BREAKDOWN', margin + 5, yPosition);
+        yPosition += 20;
+        
+        // Operating costs table
         doc.setFontSize(10);
-        yPos += 10;
-        reportData.operatingCosts.forEach(cost => {
-          doc.text(`${cost.name}:`, 20, yPos);
-          doc.text(`${getCurrencySymbol(roiData.currency)}${cost.monthly.toLocaleString()}/month`, 70, yPos);
-          doc.text(`${getCurrencySymbol(roiData.currency)}${cost.annual.toLocaleString()}/year`, 130, yPos);
-          yPos += 8;
+        doc.setFont('helvetica', 'normal');
+        
+        reportData.operatingCosts.forEach((cost, index) => {
+          const y = yPosition + (index * 10);
+          const percentage = ((cost.annual / reportData.financials.operatingCostsAnnual) * 100).toFixed(1);
+          
+          doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+          doc.text(cost.name, margin, y);
+          doc.text(`${getCurrencySymbol(roiData.currency)}${cost.annual.toLocaleString()}`, pageWidth/2, y);
+          doc.text(`${percentage}%`, pageWidth - margin - 20, y, { align: 'right' });
+          
+          // Progress bar
+          const barWidth = (cost.annual / reportData.financials.operatingCostsAnnual) * 80;
+          doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
+          doc.rect(pageWidth - margin - 100, y - 2, barWidth, 4, 'F');
         });
         
         // Footer
         doc.setFontSize(8);
         doc.setTextColor(128, 128, 128);
-        doc.text('This report was generated by THERMOPAC ROI Calculator', 20, 280);
-        doc.text('Contact: info@thermopac.com | www.thermopac.com', 20, 285);
+        doc.text('This report was generated by THERMOPAC ROI Calculator', pageWidth/2, pageHeight - 15, { align: 'center' });
+        doc.text('Contact: info@thermopac.com | www.thermopac.com', pageWidth/2, pageHeight - 10, { align: 'center' });
         
+        // Save the PDF
         doc.save(`ROI_Analysis_Report_${roiData.customerName || 'Project'}_${new Date().toISOString().split('T')[0]}.pdf`);
       } else {
         // Excel format - create comprehensive CSV
