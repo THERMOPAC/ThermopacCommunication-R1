@@ -120,6 +120,7 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 - June 23, 2025. Enhanced tank calculation logic with smart rounding (rounds UP to nearest 50/100 KL), quantity minimization algorithm, and safety checks to prevent zero capacities
 - June 23, 2025. Added automatic utility calculations for Step 2: Compressor (20×LPH/1000), Heater (600,000×LPH/1000), Total Connected Load (350×LPH/1000) with real-time updates based on plant capacity
 - June 23, 2025. Updated heater selection logic for large plants (>3000 LPH) to require minimum 2 heaters while optimizing for fewest quantity, providing operational redundancy and flexibility
+- June 24, 2025. Created database-driven plant costs management system with edit dialog for ROI Calculator, replacing hardcoded pricing with dynamic database storage and admin interface
 
 # User Preferences
 Preferred communication style: Simple, everyday language.

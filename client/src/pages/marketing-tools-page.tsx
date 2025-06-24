@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Calculator, 
   BarChart3, 
@@ -31,7 +33,10 @@ import {
   Fuel,
   DollarSign,
   Settings,
-  Percent
+  Percent,
+  Edit3,
+  Plus,
+  Trash2
 } from 'lucide-react';
 
 // ROI Calculator Data Interface
@@ -87,8 +92,12 @@ interface ROIData {
 
 export default function MarketingToolsPage() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("overview");
   const [currentStep, setCurrentStep] = useState(1);
+  const [showPlantCostsDialog, setShowPlantCostsDialog] = useState(false);
+  const [editingCost, setEditingCost] = useState<any>(null);
+  const [newCost, setNewCost] = useState({ capacity: '', priceUSD: '' });
   const [roiData, setROIData] = useState<ROIData>({
     capacity: '',
     currency: 'USD',
@@ -232,21 +241,72 @@ export default function MarketingToolsPage() {
   // Standard tank sizes in KL
   const standardTankSizes = [50, 100, 200, 300, 400, 600];
 
-  // ===== PLANT PRICING CONFIGURATION =====
-  // Edit the prices below to update plant costs for each capacity
-  const plantCapacities = [
-    { capacity: 1000, priceUSD: 350000 },
-    { capacity: 1500, priceUSD: 475000 },
-    { capacity: 2000, priceUSD: 590000 },
-    { capacity: 3000, priceUSD: 800000 },
-    { capacity: 4000, priceUSD: 1000000 },
-    { capacity: 6000, priceUSD: 1400000 },
-    { capacity: 8000, priceUSD: 1750000 },
-    { capacity: 10000, priceUSD: 2100000 },
-    { capacity: 12000, priceUSD: 2450000 },
-    { capacity: 15000, priceUSD: 2950000 },
-    { capacity: 20000, priceUSD: 3800000 }
-  ];
+  // Fetch plant costs from database
+  const { data: plantCapacities = [], isLoading: loadingCosts } = useQuery({
+    queryKey: ['/api/plant-costs'],
+    select: (data) => data.map((cost: any) => ({
+      capacity: cost.capacity,
+      priceUSD: parseFloat(cost.priceUSD)
+    }))
+  });
+
+  // Update plant cost mutation
+  const updateCostMutation = useMutation({
+    mutationFn: async (data: { id: number, capacity: number, priceUSD: number }) => {
+      const response = await fetch(`/api/plant-costs/${data.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!response.ok) throw new Error('Failed to update plant cost');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/plant-costs'] });
+      toast({ title: 'Plant cost updated successfully' });
+      setEditingCost(null);
+    },
+    onError: () => {
+      toast({ title: 'Failed to update plant cost', variant: 'destructive' });
+    }
+  });
+
+  // Create plant cost mutation
+  const createCostMutation = useMutation({
+    mutationFn: async (data: { capacity: number, priceUSD: number }) => {
+      const response = await fetch('/api/plant-costs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!response.ok) throw new Error('Failed to create plant cost');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/plant-costs'] });
+      toast({ title: 'Plant cost created successfully' });
+      setNewCost({ capacity: '', priceUSD: '' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to create plant cost', variant: 'destructive' });
+    }
+  });
+
+  // Delete plant cost mutation
+  const deleteCostMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/plant-costs/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete plant cost');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/plant-costs'] });
+      toast({ title: 'Plant cost deleted successfully' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to delete plant cost', variant: 'destructive' });
+    }
+  });
 
   // Currency exchange rates (USD base rate = 1.0)
   const currencies = {
@@ -765,8 +825,19 @@ export default function MarketingToolsPage() {
                           <div className="mt-2 text-xs text-green-600">
                             Rate: 1 USD = {currencies[roiData.currency]?.rate} {roiData.currency} | Capacity: {parseInt(roiData.capacity).toLocaleString()} LPH
                           </div>
-                          <div className="mt-1 text-xs text-gray-600">
-                            <strong>Edit costs:</strong> Lines 237-247 in marketing-tools-page.tsx
+                          <div className="mt-2 flex justify-between items-center">
+                            <div className="text-xs text-gray-600">
+                              Plant costs are managed in database
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowPlantCostsDialog(true)}
+                              className="h-8"
+                            >
+                              <Edit3 className="w-3 h-3 mr-1" />
+                              Edit Costs
+                            </Button>
                           </div>
                         </div>
                       </div>

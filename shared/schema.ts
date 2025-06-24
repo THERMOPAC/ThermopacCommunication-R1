@@ -710,6 +710,18 @@ export const productivityMetrics = pgTable('productivity_metrics', {
   totalPoints: integer('total_points').notNull().default(0),
 });
 
+// Plant Costs Configuration
+export const plantCosts = pgTable('plant_costs', {
+  id: serial('id').primaryKey(),
+  capacity: integer('capacity').notNull().unique(), // LPH capacity
+  priceUSD: decimal('price_usd', { precision: 12, scale: 2 }).notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  updatedBy: integer('updated_by').references(() => users.id),
+});
+
 export const insertUserSchema = createInsertSchema(users).extend({
   role: z.enum(roles),
   reportingManagerId: z.number().optional(),
@@ -718,6 +730,15 @@ export const insertUserSchema = createInsertSchema(users).extend({
   mobileNumber: z.string().min(10),
   countryCode: z.string(),
 });
+
+// Plant Costs Schema
+export const insertPlantCostSchema = createInsertSchema(plantCosts).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export type InsertPlantCost = z.infer<typeof insertPlantCostSchema>;
+export type PlantCost = typeof plantCosts.$inferSelect;
 
 export const insertTaskSchema = createInsertSchema(tasks).extend({
   priority: z.enum(['Low', 'Medium', 'High']),
