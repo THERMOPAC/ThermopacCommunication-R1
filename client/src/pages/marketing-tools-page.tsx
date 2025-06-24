@@ -722,8 +722,8 @@ export default function MarketingToolsPage() {
   const updateData = (field: keyof ROIData, value: string | number) => {
     setROIData(prev => ({ ...prev, [field]: value }));
     
-    // Auto-calculate tanks, utilities, and project cost when capacity or currency changes
-    if ((field === 'capacity' || field === 'currency') && (roiData.capacity || value)) {
+    // Auto-calculate tanks, utilities, and project cost when capacity, currency, or plant operation days changes
+    if ((field === 'capacity' || field === 'currency' || field === 'plantOperationDays') && (roiData.capacity || value)) {
       const plantCapacity = parseFloat((field === 'capacity' ? value : roiData.capacity) as string);
       const selectedCurrency = field === 'currency' ? value as string : roiData.currency;
       
@@ -792,18 +792,18 @@ export default function MarketingToolsPage() {
           });
           
           // Auto-calculate operating costs based on plant capacity
-          const operatingDays = 30; // Default operating days per month
+          const operatingDaysPerMonth = parseFloat(roiData.plantOperationDays) || 30; // Use dynamic operating days
           const powerRequirement = parseFloat(roiData.powerRequirement) || (350 * (plantCapacity / 1000));
           
           const operatingCosts = {
             feedstockCost: "0.2", // Default $0.2 per liter but user-defined
-            powerCost: Math.round((powerRequirement / 10) * 0.12 * 24 * operatingDays).toString(),
-            fuelCost: Math.round(plantCapacity * 0.03 * 24 * operatingDays).toString(),
-            chemicalCost: Math.round(plantCapacity * 0.005 * 24 * operatingDays).toString(),
+            powerCost: Math.round((powerRequirement / 10) * 0.12 * 24 * operatingDaysPerMonth).toString(),
+            fuelCost: Math.round(plantCapacity * 0.03 * 24 * operatingDaysPerMonth).toString(),
+            chemicalCost: Math.round(plantCapacity * 0.005 * 24 * operatingDaysPerMonth).toString(),
             mediaCost: Math.round(2.5 * (plantCapacity / 1000)).toString(),
             laborCost: Math.round(5000 * (plantCapacity / 1000)).toString(),
             maintenanceCost: Math.round((baseCost * 0.03) / 12).toString(),
-            transportationCost: Math.round(0.03 * plantCapacity * 24 * operatingDays).toString(),
+            transportationCost: Math.round(0.03 * plantCapacity * 24 * operatingDaysPerMonth).toString(),
             vehicleMaintenance: Math.round(500 * (plantCapacity / 1000)).toString(),
             miscellaneous: Math.round(500 * (plantCapacity / 1000)).toString(),
             rateOfInterest: "0.5" // Default 0.5% monthly
