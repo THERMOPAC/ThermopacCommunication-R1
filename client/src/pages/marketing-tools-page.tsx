@@ -791,10 +791,29 @@ export default function MarketingToolsPage() {
             calculatedCosts[key] = componentCost.toString();
           });
           
-          // Update all cost breakdown and additional equipment fields
+          // Auto-calculate operating costs based on plant capacity
+          const operatingDays = 30; // Default operating days per month
+          const powerRequirement = parseFloat(roiData.powerRequirement) || (350 * (plantCapacity / 1000));
+          
+          const operatingCosts = {
+            feedstockCost: "0.2", // Default $0.2 per liter but user-defined
+            powerCost: Math.round((powerRequirement / 10) * 0.12 * 24 * operatingDays).toString(),
+            fuelCost: Math.round(plantCapacity * 0.03 * 24 * operatingDays).toString(),
+            chemicalCost: Math.round(plantCapacity * 0.005 * 24 * operatingDays).toString(),
+            mediaCost: Math.round(2.5 * (plantCapacity / 1000)).toString(),
+            laborCost: Math.round(5000 * (plantCapacity / 1000)).toString(),
+            maintenanceCost: Math.round((baseCost * 0.03) / 12).toString(),
+            transportationCost: Math.round(0.03 * plantCapacity * 24 * operatingDays).toString(),
+            vehicleMaintenance: Math.round(500 * (plantCapacity / 1000)).toString(),
+            miscellaneous: Math.round(500 * (plantCapacity / 1000)).toString(),
+            rateOfInterest: "0.5" // Default 0.5% monthly
+          };
+          
+          // Update all cost breakdown, additional equipment, and operating cost fields
           setROIData(prev => ({ 
             ...prev, 
-            ...calculatedCosts
+            ...calculatedCosts,
+            ...operatingCosts
           }));
         }
         
