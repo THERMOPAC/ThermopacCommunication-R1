@@ -207,14 +207,17 @@ export default function MarketingToolsPage() {
 
   useEffect(() => {
     if (tankPricesData && !tankPricesLoading) {
-      console.log('Processing tank prices data:', tankPricesData);
+      console.log('Raw tank prices API response:', tankPricesData);
       const processedPrices = tankPricesData.map((price: any) => {
+        // Handle potential null/undefined priceUSD
+        const rawPrice = price.priceUSD || price.price_usd || price.priceUsd || 0;
+        const numericPrice = typeof rawPrice === 'string' ? parseFloat(rawPrice) : rawPrice;
         const processed = {
           id: price.id,
           capacity: price.capacity,
-          priceUSD: parseFloat(price.priceUSD?.toString() || '0')
+          priceUSD: numericPrice
         };
-        console.log(`Tank ${price.capacity} KL: ${price.priceUSD} -> ${processed.priceUSD}`);
+        console.log(`Processing tank ${price.capacity} KL: raw=${rawPrice}, final=${processed.priceUSD}`);
         return processed;
       });
       console.log('Final processed tank prices:', processedPrices);

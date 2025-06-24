@@ -13,17 +13,27 @@ router.get('/', ensureAuthenticated, async (req, res) => {
     const prices = await db.select().from(tankPrices).where(eq(tankPrices.isActive, true)).orderBy(tankPrices.capacity);
     console.log('Found tank prices:', prices.length);
     
+    // Log raw database response first
+    console.log('Raw DB prices:', prices);
+    
     // Convert database field names to frontend format
-    const formattedPrices = prices.map(price => ({
-      id: price.id,
-      capacity: price.capacity,
-      priceUSD: parseFloat(price.priceUSD?.toString() || '0'),
-      isActive: price.isActive,
-      createdAt: price.createdAt,
-      updatedAt: price.updatedAt,
-      createdBy: price.createdBy,
-      updatedBy: price.updatedBy
-    }));
+    const formattedPrices = prices.map(price => {
+      console.log('Processing price record:', price);
+      const result = {
+        id: price.id,
+        capacity: price.capacity,
+        priceUSD: parseFloat(price.priceUSD?.toString() || '0'),
+        isActive: price.isActive,
+        createdAt: price.createdAt,
+        updatedAt: price.updatedAt,
+        createdBy: price.createdBy,
+        updatedBy: price.updatedBy
+      };
+      console.log(`Tank ${price.capacity}: ${price.priceUSD} -> ${result.priceUSD}`);
+      return result;
+    });
+    
+    console.log('Final formatted response:', formattedPrices);
 
     res.json(formattedPrices);
   } catch (error) {
