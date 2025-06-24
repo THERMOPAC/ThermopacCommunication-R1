@@ -1215,33 +1215,252 @@ export default function MarketingToolsPage() {
         
         let yPosition = 70;
         
-        // Project Summary Section
+        // STEP 1: Plant Configuration
         doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
         doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
         doc.rect(margin, yPosition - 5, contentWidth, 10, 'F');
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
-        doc.text('PROJECT SUMMARY', margin + 5, yPosition);
+        doc.text('STEP 1: PLANT CONFIGURATION', margin + 5, yPosition);
         yPosition += 20;
         
-        // Project details in two columns
+        // Plant configuration details
         doc.setFontSize(11);
         doc.setFont('helvetica', 'normal');
         doc.text(`Customer: ${reportData.projectInfo.customerName}`, margin, yPosition);
-        doc.text(`Currency: ${reportData.projectInfo.currency}`, pageWidth/2, yPosition);
+        doc.text(`Project: ${reportData.projectInfo.projectName}`, pageWidth/2, yPosition);
         yPosition += 8;
         doc.text(`Plant Capacity: ${reportData.projectInfo.capacity.toLocaleString()} LPH`, margin, yPosition);
-        doc.text(`Operating Days: ${reportData.projectInfo.operatingDays}/month`, pageWidth/2, yPosition);
+        doc.text(`Currency: ${reportData.projectInfo.currency}`, pageWidth/2, yPosition);
         yPosition += 8;
-        doc.text(`Total Investment: ${getCurrencySymbol(roiData.currency)}${totalInvestment.toLocaleString()}`, margin, yPosition);
-        yPosition += 15;
+        doc.text(`Operating Days: ${reportData.projectInfo.operatingDays}/month`, margin, yPosition);
+        doc.text(`Base Plant Cost: ${getCurrencySymbol(roiData.currency)}${(parseFloat(roiData.projectCostLocal) || 0).toLocaleString()}`, pageWidth/2, yPosition);
+        yPosition += 20;
         
-        // Financial Summary Section
+        // STEP 2: Tank Farm & Utilities
         doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
         doc.rect(margin, yPosition - 5, contentWidth, 10, 'F');
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
-        doc.text('FINANCIAL SUMMARY', margin + 5, yPosition);
+        doc.text('STEP 2: TANK FARM & UTILITIES', margin + 5, yPosition);
+        yPosition += 15;
+        
+        // Tank Farm costs
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Tank Farm:', margin, yPosition);
+        yPosition += 10;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        if (roiData.tanks && roiData.tanks.length > 0) {
+          roiData.tanks.forEach((tank: any) => {
+            doc.text(`• ${tank.capacity} KL Tank (Qty: ${tank.quantity}) - ${getCurrencySymbol(roiData.currency)}${tank.totalCost.toLocaleString()}`, margin + 5, yPosition);
+            yPosition += 6;
+          });
+          const totalTankCost = roiData.tanks.reduce((sum: number, tank: any) => sum + tank.totalCost, 0);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`Total Tank Cost: ${getCurrencySymbol(roiData.currency)}${totalTankCost.toLocaleString()}`, margin + 5, yPosition);
+          yPosition += 10;
+        }
+        
+        // Utilities costs
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Utilities:', margin, yPosition);
+        yPosition += 10;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        if (roiData.utilities && roiData.utilities.length > 0) {
+          roiData.utilities.forEach((utility: any) => {
+            doc.text(`• ${utility.description} (${utility.specification}) - ${getCurrencySymbol(roiData.currency)}${utility.totalCost.toLocaleString()}`, margin + 5, yPosition);
+            yPosition += 6;
+          });
+          const totalUtilityCost = roiData.utilities.reduce((sum: number, utility: any) => sum + utility.totalCost, 0);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`Total Utilities Cost: ${getCurrencySymbol(roiData.currency)}${totalUtilityCost.toLocaleString()}`, margin + 5, yPosition);
+          yPosition += 15;
+        }
+        
+        // STEP 3: Additional Equipment
+        doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+        doc.rect(margin, yPosition - 5, contentWidth, 10, 'F');
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('STEP 3: ADDITIONAL EQUIPMENT', margin + 5, yPosition);
+        yPosition += 15;
+        
+        // Additional equipment costs
+        const additionalEquipment = [
+          { name: 'Process Pumps', cost: parseFloat(roiData.processPumps) || 0 },
+          { name: 'Tank Pumps', cost: parseFloat(roiData.tankPumps) || 0 },
+          { name: 'Level Transmitters', cost: parseFloat(roiData.levelTransmitters) || 0 },
+          { name: 'Temperature Transmitters', cost: parseFloat(roiData.temperatureTransmitters) || 0 },
+          { name: 'Pressure Transmitters', cost: parseFloat(roiData.pressureTransmitters) || 0 },
+          { name: 'Flow Transmitters', cost: parseFloat(roiData.flowTransmitters) || 0 },
+          { name: 'Control Valves', cost: parseFloat(roiData.controlValves) || 0 },
+          { name: 'Safety Valves', cost: parseFloat(roiData.safetyValves) || 0 },
+          { name: 'PLC & HMI', cost: parseFloat(roiData.plcHmi) || 0 },
+          { name: 'Electrical MCC Panel', cost: parseFloat(roiData.electricalMccPanel) || 0 },
+          { name: 'Mechanical Equipment', cost: parseFloat(roiData.mechanicalEquipment) || 0 },
+          { name: 'Piping & Fittings', cost: parseFloat(roiData.pipingFittings) || 0 },
+          { name: 'Insulation', cost: parseFloat(roiData.equipmentInsulation) || 0 },
+          { name: 'Commissioning', cost: parseFloat(roiData.equipmentCommissioning) || 0 }
+        ];
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        let equipmentTotal = 0;
+        additionalEquipment.forEach((item) => {
+          if (item.cost > 0) {
+            doc.text(`• ${item.name}: ${getCurrencySymbol(roiData.currency)}${item.cost.toLocaleString()}`, margin + 5, yPosition);
+            equipmentTotal += item.cost;
+            yPosition += 6;
+          }
+        });
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Total Equipment Cost: ${getCurrencySymbol(roiData.currency)}${equipmentTotal.toLocaleString()}`, margin + 5, yPosition);
+        yPosition += 15;
+        
+        // Check if we need a new page
+        if (yPosition > pageHeight - 100) {
+          doc.addPage();
+          yPosition = 30;
+        }
+        
+        // STEP 4: Operating Costs
+        doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+        doc.rect(margin, yPosition - 5, contentWidth, 10, 'F');
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('STEP 4: OPERATING COSTS', margin + 5, yPosition);
+        yPosition += 15;
+        
+        // Operating costs breakdown
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        reportData.operatingCosts.forEach((cost, index) => {
+          doc.text(`• ${cost.name}:`, margin + 5, yPosition);
+          doc.text(`${getCurrencySymbol(roiData.currency)}${cost.monthly.toLocaleString()}/month`, pageWidth/2 - 30, yPosition);
+          doc.text(`${getCurrencySymbol(roiData.currency)}${cost.annual.toLocaleString()}/year`, pageWidth - margin - 50, yPosition, { align: 'right' });
+          yPosition += 8;
+        });
+        doc.setFont('helvetica', 'bold');
+        const totalMonthly = reportData.operatingCosts.reduce((sum, cost) => sum + cost.monthly, 0);
+        doc.text(`Total Monthly: ${getCurrencySymbol(roiData.currency)}${totalMonthly.toLocaleString()}`, margin + 5, yPosition);
+        doc.text(`Total Annual: ${getCurrencySymbol(roiData.currency)}${reportData.financials.operatingCostsAnnual.toLocaleString()}`, pageWidth - margin - 50, yPosition, { align: 'right' });
+        yPosition += 20;
+        
+        // STEP 5: Product Yield & Revenue
+        doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+        doc.rect(margin, yPosition - 5, contentWidth, 10, 'F');
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('STEP 5: PRODUCT YIELD & REVENUE', margin + 5, yPosition);
+        yPosition += 15;
+        
+        // Product revenue breakdown
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        reportData.products.forEach((product, index) => {
+          const percentage = reportData.financials.totalRevenue > 0 ? (product.annualRevenue / reportData.financials.totalRevenue) * 100 : 0;
+          doc.text(`• ${product.name} (${product.yield.toFixed(1)}%):`, margin + 5, yPosition);
+          doc.text(`${product.annualTons.toFixed(0)} tons/year`, pageWidth/2 - 30, yPosition);
+          doc.text(`${getCurrencySymbol(roiData.currency)}${product.annualRevenue.toLocaleString()} (${percentage.toFixed(1)}%)`, pageWidth - margin - 80, yPosition, { align: 'right' });
+          yPosition += 8;
+        });
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Total Annual Revenue: ${getCurrencySymbol(roiData.currency)}${reportData.financials.totalRevenue.toLocaleString()}`, margin + 5, yPosition);
+        yPosition += 20;
+        
+        // STEP 6: Investment Summary, ROI & Payback
+        doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+        doc.rect(margin, yPosition - 5, contentWidth, 10, 'F');
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('STEP 6: INVESTMENT SUMMARY & ROI ANALYSIS', margin + 5, yPosition);
+        yPosition += 15;
+        
+        // Investment breakdown
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Total Investment Breakdown:', margin, yPosition);
+        yPosition += 10;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        
+        // Calculate all investment components
+        const basePlantCost = parseFloat(roiData.projectCostLocal) || 0;
+        const tankCost = roiData.tanks ? roiData.tanks.reduce((sum: number, tank: any) => sum + tank.totalCost, 0) : 0;
+        const utilityCost = roiData.utilities ? roiData.utilities.reduce((sum: number, utility: any) => sum + utility.totalCost, 0) : 0;
+        const additionalCostFields = [
+          { name: 'Freight & Insurance', value: parseFloat(roiData.freightInsurance) || 0 },
+          { name: 'Import Duty & VAT', value: parseFloat(roiData.importDutyVAT) || 0 },
+          { name: 'Plot Cost', value: parseFloat(roiData.plotCost) || 0 },
+          { name: 'Civil Cost', value: parseFloat(roiData.civilCost) || 0 },
+          { name: 'Refinery Shed', value: parseFloat(roiData.refineryShed) || 0 },
+          { name: 'Utility Shed', value: parseFloat(roiData.utilityShed) || 0 },
+          { name: 'Office Building', value: parseFloat(roiData.officeBuilding) || 0 },
+          { name: 'Mechanical & Electrical', value: parseFloat(roiData.mechanicalElectrical) || 0 },
+          { name: 'Fire Suppression', value: parseFloat(roiData.fireSuppression) || 0 },
+          { name: 'Insulation', value: parseFloat(roiData.insulation) || 0 },
+          { name: 'Legal Fees', value: parseFloat(roiData.legalFees) || 0 },
+          { name: 'Pre Formation Expenses', value: parseFloat(roiData.preFormationExpenses) || 0 },
+          { name: 'Commissioning & Travel', value: parseFloat(roiData.commissioningTravel) || 0 },
+          { name: 'Contingency', value: parseFloat(roiData.contingency) || 0 }
+        ];
+        
+        // Display major cost components
+        doc.text(`• Base Plant Cost: ${getCurrencySymbol(roiData.currency)}${basePlantCost.toLocaleString()}`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`• Tank Farm Cost: ${getCurrencySymbol(roiData.currency)}${tankCost.toLocaleString()}`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`• Utilities Cost: ${getCurrencySymbol(roiData.currency)}${utilityCost.toLocaleString()}`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`• Additional Equipment: ${getCurrencySymbol(roiData.currency)}${equipmentTotal.toLocaleString()}`, margin + 5, yPosition);
+        yPosition += 6;
+        
+        // Additional costs
+        const additionalTotal = additionalCostFields.reduce((sum, item) => sum + item.value, 0);
+        doc.text(`• Additional Project Costs: ${getCurrencySymbol(roiData.currency)}${additionalTotal.toLocaleString()}`, margin + 5, yPosition);
+        yPosition += 8;
+        
+        const totalCapex = basePlantCost + tankCost + utilityCost + equipmentTotal + additionalTotal;
+        const workingCapitalAmount = totalCapex * 0.15;
+        
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Total CAPEX: ${getCurrencySymbol(roiData.currency)}${totalCapex.toLocaleString()}`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`Working Capital (15%): ${getCurrencySymbol(roiData.currency)}${workingCapitalAmount.toLocaleString()}`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`TOTAL INVESTMENT: ${getCurrencySymbol(roiData.currency)}${(totalCapex + workingCapitalAmount).toLocaleString()}`, margin + 5, yPosition);
+        yPosition += 15;
+        
+        // ROI Analysis
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Financial Performance:', margin, yPosition);
+        yPosition += 10;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`• Annual Revenue: ${getCurrencySymbol(roiData.currency)}${reportData.financials.totalRevenue.toLocaleString()}`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`• Annual Operating Costs: ${getCurrencySymbol(roiData.currency)}${reportData.financials.operatingCostsAnnual.toLocaleString()}`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`• Annual Gross Profit: ${getCurrencySymbol(roiData.currency)}${reportData.financials.grossProfit.toLocaleString()}`, margin + 5, yPosition);
+        yPosition += 8;
+        
+        doc.setFont('helvetica', 'bold');
+        doc.text(`• ROI: ${reportData.financials.annualROI.toFixed(1)}%`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`• Payback Period: ${reportData.financials.paybackPeriod.toFixed(1)} years`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`• NPV (5 years): ${getCurrencySymbol(roiData.currency)}${reportData.financials.npv.toLocaleString()}`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`• IRR: ${reportData.financials.irr.toFixed(1)}%`, margin + 5, yPosition);
         yPosition += 20;
         
         // Financial metrics in cards
@@ -1377,13 +1596,38 @@ export default function MarketingToolsPage() {
           doc.rect(pageWidth - margin - 100, y - 2, barWidth, 4, 'F');
         });
         
+        // Summary conclusion
+        if (yPosition > pageHeight - 50) {
+          doc.addPage();
+          yPosition = 30;
+        }
+        
+        doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.rect(margin, yPosition - 5, contentWidth, 15, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('EXECUTIVE SUMMARY', margin + 5, yPosition + 5);
+        yPosition += 20;
+        
+        doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        const profitMargin = reportData.financials.totalRevenue > 0 ? (reportData.financials.grossProfit / reportData.financials.totalRevenue) * 100 : 0;
+        
+        doc.text(`This ${reportData.projectInfo.capacity.toLocaleString()} LPH re-refining plant requires a total investment of`, margin, yPosition);
+        yPosition += 6;
+        doc.text(`${getCurrencySymbol(roiData.currency)}${(totalCapex + workingCapitalAmount).toLocaleString()} and generates an annual profit of ${getCurrencySymbol(roiData.currency)}${reportData.financials.grossProfit.toLocaleString()}`, margin, yPosition);
+        yPosition += 6;
+        doc.text(`(${profitMargin.toFixed(1)}% margin). The project offers a ${reportData.financials.annualROI.toFixed(1)}% ROI with payback in ${reportData.financials.paybackPeriod.toFixed(1)} years.`, margin, yPosition);
+        
         // Footer
         doc.setFontSize(8);
         doc.setTextColor(128, 128, 128);
         doc.text('This report was generated by THERMOPAC ROI Calculator', pageWidth/2, pageHeight - 15, { align: 'center' });
         doc.text('Contact: info@thermopac.com | www.thermopac.com', pageWidth/2, pageHeight - 10, { align: 'center' });
         
-        // Save the PDF
+        // Save the PDF with all calculated values
         doc.save(`ROI_Analysis_Report_${roiData.customerName || 'Project'}_${new Date().toISOString().split('T')[0]}.pdf`);
       } else {
         // Excel format - create comprehensive CSV
