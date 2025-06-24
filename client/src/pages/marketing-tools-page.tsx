@@ -1321,7 +1321,7 @@ export default function MarketingToolsPage() {
           mergedData.roiProjectId = projectIdToLoad;
           
           console.log('Setting merged data:', mergedData);
-          setRoiData(mergedData);
+          setROIData(mergedData);
           setProjectId(projectIdToLoad);
           setCompletedSteps(new Set(Object.keys(data.steps).map(Number)));
           
