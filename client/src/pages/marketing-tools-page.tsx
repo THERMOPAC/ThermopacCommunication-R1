@@ -819,60 +819,84 @@ export default function MarketingToolsPage() {
               <CardContent className="space-y-6">
                 {/* Step 1: Plant Configuration */}
                 {currentStep === 1 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="customerName">Customer Name *</Label>
-                      <Input
-                        id="customerName"
-                        value={roiData.customerName}
-                        onChange={(e) => updateData('customerName', e.target.value)}
-                        placeholder="Enter customer name"
-                      />
+                  <div className="space-y-4">
+                    {/* First row: Customer and Project names */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="customerName">Customer Name *</Label>
+                        <Input
+                          id="customerName"
+                          value={roiData.customerName}
+                          onChange={(e) => updateData('customerName', e.target.value)}
+                          placeholder="Enter customer name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="projectName">Project Name *</Label>
+                        <Input
+                          id="projectName"
+                          value={roiData.projectName}
+                          onChange={(e) => updateData('projectName', e.target.value)}
+                          placeholder="Enter project name"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="projectName">Project Name *</Label>
-                      <Input
-                        id="projectName"
-                        value={roiData.projectName}
-                        onChange={(e) => updateData('projectName', e.target.value)}
-                        placeholder="Enter project name"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="capacity">Plant Capacity (Liters/Hour) *</Label>
-                      <Select value={roiData.capacity} onValueChange={(value) => updateData('capacity', value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder={loadingCosts ? "Loading..." : plantCapacities.length === 0 ? "No capacities available" : "Select capacity"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {loadingCosts ? (
-                            <SelectItem value="loading" disabled>Loading capacities...</SelectItem>
-                          ) : plantCapacities.length > 0 ? (
-                            plantCapacities.map((plant) => (
-                              <SelectItem key={plant.capacity} value={plant.capacity.toString()}>
-                                {plant.capacity.toLocaleString()} LPH
+                    
+                    {/* Second row: Plant Capacity, Currency, and Plant Costs in one line */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="capacity">Plant Capacity (Liters/Hour) *</Label>
+                        <Select value={roiData.capacity} onValueChange={(value) => updateData('capacity', value)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={loadingCosts ? "Loading..." : plantCapacities.length === 0 ? "No capacities available" : "Select capacity"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {loadingCosts ? (
+                              <SelectItem value="loading" disabled>Loading capacities...</SelectItem>
+                            ) : plantCapacities.length > 0 ? (
+                              plantCapacities.map((plant) => (
+                                <SelectItem key={plant.capacity} value={plant.capacity.toString()}>
+                                  {plant.capacity.toLocaleString()} LPH
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="empty" disabled>No capacities available</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="currency">Currency *</Label>
+                        <Select value={roiData.currency} onValueChange={(value) => updateData('currency', value)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(currencies).map(([code, currency]) => (
+                              <SelectItem key={code} value={code}>
+                                {currency.symbol} {code} - {currency.name}
                               </SelectItem>
-                            ))
-                          ) : (
-                            <SelectItem value="empty" disabled>No capacities available</SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="currency">Currency *</Label>
-                      <Select value={roiData.currency} onValueChange={(value) => updateData('currency', value)}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(currencies).map(([code, currency]) => (
-                            <SelectItem key={code} value={code}>
-                              {currency.symbol} {code} - {currency.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Plant Costs</Label>
+                        <div className="flex items-center space-x-2">
+                          <div className="font-medium text-lg">
+                            {getSelectedPlantCost()}
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setManageCostsOpen(true)}
+                            className="h-8"
+                          >
+                            <Settings className="h-4 w-4 mr-1" />
+                            Manage
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                     
                     {/* Plant Costs Display */}
