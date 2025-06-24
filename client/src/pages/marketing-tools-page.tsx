@@ -183,14 +183,11 @@ export default function MarketingToolsPage() {
   const { data: tankPricesData, isLoading: tankPricesLoading, error: tankPricesError } = useQuery({
     queryKey: ['/api/tank-prices'],
     queryFn: async () => {
-      console.log('Fetching tank prices...');
       const response = await fetch('/api/tank-prices');
       if (!response.ok) {
-        console.error('Tank prices fetch failed:', response.status, response.statusText);
         throw new Error('Failed to fetch tank prices');
       }
       const data = await response.json();
-      console.log('Tank prices API response:', data);
       return data;
     }
   });
@@ -209,19 +206,19 @@ export default function MarketingToolsPage() {
   }, [plantCostsData, plantCostsError]);
 
   useEffect(() => {
-    console.log('Tank prices loading:', tankPricesLoading);
-    console.log('Tank prices error:', tankPricesError);
     if (tankPricesData && !tankPricesLoading) {
-      console.log('Raw tank prices data:', tankPricesData);
-      const processedPrices = tankPricesData.map((price: any) => ({
-        id: price.id,
-        capacity: price.capacity,
-        priceUSD: parseFloat(price.priceUSD?.toString() || '0')
-      }));
-      console.log('Processed tank prices:', processedPrices);
+      console.log('Processing tank prices data:', tankPricesData);
+      const processedPrices = tankPricesData.map((price: any) => {
+        const processed = {
+          id: price.id,
+          capacity: price.capacity,
+          priceUSD: parseFloat(price.priceUSD?.toString() || '0')
+        };
+        console.log(`Tank ${price.capacity} KL: ${price.priceUSD} -> ${processed.priceUSD}`);
+        return processed;
+      });
+      console.log('Final processed tank prices:', processedPrices);
       setTankPrices(processedPrices);
-    } else if (tankPricesError) {
-      console.error('Tank prices error:', tankPricesError);
     }
   }, [tankPricesData, tankPricesError, tankPricesLoading]);
   
@@ -416,17 +413,20 @@ export default function MarketingToolsPage() {
 
   // Function to get tank price from database
   const getTankPrice = (capacity: number): number => {
+    console.log(`Getting tank price for capacity: ${capacity}`);
+    console.log('Available tank prices:', tankPrices);
     if (!tankPrices || tankPrices.length === 0) {
-      console.log('No tank prices available, tankPrices:', tankPrices);
+      console.log('No tank prices available');
       return 0;
     }
     const tankPrice = tankPrices.find(price => price.capacity === capacity);
+    console.log(`Found tank price for ${capacity}:`, tankPrice);
     if (!tankPrice) {
-      console.log(`No tank price found for capacity ${capacity}, available capacities:`, tankPrices.map(p => p.capacity));
+      console.log(`No price found for capacity ${capacity}`);
       return 0;
     }
     const price = typeof tankPrice.priceUSD === 'string' ? parseFloat(tankPrice.priceUSD) : tankPrice.priceUSD;
-    console.log(`Tank price for ${capacity} KL:`, price, 'from tankPrice:', tankPrice);
+    console.log(`Final price for ${capacity} KL: ${price}`);
     return price || 0;
   };
 

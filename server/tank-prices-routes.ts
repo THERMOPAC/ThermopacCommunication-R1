@@ -10,15 +10,8 @@ const router = Router();
 router.get('/', ensureAuthenticated, async (req, res) => {
   try {
     console.log('Tank prices GET route hit');
-    
-    // First try a simple select all to see if schema works
-    const allPrices = await db.select().from(tankPrices);
-    console.log('All tank prices count:', allPrices.length);
-    
-    // Then filter for active ones
     const prices = await db.select().from(tankPrices).where(eq(tankPrices.isActive, true)).orderBy(tankPrices.capacity);
-    console.log('Found active tank prices:', prices.length);
-    console.log('Raw tank prices from DB:', JSON.stringify(prices, null, 2));
+    console.log('Found tank prices:', prices.length);
     
     // Convert database field names to frontend format
     const formattedPrices = prices.map(price => ({
@@ -31,7 +24,7 @@ router.get('/', ensureAuthenticated, async (req, res) => {
       createdBy: price.createdBy,
       updatedBy: price.updatedBy
     }));
-    console.log('Formatted tank prices:', JSON.stringify(formattedPrices, null, 2));
+
     res.json(formattedPrices);
   } catch (error) {
     console.error('Error fetching tank prices:', error);
