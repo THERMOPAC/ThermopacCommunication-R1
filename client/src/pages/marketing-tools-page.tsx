@@ -110,8 +110,79 @@ interface ROIData {
 export default function MarketingToolsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Plant costs query
+  const { data: plantCostsData, isLoading: plantCostsLoading, error: plantCostsError } = useQuery({
+    queryKey: ['/api/plant-costs'],
+    queryFn: async () => {
+      const response = await fetch('/api/plant-costs');
+      if (!response.ok) throw new Error('Failed to fetch plant costs');
+      return response.json();
+    }
+  });
+
+  // Tank pricing query
+  const { data: tankPricing, isLoading: tankPricingLoading, error: tankPricingError } = useQuery({
+    queryKey: ['/api/tank-pricing'],
+    queryFn: async () => {
+      const response = await fetch('/api/tank-pricing');
+      if (!response.ok) throw new Error('Failed to fetch tank pricing');
+      return response.json();
+    }
+  });
+
+  // Plant cost update mutation
+  const updatePlantCostMutation = useMutation({
+    mutationFn: async ({ id, priceUSD }: { id: number; priceUSD: string }) => {
+      const response = await fetch(`/api/plant-costs/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priceUSD })
+      });
+      if (!response.ok) throw new Error('Failed to update plant cost');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/plant-costs'] });
+      setEditingPlantCostId(null);
+      setEditingPlantCostPrice('');
+      toast({ title: "Success", description: "Plant cost updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update plant cost", variant: "destructive" });
+    }
+  });
+
+  // Tank pricing update mutation
+  const updateTankPriceMutation = useMutation({
+    mutationFn: async ({ tankSize, priceUSD }: { tankSize: number; priceUSD: string }) => {
+      const response = await fetch('/api/tank-pricing', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tankSize, priceUSD })
+      });
+      if (!response.ok) throw new Error('Failed to update tank price');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tank-pricing'] });
+      setEditingTankSize(null);
+      setEditingTankPrice('');
+      toast({ title: "Success", description: "Tank price updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update tank price", variant: "destructive" });
+    }
+  });
+
   const [activeTab, setActiveTab] = useState("overview");
   const [currentStep, setCurrentStep] = useState(1);
+  const [showReport, setShowReport] = useState(false);
+  const [editingPlantCostId, setEditingPlantCostId] = useState<number | null>(null);
+  const [editingPlantCostPrice, setEditingPlantCostPrice] = useState('');
+  const [showTankPricingModal, setShowTankPricingModal] = useState(false);
+  const [editingTankSize, setEditingTankSize] = useState<number | null>(null);
+  const [editingTankPrice, setEditingTankPrice] = useState('');
   const [showPlantCostsDialog, setShowPlantCostsDialog] = useState(false);
   const [editingCost, setEditingCost] = useState<any>(null);
   const [newCost, setNewCost] = useState({ capacity: '', priceUSD: '' });
@@ -309,8 +380,8 @@ export default function MarketingToolsPage() {
     { id: 11, capacity: 20000, priceUSD: 3800000 }
   ];
 
-  // Fetch plant costs from database with fallback
-  const { data: plantCostsData = fallbackCapacities, isLoading: loadingCosts, error: plantCostsError } = useQuery({
+  // Use plant costs data with fallback
+  const plantCapacities = plantCostsData || fallbackCapacities;
     queryKey: ['/api/plant-costs'],
     queryFn: async () => {
       try {
@@ -653,6 +724,64 @@ export default function MarketingToolsPage() {
     setROIData(prev => ({ ...prev, tanks: updatedTanks }));
   };
 
+  const handlePlantCostEdit = (id: number, currentPrice: string) => {
+    setEditingPlantCostId(id);
+    setEditingPlantCostPrice(currentPrice);
+  };
+
+  const handlePlantCostSave = () => {
+    if (editingPlantCostId && editingPlantCostPrice) {
+      updatePlantCostMutation.mutate({ 
+        id: editingPlantCostId, 
+        priceUSD: editingPlantCostPrice 
+      });
+    }
+  };
+
+  const handlePlantCostCancel = () => {
+    setEditingPlantCostId(null);
+    setEditingPlantCostPrice('');
+  };
+
+  const handleTankPriceEdit = (tankSize: number, currentPrice: string) => {
+    setEditingTankSize(tankSize);
+    setEditingTankPrice(currentPrice);
+  };
+
+  const handleTankPriceSave = () => {
+    if (editingTankSize && editingTankPrice) {
+      updateTankPriceMutation.mutate({ 
+        tankSize: editingTankSize, 
+        priceUSD: editingTankPrice 
+      });
+    }
+  };
+
+  const handleTankPriceCancel = () => {
+    setEditingTankSize(null);
+    setEditingTankPrice('');
+  };
+
+  // Get tank price by size
+  const getTankPrice = (tankSize: number): number => {
+    if (!tankPricing) return 0;
+    const pricing = tankPricing.find((p: any) => p.tankSize === tankSize);
+    return pricing ? parseFloat(pricing.priceUSD) : 0;
+  };
+
+  // Calculate total tank costs
+  const calculateTotalTankCosts = () => {
+    if (!roiData.capacity || !tankPricing) return 0;
+    
+    const plantCapacity = parseFloat(roiData.capacity);
+    const calculatedTanks = calculateTankRequirements(plantCapacity);
+    
+    return calculatedTanks.reduce((total, tank) => {
+      const tankPrice = getTankPrice(tank.suggestedTankSize);
+      return total + (tankPrice * tank.suggestedQuantity);
+    }, 0);
+  };
+
   // ROI Calculator Functions
   const updateData = (field: keyof ROIData, value: string | number) => {
     setROIData(prev => ({ ...prev, [field]: value }));
@@ -670,9 +799,12 @@ export default function MarketingToolsPage() {
           const exchangeRate = currencies[selectedCurrency]?.rate || 1;
           const priceLocal = Math.round(priceUSD * exchangeRate);
           
-          // Update costs immediately
-          updateData('projectCostUSD', priceUSD.toString());
-          updateData('projectCostLocal', priceLocal.toString());
+          // Update costs immediately - fix recursive call
+          setROIData(prev => ({ 
+            ...prev, 
+            projectCostUSD: priceUSD.toString(),
+            projectCostLocal: priceLocal.toString()
+          }));
         }
         
         const calculatedTanks = calculateTankRequirements(plantCapacity);
