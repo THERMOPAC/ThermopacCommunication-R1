@@ -210,9 +210,9 @@ export default function MarketingToolsPage() {
 
   useEffect(() => {
     console.log('Tank prices loading:', tankPricesLoading);
-    if (tankPricesData) {
+    console.log('Tank prices error:', tankPricesError);
+    if (tankPricesData && !tankPricesLoading) {
       console.log('Raw tank prices data:', tankPricesData);
-      console.log('Tank prices error:', tankPricesError);
       const processedPrices = tankPricesData.map((price: any) => ({
         id: price.id,
         capacity: price.capacity,
@@ -220,6 +220,8 @@ export default function MarketingToolsPage() {
       }));
       console.log('Processed tank prices:', processedPrices);
       setTankPrices(processedPrices);
+    } else if (tankPricesError) {
+      console.error('Tank prices error:', tankPricesError);
     }
   }, [tankPricesData, tankPricesError, tankPricesLoading]);
   
@@ -423,8 +425,8 @@ export default function MarketingToolsPage() {
       console.log(`No tank price found for capacity ${capacity}, available capacities:`, tankPrices.map(p => p.capacity));
       return 0;
     }
-    const price = tankPrice ? (typeof tankPrice.priceUSD === 'string' ? parseFloat(tankPrice.priceUSD) : tankPrice.priceUSD) : 0;
-    console.log(`Tank price for ${capacity} KL:`, price, 'from data:', tankPrice);
+    const price = typeof tankPrice.priceUSD === 'string' ? parseFloat(tankPrice.priceUSD) : tankPrice.priceUSD;
+    console.log(`Tank price for ${capacity} KL:`, price, 'from tankPrice:', tankPrice);
     return price || 0;
   };
 
