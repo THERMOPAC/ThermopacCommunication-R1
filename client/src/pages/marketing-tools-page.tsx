@@ -1062,6 +1062,8 @@ export default function MarketingToolsPage() {
 
   const downloadReport = async (format: 'pdf' | 'excel') => {
     try {
+      console.log('Starting report generation for format:', format);
+      console.log('Current ROI data:', roiData);
       // Calculate current metrics for the report
       const baseCost = parseFloat(roiData.projectCostLocal) || 0;
       const additionalCosts = [
@@ -1173,7 +1175,9 @@ export default function MarketingToolsPage() {
 
       // Create and download the report
       if (format === 'pdf') {
+        console.log('Importing jsPDF...');
         const { jsPDF } = await import('jspdf');
+        console.log('Creating PDF document...');
         const doc = new jsPDF('p', 'mm', 'a4');
         
         // Page dimensions
@@ -1391,25 +1395,25 @@ export default function MarketingToolsPage() {
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         
-        // Calculate all investment components
-        const basePlantCost = parseFloat(roiData.projectCostLocal) || 0;
-        const tankCost = roiData.tanks ? roiData.tanks.reduce((sum: number, tank: any) => sum + tank.totalCost, 0) : 0;
-        const utilityCost = roiData.utilities ? roiData.utilities.reduce((sum: number, utility: any) => sum + utility.totalCost, 0) : 0;
+        // Calculate all investment components - with safe fallbacks
+        const basePlantCost = parseFloat(roiData.projectCostLocal || '0') || 0;
+        const tankCost = roiData.tanks ? roiData.tanks.reduce((sum: number, tank: any) => sum + (tank.totalCost || 0), 0) : 0;
+        const utilityCost = roiData.utilities ? roiData.utilities.reduce((sum: number, utility: any) => sum + (utility.totalCost || 0), 0) : 0;
         const additionalCostFields = [
-          { name: 'Freight & Insurance', value: parseFloat(roiData.freightInsurance) || 0 },
-          { name: 'Import Duty & VAT', value: parseFloat(roiData.importDutyVAT) || 0 },
-          { name: 'Plot Cost', value: parseFloat(roiData.plotCost) || 0 },
-          { name: 'Civil Cost', value: parseFloat(roiData.civilCost) || 0 },
-          { name: 'Refinery Shed', value: parseFloat(roiData.refineryShed) || 0 },
-          { name: 'Utility Shed', value: parseFloat(roiData.utilityShed) || 0 },
-          { name: 'Office Building', value: parseFloat(roiData.officeBuilding) || 0 },
-          { name: 'Mechanical & Electrical', value: parseFloat(roiData.mechanicalElectrical) || 0 },
-          { name: 'Fire Suppression', value: parseFloat(roiData.fireSuppression) || 0 },
-          { name: 'Insulation', value: parseFloat(roiData.insulation) || 0 },
-          { name: 'Legal Fees', value: parseFloat(roiData.legalFees) || 0 },
-          { name: 'Pre Formation Expenses', value: parseFloat(roiData.preFormationExpenses) || 0 },
-          { name: 'Commissioning & Travel', value: parseFloat(roiData.commissioningTravel) || 0 },
-          { name: 'Contingency', value: parseFloat(roiData.contingency) || 0 }
+          { name: 'Freight & Insurance', value: parseFloat(roiData.freightInsurance || '0') || 0 },
+          { name: 'Import Duty & VAT', value: parseFloat(roiData.importDutyVAT || '0') || 0 },
+          { name: 'Plot Cost', value: parseFloat(roiData.plotCost || '0') || 0 },
+          { name: 'Civil Cost', value: parseFloat(roiData.civilCost || '0') || 0 },
+          { name: 'Refinery Shed', value: parseFloat(roiData.refineryShed || '0') || 0 },
+          { name: 'Utility Shed', value: parseFloat(roiData.utilityShed || '0') || 0 },
+          { name: 'Office Building', value: parseFloat(roiData.officeBuilding || '0') || 0 },
+          { name: 'Mechanical & Electrical', value: parseFloat(roiData.mechanicalElectrical || '0') || 0 },
+          { name: 'Fire Suppression', value: parseFloat(roiData.fireSuppression || '0') || 0 },
+          { name: 'Insulation', value: parseFloat(roiData.insulation || '0') || 0 },
+          { name: 'Legal Fees', value: parseFloat(roiData.legalFees || '0') || 0 },
+          { name: 'Pre Formation Expenses', value: parseFloat(roiData.preFormationExpenses || '0') || 0 },
+          { name: 'Commissioning & Travel', value: parseFloat(roiData.commissioningTravel || '0') || 0 },
+          { name: 'Contingency', value: parseFloat(roiData.contingency || '0') || 0 }
         ];
         
         // Display major cost components
@@ -1615,11 +1619,17 @@ export default function MarketingToolsPage() {
         doc.setFont('helvetica', 'normal');
         const profitMargin = reportData.financials.totalRevenue > 0 ? (reportData.financials.grossProfit / reportData.financials.totalRevenue) * 100 : 0;
         
-        doc.text(`This ${reportData.projectInfo.capacity.toLocaleString()} LPH re-refining plant requires a total investment of`, margin, yPosition);
+        const capacityText = reportData.projectInfo?.capacity ? reportData.projectInfo.capacity.toLocaleString() : (roiData.capacity || '0');
+        const totalInvestmentText = (totalCapex + workingCapitalAmount).toLocaleString();
+        const profitText = reportData.financials?.grossProfit ? reportData.financials.grossProfit.toLocaleString() : '0';
+        const roiText = reportData.financials?.annualROI ? reportData.financials.annualROI.toFixed(1) : '0.0';
+        const paybackText = reportData.financials?.paybackPeriod ? reportData.financials.paybackPeriod.toFixed(1) : '0.0';
+        
+        doc.text(`This ${capacityText} LPH re-refining plant requires a total investment of`, margin, yPosition);
         yPosition += 6;
-        doc.text(`${getCurrencySymbol(roiData.currency)}${(totalCapex + workingCapitalAmount).toLocaleString()} and generates an annual profit of ${getCurrencySymbol(roiData.currency)}${reportData.financials.grossProfit.toLocaleString()}`, margin, yPosition);
+        doc.text(`${getCurrencySymbol(roiData.currency)}${totalInvestmentText} and generates an annual profit of ${getCurrencySymbol(roiData.currency)}${profitText}`, margin, yPosition);
         yPosition += 6;
-        doc.text(`(${profitMargin.toFixed(1)}% margin). The project offers a ${reportData.financials.annualROI.toFixed(1)}% ROI with payback in ${reportData.financials.paybackPeriod.toFixed(1)} years.`, margin, yPosition);
+        doc.text(`(${profitMargin.toFixed(1)}% margin). The project offers a ${roiText}% ROI with payback in ${paybackText} years.`, margin, yPosition);
         
         // Footer
         doc.setFontSize(8);
@@ -1628,7 +1638,11 @@ export default function MarketingToolsPage() {
         doc.text('Contact: info@thermopac.com | www.thermopac.com', pageWidth/2, pageHeight - 10, { align: 'center' });
         
         // Save the PDF with all calculated values
-        doc.save(`ROI_Analysis_Report_${roiData.customerName || 'Project'}_${new Date().toISOString().split('T')[0]}.pdf`);
+        console.log('Saving PDF...');
+        const fileName = `ROI_Analysis_Report_${roiData.customerName || roiData.projectName || 'Project'}_${new Date().toISOString().split('T')[0]}.pdf`;
+        console.log('PDF filename:', fileName);
+        doc.save(fileName);
+        console.log('PDF saved successfully');
       } else {
         // Excel format - create comprehensive CSV
         const csvContent = [
@@ -1701,9 +1715,10 @@ export default function MarketingToolsPage() {
       });
     } catch (error) {
       console.error('Error generating report:', error);
+      console.error('Error details:', error.message, error.stack);
       toast({
         title: 'Download Failed',
-        description: `Failed to generate ${format.toUpperCase()} report. Please try again.`,
+        description: `Failed to generate ${format.toUpperCase()} report. Error: ${error.message || 'Unknown error'}`,
         variant: 'destructive'
       });
     }
