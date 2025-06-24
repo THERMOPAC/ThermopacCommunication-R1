@@ -383,6 +383,28 @@ export default function MarketingToolsPage() {
     CAD: { name: 'Canadian Dollar', rate: 1.36, symbol: 'C$' },
     AUD: { name: 'Australian Dollar', rate: 1.52, symbol: 'A$' }
   };
+
+  // Helper function to get current plant cost
+  const getCurrentPlantCost = () => {
+    if (!roiData.capacity) return 0;
+    const capacity = parseInt(roiData.capacity);
+    const plant = plantCapacities.find(p => p.capacity === capacity);
+    return plant ? plant.priceUSD : 0;
+  };
+
+  // Helper function to get formatted selected plant cost
+  const getSelectedPlantCost = () => {
+    const cost = getCurrentPlantCost();
+    if (cost === 0) return 'Select capacity';
+    
+    const currency = currencies[roiData.currency] || currencies.USD;
+    const convertedCost = cost * currency.rate;
+    
+    return `${currency.symbol}${convertedCost.toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    })}`;
+  };
   // ===== END PRICING CONFIGURATION =====
 
   // Enhanced capacity rounding functions
