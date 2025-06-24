@@ -242,8 +242,10 @@ export default function MarketingToolsPage() {
   const standardTankSizes = [50, 100, 200, 300, 400, 600];
 
   // Fetch plant costs from database
-  const { data: plantCostsData = [], isLoading: loadingCosts } = useQuery({
-    queryKey: ['/api/plant-costs']
+  const { data: plantCostsData = [], isLoading: loadingCosts, error: plantCostsError } = useQuery({
+    queryKey: ['/api/plant-costs'],
+    retry: 3,
+    refetchOnWindowFocus: false
   });
 
   const plantCapacities = plantCostsData.map((cost: any) => ({
@@ -251,6 +253,12 @@ export default function MarketingToolsPage() {
     capacity: cost.capacity,
     priceUSD: parseFloat(cost.priceUSD)
   }));
+
+  // Debug logging
+  console.log('Plant costs loading:', loadingCosts);
+  console.log('Plant costs data:', plantCostsData);
+  console.log('Plant costs error:', plantCostsError);
+  console.log('Processed capacities:', plantCapacities);
 
   // Update plant cost mutation
   const updateCostMutation = useMutation({
@@ -844,6 +852,19 @@ export default function MarketingToolsPage() {
                         </div>
                       </div>
                     )}
+
+                    {/* Always Show Edit Costs Button */}
+                    <div className="mt-4 flex justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowPlantCostsDialog(true)}
+                        className="h-8"
+                      >
+                        <Edit3 className="w-3 h-3 mr-1" />
+                        Manage Plant Costs
+                      </Button>
+                    </div>
                   </div>
                 )}
 
