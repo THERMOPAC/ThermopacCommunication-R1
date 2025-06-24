@@ -1806,7 +1806,7 @@ export default function MarketingToolsPage() {
                             <tr>
                               <th className="px-4 py-3 text-left font-medium text-gray-700">Product</th>
                               <th className="px-4 py-3 text-center font-medium text-gray-700">Yield (%)</th>
-                              <th className="px-4 py-3 text-center font-medium text-gray-700">Selling Price per Liter ({getCurrencySymbol(roiData.currency)})</th>
+                              <th className="px-4 py-3 text-center font-medium text-gray-700">Price per Ton ({getCurrencySymbol(roiData.currency)})</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-200">
@@ -1827,7 +1827,7 @@ export default function MarketingToolsPage() {
                                   step="0.01"
                                   value={roiData.naphthaGasOilPrice}
                                   onChange={(e) => updateData('naphthaGasOilPrice', e.target.value)}
-                                  placeholder="e.g., 0.75"
+                                  placeholder="e.g., 600"
                                   className="w-24"
                                 />
                               </td>
@@ -1849,7 +1849,7 @@ export default function MarketingToolsPage() {
                                   step="0.01"
                                   value={roiData.lightBaseOilPrice}
                                   onChange={(e) => updateData('lightBaseOilPrice', e.target.value)}
-                                  placeholder="e.g., 0.85"
+                                  placeholder="e.g., 680"
                                   className="w-24"
                                 />
                               </td>
@@ -1871,7 +1871,7 @@ export default function MarketingToolsPage() {
                                   step="0.01"
                                   value={roiData.heavyBaseOilPrice}
                                   onChange={(e) => updateData('heavyBaseOilPrice', e.target.value)}
-                                  placeholder="e.g., 0.80"
+                                  placeholder="e.g., 650"
                                   className="w-24"
                                 />
                               </td>
@@ -1893,7 +1893,7 @@ export default function MarketingToolsPage() {
                                   step="0.01"
                                   value={roiData.residuePrice}
                                   onChange={(e) => updateData('residuePrice', e.target.value)}
-                                  placeholder="e.g., 0.45"
+                                  placeholder="e.g., 400"
                                   className="w-24"
                                 />
                               </td>
@@ -1915,7 +1915,7 @@ export default function MarketingToolsPage() {
                                   step="0.01"
                                   value={roiData.wasteWaterPrice}
                                   onChange={(e) => updateData('wasteWaterPrice', e.target.value)}
-                                  placeholder="e.g., -0.10 (disposal cost)"
+                                  placeholder="e.g., -100 (disposal cost per ton)"
                                   className="w-32"
                                 />
                               </td>
@@ -2031,21 +2031,25 @@ export default function MarketingToolsPage() {
                               (parseFloat(roiData.plantCapacity) || 0) * (parseFloat(roiData.plantOperationDays) || 0) * 8
                             } liters/month
                           </p>
+                          <p className="mb-2 text-xs text-blue-600">
+                            <strong>Densities (kg/L):</strong> Naphtha & Gas Oil: 0.80, Light Base Oil: 0.85, Heavy Base Oil: 0.87, Residue: 1.8, Waste Water: 1.0
+                          </p>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
                             {[
-                              { name: 'Naphtha & Gas Oil', yield: roiData.naphthaGasOilYield, price: roiData.naphthaGasOilPrice },
-                              { name: 'Light Base Oil', yield: roiData.lightBaseOilYield, price: roiData.lightBaseOilPrice },
-                              { name: 'Heavy Base Oil', yield: roiData.heavyBaseOilYield, price: roiData.heavyBaseOilPrice },
-                              { name: 'Residue', yield: roiData.residueYield, price: roiData.residuePrice },
-                              { name: 'Waste Water', yield: roiData.wasteWaterYield, price: roiData.wasteWaterPrice }
+                              { name: 'Naphtha & Gas Oil', yield: roiData.naphthaGasOilYield, price: roiData.naphthaGasOilPrice, density: 0.80 },
+                              { name: 'Light Base Oil', yield: roiData.lightBaseOilYield, price: roiData.lightBaseOilPrice, density: 0.85 },
+                              { name: 'Heavy Base Oil', yield: roiData.heavyBaseOilYield, price: roiData.heavyBaseOilPrice, density: 0.87 },
+                              { name: 'Residue', yield: roiData.residueYield, price: roiData.residuePrice, density: 1.8 },
+                              { name: 'Waste Water', yield: roiData.wasteWaterYield, price: roiData.wasteWaterPrice, density: 1.0 }
                             ].map((product, index) => {
                               const monthlyLiters = (parseFloat(roiData.plantCapacity) || 0) * (parseFloat(roiData.plantOperationDays) || 0) * 8;
                               const productLiters = monthlyLiters * (parseFloat(product.yield) || 0) / 100;
-                              const revenue = productLiters * (parseFloat(product.price) || 0);
+                              const productTons = productLiters * product.density / 1000; // Convert liters to tons using density
+                              const revenue = productTons * (parseFloat(product.price) || 0);
                               
                               return (
                                 <div key={index} className="text-xs">
-                                  <strong>{product.name}:</strong> {getCurrencySymbol(roiData.currency)}{revenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                  <strong>{product.name}:</strong> {productTons.toFixed(1)} tons → {getCurrencySymbol(roiData.currency)}{revenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                 </div>
                               );
                             })}
