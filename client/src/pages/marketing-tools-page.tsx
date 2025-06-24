@@ -36,7 +36,8 @@ import {
   Percent,
   Edit3,
   Plus,
-  Trash2
+  Trash2,
+  Wrench
 } from 'lucide-react';
 
 // ROI Calculator Data Interface
@@ -1270,6 +1271,170 @@ export default function MarketingToolsPage() {
                           </div>
                         </div>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Additional Equipments */}
+                {currentStep === 3 && (
+                  <div className="space-y-6">
+                    <div className="text-center mb-6">
+                      <h2 className="text-2xl font-bold mb-2">Additional Equipments</h2>
+                      <p className="text-muted-foreground">Enter costs for additional equipment and infrastructure in {roiData.currency}</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="additionalPumpsFilters">Additional Pumps And Filters</Label>
+                        <Input
+                          id="additionalPumpsFilters"
+                          type="number"
+                          value={roiData.additionalPumpsFilters}
+                          onChange={(e) => updateData('additionalPumpsFilters', e.target.value)}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="tankLevelTransmitters">Tank Level Transmitters</Label>
+                        <Input
+                          id="tankLevelTransmitters"
+                          type="number"
+                          value={roiData.tankLevelTransmitters}
+                          onChange={(e) => updateData('tankLevelTransmitters', e.target.value)}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="pipesValvesFlanges">Pipes, Valves, Flanges & Pipe Bridge</Label>
+                        <Input
+                          id="pipesValvesFlanges"
+                          type="number"
+                          value={roiData.pipesValvesFlanges}
+                          onChange={(e) => updateData('pipesValvesFlanges', e.target.value)}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="electricalCablesAccessories">Electrical Cables And Accessories</Label>
+                        <Input
+                          id="electricalCablesAccessories"
+                          type="number"
+                          value={roiData.electricalCablesAccessories}
+                          onChange={(e) => updateData('electricalCablesAccessories', e.target.value)}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="pccMccPanels">PCC, MCC Electrical Panels</Label>
+                        <Input
+                          id="pccMccPanels"
+                          type="number"
+                          value={roiData.pccMccPanels}
+                          onChange={(e) => updateData('pccMccPanels', e.target.value)}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="chimneyDucting">Chimney & Ducting</Label>
+                        <Input
+                          id="chimneyDucting"
+                          type="number"
+                          value={roiData.chimneyDucting}
+                          onChange={(e) => updateData('chimneyDucting', e.target.value)}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="airCompressor">Air Compressor</Label>
+                        <Input
+                          id="airCompressor"
+                          type="number"
+                          value={roiData.airCompressor}
+                          onChange={(e) => updateData('airCompressor', e.target.value)}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="coolingTower">Cooling Tower</Label>
+                        <Input
+                          id="coolingTower"
+                          type="number"
+                          value={roiData.coolingTower}
+                          onChange={(e) => updateData('coolingTower', e.target.value)}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="dieselGenerator">Diesel Generator</Label>
+                        <Input
+                          id="dieselGenerator"
+                          type="number"
+                          value={roiData.dieselGenerator}
+                          onChange={(e) => updateData('dieselGenerator', e.target.value)}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="qualityControlEquipment">Quality Control Equipment</Label>
+                        <Input
+                          id="qualityControlEquipment"
+                          type="number"
+                          value={roiData.qualityControlEquipment}
+                          onChange={(e) => updateData('qualityControlEquipment', e.target.value)}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="thermicFluid">Thermic Fluid (Therminol 66 / VP1)</Label>
+                        <Input
+                          id="thermicFluid"
+                          type="number"
+                          value={roiData.thermicFluid}
+                          onChange={(e) => updateData('thermicFluid', e.target.value)}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="expansionStructure">Expansion Structure</Label>
+                        <Input
+                          id="expansionStructure"
+                          type="number"
+                          value={roiData.expansionStructure}
+                          onChange={(e) => updateData('expansionStructure', e.target.value)}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="craneHireCharges">Crane Hire Charges</Label>
+                        <Input
+                          id="craneHireCharges"
+                          type="number"
+                          value={roiData.craneHireCharges}
+                          onChange={(e) => updateData('craneHireCharges', e.target.value)}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="laborErectionCommissioning">Labor for Erection & Commissioning</Label>
+                        <Input
+                          id="laborErectionCommissioning"
+                          type="number"
+                          value={roiData.laborErectionCommissioning}
+                          onChange={(e) => updateData('laborErectionCommissioning', e.target.value)}
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Equipment Cost Summary */}
+                    <div className="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                      <Label className="text-lg font-semibold block mb-2">Equipment Cost Summary</Label>
+                      <div className="text-xl font-bold text-orange-800">
+                        {getTotalEquipmentCosts()}
+                      </div>
+                      <p className="text-sm text-orange-600 mt-1">
+                        Total additional equipment costs in {roiData.currency}
+                      </p>
                     </div>
                   </div>
                 )}
