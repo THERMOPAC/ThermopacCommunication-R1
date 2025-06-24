@@ -12,7 +12,19 @@ router.get('/', ensureAuthenticated, async (req, res) => {
     console.log('Tank prices GET route hit');
     const prices = await db.select().from(tankPrices).where(eq(tankPrices.isActive, true)).orderBy(tankPrices.capacity);
     console.log('Found tank prices:', prices.length);
-    res.json(prices);
+    // Convert snake_case to camelCase for frontend compatibility
+    const formattedPrices = prices.map(price => ({
+      id: price.id,
+      capacity: price.capacity,
+      priceUSD: price.priceUsd,
+      isActive: price.isActive,
+      createdAt: price.createdAt,
+      updatedAt: price.updatedAt,
+      createdBy: price.createdBy,
+      updatedBy: price.updatedBy
+    }));
+    console.log('Formatted tank prices:', formattedPrices);
+    res.json(formattedPrices);
   } catch (error) {
     console.error('Error fetching tank prices:', error);
     res.status(500).json({ error: 'Failed to fetch tank prices' });

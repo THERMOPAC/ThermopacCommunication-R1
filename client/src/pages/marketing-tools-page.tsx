@@ -410,13 +410,17 @@ export default function MarketingToolsPage() {
   // Function to get tank price from database
   const getTankPrice = (capacity: number): number => {
     if (!tankPrices || tankPrices.length === 0) {
-      console.log('No tank prices available');
+      console.log('No tank prices available, tankPrices:', tankPrices);
       return 0;
     }
     const tankPrice = tankPrices.find(price => price.capacity === capacity);
+    if (!tankPrice) {
+      console.log(`No tank price found for capacity ${capacity}, available capacities:`, tankPrices.map(p => p.capacity));
+      return 0;
+    }
     const price = tankPrice ? (typeof tankPrice.priceUSD === 'string' ? parseFloat(tankPrice.priceUSD) : tankPrice.priceUSD) : 0;
-    console.log(`Tank price for ${capacity} KL:`, price);
-    return price;
+    console.log(`Tank price for ${capacity} KL:`, price, 'from data:', tankPrice);
+    return price || 0;
   };
 
 
