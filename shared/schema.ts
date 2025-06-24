@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
@@ -3116,6 +3116,38 @@ export const materialInspectionLinksRelations = relations(materialInspectionLink
 // Schemas for material inspection links
 export const insertMaterialInspectionLinkSchema = createInsertSchema(materialInspectionLinks)
   .omit({ id: true, createdAt: true, updatedAt: true });
+
+// ROI Project Steps table for step-by-step saving
+export const roiProjectSteps = pgTable('roi_project_steps', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  roiProjectId: uuid('roi_project_id').notNull(),
+  stepNumber: integer('step_number').notNull(),
+  stepData: jsonb('step_data').notNull(),
+  updatedBy: integer('updated_by').notNull().references(() => users.id),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// ROI Project Steps relations
+export const roiProjectStepsRelations = relations(roiProjectSteps, ({ one }) => ({
+  updater: one(users, {
+    fields: [roiProjectSteps.updatedBy],
+    references: [users.id],
+  }),
+}));
+
+// ROI Project Steps schema for validation
+export const insertRoiProjectStepSchema = createInsertSchema(roiProjectSteps)
+  .omit({ id: true, updatedAt: true })
+  .extend({
+    roiProjectId: z.string().uuid(),
+    stepNumber: z.number().int().min(1).max(6),
+    stepData: z.record(z.any()),
+    updatedBy: z.number().int().positive(),
+  });
+
+// Export ROI Project Steps types
+export type RoiProjectStep = typeof roiProjectSteps.$inferSelect;
+export type InsertRoiProjectStep = z.infer<typeof insertRoiProjectStepSchema>;
 
 // Export types
 export type InspectionOrder = typeof inspectionOrders.$inferSelect;
