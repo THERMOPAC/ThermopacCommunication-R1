@@ -125,9 +125,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { eq } = await import('drizzle-orm');
   const { ensureAuthenticated } = await import('./auth-middleware');
 
+  // GET all plant costs
   app.get('/api/plant-costs', ensureAuthenticated, async (req: any, res: any) => {
     try {
-      console.log('Direct plant costs route hit');
+      console.log('Direct plant costs GET route hit');
       const costs = await db
         .select()
         .from(plantCosts)
@@ -137,8 +138,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Found plant costs:', costs.length);
       res.json(costs);
     } catch (error) {
-      console.error('Error in direct plant costs route:', error);
+      console.error('Error in direct plant costs GET route:', error);
       res.status(500).json({ error: 'Failed to fetch plant costs' });
+    }
+  });
+
+  // PUT update plant cost
+  app.put('/api/plant-costs/:id', ensureAuthenticated, async (req: any, res: any) => {
+    try {
+      console.log('Direct plant costs PUT route hit for ID:', req.params.id);
+      const { capacity, priceUSD } = req.body;
+      const userId = req.user?.id || 3;
+      
+      const [updatedCost] = await db
+        .update(plantCosts)
+        .set({ 
+          capacity: parseInt(capacity), 
+          priceUSD: parseFloat(priceUSD).toString(),
+          updatedBy: userId,
+          updatedAt: new Date()
+        })
+        .where(eq(plantCosts.id, parseInt(req.params.id)))
+        .returning();
+      
+      console.log('Updated plant cost:', updatedCost);
+      res.json(updatedCost);
+    } catch (error) {
+      console.error('Error in direct plant costs PUT route:', error);
+      res.status(500).json({ error: 'Failed to update plant cost' });
+    }
+  });
+
+  // POST create plant cost
+  app.post('/api/plant-costs', ensureAuthenticated, async (req: any, res: any) => {
+    try {
+      console.log('Direct plant costs POST route hit');
+      const { capacity, priceUSD } = req.body;
+      const userId = req.user?.id || 3;
+      
+      const [newCost] = await db
+        .insert(plantCosts)
+        .values({
+          capacity: parseInt(capacity),
+          priceUSD: parseFloat(priceUSD).toString(),
+          isActive: true,
+          createdBy: userId,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+      
+      console.log('Created plant cost:', newCost);
+      res.json(newCost);
+    } catch (error) {
+      console.error('Error in direct plant costs POST route:', error);
+      res.status(500).json({ error: 'Failed to create plant cost' });
+    }
+  });
+
+  // DELETE plant cost
+  app.delete('/api/plant-costs/:id', ensureAuthenticated, async (req: any, res: any) => {
+    try {
+      console.log('Direct plant costs DELETE route hit for ID:', req.params.id);
+      
+      const [deletedCost] = await db
+        .update(plantCosts)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(eq(plantCosts.id, parseInt(req.params.id)))
+        .returning();
+      
+      console.log('Deleted plant cost:', deletedCost);
+      res.json({ success: true, message: 'Plant cost deleted successfully' });
+    } catch (error) {
+      console.error('Error in direct plant costs DELETE route:', error);
+      res.status(500).json({ error: 'Failed to delete plant cost' });
     }
   });
   console.log('Plant costs routes registered directly');
