@@ -1790,47 +1790,269 @@ export default function MarketingToolsPage() {
                   <div className="space-y-6">
                     <div className="text-center mb-6">
                       <h2 className="text-2xl font-bold mb-2">Product Yield</h2>
-                      <p className="text-muted-foreground">Enter expected product yields and quality specifications</p>
+                      <p className="text-muted-foreground">Configure product yields and selling prices</p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Finish Oil Yield (%)</Label>
-                        <Input
-                          type="number"
-                          value={roiData.finishOilYield}
-                          onChange={(e) => updateData('finishOilYield', e.target.value)}
-                          placeholder="e.g., 65"
-                        />
+                    {/* Product Yield Table */}
+                    <div className="bg-white border rounded-lg overflow-hidden">
+                      <div className="bg-gray-50 p-4 border-b">
+                        <h3 className="font-semibold text-gray-800">Product Yield Distribution</h3>
+                        <p className="text-sm text-gray-600">Edit yield percentages (total must equal 100%)</p>
                       </div>
-                      <div className="space-y-2">
-                        <Label>Semi-Finish Oil Yield (%)</Label>
-                        <Input
-                          type="number"
-                          value={roiData.semiFinishYield}
-                          onChange={(e) => updateData('semiFinishYield', e.target.value)}
-                          placeholder="e.g., 25"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Black Oil Yield (%)</Label>
-                        <Input
-                          type="number"
-                          value={roiData.blackOilYield}
-                          onChange={(e) => updateData('blackOilYield', e.target.value)}
-                          placeholder="e.g., 10"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Sulphur Content (PPM)</Label>
-                        <Input
-                          type="number"
-                          value={roiData.sulphurPpm}
-                          onChange={(e) => updateData('sulphurPpm', e.target.value)}
-                          placeholder="e.g., 50"
-                        />
+                      
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="px-4 py-3 text-left font-medium text-gray-700">Product</th>
+                              <th className="px-4 py-3 text-center font-medium text-gray-700">Yield (%)</th>
+                              <th className="px-4 py-3 text-center font-medium text-gray-700">Selling Price per Liter ({getCurrencySymbol(roiData.currency)})</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            <tr className="hover:bg-gray-50">
+                              <td className="px-4 py-3 font-medium text-gray-900">Naphtha & Gas Oil</td>
+                              <td className="px-4 py-3">
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={roiData.naphthaGasOilYield}
+                                  onChange={(e) => updateData('naphthaGasOilYield', e.target.value)}
+                                  className="w-20 text-center"
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={roiData.naphthaGasOilPrice}
+                                  onChange={(e) => updateData('naphthaGasOilPrice', e.target.value)}
+                                  placeholder="e.g., 0.75"
+                                  className="w-24"
+                                />
+                              </td>
+                            </tr>
+                            <tr className="hover:bg-gray-50">
+                              <td className="px-4 py-3 font-medium text-gray-900">Light Base Oil</td>
+                              <td className="px-4 py-3">
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={roiData.lightBaseOilYield}
+                                  onChange={(e) => updateData('lightBaseOilYield', e.target.value)}
+                                  className="w-20 text-center"
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={roiData.lightBaseOilPrice}
+                                  onChange={(e) => updateData('lightBaseOilPrice', e.target.value)}
+                                  placeholder="e.g., 0.85"
+                                  className="w-24"
+                                />
+                              </td>
+                            </tr>
+                            <tr className="hover:bg-gray-50">
+                              <td className="px-4 py-3 font-medium text-gray-900">Heavy Base Oil</td>
+                              <td className="px-4 py-3">
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={roiData.heavyBaseOilYield}
+                                  onChange={(e) => updateData('heavyBaseOilYield', e.target.value)}
+                                  className="w-20 text-center"
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={roiData.heavyBaseOilPrice}
+                                  onChange={(e) => updateData('heavyBaseOilPrice', e.target.value)}
+                                  placeholder="e.g., 0.80"
+                                  className="w-24"
+                                />
+                              </td>
+                            </tr>
+                            <tr className="hover:bg-gray-50">
+                              <td className="px-4 py-3 font-medium text-gray-900">Residue</td>
+                              <td className="px-4 py-3">
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={roiData.residueYield}
+                                  onChange={(e) => updateData('residueYield', e.target.value)}
+                                  className="w-20 text-center"
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={roiData.residuePrice}
+                                  onChange={(e) => updateData('residuePrice', e.target.value)}
+                                  placeholder="e.g., 0.45"
+                                  className="w-24"
+                                />
+                              </td>
+                            </tr>
+                            <tr className="hover:bg-gray-50">
+                              <td className="px-4 py-3 font-medium text-gray-900">Waste Water</td>
+                              <td className="px-4 py-3">
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={roiData.wasteWaterYield}
+                                  onChange={(e) => updateData('wasteWaterYield', e.target.value)}
+                                  className="w-20 text-center"
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={roiData.wasteWaterPrice}
+                                  onChange={(e) => updateData('wasteWaterPrice', e.target.value)}
+                                  placeholder="e.g., -0.10 (disposal cost)"
+                                  className="w-32"
+                                />
+                              </td>
+                            </tr>
+                            <tr className="hover:bg-gray-50">
+                              <td className="px-4 py-3 font-medium text-gray-900">Process Loss</td>
+                              <td className="px-4 py-3">
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={roiData.processLossYield}
+                                  onChange={(e) => updateData('processLossYield', e.target.value)}
+                                  className="w-20 text-center"
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-center text-gray-500">
+                                <span className="text-sm">No selling price</span>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
                     </div>
+
+                    {/* Yield Validation */}
+                    <div className={`p-4 rounded-lg border ${(() => {
+                      const totalYield = [
+                        parseFloat(roiData.naphthaGasOilYield) || 0,
+                        parseFloat(roiData.lightBaseOilYield) || 0,
+                        parseFloat(roiData.heavyBaseOilYield) || 0,
+                        parseFloat(roiData.residueYield) || 0,
+                        parseFloat(roiData.wasteWaterYield) || 0,
+                        parseFloat(roiData.processLossYield) || 0
+                      ].reduce((sum, val) => sum + val, 0);
+                      
+                      if (Math.abs(totalYield - 100) < 0.1) {
+                        return 'bg-green-50 border-green-200';
+                      } else {
+                        return 'bg-red-50 border-red-200';
+                      }
+                    })()}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {(() => {
+                            const totalYield = [
+                              parseFloat(roiData.naphthaGasOilYield) || 0,
+                              parseFloat(roiData.lightBaseOilYield) || 0,
+                              parseFloat(roiData.heavyBaseOilYield) || 0,
+                              parseFloat(roiData.residueYield) || 0,
+                              parseFloat(roiData.wasteWaterYield) || 0,
+                              parseFloat(roiData.processLossYield) || 0
+                            ].reduce((sum, val) => sum + val, 0);
+                            
+                            if (Math.abs(totalYield - 100) < 0.1) {
+                              return (
+                                <>
+                                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                                  <span className="font-medium text-green-800">Valid Yield Distribution</span>
+                                </>
+                              );
+                            } else {
+                              return (
+                                <>
+                                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                                  <span className="font-medium text-red-800">Invalid Yield Distribution</span>
+                                </>
+                              );
+                            }
+                          })()}
+                        </div>
+                        <div className="text-lg font-bold">
+                          Total: {(() => {
+                            const totalYield = [
+                              parseFloat(roiData.naphthaGasOilYield) || 0,
+                              parseFloat(roiData.lightBaseOilYield) || 0,
+                              parseFloat(roiData.heavyBaseOilYield) || 0,
+                              parseFloat(roiData.residueYield) || 0,
+                              parseFloat(roiData.wasteWaterYield) || 0,
+                              parseFloat(roiData.processLossYield) || 0
+                            ].reduce((sum, val) => sum + val, 0);
+                            return totalYield.toFixed(1);
+                          })()}%
+                        </div>
+                      </div>
+                      {(() => {
+                        const totalYield = [
+                          parseFloat(roiData.naphthaGasOilYield) || 0,
+                          parseFloat(roiData.lightBaseOilYield) || 0,
+                          parseFloat(roiData.heavyBaseOilYield) || 0,
+                          parseFloat(roiData.residueYield) || 0,
+                          parseFloat(roiData.wasteWaterYield) || 0,
+                          parseFloat(roiData.processLossYield) || 0
+                        ].reduce((sum, val) => sum + val, 0);
+                        
+                        if (Math.abs(totalYield - 100) >= 0.1) {
+                          return (
+                            <p className="text-sm text-red-600 mt-2">
+                              Total yield must equal 100%. Current difference: {(totalYield - 100).toFixed(1)}%
+                            </p>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+
+                    {/* Monthly Revenue Calculation Preview */}
+                    {roiData.plantCapacity && roiData.plantOperationDays && (
+                      <div className="bg-blue-50 p-4 rounded-lg">
+                        <h4 className="font-semibold text-blue-800 mb-3">Monthly Revenue Calculation Preview</h4>
+                        <div className="text-sm text-blue-700">
+                          <p className="mb-2">
+                            <strong>Plant Capacity:</strong> {roiData.plantCapacity} LPH × {roiData.plantOperationDays} days × 8 hours = {
+                              (parseFloat(roiData.plantCapacity) || 0) * (parseFloat(roiData.plantOperationDays) || 0) * 8
+                            } liters/month
+                          </p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+                            {[
+                              { name: 'Naphtha & Gas Oil', yield: roiData.naphthaGasOilYield, price: roiData.naphthaGasOilPrice },
+                              { name: 'Light Base Oil', yield: roiData.lightBaseOilYield, price: roiData.lightBaseOilPrice },
+                              { name: 'Heavy Base Oil', yield: roiData.heavyBaseOilYield, price: roiData.heavyBaseOilPrice },
+                              { name: 'Residue', yield: roiData.residueYield, price: roiData.residuePrice },
+                              { name: 'Waste Water', yield: roiData.wasteWaterYield, price: roiData.wasteWaterPrice }
+                            ].map((product, index) => {
+                              const monthlyLiters = (parseFloat(roiData.plantCapacity) || 0) * (parseFloat(roiData.plantOperationDays) || 0) * 8;
+                              const productLiters = monthlyLiters * (parseFloat(product.yield) || 0) / 100;
+                              const revenue = productLiters * (parseFloat(product.price) || 0);
+                              
+                              return (
+                                <div key={index} className="text-xs">
+                                  <strong>{product.name}:</strong> {getCurrencySymbol(roiData.currency)}{revenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
