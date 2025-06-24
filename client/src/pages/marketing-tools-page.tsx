@@ -1297,34 +1297,35 @@ export default function MarketingToolsPage() {
         
         // Additional equipment costs
         const additionalEquipment = [
-          { name: 'Process Pumps', cost: parseFloat(roiData.processPumps) || 0 },
-          { name: 'Tank Pumps', cost: parseFloat(roiData.tankPumps) || 0 },
-          { name: 'Level Transmitters', cost: parseFloat(roiData.levelTransmitters) || 0 },
-          { name: 'Temperature Transmitters', cost: parseFloat(roiData.temperatureTransmitters) || 0 },
-          { name: 'Pressure Transmitters', cost: parseFloat(roiData.pressureTransmitters) || 0 },
-          { name: 'Flow Transmitters', cost: parseFloat(roiData.flowTransmitters) || 0 },
-          { name: 'Control Valves', cost: parseFloat(roiData.controlValves) || 0 },
-          { name: 'Safety Valves', cost: parseFloat(roiData.safetyValves) || 0 },
-          { name: 'PLC & HMI', cost: parseFloat(roiData.plcHmi) || 0 },
-          { name: 'Electrical MCC Panel', cost: parseFloat(roiData.electricalMccPanel) || 0 },
-          { name: 'Mechanical Equipment', cost: parseFloat(roiData.mechanicalEquipment) || 0 },
-          { name: 'Piping & Fittings', cost: parseFloat(roiData.pipingFittings) || 0 },
-          { name: 'Insulation', cost: parseFloat(roiData.equipmentInsulation) || 0 },
-          { name: 'Commissioning', cost: parseFloat(roiData.equipmentCommissioning) || 0 }
+          { name: 'Additional Pumps & Filters', cost: parseFloat(roiData.additionalPumpsFilters || '0') || 0 },
+          { name: 'Tank Level Transmitters', cost: parseFloat(roiData.tankLevelTransmitters || '0') || 0 },
+          { name: 'Pipes, Valves & Flanges', cost: parseFloat(roiData.pipesValvesFlanges || '0') || 0 },
+          { name: 'Electrical Cables & Accessories', cost: parseFloat(roiData.electricalCablesAccessories || '0') || 0 },
+          { name: 'PCC/MCC Panels', cost: parseFloat(roiData.pccMccPanels || '0') || 0 },
+          { name: 'Chimney & Ducting', cost: parseFloat(roiData.chimneyDucting || '0') || 0 },
+          { name: 'Air Compressor', cost: parseFloat(roiData.airCompressor || '0') || 0 },
+          { name: 'Cooling Tower', cost: parseFloat(roiData.coolingTower || '0') || 0 },
+          { name: 'Diesel Generator', cost: parseFloat(roiData.dieselGenerator || '0') || 0 },
+          { name: 'Quality Control Equipment', cost: parseFloat(roiData.qualityControlEquipment || '0') || 0 },
+          { name: 'Thermic Fluid', cost: parseFloat(roiData.thermicFluid || '0') || 0 },
+          { name: 'Expansion & Structure', cost: parseFloat(roiData.expansionStructure || '0') || 0 },
+          { name: 'Crane Hire Charges', cost: parseFloat(roiData.craneHireCharges || '0') || 0 },
+          { name: 'Labor Erection & Commissioning', cost: parseFloat(roiData.laborErectionCommissioning || '0') || 0 }
         ];
+        
+        // Calculate equipment total at function scope level
+        const equipmentTotal = additionalEquipment.reduce((sum, item) => sum + (item.cost || 0), 0);
         
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        let equipmentTotal = 0;
         additionalEquipment.forEach((item) => {
           if (item.cost > 0) {
-            doc.text(`• ${item.name}: ${getCurrencySymbol(roiData.currency)}${item.cost.toLocaleString()}`, margin + 5, yPosition);
-            equipmentTotal += item.cost;
+            doc.text(`• ${item.name}: ${getCurrencySymbol(roiData.currency)}${(item.cost || 0).toLocaleString()}`, margin + 5, yPosition);
             yPosition += 6;
           }
         });
         doc.setFont('helvetica', 'bold');
-        doc.text(`Total Equipment Cost: ${getCurrencySymbol(roiData.currency)}${equipmentTotal.toLocaleString()}`, margin + 5, yPosition);
+        doc.text(`Total Equipment Cost: ${getCurrencySymbol(roiData.currency)}${(equipmentTotal || 0).toLocaleString()}`, margin + 5, yPosition);
         yPosition += 15;
         
         // Check if we need a new page
@@ -1431,8 +1432,7 @@ export default function MarketingToolsPage() {
         doc.text(`• Additional Project Costs: ${getCurrencySymbol(roiData.currency)}${(additionalTotal || 0).toLocaleString()}`, margin + 5, yPosition);
         yPosition += 8;
         
-        const safeEquipmentTotal = equipmentTotal || 0;
-        const totalCapex = (basePlantCost || 0) + (tankCost || 0) + (utilityCost || 0) + safeEquipmentTotal + (additionalTotal || 0);
+        const totalCapex = (basePlantCost || 0) + (tankCost || 0) + (utilityCost || 0) + (equipmentTotal || 0) + (additionalTotal || 0);
         const workingCapitalAmount = totalCapex * 0.15;
         
         doc.setFont('helvetica', 'bold');
