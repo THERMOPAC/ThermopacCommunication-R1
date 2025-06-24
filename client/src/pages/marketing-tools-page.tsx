@@ -206,17 +206,19 @@ export default function MarketingToolsPage() {
   }, [plantCostsData, plantCostsError]);
 
   useEffect(() => {
+    console.log('Tank prices loading:', tankPricesLoading);
     if (tankPricesData) {
+      console.log('Raw tank prices data:', tankPricesData);
       console.log('Tank prices error:', tankPricesError);
       const processedPrices = tankPricesData.map((price: any) => ({
         id: price.id,
         capacity: price.capacity,
-        priceUSD: parseFloat(price.priceUSD)
+        priceUSD: parseFloat(price.priceUSD?.toString() || '0')
       }));
       console.log('Processed tank prices:', processedPrices);
       setTankPrices(processedPrices);
     }
-  }, [tankPricesData, tankPricesError]);
+  }, [tankPricesData, tankPricesError, tankPricesLoading]);
   
   const [activeTab, setActiveTab] = useState("overview");
   const [currentStep, setCurrentStep] = useState(1);

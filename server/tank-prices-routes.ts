@@ -12,11 +12,11 @@ router.get('/', ensureAuthenticated, async (req, res) => {
     console.log('Tank prices GET route hit');
     const prices = await db.select().from(tankPrices).where(eq(tankPrices.isActive, true)).orderBy(tankPrices.capacity);
     console.log('Found tank prices:', prices.length);
-    // Convert snake_case to camelCase for frontend compatibility
+    // Convert database field names to frontend format
     const formattedPrices = prices.map(price => ({
       id: price.id,
       capacity: price.capacity,
-      priceUSD: price.priceUsd,
+      priceUSD: parseFloat(price.priceUSD?.toString() || '0'),
       isActive: price.isActive,
       createdAt: price.createdAt,
       updatedAt: price.updatedAt,
