@@ -110,11 +110,69 @@ interface ROIData {
 export default function MarketingToolsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fetch plant costs from API
+  const { data: plantCostsData, isLoading: plantCostsLoading, error: plantCostsError } = useQuery({
+    queryKey: ['/api/plant-costs'],
+    queryFn: async () => {
+      console.log('Plant costs loading:', true);
+      const response = await fetch('/api/plant-costs');
+      if (!response.ok) throw new Error('Failed to fetch plant costs');
+      const data = await response.json();
+      console.log('Plant costs data:', data);
+      return data;
+    }
+  });
+
+  // Fetch tank prices from API
+  const { data: tankPricesData, isLoading: tankPricesLoading, error: tankPricesError } = useQuery({
+    queryKey: ['/api/tank-prices'],
+    queryFn: async () => {
+      console.log('Tank prices loading:', true);
+      const response = await fetch('/api/tank-prices');
+      if (!response.ok) throw new Error('Failed to fetch tank prices');
+      const data = await response.json();
+      console.log('Tank prices data:', data);
+      return data;
+    }
+  });
+
+  useEffect(() => {
+    if (plantCostsData) {
+      console.log('Plant costs error:', plantCostsError);
+      const processedCosts = plantCostsData.map((cost: any) => ({
+        id: cost.id,
+        capacity: cost.capacity,
+        priceUSD: parseFloat(cost.priceUSD)
+      }));
+      console.log('Processed capacities:', processedCosts);
+      setPlantCosts(processedCosts);
+    }
+  }, [plantCostsData, plantCostsError]);
+
+  useEffect(() => {
+    if (tankPricesData) {
+      console.log('Tank prices error:', tankPricesError);
+      const processedPrices = tankPricesData.map((price: any) => ({
+        id: price.id,
+        capacity: price.capacity,
+        priceUSD: parseFloat(price.priceUSD)
+      }));
+      console.log('Processed tank prices:', processedPrices);
+      setTankPrices(processedPrices);
+    }
+  }, [tankPricesData, tankPricesError]);
+  
   const [activeTab, setActiveTab] = useState("overview");
   const [currentStep, setCurrentStep] = useState(1);
   const [showPlantCostsDialog, setShowPlantCostsDialog] = useState(false);
   const [editingCost, setEditingCost] = useState<any>(null);
   const [newCost, setNewCost] = useState({ capacity: '', priceUSD: '' });
+  const [plantCosts, setPlantCosts] = useState<Array<{ id: number; capacity: number; priceUSD: number }>>([]);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingCapacity, setEditingCapacity] = useState<{ id: number; capacity: number; priceUSD: number } | null>(null);
+  const [tankPrices, setTankPrices] = useState<Array<{ id: number; capacity: number; priceUSD: number }>>([]);
+  const [isTankPriceDialogOpen, setIsTankPriceDialogOpen] = useState(false);
   const [roiData, setROIData] = useState<ROIData>({
     capacity: '',
     currency: 'USD',
@@ -294,20 +352,11 @@ export default function MarketingToolsPage() {
   // Standard tank sizes in KL
   const standardTankSizes = [50, 100, 200, 300, 400, 500, 600];
 
-  // Fallback hardcoded plant capacities (from database)
-  const fallbackCapacities = [
-    { id: 1, capacity: 1000, priceUSD: 350000 },
-    { id: 2, capacity: 1500, priceUSD: 475000 },
-    { id: 3, capacity: 2000, priceUSD: 590000 },
-    { id: 4, capacity: 3000, priceUSD: 800000 },
-    { id: 5, capacity: 4000, priceUSD: 1000000 },
-    { id: 6, capacity: 6000, priceUSD: 1400000 },
-    { id: 7, capacity: 8000, priceUSD: 1750000 },
-    { id: 8, capacity: 10000, priceUSD: 2100000 },
-    { id: 9, capacity: 12000, priceUSD: 2450000 },
-    { id: 10, capacity: 15000, priceUSD: 2950000 },
-    { id: 11, capacity: 20000, priceUSD: 3800000 }
-  ];
+  // Function to get tank price from database
+  const getTankPrice = (capacity: number): number => {
+    const tankPrice = tankPrices.find(price => price.capacity === capacity);
+    return tankPrice ? tankPrice.priceUSD : 0;
+  };
 
   // Fetch plant costs from database with fallback
   const { data: plantCostsData = fallbackCapacities, isLoading: loadingCosts, error: plantCostsError } = useQuery({
