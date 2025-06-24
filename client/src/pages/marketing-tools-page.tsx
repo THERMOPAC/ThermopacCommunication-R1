@@ -241,11 +241,32 @@ export default function MarketingToolsPage() {
   // Standard tank sizes in KL
   const standardTankSizes = [50, 100, 200, 300, 400, 600];
 
-  // Fetch plant costs from database
+  // Fetch plant costs from database with custom fetcher to handle errors
   const { data: plantCostsData = [], isLoading: loadingCosts, error: plantCostsError } = useQuery({
     queryKey: ['/api/plant-costs'],
+    queryFn: async () => {
+      const response = await fetch('/api/plant-costs', {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Response is not JSON');
+      }
+      
+      return response.json();
+    },
     retry: 3,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000 // 5 minutes
   });
 
   const plantCapacities = plantCostsData.map((cost: any) => ({
@@ -265,7 +286,11 @@ export default function MarketingToolsPage() {
     mutationFn: async (data: { id: number, capacity: number, priceUSD: number }) => {
       const response = await fetch(`/api/plant-costs/${data.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify(data)
       });
       if (!response.ok) throw new Error('Failed to update plant cost');
@@ -286,7 +311,11 @@ export default function MarketingToolsPage() {
     mutationFn: async (data: { capacity: number, priceUSD: number }) => {
       const response = await fetch('/api/plant-costs', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify(data)
       });
       if (!response.ok) throw new Error('Failed to create plant cost');
@@ -305,7 +334,11 @@ export default function MarketingToolsPage() {
   // Delete plant cost mutation
   const deleteCostMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await fetch(`/api/plant-costs/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/plant-costs/${id}`, { 
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' }
+      });
       if (!response.ok) throw new Error('Failed to delete plant cost');
       return response.json();
     },
@@ -786,14 +819,20 @@ export default function MarketingToolsPage() {
                       <Label htmlFor="capacity">Plant Capacity (Liters/Hour) *</Label>
                       <Select value={roiData.capacity} onValueChange={(value) => updateData('capacity', value)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select capacity" />
+                          <SelectValue placeholder={loadingCosts ? "Loading..." : plantCapacities.length === 0 ? "No capacities available" : "Select capacity"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {plantCapacities.map((plant) => (
-                            <SelectItem key={plant.capacity} value={plant.capacity.toString()}>
-                              {plant.capacity.toLocaleString()} LPH
-                            </SelectItem>
-                          ))}
+                          {loadingCosts ? (
+                            <SelectItem value="loading" disabled>Loading capacities...</SelectItem>
+                          ) : plantCapacities.length > 0 ? (
+                            plantCapacities.map((plant) => (
+                              <SelectItem key={plant.capacity} value={plant.capacity.toString()}>
+                                {plant.capacity.toLocaleString()} LPH
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="empty" disabled>No capacities available</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
