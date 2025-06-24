@@ -41,6 +41,8 @@ interface ROIData {
   currency: string;
   customerName: string;
   projectName: string;
+  projectCostUSD: string;
+  projectCostLocal: string;
   
   // Step 2: Tank Farm & Utility Setup - Auto-calculated tanks
   tanks: Array<{
@@ -92,6 +94,8 @@ export default function MarketingToolsPage() {
     currency: 'USD',
     customerName: '',
     projectName: '',
+    projectCostUSD: '0',
+    projectCostLocal: '0',
     tanks: [
       { description: 'Used oil storage tanks', percentCapacity: 150, storageDays: 7, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
       { description: 'Light Base Oil', percentCapacity: 80, storageDays: 5, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
@@ -228,6 +232,33 @@ export default function MarketingToolsPage() {
   // Standard tank sizes in KL
   const standardTankSizes = [50, 100, 200, 300, 400, 600];
 
+  // ===== PLANT PRICING CONFIGURATION =====
+  // Edit the prices below to update plant costs for each capacity
+  const plantCapacities = [
+    { capacity: 1000, priceUSD: 350000 },
+    { capacity: 1500, priceUSD: 475000 },
+    { capacity: 2000, priceUSD: 590000 },
+    { capacity: 3000, priceUSD: 800000 },
+    { capacity: 4000, priceUSD: 1000000 },
+    { capacity: 6000, priceUSD: 1400000 },
+    { capacity: 8000, priceUSD: 1750000 },
+    { capacity: 10000, priceUSD: 2100000 },
+    { capacity: 12000, priceUSD: 2450000 },
+    { capacity: 15000, priceUSD: 2950000 },
+    { capacity: 20000, priceUSD: 3800000 }
+  ];
+
+  // Currency exchange rates (USD base rate = 1.0)
+  const currencies = {
+    USD: { name: 'US Dollar', rate: 1.0, symbol: '$' },
+    EUR: { name: 'Euro', rate: 0.92, symbol: '€' },
+    GBP: { name: 'British Pound', rate: 0.79, symbol: '£' },
+    INR: { name: 'Indian Rupee', rate: 83.25, symbol: '₹' },
+    CAD: { name: 'Canadian Dollar', rate: 1.36, symbol: 'C$' },
+    AUD: { name: 'Australian Dollar', rate: 1.52, symbol: 'A$' }
+  };
+  // ===== END PRICING CONFIGURATION =====
+
   // Enhanced capacity rounding functions
   const roundCapacitySmart = (value: number) => {
     return value < 300
@@ -343,10 +374,26 @@ export default function MarketingToolsPage() {
   const updateData = (field: keyof ROIData, value: string | number) => {
     setROIData(prev => ({ ...prev, [field]: value }));
     
-    // Auto-calculate tanks and utilities when capacity changes
-    if (field === 'capacity' && value) {
-      const plantCapacity = parseFloat(value as string);
+    // Auto-calculate tanks, utilities, and project cost when capacity or currency changes
+    if ((field === 'capacity' || field === 'currency') && (roiData.capacity || value)) {
+      const plantCapacity = parseFloat((field === 'capacity' ? value : roiData.capacity) as string);
+      const selectedCurrency = field === 'currency' ? value as string : roiData.currency;
+      
       if (plantCapacity > 0) {
+        // Find plant price in USD
+        const plantConfig = plantCapacities.find(p => p.capacity === plantCapacity);
+        if (plantConfig) {
+          const priceUSD = plantConfig.priceUSD;
+          const exchangeRate = currencies[selectedCurrency]?.rate || 1;
+          const priceLocal = Math.round(priceUSD * exchangeRate);
+          
+          setROIData(prev => ({ 
+            ...prev, 
+            projectCostUSD: priceUSD.toString(),
+            projectCostLocal: priceLocal.toString()
+          }));
+        }
+        
         const calculatedTanks = calculateTankRequirements(plantCapacity);
         
         // Calculate utility requirements based on plant capacity
