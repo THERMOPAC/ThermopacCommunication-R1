@@ -2180,19 +2180,43 @@ export default function MarketingToolsPage() {
                             <span className="text-sm font-medium text-green-900">Total Revenue (Monthly):</span>
                             <span className="text-lg font-bold text-green-900">
                               {getCurrencySymbol(roiData.currency)}{(() => {
-                                const monthlyLiters = (parseFloat(roiData.capacity) || 0) * (parseFloat(roiData.plantOperationDays) || 0) * 24;
+                                // Use default values if Step 1 data is missing
+                                const plantCapacity = parseFloat(roiData.capacity) || 1000; // Default to 1000 LPH if not set
+                                const operatingDays = parseFloat(roiData.plantOperationDays) || 30; // Default to 30 days if not set
+                                const monthlyLiters = plantCapacity * operatingDays * 24;
+                                
                                 const products = [
-                                  { yield: roiData.naphthaGasOilYield, price: roiData.naphthaGasOilPrice, density: 0.80 },
-                                  { yield: roiData.lightBaseOilYield, price: roiData.lightBaseOilPrice, density: 0.85 },
-                                  { yield: roiData.heavyBaseOilYield, price: roiData.heavyBaseOilPrice, density: 0.87 },
-                                  { yield: roiData.residueYield, price: roiData.residuePrice, density: 1.8 },
-                                  { yield: roiData.wasteWaterYield, price: roiData.wasteWaterPrice, density: 1.0 }
+                                  { 
+                                    yield: parseFloat(roiData.naphthaGasOilYield) || 7, 
+                                    price: parseFloat(roiData.naphthaGasOilPrice) || (600 * (currencies[roiData.currency]?.rate || 1)), 
+                                    density: 0.80 
+                                  },
+                                  { 
+                                    yield: parseFloat(roiData.lightBaseOilYield) || 50, 
+                                    price: parseFloat(roiData.lightBaseOilPrice) || (750 * (currencies[roiData.currency]?.rate || 1)), 
+                                    density: 0.85 
+                                  },
+                                  { 
+                                    yield: parseFloat(roiData.heavyBaseOilYield) || 22, 
+                                    price: parseFloat(roiData.heavyBaseOilPrice) || (780 * (currencies[roiData.currency]?.rate || 1)), 
+                                    density: 0.87 
+                                  },
+                                  { 
+                                    yield: parseFloat(roiData.residueYield) || 15, 
+                                    price: parseFloat(roiData.residuePrice) || (400 * (currencies[roiData.currency]?.rate || 1)), 
+                                    density: 1.8 
+                                  },
+                                  { 
+                                    yield: parseFloat(roiData.wasteWaterYield) || 5, 
+                                    price: parseFloat(roiData.wasteWaterPrice) || (-50 * (currencies[roiData.currency]?.rate || 1)), 
+                                    density: 1.0 
+                                  }
                                 ];
                                 
                                 const totalRevenue = products.reduce((total, product) => {
-                                  const productLiters = monthlyLiters * (parseFloat(product.yield) || 0) / 100;
+                                  const productLiters = monthlyLiters * product.yield / 100;
                                   const productTons = productLiters * product.density / 1000;
-                                  const revenue = productTons * (parseFloat(product.price) || 0);
+                                  const revenue = productTons * product.price;
                                   return total + revenue;
                                 }, 0);
                                 
