@@ -23,6 +23,7 @@ router.get('/', ensureAuthenticated, async (req, res) => {
       createdBy: price.createdBy,
       updatedBy: price.updatedBy
     }));
+    console.log('Raw tank prices from DB:', prices);
     console.log('Formatted tank prices:', formattedPrices);
     res.json(formattedPrices);
   } catch (error) {
