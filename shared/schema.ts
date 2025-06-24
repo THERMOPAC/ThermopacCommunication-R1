@@ -722,6 +722,18 @@ export const plantCosts = pgTable('plant_costs', {
   updatedBy: integer('updated_by').references(() => users.id),
 });
 
+// Tank Prices Configuration for ROI Calculator
+export const tankPrices = pgTable('tank_prices', {
+  id: serial('id').primaryKey(),
+  capacity: integer('capacity').notNull().unique(), // Tank capacity in KL
+  priceUSD: decimal('price_usd', { precision: 10, scale: 2 }).notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  updatedBy: integer('updated_by').references(() => users.id),
+});
+
 export const insertUserSchema = createInsertSchema(users).extend({
   role: z.enum(roles),
   reportingManagerId: z.number().optional(),
