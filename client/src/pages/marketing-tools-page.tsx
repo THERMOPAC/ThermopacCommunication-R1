@@ -1370,62 +1370,258 @@ export default function MarketingToolsPage() {
       }
       
       if (format === 'pdf') {
-        // Create a simple test PDF first
         const { jsPDF } = await import('jspdf');
         const doc = new jsPDF('p', 'mm', 'a4');
         
-        // Basic document setup
         const pageWidth = doc.internal.pageSize.width;
         const pageHeight = doc.internal.pageSize.height;
         const margin = 20;
+        let yPos = 20;
+
+        // Helper function to check if we need a new page
+        const checkPageBreak = (requiredSpace: number) => {
+          if (yPos + requiredSpace > pageHeight - 30) {
+            doc.addPage();
+            yPos = 20;
+            return true;
+          }
+          return false;
+        };
+
+        // Calculate comprehensive financial data
+        const plantCapacity = parseFloat(roiData.capacity) || 0;
+        const annualLiters = plantCapacity * 24 * 365;
         
-        // Simple header
-        doc.setFontSize(20);
+        // Investment breakdown
+        const plantCost = parseFloat(roiData.projectCostUSD) || 0;
+        const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
+          const tankPrice = tankPrices.find(p => p.capacity === tank.suggestedTankSize)?.priceUSD || 0;
+          return total + (tankPrice * tank.suggestedQuantity);
+        }, 0);
+        
+        const additionalCosts = [
+          parseFloat(roiData.additionalPumpsFilters) || 0,
+          parseFloat(roiData.tankLevelTransmitters) || 0,
+          parseFloat(roiData.pipesValvesFlanges) || 0,
+          parseFloat(roiData.electricalCablesAccessories) || 0,
+          parseFloat(roiData.pccMccPanels) || 0,
+          parseFloat(roiData.chimneyDucting) || 0,
+          parseFloat(roiData.airCompressor) || 0,
+          parseFloat(roiData.coolingTower) || 0,
+          parseFloat(roiData.dieselGenerator) || 0,
+          parseFloat(roiData.qualityControlEquipment) || 0,
+          parseFloat(roiData.thermicFluid) || 0,
+          parseFloat(roiData.expansionStructure) || 0,
+          parseFloat(roiData.craneHireCharges) || 0,
+          parseFloat(roiData.laborErectionCommissioning) || 0
+        ].reduce((sum, cost) => sum + cost, 0);
+
+        const otherCosts = [
+          parseFloat(roiData.freightInsurance) || 0,
+          parseFloat(roiData.importDutyVAT) || 0,
+          parseFloat(roiData.plotCost) || 0,
+          parseFloat(roiData.civilCost) || 0,
+          parseFloat(roiData.refineryShed) || 0,
+          parseFloat(roiData.utilityShed) || 0,
+          parseFloat(roiData.officeBuilding) || 0,
+          parseFloat(roiData.mechanicalElectrical) || 0,
+          parseFloat(roiData.legalFees) || 0,
+          parseFloat(roiData.preFormationExpenses) || 0,
+          parseFloat(roiData.commissioningTravel) || 0,
+          parseFloat(roiData.contingency) || 0
+        ].reduce((sum, cost) => sum + cost, 0);
+
+        const totalInvestment = plantCost + tankCosts + additionalCosts + otherCosts;
+
+        // Revenue calculation
+        const products = [
+          { name: 'Light Base Oil', yield: parseFloat(roiData.lightBaseOilYield) || 0, price: parseFloat(roiData.lightBaseOilPrice) || 0 },
+          { name: 'Heavy Base Oil', yield: parseFloat(roiData.heavyBaseOilYield) || 0, price: parseFloat(roiData.heavyBaseOilPrice) || 0 },
+          { name: 'Naphtha/Gas Oil', yield: parseFloat(roiData.naphthaGasOilYield) || 0, price: parseFloat(roiData.naphthaGasOilPrice) || 0 },
+          { name: 'Residue', yield: parseFloat(roiData.residueYield) || 0, price: parseFloat(roiData.residuePrice) || 0 },
+          { name: 'Waste Water', yield: parseFloat(roiData.wasteWaterYield) || 0, price: parseFloat(roiData.wasteWaterPrice) || 0 }
+        ];
+
+        const totalRevenue = products.reduce((sum, product) => {
+          const tons = (annualLiters * product.yield / 100) / 1000;
+          return sum + (tons * product.price);
+        }, 0);
+
+        // Operating costs
+        const operatingCosts = [
+          parseFloat(roiData.feedstockCost) || 0,
+          parseFloat(roiData.powerCost) || 0,
+          parseFloat(roiData.fuelCost) || 0,
+          parseFloat(roiData.chemicalCost) || 0,
+          parseFloat(roiData.laborCost) || 0,
+          parseFloat(roiData.maintenanceCost) || 0
+        ].reduce((sum, cost) => sum + cost, 0) * 12;
+
+        const annualProfit = totalRevenue - operatingCosts;
+        const paybackPeriod = totalInvestment > 0 ? totalInvestment / annualProfit : 0;
+        const annualROI = totalInvestment > 0 ? (annualProfit / totalInvestment) * 100 : 0;
+
+        // Header with gradient background
+        doc.setFillColor(41, 128, 185);
+        doc.rect(0, 0, pageWidth, 40, 'F');
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(18);
         doc.setFont('helvetica', 'bold');
-        doc.text('THERMOPAC ROI Analysis Report', margin, 30);
-        
-        // Basic project info
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'normal');
-        let yPos = 50;
-        
-        doc.text(`Customer: ${roiData.customerName || 'Not specified'}`, margin, yPos);
-        yPos += 8;
-        doc.text(`Project: ${roiData.projectName || 'Not specified'}`, margin, yPos);
-        yPos += 8;
-        doc.text(`Capacity: ${roiData.capacity || '0'} LPH`, margin, yPos);
-        yPos += 8;
-        doc.text(`Currency: ${roiData.currency || 'USD'}`, margin, yPos);
-        yPos += 20;
-        
-        // Simple financial summary
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Financial Summary', margin, yPos);
-        yPos += 15;
+        doc.text('THERMOPAC ROI ANALYSIS REPORT', pageWidth/2, 20, { align: 'center' });
         
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
+        doc.text(`Generated on ${new Date().toLocaleDateString()}`, pageWidth/2, 30, { align: 'center' });
         
-        const capacity = parseFloat(roiData.capacity || '0');
-        const operatingDays = parseFloat(roiData.operatingDays || '300');
-        const annualCapacity = capacity * 24 * operatingDays;
+        yPos = 50;
+        doc.setTextColor(0, 0, 0);
+
+        // Project Information
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('PROJECT SUMMARY', margin, yPos);
+        yPos += 10;
         
-        doc.text(`Annual Processing Capacity: ${annualCapacity.toLocaleString()} Liters`, margin, yPos);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Customer: ${roiData.customerName}`, margin, yPos);
+        yPos += 6;
+        doc.text(`Project: ${roiData.projectName}`, margin, yPos);
+        yPos += 6;
+        doc.text(`Plant Capacity: ${roiData.capacity} LPH`, margin, yPos);
+        yPos += 6;
+        doc.text(`Currency: ${roiData.currency}`, margin, yPos);
+        yPos += 6;
+        doc.text(`Annual Processing: ${annualLiters.toLocaleString()} Liters`, margin, yPos);
+        yPos += 15;
+
+        // Financial Summary Cards
+        checkPageBreak(50);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('FINANCIAL SUMMARY', margin, yPos);
+        yPos += 15;
+
+        // Investment breakdown
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Investment Breakdown', margin, yPos);
         yPos += 8;
         
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Plant Cost: ${roiData.currency} ${plantCost.toLocaleString()}`, margin, yPos);
+        yPos += 6;
+        doc.text(`Tank Farm: ${roiData.currency} ${tankCosts.toLocaleString()}`, margin, yPos);
+        yPos += 6;
+        doc.text(`Additional Equipment: ${roiData.currency} ${additionalCosts.toLocaleString()}`, margin, yPos);
+        yPos += 6;
+        doc.text(`Other Costs: ${roiData.currency} ${otherCosts.toLocaleString()}`, margin, yPos);
+        yPos += 6;
+        
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Total Investment: ${roiData.currency} ${totalInvestment.toLocaleString()}`, margin, yPos);
+        yPos += 15;
+
+        // Revenue Analysis
+        checkPageBreak(40);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Annual Revenue Analysis', margin, yPos);
+        yPos += 8;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        products.forEach(product => {
+          if (product.yield > 0) {
+            const tons = (annualLiters * product.yield / 100) / 1000;
+            const revenue = tons * product.price;
+            doc.text(`${product.name}: ${product.yield}% = ${tons.toFixed(0)} tons × ${roiData.currency} ${product.price} = ${roiData.currency} ${revenue.toLocaleString()}`, margin, yPos);
+            yPos += 6;
+          }
+        });
+        
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Total Annual Revenue: ${roiData.currency} ${totalRevenue.toLocaleString()}`, margin, yPos);
+        yPos += 15;
+
+        // Operating Costs
+        checkPageBreak(30);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Annual Operating Costs', margin, yPos);
+        yPos += 8;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        const costItems = [
+          { name: 'Feedstock', monthly: parseFloat(roiData.feedstockCost) || 0 },
+          { name: 'Power', monthly: parseFloat(roiData.powerCost) || 0 },
+          { name: 'Fuel', monthly: parseFloat(roiData.fuelCost) || 0 },
+          { name: 'Chemicals', monthly: parseFloat(roiData.chemicalCost) || 0 },
+          { name: 'Labor', monthly: parseFloat(roiData.laborCost) || 0 },
+          { name: 'Maintenance', monthly: parseFloat(roiData.maintenanceCost) || 0 }
+        ];
+        
+        costItems.forEach(item => {
+          const annual = item.monthly * 12;
+          doc.text(`${item.name}: ${roiData.currency} ${item.monthly.toLocaleString()}/month × 12 = ${roiData.currency} ${annual.toLocaleString()}`, margin, yPos);
+          yPos += 6;
+        });
+        
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Total Operating Costs: ${roiData.currency} ${operatingCosts.toLocaleString()}`, margin, yPos);
+        yPos += 15;
+
+        // ROI Metrics
+        checkPageBreak(30);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('KEY PERFORMANCE INDICATORS', margin, yPos);
+        yPos += 10;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Annual Profit: ${roiData.currency} ${annualProfit.toLocaleString()}`, margin, yPos);
+        yPos += 6;
+        doc.text(`Payback Period: ${paybackPeriod.toFixed(1)} years`, margin, yPos);
+        yPos += 6;
+        doc.text(`Annual ROI: ${annualROI.toFixed(1)}%`, margin, yPos);
+        yPos += 6;
+        doc.text(`Profit Margin: ${totalRevenue > 0 ? ((annualProfit / totalRevenue) * 100).toFixed(1) : 0}%`, margin, yPos);
+        yPos += 15;
+
+        // Tank Details
+        if (roiData.tanks && roiData.tanks.length > 0) {
+          checkPageBreak(40);
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text('TANK FARM DETAILS', margin, yPos);
+          yPos += 10;
+          
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          roiData.tanks.forEach((tank, index) => {
+            checkPageBreak(8);
+            const tankPrice = tankPrices.find(p => p.capacity === tank.suggestedTankSize)?.priceUSD || 0;
+            const totalCost = tankPrice * tank.suggestedQuantity;
+            doc.text(`${index + 1}. ${tank.description}: ${tank.suggestedQuantity} × ${tank.suggestedTankSize}KL = ${roiData.currency} ${totalCost.toLocaleString()}`, margin, yPos);
+            yPos += 6;
+          });
+        }
+
         // Footer
         doc.setFontSize(8);
         doc.setTextColor(128, 128, 128);
-        doc.text('Generated by THERMOPAC ROI Calculator', pageWidth/2, pageHeight - 20, { align: 'center' });
+        doc.text('Generated by THERMOPAC ROI Calculator', pageWidth/2, pageHeight - 10, { align: 'center' });
         
-        // Save the simple PDF
-        const fileName = `ROI_Report_${roiData.customerName || 'Project'}_${new Date().toISOString().split('T')[0]}.pdf`;
+        const fileName = `ROI_Report_${roiData.customerName}_${new Date().toISOString().split('T')[0]}.pdf`;
         doc.save(fileName);
         
         toast({
-          title: 'PDF Report Downloaded',
-          description: `Basic ROI analysis report has been downloaded successfully.`,
+          title: 'Comprehensive ROI Report Downloaded',
+          description: `Complete financial analysis with all step data has been generated successfully.`,
         });
         
         return;
