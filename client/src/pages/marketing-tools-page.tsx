@@ -465,12 +465,7 @@ export default function MarketingToolsPage() {
   };
 
   const getCurrencySymbol = (currency: string) => {
-    switch (currency) {
-      case 'USD': return '$';
-      case 'EUR': return '€';
-      case 'GBP': return '£';
-      default: return '$';
-    }
+    return currencies[currency]?.symbol || '$';
   };
 
   const downloadReport = (format: 'pdf' | 'excel') => {
@@ -726,15 +721,11 @@ export default function MarketingToolsPage() {
                           <SelectValue placeholder="Select capacity" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="1000">1000</SelectItem>
-                          <SelectItem value="1500">1500</SelectItem>
-                          <SelectItem value="2000">2000</SelectItem>
-                          <SelectItem value="3000">3000</SelectItem>
-                          <SelectItem value="4000">4000</SelectItem>
-                          <SelectItem value="6000">6000</SelectItem>
-                          <SelectItem value="8000">8000</SelectItem>
-                          <SelectItem value="12000">12000</SelectItem>
-                          <SelectItem value="16000">16000</SelectItem>
+                          {plantCapacities.map((plant) => (
+                            <SelectItem key={plant.capacity} value={plant.capacity.toString()}>
+                              {plant.capacity.toLocaleString()} LPH
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -745,9 +736,11 @@ export default function MarketingToolsPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="USD">USD ($)</SelectItem>
-                          <SelectItem value="EUR">EUR (€)</SelectItem>
-                          <SelectItem value="GBP">GBP (£)</SelectItem>
+                          {Object.entries(currencies).map(([code, currency]) => (
+                            <SelectItem key={code} value={code}>
+                              {currency.symbol} {code} - {currency.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
