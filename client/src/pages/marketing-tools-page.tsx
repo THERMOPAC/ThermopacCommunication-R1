@@ -722,7 +722,7 @@ export default function MarketingToolsPage() {
   const updateData = (field: keyof ROIData, value: string | number) => {
     setROIData(prev => ({ ...prev, [field]: value }));
     
-    // Auto-calculate tanks, utilities, and project cost when capacity, currency, or plant operation days changes
+    // Auto-calculate tanks, utilities, project cost, and product prices when capacity, currency, or plant operation days changes
     if ((field === 'capacity' || field === 'currency' || field === 'plantOperationDays') && (roiData.capacity || value)) {
       const plantCapacity = parseFloat((field === 'capacity' ? value : roiData.capacity) as string);
       const selectedCurrency = field === 'currency' ? value as string : roiData.currency;
@@ -809,11 +809,21 @@ export default function MarketingToolsPage() {
             rateOfInterest: "0.5" // Default 0.5% monthly
           };
           
-          // Update all cost breakdown, additional equipment, and operating cost fields
+          // Auto-calculate product prices based on currency
+          const defaultProductPrices = {
+            naphthaGasOilPrice: Math.round(600 * exchangeRate).toString(),
+            lightBaseOilPrice: Math.round(750 * exchangeRate).toString(),
+            heavyBaseOilPrice: Math.round(780 * exchangeRate).toString(),
+            residuePrice: Math.round(400 * exchangeRate).toString(),
+            wasteWaterPrice: Math.round(-50 * exchangeRate).toString(), // Disposal cost (negative)
+          };
+
+          // Update all cost breakdown, additional equipment, operating cost fields, and product prices
           setROIData(prev => ({ 
             ...prev, 
             ...calculatedCosts,
-            ...operatingCosts
+            ...operatingCosts,
+            ...defaultProductPrices
           }));
         }
         
@@ -2145,11 +2155,24 @@ export default function MarketingToolsPage() {
                                 />
                               </td>
                               <td className="px-4 py-3 text-center text-gray-500">
-                                <span className="text-sm">No selling price</span>
+                                <span className="text-sm italic">No selling price (Process Loss)</span>
                               </td>
                             </tr>
                           </tbody>
                         </table>
+                        
+                        {/* Default Values Info */}
+                        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-start gap-2">
+                            <Info className="h-4 w-4 text-blue-600 mt-0.5" />
+                            <div className="text-sm text-blue-800">
+                              <p className="font-medium mb-1">Default Pricing (USD Base):</p>
+                              <p className="text-xs">• Naphtha & Gas Oil: $600/ton • Light Base Oil: $750/ton • Heavy Base Oil: $780/ton</p>
+                              <p className="text-xs">• Residue: $400/ton • Waste Water: -$50/ton (disposal cost)</p>
+                              <p className="text-xs mt-2 font-medium">Prices automatically convert based on selected currency from Step 1</p>
+                            </div>
+                          </div>
+                        </div>
                         
                         {/* Total Utilities Cost */}
                         <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
