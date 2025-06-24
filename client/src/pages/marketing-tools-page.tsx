@@ -862,6 +862,21 @@ export default function MarketingToolsPage() {
   }, [workingCapital, roiData.rateOfInterest]);
 
   const calculateROI = () => {
+    // Ensure tanks and utilities are calculated and stored
+    const plantCapacityLPH = parseFloat(roiData.capacity) || 0;
+    
+    // Calculate tanks if not already stored
+    if (!roiData.tanks || roiData.tanks.length === 0) {
+      const calculatedTanks = calculateTanks(plantCapacityLPH);
+      updateData('tanks', calculatedTanks);
+    }
+    
+    // Calculate utilities if not already stored
+    if (!roiData.utilities || roiData.utilities.length === 0) {
+      const calculatedUtilities = calculateUtilities(plantCapacityLPH);
+      updateData('utilities', calculatedUtilities);
+    }
+    
     // Calculate total project investment from all steps
     const baseCost = parseFloat(roiData.projectCostLocal) || 0;
     const additionalCosts = [
@@ -957,6 +972,17 @@ export default function MarketingToolsPage() {
       irr: Math.round(irr * 100) / 100
     }));
 
+    // Ensure tanks and utilities are stored in roiData before moving to results
+    const currentTanks = roiData.tanks || calculatedTanks;
+    const currentUtilities = roiData.utilities || calculatedUtilities;
+    
+    if (!roiData.tanks) {
+      updateData('tanks', currentTanks);
+    }
+    if (!roiData.utilities) {
+      updateData('utilities', currentUtilities);
+    }
+    
     // Move to results step
     setCurrentStep(7);
     
@@ -1880,7 +1906,7 @@ export default function MarketingToolsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {(roiData.tanks || []).map((tank, index) => (
+                          {(roiData.tanks || calculatedTanks).map((tank, index) => (
                             <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                               <td className="border border-gray-300 px-3 py-2 font-medium">{tank.description}</td>
                               <td className="border border-gray-300 px-1 py-1">
