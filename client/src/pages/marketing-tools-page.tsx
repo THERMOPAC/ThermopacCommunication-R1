@@ -2193,6 +2193,15 @@ export default function MarketingToolsPage() {
                     Project ID: {projectId.slice(0, 8)}...
                   </div>
                 )}
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowLoadDialog(true)}
+                  className="text-xs flex items-center gap-1"
+                >
+                  <FolderOpen className="h-3 w-3" />
+                  Load Saved Project
+                </Button>
               </div>
             </div>
 
@@ -4531,6 +4540,52 @@ export default function MarketingToolsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPlantCostsDialog(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Load Project Dialog */}
+      <Dialog open={showLoadDialog} onOpenChange={setShowLoadDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Load Saved ROI Project</DialogTitle>
+            <DialogDescription>
+              Enter your Project ID to continue working on a saved ROI calculation
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="projectId">Project ID</Label>
+              <Input
+                id="projectId"
+                placeholder="Enter your project ID (e.g., 550e8400-e29b-41d4...)"
+                value={loadProjectId}
+                onChange={(e) => setLoadProjectId(e.target.value)}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                You can find your Project ID from the previous session or from saved project records
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowLoadDialog(false);
+                setLoadProjectId('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => loadProject(loadProjectId)}
+              disabled={!loadProjectId.trim()}
+            >
+              Load Project
             </Button>
           </DialogFooter>
         </DialogContent>
