@@ -862,37 +862,104 @@ export default function MarketingToolsPage() {
   }, [workingCapital, roiData.rateOfInterest]);
 
   const calculateROI = () => {
-    const capacity = parseFloat(roiData.capacity) || 0;
-    const annualCapacity = capacity * 8760;
+    // Calculate total project investment from all steps
+    const baseCost = parseFloat(roiData.projectCostLocal) || 0;
+    const additionalCosts = [
+      parseFloat(roiData.freightInsurance) || 0,
+      parseFloat(roiData.importDutyVAT) || 0,
+      parseFloat(roiData.plotCost) || 0,
+      parseFloat(roiData.civilCost) || 0,
+      parseFloat(roiData.refineryShed) || 0,
+      parseFloat(roiData.utilityShed) || 0,
+      parseFloat(roiData.officeBuilding) || 0,
+      parseFloat(roiData.mechanicalElectrical) || 0,
+      parseFloat(roiData.fireSuppression) || 0,
+      parseFloat(roiData.insulation) || 0,
+      parseFloat(roiData.legalFees) || 0,
+      parseFloat(roiData.preFormationExpenses) || 0,
+      parseFloat(roiData.commissioningTravel) || 0,
+      parseFloat(roiData.contingency) || 0
+    ].reduce((sum, cost) => sum + cost, 0);
     
-    const totalOperatingCosts = 
-      (parseFloat(roiData.feedstockCost) || 0) * annualCapacity +
-      (parseFloat(roiData.powerCost) || 0) * annualCapacity +
-      (parseFloat(roiData.fuelCost) || 0) * annualCapacity +
-      (parseFloat(roiData.chemicalCost) || 0) * annualCapacity +
-      (parseFloat(roiData.laborCost) || 0) * 12 +
-      (parseFloat(roiData.maintenanceCost) || 0) * 12;
+    const equipmentCosts = [
+      parseFloat(roiData.pumpsCost) || 0,
+      parseFloat(roiData.transmittersCost) || 0,
+      parseFloat(roiData.electricalCost) || 0,
+      parseFloat(roiData.mechanicalCost) || 0,
+      parseFloat(roiData.commissioningCost) || 0
+    ].reduce((sum, cost) => sum + cost, 0);
     
-    const finishOilRevenue = (annualCapacity * (parseFloat(roiData.finishOilYield) || 0) / 100) * (parseFloat(roiData.finishOilPrice) || 0);
-    const semiFinishRevenue = (annualCapacity * (parseFloat(roiData.semiFinishYield) || 0) / 100) * (parseFloat(roiData.semiFinishPrice) || 0);
-    const blackOilRevenue = (annualCapacity * (parseFloat(roiData.blackOilYield) || 0) / 100) * (parseFloat(roiData.blackOilPrice) || 0);
+    const tankCosts = (roiData.tanks || []).reduce((total, tank) => total + tank.totalCost, 0);
+    const utilityCosts = (roiData.utilities || []).reduce((total, utility) => total + utility.totalCost, 0);
+    const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
     
-    const totalRevenue = finishOilRevenue + semiFinishRevenue + blackOilRevenue;
-    const annualProfit = totalRevenue - totalOperatingCosts;
-    const capex = parseFloat(roiData.capexEstimation) || 0;
+    const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
+
+    // Calculate annual revenue and costs
+    const plantCapacity = parseFloat(roiData.capacity) || 0;
+    const operatingDays = parseFloat(roiData.plantOperationDays) || 30;
+    const annualLiters = plantCapacity * operatingDays * 24 * 12; // Monthly × 12 months
     
-    const paybackPeriod = capex / annualProfit;
-    const annualROI = (annualProfit / capex) * 100;
-    const npv = annualProfit * 5 - capex;
-    const irr = ((annualProfit / capex) * 100);
+    const products = [
+      { yield: parseFloat(roiData.naphthaGasOilYield) || 0, price: parseFloat(roiData.naphthaGasOilPrice) || 0, density: 0.80 },
+      { yield: parseFloat(roiData.lightBaseOilYield) || 0, price: parseFloat(roiData.lightBaseOilPrice) || 0, density: 0.85 },
+      { yield: parseFloat(roiData.heavyBaseOilYield) || 0, price: parseFloat(roiData.heavyBaseOilPrice) || 0, density: 0.87 },
+      { yield: parseFloat(roiData.residueYield) || 0, price: parseFloat(roiData.residuePrice) || 0, density: 1.8 },
+      { yield: parseFloat(roiData.wasteWaterYield) || 0, price: parseFloat(roiData.wasteWaterPrice) || 0, density: 1.0 }
+    ];
+    
+    const totalRevenue = products.reduce((total, product) => {
+      const productLiters = annualLiters * product.yield / 100;
+      const productTons = productLiters * product.density / 1000;
+      const revenue = productTons * product.price;
+      return total + revenue;
+    }, 0);
+
+    // Calculate annual operating costs
+    const annualOperatingCosts = [
+      parseFloat(roiData.feedstockCost) || 0,
+      parseFloat(roiData.powerCost) || 0,
+      parseFloat(roiData.fuelCost) || 0,
+      parseFloat(roiData.chemicalCost) || 0,
+      parseFloat(roiData.mediaCost) || 0,
+      parseFloat(roiData.laborCost) || 0,
+      parseFloat(roiData.maintenanceCost) || 0,
+      parseFloat(roiData.transportationCost) || 0,
+      parseFloat(roiData.vehicleMaintenanceCost) || 0,
+      parseFloat(roiData.miscellaneousCost) || 0
+    ].reduce((sum, cost) => sum + cost, 0) * 12; // Monthly costs × 12 months
+
+    const annualProfit = totalRevenue - annualOperatingCosts;
+    
+    // Calculate financial metrics
+    const paybackPeriod = totalInvestment > 0 ? totalInvestment / annualProfit : 0;
+    const annualROI = totalInvestment > 0 ? (annualProfit / totalInvestment) * 100 : 0;
+    
+    // Simple NPV calculation (5 years, 10% discount rate)
+    const discountRate = 0.10;
+    let npv = -totalInvestment;
+    for (let year = 1; year <= 5; year++) {
+      npv += annualProfit / Math.pow(1 + discountRate, year);
+    }
+    
+    // Simple IRR approximation
+    const irr = totalInvestment > 0 ? ((Math.pow(totalRevenue / totalInvestment, 1/5) - 1) * 100) : 0;
     
     setROIData(prev => ({
       ...prev,
-      paybackPeriod: Math.round(paybackPeriod * 100) / 100,
+      paybackPeriod: paybackPeriod > 0 ? Math.round(paybackPeriod * 100) / 100 : 0,
       annualROI: Math.round(annualROI * 100) / 100,
       npv: Math.round(npv),
       irr: Math.round(irr * 100) / 100
     }));
+
+    // Move to results step
+    setCurrentStep(7);
+    
+    toast({
+      title: "ROI Calculation Complete",
+      description: "Investment analysis has been generated successfully.",
+    });
   };
 
   const nextStep = () => {
@@ -2556,14 +2623,15 @@ export default function MarketingToolsPage() {
                                 ].reduce((sum, cost) => sum + cost, 0);
                                 const tankCosts = (roiData.tanks || []).reduce((total, tank) => total + tank.totalCost, 0);
                                 const utilityCosts = (roiData.utilities || []).reduce((total, utility) => total + utility.totalCost, 0);
+                                const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
                                 
-                                const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts;
+                                const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
                                 return totalInvestment.toLocaleString();
                               })()}
                               readOnly
                               className="bg-gray-50 font-semibold text-center"
                             />
-                            <p className="text-xs text-gray-500">Auto-calculated from all project components</p>
+                            <p className="text-xs text-gray-500">Auto-calculated from all project components including working capital</p>
                           </div>
 
                           <div className="space-y-2">
@@ -2622,6 +2690,88 @@ export default function MarketingToolsPage() {
                       </div>
                     </div>
 
+                    {/* Financial Summary Preview */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                      <Card className="bg-blue-50 border-blue-200">
+                        <CardContent className="p-4">
+                          <div className="flex items-center space-x-2">
+                            <Building className="h-6 w-6 text-blue-600" />
+                            <div>
+                              <p className="text-xl font-bold text-blue-900">
+                                {getCurrencySymbol(roiData.currency)}{(() => {
+                                  const baseCost = parseFloat(roiData.projectCostLocal) || 0;
+                                  const additionalCosts = [
+                                    parseFloat(roiData.freightInsurance) || 0,
+                                    parseFloat(roiData.importDutyVAT) || 0,
+                                    parseFloat(roiData.plotCost) || 0,
+                                    parseFloat(roiData.civilCost) || 0,
+                                    parseFloat(roiData.refineryShed) || 0,
+                                    parseFloat(roiData.utilityShed) || 0,
+                                    parseFloat(roiData.officeBuilding) || 0,
+                                    parseFloat(roiData.mechanicalElectrical) || 0,
+                                    parseFloat(roiData.fireSuppression) || 0,
+                                    parseFloat(roiData.insulation) || 0,
+                                    parseFloat(roiData.legalFees) || 0,
+                                    parseFloat(roiData.preFormationExpenses) || 0,
+                                    parseFloat(roiData.commissioningTravel) || 0,
+                                    parseFloat(roiData.contingency) || 0
+                                  ].reduce((sum, cost) => sum + cost, 0);
+                                  const equipmentCosts = [
+                                    parseFloat(roiData.pumpsCost) || 0,
+                                    parseFloat(roiData.transmittersCost) || 0,
+                                    parseFloat(roiData.electricalCost) || 0,
+                                    parseFloat(roiData.mechanicalCost) || 0,
+                                    parseFloat(roiData.commissioningCost) || 0
+                                  ].reduce((sum, cost) => sum + cost, 0);
+                                  const tankCosts = (roiData.tanks || []).reduce((total, tank) => total + tank.totalCost, 0);
+                                  const utilityCosts = (roiData.utilities || []).reduce((total, utility) => total + utility.totalCost, 0);
+                                  const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
+                                  const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
+                                  return totalInvestment.toLocaleString();
+                                })()}
+                              </p>
+                              <p className="text-sm text-blue-700">Total Investment Required</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="bg-green-50 border-green-200">
+                        <CardContent className="p-4">
+                          <div className="flex items-center space-x-2">
+                            <TrendingUp className="h-6 w-6 text-green-600" />
+                            <div>
+                              <p className="text-xl font-bold text-green-900">
+                                {getCurrencySymbol(roiData.currency)}{(() => {
+                                  const plantCapacity = parseFloat(roiData.capacity) || 0;
+                                  const operatingDays = parseFloat(roiData.plantOperationDays) || 30;
+                                  const monthlyLiters = plantCapacity * operatingDays * 24;
+                                  
+                                  const products = [
+                                    { yield: parseFloat(roiData.naphthaGasOilYield) || 0, price: parseFloat(roiData.naphthaGasOilPrice) || 0, density: 0.80 },
+                                    { yield: parseFloat(roiData.lightBaseOilYield) || 0, price: parseFloat(roiData.lightBaseOilPrice) || 0, density: 0.85 },
+                                    { yield: parseFloat(roiData.heavyBaseOilYield) || 0, price: parseFloat(roiData.heavyBaseOilPrice) || 0, density: 0.87 },
+                                    { yield: parseFloat(roiData.residueYield) || 0, price: parseFloat(roiData.residuePrice) || 0, density: 1.8 },
+                                    { yield: parseFloat(roiData.wasteWaterYield) || 0, price: parseFloat(roiData.wasteWaterPrice) || 0, density: 1.0 }
+                                  ];
+                                  
+                                  const monthlyRevenue = products.reduce((total, product) => {
+                                    const productLiters = monthlyLiters * product.yield / 100;
+                                    const productTons = productLiters * product.density / 1000;
+                                    const revenue = productTons * product.price;
+                                    return total + revenue;
+                                  }, 0);
+                                  
+                                  return (monthlyRevenue * 12).toLocaleString();
+                                })()}
+                              </p>
+                              <p className="text-sm text-green-700">Projected Annual Revenue</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
                     {/* Validation Messages */}
                     {(() => {
                       const equity = parseFloat(roiData.equityPercentage) || 0;
@@ -2630,7 +2780,7 @@ export default function MarketingToolsPage() {
                       
                       if (Math.abs(total - 100) > 0.1) {
                         return (
-                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
                             <div className="flex items-center gap-2">
                               <Info className="h-4 w-4 text-yellow-600" />
                               <p className="text-yellow-800 text-sm">
@@ -2733,6 +2883,14 @@ export default function MarketingToolsPage() {
                 >
                   Next
                   <ArrowRight className="h-4 w-4" />
+                </Button>
+              ) : currentStep === 6 ? (
+                <Button 
+                  onClick={calculateROI}
+                  className="flex items-center gap-2"
+                >
+                  <Calculator className="h-4 w-4" />
+                  Generate ROI Analysis
                 </Button>
               ) : (
                 <Button 
