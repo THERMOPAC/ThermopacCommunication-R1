@@ -1800,20 +1800,28 @@ export default function MarketingToolsPage() {
                         <Input
                           type="number"
                           step="0.01"
-                          value={roiData.interestRate || ''}
-                          onChange={(e) => updateData('interestRate', e.target.value)}
+                          value={roiData.rateOfInterest || ''}
+                          onChange={(e) => updateData('rateOfInterest', e.target.value)}
                           placeholder="e.g., 1.5"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Process Time (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
+                        <div className="flex items-center justify-between">
+                          <Label>Working Capital (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
+                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Auto-calculated</span>
+                        </div>
                         <Input
                           type="number"
-                          step="0.01"
-                          value={roiData.processTimeCost || ''}
-                          onChange={(e) => updateData('processTimeCost', e.target.value)}
-                          placeholder="e.g., 8000"
+                          value={(() => {
+                            const feedstockCost = parseFloat(roiData.feedstockCost) || 0;
+                            const capacity = parseFloat(roiData.capacity) || 0;
+                            const workingCapital = feedstockCost * capacity * 24 * 15;
+                            return workingCapital.toLocaleString();
+                          })()}
+                          readOnly
+                          className="bg-blue-50"
                         />
+                        <p className="text-xs text-gray-500">Formula: Feedstock Cost × Plant Capacity × 24 hours × 15 days</p>
                       </div>
                       <div className="space-y-2">
                         <Label>Transportation Cost (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
@@ -1847,31 +1855,71 @@ export default function MarketingToolsPage() {
                       </div>
                     </div>
 
-                    {/* Monthly Operating Cost Summary */}
-                    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                      <div className="text-center">
-                        <Label className="font-semibold text-gray-700">Total Monthly Operating Cost</Label>
-                        <div className="text-2xl font-bold text-blue-600 mt-2">
-                          {getCurrencySymbol(roiData.currency)}{(() => {
-                            const costs = [
-                              parseFloat(roiData.laborCost) || 0,
-                              parseFloat(roiData.powerCost) || 0,
-                              parseFloat(roiData.fuelCost) || 0,
-                              parseFloat(roiData.chemicalCost) || 0,
-                              parseFloat(roiData.maintenanceCost) || 0,
-                              parseFloat(roiData.mediaCost) || 0,
-                              parseFloat(roiData.processTimeCost) || 0,
-                              parseFloat(roiData.transportationCost) || 0,
-                              parseFloat(roiData.vehicleMaintenanceCost) || 0,
-                              parseFloat(roiData.miscellaneousCost) || 0
-                            ];
-                            const total = costs.reduce((sum, cost) => sum + cost, 0);
-                            return total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-                          })()}
+                    {/* Working Capital & Interest Analysis */}
+                    <div className="mt-6 space-y-4">
+                      {/* Working Capital Breakdown */}
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h3 className="font-semibold text-blue-800 mb-3">Working Capital Analysis</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-blue-700">Working Capital (Monthly):</span>
+                            <span className="font-semibold">
+                              {getCurrencySymbol(roiData.currency)}{(() => {
+                                const feedstockCost = parseFloat(roiData.feedstockCost) || 0;
+                                const capacity = parseFloat(roiData.capacity) || 0;
+                                const workingCapital = feedstockCost * capacity * 24 * 15;
+                                return workingCapital.toLocaleString();
+                              })()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-blue-700">Interest Cost (Monthly):</span>
+                            <span className="font-semibold">
+                              {getCurrencySymbol(roiData.currency)}{(() => {
+                                const feedstockCost = parseFloat(roiData.feedstockCost) || 0;
+                                const capacity = parseFloat(roiData.capacity) || 0;
+                                const workingCapital = feedstockCost * capacity * 24 * 15;
+                                const interestRate = parseFloat(roiData.rateOfInterest) || 0;
+                                const interestCost = (workingCapital * interestRate) / 100;
+                                return interestCost.toLocaleString();
+                              })()}
+                            </span>
+                          </div>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Excludes feedstock cost which is calculated per liter
-                        </p>
+                      </div>
+
+                      {/* Total Operating Cost Summary */}
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        <div className="text-center">
+                          <Label className="font-semibold text-gray-700">Total Monthly Operating Cost</Label>
+                          <div className="text-2xl font-bold text-blue-600 mt-2">
+                            {getCurrencySymbol(roiData.currency)}{(() => {
+                              const feedstockCost = parseFloat(roiData.feedstockCost) || 0;
+                              const capacity = parseFloat(roiData.capacity) || 0;
+                              const workingCapital = feedstockCost * capacity * 24 * 15;
+                              const interestRate = parseFloat(roiData.rateOfInterest) || 0;
+                              const interestCost = (workingCapital * interestRate) / 100;
+                              
+                              const costs = [
+                                parseFloat(roiData.laborCost) || 0,
+                                parseFloat(roiData.powerCost) || 0,
+                                parseFloat(roiData.fuelCost) || 0,
+                                parseFloat(roiData.chemicalCost) || 0,
+                                parseFloat(roiData.maintenanceCost) || 0,
+                                parseFloat(roiData.mediaCost) || 0,
+                                interestCost, // Include working capital interest cost instead of processTimeCost
+                                parseFloat(roiData.transportationCost) || 0,
+                                parseFloat(roiData.vehicleMaintenanceCost) || 0,
+                                parseFloat(roiData.miscellaneousCost) || 0
+                              ];
+                              const total = costs.reduce((sum, cost) => sum + cost, 0);
+                              return total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                            })()}
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Includes Working Capital Interest Cost (excludes per-liter feedstock cost)
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
