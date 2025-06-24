@@ -2156,7 +2156,7 @@ export default function MarketingToolsPage() {
                           <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-green-900">Total Utilities Cost:</span>
                             <span className="text-lg font-bold text-green-900">
-                              ${roiData.utilities.reduce((total, utility) => total + utility.totalCost, 0).toLocaleString()}
+                              ${(roiData.utilities || []).reduce((total, utility) => total + utility.totalCost, 0).toLocaleString()}
                             </span>
                           </div>
                         </div>
