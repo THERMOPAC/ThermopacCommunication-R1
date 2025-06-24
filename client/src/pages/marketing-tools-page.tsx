@@ -889,8 +889,12 @@ export default function MarketingToolsPage() {
       parseFloat(roiData.commissioningCost) || 0
     ].reduce((sum, cost) => sum + cost, 0);
     
-    const tankCosts = (roiData.tanks || []).reduce((total, tank) => total + tank.totalCost, 0);
-    const utilityCosts = (roiData.utilities || []).reduce((total, utility) => total + utility.totalCost, 0);
+    const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
+      return total + (parseFloat(tank.totalCost) || 0);
+    }, 0);
+    const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+      return total + (parseFloat(utility.totalCost) || 0);
+    }, 0);
     const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
     
     const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
@@ -1006,8 +1010,12 @@ export default function MarketingToolsPage() {
         parseFloat(roiData.commissioningCost) || 0
       ].reduce((sum, cost) => sum + cost, 0);
       
-      const tankCosts = (roiData.tanks || []).reduce((total, tank) => total + tank.totalCost, 0);
-      const utilityCosts = (roiData.utilities || []).reduce((total, utility) => total + utility.totalCost, 0);
+      const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
+        return total + (parseFloat(tank.totalCost) || 0);
+      }, 0);
+      const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+        return total + (parseFloat(utility.totalCost) || 0);
+      }, 0);
       const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
       const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
 
@@ -2783,8 +2791,12 @@ export default function MarketingToolsPage() {
                                   parseFloat(roiData.mechanicalCost) || 0,
                                   parseFloat(roiData.commissioningCost) || 0
                                 ].reduce((sum, cost) => sum + cost, 0);
-                                const tankCosts = (roiData.tanks || []).reduce((total, tank) => total + tank.totalCost, 0);
-                                const utilityCosts = (roiData.utilities || []).reduce((total, utility) => total + utility.totalCost, 0);
+                                const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
+                                  return total + (parseFloat(tank.totalCost) || 0);
+                                }, 0);
+                                const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+                                  return total + (parseFloat(utility.totalCost) || 0);
+                                }, 0);
                                 const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
                                 
                                 const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
@@ -2885,8 +2897,12 @@ export default function MarketingToolsPage() {
                                     parseFloat(roiData.mechanicalCost) || 0,
                                     parseFloat(roiData.commissioningCost) || 0
                                   ].reduce((sum, cost) => sum + cost, 0);
-                                  const tankCosts = (roiData.tanks || []).reduce((total, tank) => total + tank.totalCost, 0);
-                                  const utilityCosts = (roiData.utilities || []).reduce((total, utility) => total + utility.totalCost, 0);
+                                  const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
+                                    return total + (parseFloat(tank.totalCost) || 0);
+                                  }, 0);
+                                  const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+                                    return total + (parseFloat(utility.totalCost) || 0);
+                                  }, 0);
                                   const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
                                   const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
                                   return totalInvestment.toLocaleString();
@@ -3025,10 +3041,15 @@ export default function MarketingToolsPage() {
                             </div>
                             <div className="flex justify-between">
                               <span>Tank & Utilities:</span>
-                              <span className="font-semibold">{getCurrencySymbol(roiData.currency)}{(
-                                (roiData.tanks || []).reduce((total, tank) => total + tank.totalCost, 0) +
-                                (roiData.utilities || []).reduce((total, utility) => total + utility.totalCost, 0)
-                              ).toLocaleString()}</span>
+                              <span className="font-semibold">{getCurrencySymbol(roiData.currency)}{(() => {
+                                const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
+                                  return total + (parseFloat(tank.totalCost) || 0);
+                                }, 0);
+                                const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+                                  return total + (parseFloat(utility.totalCost) || 0);
+                                }, 0);
+                                return (tankCosts + utilityCosts).toLocaleString();
+                              })()}</span>
                             </div>
                             <div className="flex justify-between">
                               <span>Additional Costs:</span>
@@ -3058,7 +3079,16 @@ export default function MarketingToolsPage() {
                               <span>Total Investment:</span>
                               <span>{getCurrencySymbol(roiData.currency)}{(() => {
                                 const baseCost = parseFloat(roiData.projectCostLocal) || 0;
-                                const tankUtilityCosts = (roiData.tanks || []).reduce((total, tank) => total + tank.totalCost, 0) + (roiData.utilities || []).reduce((total, utility) => total + utility.totalCost, 0);
+                                
+                                // Safe tank and utility cost calculation
+                                const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
+                                  return total + (parseFloat(tank.totalCost) || 0);
+                                }, 0);
+                                const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+                                  return total + (parseFloat(utility.totalCost) || 0);
+                                }, 0);
+                                const tankUtilityCosts = tankCosts + utilityCosts;
+                                
                                 const additionalCosts = [
                                   parseFloat(roiData.freightInsurance) || 0,
                                   parseFloat(roiData.importDutyVAT) || 0,
@@ -3075,6 +3105,7 @@ export default function MarketingToolsPage() {
                                   parseFloat(roiData.commissioningTravel) || 0,
                                   parseFloat(roiData.contingency) || 0
                                 ].reduce((sum, cost) => sum + cost, 0);
+                                
                                 const equipmentCosts = [
                                   parseFloat(roiData.pumpsCost) || 0,
                                   parseFloat(roiData.transmittersCost) || 0,
@@ -3082,8 +3113,11 @@ export default function MarketingToolsPage() {
                                   parseFloat(roiData.mechanicalCost) || 0,
                                   parseFloat(roiData.commissioningCost) || 0
                                 ].reduce((sum, cost) => sum + cost, 0);
+                                
                                 const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
-                                return (baseCost + tankUtilityCosts + additionalCosts + equipmentCosts + workingCapital).toLocaleString();
+                                const totalInvestment = baseCost + tankUtilityCosts + additionalCosts + equipmentCosts + workingCapital;
+                                
+                                return totalInvestment.toLocaleString();
                               })()}</span>
                             </div>
                           </div>
