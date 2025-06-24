@@ -118,6 +118,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up sales and marketing routes
   setupSalesMarketingRoutes(app);
+
+  // Register plant costs routes directly here
+  const { db } = await import('./db');
+  const { plantCosts } = await import('@shared/schema');
+  const { eq } = await import('drizzle-orm');
+  const { ensureAuthenticated } = await import('./auth-middleware');
+
+  app.get('/api/plant-costs', ensureAuthenticated, async (req: any, res: any) => {
+    try {
+      console.log('Direct plant costs route hit');
+      const costs = await db
+        .select()
+        .from(plantCosts)
+        .where(eq(plantCosts.isActive, true))
+        .orderBy(plantCosts.capacity);
+      
+      console.log('Found plant costs:', costs.length);
+      res.json(costs);
+    } catch (error) {
+      console.error('Error in direct plant costs route:', error);
+      res.status(500).json({ error: 'Failed to fetch plant costs' });
+    }
+  });
+  console.log('Plant costs routes registered directly');
   
   // Set up procurement management routes
   setupProcurementRoutes(app);

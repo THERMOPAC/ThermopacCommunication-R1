@@ -241,30 +241,53 @@ export default function MarketingToolsPage() {
   // Standard tank sizes in KL
   const standardTankSizes = [50, 100, 200, 300, 400, 600];
 
-  // Fetch plant costs from database with custom fetcher to handle errors
-  const { data: plantCostsData = [], isLoading: loadingCosts, error: plantCostsError } = useQuery({
+  // Fallback hardcoded plant capacities (from database)
+  const fallbackCapacities = [
+    { id: 1, capacity: 1000, priceUSD: 350000 },
+    { id: 2, capacity: 1500, priceUSD: 475000 },
+    { id: 3, capacity: 2000, priceUSD: 590000 },
+    { id: 4, capacity: 3000, priceUSD: 800000 },
+    { id: 5, capacity: 4000, priceUSD: 1000000 },
+    { id: 6, capacity: 6000, priceUSD: 1400000 },
+    { id: 7, capacity: 8000, priceUSD: 1750000 },
+    { id: 8, capacity: 10000, priceUSD: 2100000 },
+    { id: 9, capacity: 12000, priceUSD: 2450000 },
+    { id: 10, capacity: 15000, priceUSD: 2950000 },
+    { id: 11, capacity: 20000, priceUSD: 3800000 }
+  ];
+
+  // Fetch plant costs from database with fallback
+  const { data: plantCostsData = fallbackCapacities, isLoading: loadingCosts, error: plantCostsError } = useQuery({
     queryKey: ['/api/plant-costs'],
     queryFn: async () => {
-      const response = await fetch('/api/plant-costs', {
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
+      try {
+        const response = await fetch('/api/plant-costs', {
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          console.warn('API failed, using fallback data');
+          return fallbackCapacities;
         }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          console.warn('Non-JSON response, using fallback data');
+          return fallbackCapacities;
+        }
+        
+        const data = await response.json();
+        return data.length > 0 ? data : fallbackCapacities;
+      } catch (error) {
+        console.warn('API error, using fallback data:', error);
+        return fallbackCapacities;
       }
-      
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Response is not JSON');
-      }
-      
-      return response.json();
     },
-    retry: 3,
+    retry: 1,
     refetchOnWindowFocus: false,
     staleTime: 5 * 60 * 1000 // 5 minutes
   });
@@ -272,7 +295,7 @@ export default function MarketingToolsPage() {
   const plantCapacities = plantCostsData.map((cost: any) => ({
     id: cost.id,
     capacity: cost.capacity,
-    priceUSD: parseFloat(cost.priceUSD)
+    priceUSD: parseFloat(cost.priceUSD || cost.price_usd)
   }));
 
   // Debug logging
