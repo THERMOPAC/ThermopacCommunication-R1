@@ -137,32 +137,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
     try {
       const userId = req.user.id;
-      const { roiProjectSteps } = await import('@shared/schema');
-      const { desc } = await import('drizzle-orm');
+      console.log('Getting ROI projects for user:', userId);
       
-      // Get all unique projects for this user with their latest data
-      const projects = await db
-        .select({
-          roiProjectId: roiProjectSteps.roiProjectId,
-          stepNumber: roiProjectSteps.stepNumber,
-          stepData: roiProjectSteps.stepData,
-          updatedAt: roiProjectSteps.updatedAt,
-        })
-        .from(roiProjectSteps)
-        .where(eq(roiProjectSteps.userId, userId))
-        .orderBy(desc(roiProjectSteps.updatedAt));
+      // Use raw SQL for now to avoid import issues
+      const projects = await db.execute(sql`
+        SELECT roi_project_id, step_number, step_data, updated_at
+        FROM roi_project_steps 
+        WHERE updated_by = ${userId}
+        ORDER BY updated_at DESC
+      `);
+
+      console.log('Found', projects.rows.length, 'project steps');
 
       // Group by project ID and get project details
       const projectMap = new Map();
       
-      projects.forEach(project => {
-        const projectId = project.roiProjectId;
+      projects.rows.forEach((project: any) => {
+        const projectId = project.roi_project_id;
         
         if (!projectMap.has(projectId)) {
           projectMap.set(projectId, {
             roiProjectId: projectId,
             steps: {},
-            lastUpdated: project.updatedAt,
+            lastUpdated: project.updated_at,
             completedSteps: 0,
             customerName: '',
             projectName: '',
@@ -171,12 +168,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         const projectData = projectMap.get(projectId);
-        projectData.steps[project.stepNumber] = project.stepData;
-        projectData.completedSteps = Math.max(projectData.completedSteps, project.stepNumber);
+        projectData.steps[project.step_number] = project.step_data;
+        projectData.completedSteps = Math.max(projectData.completedSteps, project.step_number);
         
         // Extract project details from step 1 data
-        if (project.stepNumber === 1 && project.stepData) {
-          const stepData = project.stepData as any;
+        if (project.step_number === 1 && project.step_data) {
+          const stepData = project.step_data as any;
           projectData.customerName = stepData.customerName || '';
           projectData.projectName = stepData.projectName || '';
           projectData.capacity = stepData.capacity || '';
@@ -187,6 +184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projectList = Array.from(projectMap.values())
         .sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime());
 
+      console.log('Returning', projectList.length, 'unique projects');
       res.json({
         success: true,
         projects: projectList
