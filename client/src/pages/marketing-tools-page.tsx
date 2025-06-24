@@ -1616,22 +1616,37 @@ export default function MarketingToolsPage() {
                   <div className="space-y-6">
                     <div className="text-center mb-6">
                       <h2 className="text-2xl font-bold mb-2">Operating Costs</h2>
-                      <p className="text-muted-foreground">Enter annual operating costs in {roiData.currency}</p>
+                      <p className="text-muted-foreground">Enter monthly operating costs in {roiData.currency}</p>
+                    </div>
+
+                    {/* Plant Operation Time Unit Field */}
+                    <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                      <div className="space-y-2">
+                        <Label className="font-semibold text-blue-800">Plant Operation per (Month)</Label>
+                        <Input
+                          type="number"
+                          value={roiData.plantOperationDays || ''}
+                          onChange={(e) => updateData('plantOperationDays', e.target.value)}
+                          placeholder="e.g., 25 (days per month)"
+                          className="bg-white"
+                        />
+                        <p className="text-xs text-blue-600">Define operating days per month for accurate cost calculations</p>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Feedstock Cost per Liter ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Label>Feedstock Cost per Liter (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
                         <Input
                           type="number"
                           step="0.01"
                           value={roiData.feedstockCost}
-                        onChange={(e) => updateData('feedstockCost', e.target.value)}
-                        placeholder="e.g., 0.45"
-                      />
-                    </div>
+                          onChange={(e) => updateData('feedstockCost', e.target.value)}
+                          placeholder="e.g., 0.45"
+                        />
+                      </div>
                       <div className="space-y-2">
-                        <Label>Monthly Labor Cost ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Label>Labor Cost (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
                         <Input
                           type="number"
                           value={roiData.laborCost}
@@ -1640,7 +1655,7 @@ export default function MarketingToolsPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Power Cost ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Label>Power Cost (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
                         <Input
                           type="number"
                           step="0.01"
@@ -1650,7 +1665,7 @@ export default function MarketingToolsPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Fuel Cost ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Label>Fuel Cost (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
                         <Input
                           type="number"
                           step="0.01"
@@ -1660,7 +1675,7 @@ export default function MarketingToolsPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Chemical Cost ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Label>Chemical Cost (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
                         <Input
                           type="number"
                           step="0.01"
@@ -1670,13 +1685,101 @@ export default function MarketingToolsPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Maintenance Cost ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Label>Maintenance Cost (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
                         <Input
                           type="number"
                           value={roiData.maintenanceCost}
                           onChange={(e) => updateData('maintenanceCost', e.target.value)}
                           placeholder="e.g., 25000"
                         />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Media Cost (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={roiData.mediaCost || ''}
+                          onChange={(e) => updateData('mediaCost', e.target.value)}
+                          placeholder="e.g., 5000"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Rate of Interest (Monthly) %</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={roiData.interestRate || ''}
+                          onChange={(e) => updateData('interestRate', e.target.value)}
+                          placeholder="e.g., 1.5"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Process Time (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={roiData.processTimeCost || ''}
+                          onChange={(e) => updateData('processTimeCost', e.target.value)}
+                          placeholder="e.g., 8000"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Transportation Cost (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={roiData.transportationCost || ''}
+                          onChange={(e) => updateData('transportationCost', e.target.value)}
+                          placeholder="e.g., 12000"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Vehicle Maintenance (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={roiData.vehicleMaintenanceCost || ''}
+                          onChange={(e) => updateData('vehicleMaintenanceCost', e.target.value)}
+                          placeholder="e.g., 3000"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Miscellaneous (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={roiData.miscellaneousCost || ''}
+                          onChange={(e) => updateData('miscellaneousCost', e.target.value)}
+                          placeholder="e.g., 2000"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Monthly Operating Cost Summary */}
+                    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                      <div className="text-center">
+                        <Label className="font-semibold text-gray-700">Total Monthly Operating Cost</Label>
+                        <div className="text-2xl font-bold text-blue-600 mt-2">
+                          {getCurrencySymbol(roiData.currency)}{(() => {
+                            const costs = [
+                              parseFloat(roiData.laborCost) || 0,
+                              parseFloat(roiData.powerCost) || 0,
+                              parseFloat(roiData.fuelCost) || 0,
+                              parseFloat(roiData.chemicalCost) || 0,
+                              parseFloat(roiData.maintenanceCost) || 0,
+                              parseFloat(roiData.mediaCost) || 0,
+                              parseFloat(roiData.processTimeCost) || 0,
+                              parseFloat(roiData.transportationCost) || 0,
+                              parseFloat(roiData.vehicleMaintenanceCost) || 0,
+                              parseFloat(roiData.miscellaneousCost) || 0
+                            ];
+                            const total = costs.reduce((sum, cost) => sum + cost, 0);
+                            return total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                          })()}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Excludes feedstock cost which is calculated per liter
+                        </p>
                       </div>
                     </div>
                   </div>
