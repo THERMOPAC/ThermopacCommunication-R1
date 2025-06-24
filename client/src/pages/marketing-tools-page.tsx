@@ -425,7 +425,7 @@ export default function MarketingToolsPage() {
   const getCurrentPlantCost = () => {
     if (!roiData.capacity) return 0;
     const capacity = parseInt(roiData.capacity);
-    const plant = plantCapacities.find(p => p.capacity === capacity);
+    const plant = plantCosts.find(p => p.capacity === capacity);
     return plant ? plant.priceUSD : 0;
   };
 
@@ -2262,10 +2262,10 @@ export default function MarketingToolsPage() {
 
             {/* Existing Costs */}
             <div className="space-y-3">
-              {loadingCosts ? (
+              {plantCostsLoading ? (
                 <div className="text-center py-4">Loading plant costs...</div>
               ) : (
-                plantCapacities.map((cost: any, index) => (
+                plantCosts.map((cost: any, index) => (
                   <div key={cost.id || index} className="border rounded-lg p-3 bg-white">
                     <div className="grid grid-cols-4 gap-3 items-center">
                       <div>
