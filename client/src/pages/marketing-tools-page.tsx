@@ -1811,15 +1811,10 @@ export default function MarketingToolsPage() {
                           <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Auto-calculated</span>
                         </div>
                         <Input
-                          type="number"
-                          value={(() => {
-                            const feedstockCost = parseFloat(roiData.feedstockCost) || 0;
-                            const capacity = parseFloat(roiData.capacity) || 0;
-                            const workingCapital = feedstockCost * capacity * 24 * 15;
-                            return workingCapital.toLocaleString();
-                          })()}
+                          type="text"
+                          value={workingCapital > 0 ? workingCapital.toLocaleString() : '0'}
                           readOnly
-                          className="bg-blue-50"
+                          className="bg-blue-50 text-center font-semibold"
                         />
                         <p className="text-xs text-gray-500">Formula: Feedstock Cost × Plant Capacity × 24 hours × 15 days</p>
                       </div>
@@ -1864,25 +1859,13 @@ export default function MarketingToolsPage() {
                           <div className="flex justify-between">
                             <span className="text-blue-700">Working Capital (Monthly):</span>
                             <span className="font-semibold">
-                              {getCurrencySymbol(roiData.currency)}{(() => {
-                                const feedstockCost = parseFloat(roiData.feedstockCost) || 0;
-                                const capacity = parseFloat(roiData.capacity) || 0;
-                                const workingCapital = feedstockCost * capacity * 24 * 15;
-                                return workingCapital.toLocaleString();
-                              })()}
+                              {getCurrencySymbol(roiData.currency)}{workingCapital.toLocaleString()}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-blue-700">Interest Cost (Monthly):</span>
                             <span className="font-semibold">
-                              {getCurrencySymbol(roiData.currency)}{(() => {
-                                const feedstockCost = parseFloat(roiData.feedstockCost) || 0;
-                                const capacity = parseFloat(roiData.capacity) || 0;
-                                const workingCapital = feedstockCost * capacity * 24 * 15;
-                                const interestRate = parseFloat(roiData.rateOfInterest) || 0;
-                                const interestCost = (workingCapital * interestRate) / 100;
-                                return interestCost.toLocaleString();
-                              })()}
+                              {getCurrencySymbol(roiData.currency)}{workingCapitalInterest.toLocaleString()}
                             </span>
                           </div>
                         </div>
@@ -1894,12 +1877,6 @@ export default function MarketingToolsPage() {
                           <Label className="font-semibold text-gray-700">Total Monthly Operating Cost</Label>
                           <div className="text-2xl font-bold text-blue-600 mt-2">
                             {getCurrencySymbol(roiData.currency)}{(() => {
-                              const feedstockCost = parseFloat(roiData.feedstockCost) || 0;
-                              const capacity = parseFloat(roiData.capacity) || 0;
-                              const workingCapital = feedstockCost * capacity * 24 * 15;
-                              const interestRate = parseFloat(roiData.rateOfInterest) || 0;
-                              const interestCost = (workingCapital * interestRate) / 100;
-                              
                               const costs = [
                                 parseFloat(roiData.laborCost) || 0,
                                 parseFloat(roiData.powerCost) || 0,
@@ -1907,7 +1884,7 @@ export default function MarketingToolsPage() {
                                 parseFloat(roiData.chemicalCost) || 0,
                                 parseFloat(roiData.maintenanceCost) || 0,
                                 parseFloat(roiData.mediaCost) || 0,
-                                interestCost, // Include working capital interest cost instead of processTimeCost
+                                workingCapitalInterest, // Include working capital interest cost
                                 parseFloat(roiData.transportationCost) || 0,
                                 parseFloat(roiData.vehicleMaintenanceCost) || 0,
                                 parseFloat(roiData.miscellaneousCost) || 0
