@@ -38,7 +38,8 @@ import {
   Plus,
   Trash2,
   Wrench,
-  Printer
+  Printer,
+  FolderOpen
 } from 'lucide-react';
 
 // ROI Calculator Data Interface
@@ -301,6 +302,8 @@ export default function MarketingToolsPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [showPlantCostsDialog, setShowPlantCostsDialog] = useState(false);
   const [editingCost, setEditingCost] = useState<any>(null);
+  const [showLoadDialog, setShowLoadDialog] = useState(false);
+  const [loadProjectId, setLoadProjectId] = useState('');
   const [newCost, setNewCost] = useState({ capacity: '', priceUSD: '' });
   const [plantCosts, setPlantCosts] = useState<Array<{ id: number; capacity: number; priceUSD: number }>>([]);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -1277,6 +1280,48 @@ export default function MarketingToolsPage() {
   const prevStep = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+    }
+  };
+
+  // Load saved project data
+  const loadProject = async (loadProjectId: string) => {
+    try {
+      const response = await fetch(`/api/roi/load-project/${loadProjectId}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.steps) {
+          // Merge step data back into roiData
+          const mergedData = { ...roiData };
+          Object.values(data.steps).forEach((stepData: any) => {
+            Object.assign(mergedData, stepData);
+          });
+          setRoiData(mergedData);
+          setProjectId(loadProjectId);
+          setCompletedSteps(new Set(Object.keys(data.steps).map(Number)));
+          
+          // Navigate to the next incomplete step
+          const completedStepNumbers = Object.keys(data.steps).map(Number).sort();
+          const nextStep = completedStepNumbers.length < 7 ? completedStepNumbers.length + 1 : 7;
+          setCurrentStep(nextStep);
+          
+          toast({
+            title: "Project Loaded Successfully",
+            description: `Loaded project with ${Object.keys(data.steps).length} completed steps. Continue from Step ${nextStep}.`,
+          });
+          
+          setShowLoadDialog(false);
+          setLoadProjectId('');
+        }
+      } else {
+        throw new Error('Project not found');
+      }
+    } catch (error) {
+      console.error('Error loading project:', error);
+      toast({
+        title: "Load Failed",
+        description: "Project not found or failed to load project data",
+        variant: "destructive",
+      });
     }
   };
 
