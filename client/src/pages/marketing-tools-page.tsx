@@ -861,6 +861,58 @@ export default function MarketingToolsPage() {
     return (workingCapital * interestRate) / 100;
   }, [workingCapital, roiData.rateOfInterest]);
 
+  // Function to calculate utilities based on plant capacity
+  const calculateUtilities = (plantCapacityLPH: number) => {
+    if (plantCapacityLPH === 0) return [];
+
+    const utilities = [
+      {
+        description: "Compressor",
+        specification: `${Math.round(plantCapacityLPH * 20 / 1000)} HP`,
+        quantity: 1,
+        unitCostUSD: Math.round(plantCapacityLPH * 20 / 1000) * 1500,
+        totalCost: Math.round(plantCapacityLPH * 20 / 1000) * 1500
+      },
+      {
+        description: "Heater",
+        specification: (() => {
+          const totalCapacity = Math.round(plantCapacityLPH * 600);
+          if (totalCapacity <= 3000000) {
+            return `${totalCapacity.toLocaleString()} Kcal/hr`;
+          } else {
+            const numHeaters = Math.max(2, Math.ceil(totalCapacity / 2000000));
+            const capacityPerHeater = Math.ceil(totalCapacity / numHeaters);
+            return `${capacityPerHeater.toLocaleString()} Kcal/hr each`;
+          }
+        })(),
+        quantity: (() => {
+          const totalCapacity = Math.round(plantCapacityLPH * 600);
+          return totalCapacity > 3000000 ? Math.max(2, Math.ceil(totalCapacity / 2000000)) : 1;
+        })(),
+        unitCostUSD: (() => {
+          const totalCapacity = Math.round(plantCapacityLPH * 600);
+          if (totalCapacity <= 3000000) {
+            return totalCapacity * 0.5;
+          } else {
+            const numHeaters = Math.max(2, Math.ceil(totalCapacity / 2000000));
+            const capacityPerHeater = Math.ceil(totalCapacity / numHeaters);
+            return capacityPerHeater * 0.5;
+          }
+        })(),
+        totalCost: Math.round(plantCapacityLPH * 600) * 0.5
+      },
+      {
+        description: "Total Connected Load",
+        specification: `${Math.round(plantCapacityLPH * 350 / 1000)} KVA`,
+        quantity: 1,
+        unitCostUSD: Math.round(plantCapacityLPH * 350 / 1000) * 2000,
+        totalCost: Math.round(plantCapacityLPH * 350 / 1000) * 2000
+      }
+    ];
+
+    return utilities;
+  };
+
   const calculateROI = () => {
     // Ensure tanks and utilities are calculated and stored
     const plantCapacityLPH = parseFloat(roiData.capacity) || 0;
@@ -873,8 +925,8 @@ export default function MarketingToolsPage() {
     
     // Calculate utilities if not already stored
     if (!roiData.utilities || roiData.utilities.length === 0) {
-      const calculatedUtilities = calculateUtilities(plantCapacityLPH);
-      updateData('utilities', calculatedUtilities);
+      const calculatedUtilitiesData = calculateUtilities(plantCapacityLPH);
+      updateData('utilities', calculatedUtilitiesData);
     }
     
     // Calculate total project investment from all steps
