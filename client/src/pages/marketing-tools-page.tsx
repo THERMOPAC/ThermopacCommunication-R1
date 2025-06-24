@@ -242,13 +242,15 @@ export default function MarketingToolsPage() {
   const standardTankSizes = [50, 100, 200, 300, 400, 600];
 
   // Fetch plant costs from database
-  const { data: plantCapacities = [], isLoading: loadingCosts } = useQuery({
-    queryKey: ['/api/plant-costs'],
-    select: (data) => data.map((cost: any) => ({
-      capacity: cost.capacity,
-      priceUSD: parseFloat(cost.priceUSD)
-    }))
+  const { data: plantCostsData = [], isLoading: loadingCosts } = useQuery({
+    queryKey: ['/api/plant-costs']
   });
+
+  const plantCapacities = plantCostsData.map((cost: any) => ({
+    id: cost.id,
+    capacity: cost.capacity,
+    priceUSD: parseFloat(cost.priceUSD)
+  }));
 
   // Update plant cost mutation
   const updateCostMutation = useMutation({
@@ -1188,6 +1190,149 @@ export default function MarketingToolsPage() {
           </TabsContent>
         </Tabs>
       </div>
+      {/* Plant Costs Edit Dialog */}
+      <Dialog open={showPlantCostsDialog} onOpenChange={setShowPlantCostsDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Manage Plant Costs</DialogTitle>
+            <DialogDescription>
+              Edit pricing for different plant capacities. All prices are in USD.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Add New Cost */}
+            <div className="border rounded-lg p-4 bg-green-50">
+              <div className="flex items-center gap-2 mb-3">
+                <Plus className="w-4 h-4 text-green-600" />
+                <Label className="font-medium text-green-800">Add New Plant Cost</Label>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-sm">Capacity (LPH)</Label>
+                  <Input
+                    type="number"
+                    value={newCost.capacity}
+                    onChange={(e) => setNewCost(prev => ({ ...prev, capacity: e.target.value }))}
+                    placeholder="e.g., 5000"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm">Price (USD)</Label>
+                  <Input
+                    type="number"
+                    value={newCost.priceUSD}
+                    onChange={(e) => setNewCost(prev => ({ ...prev, priceUSD: e.target.value }))}
+                    placeholder="e.g., 1200000"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    onClick={() => createCostMutation.mutate({
+                      capacity: parseInt(newCost.capacity),
+                      priceUSD: parseFloat(newCost.priceUSD)
+                    })}
+                    disabled={!newCost.capacity || !newCost.priceUSD || createCostMutation.isPending}
+                    className="w-full"
+                  >
+                    {createCostMutation.isPending ? 'Adding...' : 'Add Cost'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Existing Costs */}
+            <div className="space-y-3">
+              {loadingCosts ? (
+                <div className="text-center py-4">Loading plant costs...</div>
+              ) : (
+                plantCapacities.map((cost: any, index) => (
+                  <div key={cost.id || index} className="border rounded-lg p-3 bg-white">
+                    <div className="grid grid-cols-4 gap-3 items-center">
+                      <div>
+                        <Label className="text-sm text-gray-600">Capacity</Label>
+                        <div className="font-medium">{cost.capacity.toLocaleString()} LPH</div>
+                      </div>
+                      <div>
+                        <Label className="text-sm text-gray-600">Current Price</Label>
+                        <div className="font-medium">${cost.priceUSD.toLocaleString()}</div>
+                      </div>
+                      {editingCost?.id === cost.id ? (
+                        <>
+                          <div>
+                            <Label className="text-sm">New Price (USD)</Label>
+                            <Input
+                              type="number"
+                              value={editingCost.priceUSD}
+                              onChange={(e) => setEditingCost(prev => ({ 
+                                ...prev, 
+                                priceUSD: e.target.value 
+                              }))}
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => updateCostMutation.mutate({
+                                id: editingCost.id,
+                                capacity: editingCost.capacity,
+                                priceUSD: parseFloat(editingCost.priceUSD)
+                              })}
+                              disabled={updateCostMutation.isPending}
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setEditingCost(null)}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingCost({
+                              id: cost.id,
+                              capacity: cost.capacity,
+                              priceUSD: cost.priceUSD.toString()
+                            })}
+                          >
+                            <Edit3 className="w-3 h-3 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              if (confirm('Are you sure you want to delete this plant cost?')) {
+                                deleteCostMutation.mutate(cost.id);
+                              }
+                            }}
+                            disabled={deleteCostMutation.isPending}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPlantCostsDialog(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
