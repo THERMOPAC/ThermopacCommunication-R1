@@ -107,6 +107,61 @@ interface ROIData {
   irr: number;
 }
 
+// Tank Price Editor Component
+const TankPriceEditor = ({ price, onUpdate }: { price: any, onUpdate: (updatedPrice: any) => void }) => {
+  const [editingPrice, setEditingPrice] = useState<string>(price.priceUSD.toString());
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSave = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/tank-prices/${price.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priceUSD: parseFloat(editingPrice) })
+      });
+      
+      if (response.ok) {
+        const updatedPrice = await response.json();
+        onUpdate(updatedPrice);
+      }
+    } catch (error) {
+      console.error('Error updating tank price:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="border rounded-lg p-3 bg-white">
+      <div className="grid grid-cols-3 gap-3 items-center">
+        <div>
+          <Label className="text-sm text-gray-600">Tank Size</Label>
+          <div className="font-medium">{price.capacity} KL</div>
+        </div>
+        <div>
+          <Label className="text-sm">Price (USD)</Label>
+          <Input
+            type="number"
+            value={editingPrice}
+            onChange={(e) => setEditingPrice(e.target.value)}
+            className="text-sm"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={isLoading || editingPrice === price.priceUSD.toString()}
+          >
+            {isLoading ? 'Saving...' : 'Save'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function MarketingToolsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
