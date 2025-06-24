@@ -105,6 +105,21 @@ export default function MarketingToolsPage() {
     projectName: '',
     projectCostUSD: '0',
     projectCostLocal: '0',
+    // Cost breakdown fields
+    freightInsurance: '',
+    importDutyVAT: '',
+    plotCost: '',
+    civilCost: '',
+    refineryShed: '',
+    utilityShed: '',
+    officeBuilding: '',
+    mechanicalElectrical: '',
+    fireSuppressionSystem: '',
+    insulationCost: '',
+    legalFees: '',
+    preFormationExpenses: '',
+    commissioningTravel: '',
+    contingency: '',
     tanks: [
       { description: 'Used oil storage tanks', percentCapacity: 150, storageDays: 7, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
       { description: 'Light Base Oil', percentCapacity: 80, storageDays: 5, requiredKL: 0, suggestedTankSize: 0, suggestedQuantity: 0, editable: true },
@@ -1016,6 +1031,180 @@ export default function MarketingToolsPage() {
                         <Edit3 className="w-3 h-3 mr-1" />
                         Manage Plant Costs
                       </Button>
+                    </div>
+                    
+                    {/* Cost Breakdown Section */}
+                    <div className="space-y-4">
+                      <div className="border-t pt-4">
+                        <Label className="text-lg font-semibold mb-4 block">Project Cost Breakdown</Label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="freightInsurance">Freight & Insurance</Label>
+                            <Input
+                              id="freightInsurance"
+                              type="number"
+                              value={roiData.freightInsurance}
+                              onChange={(e) => updateData('freightInsurance', e.target.value)}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="importDutyVAT">Import Duty & VAT</Label>
+                            <Input
+                              id="importDutyVAT"
+                              type="number"
+                              value={roiData.importDutyVAT}
+                              onChange={(e) => updateData('importDutyVAT', e.target.value)}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="plotCost">Plot (Land) Cost</Label>
+                            <Input
+                              id="plotCost"
+                              type="number"
+                              value={roiData.plotCost}
+                              onChange={(e) => updateData('plotCost', e.target.value)}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="civilCost">Civil Cost</Label>
+                            <Input
+                              id="civilCost"
+                              type="number"
+                              value={roiData.civilCost}
+                              onChange={(e) => updateData('civilCost', e.target.value)}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="refineryShed">Refinery Shed</Label>
+                            <Input
+                              id="refineryShed"
+                              type="number"
+                              value={roiData.refineryShed}
+                              onChange={(e) => updateData('refineryShed', e.target.value)}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="utilityShed">Utility Shed</Label>
+                            <Input
+                              id="utilityShed"
+                              type="number"
+                              value={roiData.utilityShed}
+                              onChange={(e) => updateData('utilityShed', e.target.value)}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="officeBuilding">Office Building</Label>
+                            <Input
+                              id="officeBuilding"
+                              type="number"
+                              value={roiData.officeBuilding}
+                              onChange={(e) => updateData('officeBuilding', e.target.value)}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="mechanicalElectrical">Mechanical & Electrical Cost</Label>
+                            <Input
+                              id="mechanicalElectrical"
+                              type="number"
+                              value={roiData.mechanicalElectrical}
+                              onChange={(e) => updateData('mechanicalElectrical', e.target.value)}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="fireSuppressionSystem">Fire Suppression System</Label>
+                            <Input
+                              id="fireSuppressionSystem"
+                              type="number"
+                              value={roiData.fireSuppressionSystem}
+                              onChange={(e) => updateData('fireSuppressionSystem', e.target.value)}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="insulationCost">Insulation Cost</Label>
+                            <Input
+                              id="insulationCost"
+                              type="number"
+                              value={roiData.insulationCost}
+                              onChange={(e) => updateData('insulationCost', e.target.value)}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="legalFees">Legal Fees</Label>
+                            <Input
+                              id="legalFees"
+                              type="number"
+                              value={roiData.legalFees}
+                              onChange={(e) => updateData('legalFees', e.target.value)}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="preFormationExpenses">Pre Formation Expenses</Label>
+                            <Input
+                              id="preFormationExpenses"
+                              type="number"
+                              value={roiData.preFormationExpenses}
+                              onChange={(e) => updateData('preFormationExpenses', e.target.value)}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="commissioningTravel">Commissioning & Travel</Label>
+                            <Input
+                              id="commissioningTravel"
+                              type="number"
+                              value={roiData.commissioningTravel}
+                              onChange={(e) => updateData('commissioningTravel', e.target.value)}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="contingency">Contingency</Label>
+                            <Input
+                              id="contingency"
+                              type="number"
+                              value={roiData.contingency}
+                              onChange={(e) => updateData('contingency', e.target.value)}
+                              placeholder="0"
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Total Project Cost Summary */}
+                        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <Label className="text-lg font-semibold block mb-2">Total Project Cost Summary</Label>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label className="text-sm text-blue-700">Base Plant Cost</Label>
+                              <div className="text-xl font-bold text-blue-800">
+                                {getSelectedPlantCost()}
+                              </div>
+                            </div>
+                            <div>
+                              <Label className="text-sm text-blue-700">Additional Costs</Label>
+                              <div className="text-xl font-bold text-blue-800">
+                                {getTotalAdditionalCosts()}
+                              </div>
+                            </div>
+                            <div className="md:col-span-2 border-t border-blue-300 pt-2">
+                              <Label className="text-sm text-blue-700">Total Project Investment</Label>
+                              <div className="text-2xl font-bold text-blue-900">
+                                {getTotalProjectCost()}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
