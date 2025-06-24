@@ -648,7 +648,7 @@ export default function MarketingToolsPage() {
       
       if (plantCapacity > 0) {
         // Find plant price in USD and calculate local currency
-        const plantConfig = plantCapacities.find(p => p.capacity === plantCapacity);
+        const plantConfig = plantCosts.find(p => p.capacity === plantCapacity);
         if (plantConfig) {
           const priceUSD = plantConfig.priceUSD;
           const exchangeRate = currencies[selectedCurrency]?.rate || 1;
