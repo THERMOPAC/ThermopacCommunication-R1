@@ -63,7 +63,23 @@ interface ROIData {
   heaterCapacity: string;
   powerRequirement: string;
   
-  // Step 3: Operating Costs
+  // Step 3: Additional Equipments
+  additionalPumpsFilters: string;
+  tankLevelTransmitters: string;
+  pipesValvesFlanges: string;
+  electricalCablesAccessories: string;
+  pccMccPanels: string;
+  chimneyDucting: string;
+  airCompressor: string;
+  coolingTower: string;
+  dieselGenerator: string;
+  qualityControlEquipment: string;
+  thermicFluid: string;
+  expansionStructure: string;
+  craneHireCharges: string;
+  laborErectionCommissioning: string;
+
+  // Step 4: Operating Costs
   feedstockCost: string;
   powerCost: string;
   fuelCost: string;
@@ -71,19 +87,19 @@ interface ROIData {
   laborCost: string;
   maintenanceCost: string;
   
-  // Step 4: Product Yield
+  // Step 5: Product Yield
   finishOilYield: string;
   semiFinishYield: string;
   blackOilYield: string;
   sulphurPpm: string;
   
-  // Step 5: Revenue & Investment
+  // Step 6: Revenue & Investment
   finishOilPrice: string;
   semiFinishPrice: string;
   blackOilPrice: string;
   capexEstimation: string;
   
-  // Step 6: Calculated Results
+  // Step 7: Calculated Results
   paybackPeriod: number;
   annualROI: number;
   npv: number;
@@ -140,6 +156,21 @@ export default function MarketingToolsPage() {
     heaterQuantity: '',
     heaterTotalLoad: '',
     powerRequirement: '',
+    // Step 3: Additional Equipments
+    additionalPumpsFilters: '',
+    tankLevelTransmitters: '',
+    pipesValvesFlanges: '',
+    electricalCablesAccessories: '',
+    pccMccPanels: '',
+    chimneyDucting: '',
+    airCompressor: '',
+    coolingTower: '',
+    dieselGenerator: '',
+    qualityControlEquipment: '',
+    thermicFluid: '',
+    expansionStructure: '',
+    craneHireCharges: '',
+    laborErectionCommissioning: '',
     feedstockCost: '',
     powerCost: '',
     fuelCost: '',
@@ -441,6 +472,27 @@ export default function MarketingToolsPage() {
     })}`;
   };
 
+  // Helper function to calculate total equipment costs
+  const getTotalEquipmentCosts = () => {
+    const currency = currencies[roiData.currency] || currencies.USD;
+    const equipmentCosts = [
+      'additionalPumpsFilters', 'tankLevelTransmitters', 'pipesValvesFlanges',
+      'electricalCablesAccessories', 'pccMccPanels', 'chimneyDucting',
+      'airCompressor', 'coolingTower', 'dieselGenerator', 'qualityControlEquipment',
+      'thermicFluid', 'expansionStructure', 'craneHireCharges', 'laborErectionCommissioning'
+    ];
+    
+    const total = equipmentCosts.reduce((sum, field) => {
+      const value = parseFloat(roiData[field as keyof ROIData] as string) || 0;
+      return sum + value;
+    }, 0);
+    
+    return `${currency.symbol}${total.toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    })}`;
+  };
+
   // Helper function to calculate total project cost
   const getTotalProjectCost = () => {
     const currency = currencies[roiData.currency] || currencies.USD;
@@ -452,12 +504,24 @@ export default function MarketingToolsPage() {
       'insulationCost', 'legalFees', 'preFormationExpenses', 'commissioningTravel', 'contingency'
     ];
     
+    const equipmentCosts = [
+      'additionalPumpsFilters', 'tankLevelTransmitters', 'pipesValvesFlanges',
+      'electricalCablesAccessories', 'pccMccPanels', 'chimneyDucting',
+      'airCompressor', 'coolingTower', 'dieselGenerator', 'qualityControlEquipment',
+      'thermicFluid', 'expansionStructure', 'craneHireCharges', 'laborErectionCommissioning'
+    ];
+    
     const totalAdditional = additionalCosts.reduce((sum, field) => {
       const value = parseFloat(roiData[field as keyof ROIData] as string) || 0;
       return sum + value;
     }, 0);
     
-    const totalCost = basePlantCost + totalAdditional;
+    const totalEquipment = equipmentCosts.reduce((sum, field) => {
+      const value = parseFloat(roiData[field as keyof ROIData] as string) || 0;
+      return sum + value;
+    }, 0);
+    
+    const totalCost = basePlantCost + totalAdditional + totalEquipment;
     
     return `${currency.symbol}${totalCost.toLocaleString(undefined, {
       minimumFractionDigits: 0,
@@ -695,10 +759,11 @@ export default function MarketingToolsPage() {
   const steps = [
     { number: 1, title: "Plant Configuration", icon: Factory },
     { number: 2, title: "Tank Farm & Utilities", icon: Settings },
-    { number: 3, title: "Operating Costs", icon: DollarSign },
-    { number: 4, title: "Product Yield", icon: Fuel },
-    { number: 5, title: "Revenue & Investment", icon: TrendingUp },
-    { number: 6, title: "ROI Results", icon: BarChart3 }
+    { number: 3, title: "Additional Equipments", icon: Wrench },
+    { number: 4, title: "Operating Costs", icon: DollarSign },
+    { number: 5, title: "Product Yield", icon: Fuel },
+    { number: 6, title: "Revenue & Investment", icon: TrendingUp },
+    { number: 7, title: "ROI Results", icon: BarChart3 }
   ];
 
   return (
@@ -1451,8 +1516,8 @@ export default function MarketingToolsPage() {
                   </div>
                 )}
 
-                {/* Step 6: ROI Results */}
-                {currentStep === 6 && (
+                {/* Step 7: ROI Results */}
+                {currentStep === 7 && (
                   <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       <Card>
