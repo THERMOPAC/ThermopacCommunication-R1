@@ -9,12 +9,14 @@ const router = Router();
 // Get all plant costs
 router.get('/api/plant-costs', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    console.log('Fetching plant costs from database...');
     const costs = await db
       .select()
       .from(plantCosts)
       .where(eq(plantCosts.isActive, true))
       .orderBy(plantCosts.capacity);
 
+    console.log('Plant costs fetched:', costs.length, 'records');
     res.json(costs);
   } catch (error) {
     console.error('Error fetching plant costs:', error);
