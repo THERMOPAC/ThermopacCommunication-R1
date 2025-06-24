@@ -761,6 +761,19 @@ export default function MarketingToolsPage() {
     }
   };
 
+  // Calculate working capital whenever feedstock cost or capacity changes
+  const workingCapital = React.useMemo(() => {
+    const feedstockCost = parseFloat(roiData.feedstockCost) || 0;
+    const capacity = parseFloat(roiData.capacity) || 0;
+    return feedstockCost * capacity * 24 * 15;
+  }, [roiData.feedstockCost, roiData.capacity]);
+
+  // Calculate working capital interest
+  const workingCapitalInterest = React.useMemo(() => {
+    const interestRate = parseFloat(roiData.rateOfInterest) || 0;
+    return (workingCapital * interestRate) / 100;
+  }, [workingCapital, roiData.rateOfInterest]);
+
   const calculateROI = () => {
     const capacity = parseFloat(roiData.capacity) || 0;
     const annualCapacity = capacity * 8760;
