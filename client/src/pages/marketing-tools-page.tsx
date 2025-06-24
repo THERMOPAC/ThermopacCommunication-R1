@@ -986,13 +986,13 @@ export default function MarketingToolsPage() {
                         <Label htmlFor="capacity">Plant Capacity (Liters/Hour) *</Label>
                         <Select value={roiData.capacity} onValueChange={(value) => updateData('capacity', value)}>
                           <SelectTrigger>
-                            <SelectValue placeholder={loadingCosts ? "Loading..." : plantCapacities.length === 0 ? "No capacities available" : "Select capacity"} />
+                            <SelectValue placeholder={plantCostsLoading ? "Loading..." : plantCosts.length === 0 ? "No capacities available" : "Select capacity"} />
                           </SelectTrigger>
                           <SelectContent>
-                            {loadingCosts ? (
+                            {plantCostsLoading ? (
                               <SelectItem value="loading" disabled>Loading capacities...</SelectItem>
-                            ) : plantCapacities.length > 0 ? (
-                              plantCapacities.map((plant) => (
+                            ) : plantCosts.length > 0 ? (
+                              plantCosts.map((plant) => (
                                 <SelectItem key={plant.capacity} value={plant.capacity.toString()}>
                                   {plant.capacity.toLocaleString()} LPH
                                 </SelectItem>
