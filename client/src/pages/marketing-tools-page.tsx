@@ -292,7 +292,7 @@ export default function MarketingToolsPage() {
   };
 
   // Standard tank sizes in KL
-  const standardTankSizes = [50, 100, 200, 300, 400, 600];
+  const standardTankSizes = [50, 100, 200, 300, 400, 500, 600];
 
   // Fallback hardcoded plant capacities (from database)
   const fallbackCapacities = [
@@ -579,7 +579,7 @@ export default function MarketingToolsPage() {
 
   // Optimal tank size and quantity calculation
   const getOptimalTankSizeAndQuantity = (requiredKL: number) => {
-    const SIZES = [50, 100, 200, 300, 400, 600];
+    const SIZES = [50, 100, 200, 300, 400, 500, 600];
     let bestOption = null;
 
     for (let size of SIZES) {
@@ -1517,6 +1517,12 @@ export default function MarketingToolsPage() {
                                   className="w-16 text-center text-xs"
                                 />
                               </td>
+                              <td className="border border-gray-300 px-2 py-2 text-center text-sm font-medium text-green-600">
+                                ${getTankPrice(tank.suggestedTankSize).toLocaleString()}
+                              </td>
+                              <td className="border border-gray-300 px-2 py-2 text-center text-sm font-bold text-blue-600">
+                                ${(getTankPrice(tank.suggestedTankSize) * tank.suggestedQuantity).toLocaleString()}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -1531,7 +1537,7 @@ export default function MarketingToolsPage() {
                             <p className="font-medium mb-1">Enhanced Auto-calculation Logic:</p>
                             <p>Required Capacity (KL) = (Plant LPH × % × Days × 24) / 1000</p>
                             <p className="mt-2">Smart Rounding: Capacities &lt;300 KL round UP to nearest 50 KL, larger capacities round UP to nearest 100 KL</p>
-                            <p className="mt-1">Optimization: Minimizes tank quantity while meeting capacity requirements using standard sizes: 50, 100, 200, 300, 400, 600 KL</p>
+                            <p className="mt-1">Optimization: Minimizes tank quantity while meeting capacity requirements using standard sizes: 50, 100, 200, 300, 400, 500, 600 KL</p>
                             <p className="mt-1">Safety: Ensures minimum 1 tank and 50 KL capacity when required capacity &gt; 0</p>
                             <p className="mt-2 font-medium text-blue-700">Utility Auto-calculations:</p>
                             <p className="text-xs">• Compressor: 20 × (LPH/1000) m³/hr</p>
