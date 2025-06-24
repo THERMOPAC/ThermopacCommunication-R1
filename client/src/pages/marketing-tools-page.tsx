@@ -731,13 +731,46 @@ export default function MarketingToolsPage() {
         // Find plant price in USD and calculate local currency
         const plantConfig = plantCosts.find(p => p.capacity === plantCapacity);
         if (plantConfig) {
-          const priceUSD = plantConfig.priceUSD;
+          const basePlantCostUSD = plantConfig.priceUSD;
           const exchangeRate = currencies[selectedCurrency]?.rate || 1;
-          const priceLocal = Math.round(priceUSD * exchangeRate);
+          const basePlantCostLocal = Math.round(basePlantCostUSD * exchangeRate);
           
-          // Update costs immediately
-          updateData('projectCostUSD', priceUSD.toString());
-          updateData('projectCostLocal', priceLocal.toString());
+          // Update base costs
+          updateData('projectCostUSD', basePlantCostUSD.toString());
+          updateData('projectCostLocal', basePlantCostLocal.toString());
+          
+          // Auto-calculate project cost breakdown based on percentages
+          const costBreakdownPercentages = {
+            freightInsurance: 1.0,      // 1.0%
+            importDutyVAT: 5.0,         // 5.0%
+            plotCost: 10.0,             // 10%
+            civilCost: 8.0,             // 8%
+            refineryShed: 10.0,         // 10%
+            utilityShed: 8.0,           // 8%
+            officeBuilding: 5.0,        // 5%
+            mechanicalElectrical: 10.0, // 10%
+            fireSuppression: 5.0,       // 5%
+            insulation: 2.0,            // 2%
+            legalFees: 1.0,             // 1%
+            preFormationExpenses: 0.5,  // 0.5%
+            commissioningTravel: 3.0,   // 3%
+            contingency: 2.0            // 2%
+          };
+          
+          // Calculate each component cost and round to nearest 1,000
+          const baseCost = selectedCurrency === 'USD' ? basePlantCostUSD : basePlantCostLocal;
+          const calculatedCosts: any = {};
+          
+          Object.entries(costBreakdownPercentages).forEach(([key, percentage]) => {
+            const componentCost = Math.round((baseCost * percentage / 100) / 1000) * 1000;
+            calculatedCosts[key] = componentCost.toString();
+          });
+          
+          // Update all cost breakdown fields
+          setROIData(prev => ({ 
+            ...prev, 
+            ...calculatedCosts
+          }));
         }
         
         const calculatedTanks = calculateTankRequirements(plantCapacity);
@@ -1187,36 +1220,42 @@ export default function MarketingToolsPage() {
                     {/* Cost Breakdown Section */}
                     <div className="space-y-4">
                       <div className="border-t pt-4">
-                        <Label className="text-lg font-semibold mb-4 block">Project Cost Breakdown</Label>
+                        <div className="flex items-center justify-between mb-4">
+                          <Label className="text-lg font-semibold">Project Cost Breakdown</Label>
+                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Auto-calculated from Base Plant Cost</span>
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor="freightInsurance">Freight & Insurance</Label>
+                            <Label htmlFor="freightInsurance">Freight & Insurance (1.0%)</Label>
                             <Input
                               id="freightInsurance"
                               type="number"
                               value={roiData.freightInsurance}
                               onChange={(e) => updateData('freightInsurance', e.target.value)}
                               placeholder="0"
+                              className="bg-blue-50"
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="importDutyVAT">Import Duty & VAT</Label>
+                            <Label htmlFor="importDutyVAT">Import Duty & VAT (5.0%)</Label>
                             <Input
                               id="importDutyVAT"
                               type="number"
                               value={roiData.importDutyVAT}
                               onChange={(e) => updateData('importDutyVAT', e.target.value)}
                               placeholder="0"
+                              className="bg-blue-50"
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="plotCost">Plot (Land) Cost</Label>
+                            <Label htmlFor="plotCost">Plot (Land) Cost (10%)</Label>
                             <Input
                               id="plotCost"
                               type="number"
                               value={roiData.plotCost}
                               onChange={(e) => updateData('plotCost', e.target.value)}
                               placeholder="0"
+                              className="bg-blue-50"
                             />
                           </div>
                           <div className="space-y-2">
