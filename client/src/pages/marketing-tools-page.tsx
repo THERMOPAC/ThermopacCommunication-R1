@@ -1731,29 +1731,6 @@ export default function MarketingToolsPage() {
                   </div>
                 )}
 
-                {currentStep === 5 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Finish Oil Yield (%)</Label>
-                      <Input
-                        type="number"
-                        value={roiData.finishOilYield}
-                        onChange={(e) => updateData('finishOilYield', e.target.value)}
-                        placeholder="e.g., 65"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Semi-Finish Oil Yield (%)</Label>
-                      <Input
-                        type="number"
-                        value={roiData.semiFinishYield}
-                        onChange={(e) => updateData('semiFinishYield', e.target.value)}
-                        placeholder="e.g., 25"
-                      />
-                    </div>
-                  </div>
-                )}
-
                 {/* Step 6: Revenue & Investment */}
                 {currentStep === 6 && (
                   <div className="space-y-6">
@@ -1799,8 +1776,9 @@ export default function MarketingToolsPage() {
                         type="number"
                         value={roiData.capexEstimation}
                         onChange={(e) => updateData('capexEstimation', e.target.value)}
-                        placeholder="e.g., 2500000"
-                      />
+                          placeholder="e.g., 2500000"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
