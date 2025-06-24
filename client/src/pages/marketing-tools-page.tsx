@@ -529,6 +529,11 @@ export default function MarketingToolsPage() {
       maximumFractionDigits: 0
     })}`;
   };
+
+  // Helper function to get currency symbol
+  const getCurrencySymbol = (currencyCode: string) => {
+    return currencies[currencyCode]?.symbol || '$';
+  };
   // ===== END PRICING CONFIGURATION =====
 
   // Enhanced capacity rounding functions
@@ -732,10 +737,6 @@ export default function MarketingToolsPage() {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
-  };
-
-  const getCurrencySymbol = (currency: string) => {
-    return currencies[currency]?.symbol || '$';
   };
 
   const downloadReport = (format: 'pdf' | 'excel') => {
@@ -1610,31 +1611,127 @@ export default function MarketingToolsPage() {
                   </div>
                 )}
 
-                {currentStep === 3 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Feedstock Cost per Liter ({getCurrencySymbol(roiData.currency)})</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={roiData.feedstockCost}
+                {/* Step 4: Operating Costs */}
+                {currentStep === 4 && (
+                  <div className="space-y-6">
+                    <div className="text-center mb-6">
+                      <h2 className="text-2xl font-bold mb-2">Operating Costs</h2>
+                      <p className="text-muted-foreground">Enter annual operating costs in {roiData.currency}</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Feedstock Cost per Liter ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={roiData.feedstockCost}
                         onChange={(e) => updateData('feedstockCost', e.target.value)}
                         placeholder="e.g., 0.45"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Monthly Labor Cost ({getCurrencySymbol(roiData.currency)})</Label>
-                      <Input
-                        type="number"
-                        value={roiData.laborCost}
-                        onChange={(e) => updateData('laborCost', e.target.value)}
-                        placeholder="e.g., 15000"
-                      />
+                      <div className="space-y-2">
+                        <Label>Monthly Labor Cost ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Input
+                          type="number"
+                          value={roiData.laborCost}
+                          onChange={(e) => updateData('laborCost', e.target.value)}
+                          placeholder="e.g., 15000"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Power Cost ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={roiData.powerCost}
+                          onChange={(e) => updateData('powerCost', e.target.value)}
+                          placeholder="e.g., 0.12"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Fuel Cost ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={roiData.fuelCost}
+                          onChange={(e) => updateData('fuelCost', e.target.value)}
+                          placeholder="e.g., 0.85"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Chemical Cost ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={roiData.chemicalCost}
+                          onChange={(e) => updateData('chemicalCost', e.target.value)}
+                          placeholder="e.g., 0.05"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Maintenance Cost ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Input
+                          type="number"
+                          value={roiData.maintenanceCost}
+                          onChange={(e) => updateData('maintenanceCost', e.target.value)}
+                          placeholder="e.g., 25000"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {currentStep === 4 && (
+                {/* Step 5: Product Yield */}
+                {currentStep === 5 && (
+                  <div className="space-y-6">
+                    <div className="text-center mb-6">
+                      <h2 className="text-2xl font-bold mb-2">Product Yield</h2>
+                      <p className="text-muted-foreground">Enter expected product yields and quality specifications</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Finish Oil Yield (%)</Label>
+                        <Input
+                          type="number"
+                          value={roiData.finishOilYield}
+                          onChange={(e) => updateData('finishOilYield', e.target.value)}
+                          placeholder="e.g., 65"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Semi-Finish Oil Yield (%)</Label>
+                        <Input
+                          type="number"
+                          value={roiData.semiFinishYield}
+                          onChange={(e) => updateData('semiFinishYield', e.target.value)}
+                          placeholder="e.g., 25"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Black Oil Yield (%)</Label>
+                        <Input
+                          type="number"
+                          value={roiData.blackOilYield}
+                          onChange={(e) => updateData('blackOilYield', e.target.value)}
+                          placeholder="e.g., 10"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Sulphur Content (PPM)</Label>
+                        <Input
+                          type="number"
+                          value={roiData.sulphurPpm}
+                          onChange={(e) => updateData('sulphurPpm', e.target.value)}
+                          placeholder="e.g., 50"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {currentStep === 5 && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Finish Oil Yield (%)</Label>
@@ -1657,21 +1754,48 @@ export default function MarketingToolsPage() {
                   </div>
                 )}
 
-                {currentStep === 5 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Finish Oil Market Price ({getCurrencySymbol(roiData.currency)})</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={roiData.finishOilPrice}
-                        onChange={(e) => updateData('finishOilPrice', e.target.value)}
-                        placeholder="e.g., 0.85"
-                      />
+                {/* Step 6: Revenue & Investment */}
+                {currentStep === 6 && (
+                  <div className="space-y-6">
+                    <div className="text-center mb-6">
+                      <h2 className="text-2xl font-bold mb-2">Revenue & Investment</h2>
+                      <p className="text-muted-foreground">Enter market prices and investment details in {roiData.currency}</p>
                     </div>
-                    <div className="space-y-2">
-                      <Label>CAPEX Estimation ({getCurrencySymbol(roiData.currency)})</Label>
-                      <Input
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Finish Oil Market Price ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={roiData.finishOilPrice}
+                          onChange={(e) => updateData('finishOilPrice', e.target.value)}
+                          placeholder="e.g., 0.85"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Semi-Finish Oil Market Price ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={roiData.semiFinishPrice}
+                          onChange={(e) => updateData('semiFinishPrice', e.target.value)}
+                          placeholder="e.g., 0.65"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Black Oil Market Price ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={roiData.blackOilPrice}
+                          onChange={(e) => updateData('blackOilPrice', e.target.value)}
+                          placeholder="e.g., 0.45"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>CAPEX Estimation ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Input
                         type="number"
                         value={roiData.capexEstimation}
                         onChange={(e) => updateData('capexEstimation', e.target.value)}
