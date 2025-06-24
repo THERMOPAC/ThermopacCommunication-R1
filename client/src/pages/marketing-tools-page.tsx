@@ -110,79 +110,8 @@ interface ROIData {
 export default function MarketingToolsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  // Plant costs query
-  const { data: plantCostsData, isLoading: plantCostsLoading, error: plantCostsError } = useQuery({
-    queryKey: ['/api/plant-costs'],
-    queryFn: async () => {
-      const response = await fetch('/api/plant-costs');
-      if (!response.ok) throw new Error('Failed to fetch plant costs');
-      return response.json();
-    }
-  });
-
-  // Tank pricing query
-  const { data: tankPricing, isLoading: tankPricingLoading, error: tankPricingError } = useQuery({
-    queryKey: ['/api/tank-pricing'],
-    queryFn: async () => {
-      const response = await fetch('/api/tank-pricing');
-      if (!response.ok) throw new Error('Failed to fetch tank pricing');
-      return response.json();
-    }
-  });
-
-  // Plant cost update mutation
-  const updatePlantCostMutation = useMutation({
-    mutationFn: async ({ id, priceUSD }: { id: number; priceUSD: string }) => {
-      const response = await fetch(`/api/plant-costs/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priceUSD })
-      });
-      if (!response.ok) throw new Error('Failed to update plant cost');
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/plant-costs'] });
-      setEditingPlantCostId(null);
-      setEditingPlantCostPrice('');
-      toast({ title: "Success", description: "Plant cost updated successfully" });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update plant cost", variant: "destructive" });
-    }
-  });
-
-  // Tank pricing update mutation
-  const updateTankPriceMutation = useMutation({
-    mutationFn: async ({ tankSize, priceUSD }: { tankSize: number; priceUSD: string }) => {
-      const response = await fetch('/api/tank-pricing', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tankSize, priceUSD })
-      });
-      if (!response.ok) throw new Error('Failed to update tank price');
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/tank-pricing'] });
-      setEditingTankSize(null);
-      setEditingTankPrice('');
-      toast({ title: "Success", description: "Tank price updated successfully" });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update tank price", variant: "destructive" });
-    }
-  });
-
   const [activeTab, setActiveTab] = useState("overview");
   const [currentStep, setCurrentStep] = useState(1);
-  const [showReport, setShowReport] = useState(false);
-  const [editingPlantCostId, setEditingPlantCostId] = useState<number | null>(null);
-  const [editingPlantCostPrice, setEditingPlantCostPrice] = useState('');
-  const [showTankPricingModal, setShowTankPricingModal] = useState(false);
-  const [editingTankSize, setEditingTankSize] = useState<number | null>(null);
-  const [editingTankPrice, setEditingTankPrice] = useState('');
   const [showPlantCostsDialog, setShowPlantCostsDialog] = useState(false);
   const [editingCost, setEditingCost] = useState<any>(null);
   const [newCost, setNewCost] = useState({ capacity: '', priceUSD: '' });
@@ -380,15 +309,50 @@ export default function MarketingToolsPage() {
     { id: 11, capacity: 20000, priceUSD: 3800000 }
   ];
 
-  // Use plant costs data with fallback
-  const plantCapacities = plantCostsData ? plantCostsData.map((item: any) => ({
-    id: item.id,
-    capacity: item.capacity,
-    priceUSD: parseFloat(item.priceUSD)
-  })) : fallbackCapacities;
+  // Fetch plant costs from database with fallback
+  const { data: plantCostsData = fallbackCapacities, isLoading: loadingCosts, error: plantCostsError } = useQuery({
+    queryKey: ['/api/plant-costs'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/plant-costs', {
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          console.warn('API failed, using fallback data');
+          return fallbackCapacities;
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          console.warn('Non-JSON response, using fallback data');
+          return fallbackCapacities;
+        }
+        
+        const data = await response.json();
+        return data.length > 0 ? data : fallbackCapacities;
+      } catch (error) {
+        console.warn('API error, using fallback data:', error);
+        return fallbackCapacities;
+      }
+    },
+    retry: 1,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000 // 5 minutes
+  });
+
+  const plantCapacities = plantCostsData.map((cost: any) => ({
+    id: cost.id,
+    capacity: cost.capacity,
+    priceUSD: parseFloat(cost.priceUSD || cost.price_usd)
+  }));
 
   // Debug logging
-  console.log('Plant costs loading:', plantCostsLoading);
+  console.log('Plant costs loading:', loadingCosts);
   console.log('Plant costs data:', plantCostsData);
   console.log('Plant costs error:', plantCostsError);
   console.log('Processed capacities:', plantCapacities);
@@ -689,64 +653,6 @@ export default function MarketingToolsPage() {
     setROIData(prev => ({ ...prev, tanks: updatedTanks }));
   };
 
-  const handlePlantCostEdit = (id: number, currentPrice: string) => {
-    setEditingPlantCostId(id);
-    setEditingPlantCostPrice(currentPrice);
-  };
-
-  const handlePlantCostSave = () => {
-    if (editingPlantCostId && editingPlantCostPrice) {
-      updatePlantCostMutation.mutate({ 
-        id: editingPlantCostId, 
-        priceUSD: editingPlantCostPrice 
-      });
-    }
-  };
-
-  const handlePlantCostCancel = () => {
-    setEditingPlantCostId(null);
-    setEditingPlantCostPrice('');
-  };
-
-  const handleTankPriceEdit = (tankSize: number, currentPrice: string) => {
-    setEditingTankSize(tankSize);
-    setEditingTankPrice(currentPrice);
-  };
-
-  const handleTankPriceSave = () => {
-    if (editingTankSize && editingTankPrice) {
-      updateTankPriceMutation.mutate({ 
-        tankSize: editingTankSize, 
-        priceUSD: editingTankPrice 
-      });
-    }
-  };
-
-  const handleTankPriceCancel = () => {
-    setEditingTankSize(null);
-    setEditingTankPrice('');
-  };
-
-  // Get tank price by size
-  const getTankPrice = (tankSize: number): number => {
-    if (!tankPricing) return 0;
-    const pricing = tankPricing.find((p: any) => p.tankSize === tankSize);
-    return pricing ? parseFloat(pricing.priceUSD) : 0;
-  };
-
-  // Calculate total tank costs
-  const calculateTotalTankCosts = () => {
-    if (!roiData.capacity || !tankPricing) return 0;
-    
-    const plantCapacity = parseFloat(roiData.capacity);
-    const calculatedTanks = calculateTankRequirements(plantCapacity);
-    
-    return calculatedTanks.reduce((total, tank) => {
-      const tankPrice = getTankPrice(tank.suggestedTankSize);
-      return total + (tankPrice * tank.suggestedQuantity);
-    }, 0);
-  };
-
   // ROI Calculator Functions
   const updateData = (field: keyof ROIData, value: string | number) => {
     setROIData(prev => ({ ...prev, [field]: value }));
@@ -764,12 +670,9 @@ export default function MarketingToolsPage() {
           const exchangeRate = currencies[selectedCurrency]?.rate || 1;
           const priceLocal = Math.round(priceUSD * exchangeRate);
           
-          // Update costs immediately - fix recursive call
-          setROIData(prev => ({ 
-            ...prev, 
-            projectCostUSD: priceUSD.toString(),
-            projectCostLocal: priceLocal.toString()
-          }));
+          // Update costs immediately
+          updateData('projectCostUSD', priceUSD.toString());
+          updateData('projectCostLocal', priceLocal.toString());
         }
         
         const calculatedTanks = calculateTankRequirements(plantCapacity);
@@ -1564,8 +1467,6 @@ export default function MarketingToolsPage() {
                             <th className="border border-gray-300 px-2 py-2 text-center font-medium">Required Capacity (KL)</th>
                             <th className="border border-gray-300 px-2 py-2 text-center font-medium">Suggested Tank Size (KL)</th>
                             <th className="border border-gray-300 px-2 py-2 text-center font-medium">Suggested Quantity</th>
-                            <th className="border border-gray-300 px-2 py-2 text-center font-medium">Unit Price (USD)</th>
-                            <th className="border border-gray-300 px-2 py-2 text-center font-medium">Total Cost (USD)</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1616,12 +1517,6 @@ export default function MarketingToolsPage() {
                                   className="w-16 text-center text-xs"
                                 />
                               </td>
-                              <td className="border border-gray-300 px-2 py-2 text-center font-medium text-green-600">
-                                ${getTankPrice(tank.suggestedTankSize).toLocaleString()}
-                              </td>
-                              <td className="border border-gray-300 px-2 py-2 text-center font-bold text-blue-600">
-                                ${(getTankPrice(tank.suggestedTankSize) * tank.suggestedQuantity).toLocaleString()}
-                              </td>
                               <td className="border border-gray-300 px-2 py-2 text-center text-sm font-medium text-green-600">
                                 ${getTankPrice(tank.suggestedTankSize).toLocaleString()}
                               </td>
@@ -1632,18 +1527,6 @@ export default function MarketingToolsPage() {
                           ))}
                         </tbody>
                       </table>
-                      
-                      {/* Tank Cost Summary */}
-                      {roiData.capacity && (
-                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded">
-                          <div className="flex justify-between items-center">
-                            <span className="font-medium text-blue-800">Total Tank Farm Cost:</span>
-                            <span className="text-lg font-bold text-blue-900">
-                              ${calculateTotalTankCosts().toLocaleString()} USD
-                            </span>
-                          </div>
-                        </div>
-                      )}
                     </div>
                     
                     {roiData.capacity && (
@@ -1736,34 +1619,6 @@ export default function MarketingToolsPage() {
                         />
                         <p className="text-xs text-gray-500">Formula: 350 × (Plant LPH / 1000)</p>
                       </div>
-                    </div>
-                    
-                    {/* Tank Pricing Management */}
-                    <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold text-gray-800">Tank Pricing Management</h4>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => setShowTankPricingModal(true)}
-                          className="text-xs"
-                        >
-                          <Settings className="h-3 w-3 mr-1" />
-                          Edit Prices
-                        </Button>
-                      </div>
-                      
-                      {roiData.capacity && (
-                        <div className="bg-green-50 p-3 rounded border border-green-200">
-                          <p className="text-sm font-medium text-green-800 mb-2">Total Tank Farm Cost Summary:</p>
-                          <p className="text-lg font-bold text-green-900">
-                            ${calculateTotalTankCosts().toLocaleString()} USD
-                          </p>
-                          <p className="text-xs text-green-600 mt-1">
-                            Based on current tank requirements and pricing
-                          </p>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -2369,81 +2224,9 @@ export default function MarketingToolsPage() {
             </div>
           </TabsContent>
         </Tabs>
-
-        {/* Tank Pricing Modal */}
-        <Dialog open={showTankPricingModal} onOpenChange={setShowTankPricingModal}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Tank Pricing Management</DialogTitle>
-              <DialogDescription>
-                Edit tank prices in USD. These prices will be used for all future ROI calculations.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {tankPricingLoading ? (
-                <div className="text-center py-4">Loading tank pricing...</div>
-              ) : tankPricingError ? (
-                <div className="text-center py-4 text-red-600">Error loading tank pricing</div>
-              ) : (
-                tankPricing?.map((tank: any) => (
-                  <div key={tank.tankSize} className="flex items-center justify-between p-3 border rounded">
-                    <div className="font-medium">{tank.tankSize} KL Tank</div>
-                    <div className="flex items-center gap-2">
-                      {editingTankSize === tank.tankSize ? (
-                        <>
-                          <Input
-                            type="number"
-                            value={editingTankPrice}
-                            onChange={(e) => setEditingTankPrice(e.target.value)}
-                            className="w-24 text-sm"
-                            placeholder="Price"
-                          />
-                          <Button
-                            size="sm"
-                            onClick={handleTankPriceSave}
-                            disabled={updateTankPriceMutation.isPending}
-                          >
-                            Save
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleTankPriceCancel}
-                          >
-                            Cancel
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <span className="font-medium text-green-600">
-                            ${parseFloat(tank.priceUSD).toLocaleString()}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleTankPriceEdit(tank.tankSize, tank.priceUSD)}
-                          >
-                            <Edit3 className="h-3 w-3" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowTankPricingModal(false)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Plant Costs Edit Dialog */}
-        <Dialog open={showPlantCostsDialog} onOpenChange={setShowPlantCostsDialog}>
+      </div>
+      {/* Plant Costs Edit Dialog */}
+      <Dialog open={showPlantCostsDialog} onOpenChange={setShowPlantCostsDialog}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Manage Plant Costs</DialogTitle>
@@ -2585,8 +2368,6 @@ export default function MarketingToolsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </Layout>
   );
 }
-
-export default MarketingToolsPage;

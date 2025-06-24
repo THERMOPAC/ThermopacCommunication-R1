@@ -3593,23 +3593,11 @@ export const insertPaymentInvoiceLinkSchema = createInsertSchema(paymentInvoiceL
 export const insertBankRealizationCertificateSchema = createInsertSchema(bankRealizationCertificates)
   .omit({ id: true, createdAt: true, updatedAt: true });
 
-export const tankPricing = pgTable('tank_pricing', {
-  id: serial('id').primaryKey(),
-  tankSize: integer('tank_size').notNull().unique(),
-  priceUSD: decimal('price_usd', { precision: 10, scale: 2 }).notNull(),
-  isActive: boolean('is_active').default(true),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-  createdBy: integer('created_by').references(() => users.id),
-  updatedBy: integer('updated_by').references(() => users.id),
-});
-
 // Export types
 export type Invoice = typeof invoices.$inferSelect;
 export type InvoiceItem = typeof invoiceItems.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type PaymentInvoiceLink = typeof paymentInvoiceLinks.$inferSelect;
-export type TankPricing = typeof tankPricing.$inferSelect;
 export type BankRealizationCertificate = typeof bankRealizationCertificates.$inferSelect;
 
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
