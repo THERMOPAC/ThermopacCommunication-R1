@@ -37,7 +37,8 @@ import {
   Edit3,
   Plus,
   Trash2,
-  Wrench
+  Wrench,
+  Printer
 } from 'lucide-react';
 
 // ROI Calculator Data Interface
