@@ -166,7 +166,7 @@ export const getRoiProjectProgress = async (req: Request, res: Response) => {
       .orderBy(roiProjectSteps.stepNumber);
 
     const completedStepNumbers = completedSteps.map(step => step.stepNumber);
-    const totalSteps = 6; // ROI Calculator has 6 steps
+    const totalSteps = 7; // ROI Calculator has 7 steps
     const progressPercentage = Math.round((completedStepNumbers.length / totalSteps) * 100);
 
     res.status(200).json({

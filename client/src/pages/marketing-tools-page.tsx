@@ -519,7 +519,17 @@ export default function MarketingToolsPage() {
         };
       case 6:
         return {
-          capexEstimation: roiData.capexEstimation,
+          finishOilYield: roiData.finishOilYield,
+          semiFinishYield: roiData.semiFinishYield,
+          blackOilYield: roiData.blackOilYield,
+          sulphurPpm: roiData.sulphurPpm,
+          finishOilPrice: roiData.finishOilPrice,
+          semiFinishPrice: roiData.semiFinishPrice,
+          blackOilPrice: roiData.blackOilPrice,
+          capexEstimation: roiData.capexEstimation
+        };
+      case 7:
+        return {
           paybackPeriod: roiData.paybackPeriod,
           annualROI: roiData.annualROI,
           npv: roiData.npv,

@@ -3140,7 +3140,7 @@ export const insertRoiProjectStepSchema = createInsertSchema(roiProjectSteps)
   .omit({ id: true, updatedAt: true })
   .extend({
     roiProjectId: z.string().uuid(),
-    stepNumber: z.number().int().min(1).max(6),
+    stepNumber: z.number().int().min(1).max(7),
     stepData: z.record(z.any()),
     updatedBy: z.number().int().positive(),
   });
