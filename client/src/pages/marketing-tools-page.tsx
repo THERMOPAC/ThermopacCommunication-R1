@@ -358,78 +358,13 @@ export default function MarketingToolsPage() {
     return tankPrice ? tankPrice.priceUSD : 0;
   };
 
-  // Fetch plant costs from database with fallback
-  const { data: plantCostsData = fallbackCapacities, isLoading: loadingCosts, error: plantCostsError } = useQuery({
-    queryKey: ['/api/plant-costs'],
-    queryFn: async () => {
-      try {
-        const response = await fetch('/api/plant-costs', {
-          credentials: 'include',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (!response.ok) {
-          console.warn('API failed, using fallback data');
-          return fallbackCapacities;
-        }
-        
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          console.warn('Non-JSON response, using fallback data');
-          return fallbackCapacities;
-        }
-        
-        const data = await response.json();
-        return data.length > 0 ? data : fallbackCapacities;
-      } catch (error) {
-        console.warn('API error, using fallback data:', error);
-        return fallbackCapacities;
-      }
-    },
-    retry: 1,
-    refetchOnWindowFocus: false,
-    staleTime: 5 * 60 * 1000 // 5 minutes
-  });
 
-  const plantCapacities = plantCostsData.map((cost: any) => ({
-    id: cost.id,
-    capacity: cost.capacity,
-    priceUSD: parseFloat(cost.priceUSD || cost.price_usd)
-  }));
 
-  // Debug logging
-  console.log('Plant costs loading:', loadingCosts);
-  console.log('Plant costs data:', plantCostsData);
-  console.log('Plant costs error:', plantCostsError);
-  console.log('Processed capacities:', plantCapacities);
-
-  // Update plant cost mutation
-  const updateCostMutation = useMutation({
-    mutationFn: async (data: { id: number, capacity: number, priceUSD: number }) => {
-      const response = await fetch(`/api/plant-costs/${data.id}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(data)
-      });
-      if (!response.ok) throw new Error('Failed to update plant cost');
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/plant-costs'] });
-      toast({ title: 'Plant cost updated successfully' });
-      setEditingCost(null);
-    },
-    onError: () => {
-      toast({ title: 'Failed to update plant cost', variant: 'destructive' });
-    }
-  });
+  // Get plant cost function
+  const getPlantCost = (capacityLPH: number): number => {
+    const cost = plantCosts.find(c => c.capacity === capacityLPH);
+    return cost ? cost.priceUSD : 0;
+  };
 
   // Create plant cost mutation
   const createCostMutation = useMutation({
