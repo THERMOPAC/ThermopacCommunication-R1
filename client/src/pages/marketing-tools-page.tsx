@@ -1058,13 +1058,32 @@ export default function MarketingToolsPage() {
         { name: 'Waste Water', yield: parseFloat(roiData.wasteWaterYield) || 0, price: parseFloat(roiData.wasteWaterPrice) || 0, density: 1.0 }
       ];
 
+      // Calculate detailed metrics for report
+      const operatingCostsAnnual = [
+        parseFloat(roiData.feedstockCost) || 0,
+        parseFloat(roiData.powerCost) || 0,
+        parseFloat(roiData.fuelCost) || 0,
+        parseFloat(roiData.chemicalCost) || 0,
+        parseFloat(roiData.laborCost) || 0,
+        parseFloat(roiData.maintenanceCost) || 0
+      ].reduce((sum, cost) => sum + cost, 0) * 12;
+
+      const totalRevenue = products.reduce((total, product) => {
+        const productLiters = annualLiters * product.yield / 100;
+        const productTons = productLiters * product.density / 1000;
+        return total + (productTons * product.price);
+      }, 0);
+
+      const grossProfit = totalRevenue - operatingCostsAnnual;
+
       const reportData = {
         projectInfo: {
           customerName: roiData.customerName || 'Project Customer',
           projectName: roiData.projectName || 'Re-refining Plant Project',
           capacity: plantCapacity,
           currency: roiData.currency,
-          operatingDays: operatingDays
+          operatingDays: operatingDays,
+          generatedDate: new Date().toLocaleDateString()
         },
         investment: {
           totalInvestment,
@@ -1079,13 +1098,24 @@ export default function MarketingToolsPage() {
           paybackPeriod: roiData.paybackPeriod,
           annualROI: roiData.annualROI,
           npv: roiData.npv,
-          irr: roiData.irr
+          irr: roiData.irr,
+          totalRevenue,
+          operatingCostsAnnual,
+          grossProfit
         },
         products: products.map(product => ({
           ...product,
           annualTons: (annualLiters * product.yield / 100 * product.density / 1000),
           annualRevenue: (annualLiters * product.yield / 100 * product.density / 1000 * product.price)
-        }))
+        })),
+        operatingCosts: [
+          { name: 'Feedstock', monthly: parseFloat(roiData.feedstockCost) || 0, annual: (parseFloat(roiData.feedstockCost) || 0) * 12 },
+          { name: 'Power', monthly: parseFloat(roiData.powerCost) || 0, annual: (parseFloat(roiData.powerCost) || 0) * 12 },
+          { name: 'Fuel', monthly: parseFloat(roiData.fuelCost) || 0, annual: (parseFloat(roiData.fuelCost) || 0) * 12 },
+          { name: 'Chemicals', monthly: parseFloat(roiData.chemicalCost) || 0, annual: (parseFloat(roiData.chemicalCost) || 0) * 12 },
+          { name: 'Labor', monthly: parseFloat(roiData.laborCost) || 0, annual: (parseFloat(roiData.laborCost) || 0) * 12 },
+          { name: 'Maintenance', monthly: parseFloat(roiData.maintenanceCost) || 0, annual: (parseFloat(roiData.maintenanceCost) || 0) * 12 }
+        ]
       };
 
       // Create and download the report
@@ -1093,73 +1123,143 @@ export default function MarketingToolsPage() {
         const { jsPDF } = await import('jspdf');
         const doc = new jsPDF();
         
-        // Title
-        doc.setFontSize(20);
-        doc.text('ROI Analysis Report', 20, 20);
-        
-        // Project Information
-        doc.setFontSize(14);
-        doc.text('Project Information', 20, 40);
+        // Header with branding
+        doc.setFillColor(37, 99, 235); // Blue background
+        doc.rect(0, 0, 210, 30, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(24);
+        doc.text('ROI ANALYSIS REPORT', 20, 20);
         doc.setFontSize(12);
-        doc.text(`Customer: ${reportData.projectInfo.customerName}`, 20, 50);
-        doc.text(`Project: ${reportData.projectInfo.projectName}`, 20, 60);
-        doc.text(`Capacity: ${reportData.projectInfo.capacity} LPH`, 20, 70);
-        doc.text(`Currency: ${reportData.projectInfo.currency}`, 20, 80);
+        doc.text(`Generated on ${reportData.projectInfo.generatedDate}`, 150, 25);
         
-        // Financial Summary
-        doc.setFontSize(14);
-        doc.text('Financial Summary', 20, 100);
+        // Reset text color
+        doc.setTextColor(0, 0, 0);
+        
+        // Project Summary Section
+        doc.setFontSize(16);
+        doc.setTextColor(37, 99, 235);
+        doc.text('PROJECT SUMMARY', 20, 45);
+        doc.setTextColor(0, 0, 0);
         doc.setFontSize(12);
-        doc.text(`Total Investment: ${getCurrencySymbol(roiData.currency)}${totalInvestment.toLocaleString()}`, 20, 110);
-        doc.text(`Payback Period: ${reportData.financials.paybackPeriod} years`, 20, 120);
-        doc.text(`Annual ROI: ${reportData.financials.annualROI}%`, 20, 130);
-        doc.text(`NPV (5 years): ${getCurrencySymbol(roiData.currency)}${reportData.financials.npv.toLocaleString()}`, 20, 140);
-        doc.text(`IRR: ${reportData.financials.irr}%`, 20, 150);
+        doc.text(`Customer: ${reportData.projectInfo.customerName}`, 20, 55);
+        doc.text(`Project: ${reportData.projectInfo.projectName}`, 20, 63);
+        doc.text(`Plant Capacity: ${reportData.projectInfo.capacity.toLocaleString()} LPH`, 20, 71);
+        doc.text(`Currency: ${reportData.projectInfo.currency}`, 20, 79);
+        doc.text(`Operating Days: ${reportData.projectInfo.operatingDays}/month`, 20, 87);
         
-        // Product Breakdown
-        doc.setFontSize(14);
-        doc.text('Product Revenue Breakdown', 20, 170);
+        // Financial Summary Section
+        doc.setFontSize(16);
+        doc.setTextColor(37, 99, 235);
+        doc.text('FINANCIAL SUMMARY', 20, 105);
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(12);
+        doc.text(`Total Investment: ${getCurrencySymbol(roiData.currency)}${totalInvestment.toLocaleString()}`, 20, 115);
+        doc.text(`Annual Revenue: ${getCurrencySymbol(roiData.currency)}${reportData.financials.totalRevenue.toLocaleString()}`, 20, 123);
+        doc.text(`Annual Operating Costs: ${getCurrencySymbol(roiData.currency)}${reportData.financials.operatingCostsAnnual.toLocaleString()}`, 20, 131);
+        doc.text(`Gross Profit: ${getCurrencySymbol(roiData.currency)}${reportData.financials.grossProfit.toLocaleString()}`, 20, 139);
+        doc.text(`Payback Period: ${reportData.financials.paybackPeriod.toFixed(1)} years`, 20, 147);
+        doc.text(`Annual ROI: ${reportData.financials.annualROI.toFixed(1)}%`, 20, 155);
+        doc.text(`NPV (5 years): ${getCurrencySymbol(roiData.currency)}${reportData.financials.npv.toLocaleString()}`, 20, 163);
+        doc.text(`IRR: ${reportData.financials.irr.toFixed(1)}%`, 20, 171);
+        
+        // Product Revenue Analysis
+        doc.setFontSize(16);
+        doc.setTextColor(37, 99, 235);
+        doc.text('PRODUCT REVENUE ANALYSIS', 20, 190);
+        doc.setTextColor(0, 0, 0);
         doc.setFontSize(10);
-        let yPos = 180;
+        let yPos = 200;
         reportData.products.forEach(product => {
-          doc.text(`${product.name}: ${product.annualTons.toFixed(1)} tons/year = ${getCurrencySymbol(roiData.currency)}${product.annualRevenue.toLocaleString()}`, 20, yPos);
-          yPos += 10;
+          const percentage = reportData.financials.totalRevenue > 0 ? (product.annualRevenue / reportData.financials.totalRevenue) * 100 : 0;
+          doc.text(`${product.name}:`, 20, yPos);
+          doc.text(`${product.annualTons.toFixed(1)} tons/year`, 70, yPos);
+          doc.text(`${getCurrencySymbol(roiData.currency)}${product.annualRevenue.toLocaleString()}`, 120, yPos);
+          doc.text(`(${percentage.toFixed(1)}%)`, 160, yPos);
+          yPos += 8;
         });
         
-        doc.save(`ROI_Report_${roiData.customerName || 'Project'}.pdf`);
+        // Operating Costs Breakdown
+        yPos += 10;
+        doc.setFontSize(16);
+        doc.setTextColor(37, 99, 235);
+        doc.text('OPERATING COSTS BREAKDOWN', 20, yPos);
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+        yPos += 10;
+        reportData.operatingCosts.forEach(cost => {
+          doc.text(`${cost.name}:`, 20, yPos);
+          doc.text(`${getCurrencySymbol(roiData.currency)}${cost.monthly.toLocaleString()}/month`, 70, yPos);
+          doc.text(`${getCurrencySymbol(roiData.currency)}${cost.annual.toLocaleString()}/year`, 130, yPos);
+          yPos += 8;
+        });
+        
+        // Footer
+        doc.setFontSize(8);
+        doc.setTextColor(128, 128, 128);
+        doc.text('This report was generated by THERMOPAC ROI Calculator', 20, 280);
+        doc.text('Contact: info@thermopac.com | www.thermopac.com', 20, 285);
+        
+        doc.save(`ROI_Analysis_Report_${roiData.customerName || 'Project'}_${new Date().toISOString().split('T')[0]}.pdf`);
       } else {
-        // Excel format - create CSV for now
+        // Excel format - create comprehensive CSV
         const csvContent = [
-          ['ROI Analysis Report'],
+          ['THERMOPAC ROI ANALYSIS REPORT'],
+          [`Generated on: ${reportData.projectInfo.generatedDate}`],
           [''],
-          ['Project Information'],
+          ['PROJECT INFORMATION'],
           ['Customer', reportData.projectInfo.customerName],
           ['Project', reportData.projectInfo.projectName],
-          ['Capacity (LPH)', reportData.projectInfo.capacity],
+          ['Plant Capacity (LPH)', reportData.projectInfo.capacity],
           ['Currency', reportData.projectInfo.currency],
+          ['Operating Days per Month', reportData.projectInfo.operatingDays],
           [''],
-          ['Financial Summary'],
+          ['FINANCIAL SUMMARY'],
           ['Total Investment', totalInvestment],
-          ['Payback Period (years)', reportData.financials.paybackPeriod],
-          ['Annual ROI (%)', reportData.financials.annualROI],
+          ['Annual Revenue', reportData.financials.totalRevenue],
+          ['Annual Operating Costs', reportData.financials.operatingCostsAnnual],
+          ['Gross Profit', reportData.financials.grossProfit],
+          ['Payback Period (years)', reportData.financials.paybackPeriod.toFixed(1)],
+          ['Annual ROI (%)', reportData.financials.annualROI.toFixed(1)],
           ['NPV (5 years)', reportData.financials.npv],
-          ['IRR (%)', reportData.financials.irr],
+          ['IRR (%)', reportData.financials.irr.toFixed(1)],
           [''],
-          ['Product Revenue Breakdown'],
-          ['Product', 'Annual Tons', 'Price per Ton', 'Annual Revenue'],
-          ...reportData.products.map(product => [
-            product.name,
-            product.annualTons.toFixed(1),
-            product.price,
-            product.annualRevenue.toFixed(0)
-          ])
+          ['PRODUCT REVENUE ANALYSIS'],
+          ['Product', 'Yield %', 'Price per Ton', 'Annual Tons', 'Annual Revenue', 'Revenue %'],
+          ...reportData.products.map(product => {
+            const percentage = reportData.financials.totalRevenue > 0 ? (product.annualRevenue / reportData.financials.totalRevenue) * 100 : 0;
+            return [
+              product.name,
+              product.yield.toFixed(1),
+              product.price,
+              product.annualTons.toFixed(1),
+              product.annualRevenue.toFixed(0),
+              percentage.toFixed(1)
+            ];
+          }),
+          [''],
+          ['OPERATING COSTS BREAKDOWN'],
+          ['Cost Category', 'Monthly Cost', 'Annual Cost'],
+          ...reportData.operatingCosts.map(cost => [
+            cost.name,
+            cost.monthly,
+            cost.annual
+          ]),
+          ['Total Operating Costs', reportData.operatingCosts.reduce((sum, cost) => sum + cost.monthly, 0), reportData.financials.operatingCostsAnnual],
+          [''],
+          ['INVESTMENT BREAKDOWN'],
+          ['Base Plant Cost', baseCost],
+          ['Tank & Utilities', tankCosts + utilityCosts],
+          ['Additional Costs', additionalCosts],
+          ['Equipment Costs', equipmentCosts],
+          ['Working Capital', workingCapital],
+          ['Total Investment', totalInvestment]
         ].map(row => row.join(',')).join('\n');
         
         const blob = new Blob([csvContent], { type: 'text/csv' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `ROI_Report_${roiData.customerName || 'Project'}.csv`;
+        a.download = `ROI_Analysis_${roiData.customerName || 'Project'}_${new Date().toISOString().split('T')[0]}.csv`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -1168,7 +1268,7 @@ export default function MarketingToolsPage() {
       
       toast({
         title: `${format.toUpperCase()} Report Downloaded`,
-        description: `ROI report for ${roiData.customerName || 'Project'} has been downloaded successfully.`,
+        description: `Professional ROI analysis report for ${roiData.customerName || 'Project'} has been downloaded successfully.`,
       });
     } catch (error) {
       console.error('Error generating report:', error);
@@ -3000,187 +3100,70 @@ export default function MarketingToolsPage() {
                   </div>
                 )}
 
-                {/* Step 7: ROI Results */}
+                {/* Step 7: Final ROI Report */}
                 {currentStep === 7 && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <Card>
-                        <CardContent className="p-4">
-                          <div className="flex items-center space-x-2">
-                            <TrendingUp className="h-6 w-6 text-green-600" />
-                            <div>
-                              <p className="text-xl font-bold">{roiData.paybackPeriod || 0} years</p>
-                              <p className="text-sm text-muted-foreground">Payback Period</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                  <div className="space-y-8 print:space-y-6">
+                    {/* Project Summary Header */}
+                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg print:bg-gray-100 print:text-black">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h1 className="text-3xl font-bold mb-2">ROI Analysis Report</h1>
+                          <p className="text-blue-100 print:text-gray-600">{roiData.customerName || 'Re-refining Plant Project'}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-blue-100 print:text-gray-500">Generated on</p>
+                          <p className="font-semibold">{new Date().toLocaleDateString()}</p>
+                        </div>
+                      </div>
                       
-                      <Card>
-                        <CardContent className="p-4">
-                          <div className="flex items-center space-x-2">
-                            <Percent className="h-6 w-6 text-blue-600" />
-                            <div>
-                              <p className="text-xl font-bold">{roiData.annualROI || 0}%</p>
-                              <p className="text-sm text-muted-foreground">Annual ROI</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      
-                      <Card>
-                        <CardContent className="p-4">
-                          <div className="flex items-center space-x-2">
-                            <DollarSign className="h-6 w-6 text-purple-600" />
-                            <div>
-                              <p className="text-xl font-bold">{getCurrencySymbol(roiData.currency)}{(roiData.npv || 0).toLocaleString()}</p>
-                              <p className="text-sm text-muted-foreground">NPV (5 years)</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      
-                      <Card>
-                        <CardContent className="p-4">
-                          <div className="flex items-center space-x-2">
-                            <BarChart3 className="h-6 w-6 text-orange-600" />
-                            <div>
-                              <p className="text-xl font-bold">{roiData.irr || 0}%</p>
-                              <p className="text-sm text-muted-foreground">IRR</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                        <div className="bg-white/20 print:bg-gray-200 rounded-lg p-3">
+                          <p className="text-sm text-blue-100 print:text-gray-600">Plant Capacity</p>
+                          <p className="text-lg font-bold">{(parseFloat(roiData.capacity) || 0).toLocaleString()} LPH</p>
+                        </div>
+                        <div className="bg-white/20 print:bg-gray-200 rounded-lg p-3">
+                          <p className="text-sm text-blue-100 print:text-gray-600">Currency</p>
+                          <p className="text-lg font-bold">{roiData.currency}</p>
+                        </div>
+                        <div className="bg-white/20 print:bg-gray-200 rounded-lg p-3">
+                          <p className="text-sm text-blue-100 print:text-gray-600">Operating Days</p>
+                          <p className="text-lg font-bold">{parseFloat(roiData.plantOperationDays) || 30}/month</p>
+                        </div>
+                        <div className="bg-white/20 print:bg-gray-200 rounded-lg p-3">
+                          <p className="text-sm text-blue-100 print:text-gray-600">Total CAPEX</p>
+                          <p className="text-lg font-bold">{getCurrencySymbol(roiData.currency)}{(() => {
+                            const baseCost = parseFloat(roiData.projectCostLocal) || 0;
+                            const tankCosts = (roiData.tanks || calculatedTanks).reduce((total, tank) => total + (parseFloat(tank.totalCost) || 0), 0);
+                            const utilityCosts = (roiData.utilities || calculatedUtilities).reduce((total, utility) => total + (parseFloat(utility.totalCost) || 0), 0);
+                            const additionalCosts = [
+                              parseFloat(roiData.freightInsurance) || 0, parseFloat(roiData.importDutyVAT) || 0,
+                              parseFloat(roiData.plotCost) || 0, parseFloat(roiData.civilCost) || 0,
+                              parseFloat(roiData.refineryShed) || 0, parseFloat(roiData.utilityShed) || 0,
+                              parseFloat(roiData.officeBuilding) || 0, parseFloat(roiData.mechanicalElectrical) || 0,
+                              parseFloat(roiData.fireSuppression) || 0, parseFloat(roiData.insulation) || 0,
+                              parseFloat(roiData.legalFees) || 0, parseFloat(roiData.preFormationExpenses) || 0,
+                              parseFloat(roiData.commissioningTravel) || 0, parseFloat(roiData.contingency) || 0
+                            ].reduce((sum, cost) => sum + cost, 0);
+                            const equipmentCosts = [
+                              parseFloat(roiData.pumpsCost) || 0, parseFloat(roiData.transmittersCost) || 0,
+                              parseFloat(roiData.electricalCost) || 0, parseFloat(roiData.mechanicalCost) || 0,
+                              parseFloat(roiData.commissioningCost) || 0
+                            ].reduce((sum, cost) => sum + cost, 0);
+                            const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
+                            return (baseCost + tankCosts + utilityCosts + additionalCosts + equipmentCosts + workingCapital).toLocaleString();
+                          })()}</p>
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Detailed Analysis */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-lg">Investment Breakdown</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            <div className="flex justify-between">
-                              <span>Base Plant Cost:</span>
-                              <span className="font-semibold">{getCurrencySymbol(roiData.currency)}{(parseFloat(roiData.projectCostLocal) || 0).toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Tank & Utilities:</span>
-                              <span className="font-semibold">{getCurrencySymbol(roiData.currency)}{(() => {
-                                const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
-                                  return total + (parseFloat(tank.totalCost) || 0);
-                                }, 0);
-                                const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
-                                  return total + (parseFloat(utility.totalCost) || 0);
-                                }, 0);
-                                return (tankCosts + utilityCosts).toLocaleString();
-                              })()}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Additional Costs:</span>
-                              <span className="font-semibold">{getCurrencySymbol(roiData.currency)}{[
-                                parseFloat(roiData.freightInsurance) || 0,
-                                parseFloat(roiData.importDutyVAT) || 0,
-                                parseFloat(roiData.plotCost) || 0,
-                                parseFloat(roiData.civilCost) || 0,
-                                parseFloat(roiData.refineryShed) || 0,
-                                parseFloat(roiData.utilityShed) || 0,
-                                parseFloat(roiData.officeBuilding) || 0,
-                                parseFloat(roiData.mechanicalElectrical) || 0,
-                                parseFloat(roiData.fireSuppression) || 0,
-                                parseFloat(roiData.insulation) || 0,
-                                parseFloat(roiData.legalFees) || 0,
-                                parseFloat(roiData.preFormationExpenses) || 0,
-                                parseFloat(roiData.commissioningTravel) || 0,
-                                parseFloat(roiData.contingency) || 0
-                              ].reduce((sum, cost) => sum + cost, 0).toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Working Capital:</span>
-                              <span className="font-semibold">{getCurrencySymbol(roiData.currency)}{(parseFloat(roiData.workingCapitalRequirement) || 0).toLocaleString()}</span>
-                            </div>
-                            <hr className="my-2" />
-                            <div className="flex justify-between text-lg font-bold">
-                              <span>Total Investment:</span>
-                              <span>{getCurrencySymbol(roiData.currency)}{(() => {
-                                const baseCost = parseFloat(roiData.projectCostLocal) || 0;
-                                
-                                // Safe tank and utility cost calculation
-                                const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
-                                  return total + (parseFloat(tank.totalCost) || 0);
-                                }, 0);
-                                const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
-                                  return total + (parseFloat(utility.totalCost) || 0);
-                                }, 0);
-                                const tankUtilityCosts = tankCosts + utilityCosts;
-                                
-                                const additionalCosts = [
-                                  parseFloat(roiData.freightInsurance) || 0,
-                                  parseFloat(roiData.importDutyVAT) || 0,
-                                  parseFloat(roiData.plotCost) || 0,
-                                  parseFloat(roiData.civilCost) || 0,
-                                  parseFloat(roiData.refineryShed) || 0,
-                                  parseFloat(roiData.utilityShed) || 0,
-                                  parseFloat(roiData.officeBuilding) || 0,
-                                  parseFloat(roiData.mechanicalElectrical) || 0,
-                                  parseFloat(roiData.fireSuppression) || 0,
-                                  parseFloat(roiData.insulation) || 0,
-                                  parseFloat(roiData.legalFees) || 0,
-                                  parseFloat(roiData.preFormationExpenses) || 0,
-                                  parseFloat(roiData.commissioningTravel) || 0,
-                                  parseFloat(roiData.contingency) || 0
-                                ].reduce((sum, cost) => sum + cost, 0);
-                                
-                                const equipmentCosts = [
-                                  parseFloat(roiData.pumpsCost) || 0,
-                                  parseFloat(roiData.transmittersCost) || 0,
-                                  parseFloat(roiData.electricalCost) || 0,
-                                  parseFloat(roiData.mechanicalCost) || 0,
-                                  parseFloat(roiData.commissioningCost) || 0
-                                ].reduce((sum, cost) => sum + cost, 0);
-                                
-                                const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
-                                const totalInvestment = baseCost + tankUtilityCosts + additionalCosts + equipmentCosts + workingCapital;
-                                
-                                return totalInvestment.toLocaleString();
-                              })()}</span>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-lg">Revenue Analysis</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            {[
-                              { name: 'Naphtha & Gas Oil', yield: roiData.naphthaGasOilYield, price: roiData.naphthaGasOilPrice, density: 0.80 },
-                              { name: 'Light Base Oil', yield: roiData.lightBaseOilYield, price: roiData.lightBaseOilPrice, density: 0.85 },
-                              { name: 'Heavy Base Oil', yield: roiData.heavyBaseOilYield, price: roiData.heavyBaseOilPrice, density: 0.87 },
-                              { name: 'Residue', yield: roiData.residueYield, price: roiData.residuePrice, density: 1.8 },
-                              { name: 'Waste Water', yield: roiData.wasteWaterYield, price: roiData.wasteWaterPrice, density: 1.0 }
-                            ].map((product, index) => {
-                              const plantCapacity = parseFloat(roiData.capacity) || 0;
-                              const operatingDays = parseFloat(roiData.plantOperationDays) || 30;
-                              const annualLiters = plantCapacity * operatingDays * 24 * 12;
-                              const productLiters = annualLiters * (parseFloat(product.yield) || 0) / 100;
-                              const productTons = productLiters * product.density / 1000;
-                              const annualRevenue = productTons * (parseFloat(product.price) || 0);
-                              
-                              return (
-                                <div key={index} className="flex justify-between">
-                                  <span>{product.name}:</span>
-                                  <span className="font-semibold">{getCurrencySymbol(roiData.currency)}{annualRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                                </div>
-                              );
-                            })}
-                            <hr className="my-2" />
-                            <div className="flex justify-between text-lg font-bold">
-                              <span>Total Annual Revenue:</span>
-                              <span>{getCurrencySymbol(roiData.currency)}{(() => {
+                    {/* Financial Summary Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                      <Card className="border-l-4 border-l-green-500">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">Total Revenue</p>
+                              <p className="text-xl font-bold text-green-600">{getCurrencySymbol(roiData.currency)}{(() => {
                                 const plantCapacity = parseFloat(roiData.capacity) || 0;
                                 const operatingDays = parseFloat(roiData.plantOperationDays) || 30;
                                 const annualLiters = plantCapacity * operatingDays * 24 * 12;
@@ -3191,28 +3174,367 @@ export default function MarketingToolsPage() {
                                   { yield: parseFloat(roiData.residueYield) || 0, price: parseFloat(roiData.residuePrice) || 0, density: 1.8 },
                                   { yield: parseFloat(roiData.wasteWaterYield) || 0, price: parseFloat(roiData.wasteWaterPrice) || 0, density: 1.0 }
                                 ];
-                                const totalRevenue = products.reduce((total, product) => {
+                                return products.reduce((total, product) => {
                                   const productLiters = annualLiters * product.yield / 100;
                                   const productTons = productLiters * product.density / 1000;
-                                  const revenue = productTons * product.price;
-                                  return total + revenue;
-                                }, 0);
-                                return totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 });
-                              })()}</span>
+                                  return total + (productTons * product.price);
+                                }, 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+                              })()}</p>
+                              <p className="text-xs text-muted-foreground">Annual</p>
                             </div>
+                            <TrendingUp className="h-8 w-8 text-green-500" />
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="border-l-4 border-l-red-500">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">Operating Cost</p>
+                              <p className="text-xl font-bold text-red-600">{getCurrencySymbol(roiData.currency)}{(() => {
+                                const operatingCosts = [
+                                  parseFloat(roiData.feedstockCost) || 0,
+                                  parseFloat(roiData.powerCost) || 0,
+                                  parseFloat(roiData.fuelCost) || 0,
+                                  parseFloat(roiData.chemicalCost) || 0,
+                                  parseFloat(roiData.laborCost) || 0,
+                                  parseFloat(roiData.maintenanceCost) || 0
+                                ];
+                                return (operatingCosts.reduce((sum, cost) => sum + cost, 0) * 12).toLocaleString(undefined, { maximumFractionDigits: 0 });
+                              })()}</p>
+                              <p className="text-xs text-muted-foreground">Annual</p>
+                            </div>
+                            <DollarSign className="h-8 w-8 text-red-500" />
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="border-l-4 border-l-blue-500">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">Gross Profit</p>
+                              <p className="text-xl font-bold text-blue-600">{getCurrencySymbol(roiData.currency)}{(() => {
+                                const plantCapacity = parseFloat(roiData.capacity) || 0;
+                                const operatingDays = parseFloat(roiData.plantOperationDays) || 30;
+                                const annualLiters = plantCapacity * operatingDays * 24 * 12;
+                                const products = [
+                                  { yield: parseFloat(roiData.naphthaGasOilYield) || 0, price: parseFloat(roiData.naphthaGasOilPrice) || 0, density: 0.80 },
+                                  { yield: parseFloat(roiData.lightBaseOilYield) || 0, price: parseFloat(roiData.lightBaseOilPrice) || 0, density: 0.85 },
+                                  { yield: parseFloat(roiData.heavyBaseOilYield) || 0, price: parseFloat(roiData.heavyBaseOilPrice) || 0, density: 0.87 },
+                                  { yield: parseFloat(roiData.residueYield) || 0, price: parseFloat(roiData.residuePrice) || 0, density: 1.8 },
+                                  { yield: parseFloat(roiData.wasteWaterYield) || 0, price: parseFloat(roiData.wasteWaterPrice) || 0, density: 1.0 }
+                                ];
+                                const revenue = products.reduce((total, product) => {
+                                  const productLiters = annualLiters * product.yield / 100;
+                                  const productTons = productLiters * product.density / 1000;
+                                  return total + (productTons * product.price);
+                                }, 0);
+                                const operatingCosts = [
+                                  parseFloat(roiData.feedstockCost) || 0,
+                                  parseFloat(roiData.powerCost) || 0,
+                                  parseFloat(roiData.fuelCost) || 0,
+                                  parseFloat(roiData.chemicalCost) || 0,
+                                  parseFloat(roiData.laborCost) || 0,
+                                  parseFloat(roiData.maintenanceCost) || 0
+                                ].reduce((sum, cost) => sum + cost, 0) * 12;
+                                return (revenue - operatingCosts).toLocaleString(undefined, { maximumFractionDigits: 0 });
+                              })()}</p>
+                              <p className="text-xs text-muted-foreground">Annual</p>
+                            </div>
+                            <BarChart3 className="h-8 w-8 text-blue-500" />
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="border-l-4 border-l-purple-500">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">ROI</p>
+                              <p className="text-xl font-bold text-purple-600">{(roiData.annualROI || 0).toFixed(1)}%</p>
+                              <p className="text-xs text-muted-foreground">Annual</p>
+                            </div>
+                            <Percent className="h-8 w-8 text-purple-500" />
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="border-l-4 border-l-orange-500">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">Payback Period</p>
+                              <p className="text-xl font-bold text-orange-600">{(roiData.paybackPeriod || 0).toFixed(1)}</p>
+                              <p className="text-xs text-muted-foreground">Years</p>
+                            </div>
+                            <Clock className="h-8 w-8 text-orange-500" />
                           </div>
                         </CardContent>
                       </Card>
                     </div>
 
-                    <div className="flex gap-4">
-                      <Button onClick={() => downloadReport('pdf')} className="flex items-center gap-2">
-                        <Download className="h-4 w-4" />
-                        Download PDF Report
+                    {/* Charts and Visualizations */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Revenue Breakdown Chart */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <BarChart3 className="h-5 w-5" />
+                            Revenue Breakdown by Product
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            {[
+                              { name: 'Naphtha & Gas Oil', yield: roiData.naphthaGasOilYield, price: roiData.naphthaGasOilPrice, density: 0.80, color: 'bg-blue-500' },
+                              { name: 'Light Base Oil', yield: roiData.lightBaseOilYield, price: roiData.lightBaseOilPrice, density: 0.85, color: 'bg-green-500' },
+                              { name: 'Heavy Base Oil', yield: roiData.heavyBaseOilYield, price: roiData.heavyBaseOilPrice, density: 0.87, color: 'bg-yellow-500' },
+                              { name: 'Residue', yield: roiData.residueYield, price: roiData.residuePrice, density: 1.8, color: 'bg-red-500' },
+                              { name: 'Waste Water', yield: roiData.wasteWaterYield, price: roiData.wasteWaterPrice, density: 1.0, color: 'bg-purple-500' }
+                            ].map((product, index) => {
+                              const plantCapacity = parseFloat(roiData.capacity) || 0;
+                              const operatingDays = parseFloat(roiData.plantOperationDays) || 30;
+                              const annualLiters = plantCapacity * operatingDays * 24 * 12;
+                              const productLiters = annualLiters * (parseFloat(product.yield) || 0) / 100;
+                              const productTons = productLiters * product.density / 1000;
+                              const annualRevenue = productTons * (parseFloat(product.price) || 0);
+                              
+                              // Calculate total revenue for percentage
+                              const totalRevenue = [
+                                { yield: parseFloat(roiData.naphthaGasOilYield) || 0, price: parseFloat(roiData.naphthaGasOilPrice) || 0, density: 0.80 },
+                                { yield: parseFloat(roiData.lightBaseOilYield) || 0, price: parseFloat(roiData.lightBaseOilPrice) || 0, density: 0.85 },
+                                { yield: parseFloat(roiData.heavyBaseOilYield) || 0, price: parseFloat(roiData.heavyBaseOilPrice) || 0, density: 0.87 },
+                                { yield: parseFloat(roiData.residueYield) || 0, price: parseFloat(roiData.residuePrice) || 0, density: 1.8 },
+                                { yield: parseFloat(roiData.wasteWaterYield) || 0, price: parseFloat(roiData.wasteWaterPrice) || 0, density: 1.0 }
+                              ].reduce((total, p) => {
+                                const pLiters = annualLiters * p.yield / 100;
+                                const pTons = pLiters * p.density / 1000;
+                                return total + (pTons * p.price);
+                              }, 0);
+                              
+                              const percentage = totalRevenue > 0 ? (annualRevenue / totalRevenue) * 100 : 0;
+                              
+                              return (
+                                <div key={index} className="space-y-2">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm font-medium">{product.name}</span>
+                                    <div className="text-right">
+                                      <span className="font-bold">{getCurrencySymbol(roiData.currency)}{annualRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                      <span className="text-xs text-muted-foreground ml-2">({percentage.toFixed(1)}%)</span>
+                                    </div>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-3">
+                                    <div className={`${product.color} h-3 rounded-full transition-all duration-500`} style={{ width: `${percentage}%` }}></div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Profit vs Expense Pie Chart */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <PieChart className="h-5 w-5" />
+                            Profit vs Expense Analysis
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            {(() => {
+                              const plantCapacity = parseFloat(roiData.capacity) || 0;
+                              const operatingDays = parseFloat(roiData.plantOperationDays) || 30;
+                              const annualLiters = plantCapacity * operatingDays * 24 * 12;
+                              const products = [
+                                { yield: parseFloat(roiData.naphthaGasOilYield) || 0, price: parseFloat(roiData.naphthaGasOilPrice) || 0, density: 0.80 },
+                                { yield: parseFloat(roiData.lightBaseOilYield) || 0, price: parseFloat(roiData.lightBaseOilPrice) || 0, density: 0.85 },
+                                { yield: parseFloat(roiData.heavyBaseOilYield) || 0, price: parseFloat(roiData.heavyBaseOilPrice) || 0, density: 0.87 },
+                                { yield: parseFloat(roiData.residueYield) || 0, price: parseFloat(roiData.residuePrice) || 0, density: 1.8 },
+                                { yield: parseFloat(roiData.wasteWaterYield) || 0, price: parseFloat(roiData.wasteWaterPrice) || 0, density: 1.0 }
+                              ];
+                              const revenue = products.reduce((total, product) => {
+                                const productLiters = annualLiters * product.yield / 100;
+                                const productTons = productLiters * product.density / 1000;
+                                return total + (productTons * product.price);
+                              }, 0);
+                              const operatingCosts = [
+                                parseFloat(roiData.feedstockCost) || 0,
+                                parseFloat(roiData.powerCost) || 0,
+                                parseFloat(roiData.fuelCost) || 0,
+                                parseFloat(roiData.chemicalCost) || 0,
+                                parseFloat(roiData.laborCost) || 0,
+                                parseFloat(roiData.maintenanceCost) || 0
+                              ].reduce((sum, cost) => sum + cost, 0) * 12;
+                              const profit = revenue - operatingCosts;
+                              
+                              const total = revenue;
+                              const segments = [
+                                { name: 'Operating Costs', value: operatingCosts, color: 'bg-red-500', percentage: (operatingCosts / total) * 100 },
+                                { name: 'Gross Profit', value: profit, color: 'bg-green-500', percentage: (profit / total) * 100 }
+                              ];
+                              
+                              return segments.map((segment, index) => (
+                                <div key={index} className="space-y-2">
+                                  <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                      <div className={`w-4 h-4 ${segment.color} rounded`}></div>
+                                      <span className="text-sm font-medium">{segment.name}</span>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="font-bold">{getCurrencySymbol(roiData.currency)}{segment.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                      <span className="text-xs text-muted-foreground ml-2">({segment.percentage.toFixed(1)}%)</span>
+                                    </div>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-3">
+                                    <div className={`${segment.color} h-3 rounded-full transition-all duration-500`} style={{ width: `${segment.percentage}%` }}></div>
+                                  </div>
+                                </div>
+                              ));
+                            })()}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Detailed Financial Table */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <FileText className="h-5 w-5" />
+                          Detailed Financial Analysis
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          {/* Product Analysis Table */}
+                          <div>
+                            <h4 className="font-semibold mb-3">Product Revenue Analysis</h4>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm border-collapse border">
+                                <thead>
+                                  <tr className="bg-gray-50">
+                                    <th className="border p-2 text-left">Product</th>
+                                    <th className="border p-2 text-center">Yield %</th>
+                                    <th className="border p-2 text-center">Price/Ton</th>
+                                    <th className="border p-2 text-center">Annual Tons</th>
+                                    <th className="border p-2 text-center">Revenue</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {[
+                                    { name: 'Naphtha & Gas Oil', yield: roiData.naphthaGasOilYield, price: roiData.naphthaGasOilPrice, density: 0.80 },
+                                    { name: 'Light Base Oil', yield: roiData.lightBaseOilYield, price: roiData.lightBaseOilPrice, density: 0.85 },
+                                    { name: 'Heavy Base Oil', yield: roiData.heavyBaseOilYield, price: roiData.heavyBaseOilPrice, density: 0.87 },
+                                    { name: 'Residue', yield: roiData.residueYield, price: roiData.residuePrice, density: 1.8 },
+                                    { name: 'Waste Water', yield: roiData.wasteWaterYield, price: roiData.wasteWaterPrice, density: 1.0 }
+                                  ].map((product, index) => {
+                                    const plantCapacity = parseFloat(roiData.capacity) || 0;
+                                    const operatingDays = parseFloat(roiData.plantOperationDays) || 30;
+                                    const annualLiters = plantCapacity * operatingDays * 24 * 12;
+                                    const productLiters = annualLiters * (parseFloat(product.yield) || 0) / 100;
+                                    const productTons = productLiters * product.density / 1000;
+                                    const annualRevenue = productTons * (parseFloat(product.price) || 0);
+                                    
+                                    return (
+                                      <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                        <td className="border p-2 font-medium">{product.name}</td>
+                                        <td className="border p-2 text-center">{(parseFloat(product.yield) || 0).toFixed(1)}%</td>
+                                        <td className="border p-2 text-center">{getCurrencySymbol(roiData.currency)}{(parseFloat(product.price) || 0).toLocaleString()}</td>
+                                        <td className="border p-2 text-center">{productTons.toFixed(0)}</td>
+                                        <td className="border p-2 text-center font-semibold">{getCurrencySymbol(roiData.currency)}{annualRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+
+                          {/* Operating Costs Table */}
+                          <div>
+                            <h4 className="font-semibold mb-3">Operating Cost Breakdown</h4>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm border-collapse border">
+                                <thead>
+                                  <tr className="bg-gray-50">
+                                    <th className="border p-2 text-left">Cost Category</th>
+                                    <th className="border p-2 text-center">Monthly</th>
+                                    <th className="border p-2 text-center">Annual</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {[
+                                    { name: 'Feedstock', monthly: parseFloat(roiData.feedstockCost) || 0 },
+                                    { name: 'Power', monthly: parseFloat(roiData.powerCost) || 0 },
+                                    { name: 'Fuel', monthly: parseFloat(roiData.fuelCost) || 0 },
+                                    { name: 'Chemicals', monthly: parseFloat(roiData.chemicalCost) || 0 },
+                                    { name: 'Labor', monthly: parseFloat(roiData.laborCost) || 0 },
+                                    { name: 'Maintenance', monthly: parseFloat(roiData.maintenanceCost) || 0 }
+                                  ].map((cost, index) => (
+                                    <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                      <td className="border p-2 font-medium">{cost.name}</td>
+                                      <td className="border p-2 text-center">{getCurrencySymbol(roiData.currency)}{cost.monthly.toLocaleString()}</td>
+                                      <td className="border p-2 text-center font-semibold">{getCurrencySymbol(roiData.currency)}{(cost.monthly * 12).toLocaleString()}</td>
+                                    </tr>
+                                  ))}
+                                  <tr className="bg-blue-50 font-bold">
+                                    <td className="border p-2">Total Operating Costs</td>
+                                    <td className="border p-2 text-center">{getCurrencySymbol(roiData.currency)}{[
+                                      parseFloat(roiData.feedstockCost) || 0,
+                                      parseFloat(roiData.powerCost) || 0,
+                                      parseFloat(roiData.fuelCost) || 0,
+                                      parseFloat(roiData.chemicalCost) || 0,
+                                      parseFloat(roiData.laborCost) || 0,
+                                      parseFloat(roiData.maintenanceCost) || 0
+                                    ].reduce((sum, cost) => sum + cost, 0).toLocaleString()}</td>
+                                    <td className="border p-2 text-center">{getCurrencySymbol(roiData.currency)}{([
+                                      parseFloat(roiData.feedstockCost) || 0,
+                                      parseFloat(roiData.powerCost) || 0,
+                                      parseFloat(roiData.fuelCost) || 0,
+                                      parseFloat(roiData.chemicalCost) || 0,
+                                      parseFloat(roiData.laborCost) || 0,
+                                      parseFloat(roiData.maintenanceCost) || 0
+                                    ].reduce((sum, cost) => sum + cost, 0) * 12).toLocaleString()}</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* PDF Export Section */}
+                    <div className="flex flex-col sm:flex-row gap-4 print:hidden">
+                      <Button 
+                        onClick={() => downloadReport('pdf')} 
+                        className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                        size="lg"
+                      >
+                        <Download className="h-5 w-5" />
+                        Download Professional PDF Report
                       </Button>
-                      <Button variant="outline" onClick={() => downloadReport('excel')} className="flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        Download Excel Report
+                      <Button 
+                        variant="outline" 
+                        onClick={() => downloadReport('excel')} 
+                        className="flex-1 flex items-center justify-center gap-2"
+                        size="lg"
+                      >
+                        <FileText className="h-5 w-5" />
+                        Download Excel Analysis
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => window.print()} 
+                        className="flex items-center justify-center gap-2"
+                        size="lg"
+                      >
+                        <Printer className="h-5 w-5" />
+                        Print Report
                       </Button>
                     </div>
                   </div>
