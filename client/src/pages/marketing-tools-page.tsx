@@ -409,8 +409,14 @@ export default function MarketingToolsPage() {
 
   // Function to get tank price from database
   const getTankPrice = (capacity: number): number => {
+    if (!tankPrices || tankPrices.length === 0) {
+      console.log('No tank prices available');
+      return 0;
+    }
     const tankPrice = tankPrices.find(price => price.capacity === capacity);
-    return tankPrice ? tankPrice.priceUSD : 0;
+    const price = tankPrice ? (typeof tankPrice.priceUSD === 'string' ? parseFloat(tankPrice.priceUSD) : tankPrice.priceUSD) : 0;
+    console.log(`Tank price for ${capacity} KL:`, price);
+    return price;
   };
 
 
@@ -1506,6 +1512,8 @@ export default function MarketingToolsPage() {
                             <th className="border border-gray-300 px-2 py-2 text-center font-medium">Required Capacity (KL)</th>
                             <th className="border border-gray-300 px-2 py-2 text-center font-medium">Suggested Tank Size (KL)</th>
                             <th className="border border-gray-300 px-2 py-2 text-center font-medium">Suggested Quantity</th>
+                            <th className="border border-gray-300 px-2 py-2 text-center font-medium">Cost per Tank ($)</th>
+                            <th className="border border-gray-300 px-2 py-2 text-center font-medium">Total Cost ($)</th>
                           </tr>
                         </thead>
                         <tbody>
