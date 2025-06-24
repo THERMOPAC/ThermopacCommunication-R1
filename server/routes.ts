@@ -133,6 +133,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
     return getRoiProjectProgress(req, res);
   });
+  app.get('/api/roi/list-projects', async (req: any, res: any) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const userId = req.user.id;
+      const { roiProjectSteps } = await import('@shared/schema');
+      const { desc } = await import('drizzle-orm');
+      
+      // Get all unique projects for this user with their latest data
+      const projects = await db
+        .select({
+          roiProjectId: roiProjectSteps.roiProjectId,
+          stepNumber: roiProjectSteps.stepNumber,
+          stepData: roiProjectSteps.stepData,
+          updatedAt: roiProjectSteps.updatedAt,
+        })
+        .from(roiProjectSteps)
+        .where(eq(roiProjectSteps.userId, userId))
+        .orderBy(desc(roiProjectSteps.updatedAt));
+
+      // Group by project ID and get project details
+      const projectMap = new Map();
+      
+      projects.forEach(project => {
+        const projectId = project.roiProjectId;
+        
+        if (!projectMap.has(projectId)) {
+          projectMap.set(projectId, {
+            roiProjectId: projectId,
+            steps: {},
+            lastUpdated: project.updatedAt,
+            completedSteps: 0,
+            customerName: '',
+            projectName: '',
+            capacity: ''
+          });
+        }
+        
+        const projectData = projectMap.get(projectId);
+        projectData.steps[project.stepNumber] = project.stepData;
+        projectData.completedSteps = Math.max(projectData.completedSteps, project.stepNumber);
+        
+        // Extract project details from step 1 data
+        if (project.stepNumber === 1 && project.stepData) {
+          const stepData = project.stepData as any;
+          projectData.customerName = stepData.customerName || '';
+          projectData.projectName = stepData.projectName || '';
+          projectData.capacity = stepData.capacity || '';
+        }
+      });
+
+      // Convert to array and sort by last updated
+      const projectList = Array.from(projectMap.values())
+        .sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime());
+
+      res.json({
+        success: true,
+        projects: projectList
+      });
+    } catch (error) {
+      console.error('Error fetching ROI projects:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch ROI projects'
+      });
+    }
+  });
   console.log('ROI Calculator routes registered');
 
   // Register plant costs routes directly here
