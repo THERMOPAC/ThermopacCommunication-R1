@@ -1450,21 +1450,21 @@ export default function MarketingToolsPage() {
         
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text(`• Annual Revenue: ${getCurrencySymbol(roiData.currency)}${reportData.financials.totalRevenue.toLocaleString()}`, margin + 5, yPosition);
+        doc.text(`• Annual Revenue: ${getCurrencySymbol(roiData.currency)}${(reportData.financials?.totalRevenue || 0).toLocaleString()}`, margin + 5, yPosition);
         yPosition += 6;
-        doc.text(`• Annual Operating Costs: ${getCurrencySymbol(roiData.currency)}${reportData.financials.operatingCostsAnnual.toLocaleString()}`, margin + 5, yPosition);
+        doc.text(`• Annual Operating Costs: ${getCurrencySymbol(roiData.currency)}${(reportData.financials?.operatingCostsAnnual || 0).toLocaleString()}`, margin + 5, yPosition);
         yPosition += 6;
-        doc.text(`• Annual Gross Profit: ${getCurrencySymbol(roiData.currency)}${reportData.financials.grossProfit.toLocaleString()}`, margin + 5, yPosition);
+        doc.text(`• Annual Gross Profit: ${getCurrencySymbol(roiData.currency)}${(reportData.financials?.grossProfit || 0).toLocaleString()}`, margin + 5, yPosition);
         yPosition += 8;
         
         doc.setFont('helvetica', 'bold');
-        doc.text(`• ROI: ${reportData.financials.annualROI.toFixed(1)}%`, margin + 5, yPosition);
+        doc.text(`• ROI: ${(reportData.financials?.annualROI || 0).toFixed(1)}%`, margin + 5, yPosition);
         yPosition += 6;
-        doc.text(`• Payback Period: ${reportData.financials.paybackPeriod.toFixed(1)} years`, margin + 5, yPosition);
+        doc.text(`• Payback Period: ${(reportData.financials?.paybackPeriod || 0).toFixed(1)} years`, margin + 5, yPosition);
         yPosition += 6;
-        doc.text(`• NPV (5 years): ${getCurrencySymbol(roiData.currency)}${reportData.financials.npv.toLocaleString()}`, margin + 5, yPosition);
+        doc.text(`• NPV (5 years): ${getCurrencySymbol(roiData.currency)}${(reportData.financials?.npv || 0).toLocaleString()}`, margin + 5, yPosition);
         yPosition += 6;
-        doc.text(`• IRR: ${reportData.financials.irr.toFixed(1)}%`, margin + 5, yPosition);
+        doc.text(`• IRR: ${(reportData.financials?.irr || 0).toFixed(1)}%`, margin + 5, yPosition);
         yPosition += 20;
         
         // Financial metrics in cards
@@ -1617,7 +1617,7 @@ export default function MarketingToolsPage() {
         doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
         doc.setFontSize(11);
         doc.setFont('helvetica', 'normal');
-        const profitMargin = reportData.financials.totalRevenue > 0 ? (reportData.financials.grossProfit / reportData.financials.totalRevenue) * 100 : 0;
+        const profitMargin = (reportData.financials?.totalRevenue || 0) > 0 ? ((reportData.financials?.grossProfit || 0) / (reportData.financials?.totalRevenue || 1)) * 100 : 0;
         
         const capacityText = reportData.projectInfo?.capacity ? reportData.projectInfo.capacity.toLocaleString() : (roiData.capacity || '0');
         const totalInvestmentText = (totalCapex + workingCapitalAmount).toLocaleString();
