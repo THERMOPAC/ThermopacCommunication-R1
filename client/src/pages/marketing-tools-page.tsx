@@ -5378,7 +5378,7 @@ export default function MarketingToolsPage() {
                           <div className="flex justify-between">
                             <span className="text-blue-700">Interest Cost (Monthly):</span>
                             <span className="font-semibold">
-                              {getCurrencySymbol(roiData.currency)}{workingCapitalInterest.toLocaleString()}
+                              {getCurrencySymbol(roiData.currency)}{(financingCosts.workingCapitalInterest || 0).toLocaleString()}
                             </span>
                           </div>
                         </div>
