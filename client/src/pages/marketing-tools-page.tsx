@@ -4476,6 +4476,7 @@ export default function MarketingToolsPage() {
         window.URL.revokeObjectURL(url);
       }
       
+      
       toast({
         title: `${format.toUpperCase()} Report Downloaded`,
         description: `Professional ROI analysis report for ${roiData.customerName || 'Project'} has been downloaded successfully.`,
