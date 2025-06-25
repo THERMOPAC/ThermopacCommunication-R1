@@ -503,7 +503,7 @@ export default function MarketingToolsPage() {
           electricalCablesAccessories: roiData.electricalCablesAccessories,
           pccMccPanels: roiData.pccMccPanels,
           chimneyDucting: roiData.chimneyDucting,
-          airCompressor: roiData.airCompressor,
+  
           coolingTower: roiData.coolingTower,
           dieselGenerator: roiData.dieselGenerator,
           qualityControlEquipment: roiData.qualityControlEquipment,
@@ -1421,7 +1421,6 @@ export default function MarketingToolsPage() {
           parseFloat(roiData.electricalCablesAccessories) || 0,
           parseFloat(roiData.pccMccPanels) || 0,
           parseFloat(roiData.chimneyDucting) || 0,
-          parseFloat(roiData.airCompressor) || 0,
           parseFloat(roiData.coolingTower) || 0,
           parseFloat(roiData.dieselGenerator) || 0,
           parseFloat(roiData.qualityControlEquipment) || 0,
