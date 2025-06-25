@@ -1937,11 +1937,16 @@ export default function MarketingToolsPage() {
         doc.setFont('helvetica', 'normal');
         
         // Calculate total investment from user inputs
+        const tankCostsSummary = (roiData.tanks || []).reduce((sum, tank) => sum + parseFloat(tank.totalCost || '0'), 0);
+        const additionalCostsSummary = additionalCostItems.reduce((sum, item) => sum + parseFloat(item.value || '0'), 0);
+        const equipmentCostsSummary = equipmentItems.reduce((sum, item) => sum + parseFloat(item.value || '0'), 0);
+        const utilityCostsSummary = (roiData.utilities || []).filter(u => u.name !== 'Total Connected Load').reduce((sum, utility) => sum + parseFloat(utility.totalCost || '0'), 0);
+        
         const userInputInvestment = parseFloat(roiData.projectCostLocal || '0') + 
-                                   additionalCostItems.reduce((sum, item) => sum + parseFloat(item.value || '0'), 0) +
-                                   equipmentItems.reduce((sum, item) => sum + parseFloat(item.value || '0'), 0) +
-                                   (roiData.tanks || []).reduce((sum, tank) => sum + parseFloat(tank.totalCost || '0'), 0) +
-                                   (roiData.utilities || []).filter(u => u.name !== 'Total Connected Load').reduce((sum, utility) => sum + parseFloat(utility.totalCost || '0'), 0) +
+                                   additionalCostsSummary +
+                                   equipmentCostsSummary +
+                                   tankCostsSummary +
+                                   utilityCostsSummary +
                                    parseFloat(roiData.workingCapitalRequirement || '0');
 
         // Calculate total monthly operating costs from user inputs
@@ -1971,12 +1976,279 @@ export default function MarketingToolsPage() {
         doc.text(`Plant Utilization: ${roiData.plantOperationDays || 25} days/month`, margin, yPos);
         yPos += 10;
 
+        // GRAPHICAL SUMMARY SECTION
+        checkPageBreak(50);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 102, 204);
+        doc.text('GRAPHICAL SUMMARY', margin, yPos);
+        yPos += 15;
+
+        // Calculate chart data
+        const productYieldData = [
+          { name: 'Naphtha/Gas Oil', value: parseFloat(roiData.naphthaGasOilYield || '0'), color: [255, 99, 132] },
+          { name: 'Light Base Oil', value: parseFloat(roiData.lightBaseOilYield || '0'), color: [54, 162, 235] },
+          { name: 'Heavy Base Oil', value: parseFloat(roiData.heavyBaseOilYield || '0'), color: [255, 205, 86] },
+          { name: 'Residue', value: parseFloat(roiData.residueYield || '0'), color: [75, 192, 192] },
+          { name: 'Waste Water', value: parseFloat(roiData.wasteWaterYield || '0'), color: [153, 102, 255] },
+          { name: 'Process Loss', value: parseFloat(roiData.processLossYield || '0'), color: [255, 159, 64] }
+        ].filter(item => item.value > 0);
+
+        // Calculate revenue data
+        const exchangeRate = parseFloat(roiData.exchangeRate || '1');
+        const capacity = parseFloat(roiData.capacity || '1000');
+        const operatingDays = parseFloat(roiData.plantOperationDays || '25');
+        const densityUsedOil = 0.85;
+        const annualTons = (capacity * 24 * operatingDays * 12) / 1000 * densityUsedOil;
+
+        const revenueData = [
+          { 
+            name: 'Naphtha/Gas Oil', 
+            value: (parseFloat(roiData.naphthaGasOilPrice || '0') / exchangeRate) * (annualTons * parseFloat(roiData.naphthaGasOilYield || '0') / 100),
+            color: [255, 99, 132]
+          },
+          { 
+            name: 'Light Base Oil', 
+            value: (parseFloat(roiData.lightBaseOilPrice || '0') / exchangeRate) * (annualTons * parseFloat(roiData.lightBaseOilYield || '0') / 100),
+            color: [54, 162, 235]
+          },
+          { 
+            name: 'Heavy Base Oil', 
+            value: (parseFloat(roiData.heavyBaseOilPrice || '0') / exchangeRate) * (annualTons * parseFloat(roiData.heavyBaseOilYield || '0') / 100),
+            color: [255, 205, 86]
+          },
+          { 
+            name: 'Residue', 
+            value: (parseFloat(roiData.residuePrice || '0') / exchangeRate) * (annualTons * parseFloat(roiData.residueYield || '0') / 100),
+            color: [75, 192, 192]
+          },
+          { 
+            name: 'Waste Water', 
+            value: (parseFloat(roiData.wasteWaterPrice || '0') / exchangeRate) * (annualTons * parseFloat(roiData.wasteWaterYield || '0') / 100),
+            color: [153, 102, 255]
+          }
+        ].filter(item => item.value > 0);
+
+        // Operating cost data
+        const feedstockCostMonthly = parseFloat(roiData.feedstockCost || '0') * capacity * 24 * operatingDays;
+        const operatingCostData = [
+          { name: 'Feedstock', value: feedstockCostMonthly, color: [255, 99, 132] },
+          { name: 'Power', value: parseFloat(roiData.powerCost || '0'), color: [54, 162, 235] },
+          { name: 'Fuel', value: parseFloat(roiData.fuelCost || '0'), color: [255, 205, 86] },
+          { name: 'Chemicals', value: parseFloat(roiData.chemicalCost || '0'), color: [75, 192, 192] },
+          { name: 'Labor', value: parseFloat(roiData.laborCost || '0'), color: [153, 102, 255] },
+          { name: 'Maintenance', value: parseFloat(roiData.maintenanceCost || '0'), color: [255, 159, 64] }
+        ].filter(item => item.value > 0);
+
+        // CAPEX allocation data
+        const projectCostLocalChart = parseFloat(roiData.projectCostLocal || '0');
+        const tankCostsChart = (roiData.tanks || []).reduce((sum, tank) => sum + parseFloat(tank.totalCost || '0'), 0);
+        const utilityCostsChart = (roiData.utilities || []).filter(u => u.name !== 'Total Connected Load').reduce((sum, utility) => sum + parseFloat(utility.totalCost || '0'), 0);
+        const equipmentCostsChart = equipmentItems.reduce((sum, item) => sum + parseFloat(item.value || '0'), 0);
+        const additionalCostsChart = additionalCostItems.reduce((sum, item) => sum + parseFloat(item.value || '0'), 0);
+
+        const capexData = [
+          { name: 'Plant Equipment', value: projectCostLocalChart, color: [255, 99, 132] },
+          { name: 'Tank Farm', value: tankCostsChart, color: [54, 162, 235] },
+          { name: 'Utilities', value: utilityCostsChart, color: [255, 205, 86] },
+          { name: 'Additional Equipment', value: equipmentCostsChart, color: [75, 192, 192] },
+          { name: 'Project Costs', value: additionalCostsChart, color: [153, 102, 255] }
+        ].filter(item => item.value > 0);
+
+        // Helper function to draw pie chart
+        const drawPieChart = (data: any[], x: number, y: number, radius: number, title: string) => {
+          const total = data.reduce((sum, item) => sum + item.value, 0);
+          if (total === 0) return y;
+
+          // Title
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(0, 0, 0);
+          doc.text(title, x, y - 10);
+
+          let startAngle = 0;
+          const centerX = x + radius;
+          const centerY = y + radius + 10;
+
+          data.forEach((item, index) => {
+            const angle = (item.value / total) * 2 * Math.PI;
+            const endAngle = startAngle + angle;
+
+            // Draw arc (approximated with lines)
+            const steps = Math.max(10, Math.floor(angle * 20));
+            doc.setFillColor(item.color[0], item.color[1], item.color[2]);
+            
+            for (let i = 0; i <= steps; i++) {
+              const currentAngle = startAngle + (angle * i / steps);
+              const nextAngle = startAngle + (angle * (i + 1) / steps);
+              
+              if (i < steps) {
+                const x1 = centerX + radius * Math.cos(currentAngle);
+                const y1 = centerY + radius * Math.sin(currentAngle);
+                const x2 = centerX + radius * Math.cos(nextAngle);
+                const y2 = centerY + radius * Math.sin(nextAngle);
+                
+                doc.triangle(centerX, centerY, x1, y1, x2, y2, 'F');
+              }
+            }
+
+            startAngle = endAngle;
+          });
+
+          // Legend
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          let legendY = y + 10;
+          data.forEach((item, index) => {
+            const percentage = ((item.value / total) * 100).toFixed(1);
+            doc.setFillColor(item.color[0], item.color[1], item.color[2]);
+            doc.rect(x + radius * 2 + 10, legendY - 3, 5, 3, 'F');
+            doc.setTextColor(0, 0, 0);
+            doc.text(`${item.name}: ${percentage}%`, x + radius * 2 + 20, legendY);
+            legendY += 8;
+          });
+
+          return Math.max(y + radius * 2 + 20, legendY + 10);
+        };
+
+        // Helper function to draw bar chart
+        const drawBarChart = (data: any[], x: number, y: number, width: number, height: number, title: string, currency: string) => {
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(0, 0, 0);
+          doc.text(title, x, y - 10);
+
+          if (data.length === 0) return y + height + 30;
+
+          const maxValue = Math.max(...data.map(item => item.value));
+          const barWidth = width / data.length * 0.8;
+          const barSpacing = width / data.length * 0.2;
+
+          // Draw axes
+          doc.setDrawColor(0, 0, 0);
+          doc.line(x, y + height, x + width, y + height); // X-axis
+          doc.line(x, y, x, y + height); // Y-axis
+
+          data.forEach((item, index) => {
+            const barHeight = (item.value / maxValue) * height * 0.9;
+            const barX = x + (index * (barWidth + barSpacing)) + barSpacing / 2;
+            const barY = y + height - barHeight;
+
+            // Draw bar
+            doc.setFillColor(item.color[0], item.color[1], item.color[2]);
+            doc.rect(barX, barY, barWidth, barHeight, 'F');
+
+            // Draw value on top
+            doc.setFontSize(8);
+            doc.setTextColor(0, 0, 0);
+            const valueText = item.value >= 1000000 ? 
+              `${currency} ${(item.value / 1000000).toFixed(1)}M` : 
+              `${currency} ${item.value.toLocaleString()}`;
+            doc.text(valueText, barX + barWidth / 2, barY - 2, { align: 'center' });
+
+            // Draw label
+            doc.text(item.name, barX + barWidth / 2, y + height + 8, { align: 'center', maxWidth: barWidth });
+          });
+
+          return y + height + 30;
+        };
+
+        // Draw charts
+        let chartY = yPos;
+
+        // 1. Product Yield Breakdown (Pie Chart)
+        if (productYieldData.length > 0) {
+          chartY = drawPieChart(productYieldData, margin, chartY, 30, 'Product Yield Breakdown (%)');
+          chartY += 20;
+        }
+
+        // 2. Revenue by Product (Bar Chart)
+        if (revenueData.length > 0) {
+          checkPageBreak(100);
+          if (yPos > chartY - 20) chartY = yPos;
+          chartY = drawBarChart(revenueData, margin, chartY, 160, 60, `Annual Revenue by Product (${roiData.currency})`, roiData.currency || 'USD');
+          chartY += 20;
+        }
+
+        // 3. Operating Cost Breakdown (Pie Chart)
+        if (operatingCostData.length > 0) {
+          checkPageBreak(80);
+          if (yPos > chartY - 20) chartY = yPos;
+          chartY = drawPieChart(operatingCostData, margin, chartY, 30, `Monthly Operating Costs (${roiData.currency})`);
+          chartY += 20;
+        }
+
+        // 4. CAPEX Allocation (Bar Chart)
+        if (capexData.length > 0) {
+          checkPageBreak(100);
+          if (yPos > chartY - 20) chartY = yPos;
+          chartY = drawBarChart(capexData, margin, chartY, 160, 60, `CAPEX Allocation (${roiData.currency})`, roiData.currency || 'USD');
+        }
+
+        yPos = chartY + 20;
+
+        // Summary table
+        checkPageBreak(60);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 102, 204);
+        doc.text('FINANCIAL SUMMARY TABLE', margin, yPos);
+        yPos += 10;
+
+        // Draw table
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+
+        const tableData = [
+          ['Metric', 'Value', 'Unit'],
+          ['Plant Capacity', capacity.toLocaleString(), 'LPH'],
+          ['Operating Days', operatingDays.toString(), 'days/month'],
+          ['Annual Processing', annualTons.toFixed(0), 'tons/year'],
+          ['Total CAPEX', (projectCostLocalChart + tankCostsChart + utilityCostsChart + equipmentCostsChart + additionalCostsChart).toLocaleString(), roiData.currency || 'USD'],
+          ['Monthly OpEx', (feedstockCostMonthly + parseFloat(roiData.powerCost || '0') + parseFloat(roiData.fuelCost || '0') + parseFloat(roiData.chemicalCost || '0') + parseFloat(roiData.laborCost || '0') + parseFloat(roiData.maintenanceCost || '0')).toLocaleString(), `${roiData.currency || 'USD'}/month`],
+          ['Annual Revenue', revenueData.reduce((sum, item) => sum + item.value, 0).toLocaleString(), `${roiData.currency || 'USD'}/year`],
+          ['Product Yield', productYieldData.reduce((sum, item) => sum + item.value, 0).toFixed(1), '%'],
+          ['ROI', calculations?.annualROI?.toFixed(1) || 'N/A', '%'],
+          ['Payback Period', calculations?.paybackPeriod?.toFixed(1) || 'N/A', 'years']
+        ];
+
+        // Draw table borders and content
+        const colWidths = [60, 50, 40];
+        const rowHeight = 8;
+        let tableX = margin;
+        let tableY = yPos;
+
+        tableData.forEach((row, rowIndex) => {
+          let cellX = tableX;
+          row.forEach((cell, colIndex) => {
+            // Draw cell border
+            doc.rect(cellX, tableY, colWidths[colIndex], rowHeight);
+            
+            // Set header styling
+            if (rowIndex === 0) {
+              doc.setFont('helvetica', 'bold');
+              doc.setFillColor(240, 240, 240);
+              doc.rect(cellX, tableY, colWidths[colIndex], rowHeight, 'F');
+            } else {
+              doc.setFont('helvetica', 'normal');
+            }
+            
+            // Add text
+            doc.text(cell, cellX + 2, tableY + 5);
+            cellX += colWidths[colIndex];
+          });
+          tableY += rowHeight;
+        });
+
+        yPos = tableY + 10;
+
         // Note about report completeness
         doc.setFontSize(9);
         doc.setFont('helvetica', 'italic');
-        doc.text('This report includes all user inputs from Steps 1-6 of the ROI Calculator.', margin, yPos);
+        doc.text('This comprehensive report includes all user inputs, calculations, and visual analysis from the ROI Calculator.', margin, yPos);
         yPos += 4;
-        doc.text('Financial calculations are based on the specific values entered in each step.', margin, yPos);
+        doc.text('Charts and tables reflect real-time values based on your specific project configuration.', margin, yPos);
 
         // Footer
         doc.setFontSize(8);
