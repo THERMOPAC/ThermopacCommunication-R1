@@ -1086,8 +1086,8 @@ export default function MarketingToolsPage() {
         description: "Compressor",
         specification: `${Math.round(plantCapacityLPH * 20 / 1000)} HP`,
         quantity: 1,
-        unitCostUSD: Math.round(plantCapacityLPH * 20 / 1000) * 1500,
-        totalCost: Math.round(plantCapacityLPH * 20 / 1000) * 1500
+        unitCostUSD: Math.round(plantCapacityLPH * 20 / 1000) * 500,
+        totalCost: Math.round(plantCapacityLPH * 20 / 1000) * 500
       },
       {
         description: "Heater",
