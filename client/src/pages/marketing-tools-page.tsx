@@ -2004,27 +2004,27 @@ export default function MarketingToolsPage() {
         const revenueData = [
           { 
             name: 'Naphtha/Gas Oil', 
-            value: (parseFloat(roiData.naphthaGasOilPrice || '0') / exchangeRate) * (annualTons * parseFloat(roiData.naphthaGasOilYield || '0') / 100),
+            value: parseFloat(roiData.naphthaGasOilPrice || '0') * (annualTons * parseFloat(roiData.naphthaGasOilYield || '0') / 100),
             color: [255, 99, 132]
           },
           { 
             name: 'Light Base Oil', 
-            value: (parseFloat(roiData.lightBaseOilPrice || '0') / exchangeRate) * (annualTons * parseFloat(roiData.lightBaseOilYield || '0') / 100),
+            value: parseFloat(roiData.lightBaseOilPrice || '0') * (annualTons * parseFloat(roiData.lightBaseOilYield || '0') / 100),
             color: [54, 162, 235]
           },
           { 
             name: 'Heavy Base Oil', 
-            value: (parseFloat(roiData.heavyBaseOilPrice || '0') / exchangeRate) * (annualTons * parseFloat(roiData.heavyBaseOilYield || '0') / 100),
+            value: parseFloat(roiData.heavyBaseOilPrice || '0') * (annualTons * parseFloat(roiData.heavyBaseOilYield || '0') / 100),
             color: [255, 205, 86]
           },
           { 
             name: 'Residue', 
-            value: (parseFloat(roiData.residuePrice || '0') / exchangeRate) * (annualTons * parseFloat(roiData.residueYield || '0') / 100),
+            value: parseFloat(roiData.residuePrice || '0') * (annualTons * parseFloat(roiData.residueYield || '0') / 100),
             color: [75, 192, 192]
           },
           { 
             name: 'Waste Water', 
-            value: (parseFloat(roiData.wasteWaterPrice || '0') / exchangeRate) * (annualTons * parseFloat(roiData.wasteWaterYield || '0') / 100),
+            value: parseFloat(roiData.wasteWaterPrice || '0') * (annualTons * parseFloat(roiData.wasteWaterYield || '0') / 100),
             color: [153, 102, 255]
           }
         ].filter(item => item.value > 0);
