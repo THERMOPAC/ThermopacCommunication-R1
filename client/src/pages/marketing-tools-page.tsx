@@ -2395,7 +2395,32 @@ export default function MarketingToolsPage() {
         // P&L Calculations
         const grossProfit = plTotalRevenue - annualFeedstockCost;
         const ebitda = grossProfit - totalOperatingExpenses;
-        const netProfit = ebitda; // Assuming no interest, taxes, depreciation for this calculation
+        
+        // Calculate financing costs and depreciation for realistic Net Profit
+        const totalProjectInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts;
+        const debtRatio = parseFloat(roiData.debtFinancingRatio) || 70;
+        const debtAmount = totalProjectInvestment * (debtRatio / 100);
+        const monthlyInterestRate = (parseFloat(roiData.rateOfInterest) || 0.5) / 100;
+        const annualDebtInterest = debtAmount * monthlyInterestRate * 12;
+        
+        // Working capital interest
+        const plantOperatingDays = parseFloat(roiData.plantOperationDays) || 30;
+        const workingCapital = feedstockCostPerLiter * plantCapacity * 24 * plantOperatingDays;
+        const annualWorkingCapitalInterest = workingCapital * monthlyInterestRate * 12;
+        
+        const totalAnnualFinancingCosts = annualDebtInterest + annualWorkingCapitalInterest;
+        
+        // Calculate depreciation
+        const depreciableAssets = totalProjectInvestment - (parseFloat(roiData.plotCost) || 0); // Exclude land
+        const depreciationMethod = roiData.depreciationMethod || 'straight-line';
+        let annualDepreciation = 0;
+        if (depreciationMethod === 'straight-line') {
+          annualDepreciation = depreciableAssets / 10; // 10-year life
+        } else if (depreciationMethod === 'declining-balance') {
+          annualDepreciation = depreciableAssets * 0.20; // 20% declining balance
+        }
+        
+        const netProfit = ebitda - totalAnnualFinancingCosts - annualDepreciation;
 
         // P&L Statement Table
         const plStatementData = [
@@ -2419,6 +2444,14 @@ export default function MarketingToolsPage() {
           { label: '  Maintenance Cost', value: annualMaintenanceCost, indent: true },
           { label: '', value: '', isSpacing: true },
           { label: 'EBITDA', value: ebitda, isBold: true, isTotal: true },
+          { label: '', value: '', isSpacing: true },
+          { label: 'FINANCING COSTS', value: totalAnnualFinancingCosts, isBold: true, isHeader: true },
+          { label: '  Interest on Debt', value: annualDebtInterest, indent: true },
+          { label: '  Working Capital Interest', value: annualWorkingCapitalInterest, indent: true },
+          { label: '', value: '', isSpacing: true },
+          { label: 'DEPRECIATION', value: annualDepreciation, isBold: true, isHeader: true },
+          { label: `  ${depreciationMethod === 'straight-line' ? 'Straight-line (10 years)' : depreciationMethod === 'declining-balance' ? 'Declining Balance (20%)' : 'No Depreciation'}`, value: annualDepreciation, indent: true },
+          { label: '', value: '', isSpacing: true },
           { label: 'NET PROFIT', value: netProfit, isBold: true, isTotal: true, isFinal: true }
         ];
 
@@ -2503,6 +2536,7 @@ export default function MarketingToolsPage() {
 
         const grossMargin = plTotalRevenue > 0 ? (grossProfit / plTotalRevenue * 100) : 0;
         const netMargin = plTotalRevenue > 0 ? (netProfit / plTotalRevenue * 100) : 0;
+        const ebitdaMargin = plTotalRevenue > 0 ? (ebitda / plTotalRevenue * 100) : 0;
         const plAnnualROI = parseFloat(roiData.annualROI || '0');
         const plPaybackPeriod = parseFloat(roiData.paybackPeriod || '0');
 
