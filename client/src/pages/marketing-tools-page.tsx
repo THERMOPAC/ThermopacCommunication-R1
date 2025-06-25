@@ -2670,18 +2670,17 @@ export default function MarketingToolsPage() {
 
           let cellX = plTableX;
           
-          // Set background color for headers and totals
+          // Description cell - set background color based on row type
           if (item.isHeader) {
             doc.setFillColor(230, 240, 250);
           } else if (item.isTotal) {
-            doc.setFillColor(240, 240, 240);
+            doc.setFillColor(242, 242, 242); // Light gray for Gross Profit and EBITDA
           } else if (item.isFinal) {
             doc.setFillColor(200, 230, 200);
           } else {
             doc.setFillColor(255, 255, 255);
           }
           
-          // Description cell
           doc.rect(cellX, plTableY, plColWidths[0], plRowHeight, 'F');
           doc.rect(cellX, plTableY, plColWidths[0], plRowHeight);
           doc.setFontSize(item.isBold ? 9 : 8);
@@ -2690,13 +2689,20 @@ export default function MarketingToolsPage() {
           doc.text(item.label, textX, plTableY + 7);
           cellX += plColWidths[0];
           
-          // Amount cell (right-aligned)
+          // Amount cell - ALWAYS white background with dark text
+          doc.setFillColor(255, 255, 255); // Force white background for amount column
           doc.rect(cellX, plTableY, plColWidths[1], plRowHeight, 'F');
           doc.rect(cellX, plTableY, plColWidths[1], plRowHeight);
-          if (item.value !== '') {
-            const valueText = typeof item.value === 'number' ? item.value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : item.value;
-            const valueWidth = doc.getTextWidth(valueText);
-            doc.text(valueText, cellX + plColWidths[1] - valueWidth - 2, plTableY + 7);
+          doc.setTextColor(0, 0, 0); // Force dark text
+          
+          if (item.value !== '' && typeof item.value === 'number') {
+            // Format currency value properly
+            const formattedValue = Math.abs(item.value) > 1000000 
+              ? (item.value / 1000000).toFixed(1) + 'M'
+              : item.value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            
+            const valueWidth = doc.getTextWidth(formattedValue);
+            doc.text(formattedValue, cellX + plColWidths[1] - valueWidth - 2, plTableY + 7);
           }
           
           plTableY += plRowHeight;
