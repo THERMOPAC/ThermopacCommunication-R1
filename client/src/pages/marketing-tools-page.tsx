@@ -3271,47 +3271,47 @@ export default function MarketingToolsPage() {
         ];
 
         // Sensitivity table headers
-        const sensHeaders = ['Scenario', 'ROI Impact (%)', 'New ROI (%)', 'Assessment'];
-        const sensColWidths = [70, 30, 30, 50];
-        let sensTableY = yPosition;
+        const pdfSensHeaders = ['Scenario', 'ROI Impact (%)', 'New ROI (%)', 'Assessment'];
+        const pdfSensColWidths = [70, 30, 30, 50];
+        let pdfSensTableY = yPosition;
 
         // Draw sensitivity table header
-        let sensHeaderX = margin;
-        sensHeaders.forEach((header, colIndex) => {
+        let pdfSensHeaderX = margin;
+        pdfSensHeaders.forEach((header, colIndex) => {
           doc.setFillColor(240, 240, 240);
-          doc.rect(sensHeaderX, sensTableY, sensColWidths[colIndex], 10, 'F');
-          doc.rect(sensHeaderX, sensTableY, sensColWidths[colIndex], 10);
+          doc.rect(pdfSensHeaderX, pdfSensTableY, pdfSensColWidths[colIndex], 10, 'F');
+          doc.rect(pdfSensHeaderX, pdfSensTableY, pdfSensColWidths[colIndex], 10);
           doc.setFontSize(9);
           doc.setFont('helvetica', 'bold');
-          doc.text(header, sensHeaderX + 2, sensTableY + 7);
-          sensHeaderX += sensColWidths[colIndex];
+          doc.text(header, pdfSensHeaderX + 2, pdfSensTableY + 7);
+          pdfSensHeaderX += pdfSensColWidths[colIndex];
         });
-        sensTableY += 10;
+        pdfSensTableY += 10;
 
         // Draw sensitivity data rows
         pdfSensitivityScenarios.forEach((item, rowIndex) => {
-          let sensCellX = margin;
+          let pdfSensCellX = margin;
           const assessment = item.impact > 0 ? 'Positive' : 'Negative';
           const rowData = [item.scenario, item.impact.toFixed(1), item.newROI.toFixed(1), assessment];
           
           rowData.forEach((cellData, colIndex) => {
             doc.setFillColor(255, 255, 255);
-            doc.rect(sensCellX, sensTableY, sensColWidths[colIndex], 8, 'F');
-            doc.rect(sensCellX, sensTableY, sensColWidths[colIndex], 8);
+            doc.rect(pdfSensCellX, pdfSensTableY, pdfSensColWidths[colIndex], 8, 'F');
+            doc.rect(pdfSensCellX, pdfSensTableY, pdfSensColWidths[colIndex], 8);
             doc.setFontSize(8);
             doc.setFont('helvetica', 'normal');
             
             if (colIndex >= 1 && colIndex <= 2) {
               const textWidth = doc.getTextWidth(cellData);
-              doc.text(cellData, sensCellX + sensColWidths[colIndex] - textWidth - 1, sensTableY + 6);
+              doc.text(cellData, pdfSensCellX + pdfSensColWidths[colIndex] - textWidth - 1, pdfSensTableY + 6);
             } else {
-              doc.text(cellData, sensCellX + 1, sensTableY + 6);
+              doc.text(cellData, pdfSensCellX + 1, pdfSensTableY + 6);
             }
-            sensCellX += sensColWidths[colIndex];
+            pdfSensCellX += pdfSensColWidths[colIndex];
           });
-          sensTableY += 8;
+          pdfSensTableY += 8;
         });
-        yPosition = sensTableY + 15;
+        yPosition = pdfSensTableY + 15;
 
         // Working Capital Calculation Breakdown
         doc.setFontSize(11);
@@ -3378,11 +3378,11 @@ export default function MarketingToolsPage() {
         unitTableY += sensRowHeight;
 
         const unitData = [
-          { metric: 'Annual Processing Volume (Liters)', value: annualProcessingVolume.toLocaleString() },
-          { metric: 'Cost per Liter', value: costPerLiter.toFixed(3) },
-          { metric: 'Revenue per Liter', value: revenuePerLiter.toFixed(3) },
-          { metric: 'Profit per Liter', value: profitPerLiter.toFixed(3) },
-          { metric: 'Profit Margin %', value: ((profitPerLiter / revenuePerLiter) * 100).toFixed(1) + '%' }
+          { metric: 'Cost per Liter', value: `${pdfCostPerLiter.toFixed(3)} ${roiData.currency}` },
+          { metric: 'Revenue per Liter', value: `${pdfRevenuePerLiter.toFixed(3)} ${roiData.currency}` },
+          { metric: 'Profit per Liter', value: `${pdfProfitPerLiter.toFixed(3)} ${roiData.currency}` },
+          { metric: 'Annual Processing', value: `${(pdfAnnualProcessingVolume / 1000000).toFixed(1)}M Liters` },
+          { metric: 'Profit Margin', value: `${((pdfProfitPerLiter / pdfRevenuePerLiter) * 100).toFixed(1)}%` }
         ];
 
         // Draw unit data
@@ -3415,15 +3415,86 @@ export default function MarketingToolsPage() {
         doc.text('ANNUAL OPERATING COST ANALYSIS', margin + 5, yPosition);
         yPosition += 20;
 
-        // Create annual operating costs bar chart
-        const annualOpCosts = [
-          { name: 'Feedstock', annual: parseFloat(roiData.feedstockCost || '0') * parseFloat(roiData.capacity || '0') * 24 * parseFloat(roiData.plantOperationDays || '25') * 12 },
-          { name: 'Power', annual: parseFloat(roiData.powerCost || '0') * 12 },
-          { name: 'Fuel', annual: parseFloat(roiData.fuelCost || '0') * 12 },
-          { name: 'Chemicals', annual: parseFloat(roiData.chemicalCost || '0') * 12 },
-          { name: 'Labor', annual: parseFloat(roiData.laborCost || '0') * 12 },
-          { name: 'Maintenance', annual: parseFloat(roiData.maintenanceCost || '0') * 12 }
+        // Calculate cost breakdown for PDF
+        const pdfCostBreakdown = [
+          { name: 'Feedstock', annual: feedstockCostPerLiter * pdfAnnualProcessingVolume },
+          { name: 'Labor', annual: (parseFloat(roiData.laborCost || '0')) * 12 },
+          { name: 'Power', annual: (parseFloat(roiData.powerCost || '0')) * 12 },
+          { name: 'Fuel', annual: (parseFloat(roiData.fuelCost || '0')) * 12 },
+          { name: 'Maintenance', annual: (parseFloat(roiData.maintenanceCost || '0')) * 12 },
+          { name: 'Other Costs', annual: ((parseFloat(roiData.chemicalCost || '0')) + (parseFloat(roiData.mediaCost || '0')) + (parseFloat(roiData.transportationCost || '0')) + (parseFloat(roiData.vehicleMaintenanceCost || '0')) + (parseFloat(roiData.miscellaneousCost || '0'))) * 12 }
         ];
+
+        const pdfTotalAnnualCost = pdfCostBreakdown.reduce((sum, cost) => sum + cost.annual, 0);
+
+        // Cost breakdown table
+        const costHeaders = ['Cost Category', `Annual Cost (${roiData.currency})`, '% of Total', 'Monthly Average'];
+        const costColWidths = [50, 40, 25, 40];
+        let costTableY = yPosition;
+
+        // Draw cost breakdown table header
+        let costHeaderX = margin;
+        costHeaders.forEach((header, colIndex) => {
+          doc.setFillColor(240, 240, 240);
+          doc.rect(costHeaderX, costTableY, costColWidths[colIndex], 10, 'F');
+          doc.rect(costHeaderX, costTableY, costColWidths[colIndex], 10);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.text(header, costHeaderX + 2, costTableY + 7);
+          costHeaderX += costColWidths[colIndex];
+        });
+        costTableY += 10;
+
+        // Draw cost breakdown data rows
+        pdfCostBreakdown.forEach((item, rowIndex) => {
+          let costCellX = margin;
+          const percentage = pdfTotalAnnualCost > 0 ? (item.annual / pdfTotalAnnualCost) * 100 : 0;
+          const monthly = item.annual / 12;
+          const rowData = [
+            item.name,
+            item.annual.toLocaleString(),
+            percentage.toFixed(1) + '%',
+            monthly.toLocaleString()
+          ];
+          
+          rowData.forEach((cellData, colIndex) => {
+            doc.rect(costCellX, costTableY, costColWidths[colIndex], 8);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            
+            if (colIndex >= 1) {
+              const textWidth = doc.getTextWidth(cellData);
+              doc.text(cellData, costCellX + costColWidths[colIndex] - textWidth - 1, costTableY + 6);
+            } else {
+              doc.text(cellData, costCellX + 1, costTableY + 6);
+            }
+            costCellX += costColWidths[colIndex];
+          });
+          costTableY += 8;
+        });
+
+        // Total row
+        let totalCellX = margin;
+        const totalRowData = ['TOTAL', pdfTotalAnnualCost.toLocaleString(), '100.0%', (pdfTotalAnnualCost / 12).toLocaleString()];
+        totalRowData.forEach((cellData, colIndex) => {
+          doc.setFillColor(230, 230, 230);
+          doc.rect(totalCellX, costTableY, costColWidths[colIndex], 8, 'F');
+          doc.rect(totalCellX, costTableY, costColWidths[colIndex], 8);
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          
+          if (colIndex >= 1) {
+            const textWidth = doc.getTextWidth(cellData);
+            doc.text(cellData, totalCellX + costColWidths[colIndex] - textWidth - 1, costTableY + 6);
+          } else {
+            doc.text(cellData, totalCellX + 1, costTableY + 6);
+          }
+          totalCellX += costColWidths[colIndex];
+        });
+        yPosition = costTableY + 20;
+
+        // Create annual operating costs bar chart (legacy visualization)
+        const annualOpCosts = pdfCostBreakdown;
 
         const maxAnnualCost = Math.max(...annualOpCosts.map(c => c.annual));
         const chartHeight = 60;
@@ -3481,6 +3552,110 @@ export default function MarketingToolsPage() {
 
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
+        const operationalAssumptions = [
+          `Plant operates ${operatingDays} days per month (${((operatingDays / 30) * 100).toFixed(1)}% utilization)`,
+          `Plant capacity: ${plantCapacity} liters per hour`,
+          `Working capital calculated as 15 days of feedstock inventory`,
+          `Currency exchange rates are fixed as of analysis date (${roiData.currency})`,
+          `Sensitivity analysis uses ±10% variation on key variables`,
+          `Operating costs include all direct operational expenses`,
+          `Product yields based on industry standard refining processes`
+        ];
+
+        operationalAssumptions.forEach(assumption => {
+          doc.text(`• ${assumption}`, margin + 5, yPosition);
+          yPosition += 6;
+        });
+
+        yPosition += 10;
+
+        // Financial Assumptions
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Financial Assumptions', margin, yPosition);
+        yPosition += 10;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        const financialAssumptions = [
+          `ROI calculated as Annual Profit / Total Investment`,
+          `Payback period calculated using simple payback method`,
+          `Working capital recovery at end of project life`,
+          `All costs are in real terms (inflation not considered)`,
+          `Analysis period: Annual (12 months)`,
+          `Tax considerations: Pre-tax analysis`,
+          `Depreciation: Not included in operating costs`
+        ];
+
+        financialAssumptions.forEach(assumption => {
+          doc.text(`• ${assumption}`, margin + 5, yPosition);
+          yPosition += 6;
+        });
+
+        yPosition += 10;
+
+        // Data Sources & Methodology
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Data Sources & Methodology', margin, yPosition);
+        yPosition += 10;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        const dataSources = [
+          `Plant costs sourced from THERMOPAC engineering database`,
+          `Tank prices based on current supplier quotations`,
+          `Utility costs calculated using standard engineering formulas`,
+          `Product prices based on current market rates (${new Date().toLocaleDateString()})`,
+          `Operating costs derived from industry benchmarks`,
+          `Sensitivity analysis uses ±10% variation on key variables`,
+          `All calculations verified using established financial models`
+        ];
+
+        dataSources.forEach(source => {
+          doc.text(`• ${source}`, margin + 5, yPosition);
+          yPosition += 6;
+        });
+
+        yPosition += 10;
+
+        // Limitations & Disclaimers
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Limitations & Disclaimers', margin, yPosition);
+        yPosition += 10;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        const limitations = [
+          `Environmental compliance costs not included`,
+          `Market volatility impact limited to sensitivity analysis`,
+          `Technology obsolescence risk not quantified`,
+          `Force majeure events not considered`,
+          `Actual results may vary based on operational efficiency`,
+          `Report valid for 6 months from generation date`,
+          `Recommended for feasibility analysis only`
+        ];
+
+        limitations.forEach(limitation => {
+          doc.text(`• ${limitation}`, margin + 5, yPosition);
+          yPosition += 6;
+        });
+
+        yPosition += 15;
+
+        // Report Generation Info
+        doc.setFillColor(240, 240, 240);
+        doc.rect(margin, yPosition, contentWidth, 25, 'F');
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Report Generated: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, margin + 5, yPosition + 8);
+        doc.text(`Generated by: THERMOPAC ROI Calculator v3.0 with Enhanced Analytics`, margin + 5, yPosition + 16);
+        doc.text(`Project ID: ${projectId?.slice(0, 16) || 'N/A'} | Currency: ${roiData.currency}`, margin + 5, yPosition + 24);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
         const assumptions = [
           `Plant operates ${roiData.plantOperationDays || 25} days per month`,
           `Plant capacity: ${roiData.capacity} liters per hour`,
@@ -3506,82 +3681,15 @@ export default function MarketingToolsPage() {
 
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        const financialAssumptions = [
-          `Discount rate for NPV calculation: 10% per annum`,
-          `Tax rate assumed at 25% for post-tax calculations`,
-          `Working capital recovery at end of project life`,
-          `No terminal value included in NPV calculations`,
-          `All costs are in real terms (inflation not considered)`,
-          `ROI calculated as Annual Profit / Total Investment`,
-          `Payback period calculated using simple payback method`
-        ];
 
         financialAssumptions.forEach(assumption => {
           doc.text(`• ${assumption}`, margin + 5, yPosition);
           yPosition += 6;
         });
 
-        yPosition += 10;
+        // Remove duplicate data sources section
 
-        // Data Sources
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Data Sources & Methodology', margin, yPosition);
-        yPosition += 10;
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        const dataSources = [
-          `Plant costs sourced from THERMOPAC engineering database`,
-          `Tank prices based on current supplier quotations`,
-          `Utility costs calculated using standard engineering formulas`,
-          `Product prices based on current market rates`,
-          `Operating costs derived from industry benchmarks`,
-          `Sensitivity analysis uses ±10% variation on key variables`,
-          `All calculations verified using established financial models`
-        ];
-
-        dataSources.forEach(source => {
-          doc.text(`• ${source}`, margin + 5, yPosition);
-          yPosition += 6;
-        });
-
-        yPosition += 10;
-
-        // Exclusions & Limitations
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Exclusions & Limitations', margin, yPosition);
-        yPosition += 10;
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        const exclusions = [
-          `Environmental compliance costs not included`,
-          `Land acquisition costs estimated, actual may vary`,
-          `Permits and licensing fees not detailed`,
-          `Force majeure events not considered`,
-          `Technology obsolescence risk not quantified`,
-          `Market volatility impact limited to sensitivity analysis`,
-          `Report valid for 6 months from generation date`
-        ];
-
-        exclusions.forEach(exclusion => {
-          doc.text(`• ${exclusion}`, margin + 5, yPosition);
-          yPosition += 6;
-        });
-
-        yPosition += 15;
-
-        // Report Generation Info
-        doc.setFillColor(240, 240, 240);
-        doc.rect(margin, yPosition, contentWidth, 25, 'F');
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100, 100, 100);
-        doc.text(`Report Generated: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, margin + 5, yPosition + 8);
-        doc.text(`Generated by: THERMOPAC ROI Calculator v2.0`, margin + 5, yPosition + 16);
-        doc.text(`Project ID: ${projectId?.slice(0, 16) || 'N/A'}`, margin + 5, yPosition + 24);
+        // Remove duplicate sections
         
         // Save the PDF
         doc.save(`Comprehensive_ROI_Report_${roiData.customerName || 'Project'}_${new Date().toISOString().split('T')[0]}.pdf`);
