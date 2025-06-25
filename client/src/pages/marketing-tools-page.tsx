@@ -4587,14 +4587,25 @@ export default function MarketingToolsPage() {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {[
-                                    { name: 'Feedstock', monthly: parseFloat(roiData.feedstockCost) || 0 },
-                                    { name: 'Power', monthly: parseFloat(roiData.powerCost) || 0 },
-                                    { name: 'Fuel', monthly: parseFloat(roiData.fuelCost) || 0 },
-                                    { name: 'Consumables', monthly: parseFloat(roiData.chemicalCost) || 0 },
-                                    { name: 'Labor', monthly: parseFloat(roiData.laborCost) || 0 },
-                                    { name: 'Maintenance', monthly: parseFloat(roiData.maintenanceCost) || 0 }
-                                  ].map((cost, index) => (
+                                  {(() => {
+                                    const plantCapacity = parseFloat(roiData.capacity) || 1000;
+                                    const operatingDaysPerMonth = parseFloat(roiData.plantOperationDays) || 25;
+                                    const feedstockCostPerLiter = parseFloat(roiData.feedstockCost) || 3;
+                                    const chemicalCostPerLiter = parseFloat(roiData.chemicalCost) || 0.005;
+                                    
+                                    // Calculate actual monthly costs
+                                    const monthlyFeedstockCost = feedstockCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth;
+                                    const monthlyChemicalCost = chemicalCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth;
+                                    
+                                    return [
+                                      { name: 'Feedstock', monthly: monthlyFeedstockCost },
+                                      { name: 'Power', monthly: parseFloat(roiData.powerCost) || 0 },
+                                      { name: 'Fuel', monthly: parseFloat(roiData.fuelCost) || 0 },
+                                      { name: 'Consumables', monthly: monthlyChemicalCost },
+                                      { name: 'Labor', monthly: parseFloat(roiData.laborCost) || 0 },
+                                      { name: 'Maintenance', monthly: parseFloat(roiData.maintenanceCost) || 0 }
+                                    ];
+                                  })().map((cost, index) => (
                                     <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                                       <td className="border p-2 font-medium">{cost.name}</td>
                                       <td className="border p-2 text-center">{getCurrencySymbol(roiData.currency)}{cost.monthly.toLocaleString()}</td>
@@ -4603,22 +4614,42 @@ export default function MarketingToolsPage() {
                                   ))}
                                   <tr className="bg-blue-50 font-bold">
                                     <td className="border p-2">Total Operating Costs</td>
-                                    <td className="border p-2 text-center">{getCurrencySymbol(roiData.currency)}{[
-                                      parseFloat(roiData.feedstockCost) || 0,
-                                      parseFloat(roiData.powerCost) || 0,
-                                      parseFloat(roiData.fuelCost) || 0,
-                                      parseFloat(roiData.chemicalCost) || 0,
-                                      parseFloat(roiData.laborCost) || 0,
-                                      parseFloat(roiData.maintenanceCost) || 0
-                                    ].reduce((sum, cost) => sum + cost, 0).toLocaleString()}</td>
-                                    <td className="border p-2 text-center">{getCurrencySymbol(roiData.currency)}{([
-                                      parseFloat(roiData.feedstockCost) || 0,
-                                      parseFloat(roiData.powerCost) || 0,
-                                      parseFloat(roiData.fuelCost) || 0,
-                                      parseFloat(roiData.chemicalCost) || 0,
-                                      parseFloat(roiData.laborCost) || 0,
-                                      parseFloat(roiData.maintenanceCost) || 0
-                                    ].reduce((sum, cost) => sum + cost, 0) * 12).toLocaleString()}</td>
+                                    <td className="border p-2 text-center">{getCurrencySymbol(roiData.currency)}{(() => {
+                                      const plantCapacity = parseFloat(roiData.capacity) || 1000;
+                                      const operatingDaysPerMonth = parseFloat(roiData.plantOperationDays) || 25;
+                                      const feedstockCostPerLiter = parseFloat(roiData.feedstockCost) || 3;
+                                      const chemicalCostPerLiter = parseFloat(roiData.chemicalCost) || 0.005;
+                                      
+                                      const monthlyFeedstockCost = feedstockCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth;
+                                      const monthlyChemicalCost = chemicalCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth;
+                                      
+                                      return [
+                                        monthlyFeedstockCost,
+                                        parseFloat(roiData.powerCost) || 0,
+                                        parseFloat(roiData.fuelCost) || 0,
+                                        monthlyChemicalCost,
+                                        parseFloat(roiData.laborCost) || 0,
+                                        parseFloat(roiData.maintenanceCost) || 0
+                                      ].reduce((sum, cost) => sum + cost, 0);
+                                    })().toLocaleString()}</td>
+                                    <td className="border p-2 text-center">{getCurrencySymbol(roiData.currency)}{(() => {
+                                      const plantCapacity = parseFloat(roiData.capacity) || 1000;
+                                      const operatingDaysPerMonth = parseFloat(roiData.plantOperationDays) || 25;
+                                      const feedstockCostPerLiter = parseFloat(roiData.feedstockCost) || 3;
+                                      const chemicalCostPerLiter = parseFloat(roiData.chemicalCost) || 0.005;
+                                      
+                                      const monthlyFeedstockCost = feedstockCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth;
+                                      const monthlyChemicalCost = chemicalCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth;
+                                      
+                                      return ([
+                                        monthlyFeedstockCost,
+                                        parseFloat(roiData.powerCost) || 0,
+                                        parseFloat(roiData.fuelCost) || 0,
+                                        monthlyChemicalCost,
+                                        parseFloat(roiData.laborCost) || 0,
+                                        parseFloat(roiData.maintenanceCost) || 0
+                                      ].reduce((sum, cost) => sum + cost, 0) * 12).toLocaleString()
+                                    })()}</td>
                                   </tr>
                                 </tbody>
                               </table>
