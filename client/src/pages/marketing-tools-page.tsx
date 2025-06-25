@@ -1464,7 +1464,7 @@ export default function MarketingToolsPage() {
 
   const downloadReport = async (format: 'pdf' | 'excel') => {
     try {
-      console.log('Starting report generation for format:', format);
+      console.log('Starting comprehensive report generation for format:', format);
       
       // Validate critical data before proceeding
       if (!roiData.capacity || !roiData.currency) {
@@ -1708,36 +1708,288 @@ export default function MarketingToolsPage() {
         doc.text(`Profit Margin: ${totalRevenue > 0 ? ((annualProfit / totalRevenue) * 100).toFixed(1) : 0}%`, margin, yPos);
         yPos += 15;
 
-        // Tank Details
+        // Add comprehensive step-by-step user inputs
+        doc.addPage();
+        yPos = 20;
+        
+        // Header for detailed inputs
+        doc.setFillColor(41, 128, 185);
+        doc.rect(0, 0, pageWidth, 20, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('DETAILED USER INPUTS BY STEP', pageWidth/2, 12, { align: 'center' });
+        
+        yPos = 35;
+        doc.setTextColor(0, 0, 0);
+
+        // STEP 1: Plant Configuration
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('STEP 1: PLANT CONFIGURATION', margin, yPos);
+        yPos += 8;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Customer Name: ${roiData.customerName || 'Not specified'}`, margin, yPos);
+        yPos += 5;
+        doc.text(`Project Name: ${roiData.projectName || 'Not specified'}`, margin, yPos);
+        yPos += 5;
+        doc.text(`Plant Capacity: ${roiData.capacity} LPH`, margin, yPos);
+        yPos += 5;
+        doc.text(`Currency: ${roiData.currency}`, margin, yPos);
+        yPos += 5;
+        doc.text(`Plant Operation Days (Monthly): ${roiData.plantOperationDays || 25} days`, margin, yPos);
+        yPos += 5;
+        doc.text(`Working Capital Requirement: ${roiData.currency} ${parseFloat(roiData.workingCapitalRequirement || '0').toLocaleString()}`, margin, yPos);
+        yPos += 5;
+        doc.text(`Project Cost (Local): ${roiData.currency} ${parseFloat(roiData.projectCostLocal || '0').toLocaleString()}`, margin, yPos);
+        yPos += 5;
+        doc.text(`Exchange Rate: ${roiData.exchangeRate || 'N/A'}`, margin, yPos);
+        yPos += 5;
+        doc.text(`Interest Rate on Debt: ${roiData.interestRate || 'N/A'}% annual`, margin, yPos);
+        yPos += 10;
+
+        // Additional cost breakdown from Step 1
+        doc.setFont('helvetica', 'bold');
+        doc.text('Additional Project Costs:', margin, yPos);
+        yPos += 6;
+        doc.setFont('helvetica', 'normal');
+        
+        const additionalCostItems = [
+          { label: 'Freight & Insurance', value: roiData.freightInsurance },
+          { label: 'Import Duty & VAT', value: roiData.importDutyVAT },
+          { label: 'Plot Cost', value: roiData.plotCost },
+          { label: 'Civil Cost', value: roiData.civilCost },
+          { label: 'Refinery Shed', value: roiData.refineryShed },
+          { label: 'Utility Shed', value: roiData.utilityShed },
+          { label: 'Office Building', value: roiData.officeBuilding },
+          { label: 'Mechanical & Electrical', value: roiData.mechanicalElectrical },
+          { label: 'Fire Suppression', value: roiData.fireSuppression },
+          { label: 'Insulation', value: roiData.insulation },
+          { label: 'Legal Fees', value: roiData.legalFees },
+          { label: 'Pre Formation Expenses', value: roiData.preFormationExpenses },
+          { label: 'Commissioning & Travel', value: roiData.commissioningTravel },
+          { label: 'Contingency', value: roiData.contingency }
+        ];
+
+        additionalCostItems.forEach(item => {
+          if (parseFloat(item.value || '0') > 0) {
+            doc.text(`  ${item.label}: ${roiData.currency} ${parseFloat(item.value || '0').toLocaleString()}`, margin + 5, yPos);
+            yPos += 5;
+          }
+        });
+        yPos += 5;
+
+        // STEP 2: Tank Farm & Utilities
+        checkPageBreak(40);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('STEP 2: TANK FARM & UTILITIES', margin, yPos);
+        yPos += 8;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        
         if (roiData.tanks && roiData.tanks.length > 0) {
-          checkPageBreak(40);
-          doc.setFontSize(12);
           doc.setFont('helvetica', 'bold');
-          doc.text('TANK FARM DETAILS', margin, yPos);
-          yPos += 10;
-          
-          doc.setFontSize(9);
+          doc.text('Tank Configuration:', margin, yPos);
+          yPos += 6;
           doc.setFont('helvetica', 'normal');
+          
           roiData.tanks.forEach((tank, index) => {
-            checkPageBreak(8);
-            const tankPrice = tankPrices.find(p => p.capacity === tank.suggestedTankSize)?.priceUSD || 0;
-            const totalCost = tankPrice * tank.suggestedQuantity;
-            doc.text(`${index + 1}. ${tank.description}: ${tank.suggestedQuantity} × ${tank.suggestedTankSize}KL = ${roiData.currency} ${totalCost.toLocaleString()}`, margin, yPos);
-            yPos += 6;
+            doc.text(`  Tank ${index + 1}: ${tank.suggestedQuantity}x ${tank.suggestedTankSize}KL = ${parseFloat(tank.totalCost || '0').toLocaleString()} ${roiData.currency}`, margin + 5, yPos);
+            yPos += 5;
           });
+          yPos += 5;
         }
+
+        if (roiData.utilities && roiData.utilities.length > 0) {
+          doc.setFont('helvetica', 'bold');
+          doc.text('Utilities Configuration:', margin, yPos);
+          yPos += 6;
+          doc.setFont('helvetica', 'normal');
+          
+          roiData.utilities.forEach(utility => {
+            if (utility.name !== 'Total Connected Load') { // Exclude as it's not a cost item
+              doc.text(`  ${utility.name}: ${utility.quantity} ${utility.unit} = ${parseFloat(utility.totalCost || '0').toLocaleString()} ${roiData.currency}`, margin + 5, yPos);
+              yPos += 5;
+            }
+          });
+          yPos += 5;
+        }
+
+        // STEP 3: Additional Equipment
+        checkPageBreak(30);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('STEP 3: ADDITIONAL EQUIPMENT', margin, yPos);
+        yPos += 8;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        
+        const equipmentItems = [
+          { label: 'Additional Pumps, Filters & Cooler', value: roiData.additionalPumpsFilters },
+          { label: 'Tank Level Transmitters & Accessories', value: roiData.tankLevelTransmitters },
+          { label: 'Pipes, Valves & Flanges', value: roiData.pipesValvesFlanges },
+          { label: 'Electrical Cables & Accessories', value: roiData.electricalCablesAccessories },
+          { label: 'PCC & MCC Panels', value: roiData.pccMccPanels },
+          { label: 'Chimney & Ducting', value: roiData.chimneyDucting },
+          { label: 'Cooling Tower', value: roiData.coolingTower },
+          { label: 'Diesel Generator', value: roiData.dieselGenerator },
+          { label: 'Quality Control Equipment', value: roiData.qualityControlEquipment },
+          { label: 'Thermic Fluid', value: roiData.thermicFluid },
+          { label: 'Expansion & Structure', value: roiData.expansionStructure },
+          { label: 'Crane Hire Charges', value: roiData.craneHireCharges },
+          { label: 'Labor Erection & Commissioning', value: roiData.laborErectionCommissioning }
+        ];
+
+        equipmentItems.forEach(item => {
+          if (parseFloat(item.value || '0') > 0) {
+            doc.text(`${item.label}: ${roiData.currency} ${parseFloat(item.value || '0').toLocaleString()}`, margin, yPos);
+            yPos += 5;
+          }
+        });
+        yPos += 5;
+
+        // STEP 4: Operating Costs
+        checkPageBreak(25);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('STEP 4: OPERATING COSTS (MONTHLY)', margin, yPos);
+        yPos += 8;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Feedstock Cost per Liter: ${roiData.currency} ${roiData.feedstockCost || '0'}`, margin, yPos);
+        yPos += 5;
+        doc.text(`Power Cost: ${roiData.currency} ${parseFloat(roiData.powerCost || '0').toLocaleString()}/month`, margin, yPos);
+        yPos += 5;
+        doc.text(`Fuel Cost: ${roiData.currency} ${parseFloat(roiData.fuelCost || '0').toLocaleString()}/month`, margin, yPos);
+        yPos += 5;
+        doc.text(`Consumables Cost: ${roiData.currency} ${parseFloat(roiData.chemicalCost || '0').toLocaleString()}/month`, margin, yPos);
+        yPos += 5;
+        doc.text(`Labor Cost: ${roiData.currency} ${parseFloat(roiData.laborCost || '0').toLocaleString()}/month`, margin, yPos);
+        yPos += 5;
+        doc.text(`Maintenance Cost: ${roiData.currency} ${parseFloat(roiData.maintenanceCost || '0').toLocaleString()}/month`, margin, yPos);
+        yPos += 10;
+
+        // STEP 5: Product Yields & Pricing
+        checkPageBreak(25);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('STEP 5: PRODUCT YIELDS & PRICING', margin, yPos);
+        yPos += 8;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        
+        const productData = [
+          { name: 'Naphtha/Gas Oil', yield: roiData.naphthaGasOilYield, price: roiData.naphthaGasOilPrice },
+          { name: 'Light Base Oil', yield: roiData.lightBaseOilYield, price: roiData.lightBaseOilPrice },
+          { name: 'Heavy Base Oil', yield: roiData.heavyBaseOilYield, price: roiData.heavyBaseOilPrice },
+          { name: 'Residue', yield: roiData.residueYield, price: roiData.residuePrice },
+          { name: 'Waste Water', yield: roiData.wasteWaterYield, price: roiData.wasteWaterPrice },
+          { name: 'Process Loss', yield: roiData.processLossYield, price: '0' }
+        ];
+
+        productData.forEach(product => {
+          if (parseFloat(product.yield || '0') > 0) {
+            doc.text(`${product.name}: ${product.yield}% yield @ ${roiData.currency} ${product.price}/ton`, margin, yPos);
+            yPos += 5;
+          }
+        });
+        yPos += 10;
+
+        // STEP 6: Financial Configuration (if any additional fields exist)
+        checkPageBreak(20);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('STEP 6: FINANCIAL CONFIGURATION', margin, yPos);
+        yPos += 8;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        
+        if (roiData.exchangeRate) {
+          doc.text(`Exchange Rate: ${roiData.exchangeRate}`, margin, yPos);
+          yPos += 5;
+        }
+        if (roiData.interestRate) {
+          doc.text(`Interest Rate on Debt: ${roiData.interestRate}% annual`, margin, yPos);
+          yPos += 5;
+        }
+        if (roiData.workingCapitalRequirement) {
+          doc.text(`Working Capital: ${roiData.currency} ${parseFloat(roiData.workingCapitalRequirement).toLocaleString()}`, margin, yPos);
+          yPos += 5;
+        }
+        yPos += 10;
+
+        // Summary of Total User Inputs
+        checkPageBreak(30);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('CALCULATION SUMMARY', margin, yPos);
+        yPos += 8;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        
+        // Calculate total investment from user inputs
+        const userInputInvestment = parseFloat(roiData.projectCostLocal || '0') + 
+                                   additionalCostItems.reduce((sum, item) => sum + parseFloat(item.value || '0'), 0) +
+                                   equipmentItems.reduce((sum, item) => sum + parseFloat(item.value || '0'), 0) +
+                                   (roiData.tanks || []).reduce((sum, tank) => sum + parseFloat(tank.totalCost || '0'), 0) +
+                                   (roiData.utilities || []).filter(u => u.name !== 'Total Connected Load').reduce((sum, utility) => sum + parseFloat(utility.totalCost || '0'), 0) +
+                                   parseFloat(roiData.workingCapitalRequirement || '0');
+
+        // Calculate total monthly operating costs from user inputs
+        const userMonthlyOperating = parseFloat(roiData.powerCost || '0') +
+                                   parseFloat(roiData.fuelCost || '0') +
+                                   parseFloat(roiData.chemicalCost || '0') +
+                                   parseFloat(roiData.laborCost || '0') +
+                                   parseFloat(roiData.maintenanceCost || '0') +
+                                   (parseFloat(roiData.feedstockCost || '0') * parseFloat(roiData.capacity || '0') * 24 * parseFloat(roiData.plantOperationDays || '25'));
+
+        // Calculate total product yields
+        const totalYield = parseFloat(roiData.naphthaGasOilYield || '0') +
+                          parseFloat(roiData.lightBaseOilYield || '0') +
+                          parseFloat(roiData.heavyBaseOilYield || '0') +
+                          parseFloat(roiData.residueYield || '0') +
+                          parseFloat(roiData.wasteWaterYield || '0') +
+                          parseFloat(roiData.processLossYield || '0');
+
+        doc.text(`Total Investment from All Steps: ${roiData.currency} ${userInputInvestment.toLocaleString()}`, margin, yPos);
+        yPos += 5;
+        doc.text(`Monthly Operating Costs: ${roiData.currency} ${userMonthlyOperating.toLocaleString()}`, margin, yPos);
+        yPos += 5;
+        doc.text(`Annual Operating Costs: ${roiData.currency} ${(userMonthlyOperating * 12).toLocaleString()}`, margin, yPos);
+        yPos += 5;
+        doc.text(`Total Product Yields: ${totalYield.toFixed(1)}%`, margin, yPos);
+        yPos += 5;
+        doc.text(`Plant Utilization: ${roiData.plantOperationDays || 25} days/month`, margin, yPos);
+        yPos += 10;
+
+        // Note about report completeness
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'italic');
+        doc.text('This report includes all user inputs from Steps 1-6 of the ROI Calculator.', margin, yPos);
+        yPos += 4;
+        doc.text('Financial calculations are based on the specific values entered in each step.', margin, yPos);
 
         // Footer
         doc.setFontSize(8);
         doc.setTextColor(128, 128, 128);
         doc.text('Generated by THERMOPAC ROI Calculator', pageWidth/2, pageHeight - 10, { align: 'center' });
+        doc.text('Contains all user inputs from Steps 1-6 with comprehensive financial analysis', pageWidth/2, pageHeight - 5, { align: 'center' });
         
-        const fileName = `ROI_Report_${roiData.customerName}_${new Date().toISOString().split('T')[0]}.pdf`;
+        const fileName = `Comprehensive_ROI_Report_${roiData.customerName || 'Project'}_${new Date().toISOString().split('T')[0]}.pdf`;
         doc.save(fileName);
         
         toast({
           title: 'Comprehensive ROI Report Downloaded',
-          description: `Complete financial analysis with all step data has been generated successfully.`,
+          description: `Complete analysis with all user inputs from every step has been generated successfully.`,
         });
         
         return;
