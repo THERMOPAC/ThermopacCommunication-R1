@@ -194,3 +194,47 @@ export const getRoiProjectProgress = async (req: Request, res: Response) => {
     });
   }
 };
+
+// Delete ROI project API
+export const deleteRoiProject = async (req: Request, res: Response) => {
+  try {
+    const { roiProjectId } = req.params;
+    
+    if (!req.user?.id) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(roiProjectId)) {
+      return res.status(400).json({ error: 'Invalid project ID format' });
+    }
+
+    console.log(`Deleting ROI project ${roiProjectId} for user ${req.user.id}`);
+
+    // Delete all steps for the project
+    const deletedSteps = await db
+      .delete(roiProjectSteps)
+      .where(eq(roiProjectSteps.roiProjectId, roiProjectId))
+      .returning();
+
+    if (deletedSteps.length === 0) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    console.log(`Successfully deleted ${deletedSteps.length} steps for project ${roiProjectId}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Project deleted successfully',
+      deletedSteps: deletedSteps.length
+    });
+
+  } catch (error) {
+    console.error('Error deleting ROI project:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete project',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};

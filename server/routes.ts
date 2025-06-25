@@ -32,7 +32,7 @@ import { setupTestWelderRoute } from "./quality/test-welder-route";
 import { setupApiTestRoutes } from "./api-test-route";
 import { setupDedicatedTestRoutes } from "./dedicated-test-route";
 import { setupSalesMarketingRoutes } from "./sales-marketing-routes";
-import { saveRoiStep, loadRoiProject, getRoiProjectProgress } from "./roi-routes";
+import { saveRoiStep, loadRoiProject, getRoiProjectProgress, deleteRoiProject } from "./roi-routes";
 // Temporarily disable main finance routes due to syntax errors
 // import { default as financeRoutes } from "./finance-routes";
 import { default as financeRoutes } from "./finance-routes-fixed";
@@ -197,6 +197,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  // ROI delete route
+  app.delete('/api/roi/delete-project/:roiProjectId', ensureAuthenticated, deleteRoiProject);
+  
   console.log('ROI Calculator routes registered');
 
   // Register plant costs routes directly here

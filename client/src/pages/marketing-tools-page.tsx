@@ -313,7 +313,7 @@ export default function MarketingToolsPage() {
   const [isTankPriceDialogOpen, setIsTankPriceDialogOpen] = useState(false);
 
   // Fetch saved ROI projects for dropdown
-  const { data: savedProjects } = useQuery({
+  const { data: savedProjects, refetch: refetchProjects } = useQuery({
     queryKey: ['/api/roi/list-projects'],
     queryFn: async () => {
       const response = await fetch('/api/roi/list-projects', {
@@ -5046,6 +5046,55 @@ export default function MarketingToolsPage() {
               disabled={!selectedProjectFromList && !loadProjectId.trim()}
             >
               Load Project
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" />
+              Delete ROI Project
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete this ROI project?
+            </DialogDescription>
+          </DialogHeader>
+          
+          {projectToDelete && (
+            <div className="space-y-4">
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="font-medium text-red-800">{projectToDelete.name}</p>
+                <p className="text-sm text-red-600 mt-1">
+                  This action cannot be undone. All project data and calculations will be permanently removed.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowDeleteDialog(false);
+                setProjectToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={() => {
+                if (projectToDelete) {
+                  deleteProject(projectToDelete.id);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Project
             </Button>
           </DialogFooter>
         </DialogContent>
