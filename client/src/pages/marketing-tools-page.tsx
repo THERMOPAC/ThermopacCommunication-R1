@@ -1121,8 +1121,9 @@ export default function MarketingToolsPage() {
         description: "Total Connected Load",
         specification: `${Math.round(plantCapacityLPH * 350 / 1000)} KVA`,
         quantity: 1,
-        unitCostUSD: Math.round(plantCapacityLPH * 350 / 1000) * 2000,
-        totalCost: Math.round(plantCapacityLPH * 350 / 1000) * 2000
+        unitCostUSD: 0, // Not included in capital cost - used only for power consumption calculation
+        totalCost: 0,
+        note: "Used only for power cost estimation, not added to capital cost"
       }
     ];
 
@@ -3137,14 +3138,29 @@ export default function MarketingToolsPage() {
                           <tbody>
                             {(roiData.utilities || calculatedUtilities).map((utility, index) => (
                               <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                <td className="border border-gray-300 px-3 py-2 font-medium">{utility.description}</td>
+                                <td className="border border-gray-300 px-3 py-2 font-medium">
+                                  {utility.description}
+                                  {utility.note && (
+                                    <div className="text-xs text-gray-500 mt-1 italic">
+                                      {utility.note}
+                                    </div>
+                                  )}
+                                </td>
                                 <td className="border border-gray-300 px-2 py-2 text-center">{utility.specification}</td>
                                 <td className="border border-gray-300 px-2 py-2 text-center">{utility.quantity}</td>
                                 <td className="border border-gray-300 px-2 py-2 text-center text-sm font-medium text-green-600">
-                                  {getCurrencySymbol(roiData.currency)}{(utility.unitCostUSD * (currencies[roiData.currency]?.rate || 1)).toLocaleString()}
+                                  {utility.unitCostUSD === 0 ? (
+                                    <span className="text-gray-400">N/A</span>
+                                  ) : (
+                                    `${getCurrencySymbol(roiData.currency)}${(utility.unitCostUSD * (currencies[roiData.currency]?.rate || 1)).toLocaleString()}`
+                                  )}
                                 </td>
                                 <td className="border border-gray-300 px-2 py-2 text-center text-sm font-bold text-blue-600">
-                                  {getCurrencySymbol(roiData.currency)}{(utility.totalCost * (currencies[roiData.currency]?.rate || 1)).toLocaleString()}
+                                  {utility.totalCost === 0 ? (
+                                    <span className="text-gray-400">N/A</span>
+                                  ) : (
+                                    `${getCurrencySymbol(roiData.currency)}${(utility.totalCost * (currencies[roiData.currency]?.rate || 1)).toLocaleString()}`
+                                  )}
                                 </td>
                               </tr>
                             ))}
@@ -3156,11 +3172,11 @@ export default function MarketingToolsPage() {
                           <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-orange-900">Total Utilities Cost:</span>
                             <span className="text-lg font-bold text-orange-900">
-                              {getCurrencySymbol(roiData.currency)}{((roiData.utilities || calculatedUtilities).reduce((total, utility) => total + utility.totalCost, 0) * (currencies[roiData.currency]?.rate || 1)).toLocaleString()}
+                              {getCurrencySymbol(roiData.currency)}{((roiData.utilities || calculatedUtilities).filter(utility => utility.description !== "Total Connected Load").reduce((total, utility) => total + utility.totalCost, 0) * (currencies[roiData.currency]?.rate || 1)).toLocaleString()}
                             </span>
                           </div>
                           <div className="text-xs text-orange-700 mt-1">
-                            Sum of {(roiData.utilities || calculatedUtilities).length} utility configurations
+                            Sum of {(roiData.utilities || calculatedUtilities).filter(utility => utility.description !== "Total Connected Load").length} utility configurations (excluding Total Connected Load)
                           </div>
                         </div>
                       </div>
@@ -3172,12 +3188,12 @@ export default function MarketingToolsPage() {
                           <span className="text-xl font-bold text-green-900">
                             {getCurrencySymbol(roiData.currency)}{(
                               (roiData.tanks.reduce((total, tank) => total + (getTankPrice(tank.suggestedTankSize) * tank.suggestedQuantity), 0) * (currencies[roiData.currency]?.rate || 1)) +
-                              ((roiData.utilities || calculatedUtilities).reduce((total, utility) => total + utility.totalCost, 0) * (currencies[roiData.currency]?.rate || 1))
+                              ((roiData.utilities || calculatedUtilities).filter(utility => utility.description !== "Total Connected Load").reduce((total, utility) => total + utility.totalCost, 0) * (currencies[roiData.currency]?.rate || 1))
                             ).toLocaleString()}
                           </span>
                         </div>
                         <div className="text-xs text-green-700 mt-1">
-                          Complete Step 2 investment breakdown in {roiData.currency}
+                          Complete Step 2 investment breakdown in {roiData.currency} (Total Connected Load excluded - used for power calculations only)
                         </div>
                       </div>
                     </div>
