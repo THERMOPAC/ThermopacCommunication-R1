@@ -2574,62 +2574,198 @@ export default function MarketingToolsPage() {
 
         yPos = productTableY + 25;
 
-        // Financial Results Section (Step 7)
-        checkPageBreak(80);
+        // PROFIT & LOSS STATEMENT SECTION (Step 7)
+        checkPageBreak(150);
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 102, 204);
+        doc.text('PROFIT & LOSS STATEMENT (ANNUAL)', margin, yPos);
+        yPos += 15;
+
+        // Calculate P&L values
+        const plPlantCapacity = parseFloat(roiData.capacity || '0');
+        const operatingDays = 30; // Monthly operating days
+        const annualProcessing = plPlantCapacity * 24 * operatingDays * 12; // Annual processing in liters
+
+        // Revenue Calculations (Step 5 data)
+        const naphthaRevenue = (annualProcessing * parseFloat(roiData.naphthaGasOilYield || '0') / 100) * parseFloat(roiData.naphthaGasOilPrice || '0') / 1000;
+        const lightBaseOilRevenue = (annualProcessing * parseFloat(roiData.lightBaseOilYield || '0') / 100) * parseFloat(roiData.lightBaseOilPrice || '0') / 1000;
+        const heavyBaseOilRevenue = (annualProcessing * parseFloat(roiData.heavyBaseOilYield || '0') / 100) * parseFloat(roiData.heavyBaseOilPrice || '0') / 1000;
+        const residueRevenue = (annualProcessing * parseFloat(roiData.residueYield || '0') / 100) * parseFloat(roiData.residuePrice || '0') / 1000;
+        const wasteWaterRevenue = (annualProcessing * parseFloat(roiData.wasteWaterYield || '0') / 100) * parseFloat(roiData.wasteWaterPrice || '0') / 1000;
+        
+        const plTotalRevenue = naphthaRevenue + lightBaseOilRevenue + heavyBaseOilRevenue + residueRevenue + wasteWaterRevenue;
+
+        // Cost of Goods Sold (COGS) - Feedstock cost
+        const plFeedstockCostPerLiter = parseFloat(roiData.feedstockCost || '0');
+        const annualFeedstockCost = annualProcessing * plFeedstockCostPerLiter;
+
+        // Operating Expenses (Step 4 data - annual values)
+        const annualPowerCost = parseFloat(roiData.powerCost || '0') * 12;
+        const annualFuelCost = parseFloat(roiData.fuelCost || '0') * 12;
+        const annualChemicalCost = parseFloat(roiData.chemicalCost || '0') * 12;
+        const annualLaborCost = parseFloat(roiData.laborCost || '0') * 12;
+        const annualMaintenanceCost = parseFloat(roiData.maintenanceCost || '0') * 12;
+        
+        const totalOperatingExpenses = annualPowerCost + annualFuelCost + annualChemicalCost + annualLaborCost + annualMaintenanceCost;
+
+        // P&L Calculations
+        const grossProfit = plTotalRevenue - annualFeedstockCost;
+        const ebitda = grossProfit - totalOperatingExpenses;
+        const netProfit = ebitda; // Assuming no interest, taxes, depreciation for this calculation
+
+        // P&L Statement Table
+        const plStatementData = [
+          { label: 'REVENUE', value: plTotalRevenue, isBold: true, isHeader: true },
+          { label: '  Naphtha / Gas Oil', value: naphthaRevenue, indent: true },
+          { label: '  Light Base Oil', value: lightBaseOilRevenue, indent: true },
+          { label: '  Heavy Base Oil', value: heavyBaseOilRevenue, indent: true },
+          { label: '  Residue', value: residueRevenue, indent: true },
+          { label: '  Waste Water', value: wasteWaterRevenue, indent: true },
+          { label: '', value: '', isSpacing: true },
+          { label: 'COST OF GOODS SOLD', value: annualFeedstockCost, isBold: true, isHeader: true },
+          { label: '  Feedstock Cost', value: annualFeedstockCost, indent: true },
+          { label: '', value: '', isSpacing: true },
+          { label: 'GROSS PROFIT', value: grossProfit, isBold: true, isTotal: true },
+          { label: '', value: '', isSpacing: true },
+          { label: 'OPERATING EXPENSES', value: totalOperatingExpenses, isBold: true, isHeader: true },
+          { label: '  Power Cost', value: annualPowerCost, indent: true },
+          { label: '  Fuel Cost', value: annualFuelCost, indent: true },
+          { label: '  Chemical Cost', value: annualChemicalCost, indent: true },
+          { label: '  Labor Cost', value: annualLaborCost, indent: true },
+          { label: '  Maintenance Cost', value: annualMaintenanceCost, indent: true },
+          { label: '', value: '', isSpacing: true },
+          { label: 'EBITDA', value: ebitda, isBold: true, isTotal: true },
+          { label: 'NET PROFIT', value: netProfit, isBold: true, isTotal: true, isFinal: true }
+        ];
+
+        // P&L Table
+        const plHeaders = ['Description', `Amount (${roiData.currency || 'USD'})`];
+        const plColWidths = [120, 60];
+        const plRowHeight = 10;
+        let plTableX = margin;
+        let plTableY = yPos;
+
+        // Draw header row
+        let plHeaderX = plTableX;
+        plHeaders.forEach((header, colIndex) => {
+          doc.setFillColor(40, 60, 120);
+          doc.rect(plHeaderX, plTableY, plColWidths[colIndex], plRowHeight, 'F');
+          doc.rect(plHeaderX, plTableY, plColWidths[colIndex], plRowHeight);
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(255, 255, 255);
+          doc.text(header, plHeaderX + 2, plTableY + 7);
+          plHeaderX += plColWidths[colIndex];
+        });
+        plTableY += plRowHeight;
+
+        // Draw P&L rows
+        doc.setTextColor(0, 0, 0);
+        plStatementData.forEach((item, rowIndex) => {
+          if (item.isSpacing) {
+            plTableY += 5;
+            return;
+          }
+
+          let cellX = plTableX;
+          
+          // Set background color for headers and totals
+          if (item.isHeader) {
+            doc.setFillColor(230, 240, 250);
+          } else if (item.isTotal) {
+            doc.setFillColor(240, 240, 240);
+          } else if (item.isFinal) {
+            doc.setFillColor(200, 230, 200);
+          } else {
+            doc.setFillColor(255, 255, 255);
+          }
+          
+          // Description cell
+          doc.rect(cellX, plTableY, plColWidths[0], plRowHeight, 'F');
+          doc.rect(cellX, plTableY, plColWidths[0], plRowHeight);
+          doc.setFontSize(item.isBold ? 9 : 8);
+          doc.setFont('helvetica', item.isBold ? 'bold' : 'normal');
+          const textX = item.indent ? cellX + 8 : cellX + 2;
+          doc.text(item.label, textX, plTableY + 7);
+          cellX += plColWidths[0];
+          
+          // Amount cell (right-aligned)
+          doc.rect(cellX, plTableY, plColWidths[1], plRowHeight, 'F');
+          doc.rect(cellX, plTableY, plColWidths[1], plRowHeight);
+          if (item.value !== '') {
+            const valueText = typeof item.value === 'number' ? item.value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : item.value;
+            const valueWidth = doc.getTextWidth(valueText);
+            doc.text(valueText, cellX + plColWidths[1] - valueWidth - 2, plTableY + 7);
+          }
+          
+          plTableY += plRowHeight;
+        });
+
+        yPos = plTableY + 20;
+
+        // Financial Ratios & Metrics
+        checkPageBreak(60);
         doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 102, 204);
-        doc.text('FINANCIAL RESULTS & ROI ANALYSIS (STEP 7)', margin, yPos);
+        doc.text('KEY FINANCIAL METRICS', margin, yPos);
         yPos += 15;
 
-        // Financial results data
-        const financialResults = [
-          { label: 'Annual ROI', value: `${parseFloat(roiData.annualROI || '0').toFixed(2)}%` },
-          { label: 'Payback Period', value: `${parseFloat(roiData.paybackPeriod || '0').toFixed(2)} years` },
-          { label: 'Internal Rate of Return (IRR)', value: `${parseFloat(roiData.irr || '0').toFixed(2)}%` },
-          { label: 'Net Present Value (NPV)', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.npv || '0').toLocaleString()}` }
+        const grossMargin = plTotalRevenue > 0 ? (grossProfit / plTotalRevenue * 100) : 0;
+        const netMargin = plTotalRevenue > 0 ? (netProfit / plTotalRevenue * 100) : 0;
+        const plAnnualROI = parseFloat(roiData.annualROI || '0');
+        const plPaybackPeriod = parseFloat(roiData.paybackPeriod || '0');
+
+        const metricsData = [
+          { label: 'Gross Margin', value: `${grossMargin.toFixed(2)}%` },
+          { label: 'Net Margin', value: `${netMargin.toFixed(2)}%` },
+          { label: 'Annual ROI', value: `${annualROI.toFixed(2)}%` },
+          { label: 'Payback Period', value: `${paybackPeriod.toFixed(2)} years` },
+          { label: 'IRR', value: `${parseFloat(roiData.irr || '0').toFixed(2)}%` },
+          { label: 'NPV', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.npv || '0').toLocaleString()}` }
         ];
 
-        // Financial results table
-        const finResultsHeaders = ['Financial Metric', 'Value'];
-        const finResultsColWidths = [100, 70];
-        const finResultsRowHeight = 12;
-        let finResultsTableX = margin;
-        let finResultsTableY = yPos;
+        // Metrics table
+        const metricsHeaders = ['Financial Metric', 'Value'];
+        const metricsColWidths = [90, 70];
+        const metricsRowHeight = 12;
+        let metricsTableX = margin;
+        let metricsTableY = yPos;
 
         // Draw header row
-        let finResultsHeaderX = finResultsTableX;
-        finResultsHeaders.forEach((header, colIndex) => {
+        let metricsHeaderX = metricsTableX;
+        metricsHeaders.forEach((header, colIndex) => {
           doc.setFillColor(240, 240, 240);
-          doc.rect(finResultsHeaderX, finResultsTableY, finResultsColWidths[colIndex], finResultsRowHeight, 'F');
-          doc.rect(finResultsHeaderX, finResultsTableY, finResultsColWidths[colIndex], finResultsRowHeight);
+          doc.rect(metricsHeaderX, metricsTableY, metricsColWidths[colIndex], metricsRowHeight, 'F');
+          doc.rect(metricsHeaderX, metricsTableY, metricsColWidths[colIndex], metricsRowHeight);
           doc.setFontSize(10);
           doc.setFont('helvetica', 'bold');
-          doc.text(header, finResultsHeaderX + 2, finResultsTableY + 8);
-          finResultsHeaderX += finResultsColWidths[colIndex];
+          doc.text(header, metricsHeaderX + 2, metricsTableY + 8);
+          metricsHeaderX += metricsColWidths[colIndex];
         });
-        finResultsTableY += finResultsRowHeight;
+        metricsTableY += metricsRowHeight;
 
-        // Draw financial results rows
+        // Draw metrics rows
         doc.setFont('helvetica', 'normal');
-        financialResults.forEach((result, rowIndex) => {
-          let cellX = finResultsTableX;
+        metricsData.forEach((metric, rowIndex) => {
+          let cellX = metricsTableX;
           
           // Metric name
-          doc.rect(cellX, finResultsTableY, finResultsColWidths[0], finResultsRowHeight);
+          doc.rect(cellX, metricsTableY, metricsColWidths[0], metricsRowHeight);
           doc.setFontSize(9);
-          doc.text(result.label, cellX + 2, finResultsTableY + 8);
-          cellX += finResultsColWidths[0];
+          doc.text(metric.label, cellX + 2, metricsTableY + 8);
+          cellX += metricsColWidths[0];
           
           // Value (right-aligned)
-          doc.rect(cellX, finResultsTableY, finResultsColWidths[1], finResultsRowHeight);
-          const valueWidth = doc.getTextWidth(result.value);
-          doc.text(result.value, cellX + finResultsColWidths[1] - valueWidth - 2, finResultsTableY + 8);
+          doc.rect(cellX, metricsTableY, metricsColWidths[1], metricsRowHeight);
+          const metricValueWidth = doc.getTextWidth(metric.value);
+          doc.text(metric.value, cellX + metricsColWidths[1] - metricValueWidth - 2, metricsTableY + 8);
           
-          finResultsTableY += finResultsRowHeight;
+          metricsTableY += metricsRowHeight;
         });
 
-        yPos = finResultsTableY + 15;
+        yPos = metricsTableY + 15;
 
         // GRAPHICAL SUMMARY SECTION
         checkPageBreak(50);
