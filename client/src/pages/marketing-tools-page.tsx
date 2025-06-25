@@ -1108,14 +1108,14 @@ export default function MarketingToolsPage() {
         unitCostUSD: (() => {
           const totalCapacity = Math.round(plantCapacityLPH * 600);
           if (totalCapacity <= 3000000) {
-            return totalCapacity * 0.5;
+            return totalCapacity * 0.050;
           } else {
             const numHeaters = Math.max(2, Math.ceil(totalCapacity / 2000000));
             const capacityPerHeater = Math.ceil(totalCapacity / numHeaters);
-            return capacityPerHeater * 0.5;
+            return capacityPerHeater * 0.050;
           }
         })(),
-        totalCost: Math.round(plantCapacityLPH * 600) * 0.5
+        totalCost: Math.round(plantCapacityLPH * 600) * 0.050
       },
       {
         description: "Total Connected Load",
