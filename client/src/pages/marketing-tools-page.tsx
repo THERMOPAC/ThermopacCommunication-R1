@@ -1607,20 +1607,12 @@ export default function MarketingToolsPage() {
 
         // Helper function to check if we need a new page
         const checkPageBreak = (requiredSpace: number) => {
-          if (yPos + requiredSpace > pageHeight - 25) { // 25mm bottom margin
+          if (yPos + requiredSpace > pageHeight - 50) {
             doc.addPage();
             yPos = 20;
             return true;
           }
           return false;
-        };
-
-        // Add page numbers in footer
-        const addPageNumber = () => {
-          const pageCount = doc.internal.getNumberOfPages();
-          doc.setFontSize(8);
-          doc.setTextColor(128, 128, 128);
-          doc.text(`Page ${pageCount}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
         };
 
         // Calculate comprehensive financial data
@@ -2803,71 +2795,36 @@ export default function MarketingToolsPage() {
           return y + height + 30;
         };
 
-        // Draw charts with 2-per-page rule
+        // Draw charts
         let chartY = yPos;
-        let chartCount = 0;
-        
-        const drawChartWithPagination = (chartFunction: Function, title: string, height: number) => {
-          // Check if we need new page (2 charts max per page)
-          if (chartCount >= 2 || chartY + height + 40 > pageHeight - 25) {
-            doc.addPage();
-            addPageNumber();
-            chartY = 30;
-            chartCount = 0;
-          }
-          
-          // Draw chart title with consistent formatting
-          doc.setFontSize(12);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(0, 0, 0);
-          doc.text(title, pageWidth/2, chartY, { align: 'center' });
-          chartY += 10;
-          
-          // Draw chart
-          chartY = chartFunction();
-          chartCount++;
-          
-          // Add padding between charts
-          chartY += 15;
-          
-          return chartY;
-        };
 
         // 1. Product Yield Breakdown (Pie Chart)
         if (productYieldData.length > 0) {
-          chartY = drawChartWithPagination(
-            () => drawPieChart(productYieldData, margin, chartY, 30, ''),
-            'Product Yield Breakdown (%)',
-            80
-          );
+          chartY = drawPieChart(productYieldData, margin, chartY, 30, 'Product Yield Breakdown (%)');
+          chartY += 20;
         }
 
         // 2. Revenue by Product (Bar Chart)
         if (revenueData.length > 0) {
-          chartY = drawChartWithPagination(
-            () => drawBarChart(revenueData, margin, chartY, 160, 60, '', roiData.currency || 'USD'),
-            `Annual Revenue by Product (${roiData.currency})`,
-            100
-          );
+          checkPageBreak(100);
+          if (yPos > chartY - 20) chartY = yPos;
+          chartY = drawBarChart(revenueData, margin, chartY, 160, 60, `Annual Revenue by Product (${roiData.currency})`, roiData.currency || 'USD');
+          chartY += 20;
         }
 
         // 3. Operating Cost Breakdown (Pie Chart)
         if (operatingCostData.length > 0) {
-          chartY = drawChartWithPagination(
-            () => drawPieChart(operatingCostData, margin, chartY, 30, ''),
-            `Monthly Operating Costs (${roiData.currency})`,
-            80
-          );
+          checkPageBreak(80);
+          if (yPos > chartY - 20) chartY = yPos;
+          chartY = drawPieChart(operatingCostData, margin, chartY, 30, `Monthly Operating Costs (${roiData.currency})`);
+          chartY += 20;
         }
 
         // 4. CAPEX Allocation (Bar Chart)
         if (capexData.length > 0) {
-          chartY = drawChartWithPagination(
-            () => drawBarChart(capexData, margin, chartY, 160, 60, '', roiData.currency || 'USD'),
-            `CAPEX Allocation (${roiData.currency})`,
-            100
-          );
-        }
+          checkPageBreak(100);
+          if (yPos > chartY - 20) chartY = yPos;
+          chartY = drawBarChart(capexData, margin, chartY, 160, 60, `CAPEX Allocation (${roiData.currency})`, roiData.currency || 'USD');
         }
 
         // NEW PAGE FOR ADDITIONAL CHARTS
@@ -3049,55 +3006,21 @@ export default function MarketingToolsPage() {
           return y + height + 30;
         };
 
-        // Start charts on new page with proper title spacing
+        // Start charts on new page
         doc.addPage();
-        addPageNumber();
-        yPos = 30; // Extra top margin for chart section
+        yPos = 20;
         
-        // Chart section title
-        doc.setFontSize(16);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 102, 204);
-        doc.text('ADVANCED FINANCIAL ANALYSIS CHARTS', pageWidth/2, yPos, { align: 'center' });
-        yPos += 20;
-        
-        // Chart counter for 2-per-page rule
-        let chartsOnPage = 0;
-        
-        // 5. Cash Flow Timeline (Line Chart) - First chart with center alignment
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 0, 0);
-        doc.text(`5-Year Cash Flow Timeline (${roiData.currency})`, pageWidth/2, yPos, { align: 'center' });
-        yPos += 10;
-        
+        // 5. Cash Flow Timeline (Line Chart) - First chart on new page
         let newChartY = yPos;
-        newChartY = drawCashFlowTimeline(margin, newChartY, 160, 80, '');
-        chartsOnPage++;
+        newChartY = drawCashFlowTimeline(margin, newChartY, 160, 80, `5-Year Cash Flow Timeline (${roiData.currency})`);
         
-        // Add padding after first chart
-        newChartY += 15;
-        
-        // 6. ROI Sensitivity Analysis (Tornado Chart) - Second chart
-        if (chartsOnPage >= 2 || newChartY + 120 > pageHeight - 25) {
-          // Start new page if 2 charts reached or won't fit
+        // 6. ROI Sensitivity Analysis (Tornado Chart) - Second chart on same page
+        if (newChartY + 120 > pageHeight - 50) {
+          // If second chart won't fit, start new page
           doc.addPage();
-          addPageNumber();
-          newChartY = 30;
-          chartsOnPage = 0;
+          newChartY = 20;
         }
-        
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 0, 0);
-        doc.text('ROI Sensitivity Analysis (±10% Impact)', pageWidth/2, newChartY, { align: 'center' });
-        newChartY += 10;
-        
-        newChartY = drawSensitivityAnalysis(margin, newChartY, 160, 80, '');
-        chartsOnPage++;
-        
-        // Add padding after chart section
-        newChartY += 20;
+        newChartY = drawSensitivityAnalysis(margin, newChartY + 10, 160, 80, 'ROI Sensitivity Analysis (±10% Impact)');
 
         yPos = newChartY + 20;
 
@@ -3164,21 +3087,11 @@ export default function MarketingToolsPage() {
         yPos += 4;
         doc.text('Charts and tables reflect real-time values based on your specific project configuration.', margin, yPos);
 
-        // Add page numbers to all pages
-        const totalPages = doc.internal.getNumberOfPages();
-        for (let i = 1; i <= totalPages; i++) {
-          doc.setPage(i);
-          doc.setFontSize(8);
-          doc.setTextColor(128, 128, 128);
-          doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
-        }
-        
-        // Footer on last page
-        doc.setPage(totalPages);
+        // Footer
         doc.setFontSize(8);
         doc.setTextColor(128, 128, 128);
-        doc.text('Generated by THERMOPAC ROI Calculator', pageWidth/2, pageHeight - 15, { align: 'center' });
-        doc.text('Contains all user inputs from Steps 1-6 with comprehensive financial analysis', pageWidth/2, pageHeight - 10, { align: 'center' });
+        doc.text('Generated by THERMOPAC ROI Calculator', pageWidth/2, pageHeight - 10, { align: 'center' });
+        doc.text('Contains all user inputs from Steps 1-6 with comprehensive financial analysis', pageWidth/2, pageHeight - 5, { align: 'center' });
         
         const fileName = `Comprehensive_ROI_Report_${roiData.customerName || 'Project'}_${new Date().toISOString().split('T')[0]}.pdf`;
         doc.save(fileName);
@@ -3188,8 +3101,9 @@ export default function MarketingToolsPage() {
           description: `Complete analysis with all user inputs from every step has been generated successfully.`,
         });
         
-      } else if (format === 'excel') {
-        // Calculate current metrics for the report
+        return;
+      }
+      // Calculate current metrics for the report
       const baseCost = parseFloat(roiData.projectCostLocal) || 0;
       const additionalCosts = [
         parseFloat(roiData.freightInsurance) || 0,
@@ -4475,7 +4389,6 @@ export default function MarketingToolsPage() {
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
       }
-      
       
       toast({
         title: `${format.toUpperCase()} Report Downloaded`,
