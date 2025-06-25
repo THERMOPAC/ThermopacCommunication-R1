@@ -170,9 +170,6 @@ const TankPriceEditor = ({ price, onUpdate }: { price: any, onUpdate: (updatedPr
 export default function MarketingToolsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isAutoSaving, setIsAutoSaving] = useState(false);
-  const [projectId, setProjectId] = useState<string | undefined>(undefined);
-  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
   // Load project data from backend
   const loadProjectData = async (projectId: string) => {
@@ -416,20 +413,7 @@ export default function MarketingToolsPage() {
     irr: 0
   });
 
-  // Generate or get existing project ID
-  const getProjectId = () => {
-    if (roiData.roiProjectId) return roiData.roiProjectId;
-    
-    // Generate new UUID for the project
-    const newProjectId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0;
-      const v = c === 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
-    
-    setROIData(prev => ({ ...prev, roiProjectId: newProjectId }));
-    return newProjectId;
-  };
+
 
   // Generate or get project ID
   useEffect(() => {
@@ -5127,6 +5111,7 @@ export default function MarketingToolsPage() {
                             handleDeleteClick(project);
                           }}
                           className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          title="Delete Project"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
