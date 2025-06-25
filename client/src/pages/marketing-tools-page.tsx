@@ -1463,12 +1463,19 @@ export default function MarketingToolsPage() {
           return sum + (tons * product.price);
         }, 0);
 
-        // Operating costs
+        // Operating costs - calculate actual monthly costs
+        const feedstockCostPerLiter = parseFloat(roiData.feedstockCost) || 3;
+        const chemicalCostPerLiter = parseFloat(roiData.chemicalCost) || 0.005;
+        const operatingDaysPerMonth = parseFloat(roiData.plantOperationDays) || 25;
+        
+        const monthlyFeedstockCost = feedstockCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth;
+        const monthlyChemicalCost = chemicalCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth;
+        
         const operatingCosts = [
-          parseFloat(roiData.feedstockCost) || 0,
+          monthlyFeedstockCost,
           parseFloat(roiData.powerCost) || 0,
           parseFloat(roiData.fuelCost) || 0,
-          parseFloat(roiData.chemicalCost) || 0,
+          monthlyChemicalCost,
           parseFloat(roiData.laborCost) || 0,
           parseFloat(roiData.maintenanceCost) || 0
         ].reduce((sum, cost) => sum + cost, 0) * 12;
@@ -1571,11 +1578,18 @@ export default function MarketingToolsPage() {
         
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
+        const operatingDaysPerMonthPdf = parseFloat(roiData.plantOperationDays) || 25;
+        const feedstockCostPerLiterPdf = parseFloat(roiData.feedstockCost) || 3;
+        const chemicalCostPerLiterPdf = parseFloat(roiData.chemicalCost) || 0.005;
+        
+        const monthlyFeedstockCostPdf = feedstockCostPerLiterPdf * plantCapacity * 24 * operatingDaysPerMonthPdf;
+        const monthlyChemicalCostPdf = chemicalCostPerLiterPdf * plantCapacity * 24 * operatingDaysPerMonthPdf;
+        
         const costItems = [
-          { name: 'Feedstock', monthly: parseFloat(roiData.feedstockCost) || 0 },
+          { name: 'Feedstock', monthly: monthlyFeedstockCostPdf },
           { name: 'Power', monthly: parseFloat(roiData.powerCost) || 0 },
           { name: 'Fuel', monthly: parseFloat(roiData.fuelCost) || 0 },
-          { name: 'Chemicals', monthly: parseFloat(roiData.chemicalCost) || 0 },
+          { name: 'Consumables', monthly: monthlyChemicalCostPdf },
           { name: 'Labor', monthly: parseFloat(roiData.laborCost) || 0 },
           { name: 'Maintenance', monthly: parseFloat(roiData.maintenanceCost) || 0 }
         ];
