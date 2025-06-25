@@ -5033,38 +5033,46 @@ export default function MarketingToolsPage() {
                   <SelectContent>
                     {savedProjects.map((project: any) => (
                       <SelectItem key={project.roiProjectId} value={project.roiProjectId}>
-                        <div className="flex items-center justify-between w-full">
-                          <div className="flex flex-col items-start flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">
-                                {project.customerName || 'Unnamed Customer'} - {project.projectName || 'Unnamed Project'}
-                              </span>
-                              <Badge variant="outline" className="text-xs">
-                                {project.completedSteps} steps
-                              </Badge>
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {project.capacity ? `${project.capacity} LPH` : 'No capacity'} • 
-                              Last updated: {new Date(project.lastUpdated).toLocaleDateString()}
-                            </div>
+                        <div className="flex flex-col items-start w-full">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">
+                              {project.customerName || 'Unnamed Customer'} - {project.projectName || 'Unnamed Project'}
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                              {project.completedSteps} steps
+                            </Badge>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteClick(project);
-                            }}
-                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 ml-2"
-                            title="Delete Project"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="text-xs text-muted-foreground">
+                            {project.capacity ? `${project.capacity} LPH` : 'No capacity'} • 
+                            Last updated: {new Date(project.lastUpdated).toLocaleDateString()}
+                          </div>
                         </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                
+                {/* Delete buttons for selected projects */}
+                {selectedProjectFromList && (
+                  <div className="flex items-center justify-between p-2 bg-gray-50 rounded border">
+                    <span className="text-sm text-gray-600">Selected project actions:</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const project = savedProjects.find((p: any) => p.roiProjectId === selectedProjectFromList);
+                        if (project) {
+                          handleDeleteClick(project);
+                        }
+                      }}
+                      className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                      title="Delete Selected Project"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
