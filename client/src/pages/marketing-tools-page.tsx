@@ -1077,12 +1077,13 @@ export default function MarketingToolsPage() {
     }
   };
 
-  // Calculate working capital whenever feedstock cost or capacity changes
+  // Calculate working capital whenever feedstock cost, capacity, or operating days change
   const workingCapital = React.useMemo(() => {
     const feedstockCost = parseFloat(roiData.feedstockCost) || 0;
     const capacity = parseFloat(roiData.capacity) || 0;
-    return feedstockCost * capacity * 24 * 15;
-  }, [roiData.feedstockCost, roiData.capacity]);
+    const operatingDays = parseFloat(roiData.plantOperationDays) || 30;
+    return feedstockCost * capacity * 24 * operatingDays;
+  }, [roiData.feedstockCost, roiData.capacity, roiData.plantOperationDays]);
 
   // Calculate working capital interest
   const workingCapitalInterest = React.useMemo(() => {
@@ -3225,7 +3226,7 @@ export default function MarketingToolsPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Feedstock Cost per Liter (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Label>Feedstock Cost per Liter ({getCurrencySymbol(roiData.currency)})</Label>
                         <Input
                           type="number"
                           step="0.01"
@@ -3233,6 +3234,14 @@ export default function MarketingToolsPage() {
                           onChange={(e) => updateData('feedstockCost', e.target.value)}
                           placeholder="e.g., 0.45"
                         />
+                        <p className="text-xs text-gray-500">
+                          Monthly Cost = {roiData.feedstockCost || '0'} × {roiData.capacity || '0'} LPH × 24 hours × {roiData.plantOperationDays || '30'} days = {getCurrencySymbol(roiData.currency)}{(() => {
+                            const cost = parseFloat(roiData.feedstockCost) || 0;
+                            const capacity = parseFloat(roiData.capacity) || 0;
+                            const days = parseFloat(roiData.plantOperationDays) || 30;
+                            return (cost * capacity * 24 * days).toLocaleString();
+                          })()}
+                        </p>
                       </div>
                       <div className="space-y-2">
                         <Label>Labor Cost (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
@@ -3313,7 +3322,7 @@ export default function MarketingToolsPage() {
                           readOnly
                           className="bg-blue-50 text-center font-semibold"
                         />
-                        <p className="text-xs text-gray-500">Formula: Feedstock Cost × Plant Capacity × 24 hours × 15 days</p>
+                        <p className="text-xs text-gray-500">Formula: Feedstock Cost × Plant Capacity × 24 hours × Operating Days per Month</p>
                       </div>
                       <div className="space-y-2">
                         <Label>Transportation Cost (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
