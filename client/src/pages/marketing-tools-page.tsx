@@ -582,12 +582,20 @@ export default function MarketingToolsPage() {
         };
       case 4:
         return {
+          plantOperationDays: roiData.plantOperationDays,
           feedstockCost: roiData.feedstockCost,
           powerCost: roiData.powerCost,
           fuelCost: roiData.fuelCost,
           chemicalCost: roiData.chemicalCost,
           laborCost: roiData.laborCost,
-          maintenanceCost: roiData.maintenanceCost
+          maintenanceCost: roiData.maintenanceCost,
+          mediaCost: roiData.mediaCost,
+          transportationCost: roiData.transportationCost,
+          vehicleMaintenanceCost: roiData.vehicleMaintenanceCost,
+          miscellaneousCost: roiData.miscellaneousCost,
+          rateOfInterest: roiData.rateOfInterest,
+          debtFinancingRatio: roiData.debtFinancingRatio,
+          depreciationMethod: roiData.depreciationMethod
         };
       case 5:
         return {
