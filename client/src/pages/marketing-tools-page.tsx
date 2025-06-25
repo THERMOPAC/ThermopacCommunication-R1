@@ -2836,7 +2836,7 @@ export default function MarketingToolsPage() {
           ['Annual Revenue', revenueData.reduce((sum, item) => sum + item.value, 0).toLocaleString(), `${roiData.currency || 'USD'}/year`],
           ['Product Yield', productYieldData.reduce((sum, item) => sum + item.value, 0).toFixed(1), '%'],
           ['ROI', roiData.annualROI?.toFixed(1) || 'N/A', '%'],
-          ['Payback Period', (roiData.paybackPeriodMonths || 0).toFixed(1) || 'N/A', 'months']
+          ['Payback Period', (roiData.paybackPeriodMonths || (roiData.paybackPeriod || 0) * 12).toFixed(1) || 'N/A', 'months']
         ];
 
         // Draw table borders and content
@@ -6304,7 +6304,7 @@ export default function MarketingToolsPage() {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-sm text-muted-foreground mb-1">Payback Period</p>
-                              <p className="text-xl font-bold text-orange-600">{(roiData.paybackPeriodMonths || 0).toFixed(1)}</p>
+                              <p className="text-xl font-bold text-orange-600">{(roiData.paybackPeriodMonths || (roiData.paybackPeriod || 0) * 12).toFixed(1)}</p>
                               <p className="text-xs text-muted-foreground">Months (post-financing)</p>
                             </div>
                             <Clock className="h-8 w-8 text-orange-500" />
