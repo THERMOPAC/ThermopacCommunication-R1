@@ -1976,6 +1976,157 @@ export default function MarketingToolsPage() {
         doc.text(`Plant Utilization: ${roiData.plantOperationDays || 25} days/month`, margin, yPos);
         yPos += 15;
 
+        // Project Cost Breakdown Section (Step 1)
+        checkPageBreak(150);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 102, 204);
+        doc.text('PROJECT COST BREAKDOWN (STEP 1)', margin, yPos);
+        yPos += 15;
+
+        // Project Information
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('Project Information', margin, yPos);
+        yPos += 8;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Project Name: ${roiData.projectName || 'Not specified'}`, margin, yPos);
+        yPos += 6;
+        doc.text(`Customer Name: ${roiData.customerName || 'Not specified'}`, margin, yPos);
+        yPos += 6;
+        doc.text(`Plant Capacity: ${roiData.capacity || 0} LPH`, margin, yPos);
+        yPos += 6;
+        doc.text(`Selected Currency: ${roiData.currency || 'USD'}`, margin, yPos);
+        yPos += 10;
+
+        // Base Plant Cost
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Base Plant Cost', margin, yPos);
+        yPos += 8;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        const baseProjectCostUSD = parseFloat(roiData.projectCostUSD) || 0;
+        const baseProjectCostLocal = parseFloat(roiData.projectCostLocal) || 0;
+        doc.text(`Base Plant Cost (USD): ${baseProjectCostUSD.toLocaleString()}`, margin, yPos);
+        yPos += 6;
+        doc.text(`Base Plant Cost (${roiData.currency || 'USD'}): ${baseProjectCostLocal.toLocaleString()}`, margin, yPos);
+        yPos += 10;
+
+        // Additional Project Costs Table
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Additional Project Costs', margin, yPos);
+        yPos += 10;
+
+        // Create table for additional project costs
+        const projectCosts = [
+          { label: 'Freight & Insurance', value: parseFloat(roiData.freightInsurance) || 0 },
+          { label: 'Import Duty & VAT', value: parseFloat(roiData.importDutyVAT) || 0 },
+          { label: 'Plot Cost', value: parseFloat(roiData.plotCost) || 0 },
+          { label: 'Civil Cost', value: parseFloat(roiData.civilCost) || 0 },
+          { label: 'Refinery Shed', value: parseFloat(roiData.refineryShed) || 0 },
+          { label: 'Utility Shed', value: parseFloat(roiData.utilityShed) || 0 },
+          { label: 'Office Building', value: parseFloat(roiData.officeBuilding) || 0 },
+          { label: 'Mechanical & Electrical', value: parseFloat(roiData.mechanicalElectrical) || 0 },
+          { label: 'Fire Suppression System', value: parseFloat(roiData.fireSuppressionSystem) || 0 },
+          { label: 'Insulation Cost', value: parseFloat(roiData.insulationCost) || 0 },
+          { label: 'Legal Fees', value: parseFloat(roiData.legalFees) || 0 },
+          { label: 'Pre Formation Expenses', value: parseFloat(roiData.preFormationExpenses) || 0 },
+          { label: 'Commissioning & Travel', value: parseFloat(roiData.commissioningTravel) || 0 },
+          { label: 'Contingency', value: parseFloat(roiData.contingency) || 0 }
+        ];
+
+        // Table headers
+        const costTableHeaders = ['Cost Component', `Amount (${roiData.currency || 'USD'})`];
+        const costColWidths = [120, 50];
+        const costRowHeight = 10;
+        let costTableX = margin;
+        let costTableY = yPos;
+
+        // Draw header row
+        let costHeaderX = costTableX;
+        costTableHeaders.forEach((header, colIndex) => {
+          doc.setFillColor(240, 240, 240);
+          doc.rect(costHeaderX, costTableY, costColWidths[colIndex], costRowHeight, 'F');
+          doc.rect(costHeaderX, costTableY, costColWidths[colIndex], costRowHeight);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.text(header, costHeaderX + 2, costTableY + 7);
+          costHeaderX += costColWidths[colIndex];
+        });
+        costTableY += costRowHeight;
+
+        // Draw cost rows
+        doc.setFont('helvetica', 'normal');
+        let totalAdditionalCosts = 0;
+        projectCosts.forEach((cost, rowIndex) => {
+          if (cost.value > 0) { // Only show non-zero costs
+            let cellX = costTableX;
+            
+            // Cost component name
+            doc.rect(cellX, costTableY, costColWidths[0], costRowHeight);
+            doc.setFontSize(8);
+            doc.text(cost.label, cellX + 2, costTableY + 7);
+            cellX += costColWidths[0];
+            
+            // Cost amount
+            doc.rect(cellX, costTableY, costColWidths[1], costRowHeight);
+            doc.text(cost.value.toLocaleString(), cellX + 2, costTableY + 7);
+            
+            costTableY += costRowHeight;
+            totalAdditionalCosts += cost.value;
+
+            // Check for page break
+            if (costTableY > pageHeight - 50) {
+              doc.addPage();
+              costTableY = margin + 20;
+              yPos = costTableY;
+            }
+          }
+        });
+
+        // Total row
+        let cellX = costTableX;
+        doc.setFillColor(230, 230, 230);
+        doc.rect(cellX, costTableY, costColWidths[0], costRowHeight, 'F');
+        doc.rect(cellX, costTableY, costColWidths[0], costRowHeight);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Total Additional Costs', cellX + 2, costTableY + 7);
+        cellX += costColWidths[0];
+
+        doc.setFillColor(230, 230, 230);
+        doc.rect(cellX, costTableY, costColWidths[1], costRowHeight, 'F');
+        doc.rect(cellX, costTableY, costColWidths[1], costRowHeight);
+        doc.text(totalAdditionalCosts.toLocaleString(), cellX + 2, costTableY + 7);
+        costTableY += costRowHeight;
+
+        yPos = costTableY + 10;
+
+        // Project Cost Summary
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 102, 204);
+        doc.text('Step 1 Cost Summary', margin, yPos);
+        yPos += 8;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        const totalStep1Cost = baseProjectCostLocal + totalAdditionalCosts;
+        doc.text(`Base Plant Cost: ${roiData.currency || 'USD'} ${baseProjectCostLocal.toLocaleString()}`, margin, yPos);
+        yPos += 6;
+        doc.text(`Additional Costs: ${roiData.currency || 'USD'} ${totalAdditionalCosts.toLocaleString()}`, margin, yPos);
+        yPos += 6;
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Total Step 1 Investment: ${roiData.currency || 'USD'} ${totalStep1Cost.toLocaleString()}`, margin, yPos);
+        yPos += 15;
+
         // Tank Farm & Utilities Cost Breakdown Section
         checkPageBreak(120);
         doc.setFontSize(14);
