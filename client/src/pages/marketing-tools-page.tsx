@@ -322,11 +322,19 @@ export default function MarketingToolsPage() {
       const response = await fetch('/api/roi/list-projects', {
         credentials: 'include',
       });
-      if (!response.ok) throw new Error('Failed to fetch saved projects');
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Authentication required - redirect to login
+          window.location.href = '/login';
+          throw new Error('Authentication required');
+        }
+        throw new Error('Failed to fetch saved projects');
+      }
       const data = await response.json();
       return data.success ? data.projects : [];
     },
     enabled: showLoadDialog, // Only fetch when dialog is open
+    retry: false, // Don't retry on auth failures
   });
   const [roiData, setROIData] = useState<ROIData>({
     roiProjectId: undefined,
