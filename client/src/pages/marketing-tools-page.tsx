@@ -517,60 +517,7 @@ export default function MarketingToolsPage() {
     setShowDeleteDialog(true);
   };
 
-  // Load saved project data
-  const loadProject = async (projectIdToLoad: string) => {
-    try {
-      console.log('Loading project:', projectIdToLoad);
-      const response = await fetch(`/api/roi/load-project/${projectIdToLoad}`, {
-        credentials: 'include',
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Load response:', data);
-        
-        if (data.success && data.steps) {
-          // Merge step data back into roiData
-          const mergedData = { ...roiData };
-          Object.values(data.steps).forEach((stepData: any) => {
-            Object.assign(mergedData, stepData);
-          });
-          
-          // Set the project ID for future saves
-          mergedData.roiProjectId = projectIdToLoad;
-          
-          console.log('Setting merged data:', mergedData);
-          setROIData(mergedData);
-          setProjectId(projectIdToLoad);
-          setCompletedSteps(new Set(Object.keys(data.steps).map(Number)));
-          
-          // Navigate to the next incomplete step (Step 6 for 5 completed steps)
-          const completedStepNumbers = Object.keys(data.steps).map(Number).sort();
-          const nextStep = Math.min(Math.max(...completedStepNumbers) + 1, 7);
-          console.log('Setting current step to:', nextStep);
-          setCurrentStep(nextStep);
-          
-          setShowLoadDialog(false);
-          setLoadProjectId('');
-          setSelectedProjectFromList('');
-          
-          toast({
-            title: 'Project Loaded',
-            description: `Loaded project with ${completedStepNumbers.length} completed steps`,
-          });
-        }
-      } else {
-        throw new Error('Failed to load project');
-      }
-    } catch (error) {
-      console.error('Error loading project:', error);
-      toast({
-        title: 'Load Failed',
-        description: 'Failed to load project. Please check the Project ID.',
-        variant: 'destructive'
-      });
-    }
-  };
+
 
   // Get current step data function
   const getCurrentStepData = () => {
