@@ -980,8 +980,8 @@ export default function MarketingToolsPage() {
             utilityShed: 8.0,           // 8%
             officeBuilding: 5.0,        // 5%
             mechanicalElectrical: 10.0, // 10%
-            fireSuppression: 5.0,       // 5%
-            insulation: 2.0,            // 2%
+            fireSuppressionSystem: 5.0,  // 5%
+            insulationCost: 2.0,         // 2%
             legalFees: 1.0,             // 1%
             preFormationExpenses: 0.5,  // 0.5%
             commissioningTravel: 3.0,   // 3%
