@@ -5032,37 +5032,36 @@ export default function MarketingToolsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {savedProjects.map((project: any) => (
-                      <div key={project.roiProjectId} className="flex items-center justify-between p-2 hover:bg-gray-50">
-                        <div 
-                          className="flex-1 cursor-pointer"
-                          onClick={() => setSelectedProjectFromList(project.roiProjectId)}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">
-                              {project.customerName || 'Unnamed Customer'} - {project.projectName || 'Unnamed Project'}
-                            </span>
-                            <Badge variant="outline" className="text-xs">
-                              {project.completedSteps} steps
-                            </Badge>
+                      <SelectItem key={project.roiProjectId} value={project.roiProjectId}>
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex flex-col items-start flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">
+                                {project.customerName || 'Unnamed Customer'} - {project.projectName || 'Unnamed Project'}
+                              </span>
+                              <Badge variant="outline" className="text-xs">
+                                {project.completedSteps} steps
+                              </Badge>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {project.capacity ? `${project.capacity} LPH` : 'No capacity'} • 
+                              Last updated: {new Date(project.lastUpdated).toLocaleDateString()}
+                            </div>
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            {project.capacity ? `${project.capacity} LPH` : 'No capacity'} • 
-                            Last updated: {new Date(project.lastUpdated).toLocaleDateString()}
-                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteClick(project);
+                            }}
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 ml-2"
+                            title="Delete Project"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClick(project);
-                          }}
-                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                          title="Delete Project"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
