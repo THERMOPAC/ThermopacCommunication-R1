@@ -4490,8 +4490,6 @@ export default function MarketingToolsPage() {
         variant: 'destructive'
       });
     }
-      });
-    }
   };
 
   const handleToolAction = (tool: any) => {
