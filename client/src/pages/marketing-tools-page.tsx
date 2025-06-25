@@ -1745,7 +1745,7 @@ export default function MarketingToolsPage() {
           { name: 'Feedstock', monthly: parseFloat(roiData.feedstockCost) || 0, annual: (parseFloat(roiData.feedstockCost) || 0) * 12 },
           { name: 'Power', monthly: parseFloat(roiData.powerCost) || 0, annual: (parseFloat(roiData.powerCost) || 0) * 12 },
           { name: 'Fuel', monthly: parseFloat(roiData.fuelCost) || 0, annual: (parseFloat(roiData.fuelCost) || 0) * 12 },
-          { name: 'Chemicals', monthly: parseFloat(roiData.chemicalCost) || 0, annual: (parseFloat(roiData.chemicalCost) || 0) * 12 },
+          { name: 'Consumables', monthly: parseFloat(roiData.chemicalCost) || 0, annual: (parseFloat(roiData.chemicalCost) || 0) * 12 },
           { name: 'Labor', monthly: parseFloat(roiData.laborCost) || 0, annual: (parseFloat(roiData.laborCost) || 0) * 12 },
           { name: 'Maintenance', monthly: parseFloat(roiData.maintenanceCost) || 0, annual: (parseFloat(roiData.maintenanceCost) || 0) * 12 }
         ]
@@ -3356,7 +3356,7 @@ export default function MarketingToolsPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Chemical Cost (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Label>Consumables Cost (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
                         <Input
                           type="number"
                           step="0.01"
@@ -4591,7 +4591,7 @@ export default function MarketingToolsPage() {
                                     { name: 'Feedstock', monthly: parseFloat(roiData.feedstockCost) || 0 },
                                     { name: 'Power', monthly: parseFloat(roiData.powerCost) || 0 },
                                     { name: 'Fuel', monthly: parseFloat(roiData.fuelCost) || 0 },
-                                    { name: 'Chemicals', monthly: parseFloat(roiData.chemicalCost) || 0 },
+                                    { name: 'Consumables', monthly: parseFloat(roiData.chemicalCost) || 0 },
                                     { name: 'Labor', monthly: parseFloat(roiData.laborCost) || 0 },
                                     { name: 'Maintenance', monthly: parseFloat(roiData.maintenanceCost) || 0 }
                                   ].map((cost, index) => (

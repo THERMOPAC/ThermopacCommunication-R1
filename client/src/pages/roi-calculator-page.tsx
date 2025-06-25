@@ -419,7 +419,7 @@ export default function ROICalculatorPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="chemicalCost">Chemical Cost per Liter ({getCurrencySymbol(roiData.currency)})</Label>
+                  <Label htmlFor="chemicalCost">Consumables Cost per Liter ({getCurrencySymbol(roiData.currency)})</Label>
                   <Input
                     id="chemicalCost"
                     type="number"
