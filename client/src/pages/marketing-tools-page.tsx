@@ -2209,8 +2209,8 @@ export default function MarketingToolsPage() {
           ['Monthly OpEx', (feedstockCostMonthly + parseFloat(roiData.powerCost || '0') + parseFloat(roiData.fuelCost || '0') + parseFloat(roiData.chemicalCost || '0') + parseFloat(roiData.laborCost || '0') + parseFloat(roiData.maintenanceCost || '0')).toLocaleString(), `${roiData.currency || 'USD'}/month`],
           ['Annual Revenue', revenueData.reduce((sum, item) => sum + item.value, 0).toLocaleString(), `${roiData.currency || 'USD'}/year`],
           ['Product Yield', productYieldData.reduce((sum, item) => sum + item.value, 0).toFixed(1), '%'],
-          ['ROI', calculations?.annualROI?.toFixed(1) || 'N/A', '%'],
-          ['Payback Period', calculations?.paybackPeriod?.toFixed(1) || 'N/A', 'years']
+          ['ROI', roiData.annualROI?.toFixed(1) || 'N/A', '%'],
+          ['Payback Period', roiData.paybackPeriod?.toFixed(1) || 'N/A', 'years']
         ];
 
         // Draw table borders and content
