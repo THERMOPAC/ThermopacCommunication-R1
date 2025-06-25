@@ -1607,7 +1607,7 @@ export default function MarketingToolsPage() {
 
         // Helper function to check if we need a new page
         const checkPageBreak = (requiredSpace: number) => {
-          if (yPos + requiredSpace > pageHeight - 50) {
+          if (yPos + requiredSpace > pageHeight - 80) {
             doc.addPage();
             yPos = 20;
             return true;
@@ -3015,7 +3015,7 @@ export default function MarketingToolsPage() {
         newChartY = drawCashFlowTimeline(margin, newChartY, 160, 80, `5-Year Cash Flow Timeline (${roiData.currency})`);
         
         // 6. ROI Sensitivity Analysis (Tornado Chart) - Second chart on same page
-        if (newChartY + 120 > pageHeight - 50) {
+        if (newChartY + 120 > pageHeight - 80) {
           // If second chart won't fit, start new page
           doc.addPage();
           newChartY = 20;
