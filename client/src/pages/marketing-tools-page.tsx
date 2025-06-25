@@ -2485,14 +2485,32 @@ export default function MarketingToolsPage() {
           { label: 'NET PROFIT', value: netProfitWithFinancing, isBold: true, isTotal: true, isFinal: true }
         ];
 
-        // P&L Table
+        // P&L Table with conditional compact spacing
         const plHeaders = ['Description', `Amount (${roiData.currency || 'USD'})`];
         const plColWidths = [120, 60];
-        const plRowHeight = 10;
+        const plRowHeight = 7; // Reduced from 10 to 7 for compact spacing
         let plTableX = margin;
         let plTableY = yPos;
+        
+        // Check if we need to use compact margins for P&L section
+        const estimatedPLTableHeight = plStatementData.length * plRowHeight + plRowHeight; // +1 for header
+        const needsCompactLayout = yPos + estimatedPLTableHeight > pageHeight - bottomMargin;
+        
+        // Apply conditional compact layout
+        if (needsCompactLayout) {
+          // Start P&L on new page with reduced margins
+          doc.addPage();
+          plTableY = 20; // Reduced top margin from 30mm to 20mm
+          yPos = 20;
+          
+          // Add section title with compact spacing
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text('PROFIT & LOSS STATEMENT (ANNUAL)', margin, plTableY - 5);
+          plTableY += 10; // Reduced spacing after title
+        }
 
-        // Draw header row
+        // Draw header row with conditional spacing
         let plHeaderX = plTableX;
         plHeaders.forEach((header, colIndex) => {
           doc.setFillColor(40, 60, 120);
@@ -2501,26 +2519,55 @@ export default function MarketingToolsPage() {
           doc.setFontSize(10);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(255, 255, 255);
-          doc.text(header, plHeaderX + 2, plTableY + 7);
+          const headerYPos = plTableY + (needsCompactLayout ? 4 : 7);
+          doc.text(header, plHeaderX + 2, headerYPos);
           plHeaderX += plColWidths[colIndex];
         });
         plTableY += plRowHeight;
 
-        // Draw P&L rows
+        // Draw P&L rows with conditional compact layout
         doc.setTextColor(0, 0, 0);
         plStatementData.forEach((item, rowIndex) => {
           if (item.isSpacing) {
-            plTableY += 5;
+            plTableY += needsCompactLayout ? 2 : 5;
             return;
           }
 
           let cellX = plTableX;
           
+          // Enhanced page break check for compact layout
+          const requiredSpace = needsCompactLayout ? 20 : bottomMargin;
+          if (plTableY + plRowHeight > pageHeight - requiredSpace) {
+            doc.addPage();
+            plTableY = needsCompactLayout ? 20 : topMargin;
+            // Redraw header on new page
+            let headerX = plTableX;
+            plHeaders.forEach((header, colIndex) => {
+              doc.setFillColor(40, 60, 120);
+              doc.rect(headerX, plTableY, plColWidths[colIndex], plRowHeight, 'F');
+              doc.rect(headerX, plTableY, plColWidths[colIndex], plRowHeight);
+              doc.setFont('helvetica', 'bold');
+              doc.setTextColor(255, 255, 255);
+              const headerYPos = plTableY + (needsCompactLayout ? 4 : 7);
+              doc.text(header, headerX + 2, headerYPos);
+              headerX += plColWidths[colIndex];
+            });
+            plTableY += plRowHeight;
+            cellX = plTableX;
+          }
+          
+          // Set font size based on row type and compact mode
+          if (needsCompactLayout && !item.isHeader && !item.isTotal && !item.isFinal) {
+            doc.setFontSize(8);
+          } else {
+            doc.setFontSize(item.isBold ? 9 : 8);
+          }
+          
           // Description cell - set background color based on row type
           if (item.isHeader) {
             doc.setFillColor(230, 240, 250);
           } else if (item.isTotal) {
-            doc.setFillColor(242, 242, 242); // Light gray for Gross Profit and EBITDA
+            doc.setFillColor(242, 242, 242);
           } else if (item.isFinal) {
             doc.setFillColor(200, 230, 200);
           } else {
@@ -2529,17 +2576,17 @@ export default function MarketingToolsPage() {
           
           doc.rect(cellX, plTableY, plColWidths[0], plRowHeight, 'F');
           doc.rect(cellX, plTableY, plColWidths[0], plRowHeight);
-          doc.setFontSize(item.isBold ? 9 : 8);
           doc.setFont('helvetica', item.isBold ? 'bold' : 'normal');
           const textX = item.indent ? cellX + 8 : cellX + 2;
-          doc.text(item.label, textX, plTableY + 7);
+          const textYPos = plTableY + (needsCompactLayout ? 4 : 7);
+          doc.text(item.label, textX, textYPos);
           cellX += plColWidths[0];
           
           // Amount cell - ALWAYS white background with dark text
-          doc.setFillColor(255, 255, 255); // Force white background for amount column
+          doc.setFillColor(255, 255, 255);
           doc.rect(cellX, plTableY, plColWidths[1], plRowHeight, 'F');
           doc.rect(cellX, plTableY, plColWidths[1], plRowHeight);
-          doc.setTextColor(0, 0, 0); // Force dark text
+          doc.setTextColor(0, 0, 0);
           
           if (item.value !== '' && typeof item.value === 'number') {
             // Format currency value properly
@@ -2548,7 +2595,7 @@ export default function MarketingToolsPage() {
               : item.value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
             
             const valueWidth = doc.getTextWidth(formattedValue);
-            doc.text(formattedValue, cellX + plColWidths[1] - valueWidth - 2, plTableY + 7);
+            doc.text(formattedValue, cellX + plColWidths[1] - valueWidth - 2, textYPos);
           }
           
           plTableY += plRowHeight;
