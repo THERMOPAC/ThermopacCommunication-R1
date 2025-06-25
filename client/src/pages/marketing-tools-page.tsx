@@ -4012,7 +4012,11 @@ export default function MarketingToolsPage() {
           { name: 'Fuel Cost', monthly: parseFloat(roiData.fuelCost) || 0, annual: (parseFloat(roiData.fuelCost) || 0) * 12, unit: `${currencySymbol}/month` },
           { name: 'Chemical Cost', monthly: parseFloat(roiData.chemicalCost) || 0, annual: (parseFloat(roiData.chemicalCost) || 0) * 12, unit: `${currencySymbol}/month` },
           { name: 'Labor Cost', monthly: parseFloat(roiData.laborCost) || 0, annual: (parseFloat(roiData.laborCost) || 0) * 12, unit: `${currencySymbol}/month` },
-          { name: 'Maintenance Cost', monthly: parseFloat(roiData.maintenanceCost) || 0, annual: (parseFloat(roiData.maintenanceCost) || 0) * 12, unit: `${currencySymbol}/month` }
+          { name: 'Maintenance Cost', monthly: parseFloat(roiData.maintenanceCost) || 0, annual: (parseFloat(roiData.maintenanceCost) || 0) * 12, unit: `${currencySymbol}/month` },
+          { name: 'Media Cost', monthly: parseFloat(roiData.mediaCost) || 0, annual: (parseFloat(roiData.mediaCost) || 0) * 12, unit: `${currencySymbol}/month` },
+          { name: 'Transportation Cost', monthly: parseFloat(roiData.transportationCost) || 0, annual: (parseFloat(roiData.transportationCost) || 0) * 12, unit: `${currencySymbol}/month` },
+          { name: 'Vehicle Maintenance Cost', monthly: parseFloat(roiData.vehicleMaintenanceCost) || 0, annual: (parseFloat(roiData.vehicleMaintenanceCost) || 0) * 12, unit: `${currencySymbol}/month` },
+          { name: 'Miscellaneous Cost', monthly: parseFloat(roiData.miscellaneousCost) || 0, annual: (parseFloat(roiData.miscellaneousCost) || 0) * 12, unit: `${currencySymbol}/month` }
         ];
         
         let totalMonthlyOperatingCost = 0;
