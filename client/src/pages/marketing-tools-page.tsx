@@ -2392,14 +2392,18 @@ export default function MarketingToolsPage() {
         const plFeedstockCostPerLiter = parseFloat(roiData.feedstockCost || '0');
         const annualFeedstockCost = annualProcessing * plFeedstockCostPerLiter;
 
-        // Operating Expenses (Step 4 data - annual values)
+        // Operating Expenses (Step 4 data - annual values) - INCLUDING ALL 10 COST CATEGORIES
         const annualPowerCost = parseFloat(roiData.powerCost || '0') * 12;
         const annualFuelCost = parseFloat(roiData.fuelCost || '0') * 12;
         const annualChemicalCost = parseFloat(roiData.chemicalCost || '0') * 12;
         const annualLaborCost = parseFloat(roiData.laborCost || '0') * 12;
         const annualMaintenanceCost = parseFloat(roiData.maintenanceCost || '0') * 12;
+        const annualMediaCost = parseFloat(roiData.mediaCost || '0') * 12;
+        const annualTransportationCost = parseFloat(roiData.transportationCost || '0') * 12;
+        const annualVehicleMaintenanceCost = parseFloat(roiData.vehicleMaintenanceCost || '0') * 12;
+        const annualMiscellaneousCost = parseFloat(roiData.miscellaneousCost || '0') * 12;
         
-        const totalOperatingExpenses = annualPowerCost + annualFuelCost + annualChemicalCost + annualLaborCost + annualMaintenanceCost;
+        const totalOperatingExpenses = annualPowerCost + annualFuelCost + annualChemicalCost + annualLaborCost + annualMaintenanceCost + annualMediaCost + annualTransportationCost + annualVehicleMaintenanceCost + annualMiscellaneousCost;
 
         // P&L Calculations
         const grossProfit = plTotalRevenue - annualFeedstockCost;
@@ -2454,6 +2458,10 @@ export default function MarketingToolsPage() {
           { label: '  Chemical Cost', value: annualChemicalCost, indent: true },
           { label: '  Labor Cost', value: annualLaborCost, indent: true },
           { label: '  Maintenance Cost', value: annualMaintenanceCost, indent: true },
+          { label: '  Media Cost', value: annualMediaCost, indent: true },
+          { label: '  Transportation Cost', value: annualTransportationCost, indent: true },
+          { label: '  Vehicle Maintenance Cost', value: annualVehicleMaintenanceCost, indent: true },
+          { label: '  Miscellaneous Cost', value: annualMiscellaneousCost, indent: true },
           { label: '', value: '', isSpacing: true },
           { label: 'EBITDA', value: ebitda, isBold: true, isTotal: true },
           { label: '', value: '', isSpacing: true },
