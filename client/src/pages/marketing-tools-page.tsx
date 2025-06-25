@@ -781,6 +781,34 @@ export default function MarketingToolsPage() {
     }
   });
 
+  // Update plant cost mutation
+  const updateCostMutation = useMutation({
+    mutationFn: async (data: { id: number; capacity: number; priceUSD: number }) => {
+      const response = await fetch(`/api/plant-costs/${data.id}`, { 
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json' 
+        },
+        body: JSON.stringify({
+          capacity: data.capacity,
+          priceUSD: data.priceUSD
+        })
+      });
+      if (!response.ok) throw new Error('Failed to update plant cost');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/plant-costs'] });
+      toast({ title: 'Plant cost updated successfully' });
+      setEditingCost(null);
+    },
+    onError: () => {
+      toast({ title: 'Failed to update plant cost', variant: 'destructive' });
+    }
+  });
+
   // Currency exchange rates (USD base rate = 1.0)
   const currencies = {
     USD: { name: 'US Dollar', rate: 1.0, symbol: '$' },
