@@ -3043,8 +3043,8 @@ export default function MarketingToolsPage() {
                             <th className="border border-gray-300 px-2 py-2 text-center font-medium">Required Capacity (KL)</th>
                             <th className="border border-gray-300 px-2 py-2 text-center font-medium">Suggested Tank Size (KL)</th>
                             <th className="border border-gray-300 px-2 py-2 text-center font-medium">Suggested Quantity</th>
-                            <th className="border border-gray-300 px-2 py-2 text-center font-medium">Cost per Tank ($)</th>
-                            <th className="border border-gray-300 px-2 py-2 text-center font-medium">Total Cost ($)</th>
+                            <th className="border border-gray-300 px-2 py-2 text-center font-medium">Cost per Tank ({roiData.currency})</th>
+                            <th className="border border-gray-300 px-2 py-2 text-center font-medium">Total Cost ({roiData.currency})</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -3096,10 +3096,10 @@ export default function MarketingToolsPage() {
                                 />
                               </td>
                               <td className="border border-gray-300 px-2 py-2 text-center text-sm font-medium text-green-600">
-                                ${getTankPrice(tank.suggestedTankSize).toLocaleString()}
+                                {getCurrencySymbol(roiData.currency)}{(getTankPrice(tank.suggestedTankSize) * (currencies[roiData.currency]?.rate || 1)).toLocaleString()}
                               </td>
                               <td className="border border-gray-300 px-2 py-2 text-center text-sm font-bold text-blue-600">
-                                ${(getTankPrice(tank.suggestedTankSize) * tank.suggestedQuantity).toLocaleString()}
+                                {getCurrencySymbol(roiData.currency)}{(getTankPrice(tank.suggestedTankSize) * tank.suggestedQuantity * (currencies[roiData.currency]?.rate || 1)).toLocaleString()}
                               </td>
                             </tr>
                           ))}
@@ -3111,11 +3111,73 @@ export default function MarketingToolsPage() {
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium text-blue-900">Total Tank Cost:</span>
                           <span className="text-lg font-bold text-blue-900">
-                            ${roiData.tanks.reduce((total, tank) => total + (getTankPrice(tank.suggestedTankSize) * tank.suggestedQuantity), 0).toLocaleString()}
+                            {getCurrencySymbol(roiData.currency)}{(roiData.tanks.reduce((total, tank) => total + (getTankPrice(tank.suggestedTankSize) * tank.suggestedQuantity), 0) * (currencies[roiData.currency]?.rate || 1)).toLocaleString()}
                           </span>
                         </div>
                         <div className="text-xs text-blue-700 mt-1">
                           Sum of {roiData.tanks.filter(tank => tank.suggestedQuantity > 0).length} tank configurations
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Utilities Cost Table */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-blue-900">Utilities</h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse border border-gray-300 text-sm">
+                          <thead>
+                            <tr className="bg-gray-50">
+                              <th className="border border-gray-300 px-3 py-2 text-left font-medium">Description</th>
+                              <th className="border border-gray-300 px-2 py-2 text-center font-medium">Specification</th>
+                              <th className="border border-gray-300 px-2 py-2 text-center font-medium">Quantity</th>
+                              <th className="border border-gray-300 px-2 py-2 text-center font-medium">Cost per Unit ({roiData.currency})</th>
+                              <th className="border border-gray-300 px-2 py-2 text-center font-medium">Total Cost ({roiData.currency})</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(roiData.utilities || calculatedUtilities).map((utility, index) => (
+                              <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                <td className="border border-gray-300 px-3 py-2 font-medium">{utility.description}</td>
+                                <td className="border border-gray-300 px-2 py-2 text-center">{utility.specification}</td>
+                                <td className="border border-gray-300 px-2 py-2 text-center">{utility.quantity}</td>
+                                <td className="border border-gray-300 px-2 py-2 text-center text-sm font-medium text-green-600">
+                                  {getCurrencySymbol(roiData.currency)}{(utility.unitCostUSD * (currencies[roiData.currency]?.rate || 1)).toLocaleString()}
+                                </td>
+                                <td className="border border-gray-300 px-2 py-2 text-center text-sm font-bold text-blue-600">
+                                  {getCurrencySymbol(roiData.currency)}{(utility.totalCost * (currencies[roiData.currency]?.rate || 1)).toLocaleString()}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        
+                        {/* Total Utilities Cost Summary */}
+                        <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-orange-900">Total Utilities Cost:</span>
+                            <span className="text-lg font-bold text-orange-900">
+                              {getCurrencySymbol(roiData.currency)}{((roiData.utilities || calculatedUtilities).reduce((total, utility) => total + utility.totalCost, 0) * (currencies[roiData.currency]?.rate || 1)).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="text-xs text-orange-700 mt-1">
+                            Sum of {(roiData.utilities || calculatedUtilities).length} utility configurations
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Combined Tank Farm & Utilities Total */}
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <span className="text-base font-semibold text-green-900">Tank Farm + Utilities Total:</span>
+                          <span className="text-xl font-bold text-green-900">
+                            {getCurrencySymbol(roiData.currency)}{(
+                              (roiData.tanks.reduce((total, tank) => total + (getTankPrice(tank.suggestedTankSize) * tank.suggestedQuantity), 0) * (currencies[roiData.currency]?.rate || 1)) +
+                              ((roiData.utilities || calculatedUtilities).reduce((total, utility) => total + utility.totalCost, 0) * (currencies[roiData.currency]?.rate || 1))
+                            ).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="text-xs text-green-700 mt-1">
+                          Complete Step 2 investment breakdown in {roiData.currency}
                         </div>
                       </div>
                     </div>
