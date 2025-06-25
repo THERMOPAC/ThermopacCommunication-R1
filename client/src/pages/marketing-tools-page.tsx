@@ -1982,7 +1982,9 @@ export default function MarketingToolsPage() {
         doc.setFillColor(230, 230, 230);
         doc.rect(cellX, costTableY, costColWidths[1], costRowHeight, 'F');
         doc.rect(cellX, costTableY, costColWidths[1], costRowHeight);
-        doc.text(totalAdditionalCosts.toLocaleString(), cellX + 2, costTableY + 7);
+        const totalText = totalAdditionalCosts.toLocaleString();
+        const totalWidth = doc.getTextWidth(totalText);
+        doc.text(totalText, cellX + costColWidths[1] - totalWidth - 2, costTableY + 7);
         costTableY += costRowHeight;
 
         yPos = costTableY + 10;
@@ -2070,7 +2072,15 @@ export default function MarketingToolsPage() {
             rowData.forEach((cellData, colIndex) => {
               doc.rect(cellX, tankTableY, tankColWidths[colIndex], tankRowHeight);
               doc.setFontSize(7);
-              doc.text(cellData, cellX + 1, tankTableY + 8, { maxWidth: tankColWidths[colIndex] - 2 });
+              
+              // Right-align numerical columns (% Capacity, Storage Days, Required KL, Tank Size, Quantity, Cost/Tank, Total Cost)
+              if (colIndex >= 1 && cellData) {
+                const textWidth = doc.getTextWidth(cellData);
+                doc.text(cellData, cellX + tankColWidths[colIndex] - textWidth - 1, tankTableY + 8);
+              } else {
+                // Left-align Tank Description
+                doc.text(cellData, cellX + 1, tankTableY + 8, { maxWidth: tankColWidths[colIndex] - 2 });
+              }
               cellX += tankColWidths[colIndex];
             });
             tankTableY += tankRowHeight;
@@ -2137,7 +2147,15 @@ export default function MarketingToolsPage() {
             utilityRowData.forEach((cellData, colIndex) => {
               doc.rect(cellX, utilityTableY, utilityColWidths[colIndex], utilityRowHeight);
               doc.setFontSize(8);
-              doc.text(cellData, cellX + 1, utilityTableY + 8, { maxWidth: utilityColWidths[colIndex] - 2 });
+              
+              // Right-align numerical columns (Quantity, Unit Cost, Total Cost)
+              if (colIndex >= 2 && cellData) {
+                const textWidth = doc.getTextWidth(cellData);
+                doc.text(cellData, cellX + utilityColWidths[colIndex] - textWidth - 1, utilityTableY + 8);
+              } else {
+                // Left-align text columns (Equipment, Specifications)
+                doc.text(cellData, cellX + 1, utilityTableY + 8, { maxWidth: utilityColWidths[colIndex] - 2 });
+              }
               cellX += utilityColWidths[colIndex];
             });
             utilityTableY += utilityRowHeight;
@@ -2251,7 +2269,9 @@ export default function MarketingToolsPage() {
               
               // Equipment cost
               doc.rect(cellX, equipTableY, equipColWidths[1], equipRowHeight);
-              doc.text(equipment.value.toLocaleString(), cellX + 2, equipTableY + 7);
+              const costText = equipment.value.toLocaleString();
+              const costWidth = doc.getTextWidth(costText);
+              doc.text(costText, cellX + equipColWidths[1] - costWidth - 2, equipTableY + 7);
               
               equipTableY += equipRowHeight;
               totalEquipmentCosts += equipment.value;
@@ -2279,7 +2299,9 @@ export default function MarketingToolsPage() {
             doc.setFillColor(230, 230, 230);
             doc.rect(cellX, equipTableY, equipColWidths[1], equipRowHeight, 'F');
             doc.rect(cellX, equipTableY, equipColWidths[1], equipRowHeight);
-            doc.text(totalEquipmentCosts.toLocaleString(), cellX + 2, equipTableY + 7);
+            const totalEquipText = totalEquipmentCosts.toLocaleString();
+            const totalEquipWidth = doc.getTextWidth(totalEquipText);
+            doc.text(totalEquipText, cellX + equipColWidths[1] - totalEquipWidth - 2, equipTableY + 7);
             equipTableY += equipRowHeight;
 
             yPos = equipTableY + 10;
