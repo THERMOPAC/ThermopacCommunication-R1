@@ -1589,6 +1589,41 @@ export default function MarketingToolsPage() {
         // Start directly with detailed tabular sections
         yPos = 50;
 
+        // Define equipment items array for later use in Step 3 section
+        const equipmentItems = [
+          { label: 'Additional Pumps, Filters & Cooler', value: roiData.additionalPumpsFilters },
+          { label: 'Tank Level Transmitters & Accessories', value: roiData.tankLevelTransmitters },
+          { label: 'Pipes, Valves & Flanges', value: roiData.pipesValvesFlanges },
+          { label: 'Electrical Cables & Accessories', value: roiData.electricalCablesAccessories },
+          { label: 'PCC & MCC Panels', value: roiData.pccMccPanels },
+          { label: 'Chimney & Ducting', value: roiData.chimneyDucting },
+          { label: 'Cooling Tower', value: roiData.coolingTower },
+          { label: 'Diesel Generator', value: roiData.dieselGenerator },
+          { label: 'Quality Control Equipment', value: roiData.qualityControlEquipment },
+          { label: 'Thermic Fluid', value: roiData.thermicFluid },
+          { label: 'Expansion & Structure', value: roiData.expansionStructure },
+          { label: 'Crane Hire Charges', value: roiData.craneHireCharges },
+          { label: 'Labor Erection & Commissioning', value: roiData.laborErectionCommissioning }
+        ];
+
+        // Define additional cost items array for later use in Step 1 section
+        const additionalCostItems = [
+          { label: 'Freight & Insurance', value: roiData.freightInsurance },
+          { label: 'Import Duty & VAT', value: roiData.importDutyVAT },
+          { label: 'Plot Cost', value: roiData.plotCost },
+          { label: 'Civil Cost', value: roiData.civilCost },
+          { label: 'Refinery Shed', value: roiData.refineryShed },
+          { label: 'Utility Shed', value: roiData.utilityShed },
+          { label: 'Office Building', value: roiData.officeBuilding },
+          { label: 'Mechanical & Electrical', value: roiData.mechanicalElectrical },
+          { label: 'Fire Suppression', value: roiData.fireSuppression },
+          { label: 'Insulation', value: roiData.insulation },
+          { label: 'Legal Fees', value: roiData.legalFees },
+          { label: 'Pre Formation Expenses', value: roiData.preFormationExpenses },
+          { label: 'Commissioning & Travel', value: roiData.commissioningTravel },
+          { label: 'Contingency', value: roiData.contingency }
+        ];
+
 
 
         // Project Cost Breakdown Section (Step 1)
