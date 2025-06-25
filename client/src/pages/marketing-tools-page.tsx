@@ -6450,21 +6450,6 @@ export default function MarketingToolsPage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-            ) : showLoadDialog ? (
-              <div className="p-4 text-center text-gray-500 border border-dashed rounded-lg">
-                <p className="text-sm">No saved projects found or authentication required.</p>
-                <p className="text-xs mt-1">Please ensure you are logged in to access saved projects.</p>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="mt-2"
-                  onClick={() => window.location.href = '/login'}
-                >
-                  Go to Login
-                </Button>
-              </div>
-            ) : null}
                 
                 {/* Delete buttons for selected projects */}
                 {selectedProjectFromList && (
@@ -6488,7 +6473,20 @@ export default function MarketingToolsPage() {
                   </div>
                 )}
               </div>
-            )}
+            ) : showLoadDialog ? (
+              <div className="p-4 text-center text-gray-500 border border-dashed rounded-lg">
+                <p className="text-sm">No saved projects found or authentication required.</p>
+                <p className="text-xs mt-1">Please ensure you are logged in to access saved projects.</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-2"
+                  onClick={() => window.location.href = '/login'}
+                >
+                  Go to Login
+                </Button>
+              </div>
+            ) : null}
 
             {/* Divider */}
             {savedProjects && savedProjects.length > 0 && (
