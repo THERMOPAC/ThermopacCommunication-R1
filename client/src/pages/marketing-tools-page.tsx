@@ -5397,7 +5397,7 @@ export default function MarketingToolsPage() {
                                 parseFloat(roiData.chemicalCost) || 0,
                                 parseFloat(roiData.maintenanceCost) || 0,
                                 parseFloat(roiData.mediaCost) || 0,
-                                workingCapitalInterest, // Include working capital interest cost
+                                financingCosts.workingCapitalInterest || 0, // Include working capital interest cost
                                 parseFloat(roiData.transportationCost) || 0,
                                 parseFloat(roiData.vehicleMaintenanceCost) || 0,
                                 parseFloat(roiData.miscellaneousCost) || 0
