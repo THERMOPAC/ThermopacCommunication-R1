@@ -2584,8 +2584,8 @@ export default function MarketingToolsPage() {
 
         // Calculate P&L values
         const plPlantCapacity = parseFloat(roiData.capacity || '0');
-        const operatingDays = 30; // Monthly operating days
-        const annualProcessing = plPlantCapacity * 24 * operatingDays * 12; // Annual processing in liters
+        const plOperatingDays = 30; // Monthly operating days
+        const annualProcessing = plPlantCapacity * 24 * plOperatingDays * 12; // Annual processing in liters
 
         // Revenue Calculations (Step 5 data)
         const naphthaRevenue = (annualProcessing * parseFloat(roiData.naphthaGasOilYield || '0') / 100) * parseFloat(roiData.naphthaGasOilPrice || '0') / 1000;
