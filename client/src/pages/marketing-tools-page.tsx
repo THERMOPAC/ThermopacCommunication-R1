@@ -383,7 +383,9 @@ export default function MarketingToolsPage() {
     expansionStructure: '',
     craneHireCharges: '',
     laborErectionCommissioning: '',
-    feedstockCost: '',
+    // Step 4: Operating Costs (with default values)
+    plantOperationDays: '25',
+    feedstockCost: '3',
     powerCost: '',
     fuelCost: '',
     chemicalCost: '',
