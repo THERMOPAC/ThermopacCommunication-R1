@@ -1458,6 +1458,7 @@ export default function MarketingToolsPage() {
     setROIData(prev => ({
       ...prev,
       paybackPeriod: paybackPeriod > 0 ? Math.round(paybackPeriod * 100) / 100 : 0,
+      paybackPeriodMonths: paybackPeriod > 0 ? Math.round(paybackPeriod * 12 * 10) / 10 : 0,
       annualROI: Math.round(annualROI * 100) / 100,
       returnOnEquity: Math.round(returnOnEquity * 100) / 100,
       grossProfit: Math.round(grossProfit),
@@ -2555,7 +2556,7 @@ export default function MarketingToolsPage() {
           { label: 'Gross Margin', value: `${grossMargin.toFixed(2)}%` },
           { label: 'Net Margin', value: `${netMargin.toFixed(2)}%` },
           { label: 'Annual ROI', value: `${plAnnualROI.toFixed(2)}%` },
-          { label: 'Payback Period', value: `${plPaybackPeriod.toFixed(2)} years` },
+          { label: 'Payback Period', value: `${(plPaybackPeriod * 12).toFixed(1)} months` },
           { label: 'IRR', value: `${parseFloat(roiData.irr || '0').toFixed(2)}%` },
           { label: 'NPV', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.npv || '0').toLocaleString()}` }
         ];
@@ -2835,7 +2836,7 @@ export default function MarketingToolsPage() {
           ['Annual Revenue', revenueData.reduce((sum, item) => sum + item.value, 0).toLocaleString(), `${roiData.currency || 'USD'}/year`],
           ['Product Yield', productYieldData.reduce((sum, item) => sum + item.value, 0).toFixed(1), '%'],
           ['ROI', roiData.annualROI?.toFixed(1) || 'N/A', '%'],
-          ['Payback Period', roiData.paybackPeriod?.toFixed(1) || 'N/A', 'years']
+          ['Payback Period', (roiData.paybackPeriodMonths || 0).toFixed(1) || 'N/A', 'months']
         ];
 
         // Draw table borders and content
@@ -3289,7 +3290,7 @@ export default function MarketingToolsPage() {
         doc.setFont('helvetica', 'bold');
         doc.text(`• ROI: ${(reportData.financials?.annualROI || 0).toFixed(1)}%`, margin + 5, yPosition);
         yPosition += 6;
-        doc.text(`• Payback Period: ${(reportData.financials?.paybackPeriod || 0).toFixed(1)} years`, margin + 5, yPosition);
+        doc.text(`• Payback Period: ${((reportData.financials?.paybackPeriod || 0) * 12).toFixed(1)} months`, margin + 5, yPosition);
         yPosition += 6;
         doc.text(`• NPV (5 years): ${getCurrencySymbol(roiData.currency)}${(reportData.financials?.npv || 0).toLocaleString()}`, margin + 5, yPosition);
         yPosition += 6;
@@ -4095,7 +4096,7 @@ export default function MarketingToolsPage() {
           ['Annual Operating Costs', `${currencySymbol}${reportData.financials.operatingCostsAnnual.toLocaleString()}`],
           ['Gross Profit', `${currencySymbol}${reportData.financials.grossProfit.toLocaleString()}`],
           ['Annual ROI', `${reportData.financials.annualROI.toFixed(1)}%`],
-          ['Payback Period', `${reportData.financials.paybackPeriod.toFixed(1)} years`],
+          ['Payback Period', `${(reportData.financials.paybackPeriod * 12).toFixed(1)} months`],
           ['NPV (5 years)', `${currencySymbol}${reportData.financials.npv.toLocaleString()}`],
           ['IRR', `${reportData.financials.irr.toFixed(1)}%`],
           [''],
@@ -6303,8 +6304,8 @@ export default function MarketingToolsPage() {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-sm text-muted-foreground mb-1">Payback Period</p>
-                              <p className="text-xl font-bold text-orange-600">{(roiData.paybackPeriod || 0).toFixed(1)}</p>
-                              <p className="text-xs text-muted-foreground">Years (post-financing)</p>
+                              <p className="text-xl font-bold text-orange-600">{(roiData.paybackPeriodMonths || 0).toFixed(1)}</p>
+                              <p className="text-xs text-muted-foreground">Months (post-financing)</p>
                             </div>
                             <Clock className="h-8 w-8 text-orange-500" />
                           </div>
