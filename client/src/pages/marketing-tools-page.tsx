@@ -6421,8 +6421,8 @@ export default function MarketingToolsPage() {
           </DialogHeader>
           
           <div className="space-y-6">
-            {/* Saved Projects Dropdown */}
-            {savedProjects && savedProjects.length > 0 && (
+            {/* Authentication Check and Saved Projects Dropdown */}
+            {savedProjects && savedProjects.length > 0 ? (
               <div className="space-y-2">
                 <Label htmlFor="savedProjects">Select from Saved Projects</Label>
                 <Select value={selectedProjectFromList} onValueChange={setSelectedProjectFromList}>
@@ -6450,6 +6450,21 @@ export default function MarketingToolsPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            ) : showLoadDialog ? (
+              <div className="p-4 text-center text-gray-500 border border-dashed rounded-lg">
+                <p className="text-sm">No saved projects found or authentication required.</p>
+                <p className="text-xs mt-1">Please ensure you are logged in to access saved projects.</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-2"
+                  onClick={() => window.location.href = '/login'}
+                >
+                  Go to Login
+                </Button>
+              </div>
+            ) : null}
                 
                 {/* Delete buttons for selected projects */}
                 {selectedProjectFromList && (
