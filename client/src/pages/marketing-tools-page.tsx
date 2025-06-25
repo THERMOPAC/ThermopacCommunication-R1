@@ -6261,6 +6261,87 @@ export default function MarketingToolsPage() {
                           </div>
                         </CardContent>
                       </Card>
+                      </div>
+
+                      {/* Additional Financial Metrics */}
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <Card className="bg-emerald-50 border-emerald-200">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">EBITDA</p>
+                                <p className="text-lg font-bold text-emerald-600">{getCurrencySymbol(roiData.currency)}{(roiData.ebitda || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                                <p className="text-xs text-muted-foreground">Before interest & depreciation</p>
+                              </div>
+                              <TrendingUp className="h-6 w-6 text-emerald-500" />
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="bg-amber-50 border-amber-200">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">Return on Equity</p>
+                                <p className="text-lg font-bold text-amber-600">{(roiData.returnOnEquity || 0).toFixed(1)}%</p>
+                                <p className="text-xs text-muted-foreground">On equity investment</p>
+                              </div>
+                              <Percent className="h-6 w-6 text-amber-500" />
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="bg-rose-50 border-rose-200">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">Annual Financing</p>
+                                <p className="text-lg font-bold text-rose-600">{getCurrencySymbol(roiData.currency)}{(roiData.annualFinancingCosts || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                                <p className="text-xs text-muted-foreground">Interest on debt & WC</p>
+                              </div>
+                              <DollarSign className="h-6 w-6 text-rose-500" />
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="bg-slate-50 border-slate-200">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">Annual Depreciation</p>
+                                <p className="text-lg font-bold text-slate-600">{getCurrencySymbol(roiData.currency)}{(roiData.annualDepreciation || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                                <p className="text-xs text-muted-foreground">{roiData.depreciationMethod || 'Straight-line'}</p>
+                              </div>
+                              <BarChart3 className="h-6 w-6 text-slate-500" />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      {/* Financing Structure */}
+                      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                        <CardHeader>
+                          <CardTitle className="text-blue-800">Investment & Financing Structure</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="text-center">
+                              <p className="text-sm text-blue-600 mb-1">Total Investment</p>
+                              <p className="text-2xl font-bold text-blue-800">{getCurrencySymbol(roiData.currency)}{(financingCosts.totalInvestment || 0).toLocaleString()}</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-sm text-blue-600 mb-1">Debt ({roiData.debtFinancingRatio || 70}%)</p>
+                              <p className="text-xl font-bold text-red-700">{getCurrencySymbol(roiData.currency)}{(roiData.debtAmount || 0).toLocaleString()}</p>
+                              <p className="text-xs text-gray-500">@ {roiData.rateOfInterest || 0.5}% monthly</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-sm text-blue-600 mb-1">Equity ({100 - (parseFloat(roiData.debtFinancingRatio) || 70)}%)</p>
+                              <p className="text-xl font-bold text-green-700">{getCurrencySymbol(roiData.currency)}{(roiData.equityAmount || 0).toLocaleString()}</p>
+                              <p className="text-xs text-gray-500">Owner contribution</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
                     </div>
 
                     {/* Charts and Visualizations */}
