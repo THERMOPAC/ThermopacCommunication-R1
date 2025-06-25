@@ -1918,8 +1918,8 @@ export default function MarketingToolsPage() {
           roiData.utilities.forEach((utility, rowIndex) => {
             let cellX = utilityTableX;
             const utilityRowData = [
-              utility.name || '',
-              utility.specifications || '',
+              utility.description || utility.name || '',
+              utility.specification || utility.specifications || '',
               utility.quantity?.toString() || '',
               utility.unitCost ? parseFloat(utility.unitCost).toLocaleString() : '',
               utility.totalCost ? parseFloat(utility.totalCost).toLocaleString() : ''
