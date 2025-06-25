@@ -2556,21 +2556,21 @@ export default function MarketingToolsPage() {
         });
 
         // Total yield row
-        let cellX = productTableX;
+        let totalYieldCellX = productTableX;
         doc.setFillColor(230, 230, 230);
-        doc.rect(cellX, productTableY, productColWidths[0], productRowHeight, 'F');
-        doc.rect(cellX, productTableY, productColWidths[0], productRowHeight);
+        doc.rect(totalYieldCellX, productTableY, productColWidths[0], productRowHeight, 'F');
+        doc.rect(totalYieldCellX, productTableY, productColWidths[0], productRowHeight);
         doc.setFontSize(9);
         doc.setFont('helvetica', 'bold');
-        doc.text('Total Yield', cellX + 2, productTableY + 7);
-        cellX += productColWidths[0];
+        doc.text('Total Yield', totalYieldCellX + 2, productTableY + 7);
+        totalYieldCellX += productColWidths[0];
 
         doc.setFillColor(230, 230, 230);
-        doc.rect(cellX, productTableY, productColWidths[1], productRowHeight, 'F');
-        doc.rect(cellX, productTableY, productColWidths[1], productRowHeight);
+        doc.rect(totalYieldCellX, productTableY, productColWidths[1], productRowHeight, 'F');
+        doc.rect(totalYieldCellX, productTableY, productColWidths[1], productRowHeight);
         const totalYieldText = `${step5TotalYield.toFixed(1)}%`;
         const totalYieldWidth = doc.getTextWidth(totalYieldText);
-        doc.text(totalYieldText, cellX + productColWidths[1] - totalYieldWidth - 2, productTableY + 7);
+        doc.text(totalYieldText, totalYieldCellX + productColWidths[1] - totalYieldWidth - 2, productTableY + 7);
 
         yPos = productTableY + 25;
 
