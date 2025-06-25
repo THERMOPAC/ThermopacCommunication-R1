@@ -3227,6 +3227,92 @@ export default function MarketingToolsPage() {
 
         yPosition = sensTableY + 20;
 
+        // ROI Sensitivity Analysis Section
+        checkPageBreak(100);
+        doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+        doc.rect(margin, yPosition - 5, contentWidth, 10, 'F');
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('ROI SENSITIVITY ANALYSIS', margin + 5, yPosition);
+        yPosition += 20;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Impact of ±10% changes in key variables on financial returns:', margin, yPosition);
+        yPosition += 12;
+
+        // Calculate sensitivity scenarios for PDF
+        const pdfBaseROI = reportData.financials?.annualROI || 0;
+        const pdfBaseRevenue = reportData.financials?.totalRevenue || 0;
+        const pdfBaseOpCosts = reportData.financials?.operatingCostsAnnual || 0;
+        const pdfBaseInvestment = totalInvestment || 1;
+
+        const pdfSensitivityScenarios = [
+          {
+            scenario: 'Product Pricing +10%',
+            impact: ((pdfBaseRevenue * 1.1 - pdfBaseOpCosts) / pdfBaseInvestment * 100) - pdfBaseROI,
+            newROI: ((pdfBaseRevenue * 1.1 - pdfBaseOpCosts) / pdfBaseInvestment * 100)
+          },
+          {
+            scenario: 'Product Pricing -10%',
+            impact: ((pdfBaseRevenue * 0.9 - pdfBaseOpCosts) / pdfBaseInvestment * 100) - pdfBaseROI,
+            newROI: ((pdfBaseRevenue * 0.9 - pdfBaseOpCosts) / pdfBaseInvestment * 100)
+          },
+          {
+            scenario: 'Operating Costs +10%',
+            impact: ((pdfBaseRevenue - pdfBaseOpCosts * 1.1) / pdfBaseInvestment * 100) - pdfBaseROI,
+            newROI: ((pdfBaseRevenue - pdfBaseOpCosts * 1.1) / pdfBaseInvestment * 100)
+          },
+          {
+            scenario: 'Operating Costs -10%',
+            impact: ((pdfBaseRevenue - pdfBaseOpCosts * 0.9) / pdfBaseInvestment * 100) - pdfBaseROI,
+            newROI: ((pdfBaseRevenue - pdfBaseOpCosts * 0.9) / pdfBaseInvestment * 100)
+          }
+        ];
+
+        // Sensitivity table headers
+        const sensHeaders = ['Scenario', 'ROI Impact (%)', 'New ROI (%)', 'Assessment'];
+        const sensColWidths = [70, 30, 30, 50];
+        let sensTableY = yPosition;
+
+        // Draw sensitivity table header
+        let sensHeaderX = margin;
+        sensHeaders.forEach((header, colIndex) => {
+          doc.setFillColor(240, 240, 240);
+          doc.rect(sensHeaderX, sensTableY, sensColWidths[colIndex], 10, 'F');
+          doc.rect(sensHeaderX, sensTableY, sensColWidths[colIndex], 10);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.text(header, sensHeaderX + 2, sensTableY + 7);
+          sensHeaderX += sensColWidths[colIndex];
+        });
+        sensTableY += 10;
+
+        // Draw sensitivity data rows
+        pdfSensitivityScenarios.forEach((item, rowIndex) => {
+          let sensCellX = margin;
+          const assessment = item.impact > 0 ? 'Positive' : 'Negative';
+          const rowData = [item.scenario, item.impact.toFixed(1), item.newROI.toFixed(1), assessment];
+          
+          rowData.forEach((cellData, colIndex) => {
+            doc.setFillColor(255, 255, 255);
+            doc.rect(sensCellX, sensTableY, sensColWidths[colIndex], 8, 'F');
+            doc.rect(sensCellX, sensTableY, sensColWidths[colIndex], 8);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            
+            if (colIndex >= 1 && colIndex <= 2) {
+              const textWidth = doc.getTextWidth(cellData);
+              doc.text(cellData, sensCellX + sensColWidths[colIndex] - textWidth - 1, sensTableY + 6);
+            } else {
+              doc.text(cellData, sensCellX + 1, sensTableY + 6);
+            }
+            sensCellX += sensColWidths[colIndex];
+          });
+          sensTableY += 8;
+        });
+        yPosition = sensTableY + 15;
+
         // Working Capital Calculation Breakdown
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
@@ -3256,20 +3342,22 @@ export default function MarketingToolsPage() {
         doc.text(`Total Working Capital: ${roiData.currency} ${workingCapitalCalculated.toLocaleString()}`, margin, yPosition);
         yPosition += 20;
 
-        // Unit Cost Comparison Table
-        doc.setFontSize(11);
+        // Unit Cost & Profitability Analysis
+        checkPageBreak(80);
+        doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+        doc.rect(margin, yPosition - 5, contentWidth, 10, 'F');
+        doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 102, 204);
-        doc.text('Unit Cost & Profitability Analysis', margin, yPosition);
-        yPosition += 15;
+        doc.text('UNIT COST & PROFITABILITY ANALYSIS', margin + 5, yPosition);
+        yPosition += 20;
 
-        // Calculate unit metrics
-        const annualProcessingVolume = plantCapacity * 24 * operatingDays * 12; // Liters per year
-        const totalAnnualCosts = (reportData.financials?.operatingCostsAnnual || 0);
-        const totalAnnualRevenue = (reportData.financials?.totalRevenue || 0);
-        const costPerLiter = totalAnnualCosts / annualProcessingVolume;
-        const revenuePerLiter = totalAnnualRevenue / annualProcessingVolume;
-        const profitPerLiter = revenuePerLiter - costPerLiter;
+        // Calculate unit metrics for PDF
+        const pdfAnnualProcessingVolume = plantCapacity * 24 * operatingDays * 12; // Liters per year
+        const pdfTotalAnnualCosts = (reportData.financials?.operatingCostsAnnual || 0);
+        const pdfTotalAnnualRevenue = (reportData.financials?.totalRevenue || 0);
+        const pdfCostPerLiter = pdfTotalAnnualCosts / pdfAnnualProcessingVolume;
+        const pdfRevenuePerLiter = pdfTotalAnnualRevenue / pdfAnnualProcessingVolume;
+        const pdfProfitPerLiter = pdfRevenuePerLiter - pdfCostPerLiter;
 
         const unitHeaders = ['Metric', `Value (${roiData.currency})`];
         const unitColWidths = [80, 40];
@@ -3318,12 +3406,14 @@ export default function MarketingToolsPage() {
 
         yPosition = unitTableY + 20;
 
-        // Annualized Operating Cost Trend Chart
-        doc.setFontSize(11);
+        // Annual Operating Cost Analysis
+        checkPageBreak(80);
+        doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+        doc.rect(margin, yPosition - 5, contentWidth, 10, 'F');
+        doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 102, 204);
-        doc.text('Annualized Operating Cost Breakdown', margin, yPosition);
-        yPosition += 15;
+        doc.text('ANNUAL OPERATING COST ANALYSIS', margin + 5, yPosition);
+        yPosition += 20;
 
         // Create annual operating costs bar chart
         const annualOpCosts = [
@@ -3373,14 +3463,13 @@ export default function MarketingToolsPage() {
 
         yPosition += chartHeight + 30;
 
-        // Key Assumptions Section
-        doc.addPage();
-        yPosition = margin;
-        
-        doc.setFontSize(14);
+        // Enhanced Key Assumptions Section
+        checkPageBreak(60);
+        doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+        doc.rect(margin, yPosition - 5, contentWidth, 10, 'F');
+        doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 102, 204);
-        doc.text('KEY ASSUMPTIONS & METHODOLOGY', margin, yPosition);
+        doc.text('KEY ASSUMPTIONS & DATA SOURCES', margin + 5, yPosition);
         yPosition += 20;
 
         // Operational Assumptions
