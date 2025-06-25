@@ -1410,9 +1410,13 @@ export default function MarketingToolsPage() {
       return total + revenue;
     }, 0);
 
-    // Calculate annual operating costs
+    // Calculate annual operating costs - FIXED TO INCLUDE FEEDSTOCK CALCULATION
+    const operatingDaysPerMonth = parseFloat(roiData.plantOperationDays) || 25;
+    const feedstockCostPerLiter = parseFloat(roiData.feedstockCost) || 0;
+    const monthlyFeedstockCost = feedstockCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth;
+    
     const annualOperatingCosts = [
-      parseFloat(roiData.feedstockCost) || 0,
+      monthlyFeedstockCost, // Use calculated feedstock cost, not just per-liter value
       parseFloat(roiData.powerCost) || 0,
       parseFloat(roiData.fuelCost) || 0,
       parseFloat(roiData.chemicalCost) || 0,
@@ -2220,14 +2224,18 @@ export default function MarketingToolsPage() {
         doc.text('OPERATING COSTS BREAKDOWN (STEP 4)', margin, yPos);
         yPos += 15;
 
-        // Operating costs data for Step 4
+        // Operating costs data for Step 4 - INCLUDING ALL COST FIELDS
         const step4OperatingCosts = [
           { label: 'Feedstock Cost per Liter', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.feedstockCost || '0').toLocaleString()}` },
           { label: 'Power Cost (Monthly)', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.powerCost || '0').toLocaleString()}` },
           { label: 'Fuel Cost (Monthly)', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.fuelCost || '0').toLocaleString()}` },
           { label: 'Chemical Cost (Monthly)', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.chemicalCost || '0').toLocaleString()}` },
           { label: 'Labor Cost (Monthly)', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.laborCost || '0').toLocaleString()}` },
-          { label: 'Maintenance Cost (Monthly)', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.maintenanceCost || '0').toLocaleString()}` }
+          { label: 'Maintenance Cost (Monthly)', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.maintenanceCost || '0').toLocaleString()}` },
+          { label: 'Media Cost (Monthly)', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.mediaCost || '0').toLocaleString()}` },
+          { label: 'Transportation Cost (Monthly)', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.transportationCost || '0').toLocaleString()}` },
+          { label: 'Vehicle Maintenance Cost (Monthly)', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.vehicleMaintenanceCost || '0').toLocaleString()}` },
+          { label: 'Miscellaneous Cost (Monthly)', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.miscellaneousCost || '0').toLocaleString()}` }
         ];
 
         // Operating costs table
