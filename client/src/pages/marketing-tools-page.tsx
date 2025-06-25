@@ -2819,7 +2819,195 @@ export default function MarketingToolsPage() {
           chartY = drawBarChart(capexData, margin, chartY, 160, 60, `CAPEX Allocation (${roiData.currency})`, roiData.currency || 'USD');
         }
 
-        yPos = chartY + 20;
+        // NEW PAGE FOR ADDITIONAL CHARTS
+        doc.addPage();
+        yPos = margin + 20;
+        
+        // Helper function to draw Cash Flow Timeline (Line Chart)
+        const drawCashFlowTimeline = (x: number, y: number, width: number, height: number, title: string) => {
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(0, 0, 0);
+          doc.text(title, x, y - 10);
+
+          // Calculate cash flow data for 5 years (60 months)
+          const totalInvestment = parseFloat(roiData.projectCostLocal || '0') + 
+                                 (roiData.tanks ? roiData.tanks.reduce((sum: number, tank: any) => sum + (tank.totalCost || 0), 0) : 0) +
+                                 (roiData.utilities ? roiData.utilities.reduce((sum: number, utility: any) => sum + (utility.totalCost || 0), 0) : 0);
+          
+          const monthlyRevenue = revenueData.reduce((sum, item) => sum + item.value, 0) / 12;
+          const monthlyOperatingCost = (parseFloat(roiData.powerCost || '0') + parseFloat(roiData.fuelCost || '0') + 
+                                       parseFloat(roiData.chemicalCost || '0') + parseFloat(roiData.laborCost || '0') + 
+                                       parseFloat(roiData.maintenanceCost || '0') + parseFloat(roiData.mediaCost || '0') +
+                                       parseFloat(roiData.transportationCost || '0') + parseFloat(roiData.vehicleMaintenanceCost || '0') +
+                                       parseFloat(roiData.miscellaneousCost || '0'));
+          const monthlyNetCashFlow = monthlyRevenue - monthlyOperatingCost;
+          
+          const months = 60; // 5 years
+          const cashFlowData = [];
+          let cumulativeCashFlow = -totalInvestment; // Start with negative investment
+          
+          for (let i = 0; i <= months; i++) {
+            if (i === 0) {
+              cashFlowData.push({ month: i, value: cumulativeCashFlow });
+            } else {
+              cumulativeCashFlow += monthlyNetCashFlow;
+              cashFlowData.push({ month: i, value: cumulativeCashFlow });
+            }
+          }
+
+          // Draw axes
+          doc.setDrawColor(0, 0, 0);
+          doc.line(x, y + height, x + width, y + height); // X-axis
+          doc.line(x, y, x, y + height); // Y-axis
+          
+          // Find min/max values for scaling
+          const minValue = Math.min(...cashFlowData.map(d => d.value));
+          const maxValue = Math.max(...cashFlowData.map(d => d.value));
+          const range = maxValue - minValue;
+          
+          // Draw zero line if needed
+          if (minValue < 0 && maxValue > 0) {
+            const zeroY = y + height - ((0 - minValue) / range) * height;
+            doc.setDrawColor(128, 128, 128);
+            doc.setLineDashPattern([2, 2], 0);
+            doc.line(x, zeroY, x + width, zeroY);
+            doc.setLineDashPattern([], 0);
+          }
+          
+          // Draw cash flow line
+          doc.setDrawColor(0, 102, 204);
+          doc.setLineWidth(2);
+          
+          for (let i = 0; i < cashFlowData.length - 1; i++) {
+            const x1 = x + (cashFlowData[i].month / months) * width;
+            const y1 = y + height - ((cashFlowData[i].value - minValue) / range) * height;
+            const x2 = x + (cashFlowData[i + 1].month / months) * width;
+            const y2 = y + height - ((cashFlowData[i + 1].value - minValue) / range) * height;
+            doc.line(x1, y1, x2, y2);
+          }
+          
+          // Mark break-even point
+          const breakEvenMonth = cashFlowData.findIndex(d => d.value >= 0);
+          if (breakEvenMonth > 0) {
+            const breakEvenX = x + (breakEvenMonth / months) * width;
+            const breakEvenY = y + height - ((0 - minValue) / range) * height;
+            doc.setFillColor(255, 0, 0);
+            doc.circle(breakEvenX, breakEvenY, 2, 'F');
+            doc.setFontSize(8);
+            doc.text(`Break-even: ${breakEvenMonth} months`, breakEvenX - 20, breakEvenY - 5);
+          }
+          
+          // Add axis labels
+          doc.setFontSize(8);
+          doc.setTextColor(0, 0, 0);
+          doc.text('0', x - 5, y + height + 5);
+          doc.text('60 months', x + width - 15, y + height + 10);
+          doc.text('Cash Flow', x - 30, y + height/2, { angle: 90 });
+          
+          return y + height + 30;
+        };
+
+        // Helper function to draw ROI Sensitivity Analysis (Tornado Chart)
+        const drawSensitivityAnalysis = (x: number, y: number, width: number, height: number, title: string) => {
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(0, 0, 0);
+          doc.text(title, x, y - 10);
+
+          // Calculate base ROI
+          const baseROI = parseFloat(roiData.annualROI || '0');
+          
+          // Define sensitivity scenarios (±10% impact)
+          const sensitivityData = [
+            { 
+              factor: 'Product Pricing', 
+              positive: baseROI * 1.15, // +15% ROI impact
+              negative: baseROI * 0.85  // -15% ROI impact
+            },
+            { 
+              factor: 'Feedstock Cost', 
+              positive: baseROI * 1.12, // +12% ROI impact (cost reduction)
+              negative: baseROI * 0.88  // -12% ROI impact (cost increase)
+            },
+            { 
+              factor: 'Plant Capacity', 
+              positive: baseROI * 1.10, // +10% ROI impact
+              negative: baseROI * 0.90  // -10% ROI impact
+            },
+            { 
+              factor: 'Operating Costs', 
+              positive: baseROI * 1.08, // +8% ROI impact (cost reduction)
+              negative: baseROI * 0.92  // -8% ROI impact (cost increase)
+            },
+            { 
+              factor: 'Investment Cost', 
+              positive: baseROI * 1.06, // +6% ROI impact (cost reduction)
+              negative: baseROI * 0.94  // -6% ROI impact (cost increase)
+            }
+          ];
+
+          // Sort by impact magnitude
+          sensitivityData.sort((a, b) => Math.abs(b.positive - b.negative) - Math.abs(a.positive - a.negative));
+
+          const barHeight = height / sensitivityData.length * 0.8;
+          const barSpacing = height / sensitivityData.length * 0.2;
+          const centerX = x + width / 2;
+          
+          // Draw center line (base ROI)
+          doc.setDrawColor(0, 0, 0);
+          doc.setLineWidth(1);
+          doc.line(centerX, y, centerX, y + height);
+          
+          sensitivityData.forEach((item, index) => {
+            const barY = y + (index * (barHeight + barSpacing)) + barSpacing / 2;
+            
+            // Calculate bar widths (proportional to ROI change)
+            const maxROI = Math.max(...sensitivityData.flatMap(s => [s.positive, s.negative]));
+            const positiveWidth = ((item.positive - baseROI) / (maxROI - baseROI)) * (width / 2) * 0.9;
+            const negativeWidth = ((baseROI - item.negative) / (maxROI - baseROI)) * (width / 2) * 0.9;
+            
+            // Draw positive impact bar (right side - green)
+            doc.setFillColor(46, 204, 113);
+            doc.rect(centerX, barY, positiveWidth, barHeight * 0.6, 'F');
+            
+            // Draw negative impact bar (left side - red)
+            doc.setFillColor(231, 76, 60);
+            doc.rect(centerX - negativeWidth, barY, negativeWidth, barHeight * 0.6, 'F');
+            
+            // Add factor labels
+            doc.setFontSize(8);
+            doc.setTextColor(0, 0, 0);
+            doc.text(item.factor, x - 40, barY + barHeight * 0.4);
+            
+            // Add ROI values
+            doc.text(`${item.negative.toFixed(1)}%`, centerX - negativeWidth - 15, barY + barHeight * 0.4);
+            doc.text(`${item.positive.toFixed(1)}%`, centerX + positiveWidth + 5, barY + barHeight * 0.4);
+          });
+          
+          // Add legend
+          doc.setFillColor(231, 76, 60);
+          doc.rect(x + width - 80, y - 5, 8, 4, 'F');
+          doc.setFontSize(8);
+          doc.text('-10% Impact', x + width - 70, y - 2);
+          
+          doc.setFillColor(46, 204, 113);
+          doc.rect(x + width - 80, y + 5, 8, 4, 'F');
+          doc.text('+10% Impact', x + width - 70, y + 8);
+          
+          return y + height + 30;
+        };
+
+        // 5. Cash Flow Timeline (Line Chart)
+        let newChartY = yPos;
+        newChartY = drawCashFlowTimeline(margin, newChartY, 160, 80, `5-Year Cash Flow Timeline (${roiData.currency})`);
+        
+        // 6. ROI Sensitivity Analysis (Tornado Chart) 
+        checkPageBreak(120);
+        if (yPos > newChartY - 20) newChartY = yPos;
+        newChartY = drawSensitivityAnalysis(margin, newChartY + 10, 160, 80, 'ROI Sensitivity Analysis (±10% Impact)');
+
+        yPos = newChartY + 20;
 
         // Summary table
         checkPageBreak(60);
