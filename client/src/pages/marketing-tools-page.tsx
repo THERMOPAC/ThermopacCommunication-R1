@@ -3686,10 +3686,6 @@ export default function MarketingToolsPage() {
           doc.text(`• ${assumption}`, margin + 5, yPosition);
           yPosition += 6;
         });
-
-        // Remove duplicate data sources section
-
-        // Remove duplicate sections
         
         // Save the PDF
         doc.save(`Comprehensive_ROI_Report_${roiData.customerName || 'Project'}_${new Date().toISOString().split('T')[0]}.pdf`);
