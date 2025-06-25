@@ -1974,7 +1974,178 @@ export default function MarketingToolsPage() {
         doc.text(`Total Product Yields: ${totalYield.toFixed(1)}%`, margin, yPos);
         yPos += 5;
         doc.text(`Plant Utilization: ${roiData.plantOperationDays || 25} days/month`, margin, yPos);
+        yPos += 15;
+
+        // Tank Farm & Utilities Cost Breakdown Section
+        checkPageBreak(120);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 102, 204);
+        doc.text('TANK FARM & UTILITIES COST BREAKDOWN', margin, yPos);
+        yPos += 15;
+
+        // Tank Farm Table
+        if (roiData.tanks && roiData.tanks.length > 0) {
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(0, 0, 0);
+          doc.text('Tank Farm Details', margin, yPos);
+          yPos += 10;
+
+          // Table headers
+          const tankTableHeaders = [
+            'Tank Description',
+            '% Capacity',
+            'Storage Days',
+            'Required (KL)',
+            'Tank Size (KL)',
+            'Quantity',
+            `Cost/Tank (${roiData.currency || 'USD'})`,
+            `Total Cost (${roiData.currency || 'USD'})`
+          ];
+
+          const tankColWidths = [35, 18, 18, 18, 18, 15, 25, 25];
+          const tankRowHeight = 12;
+          let tankTableX = margin;
+          let tankTableY = yPos;
+
+          // Draw header row
+          let headerX = tankTableX;
+          tankTableHeaders.forEach((header, colIndex) => {
+            doc.setFillColor(240, 240, 240);
+            doc.rect(headerX, tankTableY, tankColWidths[colIndex], tankRowHeight, 'F');
+            doc.rect(headerX, tankTableY, tankColWidths[colIndex], tankRowHeight);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
+            doc.text(header, headerX + 1, tankTableY + 8, { maxWidth: tankColWidths[colIndex] - 2 });
+            headerX += tankColWidths[colIndex];
+          });
+          tankTableY += tankRowHeight;
+
+          // Draw data rows
+          doc.setFont('helvetica', 'normal');
+          roiData.tanks.forEach((tank, rowIndex) => {
+            let cellX = tankTableX;
+            const rowData = [
+              tank.description || '',
+              tank.percentCapacity?.toString() || '',
+              tank.storageDays?.toString() || '',
+              tank.requiredKL?.toString() || '',
+              tank.suggestedTankSize?.toString() || '',
+              tank.suggestedQuantity?.toString() || '',
+              tank.costPerTank ? parseFloat(tank.costPerTank).toLocaleString() : '',
+              tank.totalCost ? parseFloat(tank.totalCost).toLocaleString() : ''
+            ];
+
+            rowData.forEach((cellData, colIndex) => {
+              doc.rect(cellX, tankTableY, tankColWidths[colIndex], tankRowHeight);
+              doc.setFontSize(7);
+              doc.text(cellData, cellX + 1, tankTableY + 8, { maxWidth: tankColWidths[colIndex] - 2 });
+              cellX += tankColWidths[colIndex];
+            });
+            tankTableY += tankRowHeight;
+
+            // Check for page break
+            if (tankTableY > pageHeight - 50) {
+              doc.addPage();
+              tankTableY = margin + 20;
+              yPos = tankTableY;
+            }
+          });
+
+          yPos = tankTableY + 15;
+        }
+
+        // Utilities Table
+        if (roiData.utilities && roiData.utilities.length > 0) {
+          checkPageBreak(80);
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(0, 0, 0);
+          doc.text('Utilities & Equipment Details', margin, yPos);
+          yPos += 10;
+
+          // Utilities table headers
+          const utilityTableHeaders = [
+            'Equipment',
+            'Specifications',
+            'Quantity',
+            `Unit Cost (${roiData.currency || 'USD'})`,
+            `Total Cost (${roiData.currency || 'USD'})`
+          ];
+
+          const utilityColWidths = [40, 50, 20, 30, 30];
+          const utilityRowHeight = 12;
+          let utilityTableX = margin;
+          let utilityTableY = yPos;
+
+          // Draw header row
+          let utilHeaderX = utilityTableX;
+          utilityTableHeaders.forEach((header, colIndex) => {
+            doc.setFillColor(240, 240, 240);
+            doc.rect(utilHeaderX, utilityTableY, utilityColWidths[colIndex], utilityRowHeight, 'F');
+            doc.rect(utilHeaderX, utilityTableY, utilityColWidths[colIndex], utilityRowHeight);
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.text(header, utilHeaderX + 1, utilityTableY + 8, { maxWidth: utilityColWidths[colIndex] - 2 });
+            utilHeaderX += utilityColWidths[colIndex];
+          });
+          utilityTableY += utilityRowHeight;
+
+          // Draw utilities data
+          doc.setFont('helvetica', 'normal');
+          roiData.utilities.forEach((utility, rowIndex) => {
+            let cellX = utilityTableX;
+            const utilityRowData = [
+              utility.name || '',
+              utility.specifications || '',
+              utility.quantity?.toString() || '',
+              utility.unitCost ? parseFloat(utility.unitCost).toLocaleString() : '',
+              utility.totalCost ? parseFloat(utility.totalCost).toLocaleString() : ''
+            ];
+
+            utilityRowData.forEach((cellData, colIndex) => {
+              doc.rect(cellX, utilityTableY, utilityColWidths[colIndex], utilityRowHeight);
+              doc.setFontSize(8);
+              doc.text(cellData, cellX + 1, utilityTableY + 8, { maxWidth: utilityColWidths[colIndex] - 2 });
+              cellX += utilityColWidths[colIndex];
+            });
+            utilityTableY += utilityRowHeight;
+
+            // Check for page break
+            if (utilityTableY > pageHeight - 50) {
+              doc.addPage();
+              utilityTableY = margin + 20;
+              yPos = utilityTableY;
+            }
+          });
+
+          yPos = utilityTableY + 15;
+        }
+
+        // Tank Farm & Utilities Summary
+        checkPageBreak(40);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 102, 204);
+        doc.text('Tank Farm & Utilities Summary', margin, yPos);
         yPos += 10;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        
+        const tankTotalCost = (roiData.tanks || []).reduce((sum, tank) => sum + parseFloat(tank.totalCost || '0'), 0);
+        const utilityTotalCost = (roiData.utilities || []).filter(u => u.name !== 'Total Connected Load').reduce((sum, utility) => sum + parseFloat(utility.totalCost || '0'), 0);
+        const combinedTotal = tankTotalCost + utilityTotalCost;
+
+        doc.text(`Total Tank Farm Cost: ${roiData.currency || 'USD'} ${tankTotalCost.toLocaleString()}`, margin, yPos);
+        yPos += 6;
+        doc.text(`Total Utilities Cost: ${roiData.currency || 'USD'} ${utilityTotalCost.toLocaleString()}`, margin, yPos);
+        yPos += 6;
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Combined Tank Farm & Utilities: ${roiData.currency || 'USD'} ${combinedTotal.toLocaleString()}`, margin, yPos);
+        yPos += 15;
 
         // GRAPHICAL SUMMARY SECTION
         checkPageBreak(50);
