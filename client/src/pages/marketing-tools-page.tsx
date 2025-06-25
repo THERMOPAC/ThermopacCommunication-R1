@@ -76,7 +76,7 @@ interface ROIData {
   electricalCablesAccessories: string;
   pccMccPanels: string;
   chimneyDucting: string;
-  airCompressor: string;
+
   coolingTower: string;
   dieselGenerator: string;
   qualityControlEquipment: string;
@@ -375,7 +375,7 @@ export default function MarketingToolsPage() {
     electricalCablesAccessories: '',
     pccMccPanels: '',
     chimneyDucting: '',
-    airCompressor: '',
+
     coolingTower: '',
     dieselGenerator: '',
     qualityControlEquipment: '',
@@ -779,7 +779,7 @@ export default function MarketingToolsPage() {
     const equipmentCosts = [
       'additionalPumpsFilters', 'tankLevelTransmitters', 'pipesValvesFlanges',
       'electricalCablesAccessories', 'pccMccPanels', 'chimneyDucting',
-      'airCompressor', 'coolingTower', 'dieselGenerator', 'qualityControlEquipment',
+      'coolingTower', 'dieselGenerator', 'qualityControlEquipment',
       'thermicFluid', 'expansionStructure', 'craneHireCharges', 'laborErectionCommissioning'
     ];
     
@@ -1881,7 +1881,7 @@ export default function MarketingToolsPage() {
           { name: 'Electrical Cables & Accessories', cost: parseFloat(roiData.electricalCablesAccessories || '0') || 0 },
           { name: 'PCC/MCC Panels', cost: parseFloat(roiData.pccMccPanels || '0') || 0 },
           { name: 'Chimney & Ducting', cost: parseFloat(roiData.chimneyDucting || '0') || 0 },
-          { name: 'Air Compressor', cost: parseFloat(roiData.airCompressor || '0') || 0 },
+
           { name: 'Cooling Tower', cost: parseFloat(roiData.coolingTower || '0') || 0 },
           { name: 'Diesel Generator', cost: parseFloat(roiData.dieselGenerator || '0') || 0 },
           { name: 'Quality Control Equipment', cost: parseFloat(roiData.qualityControlEquipment || '0') || 0 },
@@ -2928,16 +2928,7 @@ export default function MarketingToolsPage() {
                           placeholder="0"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="airCompressor">Air Compressor</Label>
-                        <Input
-                          id="airCompressor"
-                          type="number"
-                          value={roiData.airCompressor}
-                          onChange={(e) => updateData('airCompressor', e.target.value)}
-                          placeholder="0"
-                        />
-                      </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="coolingTower">Cooling Tower</Label>
                         <Input
