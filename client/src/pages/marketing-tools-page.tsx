@@ -1247,11 +1247,95 @@ export default function MarketingToolsPage() {
     return calculateUtilities(capacity);
   }, [roiData.capacity]);
 
-  // Calculate working capital interest
-  const workingCapitalInterest = React.useMemo(() => {
-    const interestRate = parseFloat(roiData.rateOfInterest) || 0;
-    return (workingCapital * interestRate) / 100;
-  }, [workingCapital, roiData.rateOfInterest]);
+  // Calculate comprehensive financing costs
+  const financingCosts = React.useMemo(() => {
+    const monthlyInterestRate = parseFloat(roiData.rateOfInterest) || 0;
+    const debtRatio = parseFloat(roiData.debtFinancingRatio) || 70;
+    
+    // Calculate total investment
+    const baseCost = parseFloat(roiData.projectCostLocal) || 0;
+    const additionalCosts = [
+      parseFloat(roiData.freightInsurance) || 0,
+      parseFloat(roiData.importDutyVAT) || 0,
+      parseFloat(roiData.plotCost) || 0,
+      parseFloat(roiData.civilCost) || 0,
+      parseFloat(roiData.refineryShed) || 0,
+      parseFloat(roiData.utilityShed) || 0,
+      parseFloat(roiData.officeBuilding) || 0,
+      parseFloat(roiData.mechanicalElectrical) || 0,
+      parseFloat(roiData.fireSuppressionSystem) || 0,
+      parseFloat(roiData.insulationCost) || 0,
+      parseFloat(roiData.legalFees) || 0,
+      parseFloat(roiData.preFormationExpenses) || 0,
+      parseFloat(roiData.commissioningTravel) || 0,
+      parseFloat(roiData.contingency) || 0
+    ].reduce((sum, cost) => sum + cost, 0);
+    
+    const equipmentCosts = [
+      parseFloat(roiData.additionalPumpsFilters) || 0,
+      parseFloat(roiData.tankLevelTransmitters) || 0,
+      parseFloat(roiData.pipesValvesFlanges) || 0,
+      parseFloat(roiData.electricalCablesAccessories) || 0,
+      parseFloat(roiData.pccMccPanels) || 0,
+      parseFloat(roiData.chimneyDucting) || 0,
+      parseFloat(roiData.coolingTower) || 0,
+      parseFloat(roiData.dieselGenerator) || 0,
+      parseFloat(roiData.qualityControlEquipment) || 0,
+      parseFloat(roiData.thermicFluid) || 0,
+      parseFloat(roiData.expansionStructure) || 0,
+      parseFloat(roiData.craneHireCharges) || 0,
+      parseFloat(roiData.laborErectionCommissioning) || 0
+    ].reduce((sum, cost) => sum + cost, 0);
+    
+    const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
+      return total + (parseFloat(tank.totalCost) || 0);
+    }, 0);
+    
+    const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+      return total + (parseFloat(utility.totalCost) || 0);
+    }, 0);
+    
+    const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts;
+    
+    // Calculate debt amount
+    const debtAmount = totalInvestment * (debtRatio / 100);
+    
+    // Monthly interest on debt
+    const monthlyDebtInterest = (debtAmount * monthlyInterestRate) / 100;
+    
+    // Monthly interest on working capital
+    const monthlyWorkingCapitalInterest = (workingCapital * monthlyInterestRate) / 100;
+    
+    // Annual financing costs
+    const annualFinancingCosts = (monthlyDebtInterest + monthlyWorkingCapitalInterest) * 12;
+    
+    return {
+      totalInvestment,
+      debtAmount,
+      equityAmount: totalInvestment - debtAmount,
+      monthlyDebtInterest,
+      monthlyWorkingCapitalInterest,
+      totalMonthlyFinancingCost: monthlyDebtInterest + monthlyWorkingCapitalInterest,
+      annualFinancingCosts
+    };
+  }, [workingCapital, roiData.rateOfInterest, roiData.debtFinancingRatio, roiData.projectCostLocal, roiData.freightInsurance, roiData.importDutyVAT, roiData.plotCost, roiData.civilCost, roiData.refineryShed, roiData.utilityShed, roiData.officeBuilding, roiData.mechanicalElectrical, roiData.fireSuppressionSystem, roiData.insulationCost, roiData.legalFees, roiData.preFormationExpenses, roiData.commissioningTravel, roiData.contingency, roiData.additionalPumpsFilters, roiData.tankLevelTransmitters, roiData.pipesValvesFlanges, roiData.electricalCablesAccessories, roiData.pccMccPanels, roiData.chimneyDucting, roiData.coolingTower, roiData.dieselGenerator, roiData.qualityControlEquipment, roiData.thermicFluid, roiData.expansionStructure, roiData.craneHireCharges, roiData.laborErectionCommissioning, roiData.tanks, roiData.utilities]);
+
+  // Calculate annual depreciation
+  const annualDepreciation = React.useMemo(() => {
+    const method = roiData.depreciationMethod || 'straight-line';
+    const depreciableAssets = financingCosts.totalInvestment - (parseFloat(roiData.plotCost) || 0); // Land is not depreciable
+    
+    switch (method) {
+      case 'straight-line':
+        return depreciableAssets / 10; // 10-year straight line
+      case 'declining-balance':
+        return depreciableAssets * 0.20; // 20% declining balance (first year)
+      case 'none':
+        return 0;
+      default:
+        return depreciableAssets / 10;
+    }
+  }, [financingCosts.totalInvestment, roiData.depreciationMethod, roiData.plotCost]);
 
   const calculateROI = () => {
     // Ensure tanks and utilities are calculated and stored
@@ -1340,18 +1424,28 @@ export default function MarketingToolsPage() {
       parseFloat(roiData.miscellaneousCost) || 0
     ].reduce((sum, cost) => sum + cost, 0) * 12; // Monthly costs × 12 months
 
-    const annualProfit = totalRevenue - annualOperatingCosts;
+    // Calculate comprehensive financial metrics including financing costs and depreciation
+    const grossProfit = totalRevenue - annualOperatingCosts;
     
-    // Calculate financial metrics - Payback Period = Investment / Annual Cash Flow
-    // Annual Cash Flow = Annual Profit (since we don't include depreciation in operating costs)
-    const paybackPeriod = totalInvestment > 0 && annualProfit > 0 ? totalInvestment / annualProfit : 0;
-    const annualROI = totalInvestment > 0 ? (annualProfit / totalInvestment) * 100 : 0;
+    // Calculate net profit after financing costs and depreciation
+    const netProfitBeforeDepreciation = grossProfit - financingCosts.annualFinancingCosts;
+    const netProfit = netProfitBeforeDepreciation - annualDepreciation;
     
-    // Simple NPV calculation (5 years, 10% discount rate)
+    // EBITDA (Earnings Before Interest, Taxes, Depreciation, Amortization)
+    const ebitda = grossProfit;
+    
+    // Calculate financial metrics using net profit (after financing costs and depreciation)
+    const paybackPeriod = totalInvestment > 0 && netProfit > 0 ? totalInvestment / netProfit : 0;
+    const annualROI = totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0;
+    
+    // Return on Equity (using equity portion only)
+    const returnOnEquity = financingCosts.equityAmount > 0 ? (netProfit / financingCosts.equityAmount) * 100 : 0;
+    
+    // Enhanced NPV calculation using net profit (5 years, 10% discount rate)
     const discountRate = 0.10;
-    let npv = -totalInvestment;
+    let npv = -financingCosts.equityAmount; // Only equity investment as cash outflow
     for (let year = 1; year <= 5; year++) {
-      npv += annualProfit / Math.pow(1 + discountRate, year);
+      npv += netProfit / Math.pow(1 + discountRate, year);
     }
     
     // Simple IRR approximation
@@ -1361,6 +1455,14 @@ export default function MarketingToolsPage() {
       ...prev,
       paybackPeriod: paybackPeriod > 0 ? Math.round(paybackPeriod * 100) / 100 : 0,
       annualROI: Math.round(annualROI * 100) / 100,
+      returnOnEquity: Math.round(returnOnEquity * 100) / 100,
+      grossProfit: Math.round(grossProfit),
+      netProfit: Math.round(netProfit),
+      ebitda: Math.round(ebitda),
+      annualFinancingCosts: Math.round(financingCosts.annualFinancingCosts),
+      annualDepreciation: Math.round(annualDepreciation),
+      debtAmount: Math.round(financingCosts.debtAmount),
+      equityAmount: Math.round(financingCosts.equityAmount),
       npv: Math.round(npv),
       irr: Math.round(irr * 100) / 100
     }));
@@ -5127,6 +5229,31 @@ export default function MarketingToolsPage() {
                           onChange={(e) => updateData('rateOfInterest', e.target.value)}
                           placeholder="e.g., 1.5"
                         />
+                        <p className="text-xs text-gray-500">Applied to total investment and working capital financing</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Debt Financing Ratio (%)</Label>
+                        <Input
+                          type="number"
+                          step="1"
+                          value={roiData.debtFinancingRatio || '70'}
+                          onChange={(e) => updateData('debtFinancingRatio', e.target.value)}
+                          placeholder="e.g., 70"
+                        />
+                        <p className="text-xs text-gray-500">Percentage of investment financed through debt (rest is equity)</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Depreciation Method</Label>
+                        <select
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                          value={roiData.depreciationMethod || 'straight-line'}
+                          onChange={(e) => updateData('depreciationMethod', e.target.value)}
+                        >
+                          <option value="straight-line">Straight Line (10 years)</option>
+                          <option value="declining-balance">Declining Balance (20%)</option>
+                          <option value="none">No Depreciation</option>
+                        </select>
+                        <p className="text-xs text-gray-500">Method for calculating annual depreciation expense</p>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -5140,6 +5267,32 @@ export default function MarketingToolsPage() {
                           className="bg-blue-50 text-center font-semibold"
                         />
                         <p className="text-xs text-gray-500">Formula: Feedstock Cost × Plant Capacity × 24 hours × Operating Days per Month</p>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label>Financing Costs (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
+                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Auto-calculated</span>
+                        </div>
+                        <Input
+                          type="text"
+                          value={financingCosts.totalMonthlyFinancingCost > 0 ? financingCosts.totalMonthlyFinancingCost.toLocaleString() : '0'}
+                          readOnly
+                          className="bg-red-50 text-center font-semibold"
+                        />
+                        <p className="text-xs text-gray-500">Interest on debt ({roiData.debtFinancingRatio || 70}% of investment) + working capital interest</p>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label>Depreciation (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
+                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Auto-calculated</span>
+                        </div>
+                        <Input
+                          type="text"
+                          value={annualDepreciation > 0 ? Math.round(annualDepreciation / 12).toLocaleString() : '0'}
+                          readOnly
+                          className="bg-red-50 text-center font-semibold"
+                        />
+                        <p className="text-xs text-gray-500">{roiData.depreciationMethod || 'straight-line'} depreciation method (excludes land cost)</p>
                       </div>
                       <div className="space-y-2">
                         <Label>Transportation Cost (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
@@ -5680,7 +5833,9 @@ export default function MarketingToolsPage() {
                           parseFloat(roiData.maintenanceCost) || 0,
                           parseFloat(roiData.transportationCost) || 0,
                           parseFloat(roiData.vehicleMaintenanceCost) || 0,
-                          parseFloat(roiData.miscellaneousCost) || 0
+                          parseFloat(roiData.miscellaneousCost) || 0,
+                          financingCosts.totalMonthlyFinancingCost || 0,
+                          (annualDepreciation / 12) || 0
                         ].reduce((total, cost) => total + cost, 0);
 
                         const grossProfit = totalMonthlyRevenue - monthlyCosts;
@@ -6010,8 +6165,10 @@ export default function MarketingToolsPage() {
                       </div>
                     </div>
 
-                    {/* Financial Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    {/* Enhanced Financial Summary Cards */}
+                    <div className="space-y-6">
+                      {/* Primary Financial Metrics */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                       <Card className="border-l-4 border-l-green-500">
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">
@@ -6045,7 +6202,7 @@ export default function MarketingToolsPage() {
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm text-muted-foreground mb-1">Operating Cost</p>
+                              <p className="text-sm text-muted-foreground mb-1">Total Costs</p>
                               <p className="text-xl font-bold text-red-600">{getCurrencySymbol(roiData.currency)}{(() => {
                                 const operatingCosts = [
                                   parseFloat(roiData.feedstockCost) || 0,
@@ -6054,10 +6211,12 @@ export default function MarketingToolsPage() {
                                   parseFloat(roiData.chemicalCost) || 0,
                                   parseFloat(roiData.laborCost) || 0,
                                   parseFloat(roiData.maintenanceCost) || 0
-                                ];
-                                return (operatingCosts.reduce((sum, cost) => sum + cost, 0) * 12).toLocaleString(undefined, { maximumFractionDigits: 0 });
+                                ].reduce((sum, cost) => sum + cost, 0) * 12;
+                                const annualFinancing = financingCosts.annualFinancingCosts || 0;
+                                const depreciation = annualDepreciation || 0;
+                                return (operatingCosts + annualFinancing + depreciation).toLocaleString(undefined, { maximumFractionDigits: 0 });
                               })()}</p>
-                              <p className="text-xs text-muted-foreground">Annual</p>
+                              <p className="text-xs text-muted-foreground">OpEx + Financing + Depreciation</p>
                             </div>
                             <DollarSign className="h-8 w-8 text-red-500" />
                           </div>
@@ -6068,34 +6227,9 @@ export default function MarketingToolsPage() {
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm text-muted-foreground mb-1">Gross Profit</p>
-                              <p className="text-xl font-bold text-blue-600">{getCurrencySymbol(roiData.currency)}{(() => {
-                                const plantCapacity = parseFloat(roiData.capacity) || 0;
-                                const operatingDays = parseFloat(roiData.plantOperationDays) || 30;
-                                const annualLiters = plantCapacity * operatingDays * 24 * 12;
-                                const products = [
-                                  { yield: parseFloat(roiData.naphthaGasOilYield) || 0, price: parseFloat(roiData.naphthaGasOilPrice) || 0, density: 0.80 },
-                                  { yield: parseFloat(roiData.lightBaseOilYield) || 0, price: parseFloat(roiData.lightBaseOilPrice) || 0, density: 0.85 },
-                                  { yield: parseFloat(roiData.heavyBaseOilYield) || 0, price: parseFloat(roiData.heavyBaseOilPrice) || 0, density: 0.87 },
-                                  { yield: parseFloat(roiData.residueYield) || 0, price: parseFloat(roiData.residuePrice) || 0, density: 1.8 },
-                                  { yield: parseFloat(roiData.wasteWaterYield) || 0, price: parseFloat(roiData.wasteWaterPrice) || 0, density: 1.0 }
-                                ];
-                                const revenue = products.reduce((total, product) => {
-                                  const productLiters = annualLiters * product.yield / 100;
-                                  const productTons = productLiters * product.density / 1000;
-                                  return total + (productTons * product.price);
-                                }, 0);
-                                const operatingCosts = [
-                                  parseFloat(roiData.feedstockCost) || 0,
-                                  parseFloat(roiData.powerCost) || 0,
-                                  parseFloat(roiData.fuelCost) || 0,
-                                  parseFloat(roiData.chemicalCost) || 0,
-                                  parseFloat(roiData.laborCost) || 0,
-                                  parseFloat(roiData.maintenanceCost) || 0
-                                ].reduce((sum, cost) => sum + cost, 0) * 12;
-                                return (revenue - operatingCosts).toLocaleString(undefined, { maximumFractionDigits: 0 });
-                              })()}</p>
-                              <p className="text-xs text-muted-foreground">Annual</p>
+                              <p className="text-sm text-muted-foreground mb-1">Net Profit</p>
+                              <p className="text-xl font-bold text-blue-600">{getCurrencySymbol(roiData.currency)}{(roiData.netProfit || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                              <p className="text-xs text-muted-foreground">After financing & depreciation</p>
                             </div>
                             <BarChart3 className="h-8 w-8 text-blue-500" />
                           </div>
@@ -6106,9 +6240,9 @@ export default function MarketingToolsPage() {
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm text-muted-foreground mb-1">ROI</p>
+                              <p className="text-sm text-muted-foreground mb-1">ROI (Total)</p>
                               <p className="text-xl font-bold text-purple-600">{(roiData.annualROI || 0).toFixed(1)}%</p>
-                              <p className="text-xs text-muted-foreground">Annual</p>
+                              <p className="text-xs text-muted-foreground">On total investment</p>
                             </div>
                             <Percent className="h-8 w-8 text-purple-500" />
                           </div>
@@ -6121,7 +6255,7 @@ export default function MarketingToolsPage() {
                             <div>
                               <p className="text-sm text-muted-foreground mb-1">Payback Period</p>
                               <p className="text-xl font-bold text-orange-600">{(roiData.paybackPeriod || 0).toFixed(1)}</p>
-                              <p className="text-xs text-muted-foreground">Years</p>
+                              <p className="text-xs text-muted-foreground">Years (post-financing)</p>
                             </div>
                             <Clock className="h-8 w-8 text-orange-500" />
                           </div>
