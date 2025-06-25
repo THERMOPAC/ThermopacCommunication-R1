@@ -1085,6 +1085,19 @@ export default function MarketingToolsPage() {
     return feedstockCost * capacity * 24 * operatingDays;
   }, [roiData.feedstockCost, roiData.capacity, roiData.plantOperationDays]);
 
+  // Calculate default tanks and utilities when capacity changes
+  const calculatedTanks = React.useMemo(() => {
+    const capacity = parseFloat(roiData.capacity) || 0;
+    if (capacity === 0) return [];
+    return calculateTankRequirements(capacity);
+  }, [roiData.capacity]);
+
+  const calculatedUtilities = React.useMemo(() => {
+    const capacity = parseFloat(roiData.capacity) || 0;
+    if (capacity === 0) return [];
+    return calculateUtilities(capacity);
+  }, [roiData.capacity]);
+
   // Calculate working capital interest
   const workingCapitalInterest = React.useMemo(() => {
     const interestRate = parseFloat(roiData.rateOfInterest) || 0;
