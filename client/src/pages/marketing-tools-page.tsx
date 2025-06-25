@@ -1077,33 +1077,6 @@ export default function MarketingToolsPage() {
     }
   };
 
-  // Calculate working capital whenever feedstock cost, capacity, or operating days change
-  const workingCapital = React.useMemo(() => {
-    const feedstockCost = parseFloat(roiData.feedstockCost) || 0;
-    const capacity = parseFloat(roiData.capacity) || 0;
-    const operatingDays = parseFloat(roiData.plantOperationDays) || 30;
-    return feedstockCost * capacity * 24 * operatingDays;
-  }, [roiData.feedstockCost, roiData.capacity, roiData.plantOperationDays]);
-
-  // Calculate default tanks and utilities when capacity changes
-  const calculatedTanks = React.useMemo(() => {
-    const capacity = parseFloat(roiData.capacity) || 0;
-    if (capacity === 0) return [];
-    return calculateTankRequirements(capacity);
-  }, [roiData.capacity]);
-
-  const calculatedUtilities = React.useMemo(() => {
-    const capacity = parseFloat(roiData.capacity) || 0;
-    if (capacity === 0) return [];
-    return calculateUtilities(capacity);
-  }, [roiData.capacity]);
-
-  // Calculate working capital interest
-  const workingCapitalInterest = React.useMemo(() => {
-    const interestRate = parseFloat(roiData.rateOfInterest) || 0;
-    return (workingCapital * interestRate) / 100;
-  }, [workingCapital, roiData.rateOfInterest]);
-
   // Function to calculate utilities based on plant capacity
   const calculateUtilities = (plantCapacityLPH: number) => {
     if (plantCapacityLPH === 0) return [];
@@ -1155,6 +1128,33 @@ export default function MarketingToolsPage() {
 
     return utilities;
   };
+
+  // Calculate working capital whenever feedstock cost, capacity, or operating days change
+  const workingCapital = React.useMemo(() => {
+    const feedstockCost = parseFloat(roiData.feedstockCost) || 0;
+    const capacity = parseFloat(roiData.capacity) || 0;
+    const operatingDays = parseFloat(roiData.plantOperationDays) || 30;
+    return feedstockCost * capacity * 24 * operatingDays;
+  }, [roiData.feedstockCost, roiData.capacity, roiData.plantOperationDays]);
+
+  // Calculate default tanks and utilities when capacity changes
+  const calculatedTanks = React.useMemo(() => {
+    const capacity = parseFloat(roiData.capacity) || 0;
+    if (capacity === 0) return [];
+    return calculateTankRequirements(capacity);
+  }, [roiData.capacity]);
+
+  const calculatedUtilities = React.useMemo(() => {
+    const capacity = parseFloat(roiData.capacity) || 0;
+    if (capacity === 0) return [];
+    return calculateUtilities(capacity);
+  }, [roiData.capacity]);
+
+  // Calculate working capital interest
+  const workingCapitalInterest = React.useMemo(() => {
+    const interestRate = parseFloat(roiData.rateOfInterest) || 0;
+    return (workingCapital * interestRate) / 100;
+  }, [workingCapital, roiData.rateOfInterest]);
 
   const calculateROI = () => {
     // Ensure tanks and utilities are calculated and stored
