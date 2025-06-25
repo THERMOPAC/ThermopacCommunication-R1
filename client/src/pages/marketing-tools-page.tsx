@@ -3188,9 +3188,8 @@ export default function MarketingToolsPage() {
           description: `Complete analysis with all user inputs from every step has been generated successfully.`,
         });
         
-        return;
-      }
-      // Calculate current metrics for the report
+      } else if (format === 'excel') {
+        // Calculate current metrics for the report
       const baseCost = parseFloat(roiData.projectCostLocal) || 0;
       const additionalCosts = [
         parseFloat(roiData.freightInsurance) || 0,
