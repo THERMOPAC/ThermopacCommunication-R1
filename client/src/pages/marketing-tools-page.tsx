@@ -300,11 +300,16 @@ export default function MarketingToolsPage() {
   
   const [activeTab, setActiveTab] = useState("overview");
   const [currentStep, setCurrentStep] = useState(1);
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [projectId, setProjectId] = useState<string>('');
   const [showPlantCostsDialog, setShowPlantCostsDialog] = useState(false);
   const [editingCost, setEditingCost] = useState<any>(null);
   const [showLoadDialog, setShowLoadDialog] = useState(false);
   const [loadProjectId, setLoadProjectId] = useState('');
   const [selectedProjectFromList, setSelectedProjectFromList] = useState('');
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<{id: string, name: string} | null>(null);
   const [newCost, setNewCost] = useState({ capacity: '', priceUSD: '' });
   const [plantCosts, setPlantCosts] = useState<Array<{ id: number; capacity: number; priceUSD: number }>>([]);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -411,6 +416,21 @@ export default function MarketingToolsPage() {
     irr: 0
   });
 
+  // Generate or get existing project ID
+  const getProjectId = () => {
+    if (roiData.roiProjectId) return roiData.roiProjectId;
+    
+    // Generate new UUID for the project
+    const newProjectId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+    
+    setROIData(prev => ({ ...prev, roiProjectId: newProjectId }));
+    return newProjectId;
+  };
+
   // Generate or get project ID
   useEffect(() => {
     if (!roiData.roiProjectId) {
@@ -459,6 +479,112 @@ export default function MarketingToolsPage() {
       });
     } finally {
       setIsAutoSaving(false);
+    }
+  };
+
+  // Delete project function
+  const deleteProject = async (projectId: string) => {
+    try {
+      const response = await fetch(`/api/roi/delete-project/${projectId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Delete response:', data);
+        
+        toast({
+          title: 'Project Deleted',
+          description: `Successfully deleted ROI project`,
+        });
+        
+        // Refresh the projects list
+        refetchProjects();
+        
+        // Close dialogs and reset state
+        setShowDeleteDialog(false);
+        setProjectToDelete(null);
+        setSelectedProjectFromList('');
+        
+      } else {
+        throw new Error('Failed to delete project');
+      }
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      toast({
+        title: 'Delete Failed',
+        description: 'Failed to delete project. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  // Handle delete button click
+  const handleDeleteClick = (project: any) => {
+    const projectName = project.customerName ? 
+      `${project.customerName} - ${project.projectName || 'Unnamed Project'}` : 
+      project.projectName || 'Unnamed Project';
+    
+    setProjectToDelete({
+      id: project.roiProjectId,
+      name: projectName
+    });
+    setShowDeleteDialog(true);
+  };
+
+  // Load saved project data
+  const loadProject = async (projectIdToLoad: string) => {
+    try {
+      console.log('Loading project:', projectIdToLoad);
+      const response = await fetch(`/api/roi/load-project/${projectIdToLoad}`, {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Load response:', data);
+        
+        if (data.success && data.steps) {
+          // Merge step data back into roiData
+          const mergedData = { ...roiData };
+          Object.values(data.steps).forEach((stepData: any) => {
+            Object.assign(mergedData, stepData);
+          });
+          
+          // Set the project ID for future saves
+          mergedData.roiProjectId = projectIdToLoad;
+          
+          console.log('Setting merged data:', mergedData);
+          setROIData(mergedData);
+          setProjectId(projectIdToLoad);
+          setCompletedSteps(new Set(Object.keys(data.steps).map(Number)));
+          
+          // Navigate to the next incomplete step (Step 6 for 5 completed steps)
+          const completedStepNumbers = Object.keys(data.steps).map(Number).sort();
+          const nextStep = Math.min(Math.max(...completedStepNumbers) + 1, 7);
+          console.log('Setting current step to:', nextStep);
+          setCurrentStep(nextStep);
+          
+          setShowLoadDialog(false);
+          setLoadProjectId('');
+          setSelectedProjectFromList('');
+          
+          toast({
+            title: 'Project Loaded',
+            description: `Loaded project with ${completedStepNumbers.length} completed steps`,
+          });
+        }
+      } else {
+        throw new Error('Failed to load project');
+      }
+    } catch (error) {
+      console.error('Error loading project:', error);
+      toast({
+        title: 'Load Failed',
+        description: 'Failed to load project. Please check the Project ID.',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -4975,8 +5101,11 @@ export default function MarketingToolsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {savedProjects.map((project: any) => (
-                      <SelectItem key={project.roiProjectId} value={project.roiProjectId}>
-                        <div className="flex flex-col items-start">
+                      <div key={project.roiProjectId} className="flex items-center justify-between p-2 hover:bg-gray-50">
+                        <div 
+                          className="flex-1 cursor-pointer"
+                          onClick={() => setSelectedProjectFromList(project.roiProjectId)}
+                        >
                           <div className="flex items-center gap-2">
                             <span className="font-medium">
                               {project.customerName || 'Unnamed Customer'} - {project.projectName || 'Unnamed Project'}
@@ -4990,7 +5119,18 @@ export default function MarketingToolsPage() {
                             Last updated: {new Date(project.lastUpdated).toLocaleDateString()}
                           </div>
                         </div>
-                      </SelectItem>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClick(project);
+                          }}
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     ))}
                   </SelectContent>
                 </Select>

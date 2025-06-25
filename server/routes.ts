@@ -198,7 +198,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   // ROI delete route
-  app.delete('/api/roi/delete-project/:roiProjectId', ensureAuthenticated, deleteRoiProject);
+  app.delete('/api/roi/delete-project/:roiProjectId', async (req: any, res: any) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    return deleteRoiProject(req, res);
+  });
   
   console.log('ROI Calculator routes registered');
 
