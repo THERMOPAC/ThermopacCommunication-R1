@@ -1342,8 +1342,9 @@ export default function MarketingToolsPage() {
 
     const annualProfit = totalRevenue - annualOperatingCosts;
     
-    // Calculate financial metrics
-    const paybackPeriod = totalInvestment > 0 ? totalInvestment / annualProfit : 0;
+    // Calculate financial metrics - Payback Period = Investment / Annual Cash Flow
+    // Annual Cash Flow = Annual Profit (since we don't include depreciation in operating costs)
+    const paybackPeriod = totalInvestment > 0 && annualProfit > 0 ? totalInvestment / annualProfit : 0;
     const annualROI = totalInvestment > 0 ? (annualProfit / totalInvestment) * 100 : 0;
     
     // Simple NPV calculation (5 years, 10% discount rate)
