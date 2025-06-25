@@ -2074,9 +2074,11 @@ export default function MarketingToolsPage() {
             doc.text(cost.label, cellX + 2, costTableY + 7);
             cellX += costColWidths[0];
             
-            // Cost amount
+            // Cost amount (right-aligned)
             doc.rect(cellX, costTableY, costColWidths[1], costRowHeight);
-            doc.text(cost.value.toLocaleString(), cellX + 2, costTableY + 7);
+            const costValueText = cost.value.toLocaleString();
+            const costValueWidth = doc.getTextWidth(costValueText);
+            doc.text(costValueText, cellX + costColWidths[1] - costValueWidth - 2, costTableY + 7);
             
             costTableY += costRowHeight;
             totalAdditionalCosts += cost.value;
@@ -2426,6 +2428,208 @@ export default function MarketingToolsPage() {
             yPos += 15;
           }
         }
+
+        // Operating Costs Breakdown Section (Step 4)
+        checkPageBreak(100);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 102, 204);
+        doc.text('OPERATING COSTS BREAKDOWN (STEP 4)', margin, yPos);
+        yPos += 15;
+
+        // Operating costs data for Step 4
+        const step4OperatingCosts = [
+          { label: 'Feedstock Cost per Liter', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.feedstockCost || '0').toLocaleString()}` },
+          { label: 'Power Cost (Monthly)', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.powerCost || '0').toLocaleString()}` },
+          { label: 'Fuel Cost (Monthly)', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.fuelCost || '0').toLocaleString()}` },
+          { label: 'Chemical Cost (Monthly)', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.chemicalCost || '0').toLocaleString()}` },
+          { label: 'Labor Cost (Monthly)', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.laborCost || '0').toLocaleString()}` },
+          { label: 'Maintenance Cost (Monthly)', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.maintenanceCost || '0').toLocaleString()}` }
+        ];
+
+        // Operating costs table
+        const opCostTableHeaders = ['Cost Component', 'Amount'];
+        const opCostColWidths = [120, 50];
+        const opCostRowHeight = 10;
+        let opCostTableX = margin;
+        let opCostTableY = yPos;
+
+        // Draw header row
+        let opCostHeaderX = opCostTableX;
+        opCostTableHeaders.forEach((header, colIndex) => {
+          doc.setFillColor(240, 240, 240);
+          doc.rect(opCostHeaderX, opCostTableY, opCostColWidths[colIndex], opCostRowHeight, 'F');
+          doc.rect(opCostHeaderX, opCostTableY, opCostColWidths[colIndex], opCostRowHeight);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.text(header, opCostHeaderX + 2, opCostTableY + 7);
+          opCostHeaderX += opCostColWidths[colIndex];
+        });
+        opCostTableY += opCostRowHeight;
+
+        // Draw operating cost rows
+        doc.setFont('helvetica', 'normal');
+        step4OperatingCosts.forEach((cost, rowIndex) => {
+          let cellX = opCostTableX;
+          
+          // Cost component name
+          doc.rect(cellX, opCostTableY, opCostColWidths[0], opCostRowHeight);
+          doc.setFontSize(8);
+          doc.text(cost.label, cellX + 2, opCostTableY + 7);
+          cellX += opCostColWidths[0];
+          
+          // Cost amount (right-aligned)
+          doc.rect(cellX, opCostTableY, opCostColWidths[1], opCostRowHeight);
+          const textWidth = doc.getTextWidth(cost.value);
+          doc.text(cost.value, cellX + opCostColWidths[1] - textWidth - 2, opCostTableY + 7);
+          
+          opCostTableY += opCostRowHeight;
+        });
+
+        yPos = opCostTableY + 15;
+
+        // Product Yields & Pricing Section (Step 5)
+        checkPageBreak(120);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 102, 204);
+        doc.text('PRODUCT YIELDS & PRICING (STEP 5)', margin, yPos);
+        yPos += 15;
+
+        // Product data for Step 5
+        const step5Products = [
+          { name: 'Naphtha / Gas Oil', yield: parseFloat(roiData.naphthaGasOilYield || '0'), price: parseFloat(roiData.naphthaGasOilPrice || '0') },
+          { name: 'Light Base Oil', yield: parseFloat(roiData.lightBaseOilYield || '0'), price: parseFloat(roiData.lightBaseOilPrice || '0') },
+          { name: 'Heavy Base Oil', yield: parseFloat(roiData.heavyBaseOilYield || '0'), price: parseFloat(roiData.heavyBaseOilPrice || '0') },
+          { name: 'Residue', yield: parseFloat(roiData.residueYield || '0'), price: parseFloat(roiData.residuePrice || '0') },
+          { name: 'Waste Water', yield: parseFloat(roiData.wasteWaterYield || '0'), price: parseFloat(roiData.wasteWaterPrice || '0') },
+          { name: 'Process Loss', yield: parseFloat(roiData.processLossYield || '0'), price: 0 }
+        ];
+
+        // Product table
+        const productTableHeaders = ['Product', 'Yield (%)', `Price (${roiData.currency || 'USD'})`];
+        const productColWidths = [60, 30, 40];
+        const productRowHeight = 10;
+        let productTableX = margin;
+        let productTableY = yPos;
+
+        // Draw header row
+        let productHeaderX = productTableX;
+        productTableHeaders.forEach((header, colIndex) => {
+          doc.setFillColor(240, 240, 240);
+          doc.rect(productHeaderX, productTableY, productColWidths[colIndex], productRowHeight, 'F');
+          doc.rect(productHeaderX, productTableY, productColWidths[colIndex], productRowHeight);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.text(header, productHeaderX + 2, productTableY + 7);
+          productHeaderX += productColWidths[colIndex];
+        });
+        productTableY += productRowHeight;
+
+        // Draw product rows
+        doc.setFont('helvetica', 'normal');
+        let step5TotalYield = 0;
+        step5Products.forEach((product, rowIndex) => {
+          let cellX = productTableX;
+          
+          // Product name
+          doc.rect(cellX, productTableY, productColWidths[0], productRowHeight);
+          doc.setFontSize(8);
+          doc.text(product.name, cellX + 2, productTableY + 7);
+          cellX += productColWidths[0];
+          
+          // Yield (right-aligned)
+          doc.rect(cellX, productTableY, productColWidths[1], productRowHeight);
+          const yieldText = `${product.yield.toFixed(1)}%`;
+          const yieldWidth = doc.getTextWidth(yieldText);
+          doc.text(yieldText, cellX + productColWidths[1] - yieldWidth - 2, productTableY + 7);
+          cellX += productColWidths[1];
+          
+          // Price (right-aligned)
+          doc.rect(cellX, productTableY, productColWidths[2], productRowHeight);
+          const priceText = product.price.toLocaleString();
+          const priceWidth = doc.getTextWidth(priceText);
+          doc.text(priceText, cellX + productColWidths[2] - priceWidth - 2, productTableY + 7);
+          
+          productTableY += productRowHeight;
+          step5TotalYield += product.yield;
+        });
+
+        // Total yield row
+        let cellX = productTableX;
+        doc.setFillColor(230, 230, 230);
+        doc.rect(cellX, productTableY, productColWidths[0], productRowHeight, 'F');
+        doc.rect(cellX, productTableY, productColWidths[0], productRowHeight);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Total Yield', cellX + 2, productTableY + 7);
+        cellX += productColWidths[0];
+
+        doc.setFillColor(230, 230, 230);
+        doc.rect(cellX, productTableY, productColWidths[1], productRowHeight, 'F');
+        doc.rect(cellX, productTableY, productColWidths[1], productRowHeight);
+        const totalYieldText = `${step5TotalYield.toFixed(1)}%`;
+        const totalYieldWidth = doc.getTextWidth(totalYieldText);
+        doc.text(totalYieldText, cellX + productColWidths[1] - totalYieldWidth - 2, productTableY + 7);
+
+        yPos = productTableY + 25;
+
+        // Financial Results Section (Step 7)
+        checkPageBreak(80);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 102, 204);
+        doc.text('FINANCIAL RESULTS & ROI ANALYSIS (STEP 7)', margin, yPos);
+        yPos += 15;
+
+        // Financial results data
+        const financialResults = [
+          { label: 'Annual ROI', value: `${parseFloat(roiData.annualROI || '0').toFixed(2)}%` },
+          { label: 'Payback Period', value: `${parseFloat(roiData.paybackPeriod || '0').toFixed(2)} years` },
+          { label: 'Internal Rate of Return (IRR)', value: `${parseFloat(roiData.irr || '0').toFixed(2)}%` },
+          { label: 'Net Present Value (NPV)', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.npv || '0').toLocaleString()}` }
+        ];
+
+        // Financial results table
+        const finResultsHeaders = ['Financial Metric', 'Value'];
+        const finResultsColWidths = [100, 70];
+        const finResultsRowHeight = 12;
+        let finResultsTableX = margin;
+        let finResultsTableY = yPos;
+
+        // Draw header row
+        let finResultsHeaderX = finResultsTableX;
+        finResultsHeaders.forEach((header, colIndex) => {
+          doc.setFillColor(240, 240, 240);
+          doc.rect(finResultsHeaderX, finResultsTableY, finResultsColWidths[colIndex], finResultsRowHeight, 'F');
+          doc.rect(finResultsHeaderX, finResultsTableY, finResultsColWidths[colIndex], finResultsRowHeight);
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'bold');
+          doc.text(header, finResultsHeaderX + 2, finResultsTableY + 8);
+          finResultsHeaderX += finResultsColWidths[colIndex];
+        });
+        finResultsTableY += finResultsRowHeight;
+
+        // Draw financial results rows
+        doc.setFont('helvetica', 'normal');
+        financialResults.forEach((result, rowIndex) => {
+          let cellX = finResultsTableX;
+          
+          // Metric name
+          doc.rect(cellX, finResultsTableY, finResultsColWidths[0], finResultsRowHeight);
+          doc.setFontSize(9);
+          doc.text(result.label, cellX + 2, finResultsTableY + 8);
+          cellX += finResultsColWidths[0];
+          
+          // Value (right-aligned)
+          doc.rect(cellX, finResultsTableY, finResultsColWidths[1], finResultsRowHeight);
+          const valueWidth = doc.getTextWidth(result.value);
+          doc.text(result.value, cellX + finResultsColWidths[1] - valueWidth - 2, finResultsTableY + 8);
+          
+          finResultsTableY += finResultsRowHeight;
+        });
+
+        yPos = finResultsTableY + 15;
 
         // GRAPHICAL SUMMARY SECTION
         checkPageBreak(50);
