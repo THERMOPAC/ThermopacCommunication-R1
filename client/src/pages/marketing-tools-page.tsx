@@ -2720,8 +2720,8 @@ export default function MarketingToolsPage() {
         const metricsData = [
           { label: 'Gross Margin', value: `${grossMargin.toFixed(2)}%` },
           { label: 'Net Margin', value: `${netMargin.toFixed(2)}%` },
-          { label: 'Annual ROI', value: `${annualROI.toFixed(2)}%` },
-          { label: 'Payback Period', value: `${paybackPeriod.toFixed(2)} years` },
+          { label: 'Annual ROI', value: `${plAnnualROI.toFixed(2)}%` },
+          { label: 'Payback Period', value: `${plPaybackPeriod.toFixed(2)} years` },
           { label: 'IRR', value: `${parseFloat(roiData.irr || '0').toFixed(2)}%` },
           { label: 'NPV', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.npv || '0').toLocaleString()}` }
         ];
