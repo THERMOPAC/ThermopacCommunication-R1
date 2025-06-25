@@ -2298,6 +2298,135 @@ export default function MarketingToolsPage() {
         doc.text(`Combined Tank Farm & Utilities: ${roiData.currency || 'USD'} ${combinedTotal.toLocaleString()}`, margin, yPos);
         yPos += 15;
 
+        // Additional Equipment Cost Breakdown Section (Step 3)
+        checkPageBreak(120);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 102, 204);
+        doc.text('ADDITIONAL EQUIPMENT BREAKDOWN (STEP 3)', margin, yPos);
+        yPos += 15;
+
+        // Additional Equipment Costs Table
+        if (roiData.step3Data || Object.keys(roiData).some(key => 
+          ['pumpsCentrifugal', 'pumpsPositiveDisplacement', 'pressureTransmitters', 'temperatureTransmitters', 
+           'levelTransmitters', 'flowTransmitters', 'motorControlCenter', 'distributionBoard', 
+           'pipesValvesFlanges', 'tankLevelTransmitters', 'additionalPumpsFilters', 'qualityControlEquipment',
+           'laborErectionCommissioning', 'electricalCablesAccessories'].includes(key))) {
+          
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(0, 0, 0);
+          doc.text('Additional Equipment Details', margin, yPos);
+          yPos += 10;
+
+          // Equipment costs data
+          const equipmentCosts = [
+            { label: 'Pumps (Centrifugal)', value: parseFloat(roiData.pumpsCentrifugal) || 0 },
+            { label: 'Pumps (Positive Displacement)', value: parseFloat(roiData.pumpsPositiveDisplacement) || 0 },
+            { label: 'Pressure Transmitters', value: parseFloat(roiData.pressureTransmitters) || 0 },
+            { label: 'Temperature Transmitters', value: parseFloat(roiData.temperatureTransmitters) || 0 },
+            { label: 'Level Transmitters', value: parseFloat(roiData.levelTransmitters) || 0 },
+            { label: 'Flow Transmitters', value: parseFloat(roiData.flowTransmitters) || 0 },
+            { label: 'Motor Control Center', value: parseFloat(roiData.motorControlCenter) || 0 },
+            { label: 'Distribution Board', value: parseFloat(roiData.distributionBoard) || 0 },
+            { label: 'Pipes, Valves & Flanges', value: parseFloat(roiData.pipesValvesFlanges) || 0 },
+            { label: 'Tank Level Transmitters', value: parseFloat(roiData.tankLevelTransmitters) || 0 },
+            { label: 'Additional Pumps & Filters', value: parseFloat(roiData.additionalPumpsFilters) || 0 },
+            { label: 'Quality Control Equipment', value: parseFloat(roiData.qualityControlEquipment) || 0 },
+            { label: 'Labor Erection & Commissioning', value: parseFloat(roiData.laborErectionCommissioning) || 0 },
+            { label: 'Electrical Cables & Accessories', value: parseFloat(roiData.electricalCablesAccessories) || 0 }
+          ];
+
+          // Equipment table headers
+          const equipTableHeaders = ['Equipment Component', `Cost (${roiData.currency || 'USD'})`];
+          const equipColWidths = [120, 50];
+          const equipRowHeight = 10;
+          let equipTableX = margin;
+          let equipTableY = yPos;
+
+          // Draw header row
+          let equipHeaderX = equipTableX;
+          equipTableHeaders.forEach((header, colIndex) => {
+            doc.setFillColor(240, 240, 240);
+            doc.rect(equipHeaderX, equipTableY, equipColWidths[colIndex], equipRowHeight, 'F');
+            doc.rect(equipHeaderX, equipTableY, equipColWidths[colIndex], equipRowHeight);
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.text(header, equipHeaderX + 2, equipTableY + 7);
+            equipHeaderX += equipColWidths[colIndex];
+          });
+          equipTableY += equipRowHeight;
+
+          // Draw equipment rows
+          doc.setFont('helvetica', 'normal');
+          let totalEquipmentCosts = 0;
+          equipmentCosts.forEach((equipment, rowIndex) => {
+            if (equipment.value > 0) { // Only show non-zero costs
+              let cellX = equipTableX;
+              
+              // Equipment component name
+              doc.rect(cellX, equipTableY, equipColWidths[0], equipRowHeight);
+              doc.setFontSize(8);
+              doc.text(equipment.label, cellX + 2, equipTableY + 7);
+              cellX += equipColWidths[0];
+              
+              // Equipment cost
+              doc.rect(cellX, equipTableY, equipColWidths[1], equipRowHeight);
+              doc.text(equipment.value.toLocaleString(), cellX + 2, equipTableY + 7);
+              
+              equipTableY += equipRowHeight;
+              totalEquipmentCosts += equipment.value;
+
+              // Check for page break
+              if (equipTableY > pageHeight - 50) {
+                doc.addPage();
+                equipTableY = margin + 20;
+                yPos = equipTableY;
+              }
+            }
+          });
+
+          // Total equipment row
+          if (totalEquipmentCosts > 0) {
+            let cellX = equipTableX;
+            doc.setFillColor(230, 230, 230);
+            doc.rect(cellX, equipTableY, equipColWidths[0], equipRowHeight, 'F');
+            doc.rect(cellX, equipTableY, equipColWidths[0], equipRowHeight);
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Total Additional Equipment', cellX + 2, equipTableY + 7);
+            cellX += equipColWidths[0];
+
+            doc.setFillColor(230, 230, 230);
+            doc.rect(cellX, equipTableY, equipColWidths[1], equipRowHeight, 'F');
+            doc.rect(cellX, equipTableY, equipColWidths[1], equipRowHeight);
+            doc.text(totalEquipmentCosts.toLocaleString(), cellX + 2, equipTableY + 7);
+            equipTableY += equipRowHeight;
+
+            yPos = equipTableY + 10;
+
+            // Step 3 Summary
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(0, 102, 204);
+            doc.text('Step 3 Equipment Summary', margin, yPos);
+            yPos += 8;
+
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Total Additional Equipment Cost: ${roiData.currency || 'USD'} ${totalEquipmentCosts.toLocaleString()}`, margin, yPos);
+            yPos += 15;
+          } else {
+            yPos = equipTableY + 10;
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'italic');
+            doc.setTextColor(100, 100, 100);
+            doc.text('No additional equipment costs specified for this project.', margin, yPos);
+            yPos += 15;
+          }
+        }
+
         // GRAPHICAL SUMMARY SECTION
         checkPageBreak(50);
         doc.setFontSize(14);
