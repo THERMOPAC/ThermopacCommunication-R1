@@ -313,6 +313,7 @@ export default function MarketingToolsPage() {
   const [editingCapacity, setEditingCapacity] = useState<{ id: number; capacity: number; priceUSD: number } | null>(null);
   const [tankPrices, setTankPrices] = useState<Array<{ id: number; capacity: number; priceUSD: number }>>([]);
   const [isTankPriceDialogOpen, setIsTankPriceDialogOpen] = useState(false);
+  const [manageCostsOpen, setManageCostsOpen] = useState(false);
 
   // Fetch saved ROI projects for dropdown
   const { data: savedProjects, refetch: refetchProjects } = useQuery({
@@ -2686,7 +2687,7 @@ export default function MarketingToolsPage() {
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            onClick={() => setManageCostsOpen(true)}
+                            onClick={() => setShowPlantCostsDialog(true)}
                             className="h-8"
                           >
                             <Settings className="h-4 w-4 mr-1" />
