@@ -3699,65 +3699,328 @@ export default function MarketingToolsPage() {
         // Save the PDF
         doc.save(`Comprehensive_ROI_Report_${roiData.customerName || 'Project'}_${new Date().toISOString().split('T')[0]}.pdf`);
       } else {
-        // Excel format - create comprehensive CSV
-        const csvContent = [
-          ['THERMOPAC ROI ANALYSIS REPORT'],
+        // Excel format - create comprehensive 7-sheet workbook
+        console.log('Importing XLSX library...');
+        const XLSX = await import('xlsx');
+        console.log('Creating Excel workbook...');
+        
+        const workbook = XLSX.utils.book_new();
+        const currencySymbol = getCurrencySymbol(roiData.currency);
+        
+        // SHEET 1: Plant Configuration
+        const plantConfigData = [
+          ['THERMOPAC ROI CALCULATOR - PLANT CONFIGURATION'],
           [`Generated on: ${reportData.projectInfo.generatedDate}`],
           [''],
           ['PROJECT INFORMATION'],
-          ['Customer', reportData.projectInfo.customerName],
-          ['Project', reportData.projectInfo.projectName],
-          ['Plant Capacity (LPH)', reportData.projectInfo.capacity],
-          ['Currency', reportData.projectInfo.currency],
+          ['Customer Name', reportData.projectInfo.customerName],
+          ['Project Name', reportData.projectInfo.projectName],
+          ['Plant Capacity (LPH)', reportData.projectInfo.capacity.toLocaleString()],
+          ['Selected Currency', reportData.projectInfo.currency],
           ['Operating Days per Month', reportData.projectInfo.operatingDays],
           [''],
-          ['FINANCIAL SUMMARY'],
-          ['Total Investment', totalInvestment],
-          ['Annual Revenue', reportData.financials.totalRevenue],
-          ['Annual Operating Costs', reportData.financials.operatingCostsAnnual],
-          ['Gross Profit', reportData.financials.grossProfit],
-          ['Payback Period (years)', reportData.financials.paybackPeriod.toFixed(1)],
-          ['Annual ROI (%)', reportData.financials.annualROI.toFixed(1)],
-          ['NPV (5 years)', reportData.financials.npv],
-          ['IRR (%)', reportData.financials.irr.toFixed(1)],
+          ['BASE PLANT COST'],
+          ['Base Plant Cost (USD)', `$${(parseFloat(roiData.projectCostUSD) || 0).toLocaleString()}`],
+          ['Base Plant Cost (Local Currency)', `${currencySymbol}${(parseFloat(roiData.projectCostLocal) || 0).toLocaleString()}`],
           [''],
-          ['PRODUCT REVENUE ANALYSIS'],
-          ['Product', 'Yield %', 'Price per Ton', 'Annual Tons', 'Annual Revenue', 'Revenue %'],
+          ['ADDITIONAL PROJECT COSTS'],
+          ['Description', 'Amount'],
+          ['Freight & Insurance', `${currencySymbol}${(parseFloat(roiData.freightInsurance) || 0).toLocaleString()}`],
+          ['Import Duty & VAT', `${currencySymbol}${(parseFloat(roiData.importDutyVAT) || 0).toLocaleString()}`],
+          ['Plot Cost', `${currencySymbol}${(parseFloat(roiData.plotCost) || 0).toLocaleString()}`],
+          ['Civil Cost', `${currencySymbol}${(parseFloat(roiData.civilCost) || 0).toLocaleString()}`],
+          ['Refinery Shed', `${currencySymbol}${(parseFloat(roiData.refineryShed) || 0).toLocaleString()}`],
+          ['Utility Shed', `${currencySymbol}${(parseFloat(roiData.utilityShed) || 0).toLocaleString()}`],
+          ['Office Building', `${currencySymbol}${(parseFloat(roiData.officeBuilding) || 0).toLocaleString()}`],
+          ['Mechanical & Electrical', `${currencySymbol}${(parseFloat(roiData.mechanicalElectrical) || 0).toLocaleString()}`],
+          ['Fire Suppression System', `${currencySymbol}${(parseFloat(roiData.fireSuppressionSystem) || 0).toLocaleString()}`],
+          ['Insulation Cost', `${currencySymbol}${(parseFloat(roiData.insulationCost) || 0).toLocaleString()}`],
+          ['Legal Fees', `${currencySymbol}${(parseFloat(roiData.legalFees) || 0).toLocaleString()}`],
+          ['Pre Formation Expenses', `${currencySymbol}${(parseFloat(roiData.preFormationExpenses) || 0).toLocaleString()}`],
+          ['Commissioning & Travel', `${currencySymbol}${(parseFloat(roiData.commissioningTravel) || 0).toLocaleString()}`],
+          ['Contingency', `${currencySymbol}${(parseFloat(roiData.contingency) || 0).toLocaleString()}`],
+          [''],
+          ['STEP 1 SUMMARY'],
+          ['Base Plant Cost', `${currencySymbol}${(parseFloat(roiData.projectCostLocal) || 0).toLocaleString()}`],
+          ['Additional Costs Total', `${currencySymbol}${additionalCosts.toLocaleString()}`],
+          ['Step 1 Total Investment', `${currencySymbol}${(parseFloat(roiData.projectCostLocal) + additionalCosts).toLocaleString()}`]
+        ];
+        
+        const plantConfigSheet = XLSX.utils.aoa_to_sheet(plantConfigData);
+        XLSX.utils.book_append_sheet(workbook, plantConfigSheet, 'Plant Configuration');
+        
+        // SHEET 2: Tank Farm & Utilities
+        const tankUtilityData = [
+          ['TANK FARM & UTILITIES'],
+          [`Plant Capacity: ${reportData.projectInfo.capacity.toLocaleString()} LPH | Currency: ${reportData.projectInfo.currency}`],
+          [''],
+          ['TANK FARM DETAILS'],
+          ['Tank Description', '% of Plant Capacity', 'Storage Days', 'Required Capacity (KL)', 'Suggested Tank Size (KL)', 'Suggested Quantity', 'Cost per Tank', 'Total Cost']
+        ];
+        
+        let totalTankCost = 0;
+        if (roiData.tanks && roiData.tanks.length > 0) {
+          roiData.tanks.forEach((tank: any) => {
+            if (tank.suggestedQuantity > 0) {
+              totalTankCost += tank.totalCost || 0;
+              tankUtilityData.push([
+                tank.description,
+                `${tank.percentCapacity}%`,
+                tank.storageDays,
+                tank.requiredKL,
+                tank.suggestedTankSize,
+                tank.suggestedQuantity,
+                `${currencySymbol}${(tank.unitCost || 0).toLocaleString()}`,
+                `${currencySymbol}${(tank.totalCost || 0).toLocaleString()}`
+              ]);
+            }
+          });
+        }
+        
+        tankUtilityData.push(['', '', '', '', '', '', 'Total Tank Cost:', `${currencySymbol}${totalTankCost.toLocaleString()}`]);
+        tankUtilityData.push(['']);
+        tankUtilityData.push(['UTILITIES & EQUIPMENT DETAILS']);
+        tankUtilityData.push(['Equipment', 'Specification', 'Quantity', 'Unit Cost', 'Total Cost']);
+        
+        let totalUtilityCost = 0;
+        if (roiData.utilities && roiData.utilities.length > 0) {
+          roiData.utilities.forEach((utility: any) => {
+            totalUtilityCost += utility.totalCost || 0;
+            tankUtilityData.push([
+              utility.description || utility.equipment,
+              utility.specification || utility.spec,
+              utility.quantity || 1,
+              `${currencySymbol}${(utility.unitCost || 0).toLocaleString()}`,
+              `${currencySymbol}${(utility.totalCost || 0).toLocaleString()}`
+            ]);
+          });
+        }
+        
+        tankUtilityData.push(['', '', '', 'Total Utilities Cost:', `${currencySymbol}${totalUtilityCost.toLocaleString()}`]);
+        tankUtilityData.push(['']);
+        tankUtilityData.push(['TANK FARM & UTILITIES SUMMARY']);
+        tankUtilityData.push(['Tank Farm Total', `${currencySymbol}${totalTankCost.toLocaleString()}`]);
+        tankUtilityData.push(['Utilities Total', `${currencySymbol}${totalUtilityCost.toLocaleString()}`]);
+        tankUtilityData.push(['Combined Total', `${currencySymbol}${(totalTankCost + totalUtilityCost).toLocaleString()}`]);
+        
+        const tankUtilitySheet = XLSX.utils.aoa_to_sheet(tankUtilityData);
+        XLSX.utils.book_append_sheet(workbook, tankUtilitySheet, 'Tank Farm & Utilities');
+        
+        // SHEET 3: Additional Equipment
+        const additionalEquipmentData = [
+          ['ADDITIONAL EQUIPMENT'],
+          [`Currency: ${reportData.projectInfo.currency}`],
+          [''],
+          ['EQUIPMENT BREAKDOWN'],
+          ['Equipment Description', 'Cost']
+        ];
+        
+        const equipmentItems = [
+          { name: 'Pumps (Centrifugal)', cost: parseFloat(roiData.centrifugalPumps || '0') },
+          { name: 'Pumps (Positive Displacement)', cost: parseFloat(roiData.positiveDisplacementPumps || '0') },
+          { name: 'Pressure Transmitters', cost: parseFloat(roiData.pressureTransmitters || '0') },
+          { name: 'Temperature Transmitters', cost: parseFloat(roiData.temperatureTransmitters || '0') },
+          { name: 'Level Transmitters', cost: parseFloat(roiData.levelTransmitters || '0') },
+          { name: 'Flow Transmitters', cost: parseFloat(roiData.flowTransmitters || '0') },
+          { name: 'Motor Control Center', cost: parseFloat(roiData.motorControlCenter || '0') },
+          { name: 'Distribution Board', cost: parseFloat(roiData.distributionBoard || '0') },
+          { name: 'Pipes, Valves & Flanges', cost: parseFloat(roiData.pipesValvesFlanges || '0') },
+          { name: 'Tank Level Transmitters', cost: parseFloat(roiData.tankLevelTransmitters || '0') },
+          { name: 'Additional Pumps & Filters', cost: parseFloat(roiData.additionalPumpsFilters || '0') },
+          { name: 'Quality Control Equipment', cost: parseFloat(roiData.qualityControlEquipment || '0') },
+          { name: 'Labor Erection & Commissioning', cost: parseFloat(roiData.laborErectionCommissioning || '0') },
+          { name: 'Electrical Cables & Accessories', cost: parseFloat(roiData.electricalCablesAccessories || '0') }
+        ];
+        
+        let totalEquipmentCost = 0;
+        equipmentItems.forEach(item => {
+          if (item.cost > 0) {
+            totalEquipmentCost += item.cost;
+            additionalEquipmentData.push([item.name, `${currencySymbol}${item.cost.toLocaleString()}`]);
+          }
+        });
+        
+        additionalEquipmentData.push(['']);
+        additionalEquipmentData.push(['STEP 3 EQUIPMENT SUMMARY']);
+        additionalEquipmentData.push(['Total Additional Equipment Investment', `${currencySymbol}${totalEquipmentCost.toLocaleString()}`]);
+        
+        const additionalEquipmentSheet = XLSX.utils.aoa_to_sheet(additionalEquipmentData);
+        XLSX.utils.book_append_sheet(workbook, additionalEquipmentSheet, 'Additional Equipment');
+        
+        // SHEET 4: Operating Costs
+        const operatingCostsData = [
+          ['OPERATING COSTS'],
+          [`Plant Capacity: ${reportData.projectInfo.capacity.toLocaleString()} LPH | Operating Days: ${reportData.projectInfo.operatingDays}/month`],
+          [''],
+          ['MONTHLY OPERATING COSTS'],
+          ['Cost Category', 'Monthly Amount', 'Annual Amount', 'Unit']
+        ];
+        
+        const feedstockCostPerLiter = parseFloat(roiData.feedstockCost) || 0;
+        const monthlyFeedstockCost = feedstockCostPerLiter * reportData.projectInfo.capacity * 24 * reportData.projectInfo.operatingDays;
+        
+        const operatingCostItems = [
+          { name: 'Feedstock Cost', monthly: monthlyFeedstockCost, annual: monthlyFeedstockCost * 12, unit: `${currencySymbol}${feedstockCostPerLiter}/liter` },
+          { name: 'Power Cost', monthly: parseFloat(roiData.powerCost) || 0, annual: (parseFloat(roiData.powerCost) || 0) * 12, unit: `${currencySymbol}/month` },
+          { name: 'Fuel Cost', monthly: parseFloat(roiData.fuelCost) || 0, annual: (parseFloat(roiData.fuelCost) || 0) * 12, unit: `${currencySymbol}/month` },
+          { name: 'Chemical Cost', monthly: parseFloat(roiData.chemicalCost) || 0, annual: (parseFloat(roiData.chemicalCost) || 0) * 12, unit: `${currencySymbol}/month` },
+          { name: 'Labor Cost', monthly: parseFloat(roiData.laborCost) || 0, annual: (parseFloat(roiData.laborCost) || 0) * 12, unit: `${currencySymbol}/month` },
+          { name: 'Maintenance Cost', monthly: parseFloat(roiData.maintenanceCost) || 0, annual: (parseFloat(roiData.maintenanceCost) || 0) * 12, unit: `${currencySymbol}/month` }
+        ];
+        
+        let totalMonthlyOperatingCost = 0;
+        let totalAnnualOperatingCost = 0;
+        
+        operatingCostItems.forEach(item => {
+          totalMonthlyOperatingCost += item.monthly;
+          totalAnnualOperatingCost += item.annual;
+          operatingCostsData.push([
+            item.name,
+            `${currencySymbol}${item.monthly.toLocaleString()}`,
+            `${currencySymbol}${item.annual.toLocaleString()}`,
+            item.unit
+          ]);
+        });
+        
+        operatingCostsData.push(['']);
+        operatingCostsData.push(['OPERATING COSTS SUMMARY']);
+        operatingCostsData.push(['Total Monthly Operating Cost', `${currencySymbol}${totalMonthlyOperatingCost.toLocaleString()}`]);
+        operatingCostsData.push(['Total Annual Operating Cost', `${currencySymbol}${totalAnnualOperatingCost.toLocaleString()}`]);
+        
+        const operatingCostsSheet = XLSX.utils.aoa_to_sheet(operatingCostsData);
+        XLSX.utils.book_append_sheet(workbook, operatingCostsSheet, 'Operating Costs');
+        
+        // SHEET 5: Product Yield
+        const productYieldData = [
+          ['PRODUCT YIELD & PRICING'],
+          [`Plant Capacity: ${reportData.projectInfo.capacity.toLocaleString()} LPH | Currency: ${reportData.projectInfo.currency}`],
+          [''],
+          ['PRODUCT YIELDS & PRICING'],
+          ['Product Name', 'Yield %', 'Price per Ton', 'Density', 'Annual Tons', 'Annual Revenue']
+        ];
+        
+        const annualLiters = reportData.projectInfo.capacity * 24 * 365;
+        let totalYield = 0;
+        let totalAnnualRevenue = 0;
+        
+        reportData.products.forEach(product => {
+          totalYield += product.yield;
+          totalAnnualRevenue += product.annualRevenue;
+          productYieldData.push([
+            product.name,
+            `${product.yield.toFixed(1)}%`,
+            `${currencySymbol}${product.price.toLocaleString()}`,
+            product.density,
+            product.annualTons.toFixed(1),
+            `${currencySymbol}${product.annualRevenue.toLocaleString()}`
+          ]);
+        });
+        
+        productYieldData.push(['']);
+        productYieldData.push(['PRODUCT SUMMARY']);
+        productYieldData.push(['Total Product Yield', `${totalYield.toFixed(1)}%`]);
+        productYieldData.push(['Total Annual Revenue', `${currencySymbol}${totalAnnualRevenue.toLocaleString()}`]);
+        productYieldData.push(['Annual Processing', `${annualLiters.toLocaleString()} liters`]);
+        
+        const productYieldSheet = XLSX.utils.aoa_to_sheet(productYieldData);
+        XLSX.utils.book_append_sheet(workbook, productYieldSheet, 'Product Yield');
+        
+        // SHEET 6: ROI Summary
+        const roiSummaryData = [
+          ['ROI ANALYSIS SUMMARY'],
+          [`Project: ${reportData.projectInfo.projectName} | Customer: ${reportData.projectInfo.customerName}`],
+          [''],
+          ['INVESTMENT BREAKDOWN'],
+          ['Investment Category', 'Amount'],
+          ['Step 1: Plant Configuration', `${currencySymbol}${(parseFloat(roiData.projectCostLocal) + additionalCosts).toLocaleString()}`],
+          ['Step 2: Tank Farm & Utilities', `${currencySymbol}${(totalTankCost + totalUtilityCost).toLocaleString()}`],
+          ['Step 3: Additional Equipment', `${currencySymbol}${totalEquipmentCost.toLocaleString()}`],
+          ['Working Capital', `${currencySymbol}${workingCapital.toLocaleString()}`],
+          ['Total Investment', `${currencySymbol}${totalInvestment.toLocaleString()}`],
+          [''],
+          ['FINANCIAL RESULTS'],
+          ['Metric', 'Value'],
+          ['Annual Revenue', `${currencySymbol}${reportData.financials.totalRevenue.toLocaleString()}`],
+          ['Annual Operating Costs', `${currencySymbol}${reportData.financials.operatingCostsAnnual.toLocaleString()}`],
+          ['Gross Profit', `${currencySymbol}${reportData.financials.grossProfit.toLocaleString()}`],
+          ['Annual ROI', `${reportData.financials.annualROI.toFixed(1)}%`],
+          ['Payback Period', `${reportData.financials.paybackPeriod.toFixed(1)} years`],
+          ['NPV (5 years)', `${currencySymbol}${reportData.financials.npv.toLocaleString()}`],
+          ['IRR', `${reportData.financials.irr.toFixed(1)}%`],
+          [''],
+          ['KEY PERFORMANCE INDICATORS'],
+          ['Plant Utilization', `${((reportData.projectInfo.operatingDays / 30) * 100).toFixed(1)}%`],
+          ['Revenue per Liter', `${currencySymbol}${(reportData.financials.totalRevenue / annualLiters).toFixed(3)}`],
+          ['Operating Cost per Liter', `${currencySymbol}${(reportData.financials.operatingCostsAnnual / annualLiters).toFixed(3)}`],
+          ['Profit Margin', `${((reportData.financials.grossProfit / reportData.financials.totalRevenue) * 100).toFixed(1)}%`]
+        ];
+        
+        const roiSummarySheet = XLSX.utils.aoa_to_sheet(roiSummaryData);
+        XLSX.utils.book_append_sheet(workbook, roiSummarySheet, 'ROI Summary');
+        
+        // SHEET 7: Charts Data (for reference)
+        const chartsData = [
+          ['CHARTS & ANALYSIS DATA'],
+          [`Generated: ${reportData.projectInfo.generatedDate}`],
+          [''],
+          ['REVENUE BREAKDOWN BY PRODUCT'],
+          ['Product', 'Annual Revenue', 'Revenue %'],
           ...reportData.products.map(product => {
             const percentage = reportData.financials.totalRevenue > 0 ? (product.annualRevenue / reportData.financials.totalRevenue) * 100 : 0;
             return [
               product.name,
-              product.yield.toFixed(1),
-              product.price,
-              product.annualTons.toFixed(1),
-              product.annualRevenue.toFixed(0),
-              percentage.toFixed(1)
+              `${currencySymbol}${product.annualRevenue.toLocaleString()}`,
+              `${percentage.toFixed(1)}%`
             ];
           }),
           [''],
-          ['OPERATING COSTS BREAKDOWN'],
-          ['Cost Category', 'Monthly Cost', 'Annual Cost'],
-          ...reportData.operatingCosts.map(cost => [
-            cost.name,
-            cost.monthly,
-            cost.annual
-          ]),
-          ['Total Operating Costs', reportData.operatingCosts.reduce((sum, cost) => sum + cost.monthly, 0), reportData.financials.operatingCostsAnnual],
+          ['OPERATING COST BREAKDOWN'],
+          ['Cost Category', 'Annual Cost', 'Cost %'],
+          ...operatingCostItems.map(cost => {
+            const percentage = totalAnnualOperatingCost > 0 ? (cost.annual / totalAnnualOperatingCost) * 100 : 0;
+            return [
+              cost.name,
+              `${currencySymbol}${cost.annual.toLocaleString()}`,
+              `${percentage.toFixed(1)}%`
+            ];
+          }),
           [''],
-          ['INVESTMENT BREAKDOWN'],
-          ['Base Plant Cost', baseCost],
-          ['Tank & Utilities', tankCosts + utilityCosts],
-          ['Additional Costs', additionalCosts],
-          ['Equipment Costs', equipmentCosts],
-          ['Working Capital', workingCapital],
-          ['Total Investment', totalInvestment]
-        ].map(row => row.join(',')).join('\n');
+          ['INVESTMENT ALLOCATION'],
+          ['Category', 'Amount', 'Allocation %'],
+          ['Plant Configuration', `${currencySymbol}${(parseFloat(roiData.projectCostLocal) + additionalCosts).toLocaleString()}`, `${(((parseFloat(roiData.projectCostLocal) + additionalCosts) / totalInvestment) * 100).toFixed(1)}%`],
+          ['Tank Farm & Utilities', `${currencySymbol}${(totalTankCost + totalUtilityCost).toLocaleString()}`, `${(((totalTankCost + totalUtilityCost) / totalInvestment) * 100).toFixed(1)}%`],
+          ['Additional Equipment', `${currencySymbol}${totalEquipmentCost.toLocaleString()}`, `${((totalEquipmentCost / totalInvestment) * 100).toFixed(1)}%`],
+          ['Working Capital', `${currencySymbol}${workingCapital.toLocaleString()}`, `${((workingCapital / totalInvestment) * 100).toFixed(1)}%`]
+        ];
         
-        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const chartsSheet = XLSX.utils.aoa_to_sheet(chartsData);
+        XLSX.utils.book_append_sheet(workbook, chartsSheet, 'Charts');
+        
+        // Set column widths for better readability
+        const sheetNames = ['Plant Configuration', 'Tank Farm & Utilities', 'Additional Equipment', 'Operating Costs', 'Product Yield', 'ROI Summary', 'Charts'];
+        sheetNames.forEach(sheetName => {
+          const ws = workbook.Sheets[sheetName];
+          const colWidths = [
+            { wch: 25 }, // Column A
+            { wch: 15 }, // Column B
+            { wch: 15 }, // Column C
+            { wch: 15 }, // Column D
+            { wch: 15 }, // Column E
+            { wch: 15 }, // Column F
+            { wch: 15 }, // Column G
+            { wch: 15 }  // Column H
+          ];
+          ws['!cols'] = colWidths;
+        });
+        
+        // Generate and download the Excel file
+        console.log('Generating Excel file...');
+        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `ROI_Analysis_${roiData.customerName || 'Project'}_${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = `Comprehensive_ROI_Analysis_${roiData.customerName || 'Project'}_${new Date().toISOString().split('T')[0]}.xlsx`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -6144,7 +6407,7 @@ export default function MarketingToolsPage() {
                         size="lg"
                       >
                         <FileText className="h-5 w-5" />
-                        Download Excel Analysis
+                        Export to Excel (7 Sheets)
                       </Button>
                       <Button 
                         variant="outline" 
