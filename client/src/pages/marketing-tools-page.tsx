@@ -2568,7 +2568,10 @@ export default function MarketingToolsPage() {
         // Apply depreciation toggle logic
         const actualDepreciation = roiData.includeDepreciation ? annualDepreciation : 0;
         
-        const netProfitWithFinancing = ebitda - totalAnnualFinancingCosts - actualDepreciation;
+        // Apply financing costs toggle logic
+        const actualFinancingCosts = roiData.includeFinancingCosts !== false ? totalAnnualFinancingCosts : 0;
+        
+        const netProfitWithFinancing = ebitda - actualFinancingCosts - actualDepreciation;
 
         // P&L Statement Table with complete financial structure - conditionally include depreciation
         const plStatementData = [
@@ -2597,10 +2600,13 @@ export default function MarketingToolsPage() {
           { label: '', value: '', isSpacing: true },
           { label: 'EBITDA', value: ebitda, isBold: true, isTotal: true },
           { label: '', value: '', isSpacing: true },
-          { label: 'FINANCING COSTS', value: totalAnnualFinancingCosts, isBold: true, isHeader: true },
-          { label: '  Interest on Debt', value: annualDebtInterest, indent: true },
-          { label: '  Working Capital Interest', value: annualWorkingCapitalInterest, indent: true },
-          { label: '', value: '', isSpacing: true },
+          // Conditionally include financing costs section based on toggle state
+          ...(roiData.includeFinancingCosts !== false ? [
+            { label: 'FINANCING COSTS', value: actualFinancingCosts, isBold: true, isHeader: true },
+            { label: '  Interest on Debt', value: annualDebtInterest, indent: true },
+            { label: '  Working Capital Interest', value: annualWorkingCapitalInterest, indent: true },
+            { label: '', value: '', isSpacing: true }
+          ] : []),
           // Conditionally include depreciation section based on toggle state
           ...(roiData.includeDepreciation ? [
             { label: 'DEPRECIATION', value: actualDepreciation, isBold: true, isHeader: true },
@@ -5789,6 +5795,57 @@ export default function MarketingToolsPage() {
                           </p>
                         </div>
                       </div>
+                      
+                      {/* Financing Costs Toggle */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label>Include Financing Costs in Analysis</Label>
+                          <div className="flex items-center space-x-2">
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={roiData.includeFinancingCosts !== false}
+                                onChange={(e) => updateData('includeFinancingCosts', e.target.checked)}
+                                className="sr-only peer"
+                              />
+                              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                              <span className="ml-3 text-sm font-medium text-gray-900">{roiData.includeFinancingCosts !== false ? 'ON' : 'OFF'}</span>
+                            </label>
+                          </div>
+                        </div>
+                        <div className={`space-y-2 ${roiData.includeFinancingCosts === false ? 'opacity-50' : ''}`}>
+                          <div className="flex items-center justify-between">
+                            <Label className={roiData.includeFinancingCosts === false ? 'text-gray-400' : ''}>Interest Rate (Monthly) %</Label>
+                            <span className="text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded">6% annual default</span>
+                          </div>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="25"
+                            value={roiData.rateOfInterest || ''}
+                            onChange={(e) => updateData('rateOfInterest', e.target.value)}
+                            placeholder="0.5"
+                            className={`text-center ${roiData.includeFinancingCosts === false ? 'bg-gray-100 text-gray-400' : 'bg-yellow-50'}`}
+                            disabled={roiData.includeFinancingCosts === false}
+                          />
+                          <p className={`text-xs ${roiData.includeFinancingCosts === false ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {roiData.includeFinancingCosts === false ? 'Financing costs excluded from calculations' : 'Annual interest rate for debt and working capital financing'}
+                          </p>
+                          
+                          <div className="flex items-center justify-between">
+                            <Label className={roiData.includeFinancingCosts === false ? 'text-gray-400' : ''}>Monthly Interest Cost ({getCurrencySymbol(roiData.currency)})</Label>
+                            <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Auto-calculated</span>
+                          </div>
+                          <Input
+                            type="text"
+                            value={roiData.includeFinancingCosts !== false && financingCosts.totalMonthlyFinancingCost > 0 ? financingCosts.totalMonthlyFinancingCost.toLocaleString() : '0'}
+                            readOnly
+                            className={`text-center font-semibold ${roiData.includeFinancingCosts === false ? 'bg-gray-100 text-gray-400' : 'bg-red-50'}`}
+                          />
+                        </div>
+                      </div>
+                      
                       <div className="space-y-2">
                         <Label>Transportation Cost (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
                         <Input
@@ -5855,11 +5912,14 @@ export default function MarketingToolsPage() {
                                 parseFloat(roiData.chemicalCost) || 0,
                                 parseFloat(roiData.maintenanceCost) || 0,
                                 parseFloat(roiData.mediaCost) || 0,
-                                financingCosts.workingCapitalInterest || 0, // Include working capital interest cost
                                 parseFloat(roiData.transportationCost) || 0,
                                 parseFloat(roiData.vehicleMaintenanceCost) || 0,
                                 parseFloat(roiData.miscellaneousCost) || 0
                               ];
+                              // Add financing costs only if toggle is ON
+                              if (roiData.includeFinancingCosts !== false) {
+                                costs.push(financingCosts.workingCapitalInterest || 0);
+                              }
                               // Add depreciation only if toggle is ON
                               if (roiData.includeDepreciation && annualDepreciation > 0) {
                                 costs.push(annualDepreciation / 12);
