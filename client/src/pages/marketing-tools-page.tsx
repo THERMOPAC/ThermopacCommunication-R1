@@ -2567,7 +2567,7 @@ export default function MarketingToolsPage() {
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 102, 204);
         doc.text('PROFIT & LOSS STATEMENT (ANNUAL)', margin, yPos);
-        yPos += 15;
+        yPos += 8;
 
         // Calculate P&L values - Use user's actual operating days
         const plPlantCapacity = parseFloat(roiData.capacity || '0');
