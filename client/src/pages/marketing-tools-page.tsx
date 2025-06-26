@@ -2561,8 +2561,11 @@ export default function MarketingToolsPage() {
         yPos = productTableY + 25;
 
         // PROFIT & LOSS STATEMENT SECTION (Step 7)
-        checkPageBreak(150);
-        yPos += 5;
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 102, 204);
+        doc.text('PROFIT & LOSS STATEMENT (ANNUAL)', margin, yPos);
+        yPos += 15;
 
         // Calculate P&L values - Use user's actual operating days
         const plPlantCapacity = parseFloat(roiData.capacity || '0');
