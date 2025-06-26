@@ -1489,8 +1489,11 @@ export default function MarketingToolsPage() {
     // EBITDA (Earnings Before Interest, Taxes, Depreciation, Amortization)
     const ebitda = grossProfit;
     
-    // Calculate financial metrics using net profit (after financing costs and depreciation)
-    const paybackPeriod = totalInvestment > 0 && netProfit > 0 ? totalInvestment / netProfit : 0;
+    // Calculate cash flow for payback period (add back depreciation since it's non-cash)
+    const annualCashFlow = netProfit + annualDepreciation;
+    
+    // Calculate financial metrics
+    const paybackPeriod = totalInvestment > 0 && annualCashFlow > 0 ? totalInvestment / annualCashFlow : 0;
     const annualROI = totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0;
     
     // Return on Equity (using equity portion only)
