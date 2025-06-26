@@ -2774,13 +2774,20 @@ export default function MarketingToolsPage() {
 
         yPos = metricsTableY + 15;
 
-        // GRAPHICAL SUMMARY SECTION
-        checkPageBreak(50);
+        // GRAPHICAL SUMMARY SECTION - Start new page with proper A4 layout
+        doc.addPage();
+        yPos = topMargin; // 25mm top margin
+        
         doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 102, 204);
         doc.text('GRAPHICAL SUMMARY', margin, yPos);
         yPos += 15;
+
+        // Standardized chart dimensions for A4 layout
+        const standardChartWidth = 160; // 160mm width
+        const standardChartHeight = 90; // 90mm height
+        const chartSpacing = 15; // 15mm vertical spacing between charts
 
         // Calculate chart data
         const productYieldData = [
@@ -2853,20 +2860,22 @@ export default function MarketingToolsPage() {
           { name: 'Project Costs', value: additionalCostsChart, color: [153, 102, 255] }
         ].filter(item => item.value > 0);
 
-        // Helper function to draw pie chart
-        const drawPieChart = (data: any[], x: number, y: number, radius: number, title: string) => {
+        // Helper function to draw pie chart with standardized dimensions
+        const drawPieChart = (data: any[], x: number, y: number, width: number, height: number, title: string) => {
           const total = data.reduce((sum, item) => sum + item.value, 0);
-          if (total === 0) return y;
+          if (total === 0) return y + height;
 
           // Title
           doc.setFontSize(12);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(0, 0, 0);
-          doc.text(title, x, y - 10);
+          doc.text(title, x, y - 5);
 
-          let startAngle = 0;
-          const centerX = x + radius;
+          // Standardized radius for 90mm height constraint (35mm radius)
+          const radius = 35;
+          const centerX = x + width / 2;
           const centerY = y + radius + 10;
+          let startAngle = 0;
 
           data.forEach((item, index) => {
             const angle = (item.value / total) * 2 * Math.PI;
@@ -2906,10 +2915,10 @@ export default function MarketingToolsPage() {
             legendY += 8;
           });
 
-          return Math.max(y + radius * 2 + 20, legendY + 10);
+          return y + height;
         };
 
-        // Helper function to draw bar chart
+        // Helper function to draw bar chart with standardized dimensions
         const drawBarChart = (data: any[], x: number, y: number, width: number, height: number, title: string, currency: string) => {
           doc.setFontSize(12);
           doc.setFont('helvetica', 'bold');
@@ -2951,11 +2960,8 @@ export default function MarketingToolsPage() {
           return y + height + 30;
         };
 
-        // Draw charts with standardized sizes: 160mm width × 90mm height
+        // Draw charts with standardized sizes using predefined dimensions
         let chartY = yPos;
-        const standardChartWidth = 160;
-        const standardChartHeight = 90;
-        const standardPieRadius = 35; // Adjusted for 90mm height
         const chartSpacing = 20; // Minimum 20mm spacing between charts
         let chartsOnCurrentPage = 0;
 
@@ -2968,7 +2974,7 @@ export default function MarketingToolsPage() {
           }
           checkPageBreak(standardChartHeight + 30, true);
           if (yPos > chartY - 20) chartY = yPos;
-          chartY = drawPieChart(productYieldData, margin, chartY, standardPieRadius, 'Product Yield Breakdown (%)');
+          chartY = drawPieChart(productYieldData, margin, chartY, standardChartWidth, standardChartHeight, 'Product Yield Breakdown (%)');
           chartY += chartSpacing;
           chartsOnCurrentPage++;
         }
@@ -2980,8 +2986,6 @@ export default function MarketingToolsPage() {
             chartY = topMargin;
             chartsOnCurrentPage = 0;
           }
-          checkPageBreak(standardChartHeight + 30, true);
-          if (yPos > chartY - 20) chartY = yPos;
           chartY = drawBarChart(revenueData, margin, chartY, standardChartWidth, standardChartHeight, `Annual Revenue by Product (${roiData.currency})`, roiData.currency || 'USD');
           chartY += chartSpacing;
           chartsOnCurrentPage++;
@@ -2994,9 +2998,7 @@ export default function MarketingToolsPage() {
             chartY = topMargin;
             chartsOnCurrentPage = 0;
           }
-          checkPageBreak(standardChartHeight + 30, true);
-          if (yPos > chartY - 20) chartY = yPos;
-          chartY = drawPieChart(operatingCostData, margin, chartY, standardPieRadius, `Monthly Operating Costs (${roiData.currency})`);
+          chartY = drawPieChart(operatingCostData, margin, chartY, standardChartWidth, standardChartHeight, `Monthly Operating Costs (${roiData.currency})`);
           chartY += chartSpacing;
           chartsOnCurrentPage++;
         }
@@ -3008,7 +3010,6 @@ export default function MarketingToolsPage() {
             chartY = topMargin;
             chartsOnCurrentPage = 0;
           }
-          checkPageBreak(standardChartHeight + 30, true);
           if (yPos > chartY - 20) chartY = yPos;
           chartY = drawBarChart(capexData, margin, chartY, standardChartWidth, standardChartHeight, `CAPEX Allocation (${roiData.currency})`, roiData.currency || 'USD');
         }
@@ -3095,15 +3096,105 @@ export default function MarketingToolsPage() {
           // Add axis labels
           doc.setFontSize(8);
           doc.setTextColor(0, 0, 0);
-          doc.text('0', x - 5, y + height + 5);
-          doc.text('60 months', x + width - 15, y + height + 10);
-          doc.text('Cash Flow', x - 30, y + height/2, { angle: 90 });
+          doc.text('Months', x + width / 2, y + height + 15, { align: 'center' });
+          doc.text('Cash Flow', x - 15, y + height / 2, { align: 'center', angle: 90 });
           
           return y + height + 30;
         };
 
         // Helper function to draw ROI Sensitivity Analysis (Tornado Chart)
-        const drawSensitivityAnalysis = (x: number, y: number, width: number, height: number, title: string) => {
+        const drawROISensitivityAnalysis = (x: number, y: number, width: number, height: number, title: string) => {
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(0, 0, 0);
+          doc.text(title, x, y - 10);
+
+          const baseROI = parseFloat(roiData.annualROI || '0');
+          
+          // Calculate ±10% impact scenarios
+          const sensitivityData = [
+            { 
+              variable: 'Product Pricing', 
+              positiveROI: baseROI * 1.15, // +10% pricing improves ROI significantly
+              negativeROI: baseROI * 0.85  // -10% pricing reduces ROI
+            },
+            { 
+              variable: 'Feedstock Cost', 
+              positiveROI: baseROI * 1.12, // -10% feedstock cost improves ROI
+              negativeROI: baseROI * 0.88  // +10% feedstock cost reduces ROI
+            },
+            { 
+              variable: 'Plant Capacity', 
+              positiveROI: baseROI * 1.08, // +10% capacity improves ROI
+              negativeROI: baseROI * 0.92  // -10% capacity reduces ROI
+            },
+            { 
+              variable: 'Operating Costs', 
+              positiveROI: baseROI * 1.05, // -10% operating costs improves ROI
+              negativeROI: baseROI * 0.95  // +10% operating costs reduces ROI
+            },
+            { 
+              variable: 'Investment Cost', 
+              positiveROI: baseROI * 1.03, // -10% investment improves ROI
+              negativeROI: baseROI * 0.97  // +10% investment reduces ROI
+            }
+          ];
+
+          const maxImpact = Math.max(...sensitivityData.map(d => Math.max(Math.abs(d.positiveROI - baseROI), Math.abs(d.negativeROI - baseROI))));
+          const barHeight = (height - 40) / sensitivityData.length;
+          
+          sensitivityData.forEach((item, index) => {
+            const barY = y + 20 + (index * barHeight);
+            const centerX = x + width / 2;
+            
+            // Draw variable label
+            doc.setFontSize(9);
+            doc.setTextColor(0, 0, 0);
+            doc.text(item.variable, x, barY + barHeight / 2 + 2);
+            
+            // Calculate bar widths
+            const positiveWidth = ((item.positiveROI - baseROI) / maxImpact) * (width / 3);
+            const negativeWidth = ((baseROI - item.negativeROI) / maxImpact) * (width / 3);
+            
+            // Draw negative impact bar (red, left side)
+            doc.setFillColor(255, 99, 132);
+            doc.rect(centerX - negativeWidth, barY, negativeWidth, barHeight * 0.6, 'F');
+            
+            // Draw positive impact bar (green, right side)
+            doc.setFillColor(75, 192, 192);
+            doc.rect(centerX, barY, positiveWidth, barHeight * 0.6, 'F');
+            
+            // Add ROI values
+            doc.setFontSize(7);
+            doc.text(`${item.negativeROI.toFixed(1)}%`, centerX - negativeWidth - 5, barY + barHeight * 0.4, { align: 'right' });
+            doc.text(`${item.positiveROI.toFixed(1)}%`, centerX + positiveWidth + 5, barY + barHeight * 0.4);
+          });
+
+          // Draw center line (base ROI)
+          doc.setDrawColor(0, 0, 0);
+          doc.setLineWidth(1);
+          doc.line(x + width / 2, y + 10, x + width / 2, y + height - 10);
+          
+          // Add base ROI label
+          doc.setFontSize(8);
+          doc.text(`Base ROI: ${baseROI.toFixed(1)}%`, x + width / 2, y + height, { align: 'center' });
+          
+          return y + height + 20;
+        };
+
+        // Now draw the advanced charts on new page with proper layout
+        // 5. Cash Flow Timeline (first chart on new page)
+        chartY = drawCashFlowTimeline(margin, chartY, standardChartWidth, standardChartHeight, 'Cash Flow Timeline (5 Years)');
+        chartY += chartSpacing;
+        chartsOnCurrentPage = 1;
+
+        // 6. ROI Sensitivity Analysis (second chart on same page)
+        if (chartsOnCurrentPage >= 2) {
+          doc.addPage();
+          chartY = topMargin;
+          chartsOnCurrentPage = 0;
+        }
+        chartY = drawROISensitivityAnalysis(margin, chartY, standardChartWidth, standardChartHeight, 'ROI Sensitivity Analysis (±10% Impact)');
           doc.setFontSize(12);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(0, 0, 0);
