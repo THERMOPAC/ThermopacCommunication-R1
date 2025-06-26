@@ -1500,17 +1500,21 @@ export default function MarketingToolsPage() {
     
     // Debug revenue and cost calculations
     console.log('🔍 REVENUE & COST DEBUG:');
-    console.log('Plant Capacity:', plantCapacity);
+    console.log('Plant Capacity:', plantCapacity, 'LPH');
     console.log('Operating Days per Month:', operatingDays);
-    console.log('Annual Liters:', annualLiters);
-    console.log('Total Revenue:', totalRevenue);
-    console.log('Annual Feedstock Cost:', annualFeedstockCost);
-    console.log('Other Operating Costs (Annual):', annualOperatingCosts - annualFeedstockCost);
-    console.log('Total Annual Operating Costs:', annualOperatingCosts);
-    console.log('Gross Profit:', grossProfit);
-    console.log('Actual Financing Costs:', actualFinancingCosts);
-    console.log('Net Profit Before Depreciation:', netProfitBeforeDepreciation);
-    console.log('Actual Depreciation:', actualDepreciation);
+    console.log('Annual Liters Processed:', annualLiters.toLocaleString());
+    console.log('Total Revenue:', '£' + totalRevenue.toLocaleString());
+    console.log('Annual Feedstock Cost:', '£' + annualFeedstockCost.toLocaleString());
+    console.log('Other Operating Costs:', '£' + (annualOperatingCosts - annualFeedstockCost).toLocaleString());
+    console.log('Total Operating Costs:', '£' + annualOperatingCosts.toLocaleString());
+    console.log('Gross Profit:', '£' + grossProfit.toLocaleString());
+    console.log('💡 ANALYSIS: For realistic re-refining, revenue should be £8-12M annually');
+    console.log('💡 ISSUE: Current revenue of £' + totalRevenue.toLocaleString() + ' is too low for sustainable business');
+    console.log('💡 RECOMMENDATION: Increase product prices to market levels:');
+    console.log('   - Light Base Oil: £650-750/ton (current: £444/ton)');
+    console.log('   - Heavy Base Oil: £700-800/ton (current: £466/ton)');
+    console.log('   - Naphtha/Gas Oil: £550-650/ton (current: £296/ton)');
+    console.log('   - Residue: £350-450/ton (current: £222/ton)');
     
     // EBITDA (Earnings Before Interest, Taxes, Depreciation, Amortization)
     const ebitda = grossProfit;
