@@ -2682,6 +2682,184 @@ export default function MarketingToolsPage() {
           { label: 'NET PROFIT', value: netProfitWithFinancing, isBold: true, isTotal: true, isFinal: true }
         ];
 
+        // Investment Breakdown Summary Section
+        // Check space for Investment Breakdown Summary
+        if (yPos + 60 > pageHeight - bottomMargin) {
+          doc.addPage();
+          yPos = topMargin;
+        }
+
+        // Investment Breakdown Summary Table
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('INVESTMENT BREAKDOWN SUMMARY', margin, yPos);
+        yPos += 12;
+
+        // Calculate investment components with currency conversion
+        const basePlantCost = parseFloat(roiData.projectCostLocal || '0') || 0;
+        
+        // Step 1 - Project costs
+        const step1AdditionalCosts = [
+          parseFloat(roiData.freightInsurance || '0') || 0,
+          parseFloat(roiData.importDutyVAT || '0') || 0,
+          parseFloat(roiData.plotCost || '0') || 0,
+          parseFloat(roiData.civilCost || '0') || 0,
+          parseFloat(roiData.refineryShed || '0') || 0,
+          parseFloat(roiData.utilityShed || '0') || 0,
+          parseFloat(roiData.officeBuilding || '0') || 0,
+          parseFloat(roiData.fireSuppressionSystem || '0') || 0,
+          parseFloat(roiData.insulationCost || '0') || 0,
+          parseFloat(roiData.legalFees || '0') || 0,
+          parseFloat(roiData.preFormationExpenses || '0') || 0,
+          parseFloat(roiData.commissioningTravel || '0') || 0,
+          parseFloat(roiData.contingency || '0') || 0
+        ].reduce((sum, cost) => sum + cost, 0);
+        const step1Total = basePlantCost + step1AdditionalCosts;
+
+        // Step 2 - Tank Farm & Utilities costs
+        const invTankCosts = (roiData.tanks || []).reduce((total: number, tank: any) => {
+          return total + (parseFloat(tank.totalCost) || 0);
+        }, 0);
+        const invUtilityCosts = (roiData.utilities || []).reduce((total: number, utility: any) => {
+          return total + (parseFloat(utility.totalCost) || 0);
+        }, 0);
+        const step2Total = invTankCosts + invUtilityCosts;
+
+        // Step 3 - Additional Equipment costs
+        const equipmentCosts = [
+          parseFloat(roiData.additionalPumpsFilters || '0') || 0,
+          parseFloat(roiData.tankLevelTransmitters || '0') || 0,
+          parseFloat(roiData.pipesValvesFlanges || '0') || 0,
+          parseFloat(roiData.electricalCablesAccessories || '0') || 0,
+          parseFloat(roiData.pccMccPanels || '0') || 0,
+          parseFloat(roiData.chimneyDucting || '0') || 0,
+          parseFloat(roiData.coolingTower || '0') || 0,
+          parseFloat(roiData.dieselGenerator || '0') || 0,
+          parseFloat(roiData.qualityControlEquipment || '0') || 0,
+          parseFloat(roiData.thermicFluid || '0') || 0,
+          parseFloat(roiData.expansionStructure || '0') || 0,
+          parseFloat(roiData.craneHireCharges || '0') || 0,
+          parseFloat(roiData.laborErectionCommissioning || '0') || 0
+        ].reduce((sum, cost) => sum + cost, 0);
+        const step3Total = equipmentCosts;
+
+        // Step 4 - Working Capital
+        const invWorkingCapital = parseFloat(roiData.workingCapitalRequirement || '0') || 0;
+
+        // Total Investment
+        const totalInvestment = step1Total + step2Total + step3Total + invWorkingCapital;
+
+        // Investment breakdown data
+        const investmentData = [
+          { 
+            label: 'Step 1: Plant & Project Costs', 
+            value: step1Total, 
+            percentage: step1Total > 0 ? ((step1Total / totalInvestment) * 100).toFixed(1) : '0.0'
+          },
+          { 
+            label: 'Step 2: Tank Farm & Utilities', 
+            value: step2Total, 
+            percentage: step2Total > 0 ? ((step2Total / totalInvestment) * 100).toFixed(1) : '0.0'
+          },
+          { 
+            label: 'Step 3: Additional Equipment', 
+            value: step3Total, 
+            percentage: step3Total > 0 ? ((step3Total / totalInvestment) * 100).toFixed(1) : '0.0'
+          },
+          { 
+            label: 'Step 4: Working Capital', 
+            value: invWorkingCapital, 
+            percentage: invWorkingCapital > 0 ? ((invWorkingCapital / totalInvestment) * 100).toFixed(1) : '0.0'
+          }
+        ];
+
+        // Investment table headers and setup
+        const invHeaders = ['Investment Component', `Amount (${roiData.currency || 'USD'})`, '% of Total'];
+        const invColWidths = [100, 50, 30];
+        const invRowHeight = 8;
+        let invTableX = margin;
+        let invTableY = yPos;
+
+        // Draw investment table header
+        let invHeaderX = invTableX;
+        invHeaders.forEach((header, colIndex) => {
+          doc.setFillColor(60, 80, 140);
+          doc.rect(invHeaderX, invTableY, invColWidths[colIndex], invRowHeight, 'F');
+          doc.rect(invHeaderX, invTableY, invColWidths[colIndex], invRowHeight);
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(255, 255, 255);
+          doc.text(header, invHeaderX + 2, invTableY + 6);
+          invHeaderX += invColWidths[colIndex];
+        });
+        invTableY += invRowHeight;
+
+        // Draw investment rows
+        doc.setTextColor(0, 0, 0);
+        investmentData.forEach((item, index) => {
+          let invRowX = invTableX;
+          
+          // Component name (left-aligned)
+          doc.setFillColor(245, 245, 245);
+          doc.rect(invRowX, invTableY, invColWidths[0], invRowHeight, 'F');
+          doc.rect(invRowX, invTableY, invColWidths[0], invRowHeight);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          doc.text(item.label, invRowX + 2, invTableY + 6);
+          invRowX += invColWidths[0];
+          
+          // Amount (right-aligned)
+          doc.setFillColor(255, 255, 255);
+          doc.rect(invRowX, invTableY, invColWidths[1], invRowHeight, 'F');
+          doc.rect(invRowX, invTableY, invColWidths[1], invRowHeight);
+          const amountText = item.value > 0 ? item.value.toLocaleString() : '0';
+          const amountWidth = doc.getTextWidth(amountText);
+          doc.text(amountText, invRowX + invColWidths[1] - amountWidth - 2, invTableY + 6);
+          invRowX += invColWidths[1];
+          
+          // Percentage (right-aligned)
+          doc.rect(invRowX, invTableY, invColWidths[2], invRowHeight, 'F');
+          doc.rect(invRowX, invTableY, invColWidths[2], invRowHeight);
+          const percentText = `${item.percentage}%`;
+          const percentWidth = doc.getTextWidth(percentText);
+          doc.text(percentText, invRowX + invColWidths[2] - percentWidth - 2, invTableY + 6);
+          
+          invTableY += invRowHeight;
+        });
+
+        // Total row
+        let totalRowX = invTableX;
+        
+        // Total label (left-aligned, bold)
+        doc.setFillColor(40, 60, 120);
+        doc.rect(totalRowX, invTableY, invColWidths[0], invRowHeight, 'F');
+        doc.rect(totalRowX, invTableY, invColWidths[0], invRowHeight);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 255, 255);
+        doc.text('TOTAL INVESTMENT', totalRowX + 2, invTableY + 6);
+        totalRowX += invColWidths[0];
+        
+        // Total amount (right-aligned, bold)
+        doc.setFillColor(40, 60, 120);
+        doc.rect(totalRowX, invTableY, invColWidths[1], invRowHeight, 'F');
+        doc.rect(totalRowX, invTableY, invColWidths[1], invRowHeight);
+        const totalAmountText = totalInvestment.toLocaleString();
+        const totalAmountWidth = doc.getTextWidth(totalAmountText);
+        doc.text(totalAmountText, totalRowX + invColWidths[1] - totalAmountWidth - 2, invTableY + 6);
+        totalRowX += invColWidths[1];
+        
+        // 100% (right-aligned, bold)
+        doc.setFillColor(40, 60, 120);
+        doc.rect(totalRowX, invTableY, invColWidths[2], invRowHeight, 'F');
+        doc.rect(totalRowX, invTableY, invColWidths[2], invRowHeight);
+        const hundredPercentText = '100.0%';
+        const hundredPercentWidth = doc.getTextWidth(hundredPercentText);
+        doc.text(hundredPercentText, totalRowX + invColWidths[2] - hundredPercentWidth - 2, invTableY + 6);
+        
+        yPos = invTableY + invRowHeight + 15; // Add spacing after investment table
+
         // P&L Table with conditional compact spacing
         const plHeaders = ['Description', `Amount (${roiData.currency || 'USD'})`];
         const plColWidths = [120, 60];
