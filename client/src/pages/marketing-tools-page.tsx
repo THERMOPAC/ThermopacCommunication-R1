@@ -602,7 +602,9 @@ export default function MarketingToolsPage() {
           miscellaneousCost: roiData.miscellaneousCost,
           rateOfInterest: roiData.rateOfInterest,
           debtFinancingRatio: roiData.debtFinancingRatio,
-          depreciationMethod: roiData.depreciationMethod
+          depreciationMethod: roiData.depreciationMethod,
+          includeDepreciation: roiData.includeDepreciation,
+          includeFinancingCosts: roiData.includeFinancingCosts
         };
       case 5:
         return {
@@ -1482,8 +1484,11 @@ export default function MarketingToolsPage() {
     // Calculate comprehensive financial metrics including financing costs and depreciation
     const grossProfit = totalRevenue - annualOperatingCosts;
     
-    // Calculate net profit after financing costs and depreciation (respecting toggle)
-    const netProfitBeforeDepreciation = grossProfit - financingCosts.annualFinancingCosts;
+    // Apply financing costs toggle logic
+    const actualFinancingCosts = roiData.includeFinancingCosts !== false ? financingCosts.annualFinancingCosts : 0;
+    
+    // Calculate net profit after financing costs and depreciation (respecting toggles)
+    const netProfitBeforeDepreciation = grossProfit - actualFinancingCosts;
     const actualDepreciation = roiData.includeDepreciation ? annualDepreciation : 0;
     const netProfit = netProfitBeforeDepreciation - actualDepreciation;
     
@@ -1519,7 +1524,7 @@ export default function MarketingToolsPage() {
       grossProfit: Math.round(grossProfit),
       netProfit: Math.round(netProfit),
       ebitda: Math.round(ebitda),
-      annualFinancingCosts: Math.round(financingCosts.annualFinancingCosts),
+      annualFinancingCosts: Math.round(actualFinancingCosts),
       annualDepreciation: Math.round(annualDepreciation),
       debtAmount: Math.round(financingCosts.debtAmount),
       equityAmount: Math.round(financingCosts.equityAmount),
