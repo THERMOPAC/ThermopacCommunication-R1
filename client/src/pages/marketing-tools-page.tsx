@@ -7075,7 +7075,11 @@ export default function MarketingToolsPage() {
                                 parseFloat(roiData.fuelCost) || 0,
                                 parseFloat(roiData.chemicalCost) || 0,
                                 parseFloat(roiData.laborCost) || 0,
-                                parseFloat(roiData.maintenanceCost) || 0
+                                parseFloat(roiData.maintenanceCost) || 0,
+                                parseFloat(roiData.mediaCost) || 0,
+                                parseFloat(roiData.transportationCost) || 0,
+                                parseFloat(roiData.vehicleMaintenanceCost) || 0,
+                                parseFloat(roiData.miscellaneousCost) || 0
                               ].reduce((sum, cost) => sum + cost, 0) * 12;
                               const profit = revenue - operatingCosts;
                               
@@ -7190,9 +7194,13 @@ export default function MarketingToolsPage() {
                                       { name: 'Feedstock', monthly: monthlyFeedstockCost },
                                       { name: 'Power', monthly: parseFloat(roiData.powerCost) || 0 },
                                       { name: 'Fuel', monthly: parseFloat(roiData.fuelCost) || 0 },
-                                      { name: 'Consumables', monthly: monthlyChemicalCost },
+                                      { name: 'Chemical', monthly: monthlyChemicalCost },
                                       { name: 'Labor', monthly: parseFloat(roiData.laborCost) || 0 },
-                                      { name: 'Maintenance', monthly: parseFloat(roiData.maintenanceCost) || 0 }
+                                      { name: 'Maintenance', monthly: parseFloat(roiData.maintenanceCost) || 0 },
+                                      { name: 'Media', monthly: parseFloat(roiData.mediaCost) || 0 },
+                                      { name: 'Transportation', monthly: parseFloat(roiData.transportationCost) || 0 },
+                                      { name: 'Vehicle Maintenance', monthly: parseFloat(roiData.vehicleMaintenanceCost) || 0 },
+                                      { name: 'Miscellaneous', monthly: parseFloat(roiData.miscellaneousCost) || 0 }
                                     ];
                                   })().map((cost, index) => (
                                     <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
@@ -7216,7 +7224,11 @@ export default function MarketingToolsPage() {
                                         parseFloat(roiData.fuelCost) || 0,
                                         monthlyChemicalCost,
                                         parseFloat(roiData.laborCost) || 0,
-                                        parseFloat(roiData.maintenanceCost) || 0
+                                        parseFloat(roiData.maintenanceCost) || 0,
+                                        parseFloat(roiData.mediaCost) || 0,
+                                        parseFloat(roiData.transportationCost) || 0,
+                                        parseFloat(roiData.vehicleMaintenanceCost) || 0,
+                                        parseFloat(roiData.miscellaneousCost) || 0
                                       ].reduce((sum, cost) => sum + cost, 0);
                                     })().toLocaleString()}</td>
                                     <td className="border p-2 text-center">{getCurrencySymbol(roiData.currency)}{(() => {
