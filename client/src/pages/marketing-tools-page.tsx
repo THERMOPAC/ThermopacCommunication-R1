@@ -2794,8 +2794,8 @@ export default function MarketingToolsPage() {
         const annualDebtInterest = debtAmount * monthlyInterestRate * 12;
         
         const plantOperatingDays = parseFloat(roiData.plantOperationDays) || 30;
-        const workingCapital = plFeedstockCostPerLiter * plPlantCapacity * 24 * plantOperatingDays;
-        const annualWorkingCapitalInterest = workingCapital * monthlyInterestRate * 12;
+        const plWorkingCapital = plFeedstockCostPerLiter * plPlantCapacity * 24 * plantOperatingDays;
+        const annualWorkingCapitalInterest = plWorkingCapital * monthlyInterestRate * 12;
         
         const totalAnnualFinancingCosts = annualDebtInterest + annualWorkingCapitalInterest;
         
