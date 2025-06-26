@@ -5602,8 +5602,8 @@ export default function MarketingToolsPage() {
                 {currentStep === 4 && (
                   <div className="space-y-6">
                     <div className="text-center mb-6">
-                      <h2 className="text-2xl font-bold mb-2">Operating Costs</h2>
-                      <p className="text-muted-foreground">Enter monthly operating costs in {roiData.currency}</p>
+                      <h2 className="text-2xl font-bold mb-2">Operating Costs & Financing</h2>
+                      <p className="text-muted-foreground">Enter all monthly operating costs, financing parameters, and depreciation method in {roiData.currency}</p>
                     </div>
 
                     {/* Plant Operation Time Unit Field */}
@@ -6200,8 +6200,8 @@ export default function MarketingToolsPage() {
                 {currentStep === 6 && (
                   <div className="space-y-6">
                     <div className="text-center mb-6">
-                      <h2 className="text-2xl font-bold mb-2">Revenue & Investment Analysis</h2>
-                      <p className="text-muted-foreground">Financial projections and investment analysis in {roiData.currency}</p>
+                      <h2 className="text-2xl font-bold mb-2">Investment Structure & ROI Analysis</h2>
+                      <p className="text-muted-foreground">Configure financing structure and review final investment calculations</p>
                     </div>
 
                     {/* Revenue Analysis Table */}
@@ -6422,14 +6422,17 @@ export default function MarketingToolsPage() {
                           </div>
 
                           <div className="space-y-2">
-                            <Label>Working Capital Requirement ({getCurrencySymbol(roiData.currency)})</Label>
+                            <div className="flex items-center justify-between">
+                              <Label>Working Capital (from Step 4) ({getCurrencySymbol(roiData.currency)})</Label>
+                              <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Auto-calculated</span>
+                            </div>
                             <Input
-                              type="number"
-                              value={roiData.workingCapitalRequirement}
-                              onChange={(e) => updateData('workingCapitalRequirement', e.target.value)}
-                              placeholder="e.g., 500000"
+                              type="text"
+                              value={workingCapital > 0 ? workingCapital.toLocaleString() : '0'}
+                              readOnly
+                              className="bg-blue-50 text-center font-semibold"
                             />
-                            <p className="text-xs text-gray-500">Additional funds needed for day-to-day operations</p>
+                            <p className="text-xs text-gray-500">Calculated from Step 4: Feedstock Cost × Plant Capacity × 24 hours × Operating Days</p>
                           </div>
                         </div>
 
@@ -6468,18 +6471,17 @@ export default function MarketingToolsPage() {
                           </div>
 
                           <div className="space-y-2">
-                            <Label>Interest Rate on Debt (% annual)</Label>
+                            <div className="flex items-center justify-between">
+                              <Label>Interest Rate (from Step 4)</Label>
+                              <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Set in Step 4</span>
+                            </div>
                             <Input
-                              type="number"
-                              min="0"
-                              max="25"
-                              step="0.1"
-                              value={roiData.rateOfInterest || '6'}
-                              onChange={(e) => updateData('rateOfInterest', e.target.value)}
-                              placeholder="6.0"
-                              className="bg-yellow-50"
+                              type="text"
+                              value={`${roiData.rateOfInterest || '6.0'}% annual`}
+                              readOnly
+                              className="bg-blue-50 text-center font-semibold"
                             />
-                            <p className="text-xs text-gray-500">Valid range: 0% to 25% annual interest rate</p>
+                            <p className="text-xs text-gray-500">Configured in Step 4 Operating Costs section</p>
                           </div>
                         </div>
                       </div>
