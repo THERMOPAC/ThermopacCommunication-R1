@@ -3195,152 +3195,19 @@ export default function MarketingToolsPage() {
           chartsOnCurrentPage = 0;
         }
         chartY = drawROISensitivityAnalysis(margin, chartY, standardChartWidth, standardChartHeight, 'ROI Sensitivity Analysis (±10% Impact)');
-          doc.setFontSize(12);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(0, 0, 0);
-          doc.text(title, x, y - 10);
 
-          // Calculate base ROI
-          const baseROI = parseFloat(roiData.annualROI || '0');
-          
-          // Define sensitivity scenarios (±10% impact)
-          const sensitivityData = [
-            { 
-              factor: 'Product Pricing', 
-              positive: baseROI * 1.15, // +15% ROI impact
-              negative: baseROI * 0.85  // -15% ROI impact
-            },
-            { 
-              factor: 'Feedstock Cost', 
-              positive: baseROI * 1.12, // +12% ROI impact (cost reduction)
-              negative: baseROI * 0.88  // -12% ROI impact (cost increase)
-            },
-            { 
-              factor: 'Plant Capacity', 
-              positive: baseROI * 1.10, // +10% ROI impact
-              negative: baseROI * 0.90  // -10% ROI impact
-            },
-            { 
-              factor: 'Operating Costs', 
-              positive: baseROI * 1.08, // +8% ROI impact (cost reduction)
-              negative: baseROI * 0.92  // -8% ROI impact (cost increase)
-            },
-            { 
-              factor: 'Investment Cost', 
-              positive: baseROI * 1.06, // +6% ROI impact (cost reduction)
-              negative: baseROI * 0.94  // -6% ROI impact (cost increase)
-            }
-          ];
-
-          // Sort by impact magnitude
-          sensitivityData.sort((a, b) => Math.abs(b.positive - b.negative) - Math.abs(a.positive - a.negative));
-
-          const barHeight = height / sensitivityData.length * 0.8;
-          const barSpacing = height / sensitivityData.length * 0.2;
-          const centerX = x + width / 2;
-          
-          // Draw center line (base ROI)
-          doc.setDrawColor(0, 0, 0);
-          doc.setLineWidth(1);
-          doc.line(centerX, y, centerX, y + height);
-          
-          sensitivityData.forEach((item, index) => {
-            const barY = y + (index * (barHeight + barSpacing)) + barSpacing / 2;
-            
-            // Calculate bar widths (proportional to ROI change)
-            const maxROI = Math.max(...sensitivityData.flatMap(s => [s.positive, s.negative]));
-            const positiveWidth = ((item.positive - baseROI) / (maxROI - baseROI)) * (width / 2) * 0.9;
-            const negativeWidth = ((baseROI - item.negative) / (maxROI - baseROI)) * (width / 2) * 0.9;
-            
-            // Draw positive impact bar (right side - green)
-            doc.setFillColor(46, 204, 113);
-            doc.rect(centerX, barY, positiveWidth, barHeight * 0.6, 'F');
-            
-            // Draw negative impact bar (left side - red)
-            doc.setFillColor(231, 76, 60);
-            doc.rect(centerX - negativeWidth, barY, negativeWidth, barHeight * 0.6, 'F');
-            
-            // Add factor labels
-            doc.setFontSize(8);
-            doc.setTextColor(0, 0, 0);
-            doc.text(item.factor, x - 40, barY + barHeight * 0.4);
-            
-            // Add ROI values
-            doc.text(`${item.negative.toFixed(1)}%`, centerX - negativeWidth - 15, barY + barHeight * 0.4);
-            doc.text(`${item.positive.toFixed(1)}%`, centerX + positiveWidth + 5, barY + barHeight * 0.4);
-          });
-          
-          // Add legend
-          doc.setFillColor(231, 76, 60);
-          doc.rect(x + width - 80, y - 5, 8, 4, 'F');
-          doc.setFontSize(8);
-          doc.text('-10% Impact', x + width - 70, y - 2);
-          
-          doc.setFillColor(46, 204, 113);
-          doc.rect(x + width - 80, y + 5, 8, 4, 'F');
-          doc.text('+10% Impact', x + width - 70, y + 8);
-          
-          return y + height + 30;
-        };
-
-        // Start advanced charts on new page with standardized dimensions
-        doc.addPage();
-        yPos = topMargin;
-        
-        // 5. Cash Flow Timeline (Line Chart) - First chart on new page with standardized size
-        let newChartY = yPos;
-        newChartY = drawCashFlowTimeline(margin, newChartY, standardChartWidth, standardChartHeight, `5-Year Cash Flow Timeline (${roiData.currency})`);
-        
-        // Add minimum 20mm spacing between charts
-        newChartY += chartSpacing;
-        
-        // 6. ROI Sensitivity Analysis (Tornado Chart) - Second chart with space check
-        if (newChartY + standardChartHeight + 30 > pageHeight - bottomMargin) {
-          // If second chart won't fit with proper bottom margin, start new page
-          doc.addPage();
-          newChartY = topMargin;
-        }
-        newChartY = drawSensitivityAnalysis(margin, newChartY, standardChartWidth, standardChartHeight, 'ROI Sensitivity Analysis (±10% Impact)');
-
-        yPos = newChartY + 20;
-
-        // Summary table
-        checkPageBreak(60);
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 102, 204);
-        doc.text('FINANCIAL SUMMARY TABLE', margin, yPos);
-        yPos += 10;
-
-        // Draw table
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(0, 0, 0);
-
-        const tableData = [
-          ['Metric', 'Value', 'Unit'],
-          ['Plant Capacity', capacity.toLocaleString(), 'LPH'],
-          ['Operating Days', operatingDays.toString(), 'days/month'],
-          ['Annual Processing', annualTons.toFixed(0), 'tons/year'],
-          ['Total CAPEX', (projectCostLocalChart + tankCostsChart + utilityCostsChart + equipmentCostsChart + additionalCostsChart).toLocaleString(), roiData.currency || 'USD'],
-          ['Monthly OpEx', (feedstockCostMonthly + parseFloat(roiData.powerCost || '0') + parseFloat(roiData.fuelCost || '0') + parseFloat(roiData.chemicalCost || '0') + parseFloat(roiData.laborCost || '0') + parseFloat(roiData.maintenanceCost || '0')).toLocaleString(), `${roiData.currency || 'USD'}/month`],
-          ['Annual Revenue', revenueData.reduce((sum, item) => sum + item.value, 0).toLocaleString(), `${roiData.currency || 'USD'}/year`],
-          ['Product Yield', productYieldData.reduce((sum, item) => sum + item.value, 0).toFixed(1), '%'],
-          ['ROI', roiData.annualROI?.toFixed(1) || 'N/A', '%'],
-          ['Payback Period', (roiData.paybackPeriodMonths || (roiData.paybackPeriod || 0) * 12).toFixed(1) || 'N/A', 'months']
-        ];
-
-        // Draw table borders and content
-        const colWidths = [60, 50, 40];
-        const rowHeight = 8;
-        let tableX = margin;
-        let tableY = yPos;
-
-        tableData.forEach((row, rowIndex) => {
-          let cellX = tableX;
-          row.forEach((cell, colIndex) => {
-            // Draw cell border
-            doc.rect(cellX, tableY, colWidths[colIndex], rowHeight);
+        // Complete PDF generation
+        const fileName = `Comprehensive_ROI_Report_${roiData.customerName || 'Project'}_${new Date().toISOString().split('T')[0]}.pdf`;
+        doc.save(fileName);
+      } catch (error) {
+        console.error('PDF generation error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to generate PDF report",
+          variant: "destructive",
+        });
+      }
+    };
             
             // Set header styling
             if (rowIndex === 0) {
