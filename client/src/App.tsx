@@ -151,7 +151,6 @@ function Router() {
       <ProtectedRoute path="/campaigns" component={CampaignsPage} />
       <ProtectedRoute path="/marketing-dashboard" component={MarketingDashboardPage} />
       <ProtectedRoute path="/marketing-tools" component={MarketingToolsPage} />
-      <ProtectedRoute path="/sales-marketing" component={MarketingToolsPage} />
       <ProtectedRoute path="/roi-calculator" component={ROICalculatorPage} />
       
       {/* Finance Module Routes */}
