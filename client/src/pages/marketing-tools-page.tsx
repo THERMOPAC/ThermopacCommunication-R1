@@ -1514,6 +1514,20 @@ export default function MarketingToolsPage() {
     
     const paybackPeriod = investmentForPayback > 0 && cashFlowForPayback > 0 ? investmentForPayback / cashFlowForPayback : 0;
     
+    // Debug logging to see actual values
+    console.log('🔍 PAYBACK CALCULATION DEBUG:');
+    console.log('Net Profit:', netProfit);
+    console.log('Actual Depreciation:', actualDepreciation);
+    console.log('Include Financing Costs:', roiData.includeFinancingCosts);
+    console.log('Include Depreciation:', roiData.includeDepreciation);
+    console.log('Cash Flow for Payback:', cashFlowForPayback);
+    console.log('Investment for Payback:', investmentForPayback);
+    console.log('Capital Investment Only:', capitalInvestmentOnly);
+    console.log('Total Investment:', totalInvestment);
+    console.log('Working Capital:', workingCapital);
+    console.log('Calculated Payback Period (years):', paybackPeriod);
+    console.log('Calculated Payback Period (months):', paybackPeriod * 12);
+    
 
     const annualROI = totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0;
     
