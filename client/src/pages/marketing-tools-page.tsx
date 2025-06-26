@@ -1496,6 +1496,18 @@ export default function MarketingToolsPage() {
     const actualDepreciation = roiData.includeDepreciation ? annualDepreciation : 0;
     const netProfit = netProfitBeforeDepreciation - actualDepreciation;
     
+    // Debug revenue and cost calculations
+    console.log('🔍 REVENUE & COST DEBUG:');
+    console.log('Plant Capacity:', plantCapacity);
+    console.log('Operating Days per Month:', operatingDays);
+    console.log('Annual Liters:', annualLiters);
+    console.log('Total Revenue:', totalRevenue);
+    console.log('Annual Operating Costs:', annualOperatingCosts);
+    console.log('Gross Profit:', grossProfit);
+    console.log('Actual Financing Costs:', actualFinancingCosts);
+    console.log('Net Profit Before Depreciation:', netProfitBeforeDepreciation);
+    console.log('Actual Depreciation:', actualDepreciation);
+    
     // EBITDA (Earnings Before Interest, Taxes, Depreciation, Amortization)
     const ebitda = grossProfit;
     
