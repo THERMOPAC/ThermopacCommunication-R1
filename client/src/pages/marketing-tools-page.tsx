@@ -2865,20 +2865,27 @@ export default function MarketingToolsPage() {
           { name: 'Project Costs', value: additionalCostsChart, color: [153, 102, 255] }
         ].filter(item => item.value > 0);
 
-        // Helper function to draw pie chart
+        // Helper function to draw pie chart with vertical centering
         const drawPieChart = (data: any[], x: number, y: number, radius: number, title: string) => {
           const total = data.reduce((sum, item) => sum + item.value, 0);
           if (total === 0) return y;
 
-          // Title
+          // Calculate vertical center position within standardChartHeight (90mm)
+          const titleHeight = 15; // Space for title
+          const legendHeight = data.length * 8; // Space for legend
+          const pieHeight = radius * 2; // Actual pie chart height
+          const totalContentHeight = titleHeight + pieHeight + legendHeight;
+          const verticalOffset = Math.max(0, (standardChartHeight - totalContentHeight) / 2);
+
+          // Title - centered vertically
           doc.setFontSize(12);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(0, 0, 0);
-          doc.text(title, x, y - 10);
+          doc.text(title, x, y + verticalOffset + 10);
 
           let startAngle = 0;
           const centerX = x + radius;
-          const centerY = y + radius + 10;
+          const centerY = y + verticalOffset + titleHeight + radius;
 
           data.forEach((item, index) => {
             const angle = (item.value / total) * 2 * Math.PI;
@@ -2905,10 +2912,10 @@ export default function MarketingToolsPage() {
             startAngle = endAngle;
           });
 
-          // Legend
+          // Legend - positioned with vertical centering
           doc.setFontSize(9);
           doc.setFont('helvetica', 'normal');
-          let legendY = y + 10;
+          let legendY = y + verticalOffset + titleHeight + radius + 10;
           data.forEach((item, index) => {
             const percentage = ((item.value / total) * 100).toFixed(1);
             doc.setFillColor(item.color[0], item.color[1], item.color[2]);
@@ -2918,31 +2925,40 @@ export default function MarketingToolsPage() {
             legendY += 8;
           });
 
-          return Math.max(y + radius * 2 + 20, legendY + 10);
+          return y + standardChartHeight;
         };
 
-        // Helper function to draw bar chart
+        // Helper function to draw bar chart with vertical centering
         const drawBarChart = (data: any[], x: number, y: number, width: number, height: number, title: string, currency: string) => {
+          // Calculate vertical center position within standardChartHeight (90mm)
+          const titleHeight = 15; // Space for title
+          const barHeight = height; // Actual bar chart height
+          const totalContentHeight = titleHeight + barHeight;
+          const verticalOffset = Math.max(0, (standardChartHeight - totalContentHeight) / 2);
+
           doc.setFontSize(12);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(0, 0, 0);
-          doc.text(title, x, y - 10);
+          doc.text(title, x, y + verticalOffset + 10);
 
-          if (data.length === 0) return y + height + 30;
+          if (data.length === 0) return y + standardChartHeight;
 
           const maxValue = Math.max(...data.map(item => item.value));
           const barWidth = width / data.length * 0.8;
           const barSpacing = width / data.length * 0.2;
 
+          // Calculate chart area with vertical centering
+          const chartAreaY = y + verticalOffset + titleHeight;
+          
           // Draw axes
           doc.setDrawColor(0, 0, 0);
-          doc.line(x, y + height, x + width, y + height); // X-axis
-          doc.line(x, y, x, y + height); // Y-axis
+          doc.line(x, chartAreaY + height, x + width, chartAreaY + height); // X-axis
+          doc.line(x, chartAreaY, x, chartAreaY + height); // Y-axis
 
           data.forEach((item, index) => {
             const barHeight = (item.value / maxValue) * height * 0.9;
             const barX = x + (index * (barWidth + barSpacing)) + barSpacing / 2;
-            const barY = y + height - barHeight;
+            const barY = chartAreaY + height - barHeight;
 
             // Draw bar
             doc.setFillColor(item.color[0], item.color[1], item.color[2]);
@@ -2957,10 +2973,10 @@ export default function MarketingToolsPage() {
             doc.text(valueText, barX + barWidth / 2, barY - 2, { align: 'center' });
 
             // Draw label
-            doc.text(item.name, barX + barWidth / 2, y + height + 8, { align: 'center', maxWidth: barWidth });
+            doc.text(item.name, barX + barWidth / 2, chartAreaY + height + 8, { align: 'center', maxWidth: barWidth });
           });
 
-          return y + height + 30;
+          return y + standardChartHeight;
         };
 
         // Draw charts with standardized sizes: 160mm width × 90mm height
