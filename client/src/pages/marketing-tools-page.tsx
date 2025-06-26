@@ -1596,6 +1596,14 @@ export default function MarketingToolsPage() {
             Object.assign(mergedData, stepData);
           });
           
+          // Ensure toggle states are properly handled - if not explicitly saved as false, they should default to true
+          if (mergedData.includeDepreciation === undefined) {
+            mergedData.includeDepreciation = true;
+          }
+          if (mergedData.includeFinancingCosts === undefined) {
+            mergedData.includeFinancingCosts = true;
+          }
+          
           // Set the project ID for future saves
           mergedData.roiProjectId = projectIdToLoad;
           
@@ -6827,7 +6835,16 @@ export default function MarketingToolsPage() {
                             <div>
                               <p className="text-sm text-muted-foreground mb-1">Payback Period</p>
                               <p className="text-xl font-bold text-orange-600">{(roiData.paybackPeriodMonths || (roiData.paybackPeriod || 0) * 12).toFixed(1)}</p>
-                              <p className="text-xs text-muted-foreground">Months (post-financing)</p>
+                              <p className="text-xs text-muted-foreground">
+                                Months {(() => {
+                                  const hasFinancing = roiData.includeFinancingCosts !== false;
+                                  const hasDepreciation = roiData.includeDepreciation !== false;
+                                  if (hasFinancing && hasDepreciation) return "(post-financing & depreciation)";
+                                  if (hasFinancing) return "(post-financing)";
+                                  if (hasDepreciation) return "(post-depreciation)";
+                                  return "(gross payback)";
+                                })()}
+                              </p>
                             </div>
                             <Clock className="h-8 w-8 text-orange-500" />
                           </div>
