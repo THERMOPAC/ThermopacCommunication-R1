@@ -1517,9 +1517,18 @@ export default function MarketingToolsPage() {
     
     // Calculate financial metrics
     // For gross payback, exclude working capital from the investment base
+    console.log('🔍 INVESTMENT LOGIC CHECK:');
+    console.log('includeFinancingCosts:', roiData.includeFinancingCosts);
+    console.log('includeDepreciation:', roiData.includeDepreciation);
+    console.log('Condition (!financing && !depreciation):', (!roiData.includeFinancingCosts && !roiData.includeDepreciation));
+    console.log('Capital Investment Only to use:', capitalInvestmentOnly);
+    console.log('Total Investment alternative:', totalInvestment);
+    
     const investmentForPayback = (!roiData.includeFinancingCosts && !roiData.includeDepreciation) ? 
       capitalInvestmentOnly : // Gross payback uses capital investment only
       totalInvestment; // Include working capital for financing/depreciation analysis
+      
+    console.log('Calculated Investment for Payback:', investmentForPayback);
     
     const paybackPeriod = investmentForPayback > 0 && cashFlowForPayback > 0 ? investmentForPayback / cashFlowForPayback : 0;
     
