@@ -220,7 +220,7 @@ export default function MarketingToolsPage() {
       return v.toString(16);
     });
     
-    setRoiData(prev => ({ ...prev, roiProjectId: newProjectId }));
+    setROIData(prev => ({ ...prev, roiProjectId: newProjectId }));
     return newProjectId;
   };
 
@@ -402,6 +402,10 @@ export default function MarketingToolsPage() {
     chemicalCost: '',
     laborCost: '',
     maintenanceCost: '',
+    // Financing Structure with default values
+    equityPercentage: '30',
+    debtPercentage: '70',
+    debtFinancingRatio: '70',
     // Step 5: Product Yield (pre-populated with default values)
     naphthaGasOilYield: '7',
     lightBaseOilYield: '50',
@@ -1053,6 +1057,33 @@ export default function MarketingToolsPage() {
 
   // ROI Calculator Functions
   const updateData = (field: keyof ROIData, value: string | number) => {
+    // Handle two-way auto-calculation for financing structure
+    if (field === 'equityPercentage') {
+      const equityValue = parseFloat(value as string) || 0;
+      const clampedEquity = Math.max(0, Math.min(100, equityValue)); // Clamp between 0-100
+      const debtValue = 100 - clampedEquity;
+      setROIData(prev => ({ 
+        ...prev, 
+        equityPercentage: clampedEquity.toString(),
+        debtPercentage: debtValue.toString(),
+        debtFinancingRatio: debtValue.toString() // Also update debtFinancingRatio for consistency
+      }));
+      return;
+    }
+    
+    if (field === 'debtPercentage') {
+      const debtValue = parseFloat(value as string) || 0;
+      const clampedDebt = Math.max(0, Math.min(100, debtValue)); // Clamp between 0-100
+      const equityValue = 100 - clampedDebt;
+      setROIData(prev => ({ 
+        ...prev, 
+        debtPercentage: clampedDebt.toString(),
+        equityPercentage: equityValue.toString(),
+        debtFinancingRatio: clampedDebt.toString() // Also update debtFinancingRatio for consistency
+      }));
+      return;
+    }
+    
     setROIData(prev => ({ ...prev, [field]: value }));
     
     // Auto-calculate tanks, utilities, project cost, and product prices when capacity, currency, or plant operation days changes
@@ -1137,8 +1168,8 @@ export default function MarketingToolsPage() {
             laborCost: Math.round(5000 * (plantCapacity / 1000)).toString(),
             maintenanceCost: Math.round((baseCost * 0.03) / 12).toString(),
             transportationCost: Math.round(0.03 * plantCapacity * 24 * operatingDaysPerMonth).toString(),
-            vehicleMaintenance: Math.round(500 * (plantCapacity / 1000)).toString(),
-            miscellaneous: Math.round(500 * (plantCapacity / 1000)).toString(),
+            vehicleMaintenanceCost: Math.round(500 * (plantCapacity / 1000)).toString(),
+            miscellaneousCost: Math.round(500 * (plantCapacity / 1000)).toString(),
             rateOfInterest: "0.5" // Default 0.5% monthly
           };
           
@@ -2427,7 +2458,7 @@ export default function MarketingToolsPage() {
         const totalProjectInvestment = 5868500; // Approximate total investment for ENDA UK project
         const debtRatio = parseFloat(roiData.debtFinancingRatio) || 70;
         const debtAmount = totalProjectInvestment * (debtRatio / 100);
-        const monthlyInterestRate = (parseFloat(roiData.rateOfInterest) || 0.5) / 100;
+        const monthlyInterestRate = (parseFloat(roiData.rateOfInterest || '0.5') || 0.5) / 100;
         const annualDebtInterest = debtAmount * monthlyInterestRate * 12;
         
         const plantOperatingDays = parseFloat(roiData.plantOperationDays) || 30;
@@ -6276,10 +6307,12 @@ export default function MarketingToolsPage() {
                                 <Label className="text-sm">Equity (%) *</Label>
                                 <Input
                                   type="number"
+                                  min="0"
                                   max="100"
-                                  value={roiData.equityPercentage}
+                                  step="1"
+                                  value={roiData.equityPercentage || '30'}
                                   onChange={(e) => updateData('equityPercentage', e.target.value)}
-                                  placeholder="e.g., 30"
+                                  placeholder="30"
                                   className="bg-blue-50"
                                 />
                               </div>
@@ -6287,10 +6320,12 @@ export default function MarketingToolsPage() {
                                 <Label className="text-sm">Debt (%) *</Label>
                                 <Input
                                   type="number"
+                                  min="0"
                                   max="100"
-                                  value={roiData.debtPercentage}
+                                  step="1"
+                                  value={roiData.debtPercentage || '70'}
                                   onChange={(e) => updateData('debtPercentage', e.target.value)}
-                                  placeholder="e.g., 70"
+                                  placeholder="70"
                                   className="bg-red-50"
                                 />
                               </div>
