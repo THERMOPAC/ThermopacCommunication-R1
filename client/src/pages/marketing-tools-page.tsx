@@ -2089,7 +2089,8 @@ export default function MarketingToolsPage() {
           // Draw data rows
           doc.setFont('helvetica', 'normal');
           roiData.tanks.forEach((tank, rowIndex) => {
-            if (tank.suggestedQuantity > 0) {
+            // Show all tanks regardless of quantity to provide complete tank farm overview
+            if (tank.description || tank.suggestedTankSize) {
               let cellX = tankTableX;
               
               // Calculate costs with proper currency conversion
@@ -2254,7 +2255,7 @@ export default function MarketingToolsPage() {
         
         // Calculate tank total cost with proper currency conversion
         const tankTotalCost = (roiData.tanks || []).reduce((sum, tank) => {
-          if (tank.suggestedQuantity > 0) {
+          if ((tank.suggestedQuantity || tank.quantity) > 0) {
             const tankPriceUSD = getTankPriceFromData(tank.suggestedTankSize);
             const totalCostLocal = tankPriceUSD * tank.suggestedQuantity * exchangeRate;
             return sum + totalCostLocal;
