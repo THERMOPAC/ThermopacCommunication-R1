@@ -2562,11 +2562,7 @@ export default function MarketingToolsPage() {
 
         // PROFIT & LOSS STATEMENT SECTION (Step 7)
         checkPageBreak(150);
-        doc.setFontSize(16);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 102, 204);
-        doc.text('PROFIT & LOSS STATEMENT (ANNUAL)', margin, yPos);
-        yPos += 15;
+        yPos += 5;
 
         // Calculate P&L values - Use user's actual operating days
         const plPlantCapacity = parseFloat(roiData.capacity || '0');
@@ -2699,11 +2695,8 @@ export default function MarketingToolsPage() {
           plTableY = 20; // Reduced top margin from 30mm to 20mm
           yPos = 20;
           
-          // Add section title with compact spacing
-          doc.setFontSize(12);
-          doc.setFont('helvetica', 'bold');
-          doc.text('PROFIT & LOSS STATEMENT (ANNUAL)', margin, plTableY - 5);
-          plTableY += 10; // Reduced spacing after title
+          // Add compact spacing
+          plTableY += 5; // Reduced spacing after title
         }
 
         // Draw header row with conditional spacing
