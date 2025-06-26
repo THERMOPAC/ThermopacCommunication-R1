@@ -2565,7 +2565,7 @@ export default function MarketingToolsPage() {
           annualDepreciation = depreciableAssets * 0.20; // 20% declining balance
         }
         
-        const netProfitWithFinancing = ebitda - totalAnnualFinancingCosts - annualDepreciation;
+        const netProfitWithFinancing = ebitda - totalAnnualFinancingCosts - actualDepreciation;
 
         // P&L Statement Table with complete financial structure - conditionally include depreciation
         const plStatementData = [
