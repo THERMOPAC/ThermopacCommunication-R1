@@ -2491,23 +2491,23 @@ export default function MarketingToolsPage() {
         doc.text('PROFIT & LOSS STATEMENT (ANNUAL)', margin, yPos);
         yPos += 15;
 
-        // Calculate P&L values
+        // Calculate P&L values - Use user's actual operating days
         const plPlantCapacity = parseFloat(roiData.capacity || '0');
-        const plOperatingDays = 30; // Monthly operating days
+        const plOperatingDays = parseFloat(roiData.plantOperationDays || '25'); // Use user's operating days input
         const annualProcessing = plPlantCapacity * 24 * plOperatingDays * 12; // Annual processing in liters
 
-        // Revenue Calculations (Step 5 data)
-        const naphthaRevenue = (annualProcessing * parseFloat(roiData.naphthaGasOilYield || '0') / 100) * parseFloat(roiData.naphthaGasOilPrice || '0') / 1000;
-        const lightBaseOilRevenue = (annualProcessing * parseFloat(roiData.lightBaseOilYield || '0') / 100) * parseFloat(roiData.lightBaseOilPrice || '0') / 1000;
-        const heavyBaseOilRevenue = (annualProcessing * parseFloat(roiData.heavyBaseOilYield || '0') / 100) * parseFloat(roiData.heavyBaseOilPrice || '0') / 1000;
-        const residueRevenue = (annualProcessing * parseFloat(roiData.residueYield || '0') / 100) * parseFloat(roiData.residuePrice || '0') / 1000;
-        const wasteWaterRevenue = (annualProcessing * parseFloat(roiData.wasteWaterYield || '0') / 100) * parseFloat(roiData.wasteWaterPrice || '0') / 1000;
+        // Revenue Calculations (Step 5 data) - Using density-based calculations
+        const naphthaRevenue = (annualProcessing * parseFloat(roiData.naphthaGasOilYield || '0') / 100) * 0.8 / 1000 * parseFloat(roiData.naphthaGasOilPrice || '0');
+        const lightBaseOilRevenue = (annualProcessing * parseFloat(roiData.lightBaseOilYield || '0') / 100) * 0.85 / 1000 * parseFloat(roiData.lightBaseOilPrice || '0');
+        const heavyBaseOilRevenue = (annualProcessing * parseFloat(roiData.heavyBaseOilYield || '0') / 100) * 0.87 / 1000 * parseFloat(roiData.heavyBaseOilPrice || '0');
+        const residueRevenue = (annualProcessing * parseFloat(roiData.residueYield || '0') / 100) * 1.8 / 1000 * parseFloat(roiData.residuePrice || '0');
+        const wasteWaterRevenue = (annualProcessing * parseFloat(roiData.wasteWaterYield || '0') / 100) * 1.0 / 1000 * parseFloat(roiData.wasteWaterPrice || '0');
         
         const plTotalRevenue = naphthaRevenue + lightBaseOilRevenue + heavyBaseOilRevenue + residueRevenue + wasteWaterRevenue;
 
-        // Cost of Goods Sold (COGS) - Feedstock cost
+        // Cost of Goods Sold (COGS) - Feedstock cost corrected
         const plFeedstockCostPerLiter = parseFloat(roiData.feedstockCost || '0');
-        const annualFeedstockCost = annualProcessing * plFeedstockCostPerLiter;
+        const annualFeedstockCost = annualProcessing * plFeedstockCostPerLiter / 1000; // Convert to proper units
 
         // Operating Expenses (Step 4 data - annual values) - INCLUDING ALL 10 COST CATEGORIES
         const annualPowerCost = parseFloat(roiData.powerCost || '0') * 12;
