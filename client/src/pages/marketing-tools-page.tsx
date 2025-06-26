@@ -1516,8 +1516,13 @@ export default function MarketingToolsPage() {
     
     // Debug logging to see actual values
     console.log('🔍 PAYBACK CALCULATION DEBUG:');
-    console.log('Net Profit:', netProfit);
+    console.log('Total Revenue:', totalRevenue);
+    console.log('Annual Operating Costs:', annualOperatingCosts);
+    console.log('Gross Profit:', grossProfit);
+    console.log('Actual Financing Costs:', actualFinancingCosts);
+    console.log('Net Profit Before Depreciation:', netProfitBeforeDepreciation);
     console.log('Actual Depreciation:', actualDepreciation);
+    console.log('Net Profit:', netProfit);
     console.log('Include Financing Costs:', roiData.includeFinancingCosts);
     console.log('Include Depreciation:', roiData.includeDepreciation);
     console.log('Cash Flow for Payback:', cashFlowForPayback);
