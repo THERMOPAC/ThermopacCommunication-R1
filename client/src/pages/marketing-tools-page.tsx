@@ -3106,7 +3106,7 @@ export default function MarketingToolsPage() {
           chartsOnCurrentPage++;
         }
 
-        // 4. CAPEX Allocation (Bar Chart)
+        // 4. CAPEX Allocation (Pie Chart)
         if (capexData.length > 0) {
           if (chartsOnCurrentPage >= 2) {
             doc.addPage();
@@ -3115,19 +3115,30 @@ export default function MarketingToolsPage() {
           }
           checkPageBreak(standardChartHeight + 30, true);
           if (yPos > chartY - 20) chartY = yPos;
-          chartY = drawBarChart(capexData, margin, chartY, standardChartWidth, standardChartHeight, `CAPEX Allocation (${roiData.currency})`, roiData.currency || 'USD');
+          chartY = drawPieChart(capexData, margin, chartY, standardPieRadius, `CAPEX Allocation (${roiData.currency})`);
+          chartY += chartSpacing;
+          chartsOnCurrentPage++;
         }
 
-        // NEW PAGE FOR ADDITIONAL CHARTS
-        doc.addPage();
-        yPos = topMargin + 10; // Start closer to top margin with minimal padding
+        // 5. Cash Flow Timeline (Line Chart) - Check if we need a new page after CAPEX Allocation
+        if (chartsOnCurrentPage >= 2) {
+          doc.addPage();
+          chartY = topMargin + 10;
+          chartsOnCurrentPage = 0;
+        }
         
         // Helper function to draw Cash Flow Timeline (Line Chart)
         const drawCashFlowTimeline = (x: number, y: number, width: number, height: number, title: string) => {
+          // Calculate vertical center position within standardChartHeight (90mm)
+          const titleHeight = 15; // Space for title
+          const chartAreaHeight = height; // Actual chart height
+          const totalContentHeight = titleHeight + chartAreaHeight;
+          const verticalOffset = Math.max(0, (standardChartHeight - totalContentHeight) / 2);
+          
           doc.setFontSize(12);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(0, 0, 0);
-          doc.text(title, x, y - 10);
+          doc.text(title, x, y + verticalOffset + 10);
 
           // Calculate cash flow data for 5 years (60 months)
           const totalInvestment = parseFloat(roiData.projectCostLocal || '0') + 
@@ -3297,23 +3308,24 @@ export default function MarketingToolsPage() {
           return y + height + 30;
         };
 
-        // Start advanced charts on new page with standardized dimensions
-        doc.addPage();
-        yPos = topMargin;
+        // 5. Cash Flow Timeline (Line Chart) following two-charts-per-page layout
+        checkPageBreak(standardChartHeight + 30, true);
+        if (yPos > chartY - 20) chartY = yPos;
+        chartY = drawCashFlowTimeline(margin, chartY, standardChartWidth, standardChartHeight, `5-Year Cash Flow Timeline (${roiData.currency})`);
+        chartY += chartSpacing;
+        chartsOnCurrentPage++;
         
-        // 5. Cash Flow Timeline (Line Chart) - First chart on new page with standardized size
-        let newChartY = yPos;
-        newChartY = drawCashFlowTimeline(margin, newChartY, standardChartWidth, standardChartHeight, `5-Year Cash Flow Timeline (${roiData.currency})`);
+        let newChartY = chartY;
         
-        // Add minimum 20mm spacing between charts
-        newChartY += chartSpacing;
-        
-        // 6. ROI Sensitivity Analysis (Tornado Chart) - Second chart with space check
-        if (newChartY + standardChartHeight + 30 > pageHeight - bottomMargin) {
-          // If second chart won't fit with proper bottom margin, start new page
+        // 6. ROI Sensitivity Analysis (Tornado Chart) - Second chart with layout check
+        if (chartsOnCurrentPage >= 2) {
           doc.addPage();
-          newChartY = topMargin;
+          chartY = topMargin + 10;
+          chartsOnCurrentPage = 0;
+          newChartY = chartY;
         }
+        checkPageBreak(standardChartHeight + 30, true);
+        if (yPos > newChartY - 20) newChartY = yPos;
         newChartY = drawSensitivityAnalysis(margin, newChartY, standardChartWidth, standardChartHeight, 'ROI Sensitivity Analysis (±10% Impact)');
 
         yPos = newChartY + 20;
