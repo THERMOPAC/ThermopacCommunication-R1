@@ -7244,7 +7244,11 @@ export default function MarketingToolsPage() {
                                         parseFloat(roiData.fuelCost) || 0,
                                         monthlyChemicalCost,
                                         parseFloat(roiData.laborCost) || 0,
-                                        parseFloat(roiData.maintenanceCost) || 0
+                                        parseFloat(roiData.maintenanceCost) || 0,
+                                        parseFloat(roiData.mediaCost) || 0,
+                                        parseFloat(roiData.transportationCost) || 0,
+                                        parseFloat(roiData.vehicleMaintenanceCost) || 0,
+                                        parseFloat(roiData.miscellaneousCost) || 0
                                       ].reduce((sum, cost) => sum + cost, 0) * 12).toLocaleString()
                                     })()}</td>
                                   </tr>
