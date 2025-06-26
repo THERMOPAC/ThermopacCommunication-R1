@@ -1999,50 +1999,91 @@ export default function MarketingToolsPage() {
           });
           tankTableY += tankRowHeight;
 
+          // Helper function to get tank price from database
+          const getTankPriceFromData = (tankSize) => {
+            const tankPrice = tankPrices.find(tp => tp.capacity === tankSize);
+            return tankPrice ? tankPrice.priceUSD : 0;
+          };
+
+          // Currency conversion rate
+          const exchangeRate = currencies[roiData.currency]?.rate || 1;
+
           // Draw data rows
           doc.setFont('helvetica', 'normal');
           roiData.tanks.forEach((tank, rowIndex) => {
-            let cellX = tankTableX;
-            const rowData = [
-              tank.description || '',
-              tank.percentCapacity?.toString() || '',
-              tank.storageDays?.toString() || '',
-              tank.requiredKL?.toString() || '',
-              tank.suggestedTankSize?.toString() || '',
-              tank.suggestedQuantity?.toString() || '',
-              tank.costPerTank ? parseFloat(tank.costPerTank).toLocaleString() : '',
-              tank.totalCost ? parseFloat(tank.totalCost).toLocaleString() : ''
-            ];
-
-            rowData.forEach((cellData, colIndex) => {
-              doc.rect(cellX, tankTableY, tankColWidths[colIndex], tankRowHeight);
-              doc.setFontSize(7);
+            if (tank.suggestedQuantity > 0) {
+              let cellX = tankTableX;
               
-              // Right-align numerical columns (% Capacity, Storage Days, Required KL, Tank Size, Quantity, Cost/Tank, Total Cost)
-              if (colIndex >= 1 && cellData) {
-                const textWidth = doc.getTextWidth(cellData);
-                doc.text(cellData, cellX + tankColWidths[colIndex] - textWidth - 1, tankTableY + 8);
-              } else {
-                // Left-align Tank Description
-                doc.text(cellData, cellX + 1, tankTableY + 8, { maxWidth: tankColWidths[colIndex] - 2 });
-              }
-              cellX += tankColWidths[colIndex];
-            });
-            tankTableY += tankRowHeight;
+              // Calculate costs with proper currency conversion
+              const tankPriceUSD = getTankPriceFromData(tank.suggestedTankSize);
+              const costPerTankLocal = tankPriceUSD * exchangeRate;
+              const totalCostLocal = costPerTankLocal * tank.suggestedQuantity;
+              
+              const rowData = [
+                tank.description || '',
+                tank.percentCapacity?.toString() || '',
+                tank.storageDays?.toString() || '',
+                Math.round(tank.requiredKL || 0).toString(),
+                tank.suggestedTankSize?.toString() || '',
+                tank.suggestedQuantity?.toString() || '',
+                costPerTankLocal > 0 ? Math.round(costPerTankLocal).toLocaleString() : '0',
+                totalCostLocal > 0 ? Math.round(totalCostLocal).toLocaleString() : '0'
+              ];
 
-            // Check for page break
-            if (tankTableY > pageHeight - 50) {
-              doc.addPage();
-              tankTableY = margin + 20;
-              yPos = tankTableY;
+              rowData.forEach((cellData, colIndex) => {
+                doc.rect(cellX, tankTableY, tankColWidths[colIndex], tankRowHeight);
+                doc.setFontSize(7);
+                
+                // Right-align numerical columns (% Capacity, Storage Days, Required KL, Tank Size, Quantity, Cost/Tank, Total Cost)
+                if (colIndex >= 1 && cellData) {
+                  const textWidth = doc.getTextWidth(cellData);
+                  doc.text(cellData, cellX + tankColWidths[colIndex] - textWidth - 1, tankTableY + 8);
+                } else {
+                  // Left-align Tank Description
+                  doc.text(cellData, cellX + 1, tankTableY + 8, { maxWidth: tankColWidths[colIndex] - 2 });
+                }
+                cellX += tankColWidths[colIndex];
+              });
+              tankTableY += tankRowHeight;
+
+              // Check for page break
+              if (tankTableY > pageHeight - 50) {
+                doc.addPage();
+                tankTableY = margin + 20;
+                yPos = tankTableY;
+              }
             }
           });
 
           yPos = tankTableY + 15;
         }
 
-        // Utilities Table
-        if (roiData.utilities && roiData.utilities.length > 0) {
+        // Utilities Table - Calculate utilities with proper currency conversion
+        const calculatedUtilities = [
+          {
+            description: "Compressor",
+            specification: `${Math.round((parseFloat(roiData.capacity) || 0) * 20 / 1000)} HP`,
+            quantity: 1,
+            unitCostUSD: Math.round((parseFloat(roiData.capacity) || 0) * 20 / 1000) * 500, // $500 per HP
+            totalCostUSD: Math.round((parseFloat(roiData.capacity) || 0) * 20 / 1000) * 500
+          },
+          {
+            description: "Heater",
+            specification: `${Math.round((parseFloat(roiData.capacity) || 0) * 600)} Kcal/hr`,
+            quantity: (parseFloat(roiData.capacity) || 0) >= 3000 ? 2 : 1,
+            unitCostUSD: Math.round((parseFloat(roiData.capacity) || 0) * 600) * 0.050, // $0.050 per Kcal/hr
+            totalCostUSD: Math.round((parseFloat(roiData.capacity) || 0) * 600) * 0.050 * ((parseFloat(roiData.capacity) || 0) >= 3000 ? 2 : 1)
+          },
+          {
+            description: "Total Connected Load",
+            specification: `${Math.round((parseFloat(roiData.capacity) || 0) * 350 / 1000)} KW`,
+            quantity: 1,
+            unitCostUSD: 0, // $0 cost for power estimation only
+            totalCostUSD: 0
+          }
+        ];
+
+        if (calculatedUtilities && calculatedUtilities.length > 0) {
           checkPageBreak(80);
           doc.setFontSize(12);
           doc.setFont('helvetica', 'bold');
@@ -2077,16 +2118,21 @@ export default function MarketingToolsPage() {
           });
           utilityTableY += utilityRowHeight;
 
-          // Draw utilities data
+          // Draw utilities data with currency conversion
           doc.setFont('helvetica', 'normal');
-          roiData.utilities.forEach((utility, rowIndex) => {
+          calculatedUtilities.forEach((utility, rowIndex) => {
             let cellX = utilityTableX;
+            
+            // Apply currency conversion
+            const unitCostLocal = utility.unitCostUSD * exchangeRate;
+            const totalCostLocal = utility.totalCostUSD * exchangeRate;
+            
             const utilityRowData = [
-              utility.description || utility.name || '',
-              utility.specification || utility.specifications || '',
+              utility.description || '',
+              utility.specification || '',
               utility.quantity?.toString() || '',
-              utility.unitCost ? parseFloat(utility.unitCost).toLocaleString() : '',
-              utility.totalCost ? parseFloat(utility.totalCost).toLocaleString() : ''
+              unitCostLocal > 0 ? Math.round(unitCostLocal).toLocaleString() : '0',
+              totalCostLocal > 0 ? Math.round(totalCostLocal).toLocaleString() : '0'
             ];
 
             utilityRowData.forEach((cellData, colIndex) => {
@@ -2128,8 +2174,21 @@ export default function MarketingToolsPage() {
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(0, 0, 0);
         
-        const tankTotalCost = (roiData.tanks || []).reduce((sum, tank) => sum + parseFloat(tank.totalCost || '0'), 0);
-        const utilityTotalCost = (roiData.utilities || []).filter(u => u.name !== 'Total Connected Load').reduce((sum, utility) => sum + parseFloat(utility.totalCost || '0'), 0);
+        // Calculate tank total cost with proper currency conversion
+        const tankTotalCost = (roiData.tanks || []).reduce((sum, tank) => {
+          if (tank.suggestedQuantity > 0) {
+            const tankPriceUSD = getTankPriceFromData(tank.suggestedTankSize);
+            const totalCostLocal = tankPriceUSD * tank.suggestedQuantity * exchangeRate;
+            return sum + totalCostLocal;
+          }
+          return sum;
+        }, 0);
+        
+        // Calculate utility total cost (excluding Total Connected Load)
+        const utilityTotalCost = calculatedUtilities
+          .filter(u => u.description !== 'Total Connected Load')
+          .reduce((sum, utility) => sum + (utility.totalCostUSD * exchangeRate), 0);
+        
         const combinedTotal = tankTotalCost + utilityTotalCost;
 
         doc.text(`Total Tank Farm Cost: ${roiData.currency || 'USD'} ${tankTotalCost.toLocaleString()}`, margin, yPos);
