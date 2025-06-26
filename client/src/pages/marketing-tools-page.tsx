@@ -1502,9 +1502,18 @@ export default function MarketingToolsPage() {
     // Calculate cash flow for payback period based on what's included
     // For gross payback (no financing/depreciation), use net profit directly
     // For other cases, use net profit + depreciation (if included) since depreciation is non-cash
+    console.log('🔍 CASH FLOW LOGIC CHECK:');
+    console.log('includeFinancingCosts:', roiData.includeFinancingCosts);
+    console.log('includeDepreciation:', roiData.includeDepreciation);
+    console.log('Condition (!financing && !depreciation):', (!roiData.includeFinancingCosts && !roiData.includeDepreciation));
+    console.log('Net Profit to use:', netProfit);
+    console.log('Actual Depreciation to add:', actualDepreciation);
+    
     const cashFlowForPayback = (!roiData.includeFinancingCosts && !roiData.includeDepreciation) ? 
       netProfit : // Use net profit directly for gross payback
       netProfit + actualDepreciation; // Add back depreciation for financing/depreciation scenarios
+      
+    console.log('Calculated Cash Flow for Payback:', cashFlowForPayback);
     
     // Calculate financial metrics
     // For gross payback, exclude working capital from the investment base
