@@ -2973,7 +2973,7 @@ export default function MarketingToolsPage() {
         if (productYieldData.length > 0) {
           if (chartsOnCurrentPage >= 2) {
             doc.addPage();
-            chartY = topMargin;
+            chartY = topMargin + 10; // Start closer to top with minimal padding
             chartsOnCurrentPage = 0;
           }
           checkPageBreak(standardChartHeight + 30, true);
@@ -2987,7 +2987,7 @@ export default function MarketingToolsPage() {
         if (revenueData.length > 0) {
           if (chartsOnCurrentPage >= 2) {
             doc.addPage();
-            chartY = topMargin;
+            chartY = topMargin + 10; // Start closer to top with minimal padding
             chartsOnCurrentPage = 0;
           }
           checkPageBreak(standardChartHeight + 30, true);
@@ -3001,7 +3001,7 @@ export default function MarketingToolsPage() {
         if (operatingCostData.length > 0) {
           if (chartsOnCurrentPage >= 2) {
             doc.addPage();
-            chartY = topMargin;
+            chartY = topMargin + 10; // Start closer to top with minimal padding
             chartsOnCurrentPage = 0;
           }
           checkPageBreak(standardChartHeight + 30, true);
@@ -3015,7 +3015,7 @@ export default function MarketingToolsPage() {
         if (capexData.length > 0) {
           if (chartsOnCurrentPage >= 2) {
             doc.addPage();
-            chartY = topMargin;
+            chartY = topMargin + 10; // Start closer to top with minimal padding
             chartsOnCurrentPage = 0;
           }
           checkPageBreak(standardChartHeight + 30, true);
@@ -3025,7 +3025,7 @@ export default function MarketingToolsPage() {
 
         // NEW PAGE FOR ADDITIONAL CHARTS
         doc.addPage();
-        yPos = margin + 20;
+        yPos = topMargin + 10; // Start closer to top margin with minimal padding
         
         // Helper function to draw Cash Flow Timeline (Line Chart)
         const drawCashFlowTimeline = (x: number, y: number, width: number, height: number, title: string) => {
