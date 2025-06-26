@@ -1504,7 +1504,9 @@ export default function MarketingToolsPage() {
     console.log('Operating Days per Month:', operatingDays);
     console.log('Annual Liters:', annualLiters);
     console.log('Total Revenue:', totalRevenue);
-    console.log('Annual Operating Costs:', annualOperatingCosts);
+    console.log('Annual Feedstock Cost:', annualFeedstockCost);
+    console.log('Other Operating Costs (Annual):', annualOperatingCosts - annualFeedstockCost);
+    console.log('Total Annual Operating Costs:', annualOperatingCosts);
     console.log('Gross Profit:', grossProfit);
     console.log('Actual Financing Costs:', actualFinancingCosts);
     console.log('Net Profit Before Depreciation:', netProfitBeforeDepreciation);
