@@ -7179,7 +7179,7 @@ export default function MarketingToolsPage() {
                                     const operatingDaysPerMonth = parseFloat(roiData.plantOperationDays) || 25;
                                     
                                     // Calculate actual monthly costs based on field types
-                                    const feedstockCostPerLiter = parseFloat(roiData.feedstockCost) || 3;
+                                    const feedstockCostPerLiter = parseFloat(roiData.feedstockCost) || 0;
                                     const monthlyFeedstockCost = feedstockCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth;
                                     
                                     // Note: chemicalCost is now treated as monthly cost, not per-liter
@@ -7205,7 +7205,7 @@ export default function MarketingToolsPage() {
                                     <td className="border p-2 text-center">{getCurrencySymbol(roiData.currency)}{(() => {
                                       const plantCapacity = parseFloat(roiData.capacity) || 1000;
                                       const operatingDaysPerMonth = parseFloat(roiData.plantOperationDays) || 25;
-                                      const feedstockCostPerLiter = parseFloat(roiData.feedstockCost) || 3;
+                                      const feedstockCostPerLiter = parseFloat(roiData.feedstockCost) || 0;
                                       const monthlyFeedstockCost = feedstockCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth;
                                       const monthlyChemicalCost = parseFloat(roiData.chemicalCost) || 0;
                                       
@@ -7221,7 +7221,7 @@ export default function MarketingToolsPage() {
                                     <td className="border p-2 text-center">{getCurrencySymbol(roiData.currency)}{(() => {
                                       const plantCapacity = parseFloat(roiData.capacity) || 1000;
                                       const operatingDaysPerMonth = parseFloat(roiData.plantOperationDays) || 25;
-                                      const feedstockCostPerLiter = parseFloat(roiData.feedstockCost) || 3;
+                                      const feedstockCostPerLiter = parseFloat(roiData.feedstockCost) || 0;
                                       const monthlyFeedstockCost = feedstockCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth;
                                       const monthlyChemicalCost = parseFloat(roiData.chemicalCost) || 0;
                                       
