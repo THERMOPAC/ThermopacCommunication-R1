@@ -2750,27 +2750,27 @@ export default function MarketingToolsPage() {
         // Total Investment
         const invTotalInvestment = step1Total + step2Total + step3Total + invWorkingCapital;
 
-        // Investment breakdown data
+        // Investment breakdown data with proper error handling
         const investmentData = [
           { 
             label: 'Step 1: Plant & Project Costs', 
             value: step1Total, 
-            percentage: step1Total > 0 ? ((step1Total / invTotalInvestment) * 100).toFixed(1) : '0.0'
+            percentage: invTotalInvestment > 0 && step1Total > 0 ? ((step1Total / invTotalInvestment) * 100).toFixed(1) : '0.0'
           },
           { 
             label: 'Step 2: Tank Farm & Utilities', 
             value: step2Total, 
-            percentage: step2Total > 0 ? ((step2Total / invTotalInvestment) * 100).toFixed(1) : '0.0'
+            percentage: invTotalInvestment > 0 && step2Total > 0 ? ((step2Total / invTotalInvestment) * 100).toFixed(1) : '0.0'
           },
           { 
             label: 'Step 3: Additional Equipment', 
             value: step3Total, 
-            percentage: step3Total > 0 ? ((step3Total / invTotalInvestment) * 100).toFixed(1) : '0.0'
+            percentage: invTotalInvestment > 0 && step3Total > 0 ? ((step3Total / invTotalInvestment) * 100).toFixed(1) : '0.0'
           },
           { 
             label: 'Step 4: Working Capital', 
             value: invWorkingCapital, 
-            percentage: invWorkingCapital > 0 ? ((invWorkingCapital / invTotalInvestment) * 100).toFixed(1) : '0.0'
+            percentage: invTotalInvestment > 0 && invWorkingCapital > 0 ? ((invWorkingCapital / invTotalInvestment) * 100).toFixed(1) : '0.0'
           }
         ];
 
@@ -2806,6 +2806,7 @@ export default function MarketingToolsPage() {
           doc.rect(invRowX, invTableY, invColWidths[0], invRowHeight);
           doc.setFontSize(9);
           doc.setFont('helvetica', 'normal');
+          doc.setTextColor(0, 0, 0); // Set text color to black
           doc.text(item.label, invRowX + 2, invTableY + 6);
           invRowX += invColWidths[0];
           
@@ -2813,14 +2814,17 @@ export default function MarketingToolsPage() {
           doc.setFillColor(255, 255, 255);
           doc.rect(invRowX, invTableY, invColWidths[1], invRowHeight, 'F');
           doc.rect(invRowX, invTableY, invColWidths[1], invRowHeight);
+          doc.setTextColor(0, 0, 0); // Set text color to black
           const amountText = item.value > 0 ? item.value.toLocaleString() : '0';
           const amountWidth = doc.getTextWidth(amountText);
           doc.text(amountText, invRowX + invColWidths[1] - amountWidth - 2, invTableY + 6);
           invRowX += invColWidths[1];
           
           // Percentage (right-aligned)
+          doc.setFillColor(255, 255, 255);
           doc.rect(invRowX, invTableY, invColWidths[2], invRowHeight, 'F');
           doc.rect(invRowX, invTableY, invColWidths[2], invRowHeight);
+          doc.setTextColor(0, 0, 0); // Set text color to black
           const percentText = `${item.percentage}%`;
           const percentWidth = doc.getTextWidth(percentText);
           doc.text(percentText, invRowX + invColWidths[2] - percentWidth - 2, invTableY + 6);
@@ -3452,9 +3456,14 @@ export default function MarketingToolsPage() {
           const chartY = y + verticalOffset + 20;
           const chartHeight = height - 25; // Reduce height for title space
           
+          // Reserve more space for Y-axis labels by adjusting chart area
+          const labelSpaceWidth = 50; // Increased space for labels
+          const effectiveChartWidth = width - labelSpaceWidth - 10; // Reduce chart width to accommodate labels
+          const chartStartX = x + labelSpaceWidth; // Move chart start position to the right
+          
           const barHeight = chartHeight / sensitivityData.length * 0.8;
           const barSpacing = chartHeight / sensitivityData.length * 0.2;
-          const centerX = x + width / 2;
+          const centerX = chartStartX + effectiveChartWidth / 2;
           
           // Draw center line (base ROI)
           doc.setDrawColor(0, 0, 0);
@@ -3466,8 +3475,8 @@ export default function MarketingToolsPage() {
             
             // Calculate bar widths (proportional to ROI change)
             const maxROI = Math.max(...sensitivityData.flatMap(s => [s.positive, s.negative]));
-            const positiveWidth = ((item.positive - baseROI) / (maxROI - baseROI)) * (width / 2) * 0.9;
-            const negativeWidth = ((baseROI - item.negative) / (maxROI - baseROI)) * (width / 2) * 0.9;
+            const positiveWidth = ((item.positive - baseROI) / (maxROI - baseROI)) * (effectiveChartWidth / 2) * 0.9;
+            const negativeWidth = ((baseROI - item.negative) / (maxROI - baseROI)) * (effectiveChartWidth / 2) * 0.9;
             
             // Draw positive impact bar (right side - green)
             doc.setFillColor(46, 204, 113);
@@ -3477,25 +3486,25 @@ export default function MarketingToolsPage() {
             doc.setFillColor(231, 76, 60);
             doc.rect(centerX - negativeWidth, barY, negativeWidth, barHeight * 0.6, 'F');
             
-            // Add factor labels
+            // Add factor labels with proper left alignment and increased space
             doc.setFontSize(8);
             doc.setTextColor(0, 0, 0);
-            doc.text(item.factor, x - 40, barY + barHeight * 0.4);
+            doc.text(item.factor, x + 5, barY + barHeight * 0.4); // Position labels within reserved space
             
-            // Add ROI values
+            // Add ROI values with proper spacing
             doc.text(`${item.negative.toFixed(1)}%`, centerX - negativeWidth - 15, barY + barHeight * 0.4);
             doc.text(`${item.positive.toFixed(1)}%`, centerX + positiveWidth + 5, barY + barHeight * 0.4);
           });
           
-          // Add legend
+          // Add legend with adjusted positioning
           doc.setFillColor(231, 76, 60);
-          doc.rect(x + width - 80, chartY - 5, 8, 4, 'F');
+          doc.rect(chartStartX + effectiveChartWidth - 80, chartY - 5, 8, 4, 'F');
           doc.setFontSize(8);
-          doc.text('-10% Impact', x + width - 70, chartY - 2);
+          doc.text('-10% Impact', chartStartX + effectiveChartWidth - 70, chartY - 2);
           
           doc.setFillColor(46, 204, 113);
-          doc.rect(x + width - 80, chartY + 5, 8, 4, 'F');
-          doc.text('+10% Impact', x + width - 70, chartY + 8);
+          doc.rect(chartStartX + effectiveChartWidth - 80, chartY + 5, 8, 4, 'F');
+          doc.text('+10% Impact', chartStartX + effectiveChartWidth - 70, chartY + 8);
           
           return y + standardChartHeight + 30;
         };
