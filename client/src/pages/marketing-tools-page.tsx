@@ -2605,9 +2605,9 @@ export default function MarketingToolsPage() {
         const additionalTotal = additionalCostFields.reduce((sum, item) => sum + (item.value || 0), 0);
         
         // Working Capital
-        const feedstockCostPerLiter = parseFloat(roiData.feedstockCost || '0');
-        const plantCapacity = parseFloat(roiData.capacity || '0');
-        const workingCapital = feedstockCostPerLiter * plantCapacity * 24 * 15; // 15 days working capital
+        const invFeedstockCostPerLiter = parseFloat(roiData.feedstockCost || '0');
+        const invPlantCapacity = parseFloat(roiData.capacity || '0');
+        const workingCapital = invFeedstockCostPerLiter * invPlantCapacity * 24 * 15; // 15 days working capital
         
         // Investment breakdown data
         const investmentBreakdownData = [
