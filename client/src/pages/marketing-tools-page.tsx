@@ -1504,10 +1504,23 @@ export default function MarketingToolsPage() {
       netProfit,
       actualDepreciation,
       annualCashFlow,
-      workingCapital
+      workingCapital,
+      'totalInvestment breakdown': {
+        baseCost: parseFloat(roiData.projectCostLocal) || 0,
+        tankCosts: (roiData.tanks || []).reduce((total, tank) => total + (parseFloat(tank.totalCost) || 0), 0),
+        utilityCosts: (roiData.utilities || []).reduce((total, utility) => total + (parseFloat(utility.totalCost) || 0), 0),
+        equipmentCosts: 'see above'
+      }
     });
     
     // Calculate financial metrics
+    // For gross payback, we should exclude working capital from the investment
+    const investmentForPayback = includeFinancingCosts || includeDepreciation ? 
+      totalInvestment : // Include working capital if financing/depreciation analysis
+      totalInvestment; // For gross payback, use capital investment only (working capital is operational)
+    
+    // Actually, working capital is already NOT included in totalInvestment calculation above
+    // The issue might be elsewhere - let's use totalInvestment for now
     const paybackPeriod = totalInvestment > 0 && annualCashFlow > 0 ? totalInvestment / annualCashFlow : 0;
     const annualROI = totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0;
     
