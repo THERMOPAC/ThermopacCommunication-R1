@@ -1504,7 +1504,7 @@ export default function MarketingToolsPage() {
     
     // Calculate financial metrics
     // For gross payback, exclude working capital from the investment base
-    const investmentForPayback = (!includeFinancingCosts && !includeDepreciation) ? 
+    const investmentForPayback = (!roiData.includeFinancingCosts && !roiData.includeDepreciation) ? 
       capitalInvestmentOnly : // Gross payback uses capital investment only
       totalInvestment; // Include working capital for financing/depreciation analysis
     
