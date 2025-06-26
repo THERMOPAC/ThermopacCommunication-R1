@@ -6795,6 +6795,71 @@ export default function MarketingToolsPage() {
                       </div>
                     </div>
 
+                    {/* Total Investment Display */}
+                    <div className="mb-6">
+                      <Card className="bg-blue-50 border-blue-200 border-2">
+                        <CardContent className="p-6">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <Factory className="h-8 w-8 text-blue-600" />
+                              <div>
+                                <p className="text-sm text-blue-600 font-medium mb-1">Total Investment Required</p>
+                                <p className="text-3xl font-bold text-blue-900">
+                                  {getCurrencySymbol(roiData.currency)}{(() => {
+                                    const baseCost = parseFloat(roiData.projectCostLocal) || 0;
+                                    const additionalCosts = [
+                                      parseFloat(roiData.freightInsurance) || 0,
+                                      parseFloat(roiData.importDutyVAT) || 0,
+                                      parseFloat(roiData.plotCost) || 0,
+                                      parseFloat(roiData.civilCost) || 0,
+                                      parseFloat(roiData.refineryShed) || 0,
+                                      parseFloat(roiData.utilityShed) || 0,
+                                      parseFloat(roiData.officeBuilding) || 0,
+                                      parseFloat(roiData.fireSuppressionSystem) || 0,
+                                      parseFloat(roiData.insulationCost) || 0,
+                                      parseFloat(roiData.legalFees) || 0,
+                                      parseFloat(roiData.preFormationExpenses) || 0,
+                                      parseFloat(roiData.commissioningTravel) || 0,
+                                      parseFloat(roiData.contingency) || 0
+                                    ].reduce((sum, cost) => sum + cost, 0);
+                                    const equipmentCosts = [
+                                      parseFloat(roiData.additionalPumpsFilters) || 0,
+                                      parseFloat(roiData.tankLevelTransmitters) || 0,
+                                      parseFloat(roiData.pipesValvesFlanges) || 0,
+                                      parseFloat(roiData.electricalCablesAccessories) || 0,
+                                      parseFloat(roiData.pccMccPanels) || 0,
+                                      parseFloat(roiData.chimneyDucting) || 0,
+                                      parseFloat(roiData.coolingTower) || 0,
+                                      parseFloat(roiData.dieselGenerator) || 0,
+                                      parseFloat(roiData.qualityControlEquipment) || 0,
+                                      parseFloat(roiData.thermicFluid) || 0,
+                                      parseFloat(roiData.expansionStructure) || 0,
+                                      parseFloat(roiData.craneHireCharges) || 0,
+                                      parseFloat(roiData.laborErectionCommissioning) || 0
+                                    ].reduce((sum, cost) => sum + cost, 0);
+                                    const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
+                                      return total + (parseFloat(tank.totalCost) || 0);
+                                    }, 0);
+                                    const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+                                      return total + (parseFloat(utility.totalCost) || 0);
+                                    }, 0);
+                                    const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
+                                    const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
+                                    return totalInvestment.toLocaleString();
+                                  })()}
+                                </p>
+                                <p className="text-sm text-blue-700">CAPEX + Working Capital</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-blue-600">Used for ROI & Payback</p>
+                              <p className="text-xs text-blue-500">Calculation Basis</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
                     {/* Enhanced Financial Summary Cards */}
                     <div className="space-y-6">
                       {/* Primary Financial Metrics */}
