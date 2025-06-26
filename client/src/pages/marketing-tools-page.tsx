@@ -1502,26 +1502,6 @@ export default function MarketingToolsPage() {
     // Calculate cash flow for payback period (add back depreciation since it's non-cash, but only if included)
     const annualCashFlow = netProfit + actualDepreciation;
     
-    // Debug logging
-    console.log('Payback Debug:', {
-      totalInvestment,
-      capitalInvestmentOnly,
-      investmentForPayback,
-      netProfit,
-      actualDepreciation,
-      annualCashFlow,
-      workingCapital,
-      includeFinancingCosts,
-      includeDepreciation,
-      'payback calculation': `${investmentForPayback} / ${annualCashFlow} = ${paybackPeriod}`,
-      'totalInvestment breakdown': {
-        baseCost: parseFloat(roiData.projectCostLocal) || 0,
-        tankCosts: (roiData.tanks || []).reduce((total, tank) => total + (parseFloat(tank.totalCost) || 0), 0),
-        utilityCosts: (roiData.utilities || []).reduce((total, utility) => total + (parseFloat(utility.totalCost) || 0), 0),
-        equipmentCosts: 'see above'
-      }
-    });
-    
     // Calculate financial metrics
     // For gross payback, exclude working capital from the investment base
     const investmentForPayback = (!includeFinancingCosts && !includeDepreciation) ? 
@@ -1529,6 +1509,8 @@ export default function MarketingToolsPage() {
       totalInvestment; // Include working capital for financing/depreciation analysis
     
     const paybackPeriod = investmentForPayback > 0 && annualCashFlow > 0 ? investmentForPayback / annualCashFlow : 0;
+    
+
     const annualROI = totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0;
     
     // Return on Equity (using equity portion only)
