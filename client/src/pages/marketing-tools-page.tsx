@@ -605,7 +605,8 @@ export default function MarketingToolsPage() {
           debtFinancingRatio: roiData.debtFinancingRatio,
           depreciationMethod: roiData.depreciationMethod,
           includeDepreciation: roiData.includeDepreciation,
-          includeFinancingCosts: roiData.includeFinancingCosts
+          includeFinancingCosts: roiData.includeFinancingCosts,
+          workingCapitalRequirement: workingCapital.toString() // Auto-calculated working capital
         };
       case 5:
         return {
@@ -1282,14 +1283,41 @@ export default function MarketingToolsPage() {
     return utilities;
   };
 
-  // Calculate working capital whenever feedstock cost, capacity, or operating days change
-  // Working capital = 15 days of feedstock inventory (industry standard)
+  // Calculate working capital using new formula: [(Plant Capacity × 24 × Plant Operation per Month) ÷ 2] × Feedstock Cost per Liter + (Monthly Operating Cost ÷ 2)
   const workingCapital = React.useMemo(() => {
+    const plantCapacity = parseFloat(roiData.capacity) || 0;
+    const plantOperationDays = parseFloat(roiData.plantOperationDays) || 25; // Default 25 days
     const feedstockCost = parseFloat(roiData.feedstockCost) || 0;
-    const capacity = parseFloat(roiData.capacity) || 0;
-    const workingCapitalDays = 15; // 15 days of feedstock inventory
-    return feedstockCost * capacity * 24 * workingCapitalDays;
-  }, [roiData.feedstockCost, roiData.capacity]);
+    
+    // Calculate monthly operating costs total
+    const monthlyOperatingCosts = [
+      parseFloat(roiData.powerCost) || 0,
+      parseFloat(roiData.fuelCost) || 0,
+      parseFloat(roiData.chemicalCost) || 0,
+      parseFloat(roiData.laborCost) || 0,
+      parseFloat(roiData.maintenanceCost) || 0,
+      parseFloat(roiData.mediaCost) || 0,
+      parseFloat(roiData.transportationCost) || 0,
+      parseFloat(roiData.vehicleMaintenanceCost) || 0,
+      parseFloat(roiData.miscellaneousCost) || 0
+    ].reduce((total, cost) => total + cost, 0);
+    
+    // New Working Capital Formula
+    let workingCapitalAmount = 0;
+    
+    // Part 1: Inventory component - only if feedstock cost > 0
+    if (feedstockCost > 0) {
+      const monthlyFeedstockVolume = plantCapacity * 24 * plantOperationDays;
+      const inventoryComponent = (monthlyFeedstockVolume / 2) * feedstockCost;
+      workingCapitalAmount += inventoryComponent;
+    }
+    
+    // Part 2: Operating expenses component (always included)
+    const operatingExpensesComponent = monthlyOperatingCosts / 2;
+    workingCapitalAmount += operatingExpensesComponent;
+    
+    return Math.round(workingCapitalAmount);
+  }, [roiData.capacity, roiData.plantOperationDays, roiData.feedstockCost, roiData.powerCost, roiData.fuelCost, roiData.chemicalCost, roiData.laborCost, roiData.maintenanceCost, roiData.mediaCost, roiData.transportationCost, roiData.vehicleMaintenanceCost, roiData.miscellaneousCost]);
 
   // Calculate default tanks and utilities when capacity changes
   const calculatedTanks = React.useMemo(() => {
@@ -5978,6 +6006,36 @@ export default function MarketingToolsPage() {
                         />
                       </div>
                       <div className="space-y-2">
+                        <Label>Transportation Cost (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={roiData.transportationCost || ''}
+                          onChange={(e) => updateData('transportationCost', e.target.value)}
+                          placeholder="e.g., 2000"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Vehicle Maintenance Cost (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={roiData.vehicleMaintenanceCost || ''}
+                          onChange={(e) => updateData('vehicleMaintenanceCost', e.target.value)}
+                          placeholder="e.g., 1500"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Miscellaneous Cost (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={roiData.miscellaneousCost || ''}
+                          onChange={(e) => updateData('miscellaneousCost', e.target.value)}
+                          placeholder="e.g., 1000"
+                        />
+                      </div>
+                      <div className="space-y-2">
                         <Label>Rate of Interest (Monthly) %</Label>
                         <Input
                           type="number"
@@ -6014,7 +6072,10 @@ export default function MarketingToolsPage() {
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <Label>Working Capital (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
+                          <Label className="flex items-center gap-1">
+                            Working Capital (Monthly) ({getCurrencySymbol(roiData.currency)})
+                            <span className="text-xs text-blue-600 cursor-help" title="Working Capital covers 15 days of average inventory and expenses before sales revenue is realized">ℹ️</span>
+                          </Label>
                           <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Auto-calculated</span>
                         </div>
                         <Input
@@ -6023,7 +6084,35 @@ export default function MarketingToolsPage() {
                           readOnly
                           className="bg-blue-50 text-center font-semibold"
                         />
-                        <p className="text-xs text-gray-500">Formula: Feedstock Cost × Plant Capacity × 24 hours × 15 days (working capital inventory)</p>
+                        <p className="text-xs text-gray-500">
+                          Formula: [(Plant Capacity × 24 × Operation Days) ÷ 2] × Feedstock Cost + (Monthly OpEx ÷ 2)
+                          {(() => {
+                            const plantCapacity = parseFloat(roiData.capacity) || 0;
+                            const plantOperationDays = parseFloat(roiData.plantOperationDays) || 25;
+                            const feedstockCost = parseFloat(roiData.feedstockCost) || 0;
+                            const monthlyOpEx = [
+                              parseFloat(roiData.powerCost) || 0,
+                              parseFloat(roiData.fuelCost) || 0,
+                              parseFloat(roiData.chemicalCost) || 0,
+                              parseFloat(roiData.laborCost) || 0,
+                              parseFloat(roiData.maintenanceCost) || 0,
+                              parseFloat(roiData.mediaCost) || 0,
+                              parseFloat(roiData.transportationCost) || 0,
+                              parseFloat(roiData.vehicleMaintenanceCost) || 0,
+                              parseFloat(roiData.miscellaneousCost) || 0
+                            ].reduce((total, cost) => total + cost, 0);
+                            
+                            const inventoryComponent = feedstockCost > 0 ? ((plantCapacity * 24 * plantOperationDays) / 2) * feedstockCost : 0;
+                            const opexComponent = monthlyOpEx / 2;
+                            
+                            return (
+                              <span className="block mt-1">
+                                = {feedstockCost > 0 ? `${getCurrencySymbol(roiData.currency)}${inventoryComponent.toLocaleString()} (inventory) + ` : ''}
+                                {getCurrencySymbol(roiData.currency)}{opexComponent.toLocaleString()} (OpEx) = {getCurrencySymbol(roiData.currency)}{(inventoryComponent + opexComponent).toLocaleString()}
+                              </span>
+                            );
+                          })()}
+                        </p>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
