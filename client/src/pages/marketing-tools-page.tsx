@@ -1461,23 +1461,23 @@ export default function MarketingToolsPage() {
       return total + revenue;
     }, 0);
 
-    // Calculate annual operating costs - FIXED TO INCLUDE FEEDSTOCK CALCULATION
+    // Calculate annual operating costs - CORRECTED CALCULATION
     const operatingDaysPerMonth = parseFloat(roiData.plantOperationDays) || 25;
     const feedstockCostPerLiter = parseFloat(roiData.feedstockCost) || 0;
-    const monthlyFeedstockCost = feedstockCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth;
+    const annualFeedstockCost = feedstockCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth * 12; // Annual feedstock cost
     
     const annualOperatingCosts = [
-      monthlyFeedstockCost, // Use calculated feedstock cost, not just per-liter value
-      parseFloat(roiData.powerCost) || 0,
-      parseFloat(roiData.fuelCost) || 0,
-      parseFloat(roiData.chemicalCost) || 0,
-      parseFloat(roiData.mediaCost) || 0,
-      parseFloat(roiData.laborCost) || 0,
-      parseFloat(roiData.maintenanceCost) || 0,
-      parseFloat(roiData.transportationCost) || 0,
-      parseFloat(roiData.vehicleMaintenanceCost) || 0,
-      parseFloat(roiData.miscellaneousCost) || 0
-    ].reduce((sum, cost) => sum + cost, 0) * 12; // Monthly costs × 12 months
+      annualFeedstockCost, // Already annual - don't multiply by 12 again
+      (parseFloat(roiData.powerCost) || 0) * 12, // Monthly costs × 12 months
+      (parseFloat(roiData.fuelCost) || 0) * 12,
+      (parseFloat(roiData.chemicalCost) || 0) * 12,
+      (parseFloat(roiData.mediaCost) || 0) * 12,
+      (parseFloat(roiData.laborCost) || 0) * 12,
+      (parseFloat(roiData.maintenanceCost) || 0) * 12,
+      (parseFloat(roiData.transportationCost) || 0) * 12,
+      (parseFloat(roiData.vehicleMaintenanceCost) || 0) * 12,
+      (parseFloat(roiData.miscellaneousCost) || 0) * 12
+    ].reduce((sum, cost) => sum + cost, 0);
 
     // Calculate comprehensive financial metrics including financing costs and depreciation
     const grossProfit = totalRevenue - annualOperatingCosts;
