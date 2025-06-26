@@ -92,6 +92,7 @@ interface ROIData {
   chemicalCost: string;
   laborCost: string;
   maintenanceCost: string;
+  includeDepreciation: boolean;
   
   // Step 5: Product Yield
   finishOilYield: string;
@@ -402,6 +403,7 @@ export default function MarketingToolsPage() {
     chemicalCost: '',
     laborCost: '',
     maintenanceCost: '',
+    includeDepreciation: true, // Default to include depreciation
     // Financing Structure with default values
     equityPercentage: '30',
     debtPercentage: '70',
@@ -5750,16 +5752,35 @@ export default function MarketingToolsPage() {
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <Label>Depreciation (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
-                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Auto-calculated</span>
+                          <Label>Include Depreciation in Cost Analysis</Label>
+                          <div className="flex items-center space-x-2">
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={roiData.includeDepreciation || false}
+                                onChange={(e) => updateData('includeDepreciation', e.target.checked)}
+                                className="sr-only peer"
+                              />
+                              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                              <span className="ml-3 text-sm font-medium text-gray-900">{roiData.includeDepreciation ? 'ON' : 'OFF'}</span>
+                            </label>
+                          </div>
                         </div>
-                        <Input
-                          type="text"
-                          value={annualDepreciation > 0 ? Math.round(annualDepreciation / 12).toLocaleString() : '0'}
-                          readOnly
-                          className="bg-red-50 text-center font-semibold"
-                        />
-                        <p className="text-xs text-gray-500">{roiData.depreciationMethod || 'straight-line'} depreciation method (excludes land cost)</p>
+                        <div className={`space-y-2 ${!roiData.includeDepreciation ? 'opacity-50' : ''}`}>
+                          <div className="flex items-center justify-between">
+                            <Label className={!roiData.includeDepreciation ? 'text-gray-400' : ''}>Depreciation (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
+                            <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Auto-calculated</span>
+                          </div>
+                          <Input
+                            type="text"
+                            value={roiData.includeDepreciation && annualDepreciation > 0 ? Math.round(annualDepreciation / 12).toLocaleString() : '0'}
+                            readOnly
+                            className={`text-center font-semibold ${!roiData.includeDepreciation ? 'bg-gray-100 text-gray-400' : 'bg-red-50'}`}
+                          />
+                          <p className={`text-xs ${!roiData.includeDepreciation ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {roiData.includeDepreciation ? `${roiData.depreciationMethod || 'straight-line'} depreciation method (excludes land cost)` : 'Depreciation excluded from calculations'}
+                          </p>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <Label>Transportation Cost (Monthly) ({getCurrencySymbol(roiData.currency)})</Label>
@@ -5832,6 +5853,10 @@ export default function MarketingToolsPage() {
                                 parseFloat(roiData.vehicleMaintenanceCost) || 0,
                                 parseFloat(roiData.miscellaneousCost) || 0
                               ];
+                              // Add depreciation only if toggle is ON
+                              if (roiData.includeDepreciation && annualDepreciation > 0) {
+                                costs.push(annualDepreciation / 12);
+                              }
                               const total = costs.reduce((sum, cost) => sum + cost, 0);
                               return total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
                             })()}
