@@ -315,6 +315,7 @@ export default function MarketingToolsPage() {
   const [tankPrices, setTankPrices] = useState<Array<{ id: number; capacity: number; priceUSD: number }>>([]);
   const [isTankPriceDialogOpen, setIsTankPriceDialogOpen] = useState(false);
   const [manageCostsOpen, setManageCostsOpen] = useState(false);
+  const [showInvestmentBreakdown, setShowInvestmentBreakdown] = useState(false);
 
   // Fetch saved ROI projects for dropdown
   const { data: savedProjects, refetch: refetchProjects } = useQuery({
@@ -6852,13 +6853,246 @@ export default function MarketingToolsPage() {
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="text-sm text-blue-600">Used for ROI & Payback</p>
-                              <p className="text-xs text-blue-500">Calculation Basis</p>
+                              <button
+                                onClick={() => setShowInvestmentBreakdown(!showInvestmentBreakdown)}
+                                className="text-sm text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                              >
+                                {showInvestmentBreakdown ? 'Hide Breakdown' : 'Show Breakdown'}
+                              </button>
+                              <p className="text-xs text-blue-500">Investment Details</p>
                             </div>
                           </div>
                         </CardContent>
                       </Card>
                     </div>
+
+                    {/* Investment Breakdown Details */}
+                    {showInvestmentBreakdown && (
+                      <div className="mb-6">
+                        <Card className="bg-gray-50 border-gray-200">
+                          <CardContent className="p-6">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-4">Investment Breakdown</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              
+                              {/* Step 1: Plant & Project Costs */}
+                              <div className="space-y-3">
+                                <h4 className="font-medium text-blue-800 border-b border-blue-200 pb-1">Step 1: Plant & Project Costs</h4>
+                                <div className="space-y-2 text-sm">
+                                  <div className="flex justify-between">
+                                    <span>Base Plant Cost:</span>
+                                    <span className="font-medium">{getCurrencySymbol(roiData.currency)}{(parseFloat(roiData.projectCostLocal) || 0).toLocaleString()}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Freight & Insurance:</span>
+                                    <span className="font-medium">{getCurrencySymbol(roiData.currency)}{(parseFloat(roiData.freightInsurance) || 0).toLocaleString()}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Import Duty & VAT:</span>
+                                    <span className="font-medium">{getCurrencySymbol(roiData.currency)}{(parseFloat(roiData.importDutyVAT) || 0).toLocaleString()}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Plot Cost:</span>
+                                    <span className="font-medium">{getCurrencySymbol(roiData.currency)}{(parseFloat(roiData.plotCost) || 0).toLocaleString()}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Civil Cost:</span>
+                                    <span className="font-medium">{getCurrencySymbol(roiData.currency)}{(parseFloat(roiData.civilCost) || 0).toLocaleString()}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Other Project Costs:</span>
+                                    <span className="font-medium">{getCurrencySymbol(roiData.currency)}{(() => {
+                                      return [
+                                        parseFloat(roiData.refineryShed) || 0,
+                                        parseFloat(roiData.utilityShed) || 0,
+                                        parseFloat(roiData.officeBuilding) || 0,
+                                        parseFloat(roiData.fireSuppressionSystem) || 0,
+                                        parseFloat(roiData.insulationCost) || 0,
+                                        parseFloat(roiData.legalFees) || 0,
+                                        parseFloat(roiData.preFormationExpenses) || 0,
+                                        parseFloat(roiData.commissioningTravel) || 0,
+                                        parseFloat(roiData.contingency) || 0
+                                      ].reduce((sum, cost) => sum + cost, 0).toLocaleString();
+                                    })()}</span>
+                                  </div>
+                                  <div className="flex justify-between border-t pt-2 font-semibold text-blue-700">
+                                    <span>Step 1 Total:</span>
+                                    <span>{getCurrencySymbol(roiData.currency)}{(() => {
+                                      const baseCost = parseFloat(roiData.projectCostLocal) || 0;
+                                      const additionalCosts = [
+                                        parseFloat(roiData.freightInsurance) || 0,
+                                        parseFloat(roiData.importDutyVAT) || 0,
+                                        parseFloat(roiData.plotCost) || 0,
+                                        parseFloat(roiData.civilCost) || 0,
+                                        parseFloat(roiData.refineryShed) || 0,
+                                        parseFloat(roiData.utilityShed) || 0,
+                                        parseFloat(roiData.officeBuilding) || 0,
+                                        parseFloat(roiData.fireSuppressionSystem) || 0,
+                                        parseFloat(roiData.insulationCost) || 0,
+                                        parseFloat(roiData.legalFees) || 0,
+                                        parseFloat(roiData.preFormationExpenses) || 0,
+                                        parseFloat(roiData.commissioningTravel) || 0,
+                                        parseFloat(roiData.contingency) || 0
+                                      ].reduce((sum, cost) => sum + cost, 0);
+                                      return (baseCost + additionalCosts).toLocaleString();
+                                    })()}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Step 2: Tank Farm & Utilities */}
+                              <div className="space-y-3">
+                                <h4 className="font-medium text-green-800 border-b border-green-200 pb-1">Step 2: Tank Farm & Utilities</h4>
+                                <div className="space-y-2 text-sm">
+                                  <div className="flex justify-between">
+                                    <span>Tank Farm Cost:</span>
+                                    <span className="font-medium">{getCurrencySymbol(roiData.currency)}{(() => {
+                                      const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
+                                        return total + (parseFloat(tank.totalCost) || 0);
+                                      }, 0);
+                                      return tankCosts.toLocaleString();
+                                    })()}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Utilities Cost:</span>
+                                    <span className="font-medium">{getCurrencySymbol(roiData.currency)}{(() => {
+                                      const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+                                        return total + (parseFloat(utility.totalCost) || 0);
+                                      }, 0);
+                                      return utilityCosts.toLocaleString();
+                                    })()}</span>
+                                  </div>
+                                  <div className="flex justify-between border-t pt-2 font-semibold text-green-700">
+                                    <span>Step 2 Total:</span>
+                                    <span>{getCurrencySymbol(roiData.currency)}{(() => {
+                                      const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
+                                        return total + (parseFloat(tank.totalCost) || 0);
+                                      }, 0);
+                                      const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+                                        return total + (parseFloat(utility.totalCost) || 0);
+                                      }, 0);
+                                      return (tankCosts + utilityCosts).toLocaleString();
+                                    })()}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Step 3: Additional Equipment */}
+                              <div className="space-y-3">
+                                <h4 className="font-medium text-purple-800 border-b border-purple-200 pb-1">Step 3: Additional Equipment</h4>
+                                <div className="space-y-2 text-sm">
+                                  <div className="flex justify-between">
+                                    <span>Equipment Costs:</span>
+                                    <span className="font-medium">{getCurrencySymbol(roiData.currency)}{(() => {
+                                      const equipmentCosts = [
+                                        parseFloat(roiData.additionalPumpsFilters) || 0,
+                                        parseFloat(roiData.tankLevelTransmitters) || 0,
+                                        parseFloat(roiData.pipesValvesFlanges) || 0,
+                                        parseFloat(roiData.electricalCablesAccessories) || 0,
+                                        parseFloat(roiData.pccMccPanels) || 0,
+                                        parseFloat(roiData.chimneyDucting) || 0,
+                                        parseFloat(roiData.coolingTower) || 0,
+                                        parseFloat(roiData.dieselGenerator) || 0,
+                                        parseFloat(roiData.qualityControlEquipment) || 0,
+                                        parseFloat(roiData.thermicFluid) || 0,
+                                        parseFloat(roiData.expansionStructure) || 0,
+                                        parseFloat(roiData.craneHireCharges) || 0,
+                                        parseFloat(roiData.laborErectionCommissioning) || 0
+                                      ].reduce((sum, cost) => sum + cost, 0);
+                                      return equipmentCosts.toLocaleString();
+                                    })()}</span>
+                                  </div>
+                                  <div className="flex justify-between border-t pt-2 font-semibold text-purple-700">
+                                    <span>Step 3 Total:</span>
+                                    <span>{getCurrencySymbol(roiData.currency)}{(() => {
+                                      const equipmentCosts = [
+                                        parseFloat(roiData.additionalPumpsFilters) || 0,
+                                        parseFloat(roiData.tankLevelTransmitters) || 0,
+                                        parseFloat(roiData.pipesValvesFlanges) || 0,
+                                        parseFloat(roiData.electricalCablesAccessories) || 0,
+                                        parseFloat(roiData.pccMccPanels) || 0,
+                                        parseFloat(roiData.chimneyDucting) || 0,
+                                        parseFloat(roiData.coolingTower) || 0,
+                                        parseFloat(roiData.dieselGenerator) || 0,
+                                        parseFloat(roiData.qualityControlEquipment) || 0,
+                                        parseFloat(roiData.thermicFluid) || 0,
+                                        parseFloat(roiData.expansionStructure) || 0,
+                                        parseFloat(roiData.craneHireCharges) || 0,
+                                        parseFloat(roiData.laborErectionCommissioning) || 0
+                                      ].reduce((sum, cost) => sum + cost, 0);
+                                      return equipmentCosts.toLocaleString();
+                                    })()}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Step 4: Working Capital */}
+                              <div className="space-y-3">
+                                <h4 className="font-medium text-orange-800 border-b border-orange-200 pb-1">Step 4: Working Capital</h4>
+                                <div className="space-y-2 text-sm">
+                                  <div className="flex justify-between">
+                                    <span>Working Capital:</span>
+                                    <span className="font-medium">{getCurrencySymbol(roiData.currency)}{(parseFloat(roiData.workingCapitalRequirement) || 0).toLocaleString()}</span>
+                                  </div>
+                                  <div className="flex justify-between border-t pt-2 font-semibold text-orange-700">
+                                    <span>Step 4 Total:</span>
+                                    <span>{getCurrencySymbol(roiData.currency)}{(parseFloat(roiData.workingCapitalRequirement) || 0).toLocaleString()}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Grand Total */}
+                            <div className="mt-6 pt-4 border-t-2 border-gray-300">
+                              <div className="flex justify-between items-center">
+                                <span className="text-lg font-bold text-gray-800">Total Investment Required:</span>
+                                <span className="text-xl font-bold text-blue-900">{getCurrencySymbol(roiData.currency)}{(() => {
+                                  const baseCost = parseFloat(roiData.projectCostLocal) || 0;
+                                  const additionalCosts = [
+                                    parseFloat(roiData.freightInsurance) || 0,
+                                    parseFloat(roiData.importDutyVAT) || 0,
+                                    parseFloat(roiData.plotCost) || 0,
+                                    parseFloat(roiData.civilCost) || 0,
+                                    parseFloat(roiData.refineryShed) || 0,
+                                    parseFloat(roiData.utilityShed) || 0,
+                                    parseFloat(roiData.officeBuilding) || 0,
+                                    parseFloat(roiData.fireSuppressionSystem) || 0,
+                                    parseFloat(roiData.insulationCost) || 0,
+                                    parseFloat(roiData.legalFees) || 0,
+                                    parseFloat(roiData.preFormationExpenses) || 0,
+                                    parseFloat(roiData.commissioningTravel) || 0,
+                                    parseFloat(roiData.contingency) || 0
+                                  ].reduce((sum, cost) => sum + cost, 0);
+                                  const equipmentCosts = [
+                                    parseFloat(roiData.additionalPumpsFilters) || 0,
+                                    parseFloat(roiData.tankLevelTransmitters) || 0,
+                                    parseFloat(roiData.pipesValvesFlanges) || 0,
+                                    parseFloat(roiData.electricalCablesAccessories) || 0,
+                                    parseFloat(roiData.pccMccPanels) || 0,
+                                    parseFloat(roiData.chimneyDucting) || 0,
+                                    parseFloat(roiData.coolingTower) || 0,
+                                    parseFloat(roiData.dieselGenerator) || 0,
+                                    parseFloat(roiData.qualityControlEquipment) || 0,
+                                    parseFloat(roiData.thermicFluid) || 0,
+                                    parseFloat(roiData.expansionStructure) || 0,
+                                    parseFloat(roiData.craneHireCharges) || 0,
+                                    parseFloat(roiData.laborErectionCommissioning) || 0
+                                  ].reduce((sum, cost) => sum + cost, 0);
+                                  const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
+                                    return total + (parseFloat(tank.totalCost) || 0);
+                                  }, 0);
+                                  const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+                                    return total + (parseFloat(utility.totalCost) || 0);
+                                  }, 0);
+                                  const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
+                                  const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
+                                  return totalInvestment.toLocaleString();
+                                })()}</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    )}
 
                     {/* Enhanced Financial Summary Cards */}
                     <div className="space-y-6">
