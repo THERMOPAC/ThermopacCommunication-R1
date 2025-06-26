@@ -1282,12 +1282,13 @@ export default function MarketingToolsPage() {
   };
 
   // Calculate working capital whenever feedstock cost, capacity, or operating days change
+  // Working capital = 15 days of feedstock inventory (industry standard)
   const workingCapital = React.useMemo(() => {
     const feedstockCost = parseFloat(roiData.feedstockCost) || 0;
     const capacity = parseFloat(roiData.capacity) || 0;
-    const operatingDays = parseFloat(roiData.plantOperationDays) || 30;
-    return feedstockCost * capacity * 24 * operatingDays;
-  }, [roiData.feedstockCost, roiData.capacity, roiData.plantOperationDays]);
+    const workingCapitalDays = 15; // 15 days of feedstock inventory
+    return feedstockCost * capacity * 24 * workingCapitalDays;
+  }, [roiData.feedstockCost, roiData.capacity]);
 
   // Calculate default tanks and utilities when capacity changes
   const calculatedTanks = React.useMemo(() => {
@@ -5810,7 +5811,7 @@ export default function MarketingToolsPage() {
                           readOnly
                           className="bg-blue-50 text-center font-semibold"
                         />
-                        <p className="text-xs text-gray-500">Formula: Feedstock Cost × Plant Capacity × 24 hours × Operating Days per Month</p>
+                        <p className="text-xs text-gray-500">Formula: Feedstock Cost × Plant Capacity × 24 hours × 15 days (working capital inventory)</p>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
