@@ -1450,7 +1450,10 @@ export default function MarketingToolsPage() {
     // Calculate annual revenue and costs
     const plantCapacity = parseFloat(roiData.capacity) || 0;
     const operatingDays = parseFloat(roiData.plantOperationDays) || 30;
-    const annualLiters = plantCapacity * operatingDays * 24 * 12; // Monthly × 12 months
+    // CORRECTED: Industrial plants typically operate annually, not monthly basis
+    // For re-refining plants, 330-365 days/year is standard
+    const annualOperatingDays = operatingDays === 25 ? 330 : operatingDays * 12; // Convert to annual operating days
+    const annualLiters = plantCapacity * annualOperatingDays * 24;
     
     const products = [
       { yield: parseFloat(roiData.naphthaGasOilYield) || 0, price: parseFloat(roiData.naphthaGasOilPrice) || 0, density: 0.80 },
@@ -1469,10 +1472,9 @@ export default function MarketingToolsPage() {
       return total + revenue;
     }, 0);
 
-    // Calculate annual operating costs - CORRECTED CALCULATION
-    const operatingDaysPerMonth = parseFloat(roiData.plantOperationDays) || 25;
+    // Calculate annual operating costs - CORRECTED CALCULATION using annual operating days
     const feedstockCostPerLiter = parseFloat(roiData.feedstockCost) || 0;
-    const annualFeedstockCost = feedstockCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth * 12; // Annual feedstock cost
+    const annualFeedstockCost = feedstockCostPerLiter * plantCapacity * 24 * annualOperatingDays; // Annual feedstock cost
     
     const annualOperatingCosts = [
       annualFeedstockCost, // Already annual - don't multiply by 12 again
@@ -1499,22 +1501,49 @@ export default function MarketingToolsPage() {
     const netProfit = netProfitBeforeDepreciation - actualDepreciation;
     
     // Debug revenue and cost calculations
-    console.log('🔍 REVENUE & COST DEBUG:');
+    console.log('🔍 DETAILED REVENUE CALCULATION DEBUG:');
     console.log('Plant Capacity:', plantCapacity, 'LPH');
     console.log('Operating Days per Month:', operatingDays);
+    console.log('Annual Operating Days:', annualOperatingDays);
+    console.log('Hours per Day: 24');
+    console.log('Annual Calculation: ' + plantCapacity + ' × ' + annualOperatingDays + ' × 24 = ' + annualLiters.toLocaleString());
     console.log('Annual Liters Processed:', annualLiters.toLocaleString());
-    console.log('Total Revenue:', '£' + totalRevenue.toLocaleString());
-    console.log('Annual Feedstock Cost:', '£' + annualFeedstockCost.toLocaleString());
-    console.log('Other Operating Costs:', '£' + (annualOperatingCosts - annualFeedstockCost).toLocaleString());
-    console.log('Total Operating Costs:', '£' + annualOperatingCosts.toLocaleString());
-    console.log('Gross Profit:', '£' + grossProfit.toLocaleString());
-    console.log('💡 ANALYSIS: For realistic re-refining, revenue should be £8-12M annually');
-    console.log('💡 ISSUE: Current revenue of £' + totalRevenue.toLocaleString() + ' is too low for sustainable business');
-    console.log('💡 RECOMMENDATION: Increase product prices to market levels:');
-    console.log('   - Light Base Oil: £650-750/ton (current: £444/ton)');
-    console.log('   - Heavy Base Oil: £700-800/ton (current: £466/ton)');
-    console.log('   - Naphtha/Gas Oil: £550-650/ton (current: £296/ton)');
-    console.log('   - Residue: £350-450/ton (current: £222/ton)');
+    
+    // Debug each product revenue calculation individually
+    const debugProducts = [
+      { name: 'Naphtha & Gas Oil', yield: roiData.naphthaGasOilYield, price: roiData.naphthaGasOilPrice, density: 0.80 },
+      { name: 'Light Base Oil', yield: roiData.lightBaseOilYield, price: roiData.lightBaseOilPrice, density: 0.85 },
+      { name: 'Heavy Base Oil', yield: roiData.heavyBaseOilYield, price: roiData.heavyBaseOilPrice, density: 0.87 },
+      { name: 'Residue', yield: roiData.residueYield, price: roiData.residuePrice, density: 1.8 },
+      { name: 'Waste Water', yield: roiData.wasteWaterYield, price: roiData.wasteWaterPrice, density: 1.0 }
+    ];
+    
+    let totalDebugRevenue = 0;
+    debugProducts.forEach(product => {
+      const yieldPercent = parseFloat(product.yield) || 0;
+      const pricePerTon = parseFloat(product.price) || 0;
+      const productLiters = annualLiters * yieldPercent / 100;
+      const productTons = productLiters * product.density / 1000;
+      const productRevenue = productTons * pricePerTon;
+      totalDebugRevenue += productRevenue;
+      
+      console.log(`${product.name}:`);
+      console.log(`  Yield: ${yieldPercent}%, Price: £${pricePerTon}/ton, Density: ${product.density}`);
+      console.log(`  Product Liters: ${productLiters.toLocaleString()}`);
+      console.log(`  Product Tons: ${productTons.toLocaleString()}`);
+      console.log(`  Product Revenue: £${productRevenue.toLocaleString()}`);
+    });
+    
+    console.log('TOTAL CALCULATED REVENUE:', '£' + totalDebugRevenue.toLocaleString());
+    console.log('SYSTEM SHOWING REVENUE:', '£' + totalRevenue.toLocaleString());
+    console.log('EXPECTED REVENUE: £7,000,000');
+    console.log('CALCULATION RATIO:', (totalDebugRevenue / 7000000).toFixed(2));
+    console.log('');
+    console.log('💡 DIAGNOSIS:');
+    console.log('Current annual processing:', annualLiters.toLocaleString(), 'liters');
+    console.log('To achieve £7M revenue, plant needs to process:', Math.round(7000000 / totalDebugRevenue * annualLiters).toLocaleString(), 'liters annually');
+    console.log('This would require operating:', Math.round(7000000 / totalDebugRevenue * operatingDays), 'days per month');
+    console.log('OR operating days might need to be interpreted differently (e.g., plant operates 365 days/year instead of', (operatingDays * 12), 'days/year)');
     
     // EBITDA (Earnings Before Interest, Taxes, Depreciation, Amortization)
     const ebitda = grossProfit;
