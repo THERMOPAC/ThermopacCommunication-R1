@@ -1460,10 +1460,12 @@ export default function MarketingToolsPage() {
       { yield: parseFloat(roiData.wasteWaterYield) || 0, price: parseFloat(roiData.wasteWaterPrice) || 0, density: 1.0 }
     ];
     
-    const totalRevenue = products.reduce((total, product) => {
+    const totalRevenue = products.reduce((total, product, index) => {
       const productLiters = annualLiters * product.yield / 100;
       const productTons = productLiters * product.density / 1000;
       const revenue = productTons * product.price;
+      console.log(`Product ${index + 1}: Yield=${product.yield}%, Price=£${product.price}/ton, Density=${product.density}`);
+      console.log(`  Liters: ${productLiters}, Tons: ${productTons}, Revenue: £${revenue}`);
       return total + revenue;
     }, 0);
 
