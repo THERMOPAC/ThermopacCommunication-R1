@@ -2784,8 +2784,10 @@ export default function MarketingToolsPage() {
 
         yPos = metricsTableY + 15;
 
-        // GRAPHICAL SUMMARY SECTION
-        checkPageBreak(50);
+        // GRAPHICAL SUMMARY SECTION - Force new page
+        doc.addPage();
+        yPos = topMargin + 10; // Start fresh page with minimal padding
+        
         doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 102, 204);
