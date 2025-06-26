@@ -1453,10 +1453,10 @@ export default function MarketingToolsPage() {
     const annualLiters = plantCapacity * operatingDays * 24 * 12; // Monthly × 12 months
     
     const products = [
-      { yield: parseFloat(roiData.naphthaGasOilYield) || 0, price: parseFloat(roiData.naphthaGasOilPrice) || 0, density: 0.80 },
+      { yield: parseFloat(roiData.naphthaGasOilYield) || 0, price: parseFloat(roiData.naphthaGasOilPrice) || 0, density: 0.75 },
       { yield: parseFloat(roiData.lightBaseOilYield) || 0, price: parseFloat(roiData.lightBaseOilPrice) || 0, density: 0.85 },
-      { yield: parseFloat(roiData.heavyBaseOilYield) || 0, price: parseFloat(roiData.heavyBaseOilPrice) || 0, density: 0.87 },
-      { yield: parseFloat(roiData.residueYield) || 0, price: parseFloat(roiData.residuePrice) || 0, density: 1.8 },
+      { yield: parseFloat(roiData.heavyBaseOilYield) || 0, price: parseFloat(roiData.heavyBaseOilPrice) || 0, density: 0.90 },
+      { yield: parseFloat(roiData.residueYield) || 0, price: parseFloat(roiData.residuePrice) || 0, density: 0.95 },
       { yield: parseFloat(roiData.wasteWaterYield) || 0, price: parseFloat(roiData.wasteWaterPrice) || 0, density: 1.0 }
     ];
     
@@ -1473,6 +1473,13 @@ export default function MarketingToolsPage() {
     const operatingDaysPerMonth = parseFloat(roiData.plantOperationDays) || 25;
     const feedstockCostPerLiter = parseFloat(roiData.feedstockCost) || 0;
     const annualFeedstockCost = feedstockCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth * 12; // Annual feedstock cost
+    
+    console.log('🔍 FEEDSTOCK COST DEBUG:');
+    console.log('Raw feedstock cost:', roiData.feedstockCost);
+    console.log('Parsed feedstock cost per liter:', feedstockCostPerLiter);
+    console.log('Plant capacity:', plantCapacity);
+    console.log('Operating days per month:', operatingDaysPerMonth);
+    console.log('Annual feedstock cost:', annualFeedstockCost);
     
     const annualOperatingCosts = [
       annualFeedstockCost, // Already annual - don't multiply by 12 again
