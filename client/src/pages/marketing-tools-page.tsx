@@ -406,6 +406,7 @@ export default function MarketingToolsPage() {
     equityPercentage: '30',
     debtPercentage: '70',
     debtFinancingRatio: '70',
+    rateOfInterest: '6', // Default 6% annual interest rate on debt
     // Step 5: Product Yield (pre-populated with default values)
     naphthaGasOilYield: '7',
     lightBaseOilYield: '50',
@@ -1080,6 +1081,17 @@ export default function MarketingToolsPage() {
         debtPercentage: clampedDebt.toString(),
         equityPercentage: equityValue.toString(),
         debtFinancingRatio: clampedDebt.toString() // Also update debtFinancingRatio for consistency
+      }));
+      return;
+    }
+    
+    // Handle validation for Interest Rate on Debt (0% to 25% annual)
+    if (field === 'rateOfInterest') {
+      const interestRate = parseFloat(value as string) || 0;
+      const clampedRate = Math.max(0, Math.min(25, interestRate)); // Clamp between 0-25%
+      setROIData(prev => ({ 
+        ...prev, 
+        rateOfInterest: clampedRate.toString()
       }));
       return;
     }
@@ -6337,11 +6349,15 @@ export default function MarketingToolsPage() {
                             <Label>Interest Rate on Debt (% annual)</Label>
                             <Input
                               type="number"
+                              min="0"
+                              max="25"
                               step="0.1"
-                              value={roiData.interestRate}
-                              onChange={(e) => updateData('interestRate', e.target.value)}
-                              placeholder="e.g., 12.5"
+                              value={roiData.rateOfInterest || '6'}
+                              onChange={(e) => updateData('rateOfInterest', e.target.value)}
+                              placeholder="6.0"
+                              className="bg-yellow-50"
                             />
+                            <p className="text-xs text-gray-500">Valid range: 0% to 25% annual interest rate</p>
                           </div>
                         </div>
                       </div>
