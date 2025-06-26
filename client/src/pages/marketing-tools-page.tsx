@@ -1482,15 +1482,16 @@ export default function MarketingToolsPage() {
     // Calculate comprehensive financial metrics including financing costs and depreciation
     const grossProfit = totalRevenue - annualOperatingCosts;
     
-    // Calculate net profit after financing costs and depreciation
+    // Calculate net profit after financing costs and depreciation (respecting toggle)
     const netProfitBeforeDepreciation = grossProfit - financingCosts.annualFinancingCosts;
-    const netProfit = netProfitBeforeDepreciation - annualDepreciation;
+    const actualDepreciation = roiData.includeDepreciation ? annualDepreciation : 0;
+    const netProfit = netProfitBeforeDepreciation - actualDepreciation;
     
     // EBITDA (Earnings Before Interest, Taxes, Depreciation, Amortization)
     const ebitda = grossProfit;
     
-    // Calculate cash flow for payback period (add back depreciation since it's non-cash)
-    const annualCashFlow = netProfit + annualDepreciation;
+    // Calculate cash flow for payback period (add back depreciation since it's non-cash, but only if included)
+    const annualCashFlow = netProfit + actualDepreciation;
     
     // Calculate financial metrics
     const paybackPeriod = totalInvestment > 0 && annualCashFlow > 0 ? totalInvestment / annualCashFlow : 0;
@@ -2566,7 +2567,7 @@ export default function MarketingToolsPage() {
         
         const netProfitWithFinancing = ebitda - totalAnnualFinancingCosts - annualDepreciation;
 
-        // P&L Statement Table with complete financial structure
+        // P&L Statement Table with complete financial structure - conditionally include depreciation
         const plStatementData = [
           { label: 'REVENUE', value: plTotalRevenue, isBold: true, isHeader: true },
           { label: '  Naphtha / Gas Oil', value: naphthaRevenue, indent: true },
@@ -2597,9 +2598,12 @@ export default function MarketingToolsPage() {
           { label: '  Interest on Debt', value: annualDebtInterest, indent: true },
           { label: '  Working Capital Interest', value: annualWorkingCapitalInterest, indent: true },
           { label: '', value: '', isSpacing: true },
-          { label: 'DEPRECIATION', value: annualDepreciation, isBold: true, isHeader: true },
-          { label: `  ${depreciationMethod === 'straight-line' ? 'Straight-line (10 years)' : depreciationMethod === 'declining-balance' ? 'Declining Balance (20%)' : 'No Depreciation'}`, value: annualDepreciation, indent: true },
-          { label: '', value: '', isSpacing: true },
+          // Conditionally include depreciation section based on toggle state
+          ...(roiData.includeDepreciation ? [
+            { label: 'DEPRECIATION', value: actualDepreciation, isBold: true, isHeader: true },
+            { label: `  ${depreciationMethod === 'straight-line' ? 'Straight-line (10 years)' : depreciationMethod === 'declining-balance' ? 'Declining Balance (20%)' : 'No Depreciation'}`, value: actualDepreciation, indent: true },
+            { label: '', value: '', isSpacing: true }
+          ] : []),
           { label: 'NET PROFIT', value: netProfitWithFinancing, isBold: true, isTotal: true, isFinal: true }
         ];
 
@@ -6713,7 +6717,7 @@ export default function MarketingToolsPage() {
                                   parseFloat(roiData.maintenanceCost) || 0
                                 ].reduce((sum, cost) => sum + cost, 0) * 12;
                                 const annualFinancing = financingCosts.annualFinancingCosts || 0;
-                                const depreciation = annualDepreciation || 0;
+                                const depreciation = roiData.includeDepreciation ? (annualDepreciation || 0) : 0;
                                 return (operatingCosts + annualFinancing + depreciation).toLocaleString(undefined, { maximumFractionDigits: 0 });
                               })()}</p>
                               <p className="text-xs text-muted-foreground">OpEx + Financing + Depreciation</p>
