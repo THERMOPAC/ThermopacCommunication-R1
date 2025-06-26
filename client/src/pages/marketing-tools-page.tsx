@@ -1761,6 +1761,15 @@ export default function MarketingToolsPage() {
         // Start directly with detailed tabular sections
         yPos = 50;
 
+        // Define currency conversion rate early in the PDF generation
+        const exchangeRate = currencies[roiData.currency]?.rate || 1;
+
+        // Helper function to get tank price from database
+        const getTankPriceFromData = (tankSize) => {
+          const tankPrice = tankPrices.find(tp => tp.capacity === tankSize);
+          return tankPrice ? tankPrice.priceUSD : 0;
+        };
+
         // Define equipment items array for later use in Step 3 section
         const equipmentItems = [
           { label: 'Additional Pumps, Filters & Cooler', value: roiData.additionalPumpsFilters },
@@ -1999,14 +2008,7 @@ export default function MarketingToolsPage() {
           });
           tankTableY += tankRowHeight;
 
-          // Helper function to get tank price from database
-          const getTankPriceFromData = (tankSize) => {
-            const tankPrice = tankPrices.find(tp => tp.capacity === tankSize);
-            return tankPrice ? tankPrice.priceUSD : 0;
-          };
 
-          // Currency conversion rate
-          const exchangeRate = currencies[roiData.currency]?.rate || 1;
 
           // Draw data rows
           doc.setFont('helvetica', 'normal');
@@ -2791,7 +2793,7 @@ export default function MarketingToolsPage() {
         ].filter(item => item.value > 0);
 
         // Calculate revenue data
-        const exchangeRate = parseFloat(roiData.exchangeRate || '1');
+        // exchangeRate already defined earlier in PDF generation
         const capacity = parseFloat(roiData.capacity || '1000');
         const operatingDays = parseFloat(roiData.plantOperationDays || '25');
         const densityUsedOil = 0.85;
