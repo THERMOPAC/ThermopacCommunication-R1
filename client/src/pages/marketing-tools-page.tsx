@@ -2257,7 +2257,7 @@ export default function MarketingToolsPage() {
         const tankTotalCost = (roiData.tanks || []).reduce((sum, tank) => {
           if ((tank.suggestedQuantity || tank.quantity) > 0) {
             const tankPriceUSD = getTankPriceFromData(tank.suggestedTankSize);
-            const totalCostLocal = tankPriceUSD * tank.suggestedQuantity * exchangeRate;
+            const totalCostLocal = tankPriceUSD * (tank.suggestedQuantity || tank.quantity) * exchangeRate;
             return sum + totalCostLocal;
           }
           return sum;
