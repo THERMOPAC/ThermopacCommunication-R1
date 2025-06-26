@@ -1646,8 +1646,8 @@ export default function MarketingToolsPage() {
         const pageWidth = doc.internal.pageSize.width;
         const pageHeight = doc.internal.pageSize.height;
         const margin = 20; // Left/Right margins: 20mm
-        const topMargin = 30; // Top margin: 30mm
-        const bottomMargin = 30; // Bottom margin: 30mm
+        const topMargin = 25; // Top margin: 25mm
+        const bottomMargin = 25; // Bottom margin: 25mm
         let yPos = topMargin;
 
         // Helper function to check if we need a new page - updated for standardized chart heights
