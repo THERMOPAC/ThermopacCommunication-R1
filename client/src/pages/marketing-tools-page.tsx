@@ -3166,10 +3166,14 @@ export default function MarketingToolsPage() {
             }
           }
 
+          // Calculate chart position with vertical centering
+          const chartY = y + verticalOffset + 20;
+          const chartHeight = height - 25; // Reduce height for title space
+          
           // Draw axes
           doc.setDrawColor(0, 0, 0);
-          doc.line(x, y + height, x + width, y + height); // X-axis
-          doc.line(x, y, x, y + height); // Y-axis
+          doc.line(x, chartY + chartHeight, x + width, chartY + chartHeight); // X-axis
+          doc.line(x, chartY, x, chartY + chartHeight); // Y-axis
           
           // Find min/max values for scaling
           const minValue = Math.min(...cashFlowData.map(d => d.value));
@@ -3178,7 +3182,7 @@ export default function MarketingToolsPage() {
           
           // Draw zero line if needed
           if (minValue < 0 && maxValue > 0) {
-            const zeroY = y + height - ((0 - minValue) / range) * height;
+            const zeroY = chartY + chartHeight - ((0 - minValue) / range) * chartHeight;
             doc.setDrawColor(128, 128, 128);
             doc.setLineDashPattern([2, 2], 0);
             doc.line(x, zeroY, x + width, zeroY);
@@ -3191,9 +3195,9 @@ export default function MarketingToolsPage() {
           
           for (let i = 0; i < cashFlowData.length - 1; i++) {
             const x1 = x + (cashFlowData[i].month / months) * width;
-            const y1 = y + height - ((cashFlowData[i].value - minValue) / range) * height;
+            const y1 = chartY + chartHeight - ((cashFlowData[i].value - minValue) / range) * chartHeight;
             const x2 = x + (cashFlowData[i + 1].month / months) * width;
-            const y2 = y + height - ((cashFlowData[i + 1].value - minValue) / range) * height;
+            const y2 = chartY + chartHeight - ((cashFlowData[i + 1].value - minValue) / range) * chartHeight;
             doc.line(x1, y1, x2, y2);
           }
           
@@ -3201,7 +3205,7 @@ export default function MarketingToolsPage() {
           const breakEvenMonth = cashFlowData.findIndex(d => d.value >= 0);
           if (breakEvenMonth > 0) {
             const breakEvenX = x + (breakEvenMonth / months) * width;
-            const breakEvenY = y + height - ((0 - minValue) / range) * height;
+            const breakEvenY = chartY + chartHeight - ((0 - minValue) / range) * chartHeight;
             doc.setFillColor(255, 0, 0);
             doc.circle(breakEvenX, breakEvenY, 2, 'F');
             doc.setFontSize(8);
@@ -3211,19 +3215,25 @@ export default function MarketingToolsPage() {
           // Add axis labels
           doc.setFontSize(8);
           doc.setTextColor(0, 0, 0);
-          doc.text('0', x - 5, y + height + 5);
-          doc.text('60 months', x + width - 15, y + height + 10);
-          doc.text('Cash Flow', x - 30, y + height/2, { angle: 90 });
+          doc.text('0', x - 5, chartY + chartHeight + 5);
+          doc.text('60 months', x + width - 15, chartY + chartHeight + 10);
+          doc.text('Cash Flow', x - 30, chartY + chartHeight/2, { angle: 90 });
           
-          return y + height + 30;
+          return y + standardChartHeight + 30;
         };
 
         // Helper function to draw ROI Sensitivity Analysis (Tornado Chart)
         const drawSensitivityAnalysis = (x: number, y: number, width: number, height: number, title: string) => {
+          // Calculate vertical center position within standardChartHeight (90mm)
+          const titleHeight = 15; // Space for title
+          const chartAreaHeight = height - 25; // Actual chart height
+          const totalContentHeight = titleHeight + chartAreaHeight;
+          const verticalOffset = Math.max(0, (standardChartHeight - totalContentHeight) / 2);
+          
           doc.setFontSize(12);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(0, 0, 0);
-          doc.text(title, x, y - 10);
+          doc.text(title, x, y + verticalOffset + 10);
 
           // Calculate base ROI
           const baseROI = parseFloat(roiData.annualROI || '0');
@@ -3260,17 +3270,21 @@ export default function MarketingToolsPage() {
           // Sort by impact magnitude
           sensitivityData.sort((a, b) => Math.abs(b.positive - b.negative) - Math.abs(a.positive - a.negative));
 
-          const barHeight = height / sensitivityData.length * 0.8;
-          const barSpacing = height / sensitivityData.length * 0.2;
+          // Calculate chart position with vertical centering
+          const chartY = y + verticalOffset + 20;
+          const chartHeight = height - 25; // Reduce height for title space
+          
+          const barHeight = chartHeight / sensitivityData.length * 0.8;
+          const barSpacing = chartHeight / sensitivityData.length * 0.2;
           const centerX = x + width / 2;
           
           // Draw center line (base ROI)
           doc.setDrawColor(0, 0, 0);
           doc.setLineWidth(1);
-          doc.line(centerX, y, centerX, y + height);
+          doc.line(centerX, chartY, centerX, chartY + chartHeight);
           
           sensitivityData.forEach((item, index) => {
-            const barY = y + (index * (barHeight + barSpacing)) + barSpacing / 2;
+            const barY = chartY + (index * (barHeight + barSpacing)) + barSpacing / 2;
             
             // Calculate bar widths (proportional to ROI change)
             const maxROI = Math.max(...sensitivityData.flatMap(s => [s.positive, s.negative]));
@@ -3297,15 +3311,15 @@ export default function MarketingToolsPage() {
           
           // Add legend
           doc.setFillColor(231, 76, 60);
-          doc.rect(x + width - 80, y - 5, 8, 4, 'F');
+          doc.rect(x + width - 80, chartY - 5, 8, 4, 'F');
           doc.setFontSize(8);
-          doc.text('-10% Impact', x + width - 70, y - 2);
+          doc.text('-10% Impact', x + width - 70, chartY - 2);
           
           doc.setFillColor(46, 204, 113);
-          doc.rect(x + width - 80, y + 5, 8, 4, 'F');
-          doc.text('+10% Impact', x + width - 70, y + 8);
+          doc.rect(x + width - 80, chartY + 5, 8, 4, 'F');
+          doc.text('+10% Impact', x + width - 70, chartY + 8);
           
-          return y + height + 30;
+          return y + standardChartHeight + 30;
         };
 
         // 5. Cash Flow Timeline (Line Chart) following two-charts-per-page layout
