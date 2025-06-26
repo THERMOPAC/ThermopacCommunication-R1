@@ -1650,15 +1650,25 @@ export default function MarketingToolsPage() {
         const bottomMargin = 25; // Bottom margin: 25mm
         let yPos = topMargin;
 
-        // Helper function to check if we need a new page - updated for standardized chart heights
+        // Helper function to check if we need a new page - enhanced chart safety margins
         const checkPageBreak = (requiredSpace: number, isChart: boolean = false) => {
-          // For charts, reserve additional space for standardized 90mm height + spacing
-          const spaceNeeded = isChart ? Math.max(requiredSpace, standardChartHeight + 30) : requiredSpace;
-          
-          if (yPos + spaceNeeded > pageHeight - bottomMargin) {
-            doc.addPage();
-            yPos = topMargin;
-            return true;
+          if (isChart) {
+            // For charts: ensure 90mm height + 20mm spacing + 15mm safety buffer from bottom edge
+            const chartSafetyBuffer = 15; // Additional safety margin for charts
+            const spaceNeeded = standardChartHeight + 20 + chartSafetyBuffer; // 125mm total
+            
+            if (yPos + spaceNeeded > pageHeight - bottomMargin) {
+              doc.addPage();
+              yPos = topMargin;
+              return true;
+            }
+          } else {
+            // For regular content: standard page break logic
+            if (yPos + requiredSpace > pageHeight - bottomMargin) {
+              doc.addPage();
+              yPos = topMargin;
+              return true;
+            }
           }
           return false;
         };
