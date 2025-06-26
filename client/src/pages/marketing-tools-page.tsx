@@ -1498,6 +1498,15 @@ export default function MarketingToolsPage() {
     // Calculate cash flow for payback period (add back depreciation since it's non-cash, but only if included)
     const annualCashFlow = netProfit + actualDepreciation;
     
+    // Debug logging
+    console.log('Payback Debug:', {
+      totalInvestment,
+      netProfit,
+      actualDepreciation,
+      annualCashFlow,
+      workingCapital
+    });
+    
     // Calculate financial metrics
     const paybackPeriod = totalInvestment > 0 && annualCashFlow > 0 ? totalInvestment / annualCashFlow : 0;
     const annualROI = totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0;
