@@ -1469,10 +1469,12 @@ export default function MarketingToolsPage() {
     const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
       return total + (parseFloat(utility.totalCost) || 0);
     }, 0);
-    const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
+    
+    // Use the calculated working capital from the memo (defined earlier in component)
+    const workingCapitalAmount = workingCapital;
     
     // For total investment calculation - include working capital for financial analysis
-    const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
+    const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapitalAmount;
     
     // For payback calculation - exclude working capital if it's gross payback (no financing/depreciation)
     const capitalInvestmentOnly = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts;
@@ -2643,8 +2645,36 @@ export default function MarketingToolsPage() {
         const monthlyInterestRate = (parseFloat(roiData.rateOfInterest || '0.5') || 0.5) / 100;
         const annualDebtInterest = debtAmount * monthlyInterestRate * 12;
         
-        const plantOperatingDays = parseFloat(roiData.plantOperationDays) || 30;
-        const workingCapital = plFeedstockCostPerLiter * plPlantCapacity * 24 * plantOperatingDays;
+        const plantOperatingDays = parseFloat(roiData.plantOperationDays) || 25;
+        
+        // Use the new working capital calculation that includes both inventory and operating expenses
+        const monthlyOperatingCosts = [
+          parseFloat(roiData.powerCost) || 0,
+          parseFloat(roiData.fuelCost) || 0,
+          parseFloat(roiData.chemicalCost) || 0,
+          parseFloat(roiData.laborCost) || 0,
+          parseFloat(roiData.maintenanceCost) || 0,
+          parseFloat(roiData.mediaCost) || 0,
+          parseFloat(roiData.transportationCost) || 0,
+          parseFloat(roiData.vehicleMaintenanceCost) || 0,
+          parseFloat(roiData.miscellaneousCost) || 0
+        ].reduce((total, cost) => total + cost, 0);
+        
+        // New Working Capital Formula: [(Plant Capacity × 24 × Operation Days) ÷ 2] × Feedstock Cost + (Monthly OpEx ÷ 2)
+        let workingCapitalAmount = 0;
+        
+        // Part 1: Inventory component - only if feedstock cost > 0
+        if (plFeedstockCostPerLiter > 0) {
+          const monthlyFeedstockVolume = plPlantCapacity * 24 * plantOperatingDays;
+          const inventoryComponent = (monthlyFeedstockVolume / 2) * plFeedstockCostPerLiter;
+          workingCapitalAmount += inventoryComponent;
+        }
+        
+        // Part 2: Operating expenses component (always included)
+        const operatingExpensesComponent = monthlyOperatingCosts / 2;
+        workingCapitalAmount += operatingExpensesComponent;
+        
+        const workingCapital = Math.round(workingCapitalAmount);
         const annualWorkingCapitalInterest = workingCapital * monthlyInterestRate * 12;
         
         const totalAnnualFinancingCosts = annualDebtInterest + annualWorkingCapitalInterest;
