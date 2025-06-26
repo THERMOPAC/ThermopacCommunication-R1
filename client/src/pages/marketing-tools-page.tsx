@@ -2561,6 +2561,8 @@ export default function MarketingToolsPage() {
         yPos = productTableY + 25;
 
         // PROFIT & LOSS STATEMENT SECTION (Step 7)
+        doc.addPage();
+        yPos = topMargin;
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 102, 204);
