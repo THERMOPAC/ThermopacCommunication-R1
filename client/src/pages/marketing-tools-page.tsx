@@ -1650,9 +1650,12 @@ export default function MarketingToolsPage() {
         const bottomMargin = 30; // Bottom margin: 30mm
         let yPos = topMargin;
 
-        // Helper function to check if we need a new page
-        const checkPageBreak = (requiredSpace: number) => {
-          if (yPos + requiredSpace > pageHeight - bottomMargin) {
+        // Helper function to check if we need a new page - updated for standardized chart heights
+        const checkPageBreak = (requiredSpace: number, isChart: boolean = false) => {
+          // For charts, reserve additional space for standardized 90mm height + spacing
+          const spaceNeeded = isChart ? Math.max(requiredSpace, standardChartHeight + 30) : requiredSpace;
+          
+          if (yPos + spaceNeeded > pageHeight - bottomMargin) {
             doc.addPage();
             yPos = topMargin;
             return true;
@@ -2887,36 +2890,66 @@ export default function MarketingToolsPage() {
           return y + height + 30;
         };
 
-        // Draw charts
+        // Draw charts with standardized sizes: 160mm width × 90mm height
         let chartY = yPos;
+        const standardChartWidth = 160;
+        const standardChartHeight = 90;
+        const standardPieRadius = 35; // Adjusted for 90mm height
+        const chartSpacing = 20; // Minimum 20mm spacing between charts
+        let chartsOnCurrentPage = 0;
 
         // 1. Product Yield Breakdown (Pie Chart)
         if (productYieldData.length > 0) {
-          chartY = drawPieChart(productYieldData, margin, chartY, 30, 'Product Yield Breakdown (%)');
-          chartY += 20;
+          if (chartsOnCurrentPage >= 2) {
+            doc.addPage();
+            chartY = topMargin;
+            chartsOnCurrentPage = 0;
+          }
+          checkPageBreak(standardChartHeight + 30, true);
+          if (yPos > chartY - 20) chartY = yPos;
+          chartY = drawPieChart(productYieldData, margin, chartY, standardPieRadius, 'Product Yield Breakdown (%)');
+          chartY += chartSpacing;
+          chartsOnCurrentPage++;
         }
 
         // 2. Revenue by Product (Bar Chart)
         if (revenueData.length > 0) {
-          checkPageBreak(100);
+          if (chartsOnCurrentPage >= 2) {
+            doc.addPage();
+            chartY = topMargin;
+            chartsOnCurrentPage = 0;
+          }
+          checkPageBreak(standardChartHeight + 30, true);
           if (yPos > chartY - 20) chartY = yPos;
-          chartY = drawBarChart(revenueData, margin, chartY, 160, 60, `Annual Revenue by Product (${roiData.currency})`, roiData.currency || 'USD');
-          chartY += 20;
+          chartY = drawBarChart(revenueData, margin, chartY, standardChartWidth, standardChartHeight, `Annual Revenue by Product (${roiData.currency})`, roiData.currency || 'USD');
+          chartY += chartSpacing;
+          chartsOnCurrentPage++;
         }
 
         // 3. Operating Cost Breakdown (Pie Chart)
         if (operatingCostData.length > 0) {
-          checkPageBreak(80);
+          if (chartsOnCurrentPage >= 2) {
+            doc.addPage();
+            chartY = topMargin;
+            chartsOnCurrentPage = 0;
+          }
+          checkPageBreak(standardChartHeight + 30, true);
           if (yPos > chartY - 20) chartY = yPos;
-          chartY = drawPieChart(operatingCostData, margin, chartY, 30, `Monthly Operating Costs (${roiData.currency})`);
-          chartY += 20;
+          chartY = drawPieChart(operatingCostData, margin, chartY, standardPieRadius, `Monthly Operating Costs (${roiData.currency})`);
+          chartY += chartSpacing;
+          chartsOnCurrentPage++;
         }
 
         // 4. CAPEX Allocation (Bar Chart)
         if (capexData.length > 0) {
-          checkPageBreak(100);
+          if (chartsOnCurrentPage >= 2) {
+            doc.addPage();
+            chartY = topMargin;
+            chartsOnCurrentPage = 0;
+          }
+          checkPageBreak(standardChartHeight + 30, true);
           if (yPos > chartY - 20) chartY = yPos;
-          chartY = drawBarChart(capexData, margin, chartY, 160, 60, `CAPEX Allocation (${roiData.currency})`, roiData.currency || 'USD');
+          chartY = drawBarChart(capexData, margin, chartY, standardChartWidth, standardChartHeight, `CAPEX Allocation (${roiData.currency})`, roiData.currency || 'USD');
         }
 
         // NEW PAGE FOR ADDITIONAL CHARTS
@@ -3098,24 +3131,24 @@ export default function MarketingToolsPage() {
           return y + height + 30;
         };
 
-        // Start charts on new page with proper margins
+        // Start advanced charts on new page with standardized dimensions
         doc.addPage();
         yPos = topMargin;
         
-        // 5. Cash Flow Timeline (Line Chart) - First chart on new page
+        // 5. Cash Flow Timeline (Line Chart) - First chart on new page with standardized size
         let newChartY = yPos;
-        newChartY = drawCashFlowTimeline(margin, newChartY, 160, 80, `5-Year Cash Flow Timeline (${roiData.currency})`);
+        newChartY = drawCashFlowTimeline(margin, newChartY, standardChartWidth, standardChartHeight, `5-Year Cash Flow Timeline (${roiData.currency})`);
         
-        // Add spacing between charts
-        newChartY += 20;
+        // Add minimum 20mm spacing between charts
+        newChartY += chartSpacing;
         
-        // 6. ROI Sensitivity Analysis (Tornado Chart) - Second chart on same page if space allows
-        if (newChartY + 100 > pageHeight - bottomMargin) {
+        // 6. ROI Sensitivity Analysis (Tornado Chart) - Second chart with space check
+        if (newChartY + standardChartHeight + 30 > pageHeight - bottomMargin) {
           // If second chart won't fit with proper bottom margin, start new page
           doc.addPage();
           newChartY = topMargin;
         }
-        newChartY = drawSensitivityAnalysis(margin, newChartY, 160, 80, 'ROI Sensitivity Analysis (±10% Impact)');
+        newChartY = drawSensitivityAnalysis(margin, newChartY, standardChartWidth, standardChartHeight, 'ROI Sensitivity Analysis (±10% Impact)');
 
         yPos = newChartY + 20;
 
