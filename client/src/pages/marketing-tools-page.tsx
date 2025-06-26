@@ -2748,29 +2748,29 @@ export default function MarketingToolsPage() {
         const invWorkingCapital = parseFloat(roiData.workingCapitalRequirement || '0') || 0;
 
         // Total Investment
-        const totalInvestment = step1Total + step2Total + step3Total + invWorkingCapital;
+        const invTotalInvestment = step1Total + step2Total + step3Total + invWorkingCapital;
 
         // Investment breakdown data
         const investmentData = [
           { 
             label: 'Step 1: Plant & Project Costs', 
             value: step1Total, 
-            percentage: step1Total > 0 ? ((step1Total / totalInvestment) * 100).toFixed(1) : '0.0'
+            percentage: step1Total > 0 ? ((step1Total / invTotalInvestment) * 100).toFixed(1) : '0.0'
           },
           { 
             label: 'Step 2: Tank Farm & Utilities', 
             value: step2Total, 
-            percentage: step2Total > 0 ? ((step2Total / totalInvestment) * 100).toFixed(1) : '0.0'
+            percentage: step2Total > 0 ? ((step2Total / invTotalInvestment) * 100).toFixed(1) : '0.0'
           },
           { 
             label: 'Step 3: Additional Equipment', 
             value: step3Total, 
-            percentage: step3Total > 0 ? ((step3Total / totalInvestment) * 100).toFixed(1) : '0.0'
+            percentage: step3Total > 0 ? ((step3Total / invTotalInvestment) * 100).toFixed(1) : '0.0'
           },
           { 
             label: 'Step 4: Working Capital', 
             value: invWorkingCapital, 
-            percentage: invWorkingCapital > 0 ? ((invWorkingCapital / totalInvestment) * 100).toFixed(1) : '0.0'
+            percentage: invWorkingCapital > 0 ? ((invWorkingCapital / invTotalInvestment) * 100).toFixed(1) : '0.0'
           }
         ];
 
@@ -2845,7 +2845,7 @@ export default function MarketingToolsPage() {
         doc.setFillColor(40, 60, 120);
         doc.rect(totalRowX, invTableY, invColWidths[1], invRowHeight, 'F');
         doc.rect(totalRowX, invTableY, invColWidths[1], invRowHeight);
-        const totalAmountText = totalInvestment.toLocaleString();
+        const totalAmountText = invTotalInvestment.toLocaleString();
         const totalAmountWidth = doc.getTextWidth(totalAmountText);
         doc.text(totalAmountText, totalRowX + invColWidths[1] - totalAmountWidth - 2, invTableY + 6);
         totalRowX += invColWidths[1];
