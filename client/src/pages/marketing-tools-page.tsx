@@ -3803,8 +3803,7 @@ export default function MarketingToolsPage() {
         yPosition += 20;
 
         // Step 7: Sensitivity Analysis Section
-        doc.addPage();
-        yPosition = margin;
+        checkPageBreak(150);  // Use checkPageBreak instead of forced addPage
         
         doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
