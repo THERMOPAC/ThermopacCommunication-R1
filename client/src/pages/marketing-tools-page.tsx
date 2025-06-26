@@ -1441,7 +1441,11 @@ export default function MarketingToolsPage() {
     }, 0);
     const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
     
+    // For total investment calculation - include working capital for financial analysis
     const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
+    
+    // For payback calculation - exclude working capital if it's gross payback (no financing/depreciation)
+    const capitalInvestmentOnly = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts;
 
     // Calculate annual revenue and costs
     const plantCapacity = parseFloat(roiData.capacity) || 0;
@@ -1501,10 +1505,15 @@ export default function MarketingToolsPage() {
     // Debug logging
     console.log('Payback Debug:', {
       totalInvestment,
+      capitalInvestmentOnly,
+      investmentForPayback,
       netProfit,
       actualDepreciation,
       annualCashFlow,
       workingCapital,
+      includeFinancingCosts,
+      includeDepreciation,
+      'payback calculation': `${investmentForPayback} / ${annualCashFlow} = ${paybackPeriod}`,
       'totalInvestment breakdown': {
         baseCost: parseFloat(roiData.projectCostLocal) || 0,
         tankCosts: (roiData.tanks || []).reduce((total, tank) => total + (parseFloat(tank.totalCost) || 0), 0),
@@ -1514,14 +1523,12 @@ export default function MarketingToolsPage() {
     });
     
     // Calculate financial metrics
-    // For gross payback, we should exclude working capital from the investment
-    const investmentForPayback = includeFinancingCosts || includeDepreciation ? 
-      totalInvestment : // Include working capital if financing/depreciation analysis
-      totalInvestment; // For gross payback, use capital investment only (working capital is operational)
+    // For gross payback, exclude working capital from the investment base
+    const investmentForPayback = (!includeFinancingCosts && !includeDepreciation) ? 
+      capitalInvestmentOnly : // Gross payback uses capital investment only
+      totalInvestment; // Include working capital for financing/depreciation analysis
     
-    // Actually, working capital is already NOT included in totalInvestment calculation above
-    // The issue might be elsewhere - let's use totalInvestment for now
-    const paybackPeriod = totalInvestment > 0 && annualCashFlow > 0 ? totalInvestment / annualCashFlow : 0;
+    const paybackPeriod = investmentForPayback > 0 && annualCashFlow > 0 ? investmentForPayback / annualCashFlow : 0;
     const annualROI = totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0;
     
     // Return on Equity (using equity portion only)
