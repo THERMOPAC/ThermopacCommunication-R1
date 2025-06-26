@@ -1313,7 +1313,6 @@ export default function MarketingToolsPage() {
       parseFloat(roiData.refineryShed) || 0,
       parseFloat(roiData.utilityShed) || 0,
       parseFloat(roiData.officeBuilding) || 0,
-      parseFloat(roiData.mechanicalElectrical) || 0,
       parseFloat(roiData.fireSuppressionSystem) || 0,
       parseFloat(roiData.insulationCost) || 0,
       parseFloat(roiData.legalFees) || 0,
@@ -1414,7 +1413,6 @@ export default function MarketingToolsPage() {
       parseFloat(roiData.refineryShed) || 0,
       parseFloat(roiData.utilityShed) || 0,
       parseFloat(roiData.officeBuilding) || 0,
-      parseFloat(roiData.mechanicalElectrical) || 0,
       parseFloat(roiData.fireSuppression) || 0,
       parseFloat(roiData.insulation) || 0,
       parseFloat(roiData.legalFees) || 0,
@@ -1809,7 +1807,6 @@ export default function MarketingToolsPage() {
           { label: 'Refinery Shed', value: roiData.refineryShed },
           { label: 'Utility Shed', value: roiData.utilityShed },
           { label: 'Office Building', value: roiData.officeBuilding },
-          { label: 'Mechanical & Electrical', value: roiData.mechanicalElectrical },
           { label: 'Fire Suppression', value: roiData.fireSuppression },
           { label: 'Insulation', value: roiData.insulation },
           { label: 'Legal Fees', value: roiData.legalFees },
@@ -5076,16 +5073,7 @@ export default function MarketingToolsPage() {
                               placeholder="0"
                             />
                           </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="mechanicalElectrical">Mechanical & Electrical Cost</Label>
-                            <Input
-                              id="mechanicalElectrical"
-                              type="number"
-                              value={roiData.mechanicalElectrical}
-                              onChange={(e) => updateData('mechanicalElectrical', e.target.value)}
-                              placeholder="0"
-                            />
-                          </div>
+
                           <div className="space-y-2">
                             <Label htmlFor="fireSuppressionSystem">Fire Suppression System</Label>
                             <Input
