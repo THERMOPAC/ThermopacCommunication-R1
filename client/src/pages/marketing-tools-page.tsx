@@ -1499,8 +1499,12 @@ export default function MarketingToolsPage() {
     // EBITDA (Earnings Before Interest, Taxes, Depreciation, Amortization)
     const ebitda = grossProfit;
     
-    // Calculate cash flow for payback period (add back depreciation since it's non-cash, but only if included)
-    const annualCashFlow = netProfit + actualDepreciation;
+    // Calculate cash flow for payback period based on what's included
+    // For gross payback (no financing/depreciation), use net profit directly
+    // For other cases, use net profit + depreciation (if included) since depreciation is non-cash
+    const cashFlowForPayback = (!roiData.includeFinancingCosts && !roiData.includeDepreciation) ? 
+      netProfit : // Use net profit directly for gross payback
+      netProfit + actualDepreciation; // Add back depreciation for financing/depreciation scenarios
     
     // Calculate financial metrics
     // For gross payback, exclude working capital from the investment base
@@ -1508,7 +1512,7 @@ export default function MarketingToolsPage() {
       capitalInvestmentOnly : // Gross payback uses capital investment only
       totalInvestment; // Include working capital for financing/depreciation analysis
     
-    const paybackPeriod = investmentForPayback > 0 && annualCashFlow > 0 ? investmentForPayback / annualCashFlow : 0;
+    const paybackPeriod = investmentForPayback > 0 && cashFlowForPayback > 0 ? investmentForPayback / cashFlowForPayback : 0;
     
 
     const annualROI = totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0;
