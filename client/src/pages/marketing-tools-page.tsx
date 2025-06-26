@@ -1502,54 +1502,30 @@ export default function MarketingToolsPage() {
     // Calculate cash flow for payback period based on what's included
     // For gross payback (no financing/depreciation), use net profit directly
     // For other cases, use net profit + depreciation (if included) since depreciation is non-cash
-    console.log('🔍 CASH FLOW LOGIC CHECK:');
-    console.log('includeFinancingCosts:', roiData.includeFinancingCosts);
-    console.log('includeDepreciation:', roiData.includeDepreciation);
-    console.log('Condition (!financing && !depreciation):', (!roiData.includeFinancingCosts && !roiData.includeDepreciation));
-    console.log('Net Profit to use:', netProfit);
-    console.log('Actual Depreciation to add:', actualDepreciation);
-    
     const cashFlowForPayback = (!roiData.includeFinancingCosts && !roiData.includeDepreciation) ? 
       netProfit : // Use net profit directly for gross payback
       netProfit + actualDepreciation; // Add back depreciation for financing/depreciation scenarios
-      
-    console.log('Calculated Cash Flow for Payback:', cashFlowForPayback);
     
     // Calculate financial metrics
     // For gross payback, exclude working capital from the investment base
-    console.log('🔍 INVESTMENT LOGIC CHECK:');
-    console.log('includeFinancingCosts:', roiData.includeFinancingCosts);
-    console.log('includeDepreciation:', roiData.includeDepreciation);
-    console.log('Condition (!financing && !depreciation):', (!roiData.includeFinancingCosts && !roiData.includeDepreciation));
-    console.log('Capital Investment Only to use:', capitalInvestmentOnly);
-    console.log('Total Investment alternative:', totalInvestment);
-    
     const investmentForPayback = (!roiData.includeFinancingCosts && !roiData.includeDepreciation) ? 
       capitalInvestmentOnly : // Gross payback uses capital investment only
       totalInvestment; // Include working capital for financing/depreciation analysis
-      
-    console.log('Calculated Investment for Payback:', investmentForPayback);
     
-    const paybackPeriod = investmentForPayback > 0 && cashFlowForPayback > 0 ? investmentForPayback / cashFlowForPayback : 0;
-    
-    // Debug logging to see actual values
-    console.log('🔍 PAYBACK CALCULATION DEBUG:');
-    console.log('Total Revenue:', totalRevenue);
-    console.log('Annual Operating Costs:', annualOperatingCosts);
-    console.log('Gross Profit:', grossProfit);
-    console.log('Actual Financing Costs:', actualFinancingCosts);
-    console.log('Net Profit Before Depreciation:', netProfitBeforeDepreciation);
-    console.log('Actual Depreciation:', actualDepreciation);
+    // Debug the payback calculation
+    console.log('🔍 PAYBACK DEBUG:');
     console.log('Net Profit:', netProfit);
+    console.log('Capital Investment Only:', capitalInvestmentOnly);
+    console.log('Total Investment:', totalInvestment);
     console.log('Include Financing Costs:', roiData.includeFinancingCosts);
     console.log('Include Depreciation:', roiData.includeDepreciation);
     console.log('Cash Flow for Payback:', cashFlowForPayback);
     console.log('Investment for Payback:', investmentForPayback);
-    console.log('Capital Investment Only:', capitalInvestmentOnly);
-    console.log('Total Investment:', totalInvestment);
-    console.log('Working Capital:', workingCapital);
-    console.log('Calculated Payback Period (years):', paybackPeriod);
-    console.log('Calculated Payback Period (months):', paybackPeriod * 12);
+    console.log('Raw Payback Period (years):', investmentForPayback / cashFlowForPayback);
+    
+    const paybackPeriod = investmentForPayback > 0 && cashFlowForPayback > 0 ? investmentForPayback / cashFlowForPayback : 0;
+    
+
     
 
     const annualROI = totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0;
