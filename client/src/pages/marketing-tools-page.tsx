@@ -1611,7 +1611,7 @@ export default function MarketingToolsPage() {
         paybackPeriod = (financingCosts.totalInvestment / netProfit) * 12;
         console.log('Using Total Investment (post-financing & depreciation):');
         console.log('Formula: (Total Investment ÷ Net Profit) × 12');
-        console.log(`Calculation: (${totalInvestment} ÷ ${netProfit}) × 12 = ${paybackPeriod.toFixed(1)} months`);
+        console.log(`Calculation: (${financingCosts.totalInvestment} ÷ ${netProfit}) × 12 = ${paybackPeriod.toFixed(1)} months`);
         console.log(`Expected: (6967007 ÷ 4978397) × 12 = ${(6967007 / 4978397) * 12} months`);
       } else {
         // For gross payback or partial scenarios, use CAPEX only
