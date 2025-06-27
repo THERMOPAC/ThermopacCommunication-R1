@@ -897,7 +897,7 @@ export default function MarketingToolsPage() {
     const equipmentCosts = [
       'additionalPumpsFilters', 'tankLevelTransmitters', 'pipesValvesFlanges',
       'electricalCablesAccessories', 'pccMccPanels', 'chimneyDucting',
-      'coolingTower', 'dieselGenerator', 'qualityControlEquipment',
+      'coolingTower', 'dieselGenerator', 'airCompressor', 'qualityControlEquipment',
       'thermicFluid', 'expansionStructure', 'craneHireCharges', 'laborErectionCommissioning'
     ];
     
@@ -926,7 +926,7 @@ export default function MarketingToolsPage() {
     const equipmentCosts = [
       'additionalPumpsFilters', 'tankLevelTransmitters', 'pipesValvesFlanges',
       'electricalCablesAccessories', 'pccMccPanels', 'chimneyDucting',
-      'coolingTower', 'dieselGenerator', 'qualityControlEquipment',
+      'coolingTower', 'dieselGenerator', 'airCompressor', 'qualityControlEquipment',
       'thermicFluid', 'expansionStructure', 'craneHireCharges', 'laborErectionCommissioning'
     ];
     
