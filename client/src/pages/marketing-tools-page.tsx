@@ -1580,11 +1580,18 @@ export default function MarketingToolsPage() {
       console.log('Expected Total Investment: £6,967,007');
       console.log('Expected Net Profit: £4,993,941');
       console.log('INVESTMENT BREAKDOWN:');
-      console.log('Step 1 Total:', step1Total);
-      console.log('Step 2 Total:', step2Total);
-      console.log('Step 3 Total:', step3Total);
+      
+      // Calculate step totals for debug
+      const step1Total = baseCost + additionalCosts;
+      const step2Total = tankCosts + utilityCosts;
+      const step3Total = equipmentCosts;
+      
+      console.log('Step 1 Total (Plant + Additional Costs):', step1Total);
+      console.log('Step 2 Total (Tanks + Utilities):', step2Total);
+      console.log('Step 3 Total (Equipment):', step3Total);
       console.log('Working Capital:', workingCapitalAmount);
       console.log('Sum (Step1+Step2+Step3+WC):', step1Total + step2Total + step3Total + workingCapitalAmount);
+      console.log('Actual Total Investment:', totalInvestment);
       console.log('VARIANCE ANALYSIS:');
       console.log('Total Investment difference:', totalInvestment - 6967007);
       console.log('Net Profit difference:', netProfit - 4993941);
