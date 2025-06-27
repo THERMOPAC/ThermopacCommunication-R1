@@ -1863,7 +1863,7 @@ export default function MarketingToolsPage() {
         // Formula: Total CAPEX ÷ Annual Net Profit × 12 = Payback Period in Months
         // Use Total CAPEX (excluding working capital) and Net Profit as per standard formula
         const capitalInvestmentOnly = totalInvestment - workingCapital;
-        const paybackPeriod = capitalInvestmentOnly > 0 && netProfit > 0 ? capitalInvestmentOnly / netProfit : 0;
+        const paybackPeriod = capitalInvestmentOnly > 0 && netProfit > 0 ? (capitalInvestmentOnly / netProfit) * 12 : 0;
         const annualROI = totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0;
 
         // Header with gradient background
