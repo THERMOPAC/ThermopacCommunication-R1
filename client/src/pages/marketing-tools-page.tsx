@@ -1456,11 +1456,19 @@ export default function MarketingToolsPage() {
     ].reduce((sum, cost) => sum + cost, 0);
     
     const equipmentCosts = [
-      parseFloat(roiData.pumpsCost) || 0,
-      parseFloat(roiData.transmittersCost) || 0,
-      parseFloat(roiData.electricalCost) || 0,
-      parseFloat(roiData.mechanicalCost) || 0,
-      parseFloat(roiData.commissioningCost) || 0
+      parseFloat(roiData.additionalPumpsFilters) || 0,
+      parseFloat(roiData.tankLevelTransmitters) || 0,
+      parseFloat(roiData.pipesValvesFlanges) || 0,
+      parseFloat(roiData.electricalCablesAccessories) || 0,
+      parseFloat(roiData.pccMccPanels) || 0,
+      parseFloat(roiData.chimneyDucting) || 0,
+      parseFloat(roiData.coolingTower) || 0,
+      parseFloat(roiData.dieselGenerator) || 0,
+      parseFloat(roiData.qualityControlEquipment) || 0,
+      parseFloat(roiData.thermicFluid) || 0,
+      parseFloat(roiData.expansionStructure) || 0,
+      parseFloat(roiData.craneHireCharges) || 0,
+      parseFloat(roiData.laborErectionCommissioning) || 0
     ].reduce((sum, cost) => sum + cost, 0);
     
     const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
