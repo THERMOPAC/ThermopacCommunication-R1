@@ -2812,7 +2812,8 @@ export default function MarketingToolsPage() {
 
         // Step 2 - Tank Farm & Utilities costs
         const invTankCosts = (roiData.tanks || []).reduce((total: number, tank: any) => {
-          return total + (parseFloat(tank.totalCost) || 0);
+          const tankPrice = tankPrices.find(p => p.capacity === tank.suggestedTankSize)?.priceUSD || 0;
+          return total + (tankPrice * tank.suggestedQuantity);
         }, 0);
         const invUtilityCosts = (roiData.utilities || []).reduce((total: number, utility: any) => {
           return total + (parseFloat(utility.totalCost) || 0);
