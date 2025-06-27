@@ -873,7 +873,7 @@ export default function MarketingToolsPage() {
     const currency = currencies[roiData.currency] || currencies.USD;
     const additionalCosts = [
       'freightInsurance', 'importDutyVAT', 'plotCost', 'civilCost', 'refineryShed',
-      'utilityShed', 'officeBuilding', 'mechanicalElectrical', 'fireSuppressionSystem',
+      'utilityShed', 'officeBuilding', 'fireSuppressionSystem',
       'insulationCost', 'legalFees', 'preFormationExpenses', 'commissioningTravel', 'contingency'
     ];
     
@@ -916,7 +916,7 @@ export default function MarketingToolsPage() {
     
     const additionalCosts = [
       'freightInsurance', 'importDutyVAT', 'plotCost', 'civilCost', 'refineryShed',
-      'utilityShed', 'officeBuilding', 'mechanicalElectrical', 'fireSuppressionSystem',
+      'utilityShed', 'officeBuilding', 'fireSuppressionSystem',
       'insulationCost', 'legalFees', 'preFormationExpenses', 'commissioningTravel', 'contingency'
     ];
     
@@ -2120,7 +2120,7 @@ export default function MarketingToolsPage() {
           { label: 'Refinery Shed', value: parseFloat(roiData.refineryShed) || 0 },
           { label: 'Utility Shed', value: parseFloat(roiData.utilityShed) || 0 },
           { label: 'Office Building', value: parseFloat(roiData.officeBuilding) || 0 },
-          { label: 'Mechanical & Electrical', value: parseFloat(roiData.mechanicalElectrical) || 0 },
+
           { label: 'Fire Suppression System', value: parseFloat(roiData.fireSuppressionSystem) || 0 },
           { label: 'Insulation Cost', value: parseFloat(roiData.insulationCost) || 0 },
           { label: 'Legal Fees', value: parseFloat(roiData.legalFees) || 0 },
@@ -4809,7 +4809,7 @@ export default function MarketingToolsPage() {
           ['Refinery Shed', `${currencySymbol}${(parseFloat(roiData.refineryShed) || 0).toLocaleString()}`],
           ['Utility Shed', `${currencySymbol}${(parseFloat(roiData.utilityShed) || 0).toLocaleString()}`],
           ['Office Building', `${currencySymbol}${(parseFloat(roiData.officeBuilding) || 0).toLocaleString()}`],
-          ['Mechanical & Electrical', `${currencySymbol}${(parseFloat(roiData.mechanicalElectrical) || 0).toLocaleString()}`],
+
           ['Fire Suppression System', `${currencySymbol}${(parseFloat(roiData.fireSuppressionSystem) || 0).toLocaleString()}`],
           ['Insulation Cost', `${currencySymbol}${(parseFloat(roiData.insulationCost) || 0).toLocaleString()}`],
           ['Legal Fees', `${currencySymbol}${(parseFloat(roiData.legalFees) || 0).toLocaleString()}`],
