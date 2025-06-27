@@ -1477,7 +1477,7 @@ export default function MarketingToolsPage() {
     const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapitalAmount;
     
     // For payback calculation - exclude working capital if it's gross payback (no financing/depreciation)
-    const capitalInvestmentOnly = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts;
+    const capitalInvestmentOnly = totalInvestment - workingCapitalAmount; // Total investment minus working capital
     
     // Debug CAPEX components
     console.log('📊 CAPEX COMPONENTS DEBUG:');
@@ -1576,7 +1576,8 @@ export default function MarketingToolsPage() {
     console.log('Payback Period Formula: CAPEX ÷ Net Profit × 12');
     console.log('Calculation:', capitalInvestmentOnly, '÷', netProfit, '× 12 =', (capitalInvestmentOnly / netProfit) * 12);
     console.log('🚨 CROSS-CHECK: If payback shows 162.7, then Net Profit used = ', capitalInvestmentOnly * 12 / 162.7);
-    console.log('🚨 EXPECTED: 6,494,800 ÷ 4,993,907 × 12 =', (6494800 / 4993907) * 12);
+    console.log('🚨 EXPECTED: 6,894,800 ÷ 4,993,907 × 12 =', (6894800 / 4993907) * 12);
+    console.log('🚨 ACTUAL CALCULATION NOW:', capitalInvestmentOnly, '÷', netProfit, '× 12 =', (capitalInvestmentOnly / netProfit) * 12);
     
     // Simple and correct payback period calculation using Net Profit
     const paybackPeriod = capitalInvestmentOnly > 0 && netProfit > 0 ? (capitalInvestmentOnly / netProfit) * 12 : 0;
