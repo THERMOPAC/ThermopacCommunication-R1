@@ -7349,11 +7349,13 @@ export default function MarketingToolsPage() {
                                     const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
                                       return total + (parseFloat(tank.totalCost) || 0);
                                     }, 0);
-                                    const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+                                    // Calculate valid utility costs (exclude Compressor and Heater only)
+                                    const validUtilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+                                      if (utility.description === 'Compressor' || utility.description === 'Heater') {
+                                        return total;
+                                      }
                                       return total + (parseFloat(utility.totalCost) || 0);
                                     }, 0);
-                                    const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
-                                    const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
                                     return totalInvestment.toLocaleString();
                                   })()}
                                 </p>
@@ -7461,12 +7463,16 @@ export default function MarketingToolsPage() {
                                     })()}</span>
                                   </div>
                                   <div className="flex justify-between">
-                                    <span>Utilities Cost:</span>
-                                    <span className="font-medium">{getCurrencySymbol(roiData.currency)}{(() => {
-                                      const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+                                    <span className="text-muted-foreground">Utilities & Equipment:</span>
+                                    <span>{(() => {
+                                      // Calculate valid utility costs (exclude Compressor and Heater only)
+                                      const validUtilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+                                        if (utility.description === 'Compressor' || utility.description === 'Heater') {
+                                          return total;
+                                        }
                                         return total + (parseFloat(utility.totalCost) || 0);
                                       }, 0);
-                                      return utilityCosts.toLocaleString();
+                                      return validUtilityCosts.toLocaleString();
                                     })()}</span>
                                   </div>
                                   <div className="flex justify-between border-t pt-2 font-semibold text-green-700">
@@ -7592,11 +7598,15 @@ export default function MarketingToolsPage() {
                                   const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
                                     return total + (parseFloat(tank.totalCost) || 0);
                                   }, 0);
-                                  const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+                                  // Calculate valid utility costs (exclude Compressor and Heater only)
+                                  const validUtilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+                                    if (utility.description === 'Compressor' || utility.description === 'Heater') {
+                                      return total;
+                                    }
                                     return total + (parseFloat(utility.totalCost) || 0);
                                   }, 0);
                                   const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
-                                  const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
+                                  const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + validUtilityCosts + workingCapital;
                                   return totalInvestment.toLocaleString();
                                 })()}</span>
                               </div>
