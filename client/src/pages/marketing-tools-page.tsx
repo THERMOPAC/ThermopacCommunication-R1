@@ -1379,7 +1379,7 @@ export default function MarketingToolsPage() {
       return total + (parseFloat(utility.totalCost) || 0);
     }, 0);
     
-    const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts;
+    const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
     
     // Calculate debt amount
     const debtAmount = totalInvestment * (debtRatio / 100);
