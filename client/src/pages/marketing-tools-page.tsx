@@ -1421,8 +1421,6 @@ export default function MarketingToolsPage() {
     }
   }, [financingCosts.totalInvestment, roiData.depreciationMethod, roiData.plotCost]);
 
-
-
   const calculateROI = () => {
     // Ensure tanks and utilities are calculated and stored
     const plantCapacityLPH = parseFloat(roiData.capacity) || 0;
@@ -1479,17 +1477,7 @@ export default function MarketingToolsPage() {
     const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapitalAmount;
     
     // For payback calculation - exclude working capital if it's gross payback (no financing/depreciation)
-    const capitalInvestmentOnly = totalInvestment - workingCapitalAmount; // Total investment minus working capital
-    
-    // Debug CAPEX components
-    console.log('📊 CAPEX COMPONENTS DEBUG:');
-    console.log('Base Cost (Step 1):', baseCost);
-    console.log('Additional Costs (Step 1):', additionalCosts);
-    console.log('Equipment Costs (Step 3):', equipmentCosts);
-    console.log('Tank Costs (Step 2):', tankCosts);
-    console.log('Utility Costs (Step 2):', utilityCosts);
-    console.log('CAPEX Total:', capitalInvestmentOnly);
-    console.log('Expected CAPEX: £6,494,800');
+    const capitalInvestmentOnly = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts;
 
     // Calculate annual revenue and costs
     const plantCapacity = parseFloat(roiData.capacity) || 0;
@@ -1560,9 +1548,6 @@ export default function MarketingToolsPage() {
     console.log('Actual Financing Costs:', actualFinancingCosts);
     console.log('Net Profit Before Depreciation:', netProfitBeforeDepreciation);
     console.log('Actual Depreciation:', actualDepreciation);
-    console.log('🔥 CRITICAL DEBUG - NET PROFIT:', netProfit);
-    console.log('🔥 EXPECTED NET PROFIT: £4,993,941');
-    console.log('🔥 ACTUAL vs EXPECTED RATIO:', netProfit / 4993941);
     
     // EBITDA (Earnings Before Interest, Taxes, Depreciation, Amortization)
     const ebitda = grossProfit;
@@ -1577,12 +1562,9 @@ export default function MarketingToolsPage() {
     console.log('Annual Net Profit:', netProfit);
     console.log('Payback Period Formula: CAPEX ÷ Net Profit × 12');
     console.log('Calculation:', capitalInvestmentOnly, '÷', netProfit, '× 12 =', (capitalInvestmentOnly / netProfit) * 12);
-    console.log('🚨 CROSS-CHECK: If payback shows 162.7, then Net Profit used = ', capitalInvestmentOnly * 12 / 162.7);
-    console.log('🚨 EXPECTED: 6,894,800 ÷ 4,993,907 × 12 =', (6894800 / 4993907) * 12);
-    console.log('🚨 ACTUAL CALCULATION NOW:', capitalInvestmentOnly, '÷', netProfit, '× 12 =', (capitalInvestmentOnly / netProfit) * 12);
     
     // Simple and correct payback period calculation using Net Profit
-    const paybackPeriod = capitalInvestmentOnly > 0 && netProfit > 0 ? (capitalInvestmentOnly / netProfit) * 12 : 0;
+    const paybackPeriod = capitalInvestmentOnly > 0 && netProfit > 0 ? capitalInvestmentOnly / netProfit : 0;
     
 
     
@@ -7552,10 +7534,7 @@ export default function MarketingToolsPage() {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-sm text-muted-foreground mb-1">Payback Period</p>
-                              <p className="text-xl font-bold text-orange-600">{(() => {
-                                const calculatedROI = calculateROI();
-                                return calculatedROI.paybackPeriod.toFixed(1);
-                              })()}</p>
+                              <p className="text-xl font-bold text-orange-600">{(roiData.paybackPeriodMonths || (roiData.paybackPeriod || 0) * 12).toFixed(1)}</p>
                               <p className="text-xs text-muted-foreground">
                                 Months {(() => {
                                   const hasFinancing = roiData.includeFinancingCosts !== false;
