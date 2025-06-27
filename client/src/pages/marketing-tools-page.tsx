@@ -3351,14 +3351,20 @@ export default function MarketingToolsPage() {
         // CAPEX allocation data
         const projectCostLocalChart = parseFloat(roiData.projectCostLocal || '0');
         const tankCostsChart = (roiData.tanks || []).reduce((sum, tank) => sum + parseFloat(tank.totalCost || '0'), 0);
-        const utilityCostsChart = (roiData.utilities || []).filter(u => u.name !== 'Total Connected Load').reduce((sum, utility) => sum + parseFloat(utility.totalCost || '0'), 0);
+        // Calculate valid utility costs for chart (exclude Compressor and Heater only)
+        const validUtilityCostsChart = (roiData.utilities || []).reduce((sum, utility) => {
+          if (utility.description === 'Compressor' || utility.description === 'Heater') {
+            return sum;
+          }
+          return sum + parseFloat(utility.totalCost || '0');
+        }, 0);
         const equipmentCostsChart = equipmentItems.reduce((sum, item) => sum + parseFloat(item.value || '0'), 0);
         const additionalCostsChart = additionalCostItems.reduce((sum, item) => sum + parseFloat(item.value || '0'), 0);
 
         const capexData = [
           { name: 'Plant Equipment', value: projectCostLocalChart, color: [255, 99, 132] },
           { name: 'Tank Farm', value: tankCostsChart, color: [54, 162, 235] },
-          { name: 'Utilities', value: utilityCostsChart, color: [255, 205, 86] },
+          { name: 'Valid Utilities', value: validUtilityCostsChart, color: [255, 205, 86] },
           { name: 'Additional Equipment', value: equipmentCostsChart, color: [75, 192, 192] },
           { name: 'Project Costs', value: additionalCostsChart, color: [153, 102, 255] }
         ].filter(item => item.value > 0);
@@ -3878,11 +3884,15 @@ export default function MarketingToolsPage() {
       const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
         return total + (parseFloat(tank.totalCost) || 0);
       }, 0);
-      const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+      // Calculate valid utility costs (exclude Compressor and Heater only)
+      const validUtilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+        if (utility.description === 'Compressor' || utility.description === 'Heater') {
+          return total;
+        }
         return total + (parseFloat(utility.totalCost) || 0);
       }, 0);
       const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
-      const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
+      const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + validUtilityCosts + workingCapital;
 
       // Calculate revenue
       const plantCapacity = parseFloat(roiData.capacity) || 0;
@@ -7035,12 +7045,16 @@ export default function MarketingToolsPage() {
                                 const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
                                   return total + (parseFloat(tank.totalCost) || 0);
                                 }, 0);
-                                const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+                                // Calculate valid utility costs (exclude Compressor and Heater only)
+                                const validUtilityCosts = (roiData.utilities || []).reduce((total, utility) => {
+                                  if (utility.description === 'Compressor' || utility.description === 'Heater') {
+                                    return total;
+                                  }
                                   return total + (parseFloat(utility.totalCost) || 0);
                                 }, 0);
                                 const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
                                 
-                                const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
+                                const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + validUtilityCosts + workingCapital;
                                 return totalInvestment.toLocaleString();
                               })()}
                               readOnly
