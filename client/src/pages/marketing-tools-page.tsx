@@ -1563,16 +1563,23 @@ export default function MarketingToolsPage() {
     // Note: Single payback period calculation below handles both scenarios
     
     // Get toggle states for payback period calculation
-    const includeFinancingCosts = parseFloat(roiData.includeFinancingCosts?.toString() || '1') === 1;
-    const includeDepreciation = parseFloat(roiData.includeDepreciation?.toString() || '1') === 1;
+    // Handle both boolean and string/numeric toggle values
+    const includeFinancingCosts = roiData.includeFinancingCosts === true || 
+                                  roiData.includeFinancingCosts === 'true' || 
+                                  parseFloat(roiData.includeFinancingCosts?.toString() || '1') === 1;
+    const includeDepreciation = roiData.includeDepreciation === true || 
+                                roiData.includeDepreciation === 'true' || 
+                                parseFloat(roiData.includeDepreciation?.toString() || '1') === 1;
     
     // Payback period calculation - depends on financing and depreciation toggles
     // Result is in months (multiply by 12 to convert from years to months)
     let paybackPeriod = 0;
     if (netProfit > 0) {
       console.log('🔍 PAYBACK PERIOD CALCULATION:');
-      console.log('Include Financing Costs:', includeFinancingCosts);
-      console.log('Include Depreciation:', includeDepreciation);
+      console.log('Raw includeFinancingCosts value:', roiData.includeFinancingCosts);
+      console.log('Raw includeDepreciation value:', roiData.includeDepreciation);
+      console.log('Parsed includeFinancingCosts:', includeFinancingCosts);
+      console.log('Parsed includeDepreciation:', includeDepreciation);
       console.log('DETAILED INVESTMENT BREAKDOWN:');
       console.log('Base Cost:', baseCost);
       console.log('Additional Costs:', additionalCosts);
