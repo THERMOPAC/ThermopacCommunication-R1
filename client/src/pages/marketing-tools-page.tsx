@@ -1568,14 +1568,25 @@ export default function MarketingToolsPage() {
     const includeDepreciation = parseFloat(roiData.includeDepreciation?.toString() || '1') === 1;
     
     // Payback period calculation - depends on financing and depreciation toggles
+    // Result is in months (multiply by 12 to convert from years to months)
     let paybackPeriod = 0;
     if (netProfit > 0) {
+      console.log('🔍 PAYBACK PERIOD CALCULATION:');
+      console.log('Include Financing Costs:', includeFinancingCosts);
+      console.log('Include Depreciation:', includeDepreciation);
+      
       if (includeFinancingCosts && includeDepreciation) {
         // When both financing costs and depreciation are included, use Total Investment
-        paybackPeriod = totalInvestment / netProfit;
+        paybackPeriod = (totalInvestment / netProfit) * 12;
+        console.log('Using Total Investment (post-financing & depreciation):');
+        console.log('Formula: (Total Investment ÷ Net Profit) × 12');
+        console.log(`Calculation: (${totalInvestment} ÷ ${netProfit}) × 12 = ${paybackPeriod.toFixed(1)} months`);
       } else {
         // For gross payback or partial scenarios, use CAPEX only
-        paybackPeriod = capitalInvestmentOnly / netProfit;
+        paybackPeriod = (capitalInvestmentOnly / netProfit) * 12;
+        console.log('Using CAPEX only (gross payback):');
+        console.log('Formula: (CAPEX ÷ Net Profit) × 12');
+        console.log(`Calculation: (${capitalInvestmentOnly} ÷ ${netProfit}) × 12 = ${paybackPeriod.toFixed(1)} months`);
       }
     }
     
