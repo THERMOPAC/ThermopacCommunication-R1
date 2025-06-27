@@ -1862,7 +1862,7 @@ export default function MarketingToolsPage() {
         // CORRECTED PAYBACK PERIOD CALCULATION FOR PDF
         // Formula: Total CAPEX ÷ Annual Net Profit × 12 = Payback Period in Months
         // Use Total CAPEX (excluding working capital) and Net Profit as per standard formula
-        const capitalInvestmentOnly = totalInvestment - workingCapital;
+        const capitalInvestmentOnly = step1Total + step2Total + step3Total;
         const paybackPeriod = capitalInvestmentOnly > 0 && netProfit > 0 ? (capitalInvestmentOnly / netProfit) * 12 : 0;
         const annualROI = totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0;
 
@@ -4057,7 +4057,7 @@ export default function MarketingToolsPage() {
         doc.text(`• Additional Project Costs: ${getCurrencySymbol(roiData.currency)}${(additionalTotal || 0).toLocaleString()}`, margin + 5, yPosition);
         yPosition += 8;
         
-        const totalCapex = (basePlantCost || 0) + (tankCost || 0) + (utilityCost || 0) + (equipmentTotal || 0) + (additionalTotal || 0);
+        const totalCapex = step1Total + step2Total + step3Total;
         const workingCapitalAmount = totalCapex * 0.15;
         
         doc.setFont('helvetica', 'bold');
