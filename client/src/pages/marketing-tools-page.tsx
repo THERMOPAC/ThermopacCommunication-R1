@@ -923,7 +923,7 @@ export default function MarketingToolsPage() {
     const equipmentCosts = [
       'additionalPumpsFilters', 'tankLevelTransmitters', 'pipesValvesFlanges',
       'electricalCablesAccessories', 'pccMccPanels', 'chimneyDucting',
-      'airCompressor', 'coolingTower', 'dieselGenerator', 'qualityControlEquipment',
+      'coolingTower', 'dieselGenerator', 'qualityControlEquipment',
       'thermicFluid', 'expansionStructure', 'craneHireCharges', 'laborErectionCommissioning'
     ];
     
@@ -2318,10 +2318,9 @@ export default function MarketingToolsPage() {
 
         // Additional Equipment Costs Table
         if (roiData.step3Data || Object.keys(roiData).some(key => 
-          ['pumpsCentrifugal', 'pumpsPositiveDisplacement', 'pressureTransmitters', 'temperatureTransmitters', 
-           'levelTransmitters', 'flowTransmitters', 'motorControlCenter', 'distributionBoard', 
-           'pipesValvesFlanges', 'tankLevelTransmitters', 'additionalPumpsFilters', 'qualityControlEquipment',
-           'laborErectionCommissioning', 'electricalCablesAccessories'].includes(key))) {
+          ['additionalPumpsFilters', 'tankLevelTransmitters', 'pipesValvesFlanges', 'electricalCablesAccessories',
+           'pccMccPanels', 'chimneyDucting', 'coolingTower', 'dieselGenerator', 'qualityControlEquipment',
+           'thermicFluid', 'expansionStructure', 'craneHireCharges', 'laborErectionCommissioning'].includes(key))) {
           
           doc.setFontSize(12);
           doc.setFont('helvetica', 'bold');
@@ -2329,22 +2328,21 @@ export default function MarketingToolsPage() {
           doc.text('Additional Equipment Details', margin, yPos);
           yPos += 10;
 
-          // Equipment costs data
+          // Equipment costs data - Complete list matching Step 3 form fields
           const equipmentCosts = [
-            { label: 'Pumps (Centrifugal)', value: parseFloat(roiData.pumpsCentrifugal) || 0 },
-            { label: 'Pumps (Positive Displacement)', value: parseFloat(roiData.pumpsPositiveDisplacement) || 0 },
-            { label: 'Pressure Transmitters', value: parseFloat(roiData.pressureTransmitters) || 0 },
-            { label: 'Temperature Transmitters', value: parseFloat(roiData.temperatureTransmitters) || 0 },
-            { label: 'Level Transmitters', value: parseFloat(roiData.levelTransmitters) || 0 },
-            { label: 'Flow Transmitters', value: parseFloat(roiData.flowTransmitters) || 0 },
-            { label: 'Motor Control Center', value: parseFloat(roiData.motorControlCenter) || 0 },
-            { label: 'Distribution Board', value: parseFloat(roiData.distributionBoard) || 0 },
-            { label: 'Pipes, Valves & Flanges', value: parseFloat(roiData.pipesValvesFlanges) || 0 },
+            { label: 'Additional Pumps And Filters', value: parseFloat(roiData.additionalPumpsFilters) || 0 },
             { label: 'Tank Level Transmitters', value: parseFloat(roiData.tankLevelTransmitters) || 0 },
-            { label: 'Additional Pumps & Filters', value: parseFloat(roiData.additionalPumpsFilters) || 0 },
+            { label: 'Pipes, Valves, Flanges & Pipe Bridge', value: parseFloat(roiData.pipesValvesFlanges) || 0 },
+            { label: 'Electrical Cables And Accessories', value: parseFloat(roiData.electricalCablesAccessories) || 0 },
+            { label: 'PCC, MCC Electrical Panels', value: parseFloat(roiData.pccMccPanels) || 0 },
+            { label: 'Chimney & Ducting', value: parseFloat(roiData.chimneyDucting) || 0 },
+            { label: 'Cooling Tower', value: parseFloat(roiData.coolingTower) || 0 },
+            { label: 'Diesel Generator', value: parseFloat(roiData.dieselGenerator) || 0 },
             { label: 'Quality Control Equipment', value: parseFloat(roiData.qualityControlEquipment) || 0 },
-            { label: 'Labor Erection & Commissioning', value: parseFloat(roiData.laborErectionCommissioning) || 0 },
-            { label: 'Electrical Cables & Accessories', value: parseFloat(roiData.electricalCablesAccessories) || 0 }
+            { label: 'Thermic Fluid (Therminol 66 / VPT)', value: parseFloat(roiData.thermicFluid) || 0 },
+            { label: 'Expansion Structure', value: parseFloat(roiData.expansionStructure) || 0 },
+            { label: 'Crane Hire Charges', value: parseFloat(roiData.craneHireCharges) || 0 },
+            { label: 'Labor for Erection & Commissioning', value: parseFloat(roiData.laborErectionCommissioning) || 0 }
           ];
 
           // Equipment table headers
