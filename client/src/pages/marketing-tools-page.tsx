@@ -1574,6 +1574,11 @@ export default function MarketingToolsPage() {
       console.log('🔍 PAYBACK PERIOD CALCULATION:');
       console.log('Include Financing Costs:', includeFinancingCosts);
       console.log('Include Depreciation:', includeDepreciation);
+      console.log('Total Investment:', totalInvestment);
+      console.log('Capital Investment Only:', capitalInvestmentOnly);
+      console.log('Net Profit:', netProfit);
+      console.log('Expected Total Investment: £6,967,007');
+      console.log('Expected Net Profit: £4,978,397');
       
       if (includeFinancingCosts && includeDepreciation) {
         // When both financing costs and depreciation are included, use Total Investment
@@ -1581,6 +1586,7 @@ export default function MarketingToolsPage() {
         console.log('Using Total Investment (post-financing & depreciation):');
         console.log('Formula: (Total Investment ÷ Net Profit) × 12');
         console.log(`Calculation: (${totalInvestment} ÷ ${netProfit}) × 12 = ${paybackPeriod.toFixed(1)} months`);
+        console.log(`Expected: (6967007 ÷ 4978397) × 12 = ${(6967007 / 4978397) * 12} months`);
       } else {
         // For gross payback or partial scenarios, use CAPEX only
         paybackPeriod = (capitalInvestmentOnly / netProfit) * 12;
