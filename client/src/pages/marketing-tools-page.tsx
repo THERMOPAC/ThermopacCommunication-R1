@@ -1552,16 +1552,7 @@ export default function MarketingToolsPage() {
     // EBITDA (Earnings Before Interest, Taxes, Depreciation, Amortization)
     const ebitda = grossProfit;
     
-    // CORRECTED PAYBACK PERIOD CALCULATION
-    // Formula: Total CAPEX ÷ Annual Net Profit × 12 = Payback Period in Months
-    // Use Total CAPEX (excluding working capital) and Net Profit as per standard formula
-    
-    // Debug the payback calculation
-    console.log('🔍 PAYBACK DEBUG (CORRECTED):');
-    console.log('Total CAPEX (capitalInvestmentOnly):', capitalInvestmentOnly);
-    console.log('Annual Net Profit:', netProfit);
-    console.log('Payback Period Formula: CAPEX ÷ Net Profit × 12');
-    console.log('Calculation:', capitalInvestmentOnly, '÷', netProfit, '× 12 =', (capitalInvestmentOnly / netProfit) * 12);
+    // Note: Single payback period calculation below handles both scenarios
     
     // Get toggle states for payback period calculation
     const includeFinancingCosts = parseFloat(roiData.includeFinancingCosts?.toString() || '1') === 1;
