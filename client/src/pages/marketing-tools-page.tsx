@@ -3794,7 +3794,7 @@ export default function MarketingToolsPage() {
           ['Plant Capacity', capacity.toLocaleString(), 'LPH'],
           ['Operating Days', operatingDays.toString(), 'days/month'],
           ['Annual Processing', annualTons.toFixed(0), 'tons/year'],
-          ['Total CAPEX', (projectCostLocalChart + tankCostsChart + utilityCostsChart + equipmentCostsChart + additionalCostsChart).toLocaleString(), roiData.currency || 'USD'],
+          ['Total CAPEX', (projectCostLocalChart + tankCostsChart + validUtilityCostsChart + equipmentCostsChart + additionalCostsChart).toLocaleString(), roiData.currency || 'USD'],
           ['Monthly OpEx', (feedstockCostMonthly + parseFloat(roiData.powerCost || '0') + parseFloat(roiData.fuelCost || '0') + parseFloat(roiData.chemicalCost || '0') + parseFloat(roiData.laborCost || '0') + parseFloat(roiData.maintenanceCost || '0')).toLocaleString(), `${roiData.currency || 'USD'}/month`],
           ['Annual Revenue', revenueData.reduce((sum, item) => sum + item.value, 0).toLocaleString(), `${roiData.currency || 'USD'}/year`],
           ['Product Yield', productYieldData.reduce((sum, item) => sum + item.value, 0).toFixed(1), '%'],
@@ -3940,7 +3940,7 @@ export default function MarketingToolsPage() {
           additionalCosts,
           equipmentCosts,
           tankCosts,
-          utilityCosts,
+          validUtilityCosts: validUtilityCostsChart,
           workingCapital
         },
         financials: {
@@ -7298,7 +7298,7 @@ export default function MarketingToolsPage() {
                               parseFloat(roiData.commissioningCost) || 0
                             ].reduce((sum, cost) => sum + cost, 0);
                             const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
-                            return (baseCost + tankCosts + utilityCosts + additionalCosts + equipmentCosts + workingCapital).toLocaleString();
+                            return (baseCost + tankCosts + validUtilityCosts + additionalCosts + equipmentCosts + workingCapital).toLocaleString();
                           })()}</p>
                         </div>
                       </div>
