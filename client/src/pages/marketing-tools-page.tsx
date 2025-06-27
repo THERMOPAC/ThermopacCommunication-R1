@@ -1859,10 +1859,54 @@ export default function MarketingToolsPage() {
         const netProfitBeforeDepreciation = grossProfit - actualFinancingCosts;
         const netProfit = netProfitBeforeDepreciation - annualDepreciation;
         
+        // Calculate step totals for CAPEX calculation
+        const basePlantCost = parseFloat(roiData.projectCostLocal) || 0;
+        const plStep1AdditionalCosts = [
+          parseFloat(roiData.freightInsurance || '0') || 0,
+          parseFloat(roiData.importDutyVAT || '0') || 0,
+          parseFloat(roiData.plotCost || '0') || 0,
+          parseFloat(roiData.civilCost || '0') || 0,
+          parseFloat(roiData.refineryShed || '0') || 0,
+          parseFloat(roiData.utilityShed || '0') || 0,
+          parseFloat(roiData.officeBuilding || '0') || 0,
+          parseFloat(roiData.fireSuppressionSystem || '0') || 0,
+          parseFloat(roiData.insulationCost || '0') || 0,
+          parseFloat(roiData.legalFees || '0') || 0,
+          parseFloat(roiData.preFormationExpenses || '0') || 0,
+          parseFloat(roiData.commissioningTravel || '0') || 0,
+          parseFloat(roiData.contingency || '0') || 0
+        ].reduce((sum, cost) => sum + cost, 0);
+        const plStep1Total = basePlantCost + plStep1AdditionalCosts;
+
+        // Step 2 - Tank Farm & Utilities costs
+        const plTankCosts = (roiData.tanks || []).reduce((total: number, tank: any) => {
+          return total + (parseFloat(tank.totalCost) || 0);
+        }, 0);
+        const plUtilityCosts = (parseFloat(roiData.boilerCapacity) || 0) + (parseFloat(roiData.heaterCapacity) || 0) + (parseFloat(roiData.powerRequirement) || 0);
+        const plStep2Total = plTankCosts + plUtilityCosts;
+
+        // Step 3 - Additional Equipment costs
+        const plEquipmentCosts = [
+          parseFloat(roiData.additionalPumpsFilters || '0') || 0,
+          parseFloat(roiData.tankLevelTransmitters || '0') || 0,
+          parseFloat(roiData.pipesValvesFlanges || '0') || 0,
+          parseFloat(roiData.electricalCablesAccessories || '0') || 0,
+          parseFloat(roiData.pccMccPanels || '0') || 0,
+          parseFloat(roiData.chimneyDucting || '0') || 0,
+          parseFloat(roiData.coolingTower || '0') || 0,
+          parseFloat(roiData.dieselGenerator || '0') || 0,
+          parseFloat(roiData.qualityControlEquipment || '0') || 0,
+          parseFloat(roiData.thermicFluid || '0') || 0,
+          parseFloat(roiData.expansionStructure || '0') || 0,
+          parseFloat(roiData.craneHireCharges || '0') || 0,
+          parseFloat(roiData.laborErectionCommissioning || '0') || 0
+        ].reduce((sum, cost) => sum + cost, 0);
+        const plStep3Total = plEquipmentCosts;
+
         // CORRECTED PAYBACK PERIOD CALCULATION FOR PDF
         // Formula: Total CAPEX ÷ Annual Net Profit × 12 = Payback Period in Months
         // Use Total CAPEX (excluding working capital) and Net Profit as per standard formula
-        const capitalInvestmentOnly = step1Total + step2Total + step3Total;
+        const capitalInvestmentOnly = plStep1Total + plStep2Total + plStep3Total;
         const paybackPeriod = capitalInvestmentOnly > 0 && netProfit > 0 ? (capitalInvestmentOnly / netProfit) * 12 : 0;
         const annualROI = totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0;
 
@@ -2651,7 +2695,7 @@ export default function MarketingToolsPage() {
         
         // Calculate investment totals from all steps first
         // Step 1 - Plant & Project Costs
-        const basePlantCost = parseFloat(roiData.projectCostLocal) || 0;
+        const invBasePlantCost = parseFloat(roiData.projectCostLocal) || 0;
         const step1AdditionalCosts = [
           parseFloat(roiData.freightInsurance || '0') || 0,
           parseFloat(roiData.importDutyVAT || '0') || 0,
@@ -2667,7 +2711,7 @@ export default function MarketingToolsPage() {
           parseFloat(roiData.commissioningTravel || '0') || 0,
           parseFloat(roiData.contingency || '0') || 0
         ].reduce((sum, cost) => sum + cost, 0);
-        const step1Total = basePlantCost + step1AdditionalCosts;
+        const step1Total = invBasePlantCost + step1AdditionalCosts;
 
         // Step 2 - Tank Farm & Utilities costs
         const invTankCosts = (roiData.tanks || []).reduce((total: number, tank: any) => {
@@ -4057,7 +4101,7 @@ export default function MarketingToolsPage() {
         doc.text(`• Additional Project Costs: ${getCurrencySymbol(roiData.currency)}${(additionalTotal || 0).toLocaleString()}`, margin + 5, yPosition);
         yPosition += 8;
         
-        const totalCapex = step1Total + step2Total + step3Total;
+        const totalCapex = plStep1Total + plStep2Total + plStep3Total;
         const workingCapitalAmount = totalCapex * 0.15;
         
         doc.setFont('helvetica', 'bold');
