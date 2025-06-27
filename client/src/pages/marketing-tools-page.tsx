@@ -1242,8 +1242,8 @@ export default function MarketingToolsPage() {
         description: "Compressor",
         specification: `${Math.round(plantCapacityLPH * 20 / 1000)} HP`,
         quantity: 1,
-        unitCostUSD: Math.round(plantCapacityLPH * 20 / 1000) * 500,
-        totalCost: Math.round(plantCapacityLPH * 20 / 1000) * 500
+        unitCostUSD: 0, // Cost per unit set to 0 - for sizing estimation only
+        totalCost: 0
       },
       {
         description: "Heater",
@@ -1271,7 +1271,7 @@ export default function MarketingToolsPage() {
             return capacityPerHeater * 0.050;
           }
         })(),
-        totalCost: Math.round(plantCapacityLPH * 600) * 0.050
+        totalCost: 0 // Cost set to 0 - for sizing estimation only
       },
       {
         description: "Total Connected Load",
@@ -2328,15 +2328,15 @@ export default function MarketingToolsPage() {
             description: "Compressor",
             specification: `${Math.round((parseFloat(roiData.capacity) || 0) * 20 / 1000)} HP`,
             quantity: 1,
-            unitCostUSD: Math.round((parseFloat(roiData.capacity) || 0) * 20 / 1000) * 500, // $500 per HP
-            totalCostUSD: Math.round((parseFloat(roiData.capacity) || 0) * 20 / 1000) * 500
+            unitCostUSD: 0, // Cost per unit set to 0 - for sizing estimation only
+            totalCostUSD: 0
           },
           {
             description: "Heater",
             specification: `${Math.round((parseFloat(roiData.capacity) || 0) * 600)} Kcal/hr`,
             quantity: (parseFloat(roiData.capacity) || 0) >= 3000 ? 2 : 1,
-            unitCostUSD: Math.round((parseFloat(roiData.capacity) || 0) * 600) * 0.050, // $0.050 per Kcal/hr
-            totalCostUSD: Math.round((parseFloat(roiData.capacity) || 0) * 600) * 0.050 * ((parseFloat(roiData.capacity) || 0) >= 3000 ? 2 : 1)
+            unitCostUSD: 0, // Cost per unit set to 0 - for sizing estimation only
+            totalCostUSD: 0
           },
           {
             description: "Total Connected Load",
