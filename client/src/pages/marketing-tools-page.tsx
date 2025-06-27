@@ -2452,19 +2452,17 @@ export default function MarketingToolsPage() {
           return sum;
         }, 0);
         
-        // Calculate utility total cost (excluding Total Connected Load)
-        const utilityTotalCost = calculatedUtilities
-          .filter(u => u.description !== 'Total Connected Load')
-          .reduce((sum, utility) => sum + (utility.totalCostUSD * exchangeRate), 0);
+        // Utility costs excluded from financial calculations - utilities for sizing estimation only
+        const utilityTotalCost = 0;
         
         const combinedTotal = tankTotalCost + utilityTotalCost;
 
         doc.text(`Total Tank Farm Cost: ${roiData.currency || 'USD'} ${tankTotalCost.toLocaleString()}`, margin, yPos);
         yPos += 6;
-        doc.text(`Total Utilities Cost: ${roiData.currency || 'USD'} ${utilityTotalCost.toLocaleString()}`, margin, yPos);
+        doc.text(`Total Utilities Cost: ${roiData.currency || 'USD'} ${utilityTotalCost.toLocaleString()} (For sizing estimation only)`, margin, yPos);
         yPos += 6;
         doc.setFont('helvetica', 'bold');
-        doc.text(`Combined Tank Farm & Utilities: ${roiData.currency || 'USD'} ${combinedTotal.toLocaleString()}`, margin, yPos);
+        doc.text(`Total Tank Farm Cost (Financial): ${roiData.currency || 'USD'} ${combinedTotal.toLocaleString()}`, margin, yPos);
         yPos += 15;
 
         // Additional Equipment Cost Breakdown Section (Step 3)
