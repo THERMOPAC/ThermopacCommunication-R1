@@ -1563,6 +1563,10 @@ export default function MarketingToolsPage() {
     console.log('Payback Period Formula: CAPEX ÷ Net Profit × 12');
     console.log('Calculation:', capitalInvestmentOnly, '÷', netProfit, '× 12 =', (capitalInvestmentOnly / netProfit) * 12);
     
+    // Get toggle states for payback period calculation
+    const includeFinancingCosts = parseFloat(roiData.includeFinancingCosts?.toString() || '1') === 1;
+    const includeDepreciation = parseFloat(roiData.includeDepreciation?.toString() || '1') === 1;
+    
     // Payback period calculation - depends on financing and depreciation toggles
     let paybackPeriod = 0;
     if (netProfit > 0) {
