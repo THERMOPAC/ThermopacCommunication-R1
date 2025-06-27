@@ -1597,7 +1597,7 @@ export default function MarketingToolsPage() {
       console.log('Additional Costs:', additionalCosts);
       console.log('Equipment Costs:', equipmentCosts);
       console.log('Tank Costs:', tankCosts);
-      console.log('Utility Costs:', utilityCosts);
+      console.log('Valid Utility Costs (Excl. Compressor/Heater):', validUtilityCosts);
       console.log('Working Capital Amount:', workingCapitalAmount);
       console.log('Total Investment (Payback Calc):', totalInvestment);
       console.log('Total Investment (Financing Memo):', financingCosts.totalInvestment);
