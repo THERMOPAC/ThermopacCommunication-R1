@@ -1816,26 +1816,55 @@ export default function MarketingToolsPage() {
           return sum + (tons * product.price);
         }, 0);
 
-        // Operating costs - calculate actual monthly costs
-        const feedstockCostPerLiter = parseFloat(roiData.feedstockCost) || 3;
-        const chemicalCostPerLiter = parseFloat(roiData.chemicalCost) || 0.005;
+        // CORRECTED PDF PAYBACK CALCULATION - Use Same Logic as Main System
+        // Calculate comprehensive annual operating costs including all 10 categories
         const operatingDaysPerMonth = parseFloat(roiData.plantOperationDays) || 25;
+        const feedstockCostPerLiter = parseFloat(roiData.feedstockCost) || 0;
+        const annualFeedstockCost = feedstockCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth * 12;
         
-        const monthlyFeedstockCost = feedstockCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth;
-        const monthlyChemicalCost = chemicalCostPerLiter * plantCapacity * 24 * operatingDaysPerMonth;
-        
-        const operatingCosts = [
-          monthlyFeedstockCost,
-          parseFloat(roiData.powerCost) || 0,
-          parseFloat(roiData.fuelCost) || 0,
-          parseFloat(roiData.chemicalCost) || 0,
-          parseFloat(roiData.laborCost) || 0,
-          parseFloat(roiData.maintenanceCost) || 0
-        ].reduce((sum, cost) => sum + cost, 0) * 12;
+        const annualOperatingCosts = [
+          annualFeedstockCost, // Already annual - don't multiply by 12 again
+          (parseFloat(roiData.powerCost) || 0) * 12, // Monthly costs × 12 months
+          (parseFloat(roiData.fuelCost) || 0) * 12,
+          (parseFloat(roiData.chemicalCost) || 0) * 12,
+          (parseFloat(roiData.mediaCost) || 0) * 12,
+          (parseFloat(roiData.laborCost) || 0) * 12,
+          (parseFloat(roiData.maintenanceCost) || 0) * 12,
+          (parseFloat(roiData.transportationCost) || 0) * 12,
+          (parseFloat(roiData.vehicleMaintenanceCost) || 0) * 12,
+          (parseFloat(roiData.miscellaneousCost) || 0) * 12
+        ].reduce((sum, cost) => sum + cost, 0);
 
-        const annualProfit = totalRevenue - operatingCosts;
-        const paybackPeriod = totalInvestment > 0 ? totalInvestment / annualProfit : 0;
-        const annualROI = totalInvestment > 0 ? (annualProfit / totalInvestment) * 100 : 0;
+        // Calculate comprehensive financial metrics including financing costs and depreciation
+        const grossProfit = totalRevenue - annualOperatingCosts;
+        
+        // Calculate financing costs if enabled
+        const interestRate = parseFloat(roiData.rateOfInterest) || 6;
+        const debtRatio = parseFloat(roiData.debtFinancingRatio) || 70;
+        const debtAmount = totalInvestment * (debtRatio / 100);
+        const annualInterestOnDebt = debtAmount * (interestRate / 100);
+        
+        // Working capital calculation
+        const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
+        const workingCapitalInterest = workingCapital * (interestRate / 100);
+        const annualFinancingCosts = annualInterestOnDebt + workingCapitalInterest;
+        
+        // Apply financing costs toggle logic
+        const actualFinancingCosts = roiData.includeFinancingCosts !== false ? annualFinancingCosts : 0;
+        
+        // Calculate depreciation if enabled
+        const annualDepreciation = roiData.includeDepreciation !== false ? totalInvestment / 10 : 0; // 10-year straight-line
+        
+        // Calculate net profit after financing costs and depreciation (respecting toggles)
+        const netProfitBeforeDepreciation = grossProfit - actualFinancingCosts;
+        const netProfit = netProfitBeforeDepreciation - annualDepreciation;
+        
+        // CORRECTED PAYBACK PERIOD CALCULATION FOR PDF
+        // Formula: Total CAPEX ÷ Annual Net Profit × 12 = Payback Period in Months
+        // Use Total CAPEX (excluding working capital) and Net Profit as per standard formula
+        const capitalInvestmentOnly = totalInvestment - workingCapital;
+        const paybackPeriod = capitalInvestmentOnly > 0 && netProfit > 0 ? capitalInvestmentOnly / netProfit : 0;
+        const annualROI = totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0;
 
         // Header with gradient background
         doc.setFillColor(41, 128, 185);
@@ -2601,7 +2630,7 @@ export default function MarketingToolsPage() {
 
         // Cost of Goods Sold (COGS) - Feedstock cost corrected
         const plFeedstockCostPerLiter = parseFloat(roiData.feedstockCost || '0');
-        const annualFeedstockCost = annualProcessing * plFeedstockCostPerLiter / 1000; // Convert to proper units
+        const plAnnualFeedstockCost = annualProcessing * plFeedstockCostPerLiter / 1000; // Convert to proper units
 
         // Operating Expenses (Step 4 data - annual values) - INCLUDING ALL 10 COST CATEGORIES
         const annualPowerCost = parseFloat(roiData.powerCost || '0') * 12;
@@ -2617,8 +2646,8 @@ export default function MarketingToolsPage() {
         const totalOperatingExpenses = annualPowerCost + annualFuelCost + annualChemicalCost + annualLaborCost + annualMaintenanceCost + annualMediaCost + annualTransportationCost + annualVehicleMaintenanceCost + annualMiscellaneousCost;
 
         // P&L Calculations
-        const grossProfit = plTotalRevenue - annualFeedstockCost;
-        const ebitda = grossProfit - totalOperatingExpenses;
+        const plGrossProfit = plTotalRevenue - plAnnualFeedstockCost;
+        const ebitda = plGrossProfit - totalOperatingExpenses;
         
         // Calculate investment totals from all steps first
         // Step 1 - Plant & Project Costs
@@ -2742,10 +2771,10 @@ export default function MarketingToolsPage() {
           { label: '  Residue', value: residueRevenue, indent: true },
           { label: '  Waste Water', value: wasteWaterRevenue, indent: true },
           { label: '', value: '', isSpacing: true },
-          { label: 'COST OF GOODS SOLD', value: annualFeedstockCost, isBold: true, isHeader: true },
-          { label: '  Feedstock Cost', value: annualFeedstockCost, indent: true },
+          { label: 'COST OF GOODS SOLD', value: plAnnualFeedstockCost, isBold: true, isHeader: true },
+          { label: '  Feedstock Cost', value: plAnnualFeedstockCost, indent: true },
           { label: '', value: '', isSpacing: true },
-          { label: 'GROSS PROFIT', value: grossProfit, isBold: true, isTotal: true },
+          { label: 'GROSS PROFIT', value: plGrossProfit, isBold: true, isTotal: true },
           { label: '', value: '', isSpacing: true },
           { label: 'OPERATING EXPENSES', value: totalOperatingExpenses, isBold: true, isHeader: true },
           { label: '  Power Cost', value: annualPowerCost, indent: true },
