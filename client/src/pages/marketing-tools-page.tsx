@@ -1421,6 +1421,8 @@ export default function MarketingToolsPage() {
     }
   }, [financingCosts.totalInvestment, roiData.depreciationMethod, roiData.plotCost]);
 
+
+
   const calculateROI = () => {
     // Ensure tanks and utilities are calculated and stored
     const plantCapacityLPH = parseFloat(roiData.capacity) || 0;
@@ -1581,14 +1583,6 @@ export default function MarketingToolsPage() {
     
     // Simple and correct payback period calculation using Net Profit
     const paybackPeriod = capitalInvestmentOnly > 0 && netProfit > 0 ? (capitalInvestmentOnly / netProfit) * 12 : 0;
-    
-    // Update roiData state with calculated payback period
-    useEffect(() => {
-      setRoiData(prev => ({
-        ...prev,
-        paybackPeriod: paybackPeriod / 12, // Store in years, display converts to months
-      }));
-    }, [paybackPeriod]);
     
 
     
@@ -7558,7 +7552,10 @@ export default function MarketingToolsPage() {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-sm text-muted-foreground mb-1">Payback Period</p>
-                              <p className="text-xl font-bold text-orange-600">{(roiData.paybackPeriodMonths || (roiData.paybackPeriod || 0) * 12).toFixed(1)}</p>
+                              <p className="text-xl font-bold text-orange-600">{(() => {
+                                const calculatedROI = calculateROI();
+                                return calculatedROI.paybackPeriod.toFixed(1);
+                              })()}</p>
                               <p className="text-xs text-muted-foreground">
                                 Months {(() => {
                                   const hasFinancing = roiData.includeFinancingCosts !== false;
