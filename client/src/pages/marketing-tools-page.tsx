@@ -1598,13 +1598,13 @@ export default function MarketingToolsPage() {
       console.log('Expected Net Profit: £4,993,941');
       console.log('INVESTMENT BREAKDOWN:');
       
-      // Calculate step totals for debug
+      // Calculate step totals for debug (Step 2 excludes utilities - for sizing only)
       const step1Total = baseCost + additionalCosts;
-      const step2Total = tankCosts + utilityCosts;
+      const step2Total = tankCosts; // Utilities excluded from financial calculations
       const step3Total = equipmentCosts;
       
       console.log('Step 1 Total (Plant + Additional Costs):', step1Total);
-      console.log('Step 2 Total (Tanks + Utilities):', step2Total);
+      console.log('Step 2 Total (Tanks Only - Utilities Excluded):', step2Total);
       console.log('Step 3 Total (Equipment):', step3Total);
       console.log('Working Capital:', workingCapitalAmount);
       console.log('Sum (Step1+Step2+Step3+WC):', step1Total + step2Total + step3Total + workingCapitalAmount);
@@ -1949,7 +1949,7 @@ export default function MarketingToolsPage() {
           return total + (parseFloat(tank.totalCost) || 0);
         }, 0);
         const plUtilityCosts = (parseFloat(roiData.boilerCapacity) || 0) + (parseFloat(roiData.heaterCapacity) || 0) + (parseFloat(roiData.powerRequirement) || 0);
-        const plStep2Total = plTankCosts + plUtilityCosts;
+        const plStep2Total = plTankCosts; // Exclude utilities from financial calculations - utilities for sizing only
 
         // Step 3 - Additional Equipment costs
         const plEquipmentCosts = [
@@ -5944,8 +5944,6 @@ export default function MarketingToolsPage() {
                               <th className="border border-gray-300 px-3 py-2 text-left font-medium">Description</th>
                               <th className="border border-gray-300 px-2 py-2 text-center font-medium">Specification</th>
                               <th className="border border-gray-300 px-2 py-2 text-center font-medium">Quantity</th>
-                              <th className="border border-gray-300 px-2 py-2 text-center font-medium">Cost per Unit ({roiData.currency})</th>
-                              <th className="border border-gray-300 px-2 py-2 text-center font-medium">Total Cost ({roiData.currency})</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -5961,54 +5959,19 @@ export default function MarketingToolsPage() {
                                 </td>
                                 <td className="border border-gray-300 px-2 py-2 text-center">{utility.specification}</td>
                                 <td className="border border-gray-300 px-2 py-2 text-center">{utility.quantity}</td>
-                                <td className="border border-gray-300 px-2 py-2 text-center text-sm font-medium text-green-600">
-                                  {utility.unitCostUSD === 0 ? (
-                                    <span className="text-gray-400">N/A</span>
-                                  ) : (
-                                    `${getCurrencySymbol(roiData.currency)}${(utility.unitCostUSD * (currencies[roiData.currency]?.rate || 1)).toLocaleString()}`
-                                  )}
-                                </td>
-                                <td className="border border-gray-300 px-2 py-2 text-center text-sm font-bold text-blue-600">
-                                  {utility.totalCost === 0 ? (
-                                    <span className="text-gray-400">N/A</span>
-                                  ) : (
-                                    `${getCurrencySymbol(roiData.currency)}${(utility.totalCost * (currencies[roiData.currency]?.rate || 1)).toLocaleString()}`
-                                  )}
-                                </td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                         
-                        {/* Total Utilities Cost Summary */}
-                        <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-orange-900">Total Utilities Cost:</span>
-                            <span className="text-lg font-bold text-orange-900">
-                              {getCurrencySymbol(roiData.currency)}{((roiData.utilities || calculatedUtilities).filter(utility => utility.description !== "Total Connected Load").reduce((total, utility) => total + utility.totalCost, 0) * (currencies[roiData.currency]?.rate || 1)).toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="text-xs text-orange-700 mt-1">
-                            Sum of {(roiData.utilities || calculatedUtilities).filter(utility => utility.description !== "Total Connected Load").length} utility configurations (excluding Total Connected Load)
+                        {/* Notice for Utility Sizing */}
+                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="text-sm text-blue-800">
+                            <strong>Note:</strong> This section is for utility sizing estimation only and is not included in total investment or ROI calculations.
                           </div>
                         </div>
                       </div>
-                      
-                      {/* Combined Tank Farm & Utilities Total */}
-                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="flex justify-between items-center">
-                          <span className="text-base font-semibold text-green-900">Tank Farm + Utilities Total:</span>
-                          <span className="text-xl font-bold text-green-900">
-                            {getCurrencySymbol(roiData.currency)}{(
-                              (roiData.tanks.reduce((total, tank) => total + (getTankPrice(tank.suggestedTankSize) * tank.suggestedQuantity), 0) * (currencies[roiData.currency]?.rate || 1)) +
-                              ((roiData.utilities || calculatedUtilities).filter(utility => utility.description !== "Total Connected Load").reduce((total, utility) => total + utility.totalCost, 0) * (currencies[roiData.currency]?.rate || 1))
-                            ).toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="text-xs text-green-700 mt-1">
-                          Complete Step 2 investment breakdown in {roiData.currency} (Total Connected Load excluded - used for power calculations only)
-                        </div>
-                      </div>
+
                     </div>
                     
                     {roiData.capacity && (
