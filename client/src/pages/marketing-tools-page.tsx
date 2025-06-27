@@ -1607,7 +1607,8 @@ export default function MarketingToolsPage() {
       
       if (includeFinancingCosts && includeDepreciation) {
         // When both financing costs and depreciation are included, use Total Investment
-        paybackPeriod = (totalInvestment / netProfit) * 12;
+        // Use the same calculation as the financing memo for consistency
+        paybackPeriod = (financingCosts.totalInvestment / netProfit) * 12;
         console.log('Using Total Investment (post-financing & depreciation):');
         console.log('Formula: (Total Investment ÷ Net Profit) × 12');
         console.log(`Calculation: (${totalInvestment} ÷ ${netProfit}) × 12 = ${paybackPeriod.toFixed(1)} months`);
