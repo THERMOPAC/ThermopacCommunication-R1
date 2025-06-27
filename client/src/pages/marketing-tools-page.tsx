@@ -2636,8 +2636,8 @@ export default function MarketingToolsPage() {
         // (Full financing costs will be calculated after investment variables are declared)
         const netProfit = ebitda;
 
-        // Calculate financing costs with simplified assumptions for PDF
-        const totalProjectInvestment = 5868500; // Approximate total investment for ENDA UK project
+        // Calculate financing costs using actual investment totals from all steps
+        const totalProjectInvestment = step1Total + step2Total + step3Total + invWorkingCapital;
         const debtRatio = parseFloat(roiData.debtFinancingRatio) || 70;
         const debtAmount = totalProjectInvestment * (debtRatio / 100);
         const monthlyInterestRate = (parseFloat(roiData.rateOfInterest || '0.5') || 0.5) / 100;
@@ -2871,7 +2871,10 @@ export default function MarketingToolsPage() {
           doc.rect(invRowX, invTableY, invColWidths[1], invRowHeight, 'F');
           doc.rect(invRowX, invTableY, invColWidths[1], invRowHeight);
           doc.setTextColor(0, 0, 0); // Set text color to black
-          const amountText = item.value > 0 ? item.value.toLocaleString() : '0';
+          const amountText = item.value > 0 ? Math.round(item.value).toLocaleString(undefined, { 
+            minimumFractionDigits: 0, 
+            maximumFractionDigits: 0 
+          }) : '0';
           const amountWidth = doc.getTextWidth(amountText);
           doc.text(amountText, invRowX + invColWidths[1] - amountWidth - 2, invTableY + 6);
           invRowX += invColWidths[1];
@@ -2905,7 +2908,10 @@ export default function MarketingToolsPage() {
         doc.setFillColor(40, 60, 120);
         doc.rect(totalRowX, invTableY, invColWidths[1], invRowHeight, 'F');
         doc.rect(totalRowX, invTableY, invColWidths[1], invRowHeight);
-        const totalAmountText = invTotalInvestment.toLocaleString();
+        const totalAmountText = Math.round(invTotalInvestment).toLocaleString(undefined, { 
+          minimumFractionDigits: 0, 
+          maximumFractionDigits: 0 
+        });
         const totalAmountWidth = doc.getTextWidth(totalAmountText);
         doc.text(totalAmountText, totalRowX + invColWidths[1] - totalAmountWidth - 2, invTableY + 6);
         totalRowX += invColWidths[1];
@@ -3021,10 +3027,11 @@ export default function MarketingToolsPage() {
           doc.setTextColor(0, 0, 0);
           
           if (item.value !== '' && typeof item.value === 'number') {
-            // Format currency value properly
-            const formattedValue = Math.abs(item.value) > 1000000 
-              ? (item.value / 1000000).toFixed(1) + 'M'
-              : item.value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            // Format currency value as whole numbers without decimals
+            const formattedValue = Math.round(item.value).toLocaleString(undefined, { 
+              minimumFractionDigits: 0, 
+              maximumFractionDigits: 0 
+            });
             
             const valueWidth = doc.getTextWidth(formattedValue);
             doc.text(formattedValue, cellX + plColWidths[1] - valueWidth - 2, textYPos);
