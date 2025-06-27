@@ -2817,7 +2817,7 @@ export default function MarketingToolsPage() {
         const invUtilityCosts = (roiData.utilities || []).reduce((total: number, utility: any) => {
           return total + (parseFloat(utility.totalCost) || 0);
         }, 0);
-        const step2Total = invTankCosts + invUtilityCosts;
+        const step2Total = invTankCosts; // Utilities excluded from financial calculations - for sizing estimation only
 
         // Step 3 - Additional Equipment costs
         const equipmentCosts = [
