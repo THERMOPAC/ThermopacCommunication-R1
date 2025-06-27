@@ -2791,7 +2791,7 @@ export default function MarketingToolsPage() {
           { label: '', value: '', isSpacing: true },
           // Conditionally include financing costs section based on toggle state
           ...(roiData.includeFinancingCosts !== false ? [
-            { label: 'FINANCING COSTS', value: actualFinancingCosts, isBold: true, isHeader: true },
+            { label: 'FINANCING COSTS', value: plActualFinancingCosts, isBold: true, isHeader: true },
             { label: `  Interest on Debt (${debtRatio}% Debt, ${(100 - debtRatio)}% Equity)`, value: annualDebtInterest, indent: true },
             { label: '  Working Capital Interest', value: annualWorkingCapitalInterest, indent: true },
             { label: '', value: '', isSpacing: true }
