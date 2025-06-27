@@ -1478,6 +1478,16 @@ export default function MarketingToolsPage() {
     
     // For payback calculation - exclude working capital if it's gross payback (no financing/depreciation)
     const capitalInvestmentOnly = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts;
+    
+    // Debug CAPEX components
+    console.log('📊 CAPEX COMPONENTS DEBUG:');
+    console.log('Base Cost (Step 1):', baseCost);
+    console.log('Additional Costs (Step 1):', additionalCosts);
+    console.log('Equipment Costs (Step 3):', equipmentCosts);
+    console.log('Tank Costs (Step 2):', tankCosts);
+    console.log('Utility Costs (Step 2):', utilityCosts);
+    console.log('CAPEX Total:', capitalInvestmentOnly);
+    console.log('Expected CAPEX: £6,494,800');
 
     // Calculate annual revenue and costs
     const plantCapacity = parseFloat(roiData.capacity) || 0;
@@ -1565,9 +1575,19 @@ export default function MarketingToolsPage() {
     console.log('Annual Net Profit:', netProfit);
     console.log('Payback Period Formula: CAPEX ÷ Net Profit × 12');
     console.log('Calculation:', capitalInvestmentOnly, '÷', netProfit, '× 12 =', (capitalInvestmentOnly / netProfit) * 12);
+    console.log('🚨 CROSS-CHECK: If payback shows 162.7, then Net Profit used = ', capitalInvestmentOnly * 12 / 162.7);
+    console.log('🚨 EXPECTED: 6,494,800 ÷ 4,993,907 × 12 =', (6494800 / 4993907) * 12);
     
     // Simple and correct payback period calculation using Net Profit
     const paybackPeriod = capitalInvestmentOnly > 0 && netProfit > 0 ? (capitalInvestmentOnly / netProfit) * 12 : 0;
+    
+    // Update roiData state with calculated payback period
+    useEffect(() => {
+      setRoiData(prev => ({
+        ...prev,
+        paybackPeriod: paybackPeriod / 12, // Store in years, display converts to months
+      }));
+    }, [paybackPeriod]);
     
 
     
