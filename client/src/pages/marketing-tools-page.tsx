@@ -2247,8 +2247,8 @@ export default function MarketingToolsPage() {
             `Total Cost (${roiData.currency || 'USD'})`
           ];
 
-          const tankColWidths = [35, 18, 18, 18, 18, 15, 25, 25];
-          const tankRowHeight = 12;
+          const tankColWidths = [50, 18, 12, 14, 14, 12, 25, 25];
+          const tankRowHeight = 9;
           let tankTableX = margin;
           let tankTableY = yPos;
 
