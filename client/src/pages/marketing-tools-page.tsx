@@ -1552,31 +1552,19 @@ export default function MarketingToolsPage() {
     // EBITDA (Earnings Before Interest, Taxes, Depreciation, Amortization)
     const ebitda = grossProfit;
     
-    // Calculate cash flow for payback period based on what's included
-    // For gross payback (no financing/depreciation), use net profit directly
-    // For other cases, use net profit + depreciation (if included) since depreciation is non-cash
-    const cashFlowForPayback = (!roiData.includeFinancingCosts && !roiData.includeDepreciation) ? 
-      netProfit : // Use net profit directly for gross payback
-      netProfit + actualDepreciation; // Add back depreciation for financing/depreciation scenarios
-    
-    // Calculate financial metrics
-    // For gross payback, exclude working capital from the investment base
-    const investmentForPayback = (!roiData.includeFinancingCosts && !roiData.includeDepreciation) ? 
-      capitalInvestmentOnly : // Gross payback uses capital investment only
-      totalInvestment; // Include working capital for financing/depreciation analysis
+    // CORRECTED PAYBACK PERIOD CALCULATION
+    // Formula: Total CAPEX ÷ Annual Net Profit × 12 = Payback Period in Months
+    // Use Total CAPEX (excluding working capital) and Net Profit as per standard formula
     
     // Debug the payback calculation
-    console.log('🔍 PAYBACK DEBUG:');
-    console.log('Net Profit:', netProfit);
-    console.log('Capital Investment Only:', capitalInvestmentOnly);
-    console.log('Total Investment:', totalInvestment);
-    console.log('Include Financing Costs:', roiData.includeFinancingCosts);
-    console.log('Include Depreciation:', roiData.includeDepreciation);
-    console.log('Cash Flow for Payback:', cashFlowForPayback);
-    console.log('Investment for Payback:', investmentForPayback);
-    console.log('Raw Payback Period (years):', investmentForPayback / cashFlowForPayback);
+    console.log('🔍 PAYBACK DEBUG (CORRECTED):');
+    console.log('Total CAPEX (capitalInvestmentOnly):', capitalInvestmentOnly);
+    console.log('Annual Net Profit:', netProfit);
+    console.log('Payback Period Formula: CAPEX ÷ Net Profit × 12');
+    console.log('Calculation:', capitalInvestmentOnly, '÷', netProfit, '× 12 =', (capitalInvestmentOnly / netProfit) * 12);
     
-    const paybackPeriod = investmentForPayback > 0 && cashFlowForPayback > 0 ? investmentForPayback / cashFlowForPayback : 0;
+    // Simple and correct payback period calculation using Net Profit
+    const paybackPeriod = capitalInvestmentOnly > 0 && netProfit > 0 ? capitalInvestmentOnly / netProfit : 0;
     
 
     
