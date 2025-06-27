@@ -1009,6 +1009,32 @@ export default function MarketingToolsPage() {
     return bestOption || { size: 600, qty: Math.ceil(requiredKL / 600) }; // fallback
   };
 
+  // Initialize base tank data structure
+  const calculateTanks = (plantCapacityLPH: number) => {
+    const baseTanks = [
+      { description: "Feedstock Tank", percentCapacity: 10, storageDays: 1, editable: true },
+      { description: "Light Base Oil Tank", percentCapacity: 25, storageDays: 7, editable: true },
+      { description: "Heavy Base Oil Tank", percentCapacity: 25, storageDays: 7, editable: true },
+      { description: "Naphtha/Gas Oil Tank", percentCapacity: 15, storageDays: 3, editable: true },
+      { description: "Residue Tank", percentCapacity: 20, storageDays: 5, editable: true },
+      { description: "Waste Water Tank", percentCapacity: 5, storageDays: 2, editable: true }
+    ];
+
+    return baseTanks.map(tank => {
+      // Calculate required capacity
+      const rawKL = (plantCapacityLPH * (tank.percentCapacity / 100) * tank.storageDays * 24) / 1000;
+      const roundedKL = roundCapacitySmart(rawKL);
+      const { size, qty } = getOptimalTankSizeAndQuantity(roundedKL);
+
+      return {
+        ...tank,
+        requiredKL: roundedKL,
+        suggestedTankSize: size || 50,
+        suggestedQuantity: qty > 0 ? qty : 1
+      };
+    });
+  };
+
   // Enhanced tank calculation functions
   const calculateTankRequirements = (plantCapacityLPH: number) => {
     return roiData.tanks.map(tank => {
@@ -1375,7 +1401,8 @@ export default function MarketingToolsPage() {
     ].reduce((sum, cost) => sum + cost, 0);
     
     const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
-      return total + (parseFloat(tank.totalCost) || 0);
+      const tankPrice = tankPrices.find(p => p.capacity === tank.suggestedTankSize)?.priceUSD || 0;
+      return total + (tankPrice * tank.suggestedQuantity);
     }, 0);
     
     const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
@@ -1475,7 +1502,8 @@ export default function MarketingToolsPage() {
     ].reduce((sum, cost) => sum + cost, 0);
     
     const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
-      return total + (parseFloat(tank.totalCost) || 0);
+      const tankPrice = tankPrices.find(p => p.capacity === tank.suggestedTankSize)?.priceUSD || 0;
+      return total + (tankPrice * tank.suggestedQuantity);
     }, 0);
     const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
       return total + (parseFloat(utility.totalCost) || 0);
@@ -4165,7 +4193,10 @@ export default function MarketingToolsPage() {
         
         // Calculate all investment components - with safe fallbacks
         const basePlantCost = parseFloat(roiData.projectCostLocal || '0') || 0;
-        const tankCost = roiData.tanks ? roiData.tanks.reduce((sum: number, tank: any) => sum + (tank.totalCost || 0), 0) : 0;
+        const tankCost = roiData.tanks ? roiData.tanks.reduce((sum: number, tank: any) => {
+          const tankPrice = tankPrices.find(p => p.capacity === tank.suggestedTankSize)?.priceUSD || 0;
+          return sum + (tankPrice * tank.suggestedQuantity);
+        }, 0) : 0;
         const utilityCost = roiData.utilities ? roiData.utilities.reduce((sum: number, utility: any) => sum + (utility.totalCost || 0), 0) : 0;
         const additionalCostFields = [
           { name: 'Freight & Insurance', value: parseFloat(roiData.freightInsurance || '0') || 0 },
