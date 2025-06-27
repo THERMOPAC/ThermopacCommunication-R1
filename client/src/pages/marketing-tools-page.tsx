@@ -1608,7 +1608,7 @@ export default function MarketingToolsPage() {
     setROIData(prev => ({
       ...prev,
       paybackPeriod: paybackPeriod > 0 ? Math.round(paybackPeriod * 100) / 100 : 0,
-      paybackPeriodMonths: paybackPeriod > 0 ? Math.round(paybackPeriod * 12 * 10) / 10 : 0,
+      paybackPeriodMonths: paybackPeriod > 0 ? Math.round(paybackPeriod * 10) / 10 : 0,
       annualROI: Math.round(annualROI * 100) / 100,
       returnOnEquity: Math.round(returnOnEquity * 100) / 100,
       grossProfit: Math.round(grossProfit),
