@@ -3360,7 +3360,10 @@ export default function MarketingToolsPage() {
 
         // CAPEX allocation data
         const projectCostLocalChart = parseFloat(roiData.projectCostLocal || '0');
-        const tankCostsChart = (roiData.tanks || []).reduce((sum, tank) => sum + parseFloat(tank.totalCost || '0'), 0);
+        const tankCostsChart = (roiData.tanks || []).reduce((sum, tank) => {
+          const tankPrice = tankPrices.find(p => p.capacity === tank.suggestedTankSize)?.priceUSD || 0;
+          return sum + (tankPrice * tank.suggestedQuantity);
+        }, 0);
         const utilityCostsChart = (roiData.utilities || []).filter(u => u.name !== 'Total Connected Load').reduce((sum, utility) => sum + parseFloat(utility.totalCost || '0'), 0);
         const equipmentCostsChart = equipmentItems.reduce((sum, item) => sum + parseFloat(item.value || '0'), 0);
         const additionalCostsChart = additionalCostItems.reduce((sum, item) => sum + parseFloat(item.value || '0'), 0);
@@ -4878,7 +4881,9 @@ export default function MarketingToolsPage() {
         if (roiData.tanks && roiData.tanks.length > 0) {
           roiData.tanks.forEach((tank: any) => {
             if (tank.suggestedQuantity > 0) {
-              totalTankCost += tank.totalCost || 0;
+              const tankPrice = tankPrices.find(p => p.capacity === tank.suggestedTankSize)?.priceUSD || 0;
+              const tankCost = tankPrice * tank.suggestedQuantity;
+              totalTankCost += tankCost;
               tankUtilityData.push([
                 tank.description,
                 `${tank.percentCapacity}%`,
@@ -4886,8 +4891,8 @@ export default function MarketingToolsPage() {
                 tank.requiredKL,
                 tank.suggestedTankSize,
                 tank.suggestedQuantity,
-                `${currencySymbol}${(tank.unitCost || 0).toLocaleString()}`,
-                `${currencySymbol}${(tank.totalCost || 0).toLocaleString()}`
+                `${currencySymbol}${tankPrice.toLocaleString()}`,
+                `${currencySymbol}${tankCost.toLocaleString()}`
               ]);
             }
           });
