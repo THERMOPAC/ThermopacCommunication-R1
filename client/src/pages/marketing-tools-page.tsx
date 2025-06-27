@@ -79,6 +79,7 @@ interface ROIData {
 
   coolingTower: string;
   dieselGenerator: string;
+  airCompressor: string;
   qualityControlEquipment: string;
   thermicFluid: string;
   expansionStructure: string;
@@ -391,6 +392,7 @@ export default function MarketingToolsPage() {
 
     coolingTower: '',
     dieselGenerator: '',
+    airCompressor: '',
     qualityControlEquipment: '',
     thermicFluid: '',
     expansionStructure: '',
@@ -582,6 +584,7 @@ export default function MarketingToolsPage() {
   
           coolingTower: roiData.coolingTower,
           dieselGenerator: roiData.dieselGenerator,
+          airCompressor: roiData.airCompressor,
           qualityControlEquipment: roiData.qualityControlEquipment,
           thermicFluid: roiData.thermicFluid,
           expansionStructure: roiData.expansionStructure,
@@ -2038,6 +2041,7 @@ export default function MarketingToolsPage() {
           { label: 'Chimney & Ducting', value: roiData.chimneyDucting },
           { label: 'Cooling Tower', value: roiData.coolingTower },
           { label: 'Diesel Generator', value: roiData.dieselGenerator },
+          { label: 'Air Compressor', value: roiData.airCompressor },
           { label: 'Quality Control Equipment', value: roiData.qualityControlEquipment },
           { label: 'Thermic Fluid', value: roiData.thermicFluid },
           { label: 'Expansion & Structure', value: roiData.expansionStructure },
@@ -2489,6 +2493,7 @@ export default function MarketingToolsPage() {
             { label: 'Chimney & Ducting', value: parseFloat(roiData.chimneyDucting) || 0 },
             { label: 'Cooling Tower', value: parseFloat(roiData.coolingTower) || 0 },
             { label: 'Diesel Generator', value: parseFloat(roiData.dieselGenerator) || 0 },
+            { label: 'Air Compressor', value: parseFloat(roiData.airCompressor) || 0 },
             { label: 'Quality Control Equipment', value: parseFloat(roiData.qualityControlEquipment) || 0 },
             { label: 'Thermic Fluid (Therminol 66 / VPT)', value: parseFloat(roiData.thermicFluid) || 0 },
             { label: 'Expansion Structure', value: parseFloat(roiData.expansionStructure) || 0 },
@@ -5753,6 +5758,16 @@ export default function MarketingToolsPage() {
                           type="number"
                           value={roiData.dieselGenerator}
                           onChange={(e) => updateData('dieselGenerator', e.target.value)}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="airCompressor">Air Compressor ({roiData.currency})</Label>
+                        <Input
+                          id="airCompressor"
+                          type="number"
+                          value={roiData.airCompressor}
+                          onChange={(e) => updateData('airCompressor', e.target.value)}
                           placeholder="0"
                         />
                       </div>
