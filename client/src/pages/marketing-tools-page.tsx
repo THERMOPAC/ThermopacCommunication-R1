@@ -1568,8 +1568,14 @@ export default function MarketingToolsPage() {
       console.log('Total Investment:', totalInvestment);
       console.log('Capital Investment Only:', capitalInvestmentOnly);
       console.log('Net Profit:', netProfit);
+      console.log('Working Capital Amount:', workingCapitalAmount);
       console.log('Expected Total Investment: £6,967,007');
       console.log('Expected Net Profit: £4,978,397');
+      console.log('VARIANCE ANALYSIS:');
+      console.log('Total Investment difference:', totalInvestment - 6967007);
+      console.log('Net Profit difference:', netProfit - 4978397);
+      console.log('Calculated Payback Period:', (totalInvestment / netProfit) * 12, 'months');
+      console.log('Expected Payback Period:', (6967007 / 4978397) * 12, 'months');
       
       if (includeFinancingCosts && includeDepreciation) {
         // When both financing costs and depreciation are included, use Total Investment
