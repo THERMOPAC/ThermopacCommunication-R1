@@ -2701,12 +2701,12 @@ export default function MarketingToolsPage() {
 
         // For now, use simplified Net Profit calculation
         // (Full financing costs will be calculated after investment variables are declared)
-        const netProfit = ebitda;
+        const plNetProfit = ebitda;
 
         // Calculate financing costs using actual investment totals from all steps
         const totalProjectInvestment = step1Total + step2Total + step3Total + invWorkingCapital;
-        const debtRatio = parseFloat(roiData.debtFinancingRatio) || 70;
-        const debtAmount = totalProjectInvestment * (debtRatio / 100);
+        const plDebtRatio = parseFloat(roiData.debtFinancingRatio) || 70;
+        const plDebtAmount = totalProjectInvestment * (plDebtRatio / 100);
         const monthlyInterestRate = (parseFloat(roiData.rateOfInterest || '0.5') || 0.5) / 100;
         const annualDebtInterest = debtAmount * monthlyInterestRate * 12;
         
@@ -2739,28 +2739,28 @@ export default function MarketingToolsPage() {
         const operatingExpensesComponent = monthlyOperatingCosts / 2;
         workingCapitalAmount += operatingExpensesComponent;
         
-        const workingCapital = Math.round(workingCapitalAmount);
-        const annualWorkingCapitalInterest = workingCapital * monthlyInterestRate * 12;
+        const plWorkingCapital = Math.round(workingCapitalAmount);
+        const annualWorkingCapitalInterest = plWorkingCapital * monthlyInterestRate * 12;
         
         const totalAnnualFinancingCosts = annualDebtInterest + annualWorkingCapitalInterest;
         
         // Calculate depreciation
         const depreciableAssets = totalProjectInvestment - (parseFloat(roiData.plotCost) || 352000); // Exclude land
         const depreciationMethod = roiData.depreciationMethod || 'straight-line';
-        let annualDepreciation = 0;
+        let plAnnualDepreciation = 0;
         if (depreciationMethod === 'straight-line') {
-          annualDepreciation = depreciableAssets / 10; // 10-year life
+          plAnnualDepreciation = depreciableAssets / 10; // 10-year life
         } else if (depreciationMethod === 'declining-balance') {
-          annualDepreciation = depreciableAssets * 0.20; // 20% declining balance
+          plAnnualDepreciation = depreciableAssets * 0.20; // 20% declining balance
         }
         
         // Apply depreciation toggle logic
-        const actualDepreciation = roiData.includeDepreciation ? annualDepreciation : 0;
+        const actualDepreciation = roiData.includeDepreciation ? plAnnualDepreciation : 0;
         
         // Apply financing costs toggle logic
-        const actualFinancingCosts = roiData.includeFinancingCosts !== false ? totalAnnualFinancingCosts : 0;
+        const plActualFinancingCosts = roiData.includeFinancingCosts !== false ? totalAnnualFinancingCosts : 0;
         
-        const netProfitWithFinancing = ebitda - actualFinancingCosts - actualDepreciation;
+        const netProfitWithFinancing = ebitda - plActualFinancingCosts - actualDepreciation;
 
         // P&L Statement Table with complete financial structure - conditionally include depreciation
         const plStatementData = [
