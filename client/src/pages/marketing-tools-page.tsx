@@ -2817,9 +2817,9 @@ export default function MarketingToolsPage() {
         
         // Part 2: Operating expenses component (always included)
         const operatingExpensesComponent = monthlyOperatingCosts / 2;
-        workingCapitalAmount += operatingExpensesComponent;
+        plWorkingCapitalAmount += operatingExpensesComponent;
         
-        const plWorkingCapital = Math.round(workingCapitalAmount);
+        const plWorkingCapital = Math.round(plWorkingCapitalAmount);
         const annualWorkingCapitalInterest = plWorkingCapital * monthlyInterestRate * 12;
         
         const totalAnnualFinancingCosts = annualDebtInterest + annualWorkingCapitalInterest;
