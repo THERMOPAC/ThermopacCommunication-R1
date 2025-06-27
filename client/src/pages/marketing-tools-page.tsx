@@ -1478,8 +1478,8 @@ export default function MarketingToolsPage() {
       return total + (parseFloat(utility.totalCost) || 0);
     }, 0);
     
-    // Use the calculated working capital from the memo (defined earlier in component)
-    const workingCapitalAmount = workingCapital;
+    // Use the working capital requirement from database (same as dashboard display)
+    const workingCapitalAmount = parseFloat(roiData.workingCapitalRequirement) || 0;
     
     // For total investment calculation - include working capital for financial analysis
     const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapitalAmount;
