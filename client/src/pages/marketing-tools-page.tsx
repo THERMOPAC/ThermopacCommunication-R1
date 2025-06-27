@@ -2632,6 +2632,56 @@ export default function MarketingToolsPage() {
         const grossProfit = plTotalRevenue - annualFeedstockCost;
         const ebitda = grossProfit - totalOperatingExpenses;
         
+        // Calculate investment totals from all steps first
+        // Step 1 - Plant & Project Costs
+        const basePlantCost = parseFloat(roiData.projectCostLocal) || 0;
+        const step1AdditionalCosts = [
+          parseFloat(roiData.freightInsurance || '0') || 0,
+          parseFloat(roiData.importDutyVAT || '0') || 0,
+          parseFloat(roiData.plotCost || '0') || 0,
+          parseFloat(roiData.civilCost || '0') || 0,
+          parseFloat(roiData.refineryShed || '0') || 0,
+          parseFloat(roiData.utilityShed || '0') || 0,
+          parseFloat(roiData.officeBuilding || '0') || 0,
+          parseFloat(roiData.fireSuppressionSystem || '0') || 0,
+          parseFloat(roiData.insulationCost || '0') || 0,
+          parseFloat(roiData.legalFees || '0') || 0,
+          parseFloat(roiData.preFormationExpenses || '0') || 0,
+          parseFloat(roiData.commissioningTravel || '0') || 0,
+          parseFloat(roiData.contingency || '0') || 0
+        ].reduce((sum, cost) => sum + cost, 0);
+        const step1Total = basePlantCost + step1AdditionalCosts;
+
+        // Step 2 - Tank Farm & Utilities costs
+        const invTankCosts = (roiData.tanks || []).reduce((total: number, tank: any) => {
+          return total + (parseFloat(tank.totalCost) || 0);
+        }, 0);
+        const invUtilityCosts = (roiData.utilities || []).reduce((total: number, utility: any) => {
+          return total + (parseFloat(utility.totalCost) || 0);
+        }, 0);
+        const step2Total = invTankCosts + invUtilityCosts;
+
+        // Step 3 - Additional Equipment costs
+        const equipmentCosts = [
+          parseFloat(roiData.additionalPumpsFilters || '0') || 0,
+          parseFloat(roiData.tankLevelTransmitters || '0') || 0,
+          parseFloat(roiData.pipesValvesFlanges || '0') || 0,
+          parseFloat(roiData.electricalCablesAccessories || '0') || 0,
+          parseFloat(roiData.pccMccPanels || '0') || 0,
+          parseFloat(roiData.chimneyDucting || '0') || 0,
+          parseFloat(roiData.coolingTower || '0') || 0,
+          parseFloat(roiData.dieselGenerator || '0') || 0,
+          parseFloat(roiData.qualityControlEquipment || '0') || 0,
+          parseFloat(roiData.thermicFluid || '0') || 0,
+          parseFloat(roiData.expansionStructure || '0') || 0,
+          parseFloat(roiData.craneHireCharges || '0') || 0,
+          parseFloat(roiData.laborErectionCommissioning || '0') || 0
+        ].reduce((sum, cost) => sum + cost, 0);
+        const step3Total = equipmentCosts;
+
+        // Step 4 - Working Capital
+        const invWorkingCapital = parseFloat(roiData.workingCapitalRequirement || '0') || 0;
+
         // For now, use simplified Net Profit calculation
         // (Full financing costs will be calculated after investment variables are declared)
         const netProfit = ebitda;
@@ -2752,58 +2802,7 @@ export default function MarketingToolsPage() {
         doc.text('INVESTMENT BREAKDOWN SUMMARY', margin, yPos);
         yPos += 12;
 
-        // Calculate investment components with currency conversion
-        const basePlantCost = parseFloat(roiData.projectCostLocal || '0') || 0;
-        
-        // Step 1 - Project costs
-        const step1AdditionalCosts = [
-          parseFloat(roiData.freightInsurance || '0') || 0,
-          parseFloat(roiData.importDutyVAT || '0') || 0,
-          parseFloat(roiData.plotCost || '0') || 0,
-          parseFloat(roiData.civilCost || '0') || 0,
-          parseFloat(roiData.refineryShed || '0') || 0,
-          parseFloat(roiData.utilityShed || '0') || 0,
-          parseFloat(roiData.officeBuilding || '0') || 0,
-          parseFloat(roiData.fireSuppressionSystem || '0') || 0,
-          parseFloat(roiData.insulationCost || '0') || 0,
-          parseFloat(roiData.legalFees || '0') || 0,
-          parseFloat(roiData.preFormationExpenses || '0') || 0,
-          parseFloat(roiData.commissioningTravel || '0') || 0,
-          parseFloat(roiData.contingency || '0') || 0
-        ].reduce((sum, cost) => sum + cost, 0);
-        const step1Total = basePlantCost + step1AdditionalCosts;
-
-        // Step 2 - Tank Farm & Utilities costs
-        const invTankCosts = (roiData.tanks || []).reduce((total: number, tank: any) => {
-          return total + (parseFloat(tank.totalCost) || 0);
-        }, 0);
-        const invUtilityCosts = (roiData.utilities || []).reduce((total: number, utility: any) => {
-          return total + (parseFloat(utility.totalCost) || 0);
-        }, 0);
-        const step2Total = invTankCosts + invUtilityCosts;
-
-        // Step 3 - Additional Equipment costs
-        const equipmentCosts = [
-          parseFloat(roiData.additionalPumpsFilters || '0') || 0,
-          parseFloat(roiData.tankLevelTransmitters || '0') || 0,
-          parseFloat(roiData.pipesValvesFlanges || '0') || 0,
-          parseFloat(roiData.electricalCablesAccessories || '0') || 0,
-          parseFloat(roiData.pccMccPanels || '0') || 0,
-          parseFloat(roiData.chimneyDucting || '0') || 0,
-          parseFloat(roiData.coolingTower || '0') || 0,
-          parseFloat(roiData.dieselGenerator || '0') || 0,
-          parseFloat(roiData.qualityControlEquipment || '0') || 0,
-          parseFloat(roiData.thermicFluid || '0') || 0,
-          parseFloat(roiData.expansionStructure || '0') || 0,
-          parseFloat(roiData.craneHireCharges || '0') || 0,
-          parseFloat(roiData.laborErectionCommissioning || '0') || 0
-        ].reduce((sum, cost) => sum + cost, 0);
-        const step3Total = equipmentCosts;
-
-        // Step 4 - Working Capital
-        const invWorkingCapital = parseFloat(roiData.workingCapitalRequirement || '0') || 0;
-
-        // Total Investment
+        // Total Investment (using previously calculated step totals)
         const invTotalInvestment = step1Total + step2Total + step3Total + invWorkingCapital;
 
         // Investment breakdown data with proper error handling
