@@ -1548,6 +1548,9 @@ export default function MarketingToolsPage() {
     console.log('Actual Financing Costs:', actualFinancingCosts);
     console.log('Net Profit Before Depreciation:', netProfitBeforeDepreciation);
     console.log('Actual Depreciation:', actualDepreciation);
+    console.log('🔥 CRITICAL DEBUG - NET PROFIT:', netProfit);
+    console.log('🔥 EXPECTED NET PROFIT: £4,993,941');
+    console.log('🔥 ACTUAL vs EXPECTED RATIO:', netProfit / 4993941);
     
     // EBITDA (Earnings Before Interest, Taxes, Depreciation, Amortization)
     const ebitda = grossProfit;
@@ -1564,7 +1567,7 @@ export default function MarketingToolsPage() {
     console.log('Calculation:', capitalInvestmentOnly, '÷', netProfit, '× 12 =', (capitalInvestmentOnly / netProfit) * 12);
     
     // Simple and correct payback period calculation using Net Profit
-    const paybackPeriod = capitalInvestmentOnly > 0 && netProfit > 0 ? capitalInvestmentOnly / netProfit : 0;
+    const paybackPeriod = capitalInvestmentOnly > 0 && netProfit > 0 ? (capitalInvestmentOnly / netProfit) * 12 : 0;
     
 
     
