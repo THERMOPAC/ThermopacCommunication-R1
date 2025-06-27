@@ -1378,16 +1378,11 @@ export default function MarketingToolsPage() {
       return total + (parseFloat(tank.totalCost) || 0);
     }, 0);
     
-    // Calculate valid utility costs (exclude Compressor and Heater only)
-    const validUtilityCosts = (roiData.utilities || []).reduce((total, utility) => {
-      // Exclude Compressor and Heater costs but retain other valid utilities
-      if (utility.description === 'Compressor' || utility.description === 'Heater') {
-        return total; // Exclude these specific utilities
-      }
+    const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
       return total + (parseFloat(utility.totalCost) || 0);
     }, 0);
     
-    const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + validUtilityCosts + workingCapital;
+    const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
     
     // Calculate debt amount
     const debtAmount = totalInvestment * (debtRatio / 100);
@@ -1482,11 +1477,7 @@ export default function MarketingToolsPage() {
     const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
       return total + (parseFloat(tank.totalCost) || 0);
     }, 0);
-    // Calculate valid utility costs (exclude Compressor and Heater only)
-    const validUtilityCosts = (roiData.utilities || []).reduce((total, utility) => {
-      if (utility.description === 'Compressor' || utility.description === 'Heater') {
-        return total;
-      }
+    const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
       return total + (parseFloat(utility.totalCost) || 0);
     }, 0);
     
@@ -1494,10 +1485,10 @@ export default function MarketingToolsPage() {
     const workingCapitalAmount = parseFloat(roiData.workingCapitalRequirement) || 0;
     
     // For total investment calculation - include working capital for financial analysis
-    const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + validUtilityCosts + workingCapitalAmount;
+    const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapitalAmount;
     
     // For payback calculation - exclude working capital if it's gross payback (no financing/depreciation)
-    const capitalInvestmentOnly = baseCost + additionalCosts + equipmentCosts + tankCosts + validUtilityCosts;
+    const capitalInvestmentOnly = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts;
 
     // Calculate annual revenue and costs
     const plantCapacity = parseFloat(roiData.capacity) || 0;
@@ -1597,7 +1588,7 @@ export default function MarketingToolsPage() {
       console.log('Additional Costs:', additionalCosts);
       console.log('Equipment Costs:', equipmentCosts);
       console.log('Tank Costs:', tankCosts);
-      console.log('Valid Utility Costs (Excl. Compressor/Heater):', validUtilityCosts);
+      console.log('Utility Costs:', utilityCosts);
       console.log('Working Capital Amount:', workingCapitalAmount);
       console.log('Total Investment (Payback Calc):', totalInvestment);
       console.log('Total Investment (Financing Memo):', financingCosts.totalInvestment);
@@ -1607,19 +1598,9 @@ export default function MarketingToolsPage() {
       console.log('Expected Net Profit: £4,993,941');
       console.log('INVESTMENT BREAKDOWN:');
       
-      // Calculate step totals for debug (Step 2 excludes only Compressor and Heater costs)
+      // Calculate step totals for debug (Step 2 excludes utilities - for sizing only)
       const step1Total = baseCost + additionalCosts;
-      
-      // Step 2: Include tank costs + valid utility costs (exclude Compressor and Heater only)
-      const validUtilityCosts = (roiData.utilities || []).reduce((total, utility) => {
-        // Exclude Compressor and Heater costs but retain other valid utilities
-        if (utility.description === 'Compressor' || utility.description === 'Heater') {
-          return total; // Exclude these specific utilities
-        }
-        return total + (parseFloat(utility.totalCost) || 0);
-      }, 0);
-      const step2Total = tankCosts + validUtilityCosts;
-      
+      const step2Total = tankCosts; // Utilities excluded from financial calculations
       const step3Total = equipmentCosts;
       
       console.log('Step 1 Total (Plant + Additional Costs):', step1Total);
@@ -3351,20 +3332,14 @@ export default function MarketingToolsPage() {
         // CAPEX allocation data
         const projectCostLocalChart = parseFloat(roiData.projectCostLocal || '0');
         const tankCostsChart = (roiData.tanks || []).reduce((sum, tank) => sum + parseFloat(tank.totalCost || '0'), 0);
-        // Calculate valid utility costs for chart (exclude Compressor and Heater only)
-        const validUtilityCostsChart = (roiData.utilities || []).reduce((sum, utility) => {
-          if (utility.description === 'Compressor' || utility.description === 'Heater') {
-            return sum;
-          }
-          return sum + parseFloat(utility.totalCost || '0');
-        }, 0);
+        const utilityCostsChart = (roiData.utilities || []).filter(u => u.name !== 'Total Connected Load').reduce((sum, utility) => sum + parseFloat(utility.totalCost || '0'), 0);
         const equipmentCostsChart = equipmentItems.reduce((sum, item) => sum + parseFloat(item.value || '0'), 0);
         const additionalCostsChart = additionalCostItems.reduce((sum, item) => sum + parseFloat(item.value || '0'), 0);
 
         const capexData = [
           { name: 'Plant Equipment', value: projectCostLocalChart, color: [255, 99, 132] },
           { name: 'Tank Farm', value: tankCostsChart, color: [54, 162, 235] },
-          { name: 'Valid Utilities', value: validUtilityCostsChart, color: [255, 205, 86] },
+          { name: 'Utilities', value: utilityCostsChart, color: [255, 205, 86] },
           { name: 'Additional Equipment', value: equipmentCostsChart, color: [75, 192, 192] },
           { name: 'Project Costs', value: additionalCostsChart, color: [153, 102, 255] }
         ].filter(item => item.value > 0);
@@ -3794,7 +3769,7 @@ export default function MarketingToolsPage() {
           ['Plant Capacity', capacity.toLocaleString(), 'LPH'],
           ['Operating Days', operatingDays.toString(), 'days/month'],
           ['Annual Processing', annualTons.toFixed(0), 'tons/year'],
-          ['Total CAPEX', (projectCostLocalChart + tankCostsChart + validUtilityCostsChart + equipmentCostsChart + additionalCostsChart).toLocaleString(), roiData.currency || 'USD'],
+          ['Total CAPEX', (projectCostLocalChart + tankCostsChart + utilityCostsChart + equipmentCostsChart + additionalCostsChart).toLocaleString(), roiData.currency || 'USD'],
           ['Monthly OpEx', (feedstockCostMonthly + parseFloat(roiData.powerCost || '0') + parseFloat(roiData.fuelCost || '0') + parseFloat(roiData.chemicalCost || '0') + parseFloat(roiData.laborCost || '0') + parseFloat(roiData.maintenanceCost || '0')).toLocaleString(), `${roiData.currency || 'USD'}/month`],
           ['Annual Revenue', revenueData.reduce((sum, item) => sum + item.value, 0).toLocaleString(), `${roiData.currency || 'USD'}/year`],
           ['Product Yield', productYieldData.reduce((sum, item) => sum + item.value, 0).toFixed(1), '%'],
@@ -3884,15 +3859,11 @@ export default function MarketingToolsPage() {
       const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
         return total + (parseFloat(tank.totalCost) || 0);
       }, 0);
-      // Calculate valid utility costs (exclude Compressor and Heater only)
-      const validUtilityCosts = (roiData.utilities || []).reduce((total, utility) => {
-        if (utility.description === 'Compressor' || utility.description === 'Heater') {
-          return total;
-        }
+      const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
         return total + (parseFloat(utility.totalCost) || 0);
       }, 0);
       const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
-      const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + validUtilityCosts + workingCapital;
+      const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
 
       // Calculate revenue
       const plantCapacity = parseFloat(roiData.capacity) || 0;
@@ -3940,7 +3911,7 @@ export default function MarketingToolsPage() {
           additionalCosts,
           equipmentCosts,
           tankCosts,
-          validUtilityCosts: validUtilityCostsChart,
+          utilityCosts,
           workingCapital
         },
         financials: {
@@ -7045,16 +7016,12 @@ export default function MarketingToolsPage() {
                                 const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
                                   return total + (parseFloat(tank.totalCost) || 0);
                                 }, 0);
-                                // Calculate valid utility costs (exclude Compressor and Heater only)
-                                const validUtilityCosts = (roiData.utilities || []).reduce((total, utility) => {
-                                  if (utility.description === 'Compressor' || utility.description === 'Heater') {
-                                    return total;
-                                  }
+                                const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
                                   return total + (parseFloat(utility.totalCost) || 0);
                                 }, 0);
                                 const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
                                 
-                                const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + validUtilityCosts + workingCapital;
+                                const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
                                 return totalInvestment.toLocaleString();
                               })()}
                               readOnly
@@ -7164,15 +7131,11 @@ export default function MarketingToolsPage() {
                                   const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
                                     return total + (parseFloat(tank.totalCost) || 0);
                                   }, 0);
-                                  // Calculate valid utility costs (exclude Compressor and Heater only)
-                                  const validUtilityCosts = (roiData.utilities || []).reduce((total, utility) => {
-                                    if (utility.description === 'Compressor' || utility.description === 'Heater') {
-                                      return total;
-                                    }
+                                  const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
                                     return total + (parseFloat(utility.totalCost) || 0);
                                   }, 0);
                                   const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
-                                  const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + validUtilityCosts + workingCapital;
+                                  const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
                                   return totalInvestment.toLocaleString();
                                 })()}
                               </p>
@@ -7276,13 +7239,7 @@ export default function MarketingToolsPage() {
                           <p className="text-lg font-bold">{getCurrencySymbol(roiData.currency)}{(() => {
                             const baseCost = parseFloat(roiData.projectCostLocal) || 0;
                             const tankCosts = (roiData.tanks || calculatedTanks).reduce((total, tank) => total + (parseFloat(tank.totalCost) || 0), 0);
-                            // Calculate valid utility costs (exclude Compressor and Heater only)
-                            const validUtilityCosts = (roiData.utilities || calculatedUtilities).reduce((total, utility) => {
-                              if (utility.description === 'Compressor' || utility.description === 'Heater') {
-                                return total;
-                              }
-                              return total + (parseFloat(utility.totalCost) || 0);
-                            }, 0);
+                            const utilityCosts = (roiData.utilities || calculatedUtilities).reduce((total, utility) => total + (parseFloat(utility.totalCost) || 0), 0);
                             const additionalCosts = [
                               parseFloat(roiData.freightInsurance) || 0, parseFloat(roiData.importDutyVAT) || 0,
                               parseFloat(roiData.plotCost) || 0, parseFloat(roiData.civilCost) || 0,
@@ -7298,7 +7255,7 @@ export default function MarketingToolsPage() {
                               parseFloat(roiData.commissioningCost) || 0
                             ].reduce((sum, cost) => sum + cost, 0);
                             const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
-                            return (baseCost + tankCosts + validUtilityCosts + additionalCosts + equipmentCosts + workingCapital).toLocaleString();
+                            return (baseCost + tankCosts + utilityCosts + additionalCosts + equipmentCosts + workingCapital).toLocaleString();
                           })()}</p>
                         </div>
                       </div>
@@ -7349,13 +7306,11 @@ export default function MarketingToolsPage() {
                                     const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
                                       return total + (parseFloat(tank.totalCost) || 0);
                                     }, 0);
-                                    // Calculate valid utility costs (exclude Compressor and Heater only)
-                                    const validUtilityCosts = (roiData.utilities || []).reduce((total, utility) => {
-                                      if (utility.description === 'Compressor' || utility.description === 'Heater') {
-                                        return total;
-                                      }
+                                    const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
                                       return total + (parseFloat(utility.totalCost) || 0);
                                     }, 0);
+                                    const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
+                                    const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
                                     return totalInvestment.toLocaleString();
                                   })()}
                                 </p>
@@ -7463,32 +7418,22 @@ export default function MarketingToolsPage() {
                                     })()}</span>
                                   </div>
                                   <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Utilities & Equipment:</span>
-                                    <span>{(() => {
-                                      // Calculate valid utility costs (exclude Compressor and Heater only)
-                                      const validUtilityCosts = (roiData.utilities || []).reduce((total, utility) => {
-                                        if (utility.description === 'Compressor' || utility.description === 'Heater') {
-                                          return total;
-                                        }
+                                    <span>Utilities Cost:</span>
+                                    <span className="font-medium">{getCurrencySymbol(roiData.currency)}{(() => {
+                                      const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
                                         return total + (parseFloat(utility.totalCost) || 0);
                                       }, 0);
-                                      return validUtilityCosts.toLocaleString();
+                                      return utilityCosts.toLocaleString();
                                     })()}</span>
                                   </div>
                                   <div className="flex justify-between border-t pt-2 font-semibold text-green-700">
-                                    <span>Step 2 Total (Tank Farm & Utilities):</span>
+                                    <span>Step 2 Total (Tanks Only):</span>
                                     <span>{getCurrencySymbol(roiData.currency)}{(() => {
                                       const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
                                         return total + (parseFloat(tank.totalCost) || 0);
                                       }, 0);
-                                      // Include valid utility costs (exclude Compressor and Heater only)
-                                      const validUtilityCosts = (roiData.utilities || []).reduce((total, utility) => {
-                                        if (utility.description === 'Compressor' || utility.description === 'Heater') {
-                                          return total;
-                                        }
-                                        return total + (parseFloat(utility.totalCost) || 0);
-                                      }, 0);
-                                      return (tankCosts + validUtilityCosts).toLocaleString();
+                                      // Utilities excluded from financial calculations - for sizing only
+                                      return tankCosts.toLocaleString();
                                     })()}</span>
                                   </div>
                                 </div>
@@ -7598,15 +7543,11 @@ export default function MarketingToolsPage() {
                                   const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
                                     return total + (parseFloat(tank.totalCost) || 0);
                                   }, 0);
-                                  // Calculate valid utility costs (exclude Compressor and Heater only)
-                                  const validUtilityCosts = (roiData.utilities || []).reduce((total, utility) => {
-                                    if (utility.description === 'Compressor' || utility.description === 'Heater') {
-                                      return total;
-                                    }
+                                  const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
                                     return total + (parseFloat(utility.totalCost) || 0);
                                   }, 0);
                                   const workingCapital = parseFloat(roiData.workingCapitalRequirement) || 0;
-                                  const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + validUtilityCosts + workingCapital;
+                                  const totalInvestment = baseCost + additionalCosts + equipmentCosts + tankCosts + utilityCosts + workingCapital;
                                   return totalInvestment.toLocaleString();
                                 })()}</span>
                               </div>
