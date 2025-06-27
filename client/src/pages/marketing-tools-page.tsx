@@ -354,7 +354,7 @@ export default function MarketingToolsPage() {
     refineryShed: '',
     utilityShed: '',
     officeBuilding: '',
-    mechanicalElectrical: '',
+
     fireSuppressionSystem: '',
     insulationCost: '',
     legalFees: '',
@@ -554,7 +554,7 @@ export default function MarketingToolsPage() {
           refineryShed: roiData.refineryShed,
           utilityShed: roiData.utilityShed,
           officeBuilding: roiData.officeBuilding,
-          mechanicalElectrical: roiData.mechanicalElectrical,
+
           fireSuppressionSystem: roiData.fireSuppressionSystem,
           insulationCost: roiData.insulationCost,
           legalFees: roiData.legalFees,
@@ -1130,7 +1130,7 @@ export default function MarketingToolsPage() {
             refineryShed: 10.0,         // 10%
             utilityShed: 8.0,           // 8%
             officeBuilding: 5.0,        // 5%
-            mechanicalElectrical: 10.0, // 10%
+
             fireSuppressionSystem: 5.0,  // 5%
             insulationCost: 2.0,         // 2%
             legalFees: 1.0,             // 1%
@@ -1402,7 +1402,7 @@ export default function MarketingToolsPage() {
       totalMonthlyFinancingCost: monthlyDebtInterest + monthlyWorkingCapitalInterest,
       annualFinancingCosts
     };
-  }, [workingCapital, roiData.rateOfInterest, roiData.debtFinancingRatio, roiData.projectCostLocal, roiData.freightInsurance, roiData.importDutyVAT, roiData.plotCost, roiData.civilCost, roiData.refineryShed, roiData.utilityShed, roiData.officeBuilding, roiData.mechanicalElectrical, roiData.fireSuppressionSystem, roiData.insulationCost, roiData.legalFees, roiData.preFormationExpenses, roiData.commissioningTravel, roiData.contingency, roiData.additionalPumpsFilters, roiData.tankLevelTransmitters, roiData.pipesValvesFlanges, roiData.electricalCablesAccessories, roiData.pccMccPanels, roiData.chimneyDucting, roiData.coolingTower, roiData.dieselGenerator, roiData.qualityControlEquipment, roiData.thermicFluid, roiData.expansionStructure, roiData.craneHireCharges, roiData.laborErectionCommissioning, roiData.tanks, roiData.utilities]);
+  }, [workingCapital, roiData.rateOfInterest, roiData.debtFinancingRatio, roiData.projectCostLocal, roiData.freightInsurance, roiData.importDutyVAT, roiData.plotCost, roiData.civilCost, roiData.refineryShed, roiData.utilityShed, roiData.officeBuilding, roiData.fireSuppressionSystem, roiData.insulationCost, roiData.legalFees, roiData.preFormationExpenses, roiData.commissioningTravel, roiData.contingency, roiData.additionalPumpsFilters, roiData.tankLevelTransmitters, roiData.pipesValvesFlanges, roiData.electricalCablesAccessories, roiData.pccMccPanels, roiData.chimneyDucting, roiData.coolingTower, roiData.dieselGenerator, roiData.qualityControlEquipment, roiData.thermicFluid, roiData.expansionStructure, roiData.craneHireCharges, roiData.laborErectionCommissioning, roiData.tanks, roiData.utilities]);
 
   // Calculate annual depreciation
   const annualDepreciation = React.useMemo(() => {
@@ -4167,7 +4167,7 @@ export default function MarketingToolsPage() {
           { name: 'Refinery Shed', value: parseFloat(roiData.refineryShed || '0') || 0 },
           { name: 'Utility Shed', value: parseFloat(roiData.utilityShed || '0') || 0 },
           { name: 'Office Building', value: parseFloat(roiData.officeBuilding || '0') || 0 },
-          { name: 'Mechanical & Electrical', value: parseFloat(roiData.mechanicalElectrical || '0') || 0 },
+
           { name: 'Fire Suppression', value: parseFloat(roiData.fireSuppression || '0') || 0 },
           { name: 'Insulation', value: parseFloat(roiData.insulation || '0') || 0 },
           { name: 'Legal Fees', value: parseFloat(roiData.legalFees || '0') || 0 },
@@ -7264,7 +7264,7 @@ export default function MarketingToolsPage() {
                               parseFloat(roiData.freightInsurance) || 0, parseFloat(roiData.importDutyVAT) || 0,
                               parseFloat(roiData.plotCost) || 0, parseFloat(roiData.civilCost) || 0,
                               parseFloat(roiData.refineryShed) || 0, parseFloat(roiData.utilityShed) || 0,
-                              parseFloat(roiData.officeBuilding) || 0, parseFloat(roiData.mechanicalElectrical) || 0,
+                              parseFloat(roiData.officeBuilding) || 0,
                               parseFloat(roiData.fireSuppression) || 0, parseFloat(roiData.insulation) || 0,
                               parseFloat(roiData.legalFees) || 0, parseFloat(roiData.preFormationExpenses) || 0,
                               parseFloat(roiData.commissioningTravel) || 0, parseFloat(roiData.contingency) || 0
