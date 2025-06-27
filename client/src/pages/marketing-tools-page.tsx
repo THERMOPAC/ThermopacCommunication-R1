@@ -1563,8 +1563,17 @@ export default function MarketingToolsPage() {
     console.log('Payback Period Formula: CAPEX ÷ Net Profit × 12');
     console.log('Calculation:', capitalInvestmentOnly, '÷', netProfit, '× 12 =', (capitalInvestmentOnly / netProfit) * 12);
     
-    // Simple and correct payback period calculation using Net Profit
-    const paybackPeriod = capitalInvestmentOnly > 0 && netProfit > 0 ? capitalInvestmentOnly / netProfit : 0;
+    // Payback period calculation - depends on financing and depreciation toggles
+    let paybackPeriod = 0;
+    if (netProfit > 0) {
+      if (includeFinancingCosts && includeDepreciation) {
+        // When both financing costs and depreciation are included, use Total Investment
+        paybackPeriod = totalInvestment / netProfit;
+      } else {
+        // For gross payback or partial scenarios, use CAPEX only
+        paybackPeriod = capitalInvestmentOnly / netProfit;
+      }
+    }
     
 
     
@@ -1917,7 +1926,24 @@ export default function MarketingToolsPage() {
         console.log('Net Profit:', netProfit);
         console.log('Expected Payback Period (months):', (capitalInvestmentOnly / netProfit) * 12);
         
-        const paybackPeriod = capitalInvestmentOnly > 0 && netProfit > 0 ? (capitalInvestmentOnly / netProfit) * 12 : 0;
+        // Calculate Total Investment for PDF (CAPEX + Working Capital)
+        const workingCapitalAmount = parseFloat(roiData.workingCapitalRequirement || '0') || 0;
+        const totalInvestmentWithWorking = capitalInvestmentOnly + workingCapitalAmount;
+        
+        // PDF Payback period calculation - match main dashboard logic
+        let paybackPeriod = 0;
+        if (netProfit > 0) {
+          const includeFinancingCosts = parseFloat(roiData.includeFinancingCosts?.toString() || '1') === 1;
+          const includeDepreciation = parseFloat(roiData.includeDepreciation?.toString() || '1') === 1;
+          
+          if (includeFinancingCosts && includeDepreciation) {
+            // When both financing costs and depreciation are included, use Total Investment
+            paybackPeriod = (totalInvestmentWithWorking / netProfit) * 12;
+          } else {
+            // For gross payback or partial scenarios, use CAPEX only
+            paybackPeriod = (capitalInvestmentOnly / netProfit) * 12;
+          }
+        }
         const annualROI = totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0;
 
         // Header with gradient background
@@ -2780,13 +2806,13 @@ export default function MarketingToolsPage() {
         ].reduce((total, cost) => total + cost, 0);
         
         // New Working Capital Formula: [(Plant Capacity × 24 × Operation Days) ÷ 2] × Feedstock Cost + (Monthly OpEx ÷ 2)
-        let workingCapitalAmount = 0;
+        let plWorkingCapitalAmount = 0;
         
         // Part 1: Inventory component - only if feedstock cost > 0
         if (plFeedstockCostPerLiter > 0) {
           const monthlyFeedstockVolume = plPlantCapacity * 24 * plantOperatingDays;
           const inventoryComponent = (monthlyFeedstockVolume / 2) * plFeedstockCostPerLiter;
-          workingCapitalAmount += inventoryComponent;
+          plWorkingCapitalAmount += inventoryComponent;
         }
         
         // Part 2: Operating expenses component (always included)
