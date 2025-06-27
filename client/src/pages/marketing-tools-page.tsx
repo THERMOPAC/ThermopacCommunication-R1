@@ -2355,16 +2355,14 @@ export default function MarketingToolsPage() {
           doc.text('Utilities & Equipment Details', margin, yPos);
           yPos += 10;
 
-          // Utilities table headers
+          // Utilities table headers (costs excluded - sizing estimation only)
           const utilityTableHeaders = [
             'Equipment',
             'Specifications',
-            'Quantity',
-            `Unit Cost (${roiData.currency || 'USD'})`,
-            `Total Cost (${roiData.currency || 'USD'})`
+            'Quantity'
           ];
 
-          const utilityColWidths = [40, 50, 20, 30, 30];
+          const utilityColWidths = [40, 50, 20]; // Removed cost columns
           const utilityRowHeight = 12;
           let utilityTableX = margin;
           let utilityTableY = yPos;
@@ -2394,17 +2392,16 @@ export default function MarketingToolsPage() {
             const utilityRowData = [
               utility.description || '',
               utility.specification || '',
-              utility.quantity?.toString() || '',
-              unitCostLocal > 0 ? Math.round(unitCostLocal).toLocaleString() : '0',
-              totalCostLocal > 0 ? Math.round(totalCostLocal).toLocaleString() : '0'
+              utility.quantity?.toString() || ''
+              // Cost columns excluded - utilities for sizing estimation only
             ];
 
             utilityRowData.forEach((cellData, colIndex) => {
               doc.rect(cellX, utilityTableY, utilityColWidths[colIndex], utilityRowHeight);
               doc.setFontSize(8);
               
-              // Right-align numerical columns (Quantity, Unit Cost, Total Cost)
-              if (colIndex >= 2 && cellData) {
+              // Right-align numerical columns (Quantity)
+              if (colIndex === 2 && cellData) {
                 const textWidth = doc.getTextWidth(cellData);
                 doc.text(cellData, cellX + utilityColWidths[colIndex] - textWidth - 1, utilityTableY + 8);
               } else {
@@ -2424,6 +2421,13 @@ export default function MarketingToolsPage() {
           });
 
           yPos = utilityTableY + 15;
+          
+          // Add explanatory note for utilities
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'italic');
+          doc.setTextColor(100, 100, 100);
+          doc.text('Note: Utilities specifications are provided for sizing estimation only and are not included in capital cost calculations.', margin, yPos);
+          yPos += 10;
         }
 
         // Tank Farm & Utilities Summary
@@ -7425,15 +7429,13 @@ export default function MarketingToolsPage() {
                                     })()}</span>
                                   </div>
                                   <div className="flex justify-between border-t pt-2 font-semibold text-green-700">
-                                    <span>Step 2 Total:</span>
+                                    <span>Step 2 Total (Tanks Only):</span>
                                     <span>{getCurrencySymbol(roiData.currency)}{(() => {
                                       const tankCosts = (roiData.tanks || []).reduce((total, tank) => {
                                         return total + (parseFloat(tank.totalCost) || 0);
                                       }, 0);
-                                      const utilityCosts = (roiData.utilities || []).reduce((total, utility) => {
-                                        return total + (parseFloat(utility.totalCost) || 0);
-                                      }, 0);
-                                      return (tankCosts + utilityCosts).toLocaleString();
+                                      // Utilities excluded from financial calculations - for sizing only
+                                      return tankCosts.toLocaleString();
                                     })()}</span>
                                   </div>
                                 </div>
