@@ -67,7 +67,6 @@ export default function BrcManagementPage() {
   const [selectedInvoiceId, setSelectedInvoiceId] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBrc, setEditingBrc] = useState<any>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<BrcFormData>({
     invoiceId: 0,
     brcNumber: '',
@@ -357,9 +356,8 @@ export default function BrcManagementPage() {
       return;
     }
 
-    setIsSubmitting(true);
+    // Remove manual state management - use mutation.isPending instead
     brcMutation.mutate(formData);
-    setIsSubmitting(false);
   };
 
   const filteredInvoices = useMemo(() => {
@@ -899,8 +897,8 @@ export default function BrcManagementPage() {
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button onClick={handleSubmit} disabled={brcMutation.isPending}>
+                {brcMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editingBrc ? 'Update' : 'Save'} BRC
               </Button>
             </DialogFooter>
