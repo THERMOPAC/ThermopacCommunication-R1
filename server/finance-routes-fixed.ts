@@ -25,7 +25,6 @@ router.get('/brc/pending', ensureAuthenticated, async (req: Request, res: Respon
       LEFT JOIN customers c ON i.customer_id = c.id
       LEFT JOIN bank_realization_certificates brc ON i.id = brc.related_invoice_id
       WHERE i.brc_required = true
-        AND (i.total_amount - COALESCE(SUM(brc.amount), 0)) > 0
       GROUP BY i.id, i.invoice_number, i.total_amount, i.currency, i.issue_date, i.due_date, c.bp_name
       HAVING (i.total_amount - COALESCE(SUM(brc.amount), 0)) > 0
       ORDER BY i.issue_date DESC
