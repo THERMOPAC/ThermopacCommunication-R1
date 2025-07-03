@@ -6,6 +6,57 @@ import { storage } from './storage';
 const router = Router();
 
 /**
+ * Get BRC pending invoices (invoices with partial BRC or no BRC)
+ */
+router.get('/brc/pending', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const pendingQuery = `
+      SELECT 
+        i.id,
+        i.invoice_number,
+        i.total_amount as invoice_amount,
+        i.currency,
+        i.issue_date,
+        i.due_date,
+        c.bp_name as customer_name,
+        COALESCE(SUM(brc.amount), 0) as brc_received_amount,
+        (i.total_amount - COALESCE(SUM(brc.amount), 0)) as brc_pending_amount
+      FROM invoices i
+      LEFT JOIN customers c ON i.customer_id = c.id
+      LEFT JOIN bank_realization_certificates brc ON i.id = brc.related_invoice_id
+      WHERE i.brc_required = true
+        AND (i.total_amount - COALESCE(SUM(brc.amount), 0)) > 0
+      GROUP BY i.id, i.invoice_number, i.total_amount, i.currency, i.issue_date, i.due_date, c.bp_name
+      HAVING (i.total_amount - COALESCE(SUM(brc.amount), 0)) > 0
+      ORDER BY i.issue_date DESC
+    `;
+
+    const result = await pool.query(pendingQuery);
+    
+    console.log(`Found ${result.rows.length} invoices with pending BRC amounts`);
+    console.log('Sample pending invoice data:', result.rows[0]);
+    
+    const pendingInvoices = result.rows.map(row => ({
+      id: row.id,
+      invoiceNumber: row.invoice_number,
+      invoiceAmount: row.invoice_amount,
+      currency: row.currency,
+      issueDate: row.issue_date,
+      dueDate: row.due_date,
+      customerName: row.customer_name,
+      brcReceivedAmount: row.brc_received_amount,
+      brcPendingAmount: row.brc_pending_amount
+    }));
+
+    console.log(`Found ${pendingInvoices.length} invoices with pending BRC amounts`);
+    res.json(pendingInvoices);
+  } catch (error) {
+    console.error('Error getting BRC pending invoices:', error);
+    res.status(500).json({ error: 'Failed to get BRC pending invoices' });
+  }
+});
+
+/**
  * Get all BRCs from database
  */
 router.get('/brc', ensureAuthenticated, async (req: Request, res: Response) => {

@@ -2147,6 +2147,9 @@ router.get('/brc/pending', ensureAuthenticated, async (req: Request, res: Respon
 
     const result = await pool.query(pendingQuery);
     
+    console.log(`Found ${result.rows.length} invoices with pending BRC amounts`);
+    console.log('Sample pending invoice data:', result.rows[0]);
+    
     const pendingInvoices = result.rows.map(row => ({
       id: row.id,
       invoiceNumber: row.invoice_number,
