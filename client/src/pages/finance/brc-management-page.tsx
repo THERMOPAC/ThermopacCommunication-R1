@@ -144,8 +144,8 @@ export default function BrcManagementPage() {
     }
 
     const received = brcRecords?.filter((brc: any) => {
-      if (selectedCustomerId && selectedCustomerId !== 'all' && brc.invoice?.customerId.toString() !== selectedCustomerId) return false;
-      if (selectedInvoiceId && selectedInvoiceId !== 'all' && brc.related_invoice_id.toString() !== selectedInvoiceId) return false;
+      if (selectedCustomerId && selectedCustomerId !== 'all' && brc.customer_id?.toString() !== selectedCustomerId) return false;
+      if (selectedInvoiceId && selectedInvoiceId !== 'all' && brc.related_invoice_id?.toString() !== selectedInvoiceId) return false;
       return true;
     }) || [];
 
