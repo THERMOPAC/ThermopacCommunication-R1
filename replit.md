@@ -112,6 +112,7 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 
 # Changelog
 - June 19, 2025. Initial setup
+- July 3, 2025. Fixed critical BRC pending endpoint routing issue by adding missing /brc/pending route to finance-routes-fixed.ts (the active server file). Corrected SQL aggregate function error by moving filtering logic from WHERE to HAVING clause. System now properly displays 33+ invoices requiring BRC certificates with accurate pending amount calculations.
 - June 23, 2025. Added Exchange Rate and Amount LC fields to invoice management system with auto-calculation functionality and database persistence
 - June 23, 2025. Added Marketing Tools sub-tab under Sales and Marketing with categorized layout similar to Design Tools page
 - June 23, 2025. Created comprehensive ROI Calculator tool for re-refining plant projects with 6-step wizard, real-time calculations, and report generation capabilities
