@@ -494,6 +494,29 @@ export default function PaymentAllocationPage() {
     }));
   }, [paymentsData]);
 
+  // Get outstanding invoices that can receive payment allocations
+  const { data: invoicesData, isLoading: invoicesLoading } = useQuery({
+    queryKey: ['/api/finance/outstanding-invoices', selectedPayment?.paymentType, selectedPayment?.customerName],
+    queryFn: async () => {
+      // Only fetch invoices if a payment is selected
+      if (!selectedPayment) return { invoices: [] };
+      
+      const url = new URL('/api/finance/outstanding-invoices', window.location.origin);
+      
+      // Add query parameters for filtering
+      if (selectedPayment.paymentType) {
+        url.searchParams.append('invoiceType', selectedPayment.paymentType);
+      }
+      
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        throw new Error('Failed to fetch outstanding invoices');
+      }
+      return await response.json();
+    },
+    enabled: !!selectedPayment // Only run this query when a payment is selected
+  });
+
   // Get allocations for a specific payment with proper typing
   const getPaymentAllocations = async (paymentId: number): Promise<Allocation[]> => {
     try {
