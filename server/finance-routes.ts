@@ -2050,73 +2050,121 @@ router.post('/payments/:id/brc', ensureAuthenticated, (req: Request, res: Respon
 });
 
 /**
- * Get all BRCs
+ * Get all BRCs with pending calculations
  */
-router.get('/brc', ensureAuthenticated, (req: Request, res: Response) => {
+router.get('/brc', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const brcData = [
-      {
-        brc: {
-          id: 1,
-          relatedPaymentId: 1,
-          certificateNumber: "BRC-2526-001",
-          issueDate: "2025-06-20",
-          bankName: "Bank of America",
-          documentUrl: "https://example.com/brc-2526-001.pdf",
-          createdBy: 1,
-          createdAt: "2025-06-20T15:30:00Z",
-          updatedAt: "2025-06-20T15:30:00Z"
-        },
-        payment: {
-          id: 1,
-          referenceNumber: "PAY-2526-001",
-          customerId: 1,
-          paymentDate: "2025-06-15",
-          amount: "125000.00",
-          paymentMethod: "Wire Transfer",
-          currency: "USD",
-          notes: "Payment for INV-2526-001",
-          isAdvancePayment: false,
-          allocationStatus: "Allocated",
-          createdBy: 1,
-          createdAt: "2025-06-15T10:00:00Z",
-          updatedAt: "2025-06-15T10:00:00Z"
-        }
-      },
-      {
-        brc: {
-          id: 2,
-          relatedPaymentId: 2,
-          certificateNumber: "BRC-2526-002",
-          issueDate: "2025-07-25",
-          bankName: "Bank of America",
-          documentUrl: "https://example.com/brc-2526-002.pdf",
-          createdBy: 1,
-          createdAt: "2025-07-25T11:45:00Z",
-          updatedAt: "2025-07-25T11:45:00Z"
-        },
-        payment: {
-          id: 2,
-          referenceNumber: "PAY-2526-002",
-          customerId: 2,
-          paymentDate: "2025-07-22",
-          amount: "100000.00",
-          paymentMethod: "Bank Transfer",
-          currency: "USD",
-          notes: "Payment for INV-2526-002",
-          isAdvancePayment: false,
-          allocationStatus: "Allocated",
-          createdBy: 1,
-          createdAt: "2025-07-22T10:00:00Z",
-          updatedAt: "2025-07-22T10:00:00Z"
-        }
-      }
-    ];
+    // Get all BRCs with related invoice data and pending amounts
+    const brcQuery = `
+      SELECT 
+        brc.id,
+        brc.certificate_number,
+        brc.issue_date,
+        brc.bank_name,
+        brc.amount as brc_amount,
+        brc.currency as brc_currency,
+        brc.document_path,
+        brc.notes,
+        brc.created_by,
+        brc.created_at,
+        brc.updated_at,
+        i.id as invoice_id,
+        i.invoice_number,
+        i.total_amount as invoice_amount,
+        i.currency as invoice_currency,
+        i.is_export,
+        i.brc_required,
+        i.brc_received,
+        c.name as customer_name,
+        (i.total_amount - COALESCE(brc.amount, 0)) as pending_amount
+      FROM bank_realization_certificates brc
+      LEFT JOIN invoices i ON brc.related_invoice_id = i.id
+      LEFT JOIN customers c ON i.customer_id = c.id
+      ORDER BY brc.created_at DESC
+    `;
+
+    const result = await pool.query(brcQuery);
     
+    // Transform the data to match the expected frontend format
+    const brcData = result.rows.map(row => ({
+      id: row.id,
+      certificateNumber: row.certificate_number,
+      issueDate: row.issue_date,
+      bankName: row.bank_name,
+      amount: row.brc_amount,
+      currency: row.brc_currency,
+      documentPath: row.document_path,
+      notes: row.notes,
+      createdBy: row.created_by,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      invoice: {
+        id: row.invoice_id,
+        invoiceNumber: row.invoice_number,
+        amount: row.invoice_amount,
+        currency: row.invoice_currency,
+        isExport: row.is_export,
+        brcRequired: row.brc_required,
+        brcReceived: row.brc_received,
+        customerName: row.customer_name
+      },
+      pendingAmount: row.pending_amount
+    }));
+
+    console.log(`Found ${brcData.length} BRC records`);
     res.json(brcData);
   } catch (error) {
     console.error('Error getting BRCs:', error);
     res.status(500).json({ error: 'Failed to get BRCs' });
+  }
+});
+
+/**
+ * Get BRC pending invoices (invoices with partial BRC or no BRC)
+ */
+router.get('/brc/pending', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const pendingQuery = `
+      SELECT 
+        i.id,
+        i.invoice_number,
+        i.total_amount as invoice_amount,
+        i.currency,
+        i.issue_date,
+        i.due_date,
+        c.name as customer_name,
+        COALESCE(SUM(brc.amount), 0) as brc_received_amount,
+        (i.total_amount - COALESCE(SUM(brc.amount), 0)) as brc_pending_amount
+      FROM invoices i
+      LEFT JOIN customers c ON i.customer_id = c.id
+      LEFT JOIN bank_realization_certificates brc ON i.id = brc.related_invoice_id
+      WHERE i.is_export = true 
+        AND i.brc_required = true
+        AND (i.total_amount - COALESCE(SUM(brc.amount), 0)) > 0
+      GROUP BY i.id, i.invoice_number, i.total_amount, i.currency, i.issue_date, i.due_date, c.name
+      HAVING (i.total_amount - COALESCE(SUM(brc.amount), 0)) > 0
+      ORDER BY i.issue_date DESC
+    `;
+
+    const result = await pool.query(pendingQuery);
+    
+    const pendingInvoices = result.rows.map(row => ({
+      id: row.id,
+      invoiceNumber: row.invoice_number,
+      invoiceAmount: row.invoice_amount,
+      currency: row.currency,
+      issueDate: row.issue_date,
+      dueDate: row.due_date,
+      customerName: row.customer_name,
+      brcReceivedAmount: row.brc_received_amount,
+      brcPendingAmount: row.brc_pending_amount
+    }));
+
+    console.log(`Found ${pendingInvoices.length} invoices with pending BRC amounts`);
+    res.json(pendingInvoices);
+  } catch (error) {
+    console.error('Error getting BRC pending invoices:', error);
+    res.status(500).json({ error: 'Failed to get BRC pending invoices' });
   }
 });
 
