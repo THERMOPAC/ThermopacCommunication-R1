@@ -39,7 +39,7 @@ import {
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { AlertCircle, Download, ArrowUpDown, Info, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, Download, ArrowUpDown, Info, CheckCircle2, Edit2, Trash2, Pencil } from 'lucide-react';
 
 // Define allocation schema
 const allocationSchema = z.object({
@@ -53,7 +53,13 @@ const allocationSchema = z.object({
   comment: z.string().optional()
 });
 
+// Define edit allocation schema
+const editAllocationSchema = z.object({
+  amount: z.number().min(0.01, 'Amount must be greater than 0')
+});
+
 type AllocationFormValues = z.infer<typeof allocationSchema>;
+type EditAllocationFormValues = z.infer<typeof editAllocationSchema>;
 
 // Payment type definition
 type Payment = {
@@ -103,6 +109,10 @@ export default function PaymentAllocationPage() {
   const [allocationsDialogOpen, setAllocationsDialogOpen] = useState(false);
   const [viewPaymentId, setViewPaymentId] = useState<number | null>(null);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const [editAllocationId, setEditAllocationId] = useState<number | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteAllocationId, setDeleteAllocationId] = useState<number | null>(null);
   const { toast } = useToast();
 
   // Format currency values
@@ -121,6 +131,14 @@ export default function PaymentAllocationPage() {
       paymentId: 0,
       invoices: [],
       comment: ''
+    }
+  });
+
+  // Setup edit form
+  const editForm = useForm<EditAllocationFormValues>({
+    resolver: zodResolver(editAllocationSchema),
+    defaultValues: {
+      amount: 0
     }
   });
 
@@ -300,6 +318,87 @@ export default function PaymentAllocationPage() {
     }
   });
 
+  // Edit allocation mutation
+  const editAllocationMutation = useMutation({
+    mutationFn: async (data: { id: number; amount: number }) => {
+      const response = await apiRequest(`/api/finance/allocations/${data.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ amount: data.amount }),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Failed to update allocation');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Allocation updated successfully'
+      });
+      
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/allocations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/unallocated-advances'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/payments'] });
+      
+      // Close dialog
+      setEditDialogOpen(false);
+      setEditAllocationId(null);
+      editForm.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update allocation',
+        variant: 'destructive'
+      });
+    }
+  });
+
+  // Delete allocation mutation
+  const deleteAllocationMutation = useMutation({
+    mutationFn: async (allocationId: number) => {
+      const response = await apiRequest(`/api/finance/allocations/${allocationId}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Failed to delete allocation');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Allocation deleted successfully'
+      });
+      
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/allocations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/unallocated-advances'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/payments'] });
+      
+      // Close dialog
+      setDeleteConfirmOpen(false);
+      setDeleteAllocationId(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete allocation',
+        variant: 'destructive'
+      });
+    }
+  });
+
   // Handle form submission
   const onSubmit = (values: AllocationFormValues) => {
     // Check if total allocation exceeds remaining amount
@@ -326,6 +425,36 @@ export default function PaymentAllocationPage() {
 
     console.log('Submitting allocation:', values);
     allocateMutation.mutate(values);
+  };
+
+  // Handle edit allocation submission
+  const onEditSubmit = (values: EditAllocationFormValues) => {
+    if (editAllocationId) {
+      editAllocationMutation.mutate({
+        id: editAllocationId,
+        amount: values.amount
+      });
+    }
+  };
+
+  // Handle edit allocation click
+  const handleEditAllocation = (allocation: Allocation) => {
+    setEditAllocationId(allocation.id);
+    editForm.setValue('amount', allocation.amount);
+    setEditDialogOpen(true);
+  };
+
+  // Handle delete allocation click
+  const handleDeleteAllocation = (allocation: Allocation) => {
+    setDeleteAllocationId(allocation.id);
+    setDeleteConfirmOpen(true);
+  };
+
+  // Confirm delete allocation
+  const confirmDeleteAllocation = () => {
+    if (deleteAllocationId) {
+      deleteAllocationMutation.mutate(deleteAllocationId);
+    }
   };
 
   // Reset allocation form
@@ -412,6 +541,18 @@ export default function PaymentAllocationPage() {
       return [];
     }
   };
+
+  // Query to fetch all allocations for management
+  const { data: allocationsData, isLoading: allocationsLoading } = useQuery({
+    queryKey: ['/api/finance/allocations'],
+    queryFn: async () => {
+      const response = await fetch('/api/finance/allocations');
+      if (!response.ok) {
+        throw new Error('Failed to fetch allocations');
+      }
+      return await response.json();
+    }
+  });
 
   return (
     <Layout>
@@ -683,30 +824,81 @@ export default function PaymentAllocationPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Allocation Date</TableHead>
-                        <TableHead>Payment Reference</TableHead>
-                        <TableHead>Invoice Number</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead>Created By</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sampleAllocations.map(allocation => (
-                        <TableRow key={allocation.id}>
-                          <TableCell>{format(new Date(allocation.allocationDate), 'dd/MM/yyyy')}</TableCell>
-                          <TableCell className="font-medium">{allocation.paymentReference}</TableCell>
-                          <TableCell>{allocation.invoiceNumber}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(allocation.amount)}</TableCell>
-                          <TableCell>{allocation.createdBy}</TableCell>
+                {allocationsLoading ? (
+                  <div className="text-center py-4">Loading allocations...</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Allocation Date</TableHead>
+                          <TableHead>Payment Reference</TableHead>
+                          <TableHead>Invoice Number</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                          <TableHead>Created By</TableHead>
+                          <TableHead className="text-center">Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {allocationsData?.allocations?.length > 0 ? (
+                          allocationsData.allocations.map((allocation: any) => (
+                            <TableRow key={allocation.id}>
+                              <TableCell>{format(new Date(allocation.allocationDate || allocation.createdAt), 'dd/MM/yyyy')}</TableCell>
+                              <TableCell className="font-medium">{allocation.paymentReference}</TableCell>
+                              <TableCell>{allocation.invoiceNumber}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(allocation.amount)}</TableCell>
+                              <TableCell>{allocation.createdBy || 'System'}</TableCell>
+                              <TableCell className="text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditAllocation({
+                                      id: allocation.id,
+                                      paymentId: allocation.paymentId,
+                                      invoiceId: allocation.invoiceId,
+                                      paymentReference: allocation.paymentReference,
+                                      invoiceNumber: allocation.invoiceNumber,
+                                      allocationDate: allocation.allocationDate || allocation.createdAt,
+                                      amount: allocation.amount,
+                                      createdBy: allocation.createdBy || 'System'
+                                    })}
+                                    disabled={editAllocationMutation.isPending}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteAllocation({
+                                      id: allocation.id,
+                                      paymentId: allocation.paymentId,
+                                      invoiceId: allocation.invoiceId,
+                                      paymentReference: allocation.paymentReference,
+                                      invoiceNumber: allocation.invoiceNumber,
+                                      allocationDate: allocation.allocationDate || allocation.createdAt,
+                                      amount: allocation.amount,
+                                      createdBy: allocation.createdBy || 'System'
+                                    })}
+                                    disabled={deleteAllocationMutation.isPending}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                              No allocations found
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -837,6 +1029,86 @@ export default function PaymentAllocationPage() {
                 }}
               >
                 Done
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Allocation Dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Allocation</DialogTitle>
+              <DialogDescription>
+                Modify the allocation amount
+              </DialogDescription>
+            </DialogHeader>
+            
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+                <FormField
+                  control={editForm.control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Allocation Amount</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="Enter amount"
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <DialogFooter>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setEditDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={editAllocationMutation.isPending}
+                  >
+                    {editAllocationMutation.isPending ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Delete</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this allocation? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setDeleteConfirmOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={confirmDeleteAllocation}
+                disabled={deleteAllocationMutation.isPending}
+              >
+                {deleteAllocationMutation.isPending ? 'Deleting...' : 'Delete'}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -1373,4 +1373,272 @@ router.get('/brc/:id/document', ensureAuthenticated, async (req: Request, res: R
   }
 });
 
+/**
+ * Get allocation history with pagination
+ */
+router.get('/allocations', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { page = 1, limit = 50, paymentId, invoiceId } = req.query;
+    const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+
+    let whereClause = '';
+    const queryParams = [];
+    let paramCount = 0;
+
+    if (paymentId) {
+      paramCount++;
+      whereClause += `WHERE pa.payment_id = $${paramCount}`;
+      queryParams.push(paymentId);
+    }
+
+    if (invoiceId) {
+      if (whereClause) {
+        paramCount++;
+        whereClause += ` AND pa.invoice_id = $${paramCount}`;
+      } else {
+        paramCount++;
+        whereClause += `WHERE pa.invoice_id = $${paramCount}`;
+      }
+      queryParams.push(invoiceId);
+    }
+
+    const allocationQuery = `
+      SELECT 
+        pa.id,
+        pa.payment_id,
+        pa.invoice_id,
+        pa.amount,
+        pa.created_at as allocation_date,
+        pa.created_by,
+        p.reference_number as payment_reference,
+        p.amount as payment_total_amount,
+        i.invoice_number,
+        i.total_amount as invoice_total_amount,
+        u.name as created_by_name
+      FROM payment_allocations pa
+      JOIN payments p ON pa.payment_id = p.id
+      JOIN invoices i ON pa.invoice_id = i.id
+      LEFT JOIN users u ON pa.created_by = u.id
+      ${whereClause}
+      ORDER BY pa.created_at DESC
+      LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
+    `;
+
+    queryParams.push(limit, offset);
+
+    const result = await pool.query(allocationQuery, queryParams);
+
+    res.json({
+      allocations: result.rows,
+      pagination: {
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        total: result.rows.length
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Error fetching allocations:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch allocations',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Update allocation amount
+ */
+router.put('/allocations/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { amount } = req.body;
+    const userId = req.user?.id || 1;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ 
+        error: 'Invalid amount. Amount must be greater than 0.' 
+      });
+    }
+
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+
+      // Get current allocation details
+      const currentAllocationQuery = `
+        SELECT 
+          pa.id,
+          pa.payment_id,
+          pa.invoice_id,
+          pa.amount as current_amount,
+          p.amount as payment_total_amount,
+          p.allocated_amount as payment_allocated,
+          i.total_amount as invoice_total,
+          i.paid_amount as invoice_paid
+        FROM payment_allocations pa
+        JOIN payments p ON pa.payment_id = p.id
+        JOIN invoices i ON pa.invoice_id = i.id
+        WHERE pa.id = $1
+      `;
+      
+      const currentResult = await client.query(currentAllocationQuery, [id]);
+      
+      if (currentResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Allocation not found' });
+      }
+
+      const allocation = currentResult.rows[0];
+      const oldAmount = parseFloat(allocation.current_amount);
+      const newAmount = parseFloat(amount);
+      const amountDifference = newAmount - oldAmount;
+
+      // Validate the new amount against payment remaining balance
+      const paymentRemainingBeforeUpdate = parseFloat(allocation.payment_total_amount) - parseFloat(allocation.payment_allocated) + oldAmount;
+      
+      if (newAmount > paymentRemainingBeforeUpdate) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: `Insufficient payment balance. Available: ${paymentRemainingBeforeUpdate}, Requested: ${newAmount}` 
+        });
+      }
+
+      // Validate the new amount against invoice outstanding balance  
+      const invoiceOutstandingBeforeUpdate = parseFloat(allocation.invoice_total) - parseFloat(allocation.invoice_paid) + oldAmount;
+      
+      if (newAmount > invoiceOutstandingBeforeUpdate) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: `Amount exceeds invoice outstanding. Available: ${invoiceOutstandingBeforeUpdate}, Requested: ${newAmount}` 
+        });
+      }
+
+      // Update the allocation amount
+      await client.query(
+        'UPDATE payment_allocations SET amount = $1, updated_at = NOW(), updated_by = $2 WHERE id = $3',
+        [newAmount, userId, id]
+      );
+
+      // Update payment allocated amount
+      const newPaymentAllocated = parseFloat(allocation.payment_allocated) + amountDifference;
+      await client.query(
+        'UPDATE payments SET allocated_amount = $1, updated_at = NOW() WHERE id = $2',
+        [newPaymentAllocated, allocation.payment_id]
+      );
+
+      // Update invoice paid amount
+      const newInvoicePaid = parseFloat(allocation.invoice_paid) + amountDifference;
+      await client.query(
+        'UPDATE invoices SET paid_amount = $1, updated_at = NOW() WHERE id = $2',
+        [newInvoicePaid, allocation.invoice_id]
+      );
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        message: 'Allocation updated successfully',
+        allocation: {
+          id: parseInt(id),
+          amount: newAmount,
+          oldAmount: oldAmount,
+          difference: amountDifference
+        }
+      });
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
+  } catch (error: any) {
+    console.error(`Error updating allocation ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to update allocation',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Delete allocation 
+ */
+router.delete('/allocations/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+
+      // Get allocation details before deletion
+      const allocationQuery = `
+        SELECT 
+          pa.payment_id,
+          pa.invoice_id,
+          pa.amount,
+          p.allocated_amount as payment_allocated,
+          i.paid_amount as invoice_paid
+        FROM payment_allocations pa
+        JOIN payments p ON pa.payment_id = p.id
+        JOIN invoices i ON pa.invoice_id = i.id
+        WHERE pa.id = $1
+      `;
+      
+      const result = await client.query(allocationQuery, [id]);
+      
+      if (result.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Allocation not found' });
+      }
+
+      const allocation = result.rows[0];
+      const allocationAmount = parseFloat(allocation.amount);
+
+      // Delete the allocation
+      await client.query('DELETE FROM payment_allocations WHERE id = $1', [id]);
+
+      // Update payment allocated amount
+      const newPaymentAllocated = parseFloat(allocation.payment_allocated) - allocationAmount;
+      await client.query(
+        'UPDATE payments SET allocated_amount = $1, updated_at = NOW() WHERE id = $2',
+        [newPaymentAllocated, allocation.payment_id]
+      );
+
+      // Update invoice paid amount
+      const newInvoicePaid = parseFloat(allocation.invoice_paid) - allocationAmount;
+      await client.query(
+        'UPDATE invoices SET paid_amount = $1, updated_at = NOW() WHERE id = $2',
+        [newInvoicePaid, allocation.invoice_id]
+      );
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        message: 'Allocation deleted successfully',
+        deletedAmount: allocationAmount
+      });
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
+  } catch (error: any) {
+    console.error(`Error deleting allocation ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to delete allocation',
+      message: error.message
+    });
+  }
+});
+
 export default router;
