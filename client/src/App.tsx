@@ -176,6 +176,7 @@ function Router() {
       <ProtectedRoute path="/finance/batch-advance-allocation" component={BatchAdvanceAllocationPage} />
       <ProtectedRoute path="/finance/payments/:id" component={() => <PaymentDetailPage />} />
       <ProtectedRoute path="/finance/brc" component={BrcPage} />
+      <ProtectedRoute path="/brc" component={() => <Redirect to="/finance/brc-management" />} />
       <ProtectedRoute path="/finance/brc-management" component={BrcManagementPage} />
       <ProtectedRoute path="/finance/reports/turnover" component={TurnoverReportPage} />
       <ProtectedRoute path="/finance/reports/outstanding" component={OutstandingReportPage} />

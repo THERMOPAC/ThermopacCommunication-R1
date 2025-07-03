@@ -96,6 +96,12 @@ export default function BrcManagementPage() {
     enabled: true
   });
 
+  // Fetch BRC pending invoices
+  const { data: brcPendingInvoices, isLoading: isLoadingPending } = useQuery({
+    queryKey: ['/api/finance/brc/pending'],
+    enabled: true
+  });
+
   // Filter invoices based on selections and tab
   const filteredData = useMemo(() => {
     if (!invoices || !Array.isArray(invoices)) {
@@ -120,10 +126,22 @@ export default function BrcManagementPage() {
     // Invoices that don't require BRC
     const notRequired = filtered.filter((inv: any) => inv.brcRequired === false);
 
-    const pending = brcRequiredInvoices.filter((invoice: any) => {
-      const hasBrc = brcRecords?.some((brc: any) => brc.related_invoice_id === invoice.id);
-      return !hasBrc;
-    });
+    // Use the new pending invoices data that calculates actual pending amounts
+    let pending = brcPendingInvoices || [];
+    
+    // Apply customer filter to pending invoices
+    if (selectedCustomerId && selectedCustomerId !== 'all') {
+      pending = pending.filter((inv: any) => {
+        // Find the corresponding invoice to get customer ID
+        const fullInvoice = invoices.find(i => i.id === inv.id);
+        return fullInvoice?.customerId.toString() === selectedCustomerId;
+      });
+    }
+
+    // Apply invoice filter to pending invoices
+    if (selectedInvoiceId && selectedInvoiceId !== 'all') {
+      pending = pending.filter((inv: any) => inv.id.toString() === selectedInvoiceId);
+    }
 
     const received = brcRecords?.filter((brc: any) => {
       if (selectedCustomerId && selectedCustomerId !== 'all' && brc.invoice?.customerId.toString() !== selectedCustomerId) return false;
@@ -132,7 +150,7 @@ export default function BrcManagementPage() {
     }) || [];
 
     return { pending, received, notRequired };
-  }, [invoices, brcRecords, selectedCustomerId, selectedInvoiceId]);
+  }, [invoices, brcRecords, brcPendingInvoices, selectedCustomerId, selectedInvoiceId]);
 
   // Create/Update BRC mutation
   const brcMutation = useMutation({
@@ -447,7 +465,7 @@ export default function BrcManagementPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {isLoadingInvoices ? (
+                {isLoadingInvoices || isLoadingPending ? (
                   <div className="flex items-center justify-center p-8">
                     <Loader2 className="h-8 w-8 animate-spin" />
                     <span className="ml-2">Loading invoices...</span>
@@ -460,7 +478,9 @@ export default function BrcManagementPage() {
                         <TableHead>SAP Invoice No</TableHead>
                         <TableHead>Customer</TableHead>
                         <TableHead>Date</TableHead>
-                        <TableHead>Amount</TableHead>
+                        <TableHead>Invoice Amount</TableHead>
+                        <TableHead>BRC Received</TableHead>
+                        <TableHead>BRC Pending</TableHead>
                         <TableHead>Invoice Type</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
@@ -468,7 +488,7 @@ export default function BrcManagementPage() {
                     <TableBody>
                       {filteredData.pending.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center text-muted-foreground">
+                          <TableCell colSpan={9} className="text-center text-muted-foreground">
                             No pending BRC invoices found
                           </TableCell>
                         </TableRow>
@@ -481,7 +501,13 @@ export default function BrcManagementPage() {
                             <TableCell>
                               {invoice.issueDate ? format(new Date(invoice.issueDate), 'dd/MM/yyyy') : '-'}
                             </TableCell>
-                            <TableCell>{parseFloat(invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {invoice.currency}</TableCell>
+                            <TableCell>{parseFloat(invoice.invoiceAmount || invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {invoice.currency}</TableCell>
+                            <TableCell className="text-green-600 font-medium">
+                              {parseFloat(invoice.brcReceivedAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {invoice.currency}
+                            </TableCell>
+                            <TableCell className="text-red-600 font-medium">
+                              {parseFloat(invoice.brcPendingAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {invoice.currency}
+                            </TableCell>
                             <TableCell>
                               <span 
                                 className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -503,7 +529,7 @@ export default function BrcManagementPage() {
                                     setFormData(prev => ({ 
                                       ...prev, 
                                       invoiceId: invoice.id,
-                                      amountRealized: parseFloat(invoice.totalAmount || 0),
+                                      amountRealized: parseFloat(invoice.brcPendingAmount || invoice.totalAmount || 0),
                                       currency: invoice.currency || 'USD'
                                     }));
                                     setEditingBrc(null);
