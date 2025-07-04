@@ -3240,13 +3240,29 @@ export default function MarketingToolsPage() {
         const netMargin = plTotalRevenue > 0 ? (netProfitWithFinancing / plTotalRevenue * 100) : 0;
         const ebitdaMargin = plTotalRevenue > 0 ? (ebitda / plTotalRevenue * 100) : 0;
         const plAnnualROI = parseFloat(roiData.annualROI || '0');
-        const plPaybackPeriod = parseFloat(roiData.paybackPeriod || '0');
+        
+        // CORRECTED PAYBACK PERIOD CALCULATION FOR PDF - Calculate directly instead of using stored value
+        // Formula: Total Investment ÷ Net Profit × 12 = Payback Period in Months
+        let plPaybackPeriodMonths = 0;
+        if (netProfitWithFinancing > 0) {
+          const includeFinancingCosts = roiData.includeFinancingCosts !== false;
+          const includeDepreciation = roiData.includeDepreciation !== false;
+          
+          if (includeFinancingCosts && includeDepreciation) {
+            // When both financing costs and depreciation are included, use Total Investment
+            plPaybackPeriodMonths = (invTotalInvestment / netProfitWithFinancing) * 12;
+          } else {
+            // For gross payback or partial scenarios, use CAPEX only
+            const capitalInvestmentOnly = step1Total + step2Total + step3Total;
+            plPaybackPeriodMonths = (capitalInvestmentOnly / netProfitWithFinancing) * 12;
+          }
+        }
 
         const metricsData = [
           { label: 'Gross Margin', value: `${grossMargin.toFixed(2)}%` },
           { label: 'Net Margin', value: `${netMargin.toFixed(2)}%` },
           { label: 'Annual ROI', value: `${plAnnualROI.toFixed(2)}%` },
-          { label: 'Payback Period', value: `${(plPaybackPeriod * 12).toFixed(1)} months` },
+          { label: 'Payback Period', value: `${plPaybackPeriodMonths.toFixed(1)} months` },
           { label: 'IRR', value: `${parseFloat(roiData.irr || '0').toFixed(2)}%` },
           { label: 'NPV', value: `${roiData.currency || 'USD'} ${parseFloat(roiData.npv || '0').toLocaleString()}` }
         ];
