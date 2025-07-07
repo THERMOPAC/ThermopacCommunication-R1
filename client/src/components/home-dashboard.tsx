@@ -445,6 +445,9 @@ export default function HomeDashboard() {
         
         {/* Right column */}
         <div className="space-y-6">
+          {/* Exchange Rate Manager */}
+          <ExchangeRateManager />
+          
           {/* User Performance */}
           <Card>
             <CardHeader className="pb-2">
@@ -602,9 +605,6 @@ export default function HomeDashboard() {
               )}
             </CardContent>
           </Card>
-          
-          {/* Exchange Rate Manager */}
-          <ExchangeRateManager />
           
           {/* Quick Links */}
           <Card>
