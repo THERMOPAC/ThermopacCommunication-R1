@@ -647,7 +647,15 @@ router.get('/reports/turnover-direct', async (req: Request, res: Response) => {
         COUNT(*) as "totalCount",
         COALESCE(SUM(total_amount), 0) as "totalInvoiced",
         COALESCE(SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END), 0) as "totalReceived",
-        COALESCE(SUM(outstanding_amount), 0) as "totalOutstanding"
+        COALESCE(SUM(outstanding_amount), 0) as "totalOutstanding",
+        COALESCE(SUM(
+          (SELECT SUM(amount_lc) FROM invoice_items WHERE invoice_items.invoice_id = invoices.id)
+        ), 0) as "totalInvoicedINR",
+        COALESCE(SUM(
+          CASE WHEN status = 'Paid' THEN 
+            (SELECT SUM(amount_lc) FROM invoice_items WHERE invoice_items.invoice_id = invoices.id)
+          ELSE 0 END
+        ), 0) as "totalReceivedINR"
       FROM invoices ${whereClause}
     `;
     
@@ -668,6 +676,14 @@ router.get('/reports/turnover-direct', async (req: Request, res: Response) => {
         COALESCE(SUM(total_amount), 0) as monthly_invoiced,
         COALESCE(SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END), 0) as monthly_received,
         COALESCE(SUM(outstanding_amount), 0) as monthly_outstanding,
+        COALESCE(SUM(
+          (SELECT SUM(amount_lc) FROM invoice_items WHERE invoice_items.invoice_id = invoices.id)
+        ), 0) as monthly_invoiced_inr,
+        COALESCE(SUM(
+          CASE WHEN status = 'Paid' THEN 
+            (SELECT SUM(amount_lc) FROM invoice_items WHERE invoice_items.invoice_id = invoices.id)
+          ELSE 0 END
+        ), 0) as monthly_received_inr,
         CASE 
           WHEN SUM(total_amount) > 0 
           THEN ROUND((SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END) * 100.0 / SUM(total_amount)), 2)
@@ -684,25 +700,31 @@ router.get('/reports/turnover-direct', async (req: Request, res: Response) => {
     
     console.log('📅 MONTHLY DATA:', monthlyData);
     
+    // Calculate outstanding INR using actual invoice amounts minus received amounts
+    const totalOutstandingINR = (parseFloat(data.totalInvoicedINR) || 0) - (parseFloat(data.totalReceivedINR) || 0);
+    
     // Format response for frontend
     const response = {
       reportDate: new Date().toISOString(),
       totalInvoiced: parseFloat(data.totalInvoiced) || 0,
       totalReceived: parseFloat(data.totalReceived) || 0,
       totalOutstanding: parseFloat(data.totalOutstanding) || 0,
-      totalInvoicedINR: (parseFloat(data.totalInvoiced) || 0) * 85.413325,
-      totalReceivedINR: (parseFloat(data.totalReceived) || 0) * 85.413325,
-      totalOutstandingINR: (parseFloat(data.totalOutstanding) || 0) * 85.413325,
-      monthlyData: monthlyData.map(row => ({
-        month: row.month_label.trim(),
-        invoicedAmount: parseFloat(row.monthly_invoiced) || 0,
-        receivedAmount: parseFloat(row.monthly_received) || 0,
-        outstanding: parseFloat(row.monthly_outstanding) || 0,
-        percentCollected: parseFloat(row.percent_collected) || 0,
-        invoicedAmountINR: (parseFloat(row.monthly_invoiced) || 0) * 85.413325,
-        receivedAmountINR: (parseFloat(row.monthly_received) || 0) * 85.413325,
-        outstandingINR: (parseFloat(row.monthly_outstanding) || 0) * 85.413325
-      }))
+      totalInvoicedINR: parseFloat(data.totalInvoicedINR) || 0,
+      totalReceivedINR: parseFloat(data.totalReceivedINR) || 0,
+      totalOutstandingINR: totalOutstandingINR,
+      monthlyData: monthlyData.map(row => {
+        const monthlyOutstandingINR = (parseFloat(row.monthly_invoiced_inr) || 0) - (parseFloat(row.monthly_received_inr) || 0);
+        return {
+          month: row.month_label.trim(),
+          invoicedAmount: parseFloat(row.monthly_invoiced) || 0,
+          receivedAmount: parseFloat(row.monthly_received) || 0,
+          outstanding: parseFloat(row.monthly_outstanding) || 0,
+          percentCollected: parseFloat(row.percent_collected) || 0,
+          invoicedAmountINR: parseFloat(row.monthly_invoiced_inr) || 0,
+          receivedAmountINR: parseFloat(row.monthly_received_inr) || 0,
+          outstandingINR: monthlyOutstandingINR
+        };
+      })
     };
     
     console.log('📤 SENDING DIRECT RESPONSE:', response);
