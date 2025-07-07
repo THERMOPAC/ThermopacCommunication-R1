@@ -185,8 +185,15 @@ router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response
     `;
     
     console.log('Executing monthly revenue query...');
-    const monthlyRevenueResult = await pool.query(monthlyRevenueQuery);
-    console.log('Monthly Revenue Query Result:', monthlyRevenueResult.rows);
+    let monthlyRevenueResult;
+    try {
+      monthlyRevenueResult = await pool.query(monthlyRevenueQuery);
+      console.log('Monthly Revenue Query Result:', monthlyRevenueResult.rows);
+      console.log('Monthly Revenue Query Row Count:', monthlyRevenueResult.rows.length);
+    } catch (monthlyError) {
+      console.error('Error in monthly revenue query:', monthlyError);
+      monthlyRevenueResult = { rows: [] };
+    }
     
     // Format response
     res.json({
@@ -234,6 +241,8 @@ router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response
         total: parseFloat(row.total || '0')
       }))
     });
+    
+    console.log('Dashboard response includes monthlyRevenue:', !!monthlyRevenueResult.rows.length);
   } catch (error) {
     console.error('Error retrieving dashboard data:', error);
     res.status(500).json({ 
