@@ -497,31 +497,26 @@ export default function MarketingDashboardPage() {
   });
 
   // Calculate total turnover combining:
-  // 1. All invoice values (filtered by selected Financial Year)
+  // 1. All invoice values (filtered by selected Financial Year) - using direct Amount LC
   // 2. All order values (not filtered by Financial Year)
   // 3. Expected Revenue (not filtered by Financial Year)
   const calculateTotalTurnover = () => {
     // If Finance data is loading or missing, only show expected revenue + orders
-    if (!expectedRevenueStats || !ordersData || !exchangeRates) {
+    if (!expectedRevenueStats || !ordersData) {
       return 0;
     }
     
-    // Convert finance data (totalInvoices) from string to number if needed
-    const invoicedAmountUSD = financeData?.totalInvoices?.amount 
-      ? parseFloat(financeData.totalInvoices.amount) 
+    // Use direct Amount LC from finance data instead of conversion
+    const invoicedAmountINR = financeData?.totalInvoices?.amountINR 
+      ? parseFloat(financeData.totalInvoices.amountINR) 
       : 0;
-    
-    // Convert invoiced amount from USD to INR using the same exchange rates
-    // as other components (1 USD = exchangeRates.INR INR)
-    const invoicedAmountINR = invoicedAmountUSD * exchangeRates.INR;
     
     // Log the calculation components
     console.log('Total Turnover Components:', {
       expectedRevenue: expectedRevenueStats.totalINR,
       ordersValue: ordersData.totalValueINR || 0,
-      invoicedAmountUSD: invoicedAmountUSD,
       invoicedAmountINR: invoicedAmountINR,
-      exchangeRate: exchangeRates.INR
+      note: 'Using direct Amount LC values from invoice items'
     });
     
     return expectedRevenueStats.totalINR + (ordersData.totalValueINR || 0) + invoicedAmountINR;
