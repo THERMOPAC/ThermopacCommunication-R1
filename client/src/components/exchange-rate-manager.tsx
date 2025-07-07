@@ -32,7 +32,7 @@ export default function ExchangeRateManager() {
   // Update exchange rate manually
   const updateMutation = useMutation({
     mutationFn: async (rate: number) => {
-      const response = await apiRequest('/api/exchange-rate', 'POST', { exchangeRate: rate });
+      const response = await apiRequest('POST', '/api/exchange-rate', { exchangeRate: rate });
       return response;
     },
     onSuccess: () => {
@@ -57,7 +57,7 @@ export default function ExchangeRateManager() {
   // Refresh from API
   const refreshMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('/api/exchange-rate/refresh', 'POST');
+      const response = await apiRequest('POST', '/api/exchange-rate/refresh');
       return response;
     },
     onSuccess: () => {
