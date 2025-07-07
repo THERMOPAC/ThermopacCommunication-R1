@@ -473,7 +473,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('❌ NO DATE FILTERING - fetching all invoices');
       }
       
-      // Get invoices with date filtering
+      // Get invoices with date filtering and direct INR amounts from invoice items
       const invoicesQuery = `
         SELECT 
           COUNT(*) as "totalCount",
@@ -484,7 +484,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           COALESCE(SUM(CASE WHEN status != 'Paid' THEN total_amount ELSE 0 END), 0) as "unpaidAmount",
           COALESCE(SUM(CASE WHEN status != 'Paid' THEN outstanding_amount ELSE 0 END), 0) as "outstandingAmount",
           COUNT(CASE WHEN due_date < CURRENT_DATE AND status != 'Paid' THEN 1 END) as "overdueCount",
-          COALESCE(SUM(CASE WHEN due_date < CURRENT_DATE AND status != 'Paid' THEN outstanding_amount ELSE 0 END), 0) as "overdueAmount"
+          COALESCE(SUM(CASE WHEN due_date < CURRENT_DATE AND status != 'Paid' THEN outstanding_amount ELSE 0 END), 0) as "overdueAmount",
+          COALESCE(SUM(
+            (SELECT SUM(amount_lc) FROM invoice_items WHERE invoice_items.invoice_id = invoices.id)
+          ), 0) as "totalAmountINR",
+          COALESCE(SUM(
+            CASE WHEN status = 'Paid' THEN 
+              (SELECT SUM(amount_lc) FROM invoice_items WHERE invoice_items.invoice_id = invoices.id)
+            ELSE 0 END
+          ), 0) as "paidAmountINR"
         FROM invoices 
         ${dateFilter}
       `;
@@ -534,11 +542,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const response = {
         totalInvoices: {
           count: Number(stats.totalCount) || 0,
-          amount: stats.totalAmount || '0.00'
+          amount: stats.totalAmount || '0.00',
+          amountINR: stats.totalAmountINR || '0.00'
         },
         paidInvoices: {
           count: Number(stats.paidCount) || 0,
-          amount: stats.paidAmount || '0'
+          amount: stats.paidAmount || '0',
+          amountINR: stats.paidAmountINR || '0.00'
         },
         unpaidInvoices: {
           count: Number(stats.unpaidCount) || 0,

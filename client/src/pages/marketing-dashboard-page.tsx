@@ -702,7 +702,7 @@ export default function MarketingDashboardPage() {
                           <div className="w-2 h-2 bg-amber-500 rounded-full mr-1"></div>
                           <span>Invoiced (FY Only)</span>
                         </div>
-                        <span className="font-medium text-right w-24">₹{((financeData?.totalInvoices?.amount ? parseFloat(financeData.totalInvoices.amount) * 85.413325 : 0) / 10000000).toFixed(2)} Cr</span>
+                        <span className="font-medium text-right w-24">₹{((financeData?.totalInvoices?.amountINR ? parseFloat(financeData.totalInvoices.amountINR) : 0) / 10000000).toFixed(2)} Cr</span>
                       </div>
                     </div>
                   </div>
