@@ -171,16 +171,7 @@ router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response
     const monthlyRevenueQuery = `
       SELECT 
         TO_CHAR(i.issue_date, 'Mon YYYY') as month,
-        COALESCE(SUM(
-          CASE 
-            WHEN i.currency = 'USD' THEN (
-              SELECT SUM(amount_lc) 
-              FROM invoice_items 
-              WHERE invoice_items.invoice_id = i.id
-            )
-            ELSE i.total_amount 
-          END
-        ), 0) as total
+        COALESCE(SUM(i.total_amount), 0) as total
       FROM invoices i
       WHERE i.issue_date >= CURRENT_DATE - INTERVAL '6 months'
         AND i.status = 'Paid'
@@ -193,7 +184,9 @@ router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response
         EXTRACT(MONTH FROM i.issue_date)
     `;
     
+    console.log('Executing monthly revenue query...');
     const monthlyRevenueResult = await pool.query(monthlyRevenueQuery);
+    console.log('Monthly Revenue Query Result:', monthlyRevenueResult.rows);
     
     // Format response
     res.json({
