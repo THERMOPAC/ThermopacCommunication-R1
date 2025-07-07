@@ -33,6 +33,7 @@ import {
 } from "recharts";
 import { formatRupees, formatDate, formatUSD } from "@/lib/utils";
 import { Link } from "wouter";
+import ExchangeRateManager from "@/components/exchange-rate-manager";
 
 // Define interfaces for type safety
 interface FinanceDashboardData {
@@ -126,6 +127,11 @@ export default function FinanceDashboardPage() {
               <Link href="/finance/payments/new">Record Payment</Link>
             </Button>
           </div>
+        </div>
+
+        {/* Exchange Rate Manager - Prominently positioned */}
+        <div className="mb-6">
+          <ExchangeRateManager />
         </div>
 
         <Tabs defaultValue="overview" value={selectedTab} onValueChange={setSelectedTab}>

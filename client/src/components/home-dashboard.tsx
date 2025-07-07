@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import WorkflowRecommendations from "@/components/workflow-recommendations";
-import ExchangeRateManager from "@/components/exchange-rate-manager";
+
 import { Link } from "wouter";
 import { 
   Calendar, 
@@ -445,9 +445,6 @@ export default function HomeDashboard() {
         
         {/* Right column */}
         <div className="space-y-6">
-          {/* Exchange Rate Manager */}
-          <ExchangeRateManager />
-          
           {/* User Performance */}
           <Card>
             <CardHeader className="pb-2">
