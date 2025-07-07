@@ -474,9 +474,28 @@ router.get('/dashboard/orders-in-hand', ensureAuthenticated, async (req: Request
     const orderValuesByCurrency: Record<string, number> = {};
     let totalOrderValueINR = 0;
     
-    // Fetch exchange rates
-    const exchangeRates = await fetch('https://open.er-api.com/v6/latest/USD').then(res => res.json());
-    const rates = exchangeRates.rates || { INR: 83.5, EUR: 0.93 };
+    // Fetch unified exchange rate from database
+    let rates = { INR: 83.5, EUR: 0.93 }; // fallback rates
+    try {
+      const { db } = await import('./db');
+      const { exchangeRateSettings } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+
+      const [setting] = await db
+        .select()
+        .from(exchangeRateSettings)
+        .where(eq(exchangeRateSettings.isActive, true))
+        .limit(1);
+
+      if (setting) {
+        rates.INR = parseFloat(setting.exchangeRate);
+        console.log('Using unified exchange rate from database:', rates.INR);
+      } else {
+        console.log('No unified exchange rate found, using fallback:', rates.INR);
+      }
+    } catch (error) {
+      console.log('Error fetching unified exchange rate, using fallback:', error);
+    }
     
     // Group by currency
     ordersInHand.forEach(order => {

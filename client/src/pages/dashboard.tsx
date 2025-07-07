@@ -5,6 +5,7 @@ import UserManagement from "@/components/user-management";
 import HomeDashboard from "@/components/home-dashboard";
 import TaskDashboard from "@/components/task-dashboard";
 import MessagesComponent from "@/components/messages";
+import ExchangeRateManager from "@/components/exchange-rate-manager";
 import {
   Mail,
   Phone,

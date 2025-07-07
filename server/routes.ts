@@ -583,6 +583,173 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // ==================== EXCHANGE RATE MANAGEMENT API ====================
+  
+  // Get current exchange rate
+  app.get('/api/exchange-rate', ensureAuthenticated, async (req: any, res: any) => {
+    try {
+      const { db } = await import('./db');
+      const { exchangeRateSettings } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+
+      const [setting] = await db
+        .select()
+        .from(exchangeRateSettings)
+        .where(eq(exchangeRateSettings.isActive, true))
+        .orderBy(exchangeRateSettings.updatedAt)
+        .limit(1);
+
+      if (!setting) {
+        // Return default fallback rate
+        return res.json({
+          exchangeRate: 83.5,
+          source: 'fallback',
+          lastUpdated: null
+        });
+      }
+
+      res.json({
+        exchangeRate: parseFloat(setting.exchangeRate),
+        source: setting.source,
+        lastUpdated: setting.apiLastUpdated || setting.updatedAt,
+        fromCurrency: setting.fromCurrency,
+        toCurrency: setting.toCurrency
+      });
+    } catch (error) {
+      console.error('Error fetching exchange rate:', error);
+      res.status(500).json({ error: 'Failed to fetch exchange rate' });
+    }
+  });
+
+  // Update exchange rate manually
+  app.post('/api/exchange-rate', ensureAuthenticated, async (req: any, res: any) => {
+    try {
+      const { exchangeRate } = req.body;
+      const userId = req.user?.id;
+
+      if (!exchangeRate || exchangeRate <= 0) {
+        return res.status(400).json({ error: 'Valid exchange rate is required' });
+      }
+
+      const { db } = await import('./db');
+      const { exchangeRateSettings } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+
+      // Update or insert the exchange rate
+      const [updated] = await db
+        .update(exchangeRateSettings)
+        .set({
+          exchangeRate: exchangeRate.toString(),
+          source: 'manual',
+          updatedBy: userId,
+          updatedAt: new Date()
+        })
+        .where(eq(exchangeRateSettings.isActive, true))
+        .returning();
+
+      if (!updated) {
+        // Insert new record if none exists
+        const [inserted] = await db
+          .insert(exchangeRateSettings)
+          .values({
+            fromCurrency: 'USD',
+            toCurrency: 'INR',
+            exchangeRate: exchangeRate.toString(),
+            source: 'manual',
+            updatedBy: userId,
+            isActive: true
+          })
+          .returning();
+
+        return res.json({
+          success: true,
+          exchangeRate: parseFloat(inserted.exchangeRate),
+          source: inserted.source,
+          message: 'Exchange rate updated successfully'
+        });
+      }
+
+      res.json({
+        success: true,
+        exchangeRate: parseFloat(updated.exchangeRate),
+        source: updated.source,
+        message: 'Exchange rate updated successfully'
+      });
+    } catch (error) {
+      console.error('Error updating exchange rate:', error);
+      res.status(500).json({ error: 'Failed to update exchange rate' });
+    }
+  });
+
+  // Refresh exchange rate from API
+  app.post('/api/exchange-rate/refresh', ensureAuthenticated, async (req: any, res: any) => {
+    try {
+      const userId = req.user?.id;
+
+      // Fetch from API
+      const response = await fetch('https://open.er-api.com/v6/latest/USD');
+      const data = await response.json();
+      
+      if (!data.rates || !data.rates.INR) {
+        throw new Error('Failed to fetch exchange rate from API');
+      }
+
+      const apiRate = data.rates.INR;
+
+      const { db } = await import('./db');
+      const { exchangeRateSettings } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+
+      // Update with API rate
+      const [updated] = await db
+        .update(exchangeRateSettings)
+        .set({
+          exchangeRate: apiRate.toString(),
+          source: 'api',
+          apiLastUpdated: new Date(),
+          updatedBy: userId,
+          updatedAt: new Date()
+        })
+        .where(eq(exchangeRateSettings.isActive, true))
+        .returning();
+
+      if (!updated) {
+        // Insert new record if none exists
+        const [inserted] = await db
+          .insert(exchangeRateSettings)
+          .values({
+            fromCurrency: 'USD',
+            toCurrency: 'INR',
+            exchangeRate: apiRate.toString(),
+            source: 'api',
+            apiLastUpdated: new Date(),
+            updatedBy: userId,
+            isActive: true
+          })
+          .returning();
+
+        return res.json({
+          success: true,
+          exchangeRate: parseFloat(inserted.exchangeRate),
+          source: inserted.source,
+          apiLastUpdated: inserted.apiLastUpdated,
+          message: 'Exchange rate refreshed from API'
+        });
+      }
+
+      res.json({
+        success: true,
+        exchangeRate: parseFloat(updated.exchangeRate),
+        source: updated.source,
+        apiLastUpdated: updated.apiLastUpdated,
+        message: 'Exchange rate refreshed from API'
+      });
+    } catch (error) {
+      console.error('Error refreshing exchange rate:', error);
+      res.status(500).json({ error: 'Failed to refresh exchange rate from API' });
+    }
+  });
+
   // Set up finance report routes FIRST to ensure they take precedence over general finance routes
   app.use('/api/finance/reports', financeReportRouter);
   console.log('Finance report routes registered at /api/finance/reports');

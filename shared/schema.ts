@@ -3252,6 +3252,43 @@ export const wpsDocumentSchema = createInsertSchema(wpsDocuments)
 // Export WPS document types
 export type WpsDocument = typeof wpsDocuments.$inferSelect;
 
+// Exchange Rate Settings table for unified currency conversion
+export const exchangeRateSettings = pgTable('exchange_rate_settings', {
+  id: serial('id').primaryKey(),
+  fromCurrency: varchar('from_currency', { length: 3 }).notNull().default('USD'),
+  toCurrency: varchar('to_currency', { length: 3 }).notNull().default('INR'),
+  exchangeRate: decimal('exchange_rate', { precision: 10, scale: 4 }).notNull(),
+  source: varchar('source', { length: 50 }).notNull().default('manual'), // 'api' or 'manual'
+  apiLastUpdated: timestamp('api_last_updated'),
+  isActive: boolean('is_active').notNull().default(true),
+  updatedBy: integer('updated_by').references(() => users.id),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+// Exchange Rate Settings relations
+export const exchangeRateSettingsRelations = relations(exchangeRateSettings, ({ one }) => ({
+  updatedByUser: one(users, {
+    fields: [exchangeRateSettings.updatedBy],
+    references: [users.id],
+  }),
+}));
+
+// Exchange Rate Settings schema for validation
+export const exchangeRateSettingSchema = createInsertSchema(exchangeRateSettings)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    fromCurrency: z.string().length(3).toUpperCase(),
+    toCurrency: z.string().length(3).toUpperCase(),
+    exchangeRate: z.number().positive(),
+    source: z.enum(['api', 'manual']),
+    isActive: z.boolean().default(true),
+  });
+
+// Export Exchange Rate Setting types
+export type ExchangeRateSetting = typeof exchangeRateSettings.$inferSelect;
+export type InsertExchangeRateSetting = z.infer<typeof exchangeRateSettingSchema>;
+
 // Material Identification tables
 export const materialIdentification = pgTable('material_identification', {
   id: serial('id').primaryKey(),

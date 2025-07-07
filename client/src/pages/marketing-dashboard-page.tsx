@@ -45,7 +45,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { fetchExchangeRates, convertCurrency, formatCurrency, formatINRInCrores } from "@/lib/currencyConverter";
+import { convertCurrency, formatCurrency, formatINRInCrores } from "@/lib/currencyConverter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 
@@ -106,9 +106,12 @@ export default function MarketingDashboardPage() {
   const [selectedPreset, setSelectedPreset] = useState("current");
   
   // State for currency conversion
-  const [exchangeRates, setExchangeRates] = useState(null);
-  const [isLoadingRates, setIsLoadingRates] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(null);
+  // Fetch unified exchange rate from database
+  const { data: exchangeRateData } = useQuery({
+    queryKey: ["/api/exchange-rate"],
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
+  });
+
   
   // Define types for leads data
   type Lead = {
@@ -224,23 +227,12 @@ export default function MarketingDashboardPage() {
     refetchOnWindowFocus: false
   });
   
-  // Fetch exchange rates on component mount
-  useEffect(() => {
-    const loadExchangeRates = async () => {
-      setIsLoadingRates(true);
-      try {
-        const rates = await fetchExchangeRates();
-        setExchangeRates(rates);
-        setLastUpdated(new Date());
-      } catch (error) {
-        console.error("Failed to fetch exchange rates:", error);
-      } finally {
-        setIsLoadingRates(false);
-      }
-    };
-    
-    loadExchangeRates();
-  }, []);
+  // Use unified exchange rate from database
+  const exchangeRates = exchangeRateData ? { 
+    INR: exchangeRateData.exchangeRate,
+    USD: 1, // Base currency
+    EUR: 0.93 // Keep EUR rate for now
+  } : null;
 
   // Convert leads to source distribution data
   const leadSourceData = React.useMemo(() => {
