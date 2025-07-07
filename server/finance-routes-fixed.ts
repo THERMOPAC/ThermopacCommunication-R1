@@ -1702,4 +1702,46 @@ router.delete('/allocations/:id', ensureAuthenticated, async (req: Request, res:
   }
 });
 
+/**
+ * Get monthly revenue data for dashboard
+ */
+router.get('/monthly-revenue', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    console.log('TEST: Executing monthly revenue query...');
+    
+    const monthlyRevenueQuery = `
+      SELECT 
+        TO_CHAR(i.issue_date, 'Mon YYYY') as month,
+        COALESCE(SUM(i.total_amount), 0) as total
+      FROM invoices i
+      WHERE i.issue_date >= CURRENT_DATE - INTERVAL '6 months'
+        AND i.status = 'Paid'
+      GROUP BY 
+        TO_CHAR(i.issue_date, 'Mon YYYY'),
+        EXTRACT(YEAR FROM i.issue_date),
+        EXTRACT(MONTH FROM i.issue_date)
+      ORDER BY 
+        EXTRACT(YEAR FROM i.issue_date),
+        EXTRACT(MONTH FROM i.issue_date)
+    `;
+    
+    const result = await pool.query(monthlyRevenueQuery);
+    
+    console.log('TEST: Monthly Revenue Result:', result.rows);
+    
+    res.json({
+      success: true,
+      data: result.rows,
+      count: result.rows.length,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('TEST: Error in monthly revenue query:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error instanceof Error ? error.message : String(error) 
+    });
+  }
+});
+
 export default router;

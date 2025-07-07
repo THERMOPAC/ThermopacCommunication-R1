@@ -73,6 +73,11 @@ export default function FinanceDashboardPage() {
     retry: 1
   });
 
+  // Separate query for monthly revenue data
+  const { data: monthlyRevenueData, isLoading: monthlyLoading } = useQuery({
+    queryKey: ['/api/finance/monthly-revenue'],
+  });
+
   const [selectedTab, setSelectedTab] = useState("overview");
 
   if (isLoading) {
@@ -106,7 +111,7 @@ export default function FinanceDashboardPage() {
     );
   }
 
-  const monthlyData = data?.monthlyRevenue?.map((month) => ({
+  const monthlyData = monthlyRevenueData?.data?.map((month: any) => ({
     name: month.month,
     revenue: Number(month.total)
   })) || [];
