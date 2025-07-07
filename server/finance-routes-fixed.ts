@@ -88,6 +88,10 @@ router.get('/brc', ensureAuthenticated, async (req: Request, res: Response) => {
  */
 router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    // Set cache control headers to prevent caching
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     // Get invoices from database
     const invoicesQuery = `
       SELECT 
@@ -243,6 +247,7 @@ router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response
     });
     
     console.log('Dashboard response includes monthlyRevenue:', !!monthlyRevenueResult.rows.length);
+    console.log('Dashboard API response generated at:', new Date().toISOString());
   } catch (error) {
     console.error('Error retrieving dashboard data:', error);
     res.status(500).json({ 
