@@ -167,6 +167,34 @@ router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response
     
     const recentPaymentsResult = await pool.query(recentPaymentsQuery);
     
+    // Get monthly revenue data for the last 6 months
+    const monthlyRevenueQuery = `
+      SELECT 
+        TO_CHAR(i.issue_date, 'Mon YYYY') as month,
+        COALESCE(SUM(
+          CASE 
+            WHEN i.currency = 'USD' THEN (
+              SELECT SUM(amount_lc) 
+              FROM invoice_items 
+              WHERE invoice_items.invoice_id = i.id
+            )
+            ELSE i.total_amount 
+          END
+        ), 0) as total
+      FROM invoices i
+      WHERE i.issue_date >= CURRENT_DATE - INTERVAL '6 months'
+        AND i.status = 'Paid'
+      GROUP BY 
+        TO_CHAR(i.issue_date, 'Mon YYYY'),
+        EXTRACT(YEAR FROM i.issue_date),
+        EXTRACT(MONTH FROM i.issue_date)
+      ORDER BY 
+        EXTRACT(YEAR FROM i.issue_date),
+        EXTRACT(MONTH FROM i.issue_date)
+    `;
+    
+    const monthlyRevenueResult = await pool.query(monthlyRevenueQuery);
+    
     // Format response
     res.json({
       totalInvoices: {
@@ -207,6 +235,10 @@ router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response
         ...row,
         paymentDate: row.paymentDate ? new Date(row.paymentDate).toISOString().split('T')[0] : '',
         amount: row.amount ? row.amount.toString() : '0.00'
+      })),
+      monthlyRevenue: monthlyRevenueResult.rows.map(row => ({
+        month: row.month,
+        total: parseFloat(row.total || '0')
       }))
     });
   } catch (error) {
