@@ -354,31 +354,34 @@ export default function PayrollManagementPage() {
     }
   }, [basicSalary, salaryType, workingHoursPerDay, overtimeHours, otRate, actualDays, paidDays, form]);
 
-  // Stabilized event handlers to prevent input recreation
-  const handleFieldBlur = useCallback(() => {
-    // Sync calculated values with form on blur to ensure they are saved
-    setTimeout(() => {
-      form.setValue('employeePfContribution', calculatedValues.employeePfContribution, { shouldValidate: false });
-      form.setValue('employerPfContribution', calculatedValues.employerPfContribution, { shouldValidate: false });
-      form.setValue('employeeEsicContribution', calculatedValues.employeeEsicContribution, { shouldValidate: false });
-      form.setValue('employerEsicContribution', calculatedValues.employerEsicContribution, { shouldValidate: false });
-      form.setValue('gratuityCost', calculatedValues.gratuityCost, { shouldValidate: false });
-      form.setValue('takeHomeSalary', calculatedValues.takeHomeSalary, { shouldValidate: false });
-      form.setValue('ctcMonthly', calculatedValues.ctcMonthly, { shouldValidate: false });
-      form.setValue('ctcYearly', calculatedValues.ctcYearly, { shouldValidate: false });
-      form.setValue('groupInsurance', calculatedValues.groupInsurance, { shouldValidate: false });
-      
-      // Set allowance percentages for display
-      form.setValue('houseRentAllowance', calculatedValues.houseRentAllowance, { shouldValidate: false });
-      form.setValue('conveyance', calculatedValues.conveyance, { shouldValidate: false });
-      form.setValue('lta', calculatedValues.lta, { shouldValidate: false });
-      form.setValue('specialAllowance', calculatedValues.specialAllowance, { shouldValidate: false });
-      form.setValue('supplementaryAllowance', calculatedValues.supplementaryAllowance, { shouldValidate: false });
-    }, 100);
+  // Manual sync function to update form values only when needed (on save)
+  const syncCalculatedToForm = useCallback(() => {
+    // Only sync calculated values to form when explicitly called (not during live typing)
+    form.setValue('employeePfContribution', calculatedValues.employeePfContribution, { shouldValidate: false });
+    form.setValue('employerPfContribution', calculatedValues.employerPfContribution, { shouldValidate: false });
+    form.setValue('employeeEsicContribution', calculatedValues.employeeEsicContribution, { shouldValidate: false });
+    form.setValue('employerEsicContribution', calculatedValues.employerEsicContribution, { shouldValidate: false });
+    form.setValue('gratuityCost', calculatedValues.gratuityCost, { shouldValidate: false });
+    form.setValue('takeHomeSalary', calculatedValues.takeHomeSalary, { shouldValidate: false });
+    form.setValue('ctcMonthly', calculatedValues.ctcMonthly, { shouldValidate: false });
+    form.setValue('ctcYearly', calculatedValues.ctcYearly, { shouldValidate: false });
+    form.setValue('groupInsurance', calculatedValues.groupInsurance, { shouldValidate: false });
+    
+    // Set allowance percentages for display
+    form.setValue('houseRentAllowance', calculatedValues.houseRentAllowance, { shouldValidate: false });
+    form.setValue('conveyance', calculatedValues.conveyance, { shouldValidate: false });
+    form.setValue('lta', calculatedValues.lta, { shouldValidate: false });
+    form.setValue('specialAllowance', calculatedValues.specialAllowance, { shouldValidate: false });
+    form.setValue('supplementaryAllowance', calculatedValues.supplementaryAllowance, { shouldValidate: false });
   }, [calculatedValues, form]);
 
   const onSubmit = (values: SalaryFormValues) => {
-    saveSalaryMutation.mutate(values);
+    // Sync calculated values to form before submitting
+    syncCalculatedToForm();
+    
+    // Use updated form values for submission
+    const updatedValues = form.getValues();
+    saveSalaryMutation.mutate(updatedValues);
   };
 
   const handleEdit = (config: SalaryConfig) => {
@@ -596,11 +599,7 @@ export default function PayrollManagementPage() {
                         key="basicSalary"
                         placeholder="Enter basic salary" 
                         autoComplete="off"
-                        {...field} 
-                        onBlur={(e) => {
-                          field.onBlur(e);
-                          handleFieldBlur();
-                        }}
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
@@ -619,11 +618,7 @@ export default function PayrollManagementPage() {
                         placeholder="30" 
                         autoComplete="off"
                         {...field} 
-                        defaultValue="30" 
-                        onBlur={(e) => {
-                          field.onBlur(e);
-                          handleFieldBlur();
-                        }}
+                        defaultValue="30"
                       />
                     </FormControl>
                     <FormMessage />
@@ -642,11 +637,7 @@ export default function PayrollManagementPage() {
                         placeholder="30" 
                         autoComplete="off"
                         {...field} 
-                        defaultValue="30" 
-                        onBlur={(e) => {
-                          field.onBlur(e);
-                          handleFieldBlur();
-                        }}
+                        defaultValue="30"
                       />
                     </FormControl>
                     <FormMessage />
@@ -665,11 +656,7 @@ export default function PayrollManagementPage() {
                         placeholder="8" 
                         autoComplete="off"
                         {...field} 
-                        defaultValue="8" 
-                        onBlur={(e) => {
-                          field.onBlur(e);
-                          handleFieldBlur();
-                        }}
+                        defaultValue="8"
                       />
                     </FormControl>
                     <FormMessage />
@@ -708,10 +695,7 @@ export default function PayrollManagementPage() {
                   <FormItem>
                     <FormLabel>OT Rate {salaryType === 'daily' ? '' : '(Daily Salary Only)'}</FormLabel>
                     <Select 
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        setTimeout(() => handleFieldBlur(), 0);
-                      }} 
+                      onValueChange={field.onChange}
                       defaultValue={field.value || '1.0'}
                       disabled={salaryType !== 'daily'}
                     >
