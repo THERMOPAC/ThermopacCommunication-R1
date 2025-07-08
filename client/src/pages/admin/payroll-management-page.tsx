@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
@@ -224,46 +224,51 @@ export default function PayrollManagementPage() {
     },
   });
 
-  // Keep only OT rate state (needed for select component)
+  // Watch form values for calculation
+  const basicSalary = form.watch('basicSalary');
+  const salaryType = form.watch('salaryType') || 'monthly';
+  const workingHoursPerDay = form.watch('workingHoursPerDay') || '8';
+  const overtimeHours = form.watch('overtimeHours') || '0';
+  const otRate = form.watch('otRate') || '1.0';
+  const actualDays = form.watch('actualDays') || '30';
+  const paidDays = form.watch('paidDays') || '30';
 
+  // Custom hook for debounced value
+  const useDebounced = (value: string, delay: number) => {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+    
+    useEffect(() => {
+      const handler = setTimeout(() => {
+        setDebouncedValue(value);
+      }, delay);
+      
+      return () => {
+        clearTimeout(handler);
+      };
+    }, [value, delay]);
+    
+    return debouncedValue;
+  };
 
-  // Removed useDebounced hook to prevent reactive behavior
-
-  // State to hold calculated values
-  const [calculatedValues, setCalculatedValues] = useState({
-    houseRentAllowance: '0',
-    conveyance: '0', 
-    lta: '0',
-    specialAllowance: '0',
-    supplementaryAllowance: '0',
-    employeePfContribution: '0',
-    employerPfContribution: '0',
-    employeeEsicContribution: '0',
-    employerEsicContribution: '0',
-    gratuityCost: '0',
-    proRatedBasic: '0',
-    overtimePay: '0',
-    grossSalary: '0',
-    takeHomeSalary: '0',
-    ctcMonthly: '0',
-    ctcYearly: '0'
-  });
-
-  // Manual calculation function triggered by Update button
-  const calculateSalaryComponents = () => {
-    const formValues = form.getValues();
-    const basicAmount = parseFloat(formValues.basicSalary || '0');
+  // Debounced values to prevent calculations while typing
+  const debouncedBasicSalary = useDebounced(basicSalary, 500);
+  const debouncedOvertimeHours = useDebounced(overtimeHours, 500);
+  const debouncedWorkingHours = useDebounced(workingHoursPerDay, 500);
+  const debouncedPaidDays = useDebounced(paidDays, 500);
+  
+  useEffect(() => {
+    const basicAmount = parseFloat(debouncedBasicSalary || '0');
     if (basicAmount > 0) {
-      const actualDaysNum = parseFloat(formValues.actualDays || '30');
-      const paidDaysNum = parseFloat(formValues.paidDays || '30');
-      const workingHoursNum = parseFloat(formValues.workingHoursPerDay || '8');
-      const overtimeHoursNum = parseFloat(formValues.overtimeHours || '0');
-      const otRateNum = parseFloat(formValues.otRate || '1.0');
+      const actualDaysNum = parseFloat(actualDays || '30');
+      const paidDaysNum = parseFloat(debouncedPaidDays || '30');
+      const workingHoursNum = parseFloat(debouncedWorkingHours || '8');
+      const overtimeHoursNum = parseFloat(debouncedOvertimeHours || '0');
+      const otRateNum = parseFloat(otRate || '1.0');
       
       let proRatedBasic, overtimePay, grossSalary, employeePF, employerPF, employeeESIC, employerESIC, monthlyGratuityProvision;
       let hra = 0, conveyance = 0, lta = 0, special = 0, supplementary = 0;
       
-      if (formValues.salaryType === 'daily') {
+      if (salaryType === 'daily') {
         // 1️⃣ Gross Basic Salary for Daily workers
         const grossBasic = basicAmount * paidDaysNum;
         proRatedBasic = grossBasic;
@@ -331,56 +336,28 @@ export default function PayrollManagementPage() {
         monthlyGratuityProvision = basicAmount * 0.0481;
       }
       
-      // Update calculated values in state
-      setCalculatedValues({
-        houseRentAllowance: hra.toFixed(2),
-        conveyance: conveyance.toFixed(2),
-        lta: lta.toFixed(2),
-        specialAllowance: special.toFixed(2),
-        supplementaryAllowance: supplementary.toFixed(2),
-        employeePfContribution: employeePF.toFixed(2),
-        employerPfContribution: employerPF.toFixed(2),
-        employeeEsicContribution: employeeESIC.toFixed(2),
-        employerEsicContribution: employerESIC.toFixed(2),
-        gratuityCost: monthlyGratuityProvision.toFixed(2),
-        proRatedBasic: proRatedBasic.toFixed(2),
-        overtimePay: overtimePay.toFixed(2),
-        grossSalary: grossSalary.toFixed(2),
-        takeHomeSalary: (grossSalary - employeePF - employeeESIC).toFixed(2),
-        ctcMonthly: (grossSalary + employerPF + employerESIC + monthlyGratuityProvision).toFixed(2),
-        ctcYearly: ((grossSalary + employerPF + employerESIC + monthlyGratuityProvision) * 12).toFixed(2)
-      });
-
-      // Update form values for display
+      // Set all form values
       form.setValue('houseRentAllowance', hra.toFixed(2));
       form.setValue('conveyance', conveyance.toFixed(2));
       form.setValue('lta', lta.toFixed(2));
       form.setValue('specialAllowance', special.toFixed(2));
       form.setValue('supplementaryAllowance', supplementary.toFixed(2));
+      
       form.setValue('employeePfContribution', employeePF.toFixed(2));
       form.setValue('employerPfContribution', employerPF.toFixed(2));
       form.setValue('employeeEsicContribution', employeeESIC.toFixed(2));
       form.setValue('employerEsicContribution', employerESIC.toFixed(2));
       form.setValue('gratuityCost', monthlyGratuityProvision.toFixed(2));
       
-      // Set take-home and CTC values
-      form.setValue('takeHomeSalary', (grossSalary - employeePF - employeeESIC).toFixed(2));
-      form.setValue('ctcMonthly', (grossSalary + employerPF + employerESIC + monthlyGratuityProvision).toFixed(2));
-      form.setValue('ctcYearly', ((grossSalary + employerPF + employerESIC + monthlyGratuityProvision) * 12).toFixed(2));
+      // Store calculated values for summary display
+      form.setValue('proRatedBasic', proRatedBasic.toFixed(2));
+      form.setValue('overtimePay', overtimePay.toFixed(2));
+      form.setValue('grossSalary', grossSalary.toFixed(2));
     }
-  };
+  }, [debouncedBasicSalary, salaryType, actualDays, debouncedPaidDays, debouncedWorkingHours, debouncedOvertimeHours, otRate, form]);
 
   const onSubmit = (values: SalaryFormValues) => {
-    // Merge form values with calculated values
-    const finalValues = {
-      ...values,
-      ...calculatedValues,
-      // Convert calculated values back to string format
-      takeHomeSalary: calculatedValues.takeHomeSalary,
-      ctcMonthly: calculatedValues.ctcMonthly,
-      ctcYearly: calculatedValues.ctcYearly
-    };
-    saveSalaryMutation.mutate(finalValues);
+    saveSalaryMutation.mutate(values);
   };
 
   const handleEdit = (config: SalaryConfig) => {
@@ -504,17 +481,7 @@ export default function PayrollManagementPage() {
     };
   };
 
-  // Use calculated values from state instead of automatic calculations
-  const totals = {
-    grossSalary: parseFloat(calculatedValues.grossSalary || '0'),
-    totalDeductions: parseFloat(calculatedValues.employeePfContribution || '0') + parseFloat(calculatedValues.employeeEsicContribution || '0'),
-    takeHome: parseFloat(calculatedValues.takeHomeSalary || '0'),
-    employerContributions: parseFloat(calculatedValues.employerPfContribution || '0') + parseFloat(calculatedValues.employerEsicContribution || '0') + parseFloat(calculatedValues.gratuityCost || '0'),
-    ctcMonthly: parseFloat(calculatedValues.ctcMonthly || '0'),
-    ctcYearly: parseFloat(calculatedValues.ctcYearly || '0'),
-    effectiveBasic: parseFloat(calculatedValues.proRatedBasic || '0'),
-    overtimePay: parseFloat(calculatedValues.overtimePay || '0')
-  };
+  const totals = calculateTotals();
 
   const SalaryForm = () => (
     <Form {...form}>
@@ -601,22 +568,15 @@ export default function PayrollManagementPage() {
               <FormField
                 control={form.control}
                 name="basicSalary"
-                render={({ field }) => {
-                  console.log('Basic Salary input mounted');
-                  return (
-                    <FormItem>
-                      <FormLabel>Basic Salary *</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="Enter basic salary" 
-                          {...field}
-                          onChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  );
-                }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Basic Salary *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter basic salary" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
               <FormField
                 control={form.control}
@@ -625,15 +585,7 @@ export default function PayrollManagementPage() {
                   <FormItem>
                     <FormLabel>Actual Days (in Month)</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="30" 
-                        {...field} 
-                        defaultValue="30"
-                        onChange={(e) => {
-                          field.onChange(e);
-                          setActualDays(e.target.value);
-                        }}
-                      />
+                      <Input placeholder="30" {...field} defaultValue="30" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -646,11 +598,7 @@ export default function PayrollManagementPage() {
                   <FormItem>
                     <FormLabel>Paid Days</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="30" 
-                        {...field}
-                        onChange={field.onChange}
-                      />
+                      <Input placeholder="30" {...field} defaultValue="30" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -663,11 +611,7 @@ export default function PayrollManagementPage() {
                   <FormItem>
                     <FormLabel>Working Hours/Day</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="8" 
-                        {...field}
-                        onChange={field.onChange}
-                      />
+                      <Input placeholder="8" {...field} defaultValue="8" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -676,24 +620,21 @@ export default function PayrollManagementPage() {
               <FormField
                 control={form.control}
                 name="overtimeHours"
-                render={({ field }) => {
-                  const currentSalaryType = form.getValues('salaryType');
-                  return (
-                    <FormItem>
-                      <FormLabel>Overtime Hours {currentSalaryType === 'daily' ? '' : '(Daily Salary Only)'}</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="0" 
-                          {...field}
-                          disabled={currentSalaryType !== 'daily'}
-                          className={currentSalaryType !== 'daily' ? 'bg-gray-100 cursor-not-allowed' : ''}
-                          onChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  );
-                }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Overtime Hours {salaryType === 'daily' ? '' : '(Daily Salary Only)'}</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="0" 
+                        {...field} 
+                        defaultValue="0"
+                        disabled={salaryType !== 'daily'}
+                        className={salaryType !== 'daily' ? 'bg-gray-100 cursor-not-allowed' : ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
               <FormField
                 control={form.control}
@@ -702,10 +643,7 @@ export default function PayrollManagementPage() {
                   <FormItem>
                     <FormLabel>OT Rate {salaryType === 'daily' ? '' : '(Daily Salary Only)'}</FormLabel>
                     <Select 
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        setOtRate(value);
-                      }} 
+                      onValueChange={field.onChange} 
                       defaultValue={field.value || '1.0'}
                       disabled={salaryType !== 'daily'}
                     >
@@ -726,33 +664,21 @@ export default function PayrollManagementPage() {
               />
             </div>
             
-            {/* Manual Update Button */}
-            {parseFloat(form.getValues('basicSalary') || '0') > 0 && (
-              <div className="flex flex-col gap-4">
-                <Button 
-                  type="button" 
-                  onClick={calculateSalaryComponents}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white"
-                >
-                  <Calculator className="w-4 h-4 mr-2" />
-                  Update Calculations
-                </Button>
-                
-                {/* Total Compensation Display */}
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-blue-900">Total Compensation (2.5× Basic)</span>
-                    <span className="text-lg font-bold text-blue-700">
-                      ₹{(calculatedValues.houseRentAllowance && parseFloat(calculatedValues.houseRentAllowance) > 0) ? ((parseFloat(form.getValues('basicSalary') || '0') * 2.5).toLocaleString('en-IN', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                      })) : '0.00'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-blue-600 mt-1">
-                    Click "Update Calculations" to calculate allowances, PF, ESIC, etc.
-                  </p>
+            {/* Total Compensation Display */}
+            {parseFloat(basicSalary || '0') > 0 && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-blue-900">Total Compensation (2.5× Basic)</span>
+                  <span className="text-lg font-bold text-blue-700">
+                    ₹{((parseFloat(basicSalary || '0') * 2.5).toLocaleString('en-IN', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    }))}
+                  </span>
                 </div>
+                <p className="text-xs text-blue-600 mt-1">
+                  Auto-calculated allowances will be populated in the Allowances tab
+                </p>
               </div>
             )}
           </TabsContent>
@@ -768,7 +694,7 @@ export default function PayrollManagementPage() {
                     <FormControl>
                       <Input 
                         placeholder="0" 
-                        value={calculatedValues.houseRentAllowance}
+                        {...field} 
                         readOnly
                         className="bg-gray-50 cursor-not-allowed"
                       />
@@ -986,7 +912,7 @@ export default function PayrollManagementPage() {
             </div>
             
             {/* Total PF & ESIC Summary */}
-            {parseFloat(form.getValues('basicSalary') || '0') > 0 && (
+            {parseFloat(basicSalary || '0') > 0 && (
               <div className="mt-4 space-y-4">
                 {/* PF Summary */}
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -997,7 +923,7 @@ export default function PayrollManagementPage() {
                     <div className="flex justify-between">
                       <span className="text-green-700">Employee PF:</span>
                       <span className="font-medium text-green-800">
-                        ₹{(parseFloat(calculatedValues.employeePfContribution || '0')).toLocaleString('en-IN', {
+                        ₹{(parseFloat(form.watch('employeePfContribution') || '0')).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         })}
@@ -1006,7 +932,7 @@ export default function PayrollManagementPage() {
                     <div className="flex justify-between">
                       <span className="text-green-700">Employer PF:</span>
                       <span className="font-medium text-green-800">
-                        ₹{(parseFloat(calculatedValues.employerPfContribution || '0')).toLocaleString('en-IN', {
+                        ₹{(parseFloat(form.watch('employerPfContribution') || '0')).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         })}
@@ -1015,8 +941,8 @@ export default function PayrollManagementPage() {
                     <div className="flex justify-between border-l border-green-300 pl-4">
                       <span className="text-green-700 font-medium">Total PF:</span>
                       <span className="font-bold text-green-900">
-                        ₹{((parseFloat(calculatedValues.employeePfContribution || '0')) + 
-                            (parseFloat(calculatedValues.employerPfContribution || '0'))).toLocaleString('en-IN', {
+                        ₹{((parseFloat(form.watch('employeePfContribution') || '0')) + 
+                            (parseFloat(form.watch('employerPfContribution') || '0'))).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         })}
@@ -1037,7 +963,7 @@ export default function PayrollManagementPage() {
                     <div className="flex justify-between">
                       <span className="text-blue-700">Employee ESIC:</span>
                       <span className="font-medium text-blue-800">
-                        ₹{(parseFloat(calculatedValues.employeeEsicContribution || '0')).toLocaleString('en-IN', {
+                        ₹{(parseFloat(form.watch('employeeEsicContribution') || '0')).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         })}
@@ -1046,7 +972,7 @@ export default function PayrollManagementPage() {
                     <div className="flex justify-between">
                       <span className="text-blue-700">Employer ESIC:</span>
                       <span className="font-medium text-blue-800">
-                        ₹{(parseFloat(calculatedValues.employerEsicContribution || '0')).toLocaleString('en-IN', {
+                        ₹{(parseFloat(form.watch('employerEsicContribution') || '0')).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         })}
@@ -1055,8 +981,8 @@ export default function PayrollManagementPage() {
                     <div className="flex justify-between border-l border-blue-300 pl-4">
                       <span className="text-blue-700 font-medium">Total ESIC:</span>
                       <span className="font-bold text-blue-900">
-                        ₹{((parseFloat(calculatedValues.employeeEsicContribution || '0')) + 
-                            (parseFloat(calculatedValues.employerEsicContribution || '0'))).toLocaleString('en-IN', {
+                        ₹{((parseFloat(form.watch('employeeEsicContribution') || '0')) + 
+                            (parseFloat(form.watch('employerEsicContribution') || '0'))).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         })}
@@ -1077,16 +1003,16 @@ export default function PayrollManagementPage() {
                     <div className="flex justify-between">
                       <span className="text-orange-700">Basic Salary:</span>
                       <span className="font-medium text-orange-800">
-                        ₹{(calculatedValues.houseRentAllowance && parseFloat(calculatedValues.houseRentAllowance) > 0) ? (parseFloat(form.getValues('basicSalary') || '0')).toLocaleString('en-IN', {
+                        ₹{(parseFloat(basicSalary || '0')).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
-                        }) : '0.00'}
+                        })}
                       </span>
                     </div>
                     <div className="flex justify-between border-l border-orange-300 pl-4">
                       <span className="text-orange-700 font-medium">Monthly Provision (4.81%):</span>
                       <span className="font-bold text-orange-900">
-                        ₹{(parseFloat(calculatedValues.gratuityCost || '0')).toLocaleString('en-IN', {
+                        ₹{(parseFloat(form.watch('gratuityCost') || '0')).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         })}
@@ -1148,7 +1074,7 @@ export default function PayrollManagementPage() {
         </Tabs>
 
         {/* Comprehensive Payroll Summary */}
-        {parseFloat(form.getValues('basicSalary') || '0') > 0 && (
+        {parseFloat(basicSalary || '0') > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Comprehensive Payroll Summary</CardTitle>
@@ -1184,38 +1110,38 @@ export default function PayrollManagementPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-slate-600">Basic Salary (Original):</span>
-                      <span className="font-medium">₹{(calculatedValues.houseRentAllowance && parseFloat(calculatedValues.houseRentAllowance) > 0) ? (parseFloat(form.getValues('basicSalary') || '0')).toLocaleString('en-IN') : '0'}</span>
+                      <span className="font-medium">₹{(parseFloat(basicSalary || '0')).toLocaleString('en-IN')}</span>
                     </div>
-                    {parseFloat(paidDays) < parseFloat(actualDays) && salaryType === 'monthly' && (calculatedValues.houseRentAllowance && parseFloat(calculatedValues.houseRentAllowance) > 0) && (
+                    {parseFloat(paidDays) < parseFloat(actualDays) && salaryType === 'monthly' && (
                       <div className="flex justify-between">
                         <span className="text-slate-600">Pro-Rated Basic:</span>
-                        <span className="font-medium text-blue-600">₹{(parseFloat(calculatedValues.proRatedBasic || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                        <span className="font-medium text-blue-600">₹{((parseFloat(basicSalary || '0') / parseFloat(actualDays)) * parseFloat(paidDays)).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                       </div>
                     )}
                     <div className="flex justify-between">
                       <span className="text-slate-600">HRA (40%):</span>
-                      <span className="font-medium">₹{(parseFloat(calculatedValues.houseRentAllowance || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium">₹{(parseFloat(form.watch('houseRentAllowance') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Conveyance (30%):</span>
-                      <span className="font-medium">₹{(parseFloat(calculatedValues.conveyance || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium">₹{(parseFloat(form.watch('conveyance') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">LTA (20%):</span>
-                      <span className="font-medium">₹{(parseFloat(calculatedValues.lta || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium">₹{(parseFloat(form.watch('lta') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Special Allowance (30%):</span>
-                      <span className="font-medium">₹{(parseFloat(calculatedValues.specialAllowance || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium">₹{(parseFloat(form.watch('specialAllowance') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Supplementary (30%):</span>
-                      <span className="font-medium">₹{(parseFloat(calculatedValues.supplementaryAllowance || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium">₹{(parseFloat(form.watch('supplementaryAllowance') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     {salaryType === 'daily' && parseFloat(overtimeHours) > 0 && (
                       <div className="flex justify-between border-t pt-2">
                         <span className="text-slate-600">Overtime Pay:</span>
-                        <span className="font-medium text-green-600">₹{((parseFloat(form.getValues('basicSalary') || '0') / parseFloat(form.getValues('workingHoursPerDay'))) * parseFloat(form.getValues('otRate')) * parseFloat(form.getValues('overtimeHours'))).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                        <span className="font-medium text-green-600">₹{((parseFloat(basicSalary || '0') / parseFloat(workingHoursPerDay)) * parseFloat(otRate) * parseFloat(overtimeHours)).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                       </div>
                     )}
                   </div>
@@ -1227,16 +1153,16 @@ export default function PayrollManagementPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-slate-600">Employee PF (12%):</span>
-                      <span className="font-medium text-red-600">₹{(parseFloat(calculatedValues.employeePfContribution || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium text-red-600">₹{(parseFloat(form.watch('employeePfContribution') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Employee ESIC (0.75%):</span>
-                      <span className="font-medium text-red-600">₹{(parseFloat(calculatedValues.employeeEsicContribution || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium text-red-600">₹{(parseFloat(form.watch('employeeEsicContribution') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="border-t pt-2 mt-3">
                       <div className="flex justify-between font-medium">
                         <span className="text-slate-700">Total Deductions:</span>
-                        <span className="text-red-700">₹{((parseFloat(calculatedValues.employeePfContribution || '0')) + (parseFloat(calculatedValues.employeeEsicContribution || '0'))).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                        <span className="text-red-700">₹{((parseFloat(form.watch('employeePfContribution') || '0')) + (parseFloat(form.watch('employeeEsicContribution') || '0'))).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                       </div>
                     </div>
                   </div>
@@ -1248,20 +1174,20 @@ export default function PayrollManagementPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-slate-600">Employer PF (12%):</span>
-                      <span className="font-medium text-blue-600">₹{(parseFloat(calculatedValues.employerPfContribution || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium text-blue-600">₹{(parseFloat(form.watch('employerPfContribution') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Employer ESIC (3.25%):</span>
-                      <span className="font-medium text-blue-600">₹{(parseFloat(calculatedValues.employerEsicContribution || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium text-blue-600">₹{(parseFloat(form.watch('employerEsicContribution') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Gratuity Provision (4.81%):</span>
-                      <span className="font-medium text-orange-600">₹{(parseFloat(calculatedValues.gratuityCost || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium text-orange-600">₹{(parseFloat(form.watch('gratuityCost') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="border-t pt-2 mt-3">
                       <div className="flex justify-between font-medium">
                         <span className="text-slate-700">Total Contributions:</span>
-                        <span className="text-blue-700">₹{((parseFloat(calculatedValues.employerPfContribution || '0')) + (parseFloat(calculatedValues.employerEsicContribution || '0')) + (parseFloat(calculatedValues.gratuityCost || '0'))).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                        <span className="text-blue-700">₹{((parseFloat(form.watch('employerPfContribution') || '0')) + (parseFloat(form.watch('employerEsicContribution') || '0')) + (parseFloat(form.watch('gratuityCost') || '0'))).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                       </div>
                     </div>
                   </div>
@@ -1296,10 +1222,10 @@ export default function PayrollManagementPage() {
                   <li>• ESIC applies only if gross salary ≤ ₹21,000</li>
                   <li>• Gratuity provision is calculated monthly but payable after 5 years of service</li>
                   {salaryType === 'monthly' && parseFloat(paidDays) < parseFloat(actualDays) && (
-                    <li>• Basic salary is pro-rated: ({form.getValues('basicSalary')} ÷ {form.getValues('actualDays')}) × {form.getValues('paidDays')} days</li>
+                    <li>• Basic salary is pro-rated: ({basicSalary} ÷ {actualDays}) × {paidDays} days</li>
                   )}
                   {salaryType === 'daily' && parseFloat(overtimeHours) > 0 && (
-                    <li>• Overtime: Hourly Rate (₹{(parseFloat(form.getValues('basicSalary') || '0') / parseFloat(form.getValues('workingHoursPerDay'))).toFixed(2)}) × {form.getValues('otRate')}x × {form.getValues('overtimeHours')} hours</li>
+                    <li>• Overtime: Hourly Rate (₹{(parseFloat(basicSalary || '0') / parseFloat(workingHoursPerDay)).toFixed(2)}) × {otRate}x × {overtimeHours} hours</li>
                   )}
                 </ul>
               </div>
