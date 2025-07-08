@@ -43,32 +43,6 @@ function getAttendanceStatus(timeIn: string, timeOut: string | null): string {
 // ================================
 
 /**
- * Get users optimized for payroll (minimal fields only)
- */
-router.get('/users/payroll', ensureAuthenticated, async (req: Request, res: Response) => {
-  try {
-    const allUsers = await db
-      .select({
-        id: users.id,
-        username: users.username,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        department: users.department,
-        employeeCode: users.employeeCode,
-        isActive: users.isActive,
-      })
-      .from(users)
-      .where(eq(users.isActive, true))
-      .orderBy(asc(users.username));
-
-    res.json(allUsers);
-  } catch (error) {
-    console.error('Error fetching users for payroll:', error);
-    res.status(500).json({ error: 'Failed to fetch users for payroll' });
-  }
-});
-
-/**
  * Get all users with enhanced details
  */
 router.get('/users', ensureAuthenticated, async (req: Request, res: Response) => {

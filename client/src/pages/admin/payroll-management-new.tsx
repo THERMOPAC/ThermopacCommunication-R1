@@ -193,7 +193,7 @@ export default function PayrollManagementNew() {
   });
 
   const { data: users = [] } = useQuery<User[]>({
-    queryKey: ['/api/admin/users/payroll'],
+    queryKey: ['/api/admin/users'],
   });
 
   const { data: workLocations = [] } = useQuery<WorkLocation[]>({
@@ -924,8 +924,8 @@ function SalaryForm({ users, workLocations, initialData, onSubmit, isLoading }: 
           <Button type="button" variant="outline" onClick={() => form.reset()}>
             Reset
           </Button>
-          <Button type="submit" disabled={saveSalaryMutation.isPending}>
-            {saveSalaryMutation.isPending ? 'Saving...' : 'Save Configuration'}
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? 'Saving...' : 'Save Configuration'}
           </Button>
         </div>
       </form>
