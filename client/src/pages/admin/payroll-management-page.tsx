@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
@@ -259,6 +259,23 @@ export default function PayrollManagementPage() {
   // Track which fields are currently focused to prevent setValue during focus
   const focusedFieldRef = useRef<string | null>(null);
   const isUserTyping = useRef(false);
+
+  // Create stable input handlers using useCallback to prevent re-renders
+  const handleBasicSalaryChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue('basicSalary', e.target.value);
+  }, [form]);
+
+  const handleOvertimeHoursChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue('overtimeHours', e.target.value);
+  }, [form]);
+
+  const handleWorkingHoursChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue('workingHoursPerDay', e.target.value);
+  }, [form]);
+
+  const handlePaidDaysChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue('paidDays', e.target.value);
+  }, [form]);
 
   // State to hold calculated values without triggering form re-renders
   const [calculatedValues, setCalculatedValues] = useState({
@@ -607,7 +624,14 @@ export default function PayrollManagementPage() {
                   <FormItem>
                     <FormLabel>Basic Salary *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter basic salary" {...field} />
+                      <Input 
+                        placeholder="Enter basic salary" 
+                        value={field.value || ''}
+                        onChange={handleBasicSalaryChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -633,7 +657,14 @@ export default function PayrollManagementPage() {
                   <FormItem>
                     <FormLabel>Paid Days</FormLabel>
                     <FormControl>
-                      <Input placeholder="30" {...field} defaultValue="30" />
+                      <Input 
+                        placeholder="30" 
+                        value={field.value || '30'}
+                        onChange={handlePaidDaysChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -646,7 +677,14 @@ export default function PayrollManagementPage() {
                   <FormItem>
                     <FormLabel>Working Hours/Day</FormLabel>
                     <FormControl>
-                      <Input placeholder="8" {...field} defaultValue="8" />
+                      <Input 
+                        placeholder="8" 
+                        value={field.value || '8'}
+                        onChange={handleWorkingHoursChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -661,8 +699,11 @@ export default function PayrollManagementPage() {
                     <FormControl>
                       <Input 
                         placeholder="0" 
-                        {...field} 
-                        defaultValue="0"
+                        value={field.value || '0'}
+                        onChange={handleOvertimeHoursChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
                         disabled={salaryType !== 'daily'}
                         className={salaryType !== 'daily' ? 'bg-gray-100 cursor-not-allowed' : ''}
                       />
