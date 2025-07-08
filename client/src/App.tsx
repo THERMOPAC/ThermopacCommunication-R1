@@ -12,123 +12,92 @@ import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
 
-// Lazy load heavy components
+// Only lazy load the two most problematic components
 const DesignToolsPage = lazy(() => import("@/pages/design-tools-page"));
 const MarketingToolsPage = lazy(() => import("@/pages/marketing-tools-page"));
-const InspectionsPage = lazy(() => import("@/pages/inspections-page"));
-const FinanceToolsPage = lazy(() => import("@/pages/finance-tools-page"));
 
-// Lazy load other pages
-const ProfilePage = lazy(() => import("@/pages/profile-page"));
-const LeaderboardPage = lazy(() => import("@/pages/leaderboard-page"));
-const RecurringTasksPage = lazy(() => import("@/pages/recurring-tasks-page"));
-const EmailsPage = lazy(() => import("@/pages/emails-page"));
-const MessagesPage = lazy(() => import("@/pages/messages-page"));
-const ProjectsPage = lazy(() => import("@/pages/projects-page"));
-const ProjectDetailPage = lazy(() => import("@/pages/project-detail-page"));
-const ProjectDashboardPage = lazy(() => import("@/pages/project-dashboard-page"));
-const CustomersPage = lazy(() => import("@/pages/customers-page"));
-const ItemMasterPage = lazy(() => import("@/pages/item-master-page"));
-const ProductionPlanningPage = lazy(() => import("@/pages/production-planning-page"));
-const WorkOrderDetailPage = lazy(() => import("@/pages/work-order-detail-page"));
-const WorkOrderEditPage = lazy(() => import("@/pages/work-order-edit-page"));
-const ShopFloorPage = lazy(() => import("@/pages/shop-floor-page"));
-const DailyProductionReportPage = lazy(() => import("@/pages/daily-production-report-page"));
-const MaterialIdentificationPage = lazy(() => import("@/pages/material-identification-page"));
-const MaterialIdentificationListPage = lazy(() => import("@/pages/material-identification-list-page"));
-const MaterialIdentificationViewPage = lazy(() => import("@/pages/material-identification-view-page"));
-const MaterialIdentificationEditPage = lazy(() => import("@/pages/material-identification-edit-page"));
-const SpecialFixesPage = lazy(() => import("@/pages/special-fixes-page"));
-
-// Sales and Marketing pages (lazy loaded)
-const LeadsPage = lazy(() => import("@/pages/leads-page"));
-const CampaignsPage = lazy(() => import("@/pages/campaigns-page"));
-const MarketingDashboardPage = lazy(() => import("@/pages/marketing-dashboard-page"));
-const ROICalculatorPage = lazy(() => import("@/pages/roi-calculator-page"));
-
-// Finance module pages (lazy loaded)
-const FinanceDashboardPage = lazy(() => import("@/pages/finance/finance-dashboard-page"));
-const InvoicesPage = lazy(() => import("@/pages/finance/invoices-page"));
-const InvoiceCreatePage = lazy(() => import("@/pages/finance/invoice-create-page"));
-const InvoiceDetailPage = lazy(() => import("@/pages/finance/invoice-detail-page"));
-const PaymentsPage = lazy(() => import("@/pages/finance/payments-page"));
-const PaymentDetailPage = lazy(() => import("@/pages/finance/payment-detail-enhanced"));
-const PaymentCreatePage = lazy(() => import("@/pages/finance/payment-create-page"));
-const NewPaymentCreatePage = lazy(() => import("@/pages/finance/new-payment-create"));
-const EditPaymentPage = lazy(() => import("@/pages/finance/edit-payment-page"));
-const BrcPage = lazy(() => import("@/pages/finance/brc-page"));
-const BrcManagementPage = lazy(() => import("@/pages/finance/brc-management-page"));
-
-// Administration module pages (lazy loaded)
-const AdministrationPage = lazy(() => import("@/pages/admin/administration-page"));
-const UserManagementPage = lazy(() => import("@/pages/admin/user-management-page"));
-const AttendanceManagementPage = lazy(() => import("@/pages/admin/attendance-management-page"));
-const PayrollManagementPage = lazy(() => import("@/pages/admin/payroll-management-new"));
-// Finance reports and tools (lazy loaded)  
-const TurnoverReportPage = lazy(() => import("@/pages/finance/reports/turnover-page"));
-const OutstandingReportPage = lazy(() => import("@/pages/finance/reports/outstanding-page"));
-const RemittancesReportPage = lazy(() => import("@/pages/finance/reports/remittances-page"));
-const ReconciliationReportPage = lazy(() => import("@/pages/finance/reports/reconciliation-page"));
-const PaymentAllocationPage = lazy(() => import("@/pages/finance/payment-allocation-redesigned"));
-const BatchAdvanceAllocationPage = lazy(() => import("@/pages/finance/batch-advance-allocation-page-fixed"));
-const InvoiceAgingDashboard = lazy(() => import("@/pages/finance/reports/invoice-aging-dashboard"));
-const WriteOffManagementPage = lazy(() => import("@/pages/finance/write-off-management"));
-
-// Quality management and other pages (lazy loaded)
-const MaterialIdentificationCreatePage = lazy(() => import("@/pages/material-identification-create-page"));
-const MaterialIdentificationListNewPage = lazy(() => import("@/pages/material-identification-list-new-page"));
-const MaterialIdentificationViewNewPage = lazy(() => import("@/pages/material-identification-view-new-page"));
-const MaterialIdentificationEditNewPage = lazy(() => import("@/pages/material-identification-edit-new-page"));
-const MaterialIdentificationDirectUpdate = lazy(() => import("@/pages/material-identification-direct-update"));
-const WpsPqrPage = lazy(() => import("@/pages/wps-pqr-page"));
-const WpqrPage = lazy(() => import("@/pages/wpqr-page"));
-const WelderManagementPage = lazy(() => import("@/pages/welder-management-page"));
-const WelderCertificatesPage = lazy(() => import("@/pages/welder-certificates-page"));
-const WelderTestPage = lazy(() => import("@/pages/welder-test-page"));
-const CalibrationManagementPage = lazy(() => import("@/pages/calibration-management-page"));
-const CalibrationTestPage = lazy(() => import("@/pages/calibration-test-page"));
-const QualityAssurancePlanPage = lazy(() => import("@/pages/quality-assurance-plan-page"));
-const CreateQAPPage = lazy(() => import("@/pages/create-qap-page"));
-const ViewEditQAPPage = lazy(() => import("@/pages/view-edit-qap-page"));
-const ProjectCommissioningPage = lazy(() => import("@/pages/project-commissioning-page"));
-const DispatchShippingPage = lazy(() => import("@/pages/dispatch-shipping-page"));
-const AfterSalesPage = lazy(() => import("@/pages/after-sales-page"));
-const ProcurementPlanningPage = lazy(() => import("@/pages/procurement-planning-page"));
-const ProcurementTrackingPage = lazy(() => import("@/pages/procurement-tracking-page"));
-const TemplateManagementPage = lazy(() => import("@/pages/template-management-page"));
-const ModulePermissionsPage = lazy(() => import("@/pages/module-permissions-page"));
-const DiagnosticsPage = lazy(() => import("@/pages/diagnostics-page"));
-const GcsDiagnosticPage = lazy(() => import("@/pages/gcs-diagnostic-page"));
-const GcsTestPage = lazy(() => import("@/pages/gcs-test-page"));
-const WorkLocationsPage = lazy(() => import("@/pages/work-locations-page"));
-const AttendancePage = lazy(() => import("@/pages/attendance-page"));
-const DwarPage = lazy(() => import("@/pages/dwar-page"));
-const PayrollPage = lazy(() => import("@/pages/payroll-page"));
-
-// Keep essential imports
+// Import all other pages normally to avoid Suspense issues
+import ProfilePage from "@/pages/profile-page";
+import LeaderboardPage from "@/pages/leaderboard-page";
+import RecurringTasksPage from "@/pages/recurring-tasks-page";
+import EmailsPage from "@/pages/emails-page";
+import MessagesPage from "@/pages/messages-page";
+import ProjectsPage from "@/pages/projects-page";
+import ProjectDetailPage from "@/pages/project-detail-page";
+import ProjectDashboardPage from "@/pages/project-dashboard-page";
+import CustomersPage from "@/pages/customers-page";
+import ItemMasterPage from "@/pages/item-master-page";
+import ProductionPlanningPage from "@/pages/production-planning-page";
+import WorkOrderDetailPage from "@/pages/work-order-detail-page";
+import WorkOrderEditPage from "@/pages/work-order-edit-page";
+import ShopFloorPage from "@/pages/shop-floor-page";
+import DailyProductionReportPage from "@/pages/daily-production-report-page";
+import InspectionsPage from "@/pages/inspections-page";
+import MaterialIdentificationPage from "@/pages/material-identification-page";
+import MaterialIdentificationListPage from "@/pages/material-identification-list-page";
+import MaterialIdentificationViewPage from "@/pages/material-identification-view-page";
+import MaterialIdentificationEditPage from "@/pages/material-identification-edit-page";
+import SpecialFixesPage from "@/pages/special-fixes-page";
+import LeadsPage from "@/pages/leads-page";
+import CampaignsPage from "@/pages/campaigns-page";
+import MarketingDashboardPage from "@/pages/marketing-dashboard-page";
+import ROICalculatorPage from "@/pages/roi-calculator-page";
+import FinanceDashboardPage from "@/pages/finance/finance-dashboard-page";
+import InvoicesPage from "@/pages/finance/invoices-page";
+import InvoiceCreatePage from "@/pages/finance/invoice-create-page";
+import InvoiceDetailPage from "@/pages/finance/invoice-detail-page";
+import PaymentsPage from "@/pages/finance/payments-page";
+import PaymentDetailPage from "@/pages/finance/payment-detail-enhanced";
+import PaymentCreatePage from "@/pages/finance/payment-create-page";
+import NewPaymentCreatePage from "@/pages/finance/new-payment-create";
+import EditPaymentPage from "@/pages/finance/edit-payment-page";
+import BrcPage from "@/pages/finance/brc-page";
+import BrcManagementPage from "@/pages/finance/brc-management-page";
+import AdministrationPage from "@/pages/admin/administration-page";
+import UserManagementPage from "@/pages/admin/user-management-page";
+import AttendanceManagementPage from "@/pages/admin/attendance-management-page";
+import PayrollManagementPage from "@/pages/admin/payroll-management-new";
+import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
+import OutstandingReportPage from "@/pages/finance/reports/outstanding-page";
+import RemittancesReportPage from "@/pages/finance/reports/remittances-page";
+import ReconciliationReportPage from "@/pages/finance/reports/reconciliation-page";
+import PaymentAllocationPage from "@/pages/finance/payment-allocation-redesigned";
+import BatchAdvanceAllocationPage from "@/pages/finance/batch-advance-allocation-page-fixed";
+import InvoiceAgingDashboard from "@/pages/finance/reports/invoice-aging-dashboard";
+import WriteOffManagementPage from "@/pages/finance/write-off-management";
+import MaterialIdentificationCreatePage from "@/pages/material-identification-create-page";
+import MaterialIdentificationListNewPage from "@/pages/material-identification-list-new-page";
+import MaterialIdentificationViewNewPage from "@/pages/material-identification-view-new-page";
+import MaterialIdentificationEditNewPage from "@/pages/material-identification-edit-new-page";
+import WelderManagementPage from "@/pages/welder-management-page";
+import WpqrPage from "@/pages/wpqr-page";
+import WpsPqrPage from "@/pages/wps-pqr-page";
+import AttendancePage from "@/pages/attendance-page";
+import DiagnosticsPage from "@/pages/diagnostics-page";
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
 import Layout from "@/components/layout";
 
-// Loading spinner component for lazy loaded components
 function LoadingSpinner() {
   return (
     <div className="flex items-center justify-center min-h-screen">
-      <Loader2 className="h-8 w-8 animate-spin text-border" />
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
     </div>
   );
 }
 
-// Wrapper for lazy components with suspense
-function LazyWrapper({ component: Component }: { component: React.ComponentType }) {
+// Safe lazy wrapper for specific components
+function LazyComponent({ children }: { children: React.ReactNode }) {
   return (
     <Suspense fallback={<LoadingSpinner />}>
-      <Component />
+      {children}
     </Suspense>
   );
 }
 
-// SuperuserRoute component to protect routes that only superusers should access
 function SuperuserRoute({
   path,
   component: Component,
@@ -136,19 +105,11 @@ function SuperuserRoute({
   path: string;
   component: React.ComponentType;
 }) {
-  const { user, isLoading } = useAuth();
+  const { user } = useAuth();
   
   return (
     <Route path={path}>
-      {isLoading ? (
-        <LoadingSpinner />
-      ) : !user ? (
-        <Redirect to="/auth" />
-      ) : user.role !== "Superuser" ? (
-        <NotFound />
-      ) : (
-        <LazyWrapper component={Component} />
-      )}
+      {user?.role === "Superuser" ? <Component /> : <Redirect to="/dashboard" />}
     </Route>
   );
 }
@@ -162,144 +123,124 @@ function PasswordManagementPage() {
 }
 
 function Router() {
+  const [location] = useLocation();
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  if (!user && location !== "/auth") {
+    return <Redirect to="/auth" />;
+  }
+
+  if (user && location === "/auth") {
+    return <Redirect to="/dashboard" />;
+  }
+
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
-      <ProtectedRoute path="/" component={() => <Redirect to="/dashboard" />} />
+      <Route path="/" component={() => <Redirect to="/dashboard" />} />
+      
+      {/* Core Routes */}
       <ProtectedRoute path="/dashboard" component={Dashboard} />
       <ProtectedRoute path="/tasks" component={Dashboard} />
       <ProtectedRoute path="/team" component={Dashboard} />
       <ProtectedRoute path="/recommendations" component={Dashboard} />
-      <ProtectedRoute path="/messages" component={() => <LazyWrapper component={MessagesPage} />} />
-      <ProtectedRoute path="/emails" component={() => <LazyWrapper component={EmailsPage} />} />
+      <ProtectedRoute path="/messages" component={MessagesPage} />
+      <ProtectedRoute path="/emails" component={EmailsPage} />
       <SuperuserRoute path="/tools" component={DiagnosticsPage} />
-      <ProtectedRoute path="/profile" component={() => <LazyWrapper component={ProfilePage} />} />
-      <ProtectedRoute path="/leaderboard" component={() => <LazyWrapper component={LeaderboardPage} />} />
-      <ProtectedRoute path="/recurring-tasks" component={() => <LazyWrapper component={RecurringTasksPage} />} />
+      <ProtectedRoute path="/profile" component={ProfilePage} />
+      <ProtectedRoute path="/leaderboard" component={LeaderboardPage} />
+      <ProtectedRoute path="/recurring-tasks" component={RecurringTasksPage} />
 
       {/* Sales and Marketing Routes */}
-      <ProtectedRoute path="/leads" component={() => <LazyWrapper component={LeadsPage} />} />
-      <ProtectedRoute path="/campaigns" component={() => <LazyWrapper component={CampaignsPage} />} />
-      <ProtectedRoute path="/marketing-dashboard" component={() => <LazyWrapper component={MarketingDashboardPage} />} />
-      <ProtectedRoute path="/marketing-tools" component={() => <LazyWrapper component={MarketingToolsPage} />} />
-      <ProtectedRoute path="/roi-calculator" component={() => <LazyWrapper component={ROICalculatorPage} />} />
+      <ProtectedRoute path="/leads" component={LeadsPage} />
+      <ProtectedRoute path="/campaigns" component={CampaignsPage} />
+      <ProtectedRoute path="/marketing-dashboard" component={MarketingDashboardPage} />
+      <ProtectedRoute path="/marketing-tools" component={() => (
+        <LazyComponent>
+          <MarketingToolsPage />
+        </LazyComponent>
+      )} />
+      <ProtectedRoute path="/roi-calculator" component={ROICalculatorPage} />
       
       {/* Finance Module Routes */}
-      <ProtectedRoute path="/finance" component={() => <LazyWrapper component={FinanceDashboardPage} />} />
-      <ProtectedRoute path="/finance/dashboard" component={() => <LazyWrapper component={FinanceDashboardPage} />} />
-      <ProtectedRoute path="/finance/invoices" component={() => <LazyWrapper component={InvoicesPage} />} />
-      <ProtectedRoute path="/finance/invoices/new" component={() => <LazyWrapper component={InvoiceCreatePage} />} />
-      <ProtectedRoute path="/finance/invoices/:id/edit" component={() => <LazyWrapper component={() => <InvoiceCreatePage isEditMode={true} />} />} />
-      <ProtectedRoute path="/finance/invoices/:id/download" component={() => <LazyWrapper component={() => <InvoiceDetailPage download={true} />} />} />
-      <ProtectedRoute path="/finance/invoices/:id/print" component={() => <LazyWrapper component={() => <InvoiceDetailPage print={true} />} />} />
-      <ProtectedRoute path="/finance/invoices/view/:id" component={() => <LazyWrapper component={InvoiceDetailPage} />} />
-      <ProtectedRoute path="/finance/invoices/:id" component={() => <LazyWrapper component={InvoiceDetailPage} />} />
-      <ProtectedRoute path="/finance/payments" component={() => <LazyWrapper component={PaymentsPage} />} />
-      <ProtectedRoute path="/finance/payments/new" component={() => <LazyWrapper component={NewPaymentCreatePage} />} />
-      <ProtectedRoute path="/finance/new-payment-create" component={() => <NewPaymentCreatePage />} />
-      <ProtectedRoute path="/finance/payments/:id/edit-old" component={() => <PaymentCreatePage isEditMode={true} />} />
-      <ProtectedRoute path="/finance/payments/:id/edit-new" component={() => <EditPaymentPage />} />
-      <ProtectedRoute path="/finance/payments/:id/edit" component={() => <EditPaymentPage />} />
-      <ProtectedRoute path="/finance/reports/reconciliation" component={ReconciliationReportPage} />
-      <ProtectedRoute path="/finance/payment-allocation" component={PaymentAllocationPage} />
-      <ProtectedRoute path="/finance/basic-allocation" component={PaymentAllocationPage} />
-      <ProtectedRoute path="/finance/new-basic-allocation" component={PaymentAllocationPage} />
-      <ProtectedRoute path="/finance/batch-advance-allocation" component={BatchAdvanceAllocationPage} />
-      <ProtectedRoute path="/finance/payments/:id" component={() => <PaymentDetailPage />} />
+      <ProtectedRoute path="/finance" component={FinanceDashboardPage} />
+      <ProtectedRoute path="/finance/dashboard" component={FinanceDashboardPage} />
+      <ProtectedRoute path="/finance/invoices" component={InvoicesPage} />
+      <ProtectedRoute path="/finance/invoices/create" component={InvoiceCreatePage} />
+      <ProtectedRoute path="/finance/invoices/:id" component={InvoiceDetailPage} />
+      <ProtectedRoute path="/finance/payments" component={PaymentsPage} />
+      <ProtectedRoute path="/finance/payments/create" component={PaymentCreatePage} />
+      <ProtectedRoute path="/finance/payments/new" component={NewPaymentCreatePage} />
+      <ProtectedRoute path="/finance/payments/:id" component={PaymentDetailPage} />
+      <ProtectedRoute path="/finance/payments/:id/edit" component={EditPaymentPage} />
       <ProtectedRoute path="/finance/brc" component={BrcPage} />
-      <ProtectedRoute path="/brc" component={() => <Redirect to="/finance/brc-management" />} />
       <ProtectedRoute path="/finance/brc-management" component={BrcManagementPage} />
-      <ProtectedRoute path="/finance/reports/turnover" component={TurnoverReportPage} />
-      <ProtectedRoute path="/finance/reports/outstanding" component={OutstandingReportPage} />
-      <ProtectedRoute path="/finance/reports/remittances" component={RemittancesReportPage} />
-      <ProtectedRoute path="/finance/reports/invoice-aging" component={InvoiceAgingDashboard} />
-      <ProtectedRoute path="/finance/write-offs" component={() => <WriteOffManagementPage />} />
-      <ProtectedRoute path="/finance/write-off-management" component={() => <WriteOffManagementPage />} />
-      <ProtectedRoute path="/finance/tools" component={FinanceToolsPage} />
+      <ProtectedRoute path="/finance/turnover" component={TurnoverReportPage} />
+      <ProtectedRoute path="/finance/outstanding" component={OutstandingReportPage} />
+      <ProtectedRoute path="/finance/remittances" component={RemittancesReportPage} />
+      <ProtectedRoute path="/finance/reconciliation" component={ReconciliationReportPage} />
+      <ProtectedRoute path="/finance/payment-allocation" component={PaymentAllocationPage} />
+      <ProtectedRoute path="/finance/batch-advance-allocation" component={BatchAdvanceAllocationPage} />
+      <ProtectedRoute path="/finance/aging-dashboard" component={InvoiceAgingDashboard} />
+      <ProtectedRoute path="/finance/write-offs" component={WriteOffManagementPage} />
       
-      {/* Administration Module Routes */}
+      {/* Administration Routes */}
       <ProtectedRoute path="/admin" component={AdministrationPage} />
-      <ProtectedRoute path="/admin/administration" component={AdministrationPage} />
       <ProtectedRoute path="/admin/users" component={UserManagementPage} />
-      <ProtectedRoute path="/admin/user-management" component={UserManagementPage} />
-      <ProtectedRoute path="/admin/attendance" component={AttendanceManagementPage} />
       <ProtectedRoute path="/admin/attendance-management" component={AttendanceManagementPage} />
-      <ProtectedRoute path="/admin/payroll" component={PayrollManagementPage} />
       <ProtectedRoute path="/admin/payroll-management" component={PayrollManagementPage} />
       
-      <ProtectedRoute path="/project-dashboard" component={ProjectDashboardPage} />
+      {/* Project Management Routes */}
       <ProtectedRoute path="/projects" component={ProjectsPage} />
       <ProtectedRoute path="/projects/:id" component={ProjectDetailPage} />
+      <ProtectedRoute path="/projects/:id/dashboard" component={ProjectDashboardPage} />
       <ProtectedRoute path="/customers" component={CustomersPage} />
-      <ProtectedRoute path="/item-master" component={ItemMasterPage} />
-      <ProtectedRoute path="/design-tools" component={DesignToolsPage} />
-      <ProtectedRoute path="/procurement-planning" component={ProcurementPlanningPage} />
-      <ProtectedRoute path="/procurement-tracking" component={ProcurementTrackingPage} />
-      <ProtectedRoute path="/production-planning" component={ProductionPlanningPage} />
-      <ProtectedRoute path="/production/work-orders/details/:id" component={WorkOrderDetailPage} />
-      <ProtectedRoute path="/production/work-orders/edit/:id" component={WorkOrderEditPage} />
-      {/* Backward compatibility route */}
+      <ProtectedRoute path="/items" component={ItemMasterPage} />
+      
+      {/* Production Management Routes */}
+      <ProtectedRoute path="/production/planning" component={ProductionPlanningPage} />
       <ProtectedRoute path="/production/work-orders/:id" component={WorkOrderDetailPage} />
-      <ProtectedRoute path="/shop-floor" component={ShopFloorPage} />
-      <ProtectedRoute path="/daily-production-report" component={DailyProductionReportPage} />
-      <ProtectedRoute path="/wps-pqr" component={WpsPqrPage} />
-      <ProtectedRoute path="/wpqr" component={WpqrPage} />
-      <ProtectedRoute path="/welder-management" component={WelderManagementPage} />
-      <ProtectedRoute path="/quality/welder-certificates/:welderId" component={WelderCertificatesPage} />
-      <ProtectedRoute path="/welder-test" component={WelderTestPage} />
-      <ProtectedRoute path="/calibration-management" component={CalibrationManagementPage} />
-      {/* Material Identification routes with /quality prefix - NEW IMPLEMENTATION */}
-      <ProtectedRoute path="/quality/material-identification/new" component={MaterialIdentificationCreatePage} />
-      <ProtectedRoute path="/quality/material-identification" component={MaterialIdentificationListNewPage} />
-      <ProtectedRoute 
-        path="/quality/material-identification/view/:id" 
-        component={() => <MaterialIdentificationViewNewPage params={{ id: window.location.pathname.split('/').pop() || '' }} />} 
-      />
-      <ProtectedRoute 
-        path="/quality/material-identification/edit/:id" 
-        component={() => <MaterialIdentificationEditNewPage params={{ id: window.location.pathname.split('/').pop() || '' }} />} 
-      />
+      <ProtectedRoute path="/production/work-orders/:id/edit" component={WorkOrderEditPage} />
+      <ProtectedRoute path="/production/shop-floor" component={ShopFloorPage} />
+      <ProtectedRoute path="/production/reports" component={DailyProductionReportPage} />
       
-      {/* Test page for direct updates */}
-      <ProtectedRoute 
-        path="/quality/material-identification/direct-update/:id" 
-        component={() => <MaterialIdentificationDirectUpdate />} 
-      />
-      
-      {/* Legacy route for backward compatibility, redirects to view page */}
-      <Route path="/quality/material-identification/:id">
-        {(params) => <Redirect to={`/quality/material-identification/view/${params.id}`} />}
-      </Route>
-      
-      {/* Redirects from old to new routes */}
-      <Route path="/material-identification/new">
-        <Redirect to="/quality/material-identification/new" />
-      </Route>
-      <Route path="/material-identification">
-        <Redirect to="/quality/material-identification" />
-      </Route>
-      <Route path="/material-identification/:id">
-        {(params) => <Redirect to={`/quality/material-identification/view/${params.id}`} />}
-      </Route>
+      {/* Quality Management Routes */}
       <ProtectedRoute path="/inspections" component={InspectionsPage} />
-      <ProtectedRoute path="/quality-assurance-plan" component={QualityAssurancePlanPage} />
-      <ProtectedRoute path="/quality-assurance-plan/form/:id?" component={CreateQAPPage} />
-      <ProtectedRoute path="/quality-assurance-plan/view/:id" component={ViewEditQAPPage} />
-      <ProtectedRoute path="/project-commissioning" component={ProjectCommissioningPage} />
-      <ProtectedRoute path="/dispatch-shipping" component={DispatchShippingPage} />
-      <ProtectedRoute path="/after-sales" component={AfterSalesPage} />
-      <ProtectedRoute path="/template-management" component={TemplateManagementPage} />
-      <SuperuserRoute path="/users" component={Dashboard} />
-      <SuperuserRoute path="/work-locations" component={() => <Layout><WorkLocationsPage /></Layout>} />
-      <ProtectedRoute path="/attendance" component={() => <Layout><AttendancePage /></Layout>} />
-      <ProtectedRoute path="/dwar" component={() => <Layout><DwarPage /></Layout>} />
-      <ProtectedRoute path="/payroll" component={() => <Layout><PayrollPage /></Layout>} />
-      <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
-      <SuperuserRoute path="/module-permissions" component={ModulePermissionsPage} />
-      <SuperuserRoute path="/gcs-diagnostic" component={GcsDiagnosticPage} />
-      <SuperuserRoute path="/gcs-test" component={GcsTestPage} />
-      <SuperuserRoute path="/special-fixes" component={SpecialFixesPage} />
-      <SuperuserRoute path="/calibration-test" component={CalibrationTestPage} />
+      <ProtectedRoute path="/material-identification" component={MaterialIdentificationPage} />
+      <ProtectedRoute path="/material-identification/list" component={MaterialIdentificationListPage} />
+      <ProtectedRoute path="/material-identification/:id" component={MaterialIdentificationViewPage} />
+      <ProtectedRoute path="/material-identification/:id/edit" component={MaterialIdentificationEditPage} />
+      <ProtectedRoute path="/material-identification/create" component={MaterialIdentificationCreatePage} />
+      <ProtectedRoute path="/material-identification-new" component={MaterialIdentificationListNewPage} />
+      <ProtectedRoute path="/material-identification-new/:id" component={MaterialIdentificationViewNewPage} />
+      <ProtectedRoute path="/material-identification-new/:id/edit" component={MaterialIdentificationEditNewPage} />
+      
+      {/* Welder Management Routes */}
+      <ProtectedRoute path="/welders" component={WelderManagementPage} />
+      
+      {/* WPQR Management Routes */}
+      <ProtectedRoute path="/wpqr" component={WpqrPage} />
+      
+      {/* WPS & PQR Management Routes */}
+      <ProtectedRoute path="/wps-pqr" component={WpsPqrPage} />
+      
+      {/* Design Tools Routes - Lazy loaded due to large file size */}
+      <ProtectedRoute path="/design-tools" component={() => (
+        <LazyComponent>
+          <DesignToolsPage />
+        </LazyComponent>
+      )} />
+      
+      {/* Special Routes */}
+      <ProtectedRoute path="/attendance" component={AttendancePage} />
+      <ProtectedRoute path="/special-fixes" component={SpecialFixesPage} />
+      <ProtectedRoute path="/password-management" component={PasswordManagementPage} />
+      
+      {/* Catch all route */}
       <Route component={NotFound} />
     </Switch>
   );
