@@ -555,6 +555,24 @@ const userSchema = {
   mobileNumber: text('mobile_number').notNull(),
   countryCode: text('country_code').notNull(),
   role: text('role', { enum: roles }).notNull(),
+  
+  // Extended fields for Administration Module
+  firstName: text('first_name'),
+  middleName: text('middle_name'),
+  lastName: text('last_name'),
+  jobTitle: text('job_title'),
+  department: text('department'),
+  branch: text('branch'),
+  employeeCode: text('employee_code').unique(),
+  phone: text('phone'),
+  fax: text('fax'),
+  linkedVendor: text('linked_vendor'),
+  epfNo: text('epf_no'),
+  esicNo: text('esic_no'),
+  stdCode: text('std_code'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 };
 
 // Create the users table with self-reference after definition
@@ -2964,19 +2982,60 @@ export const dailyQuotes = pgTable('daily_quotes', {
 
 // Payroll Management Tables
 
-// Employee salary information
+// Employee salary information (Enhanced for Administration Module)
 export const employeeSalaries = pgTable('employee_salaries', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  baseSalary: decimal('base_salary', { precision: 12, scale: 2 }).notNull(),
+  salaryStartDate: date('salary_start_date').notNull(),
+  basicSalary: decimal('basic_salary', { precision: 12, scale: 2 }).notNull(),
+  houseRentAllowance: decimal('house_rent_allowance', { precision: 10, scale: 2 }).default('0'),
+  conveyance: decimal('conveyance', { precision: 10, scale: 2 }).default('0'),
+  lta: decimal('lta', { precision: 10, scale: 2 }).default('0'),
+  specialAllowance: decimal('special_allowance', { precision: 10, scale: 2 }).default('0'),
+  supplementaryAllowance: decimal('supplementary_allowance', { precision: 10, scale: 2 }).default('0'),
+  bonus: decimal('bonus', { precision: 10, scale: 2 }).default('0'),
+  gratuityCost: decimal('gratuity_cost', { precision: 10, scale: 2 }).default('0'),
+  kgpAllowance: decimal('kgp_allowance', { precision: 10, scale: 2 }).default('0'),
+  
+  // PF & ESIC Contributions
+  employeePfContribution: decimal('employee_pf_contribution', { precision: 10, scale: 2 }).default('0'),
+  employerPfContribution: decimal('employer_pf_contribution', { precision: 10, scale: 2 }).default('0'),
+  employeeEsicContribution: decimal('employee_esic_contribution', { precision: 10, scale: 2 }).default('0'),
+  employerEsicContribution: decimal('employer_esic_contribution', { precision: 10, scale: 2 }).default('0'),
+  groupInsurance: decimal('group_insurance', { precision: 10, scale: 2 }).default('0'),
+  
+  // Bank Details
+  bankName: text('bank_name'),
+  bankAccountNo: text('bank_account_no'),
+  debitAccount: text('debit_account'),
+  
+  // Attendance-linked fields (optional integration)
+  presentDays: integer('present_days').default(0),
+  paidDays: integer('paid_days').default(0),
+  weekOff: integer('week_off').default(0),
+  holidays: integer('holidays').default(0),
+  otHours: decimal('ot_hours', { precision: 5, scale: 2 }).default('0'),
+  otMultiplier: decimal('ot_multiplier', { precision: 3, scale: 2 }).default('1.5'),
+  otAmount: decimal('ot_amount', { precision: 10, scale: 2 }).default('0'),
+  absence: integer('absence').default(0),
+  clBalance: integer('cl_balance').default(0),
+  
+  // Calculated fields
+  takeHomeSalary: decimal('take_home_salary', { precision: 12, scale: 2 }),
+  actualSalaryForMonth: decimal('actual_salary_for_month', { precision: 12, scale: 2 }),
+  ctcMonthly: decimal('ctc_monthly', { precision: 12, scale: 2 }),
+  ctcYearly: decimal('ctc_yearly', { precision: 12, scale: 2 }),
+  
+  // Legacy fields for compatibility
   currency: varchar('currency', { length: 3 }).default('INR'),
   payFrequency: varchar('pay_frequency', { length: 20 }).default('monthly'),
   effectiveDate: date('effective_date').notNull(),
   endDate: date('end_date'),
-  isActive: boolean('is_active').default(true),
   salaryGrade: varchar('salary_grade', { length: 10 }),
   department: varchar('department', { length: 100 }),
   position: varchar('position', { length: 100 }),
+  
+  isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
   createdBy: integer('created_by').references(() => users.id),
@@ -3071,6 +3130,8 @@ export const bonusRules = pgTable('bonus_rules', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
+
+
 
 // Payroll approval workflow
 export const payrollApprovals = pgTable('payroll_approvals', {

@@ -48,6 +48,11 @@ import NewPaymentCreatePage from "@/pages/finance/new-payment-create";
 import EditPaymentPage from "@/pages/finance/edit-payment-page";
 import BrcPage from "@/pages/finance/brc-page";
 import BrcManagementPage from "@/pages/finance/brc-management-page";
+
+// Administration module pages
+import AdministrationPage from "@/pages/admin/administration-page";
+import UserManagementPage from "@/pages/admin/user-management-page";
+import PayrollManagementPage from "@/pages/admin/payroll-management-page";
 import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
 import OutstandingReportPage from "@/pages/finance/reports/outstanding-page";
 import RemittancesReportPage from "@/pages/finance/reports/remittances-page";
@@ -185,6 +190,14 @@ function Router() {
       <ProtectedRoute path="/finance/write-offs" component={() => <WriteOffManagementPage />} />
       <ProtectedRoute path="/finance/write-off-management" component={() => <WriteOffManagementPage />} />
       <ProtectedRoute path="/finance/tools" component={FinanceToolsPage} />
+      
+      {/* Administration Module Routes */}
+      <ProtectedRoute path="/admin" component={AdministrationPage} />
+      <ProtectedRoute path="/admin/administration" component={AdministrationPage} />
+      <ProtectedRoute path="/admin/users" component={UserManagementPage} />
+      <ProtectedRoute path="/admin/user-management" component={UserManagementPage} />
+      <ProtectedRoute path="/admin/payroll" component={PayrollManagementPage} />
+      <ProtectedRoute path="/admin/payroll-management" component={PayrollManagementPage} />
       
       <ProtectedRoute path="/project-dashboard" component={ProjectDashboardPage} />
       <ProtectedRoute path="/projects" component={ProjectsPage} />

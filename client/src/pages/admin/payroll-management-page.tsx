@@ -1,0 +1,846 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Helmet } from "react-helmet";
+import Layout from "@/components/layout";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { 
+  CreditCard, 
+  Search, 
+  Edit, 
+  Plus,
+  Calculator,
+  Receipt,
+  Users,
+  TrendingUp
+} from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { apiRequest } from "@/lib/queryClient";
+
+// Salary configuration form schema
+const salaryFormSchema = z.object({
+  userId: z.number({ required_error: "Please select an employee" }),
+  salaryStartDate: z.string(),
+  basicSalary: z.string().min(1, "Basic salary is required"),
+  houseRentAllowance: z.string().default("0"),
+  conveyance: z.string().default("0"),
+  lta: z.string().default("0"),
+  specialAllowance: z.string().default("0"),
+  supplementaryAllowance: z.string().default("0"),
+  bonus: z.string().default("0"),
+  gratuityCost: z.string().default("0"),
+  kgpAllowance: z.string().default("0"),
+  employeePfContribution: z.string().default("0"),
+  employerPfContribution: z.string().default("0"),
+  employeeEsicContribution: z.string().default("0"),
+  employerEsicContribution: z.string().default("0"),
+  groupInsurance: z.string().default("0"),
+  bankName: z.string().optional(),
+  bankAccountNo: z.string().optional(),
+  debitAccount: z.string().optional(),
+});
+
+type SalaryFormValues = z.infer<typeof salaryFormSchema>;
+
+interface SalaryConfig {
+  id: number;
+  userId: number;
+  username: string;
+  firstName?: string;
+  lastName?: string;
+  department?: string;
+  employeeCode?: string;
+  salaryStartDate: string;
+  basicSalary: string;
+  houseRentAllowance: string;
+  conveyance: string;
+  lta: string;
+  specialAllowance: string;
+  supplementaryAllowance: string;
+  bonus: string;
+  gratuityCost: string;
+  kgpAllowance: string;
+  employeePfContribution: string;
+  employerPfContribution: string;
+  employeeEsicContribution: string;
+  employerEsicContribution: string;
+  groupInsurance: string;
+  bankName?: string;
+  bankAccountNo?: string;
+  debitAccount?: string;
+  takeHomeSalary: string;
+  ctcMonthly: string;
+  ctcYearly: string;
+  isActive: boolean;
+}
+
+interface User {
+  id: number;
+  username: string;
+  firstName?: string;
+  lastName?: string;
+  department?: string;
+  employeeCode?: string;
+}
+
+export default function PayrollManagementPage() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedEmployee, setSelectedEmployee] = useState<SalaryConfig | null>(null);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Fetch salary configurations
+  const { data: salaryConfigs = [], isLoading } = useQuery<SalaryConfig[]>({
+    queryKey: ['/api/admin/payroll/salary-setup'],
+  });
+
+  // Fetch all users for dropdown
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ['/api/admin/users'],
+  });
+
+  // Filter users that don't have salary configuration yet
+  const availableUsers = users.filter(user => 
+    !salaryConfigs.some(config => config.userId === user.id)
+  );
+
+  // Filter salary configurations based on search term
+  const filteredConfigs = salaryConfigs.filter(config =>
+    config.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    `${config.firstName} ${config.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    config.department?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Save salary configuration mutation
+  const saveSalaryMutation = useMutation({
+    mutationFn: async (salaryData: SalaryFormValues) => {
+      return apiRequest('POST', '/api/admin/payroll/salary-setup', salaryData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/salary-setup'] });
+      setIsAddDialogOpen(false);
+      setIsEditDialogOpen(false);
+      setSelectedEmployee(null);
+      toast({
+        title: "Salary Configuration Saved",
+        description: "Employee salary details have been successfully configured.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save salary configuration. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Form for salary configuration
+  const form = useForm<SalaryFormValues>({
+    resolver: zodResolver(salaryFormSchema),
+    defaultValues: {
+      salaryStartDate: new Date().toISOString().split('T')[0],
+      basicSalary: "",
+      houseRentAllowance: "0",
+      conveyance: "0",
+      lta: "0",
+      specialAllowance: "0",
+      supplementaryAllowance: "0",
+      bonus: "0",
+      gratuityCost: "0",
+      kgpAllowance: "0",
+      employeePfContribution: "0",
+      employerPfContribution: "0",
+      employeeEsicContribution: "0",
+      employerEsicContribution: "0",
+      groupInsurance: "0",
+    },
+  });
+
+  const onSubmit = (values: SalaryFormValues) => {
+    saveSalaryMutation.mutate(values);
+  };
+
+  const handleEdit = (config: SalaryConfig) => {
+    setSelectedEmployee(config);
+    form.reset({
+      userId: config.userId,
+      salaryStartDate: config.salaryStartDate.split('T')[0],
+      basicSalary: config.basicSalary,
+      houseRentAllowance: config.houseRentAllowance,
+      conveyance: config.conveyance,
+      lta: config.lta,
+      specialAllowance: config.specialAllowance,
+      supplementaryAllowance: config.supplementaryAllowance,
+      bonus: config.bonus,
+      gratuityCost: config.gratuityCost,
+      kgpAllowance: config.kgpAllowance,
+      employeePfContribution: config.employeePfContribution,
+      employerPfContribution: config.employerPfContribution,
+      employeeEsicContribution: config.employeeEsicContribution,
+      employerEsicContribution: config.employerEsicContribution,
+      groupInsurance: config.groupInsurance,
+      bankName: config.bankName || "",
+      bankAccountNo: config.bankAccountNo || "",
+      debitAccount: config.debitAccount || "",
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleAddNew = () => {
+    setSelectedEmployee(null);
+    form.reset({
+      salaryStartDate: new Date().toISOString().split('T')[0],
+      basicSalary: "",
+      houseRentAllowance: "0",
+      conveyance: "0",
+      lta: "0",
+      specialAllowance: "0",
+      supplementaryAllowance: "0",
+      bonus: "0",
+      gratuityCost: "0",
+      kgpAllowance: "0",
+      employeePfContribution: "0",
+      employerPfContribution: "0",
+      employeeEsicContribution: "0",
+      employerEsicContribution: "0",
+      groupInsurance: "0",
+    });
+    setIsAddDialogOpen(true);
+  };
+
+  // Calculate live totals
+  const watchedValues = form.watch();
+  const calculateTotals = () => {
+    const basic = parseFloat(watchedValues.basicSalary || "0");
+    const hra = parseFloat(watchedValues.houseRentAllowance || "0");
+    const conveyance = parseFloat(watchedValues.conveyance || "0");
+    const lta = parseFloat(watchedValues.lta || "0");
+    const special = parseFloat(watchedValues.specialAllowance || "0");
+    const supplementary = parseFloat(watchedValues.supplementaryAllowance || "0");
+    const bonus = parseFloat(watchedValues.bonus || "0");
+    const kgp = parseFloat(watchedValues.kgpAllowance || "0");
+    
+    const empPf = parseFloat(watchedValues.employeePfContribution || "0");
+    const empEsic = parseFloat(watchedValues.employeeEsicContribution || "0");
+    
+    const empPfEmployer = parseFloat(watchedValues.employerPfContribution || "0");
+    const empEsicEmployer = parseFloat(watchedValues.employerEsicContribution || "0");
+    const gratuity = parseFloat(watchedValues.gratuityCost || "0");
+    const insurance = parseFloat(watchedValues.groupInsurance || "0");
+
+    const grossSalary = basic + hra + conveyance + lta + special + supplementary + bonus + kgp;
+    const totalDeductions = empPf + empEsic;
+    const takeHome = grossSalary - totalDeductions;
+    const employerContributions = empPfEmployer + empEsicEmployer + gratuity + insurance;
+    const ctcMonthly = grossSalary + employerContributions;
+    const ctcYearly = ctcMonthly * 12;
+
+    return {
+      grossSalary,
+      totalDeductions,
+      takeHome,
+      employerContributions,
+      ctcMonthly,
+      ctcYearly
+    };
+  };
+
+  const totals = calculateTotals();
+
+  const SalaryForm = () => (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Employee Selection */}
+        <FormField
+          control={form.control}
+          name="userId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Employee *</FormLabel>
+              <Select 
+                onValueChange={(value) => field.onChange(parseInt(value))} 
+                defaultValue={field.value?.toString()}
+                disabled={!!selectedEmployee}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select employee" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {(selectedEmployee ? users : availableUsers).map((user) => (
+                    <SelectItem key={user.id} value={user.id.toString()}>
+                      {user.firstName && user.lastName 
+                        ? `${user.firstName} ${user.lastName} (${user.username})`
+                        : user.username
+                      }
+                      {user.employeeCode && ` - ${user.employeeCode}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="salaryStartDate"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Salary Start Date *</FormLabel>
+              <FormControl>
+                <Input type="date" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <Tabs defaultValue="basic-info" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="basic-info">Basic Info</TabsTrigger>
+            <TabsTrigger value="allowances">Allowances</TabsTrigger>
+            <TabsTrigger value="deductions">Deductions</TabsTrigger>
+            <TabsTrigger value="bank-details">Bank Details</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="basic-info" className="space-y-4">
+            <FormField
+              control={form.control}
+              name="basicSalary"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Basic Salary *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter basic salary" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </TabsContent>
+
+          <TabsContent value="allowances" className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="houseRentAllowance"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>House Rent Allowance</FormLabel>
+                    <FormControl>
+                      <Input placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="conveyance"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Conveyance</FormLabel>
+                    <FormControl>
+                      <Input placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="lta"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>LTA</FormLabel>
+                    <FormControl>
+                      <Input placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="specialAllowance"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Special Allowance</FormLabel>
+                    <FormControl>
+                      <Input placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="supplementaryAllowance"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Supplementary Allowance</FormLabel>
+                    <FormControl>
+                      <Input placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="bonus"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bonus</FormLabel>
+                    <FormControl>
+                      <Input placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="kgpAllowance"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>KGP Allowance</FormLabel>
+                    <FormControl>
+                      <Input placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="deductions" className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="employeePfContribution"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Employee PF Contribution</FormLabel>
+                    <FormControl>
+                      <Input placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="employerPfContribution"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Employer PF Contribution</FormLabel>
+                    <FormControl>
+                      <Input placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="employeeEsicContribution"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Employee ESIC Contribution</FormLabel>
+                    <FormControl>
+                      <Input placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="employerEsicContribution"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Employer ESIC Contribution</FormLabel>
+                    <FormControl>
+                      <Input placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="gratuityCost"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Gratuity Cost</FormLabel>
+                    <FormControl>
+                      <Input placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="groupInsurance"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Group Insurance</FormLabel>
+                    <FormControl>
+                      <Input placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="bank-details" className="space-y-4">
+            <FormField
+              control={form.control}
+              name="bankName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Bank Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter bank name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="bankAccountNo"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Bank Account Number</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter account number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="debitAccount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Debit Account</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter debit account" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </TabsContent>
+        </Tabs>
+
+        {/* Salary Calculation Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Salary Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <div className="flex justify-between">
+                  <span>Gross Salary:</span>
+                  <span className="font-semibold">₹{totals.grossSalary.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total Deductions:</span>
+                  <span className="font-semibold text-red-600">₹{totals.totalDeductions.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between font-bold border-t pt-2">
+                  <span>Take Home:</span>
+                  <span className="text-green-600">₹{totals.takeHome.toLocaleString()}</span>
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between">
+                  <span>Employer Contributions:</span>
+                  <span className="font-semibold">₹{totals.employerContributions.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>CTC Monthly:</span>
+                  <span className="font-semibold">₹{totals.ctcMonthly.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between font-bold border-t pt-2">
+                  <span>CTC Yearly:</span>
+                  <span className="text-blue-600">₹{totals.ctcYearly.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end space-x-2 pt-4">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => {
+              setIsAddDialogOpen(false);
+              setIsEditDialogOpen(false);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            type="submit" 
+            disabled={saveSalaryMutation.isPending}
+          >
+            {selectedEmployee ? 'Update Configuration' : 'Save Configuration'}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+
+  return (
+    <Layout>
+      <Helmet>
+        <title>Payroll Management - THERMOPAC</title>
+      </Helmet>
+
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Payroll Management</h1>
+            <p className="text-muted-foreground">
+              Configure employee salaries and manage payroll processing
+            </p>
+          </div>
+          <Button onClick={handleAddNew}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Salary Configuration
+          </Button>
+        </div>
+
+        {/* Key Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Configured Employees</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{salaryConfigs.length}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending Setup</CardTitle>
+              <Calculator className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{availableUsers.length}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Monthly CTC</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                ₹{salaryConfigs.reduce((sum, config) => sum + parseFloat(config.ctcMonthly), 0).toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Annual CTC</CardTitle>
+              <Receipt className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                ₹{salaryConfigs.reduce((sum, config) => sum + parseFloat(config.ctcYearly), 0).toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Search */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center space-x-2">
+              <Search className="h-4 w-4" />
+              <Input
+                placeholder="Search employees by name, username, or department..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
+          </CardHeader>
+        </Card>
+
+        {/* Salary Configurations Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Salary Configurations ({filteredConfigs.length})</CardTitle>
+            <CardDescription>
+              Employee salary details and CTC breakdown
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Employee</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Basic Salary</TableHead>
+                  <TableHead>Take Home</TableHead>
+                  <TableHead>CTC Monthly</TableHead>
+                  <TableHead>CTC Yearly</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center">Loading...</TableCell>
+                  </TableRow>
+                ) : (
+                  filteredConfigs.map((config) => (
+                    <TableRow key={config.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">
+                            {config.firstName && config.lastName 
+                              ? `${config.firstName} ${config.lastName}`
+                              : config.username
+                            }
+                          </div>
+                          {config.employeeCode && (
+                            <div className="text-xs text-muted-foreground">
+                              {config.employeeCode}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>{config.department || '-'}</TableCell>
+                      <TableCell>₹{parseFloat(config.basicSalary).toLocaleString()}</TableCell>
+                      <TableCell className="font-medium text-green-600">
+                        ₹{parseFloat(config.takeHomeSalary).toLocaleString()}
+                      </TableCell>
+                      <TableCell>₹{parseFloat(config.ctcMonthly).toLocaleString()}</TableCell>
+                      <TableCell className="font-medium">
+                        ₹{parseFloat(config.ctcYearly).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={config.isActive ? "default" : "secondary"}>
+                          {config.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(config)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        {/* Add Salary Configuration Dialog */}
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Add Salary Configuration</DialogTitle>
+              <DialogDescription>
+                Configure salary details for an employee
+              </DialogDescription>
+            </DialogHeader>
+            <SalaryForm />
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Salary Configuration Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Salary Configuration</DialogTitle>
+              <DialogDescription>
+                Update employee salary details
+              </DialogDescription>
+            </DialogHeader>
+            <SalaryForm />
+          </DialogContent>
+        </Dialog>
+      </div>
+    </Layout>
+  );
+}

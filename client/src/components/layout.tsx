@@ -60,6 +60,7 @@ export default function Layout({ children }: LayoutProps) {
   const [isProductionMenuOpen, setIsProductionMenuOpen] = useState(false);
   const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
   const [isFinanceMenuOpen, setIsFinanceMenuOpen] = useState(false);
+  const [isAdministrationMenuOpen, setIsAdministrationMenuOpen] = useState(false);
   const [attendanceCheckCompleted, setAttendanceCheckCompleted] = useState(false);
 
   // Get all module permissions for the current user
@@ -253,11 +254,19 @@ export default function Layout({ children }: LayoutProps) {
     { icon: Mail, label: "Emails", href: "/emails" },
     ...(user?.role === "Superuser" ? [{ icon: Settings, label: "Diagnostics", href: "/tools" }] : []),
     { icon: UserIcon, label: "Profile", href: "/profile" },
-    ...(user?.role === "Superuser" || user?.role === "General Manager" ? [
-      { icon: UserCog, label: "User Management", href: "/users" },
-      { icon: Users, label: "Password Management", href: "/password-management" },
-      { icon: Shield, label: "Module Permissions", href: "/module-permissions" }
-    ] : [])
+    ...(user?.role === "Superuser" || user?.role === "General Manager" ? [{ 
+      icon: Settings, 
+      label: "Administration", 
+      isSubmenu: true,
+      isOpen: isAdministrationMenuOpen,
+      toggle: () => setIsAdministrationMenuOpen(!isAdministrationMenuOpen),
+      children: [
+        { icon: Settings, label: "Administration Dashboard", href: "/admin" },
+        { icon: UserCog, label: "User Management", href: "/admin/users" },
+        { icon: IndianRupee, label: "Payroll Management", href: "/admin/payroll" },
+        { icon: Shield, label: "Module Permissions", href: "/module-permissions" }
+      ]
+    }] : [])
   ];
 
   return (

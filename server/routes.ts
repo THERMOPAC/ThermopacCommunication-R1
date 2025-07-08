@@ -48,6 +48,7 @@ import { ultraSimpleAllocationApi } from "./ultra-simple-allocation";
 import { default as simplePaymentRoutes } from "./simple-payment-routes";
 import { default as financeWriteOffsRouter } from "./finance-write-offs";
 import { setupDebugWorkOrderRoutes } from "./debug-work-orders";
+import { default as adminRoutes } from "./admin-routes";
 import { default as cleanPaymentRoutes } from "./clean-payment-routes";
 import { default as basicAllocationApi } from "./basic-allocation-api";
 import { default as workLocationRoutes } from "./work-location-routes";
@@ -2680,6 +2681,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Use standalone routes that bypass middleware (for special cases only)
   app.use('/api/standalone', standaloneRoutes);
   console.log('Registered standalone routes that bypass middleware at /api/standalone');
+
+  // Administration Module routes
+  app.use('/api/admin', adminRoutes);
+  console.log('Administration routes registered at /api/admin');
 
   const httpServer = createServer(app);
   return httpServer;
