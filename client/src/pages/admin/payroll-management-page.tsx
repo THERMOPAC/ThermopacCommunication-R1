@@ -214,11 +214,22 @@ export default function PayrollManagementPage() {
     const basicAmount = parseFloat(basicSalary || '0');
     if (basicAmount > 0) {
       // Auto-populate fields based on basic salary percentages
-      form.setValue('houseRentAllowance', (basicAmount * 0.40).toFixed(2));
-      form.setValue('conveyance', (basicAmount * 0.30).toFixed(2));
-      form.setValue('lta', (basicAmount * 0.20).toFixed(2));
-      form.setValue('specialAllowance', (basicAmount * 0.30).toFixed(2));
-      form.setValue('supplementaryAllowance', (basicAmount * 0.30).toFixed(2));
+      const hra = basicAmount * 0.40;
+      const conveyance = basicAmount * 0.30;
+      const lta = basicAmount * 0.20;
+      const special = basicAmount * 0.30;
+      const supplementary = basicAmount * 0.30;
+      
+      form.setValue('houseRentAllowance', hra.toFixed(2));
+      form.setValue('conveyance', conveyance.toFixed(2));
+      form.setValue('lta', lta.toFixed(2));
+      form.setValue('specialAllowance', special.toFixed(2));
+      form.setValue('supplementaryAllowance', supplementary.toFixed(2));
+      
+      // Calculate Gross Salary for ESIC calculation
+      const bonus = parseFloat(form.watch('bonus') || '0');
+      const kgp = parseFloat(form.watch('kgpAllowance') || '0');
+      const grossSalary = basicAmount + hra + conveyance + lta + special + supplementary + bonus + kgp;
       
       // Auto-calculate PF contributions with capping logic
       let employeePF, employerPF;
@@ -235,6 +246,20 @@ export default function PayrollManagementPage() {
       
       form.setValue('employeePfContribution', employeePF.toFixed(2));
       form.setValue('employerPfContribution', employerPF.toFixed(2));
+      
+      // Auto-calculate ESIC contributions based on Gross Salary
+      let employeeESIC, employerESIC;
+      
+      if (grossSalary <= 21000) {
+        employeeESIC = grossSalary * 0.0075; // 0.75%
+        employerESIC = grossSalary * 0.0325; // 3.25%
+      } else {
+        employeeESIC = 0;
+        employerESIC = 0;
+      }
+      
+      form.setValue('employeeEsicContribution', employeeESIC.toFixed(2));
+      form.setValue('employerEsicContribution', employerESIC.toFixed(2));
       
       // Calculate total compensation (basicSalary * 2.5)
       const totalCompensation = basicAmount * 2.5;
@@ -590,9 +615,14 @@ export default function PayrollManagementPage() {
                 name="employeeEsicContribution"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Employee ESIC Contribution</FormLabel>
+                    <FormLabel>Employee ESIC Contribution <span className="text-xs text-muted-foreground">(Auto: 0.75% if Gross ≤ ₹21,000)</span></FormLabel>
                     <FormControl>
-                      <Input placeholder="0" {...field} />
+                      <Input 
+                        placeholder="0" 
+                        {...field} 
+                        readOnly
+                        className="bg-gray-50 cursor-not-allowed"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -603,9 +633,14 @@ export default function PayrollManagementPage() {
                 name="employerEsicContribution"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Employer ESIC Contribution</FormLabel>
+                    <FormLabel>Employer ESIC Contribution <span className="text-xs text-muted-foreground">(Auto: 3.25% if Gross ≤ ₹21,000)</span></FormLabel>
                     <FormControl>
-                      <Input placeholder="0" {...field} />
+                      <Input 
+                        placeholder="0" 
+                        {...field} 
+                        readOnly
+                        className="bg-gray-50 cursor-not-allowed"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -639,45 +674,88 @@ export default function PayrollManagementPage() {
               />
             </div>
             
-            {/* Total PF Summary */}
+            {/* Total PF & ESIC Summary */}
             {parseFloat(basicSalary || '0') > 0 && (
-              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-green-900">Total PF Calculation Summary</span>
+              <div className="mt-4 space-y-4">
+                {/* PF Summary */}
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-green-900">Total PF Calculation Summary</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-green-700">Employee PF:</span>
+                      <span className="font-medium text-green-800">
+                        ₹{(parseFloat(form.watch('employeePfContribution') || '0')).toLocaleString('en-IN', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-green-700">Employer PF:</span>
+                      <span className="font-medium text-green-800">
+                        ₹{(parseFloat(form.watch('employerPfContribution') || '0')).toLocaleString('en-IN', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-l border-green-300 pl-4">
+                      <span className="text-green-700 font-medium">Total PF:</span>
+                      <span className="font-bold text-green-900">
+                        ₹{((parseFloat(form.watch('employeePfContribution') || '0')) + 
+                            (parseFloat(form.watch('employerPfContribution') || '0'))).toLocaleString('en-IN', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-green-600 mt-2">
+                    PF is calculated at 12% of Basic Salary, capped at ₹15,000 maximum contribution base
+                  </p>
                 </div>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-green-700">Employee PF:</span>
-                    <span className="font-medium text-green-800">
-                      ₹{(parseFloat(form.watch('employeePfContribution') || '0')).toLocaleString('en-IN', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                      })}
-                    </span>
+
+                {/* ESIC Summary */}
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-blue-900">Total ESIC Calculation Summary</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-green-700">Employer PF:</span>
-                    <span className="font-medium text-green-800">
-                      ₹{(parseFloat(form.watch('employerPfContribution') || '0')).toLocaleString('en-IN', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                      })}
-                    </span>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-blue-700">Employee ESIC:</span>
+                      <span className="font-medium text-blue-800">
+                        ₹{(parseFloat(form.watch('employeeEsicContribution') || '0')).toLocaleString('en-IN', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-blue-700">Employer ESIC:</span>
+                      <span className="font-medium text-blue-800">
+                        ₹{(parseFloat(form.watch('employerEsicContribution') || '0')).toLocaleString('en-IN', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-l border-blue-300 pl-4">
+                      <span className="text-blue-700 font-medium">Total ESIC:</span>
+                      <span className="font-bold text-blue-900">
+                        ₹{((parseFloat(form.watch('employeeEsicContribution') || '0')) + 
+                            (parseFloat(form.watch('employerEsicContribution') || '0'))).toLocaleString('en-IN', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between border-l border-green-300 pl-4">
-                    <span className="text-green-700 font-medium">Total PF:</span>
-                    <span className="font-bold text-green-900">
-                      ₹{((parseFloat(form.watch('employeePfContribution') || '0')) + 
-                          (parseFloat(form.watch('employerPfContribution') || '0'))).toLocaleString('en-IN', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                      })}
-                    </span>
-                  </div>
+                  <p className="text-xs text-blue-600 mt-2">
+                    ESIC is calculated at 0.75% (Employee) + 3.25% (Employer) of Gross Salary, applicable only if Gross ≤ ₹21,000
+                  </p>
                 </div>
-                <p className="text-xs text-green-600 mt-2">
-                  PF is calculated at 12% of Basic Salary, capped at ₹15,000 maximum contribution base
-                </p>
               </div>
             )}
           </TabsContent>
