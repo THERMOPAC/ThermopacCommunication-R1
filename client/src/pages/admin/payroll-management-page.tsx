@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
@@ -207,6 +207,25 @@ export default function PayrollManagementPage() {
     },
   });
 
+  // Auto-calculate allowances based on basic salary
+  const basicSalary = form.watch('basicSalary');
+  
+  useEffect(() => {
+    const basicAmount = parseFloat(basicSalary || '0');
+    if (basicAmount > 0) {
+      // Auto-populate fields based on basic salary percentages
+      form.setValue('houseRentAllowance', (basicAmount * 0.40).toFixed(2));
+      form.setValue('conveyance', (basicAmount * 0.30).toFixed(2));
+      form.setValue('lta', (basicAmount * 0.20).toFixed(2));
+      form.setValue('specialAllowance', (basicAmount * 0.30).toFixed(2));
+      form.setValue('supplementaryAllowance', (basicAmount * 0.30).toFixed(2));
+      
+      // Calculate total compensation (basicSalary * 2.5)
+      const totalCompensation = basicAmount * 2.5;
+      // Note: totalCompensation is calculated but not stored in form as it's not in the schema
+    }
+  }, [basicSalary, form]);
+
   const onSubmit = (values: SalaryFormValues) => {
     saveSalaryMutation.mutate(values);
   };
@@ -371,6 +390,24 @@ export default function PayrollManagementPage() {
                 </FormItem>
               )}
             />
+            
+            {/* Total Compensation Display */}
+            {parseFloat(basicSalary || '0') > 0 && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-blue-900">Total Compensation (2.5× Basic)</span>
+                  <span className="text-lg font-bold text-blue-700">
+                    ₹{((parseFloat(basicSalary || '0') * 2.5).toLocaleString('en-IN', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    }))}
+                  </span>
+                </div>
+                <p className="text-xs text-blue-600 mt-1">
+                  Auto-calculated allowances will be populated in the Allowances tab
+                </p>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="allowances" className="space-y-4">
@@ -380,9 +417,14 @@ export default function PayrollManagementPage() {
                 name="houseRentAllowance"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>House Rent Allowance</FormLabel>
+                    <FormLabel>House Rent Allowance <span className="text-xs text-muted-foreground">(Auto: 40% of Basic)</span></FormLabel>
                     <FormControl>
-                      <Input placeholder="0" {...field} />
+                      <Input 
+                        placeholder="0" 
+                        {...field} 
+                        readOnly
+                        className="bg-gray-50 cursor-not-allowed"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -393,9 +435,14 @@ export default function PayrollManagementPage() {
                 name="conveyance"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Conveyance</FormLabel>
+                    <FormLabel>Conveyance <span className="text-xs text-muted-foreground">(Auto: 30% of Basic)</span></FormLabel>
                     <FormControl>
-                      <Input placeholder="0" {...field} />
+                      <Input 
+                        placeholder="0" 
+                        {...field} 
+                        readOnly
+                        className="bg-gray-50 cursor-not-allowed"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -406,9 +453,14 @@ export default function PayrollManagementPage() {
                 name="lta"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>LTA</FormLabel>
+                    <FormLabel>LTA <span className="text-xs text-muted-foreground">(Auto: 20% of Basic)</span></FormLabel>
                     <FormControl>
-                      <Input placeholder="0" {...field} />
+                      <Input 
+                        placeholder="0" 
+                        {...field} 
+                        readOnly
+                        className="bg-gray-50 cursor-not-allowed"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -419,9 +471,14 @@ export default function PayrollManagementPage() {
                 name="specialAllowance"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Special Allowance</FormLabel>
+                    <FormLabel>Special Allowance <span className="text-xs text-muted-foreground">(Auto: 30% of Basic)</span></FormLabel>
                     <FormControl>
-                      <Input placeholder="0" {...field} />
+                      <Input 
+                        placeholder="0" 
+                        {...field} 
+                        readOnly
+                        className="bg-gray-50 cursor-not-allowed"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -432,9 +489,14 @@ export default function PayrollManagementPage() {
                 name="supplementaryAllowance"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Supplementary Allowance</FormLabel>
+                    <FormLabel>Supplementary Allowance <span className="text-xs text-muted-foreground">(Auto: 30% of Basic)</span></FormLabel>
                     <FormControl>
-                      <Input placeholder="0" {...field} />
+                      <Input 
+                        placeholder="0" 
+                        {...field} 
+                        readOnly
+                        className="bg-gray-50 cursor-not-allowed"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
