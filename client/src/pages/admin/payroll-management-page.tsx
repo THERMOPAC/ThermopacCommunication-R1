@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
@@ -233,22 +233,7 @@ export default function PayrollManagementPage() {
   const [actualDays, setActualDays] = useState('30');
   const [paidDays, setPaidDays] = useState('30');
 
-  // Custom hook for debounced value
-  const useDebounced = (value: string, delay: number) => {
-    const [debouncedValue, setDebouncedValue] = useState(value);
-    
-    useEffect(() => {
-      const handler = setTimeout(() => {
-        setDebouncedValue(value);
-      }, delay);
-      
-      return () => {
-        clearTimeout(handler);
-      };
-    }, [value, delay]);
-    
-    return debouncedValue;
-  };
+  // Removed useDebounced hook to prevent reactive behavior
 
   // State to hold calculated values
   const [calculatedValues, setCalculatedValues] = useState({
@@ -271,7 +256,7 @@ export default function PayrollManagementPage() {
   });
 
   // Manual calculation function triggered by Update button
-  const calculateSalaryComponents = useCallback(() => {
+  const calculateSalaryComponents = () => {
     const basicAmount = parseFloat(basicSalary || '0');
     if (basicAmount > 0) {
       const actualDaysNum = parseFloat(actualDays || '30');
@@ -388,7 +373,7 @@ export default function PayrollManagementPage() {
       form.setValue('ctcMonthly', (grossSalary + employerPF + employerESIC + monthlyGratuityProvision).toFixed(2));
       form.setValue('ctcYearly', ((grossSalary + employerPF + employerESIC + monthlyGratuityProvision) * 12).toFixed(2));
     }
-  }, []);
+  };
 
   const onSubmit = (values: SalaryFormValues) => {
     // Merge form values with calculated values
