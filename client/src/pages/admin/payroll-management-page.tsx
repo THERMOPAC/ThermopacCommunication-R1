@@ -86,6 +86,12 @@ const salaryFormSchema = z.object({
   bankName: z.string().optional(),
   bankAccountNo: z.string().optional(),
   debitAccount: z.string().optional(),
+  // Additional fields for daily worker support
+  salaryType: z.string().default("monthly"),
+  actualDays: z.string().default("30"),
+  workingHoursPerDay: z.string().default("8"),
+  overtimeHours: z.string().default("0"),
+  otRate: z.string().default("1.0"),
 });
 
 type SalaryFormValues = z.infer<typeof salaryFormSchema>;
@@ -120,6 +126,12 @@ interface SalaryConfig {
   ctcMonthly: string;
   ctcYearly: string;
   isActive: boolean;
+  // Additional fields for daily worker support
+  salaryType?: string;
+  actualDays?: number;
+  workingHoursPerDay?: number;
+  overtimeHours?: string;
+  otRate?: string;
 }
 
 interface User {
@@ -204,6 +216,11 @@ export default function PayrollManagementPage() {
       employeeEsicContribution: "0",
       employerEsicContribution: "0",
       groupInsurance: "0",
+      salaryType: "monthly",
+      actualDays: "30",
+      workingHoursPerDay: "8",
+      overtimeHours: "0",
+      otRate: "1.0",
     },
   });
 
