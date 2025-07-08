@@ -148,8 +148,20 @@ export default function PayrollManagementPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<SalaryConfig | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [renderCount, setRenderCount] = useState(0);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Debug: Track component renders
+  useEffect(() => {
+    const newCount = renderCount + 1;
+    setRenderCount(newCount);
+    console.log(`🔄 PayrollManagementPage render #${newCount}`, {
+      isAddDialogOpen,
+      selectedEmployee: selectedEmployee?.id,
+      searchTerm: searchTerm.length
+    });
+  }, [isAddDialogOpen, selectedEmployee?.id, searchTerm.length]);
 
   // Fetch salary configurations
   const { data: salaryConfigs = [], isLoading } = useQuery<SalaryConfig[]>({
@@ -232,6 +244,19 @@ export default function PayrollManagementPage() {
   const otRate = form.watch('otRate') || '1.0';
   const actualDays = form.watch('actualDays') || '30';
   const paidDays = form.watch('paidDays') || '30';
+
+  // Debug: Track form value changes
+  useEffect(() => {
+    console.log('📝 Form values changed:', {
+      basicSalary,
+      salaryType,
+      workingHoursPerDay,
+      overtimeHours,
+      otRate,
+      actualDays,
+      paidDays
+    });
+  }, [basicSalary, salaryType, workingHoursPerDay, overtimeHours, otRate, actualDays, paidDays]);
 
 
 
@@ -545,22 +570,29 @@ export default function PayrollManagementPage() {
               <FormField
                 control={form.control}
                 name="basicSalary"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Basic Salary *</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="Enter basic salary" 
-                        {...field} 
-                        onBlur={(e) => {
-                          field.onBlur(e);
-                          calculateSalaryValues();
-                        }}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  console.log('🔍 Basic Salary field render:', {
+                    fieldValue: field.value,
+                    formState: form.formState.isSubmitting
+                  });
+                  return (
+                    <FormItem>
+                      <FormLabel>Basic Salary *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Enter basic salary" 
+                          {...field} 
+                          onBlur={(e) => {
+                            field.onBlur(e);
+                            calculateSalaryValues();
+                          }}
+                          onFocus={() => console.log('💡 Basic Salary focused')}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
               <FormField
                 control={form.control}
