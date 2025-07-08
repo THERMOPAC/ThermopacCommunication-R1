@@ -234,6 +234,11 @@ export default function PayrollManagementPage() {
   const actualDays = useMemo(() => watchedValues.actualDays || '30', [watchedValues.actualDays]);
   const paidDays = useMemo(() => watchedValues.paidDays || '30', [watchedValues.paidDays]);
 
+  // Stabilized event handlers to prevent input recreation
+  const handleFieldBlur = useCallback(() => {
+    calculateSalaryValues();
+  }, [basicSalary, salaryType, workingHoursPerDay, overtimeHours, otRate, actualDays, paidDays]);
+
   // Calculation function that runs on blur events
   const calculateSalaryValues = useCallback(() => {
     const basicAmount = parseFloat(basicSalary || '0');
@@ -552,7 +557,7 @@ export default function PayrollManagementPage() {
                         {...field} 
                         onBlur={(e) => {
                           field.onBlur(e);
-                          calculateSalaryValues();
+                          handleFieldBlur();
                         }}
                       />
                     </FormControl>
@@ -594,7 +599,7 @@ export default function PayrollManagementPage() {
                         defaultValue="30" 
                         onBlur={(e) => {
                           field.onBlur(e);
-                          calculateSalaryValues();
+                          handleFieldBlur();
                         }}
                       />
                     </FormControl>
@@ -615,7 +620,7 @@ export default function PayrollManagementPage() {
                         defaultValue="8" 
                         onBlur={(e) => {
                           field.onBlur(e);
-                          calculateSalaryValues();
+                          handleFieldBlur();
                         }}
                       />
                     </FormControl>
@@ -638,7 +643,7 @@ export default function PayrollManagementPage() {
                         className={salaryType !== 'daily' ? 'bg-gray-100 cursor-not-allowed' : ''}
                         onBlur={(e) => {
                           field.onBlur(e);
-                          calculateSalaryValues();
+                          handleFieldBlur();
                         }}
                       />
                     </FormControl>
@@ -655,9 +660,7 @@ export default function PayrollManagementPage() {
                     <Select 
                       onValueChange={(value) => {
                         field.onChange(value);
-                        if (salaryType === 'daily') {
-                          setTimeout(() => calculateSalaryValues(), 0);
-                        }
+                        setTimeout(() => handleFieldBlur(), 0);
                       }} 
                       defaultValue={field.value || '1.0'}
                       disabled={salaryType !== 'daily'}
