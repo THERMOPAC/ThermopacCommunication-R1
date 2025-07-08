@@ -189,7 +189,7 @@ export default function AttendanceManagementPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Departments</SelectItem>
-                  {departments.map((dept: string) => (
+                  {Array.isArray(departments) && departments.map((dept: string) => (
                     <SelectItem key={dept} value={dept}>{dept}</SelectItem>
                   ))}
                 </SelectContent>
@@ -253,7 +253,7 @@ export default function AttendanceManagementPage() {
                 </tr>
               </thead>
               <tbody>
-                {attendanceRecords.length === 0 ? (
+                {!Array.isArray(attendanceRecords) || attendanceRecords.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="text-center p-8 text-gray-500">
                       No attendance records found for the selected criteria

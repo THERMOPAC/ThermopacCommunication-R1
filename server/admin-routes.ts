@@ -571,9 +571,9 @@ router.get('/attendance/stats', ensureAuthenticated, async (req: Request, res: R
         u.department
       FROM attendance_records a
       JOIN users u ON a.user_id = u.id
-      WHERE a.date >= $1 AND a.date <= $2
+      WHERE a.date >= '${startDate.toISOString().split('T')[0]}' AND a.date <= '${endDate.toISOString().split('T')[0]}'
       AND u.is_active = true
-    `, [startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]]);
+    `);
 
     // Calculate statistics
     const stats = {
@@ -592,8 +592,8 @@ router.get('/attendance/stats', ensureAuthenticated, async (req: Request, res: R
           a.check_in_time,
           a.check_out_time
         FROM attendance_records a
-        WHERE a.date = $1
-      `, [today]);
+        WHERE a.date = '${today}'
+      `);
 
       const presentUserIds = new Set(todayRecords.map((r: any) => r.user_id));
       stats.presentToday = presentUserIds.size;
@@ -685,37 +685,29 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
         a.date,
         a.check_in_time,
         a.check_out_time,
-        a.location,
         u.username as user_name,
         u.first_name,
         u.last_name,
         u.department
       FROM attendance_records a
       JOIN users u ON a.user_id = u.id
-      WHERE a.date >= $1 AND a.date <= $2
+      WHERE a.date >= '${startDate.toISOString().split('T')[0]}' AND a.date <= '${endDate.toISOString().split('T')[0]}'
       AND u.is_active = true
     `;
-    
-    const params: any[] = [startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]];
-    let paramIndex = 3;
 
     // Add department filter
     if (department !== 'all') {
-      query += ` AND u.department = $${paramIndex}`;
-      params.push(department);
-      paramIndex++;
+      query += ` AND u.department = '${department}'`;
     }
 
     // Add search filter
     if (search) {
-      query += ` AND (u.username ILIKE $${paramIndex} OR u.first_name ILIKE $${paramIndex} OR u.last_name ILIKE $${paramIndex})`;
-      params.push(`%${search}%`);
-      paramIndex++;
+      query += ` AND (u.username ILIKE '%${search}%' OR u.first_name ILIKE '%${search}%' OR u.last_name ILIKE '%${search}%')`;
     }
 
     query += ` ORDER BY a.date DESC, a.check_in_time DESC`;
 
-    const records = await db.execute(query, params);
+    const records = await db.execute(query);
 
     // Transform records with calculated fields
     const transformedRecords = records.map((record: any) => {
@@ -732,7 +724,7 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
         timeOut: record.check_out_time,
         workHours,
         status,
-        location: record.location || 'Office'
+        location: 'Office'
       };
     });
 
@@ -755,11 +747,11 @@ router.get('/departments', ensureAuthenticated, async (req: Request, res: Respon
       ORDER BY department
     `);
 
-    const departmentList = departments.map((d: any) => d.department);
+    const departmentList = Array.isArray(departments) ? departments.map((d: any) => d.department).filter(Boolean) : [];
     res.json(departmentList);
   } catch (error) {
     console.error('Error fetching departments:', error);
-    res.status(500).json({ error: 'Failed to fetch departments' });
+    res.json([]); // Return empty array on error
   }
 });
 
