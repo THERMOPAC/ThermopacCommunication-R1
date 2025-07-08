@@ -261,6 +261,11 @@ export default function PayrollManagementPage() {
       form.setValue('employeeEsicContribution', employeeESIC.toFixed(2));
       form.setValue('employerEsicContribution', employerESIC.toFixed(2));
       
+      // Auto-calculate Monthly Gratuity Provision
+      // Formula: (Basic Salary × 15) / (26 × 12) = Basic Salary × 0.0481
+      const monthlyGratuityProvision = basicAmount * 0.0481;
+      form.setValue('gratuityCost', monthlyGratuityProvision.toFixed(2));
+      
       // Calculate total compensation (basicSalary * 2.5)
       const totalCompensation = basicAmount * 2.5;
       // Note: totalCompensation is calculated but not stored in form as it's not in the schema
@@ -651,9 +656,14 @@ export default function PayrollManagementPage() {
                 name="gratuityCost"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Gratuity Cost</FormLabel>
+                    <FormLabel>Gratuity Cost <span className="text-xs text-muted-foreground">(Auto: 4.81% of Basic Salary)</span></FormLabel>
                     <FormControl>
-                      <Input placeholder="0" {...field} />
+                      <Input 
+                        placeholder="0" 
+                        {...field} 
+                        readOnly
+                        className="bg-gray-50 cursor-not-allowed"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -754,6 +764,39 @@ export default function PayrollManagementPage() {
                   </div>
                   <p className="text-xs text-blue-600 mt-2">
                     ESIC is calculated at 0.75% (Employee) + 3.25% (Employer) of Gross Salary, applicable only if Gross ≤ ₹21,000
+                  </p>
+                </div>
+
+                {/* Gratuity Summary */}
+                <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-orange-900">Monthly Gratuity Provision Summary</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-orange-700">Basic Salary:</span>
+                      <span className="font-medium text-orange-800">
+                        ₹{(parseFloat(basicSalary || '0')).toLocaleString('en-IN', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-l border-orange-300 pl-4">
+                      <span className="text-orange-700 font-medium">Monthly Provision (4.81%):</span>
+                      <span className="font-bold text-orange-900">
+                        ₹{(parseFloat(form.watch('gratuityCost') || '0')).toLocaleString('en-IN', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-orange-600 mt-2">
+                    Monthly provision for gratuity calculated as (Basic Salary × 15) ÷ (26 × 12) = Basic Salary × 4.81%
+                  </p>
+                  <p className="text-xs text-orange-500 mt-1">
+                    Note: Actual gratuity is payable only after 5 years of continuous service as per Payment of Gratuity Act, 1972
                   </p>
                 </div>
               </div>
