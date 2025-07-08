@@ -256,26 +256,9 @@ export default function PayrollManagementPage() {
   const debouncedWorkingHours = useDebounced(workingHoursPerDay, 400);
   const debouncedPaidDays = useDebounced(paidDays, 400);
 
-  // Track which fields are currently focused to prevent setValue during focus
-  const focusedFieldRef = useRef<string | null>(null);
-  const isUserTyping = useRef(false);
-
-  // Create stable input handlers using useCallback to prevent re-renders
-  const handleBasicSalaryChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    form.setValue('basicSalary', e.target.value);
-  }, [form]);
-
-  const handleOvertimeHoursChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    form.setValue('overtimeHours', e.target.value);
-  }, [form]);
-
-  const handleWorkingHoursChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    form.setValue('workingHoursPerDay', e.target.value);
-  }, [form]);
-
-  const handlePaidDaysChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    form.setValue('paidDays', e.target.value);
-  }, [form]);
+  // Track if user is actively typing in any field
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
   // State to hold calculated values without triggering form re-renders
   const [calculatedValues, setCalculatedValues] = useState({
@@ -296,6 +279,23 @@ export default function PayrollManagementPage() {
     ctcMonthly: '0',
     ctcYearly: '0'
   });
+
+  // Helper function to handle input focus/blur to prevent focus loss
+  const createInputHandler = useCallback((fieldName: string) => {
+    return {
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+        setIsTyping(true);
+        form.setValue(fieldName as any, e.target.value, { shouldValidate: false });
+        
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+        typingTimeoutRef.current = setTimeout(() => {
+          setIsTyping(false);
+        }, 600);
+      }
+    };
+  }, [form]);
   
   useEffect(() => {
     const basicAmount = parseFloat(debouncedBasicSalary || '0');
@@ -626,11 +626,10 @@ export default function PayrollManagementPage() {
                     <FormControl>
                       <Input 
                         placeholder="Enter basic salary" 
-                        value={field.value || ''}
-                        onChange={handleBasicSalaryChange}
+                        value={field.value || ''} 
+                        {...createInputHandler('basicSalary')}
                         onBlur={field.onBlur}
                         name={field.name}
-                        ref={field.ref}
                       />
                     </FormControl>
                     <FormMessage />
@@ -659,11 +658,10 @@ export default function PayrollManagementPage() {
                     <FormControl>
                       <Input 
                         placeholder="30" 
-                        value={field.value || '30'}
-                        onChange={handlePaidDaysChange}
+                        value={field.value || '30'} 
+                        {...createInputHandler('paidDays')}
                         onBlur={field.onBlur}
                         name={field.name}
-                        ref={field.ref}
                       />
                     </FormControl>
                     <FormMessage />
@@ -679,11 +677,10 @@ export default function PayrollManagementPage() {
                     <FormControl>
                       <Input 
                         placeholder="8" 
-                        value={field.value || '8'}
-                        onChange={handleWorkingHoursChange}
+                        value={field.value || '8'} 
+                        {...createInputHandler('workingHoursPerDay')}
                         onBlur={field.onBlur}
                         name={field.name}
-                        ref={field.ref}
                       />
                     </FormControl>
                     <FormMessage />
@@ -699,11 +696,10 @@ export default function PayrollManagementPage() {
                     <FormControl>
                       <Input 
                         placeholder="0" 
-                        value={field.value || '0'}
-                        onChange={handleOvertimeHoursChange}
+                        value={field.value || '0'} 
+                        {...createInputHandler('overtimeHours')}
                         onBlur={field.onBlur}
                         name={field.name}
-                        ref={field.ref}
                         disabled={salaryType !== 'daily'}
                         className={salaryType !== 'daily' ? 'bg-gray-100 cursor-not-allowed' : ''}
                       />
