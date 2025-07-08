@@ -244,8 +244,7 @@ export default function PayrollManagementPage() {
       if (salaryType === 'daily') {
         // For daily salary type: Don't auto-calculate other components
         // Total Compensation = Basic Salary per day × Paid Days
-        const paidDays = parseFloat(form.watch('paidDays') || '30');
-        baseForCalculation = basicAmount * paidDays;
+        baseForCalculation = basicAmount * paidDaysNum;
         // Don't auto-populate other allowances for daily salary
       } else {
         // For monthly salary type: Auto-calculate allowances
@@ -275,8 +274,7 @@ export default function PayrollManagementPage() {
       
       // Auto-calculate PF contributions with capping logic (based on monthly equivalent basic)
       let employeePF, employerPF;
-      const paidDays = parseFloat(form.watch('paidDays') || '30');
-      const pfBaseAmount = salaryType === 'daily' ? basicAmount * paidDays : proRatedBasic;
+      const pfBaseAmount = salaryType === 'daily' ? basicAmount * paidDaysNum : proRatedBasic;
       
       if (pfBaseAmount <= 15000) {
         employeePF = pfBaseAmount * 0.12;
@@ -304,7 +302,7 @@ export default function PayrollManagementPage() {
       form.setValue('employerEsicContribution', employerESIC.toFixed(2));
       
       // Auto-calculate Monthly Gratuity Provision (based on monthly equivalent basic)
-      const gratuityBaseAmount = salaryType === 'daily' ? basicAmount * paidDays : basicAmount;
+      const gratuityBaseAmount = salaryType === 'daily' ? basicAmount * paidDaysNum : basicAmount;
       const monthlyGratuityProvision = gratuityBaseAmount * 0.0481;
       form.setValue('gratuityCost', monthlyGratuityProvision.toFixed(2));
       
