@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
@@ -224,7 +224,7 @@ export default function PayrollManagementPage() {
     },
   });
 
-  // Auto-calculate allowances based on basic salary
+  // Watch form values for calculation
   const basicSalary = form.watch('basicSalary');
   const salaryType = form.watch('salaryType') || 'monthly';
   const workingHoursPerDay = form.watch('workingHoursPerDay') || '8';
@@ -232,14 +232,37 @@ export default function PayrollManagementPage() {
   const otRate = form.watch('otRate') || '1.0';
   const actualDays = form.watch('actualDays') || '30';
   const paidDays = form.watch('paidDays') || '30';
+
+  // Custom hook for debounced value
+  const useDebounced = (value: string, delay: number) => {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+    
+    useEffect(() => {
+      const handler = setTimeout(() => {
+        setDebouncedValue(value);
+      }, delay);
+      
+      return () => {
+        clearTimeout(handler);
+      };
+    }, [value, delay]);
+    
+    return debouncedValue;
+  };
+
+  // Debounced values to prevent calculations while typing
+  const debouncedBasicSalary = useDebounced(basicSalary, 500);
+  const debouncedOvertimeHours = useDebounced(overtimeHours, 500);
+  const debouncedWorkingHours = useDebounced(workingHoursPerDay, 500);
+  const debouncedPaidDays = useDebounced(paidDays, 500);
   
   useEffect(() => {
-    const basicAmount = parseFloat(basicSalary || '0');
+    const basicAmount = parseFloat(debouncedBasicSalary || '0');
     if (basicAmount > 0) {
       const actualDaysNum = parseFloat(actualDays || '30');
-      const paidDaysNum = parseFloat(paidDays || '30');
-      const workingHoursNum = parseFloat(workingHoursPerDay || '8');
-      const overtimeHoursNum = parseFloat(overtimeHours || '0');
+      const paidDaysNum = parseFloat(debouncedPaidDays || '30');
+      const workingHoursNum = parseFloat(debouncedWorkingHours || '8');
+      const overtimeHoursNum = parseFloat(debouncedOvertimeHours || '0');
       const otRateNum = parseFloat(otRate || '1.0');
       
       let proRatedBasic, overtimePay, grossSalary, employeePF, employerPF, employeeESIC, employerESIC, monthlyGratuityProvision;
@@ -331,7 +354,7 @@ export default function PayrollManagementPage() {
       form.setValue('overtimePay', overtimePay.toFixed(2));
       form.setValue('grossSalary', grossSalary.toFixed(2));
     }
-  }, [basicSalary, salaryType, actualDays, paidDays, workingHoursPerDay, overtimeHours, otRate, form]);
+  }, [debouncedBasicSalary, salaryType, actualDays, debouncedPaidDays, debouncedWorkingHours, debouncedOvertimeHours, otRate, form]);
 
   const onSubmit = (values: SalaryFormValues) => {
     saveSalaryMutation.mutate(values);
