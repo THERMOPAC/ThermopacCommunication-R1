@@ -240,27 +240,37 @@ export default function PayrollManagementPage() {
       
       // Auto-populate allowances based on salary type
       let baseForCalculation = proRatedBasic;
+      
       if (salaryType === 'daily') {
-        // For daily salary type: Basic Salary per day × 26
+        // For daily salary type: Don't auto-calculate other components
+        // Total Compensation = Basic Salary per day × 26
         baseForCalculation = basicAmount * 26;
+        // Don't auto-populate other allowances for daily salary
+      } else {
+        // For monthly salary type: Auto-calculate allowances
+        const hra = baseForCalculation * 0.40;
+        const conveyance = baseForCalculation * 0.30;
+        const lta = baseForCalculation * 0.20;
+        const special = baseForCalculation * 0.30;
+        const supplementary = baseForCalculation * 0.30;
+        
+        form.setValue('houseRentAllowance', hra.toFixed(2));
+        form.setValue('conveyance', conveyance.toFixed(2));
+        form.setValue('lta', lta.toFixed(2));
+        form.setValue('specialAllowance', special.toFixed(2));
+        form.setValue('supplementaryAllowance', supplementary.toFixed(2));
       }
-      
-      const hra = baseForCalculation * 0.40;
-      const conveyance = baseForCalculation * 0.30;
-      const lta = baseForCalculation * 0.20;
-      const special = baseForCalculation * 0.30;
-      const supplementary = baseForCalculation * 0.30;
-      
-      form.setValue('houseRentAllowance', hra.toFixed(2));
-      form.setValue('conveyance', conveyance.toFixed(2));
-      form.setValue('lta', lta.toFixed(2));
-      form.setValue('specialAllowance', special.toFixed(2));
-      form.setValue('supplementaryAllowance', supplementary.toFixed(2));
       
       // Calculate Gross Salary for ESIC calculation
       const bonus = parseFloat(form.watch('bonus') || '0');
       const kgp = parseFloat(form.watch('kgpAllowance') || '0');
-      const grossSalary = baseForCalculation + hra + conveyance + lta + special + supplementary + bonus + kgp + overtimePay;
+      const currentHra = parseFloat(form.watch('houseRentAllowance') || '0');
+      const currentConveyance = parseFloat(form.watch('conveyance') || '0');
+      const currentLta = parseFloat(form.watch('lta') || '0');
+      const currentSpecial = parseFloat(form.watch('specialAllowance') || '0');
+      const currentSupplementary = parseFloat(form.watch('supplementaryAllowance') || '0');
+      
+      const grossSalary = baseForCalculation + currentHra + currentConveyance + currentLta + currentSpecial + currentSupplementary + bonus + kgp + overtimePay;
       
       // Auto-calculate PF contributions with capping logic (based on monthly equivalent basic)
       let employeePF, employerPF;
