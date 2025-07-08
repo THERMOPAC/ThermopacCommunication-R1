@@ -947,15 +947,24 @@ function SalaryForm({ users, workLocations, initialData, onSubmit, isLoading }: 
             Reset
           </Button>
           <Button 
-            type="submit" 
+            type="button" 
             disabled={isLoading}
-            onClick={(e) => {
+            onClick={async (e) => {
               console.log('Save button clicked, isLoading:', isLoading);
               console.log('Form valid:', form.formState.isValid);
               console.log('Form errors:', form.formState.errors);
-              if (!form.formState.isValid) {
-                e.preventDefault();
-                console.log('Form is invalid, preventing submission');
+              console.log('Form values:', form.getValues());
+              
+              // Force form validation
+              const isValid = await form.trigger();
+              console.log('Manual validation result:', isValid);
+              console.log('Manual validation errors:', form.formState.errors);
+              
+              if (isValid) {
+                const values = form.getValues();
+                handleSubmit(values);
+              } else {
+                console.log('Form validation failed');
               }
             }}
           >
