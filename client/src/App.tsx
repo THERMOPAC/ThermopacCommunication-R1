@@ -53,7 +53,7 @@ import BrcManagementPage from "@/pages/finance/brc-management-page";
 import AdministrationPage from "@/pages/admin/administration-page";
 import UserManagementPage from "@/pages/admin/user-management-page";
 import AttendanceManagementPage from "@/pages/admin/attendance-management-page";
-import PayrollManagementPage from "@/pages/admin/payroll-management-page";
+import PayrollManagementPage from "@/pages/admin/payroll-management-new";
 import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
 import OutstandingReportPage from "@/pages/finance/reports/outstanding-page";
 import RemittancesReportPage from "@/pages/finance/reports/remittances-page";
