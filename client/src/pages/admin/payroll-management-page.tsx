@@ -250,11 +250,11 @@ export default function PayrollManagementPage() {
     return debouncedValue;
   };
 
-  // Debounced values to prevent calculations while typing
-  const debouncedBasicSalary = useDebounced(basicSalary, 500);
-  const debouncedOvertimeHours = useDebounced(overtimeHours, 500);
-  const debouncedWorkingHours = useDebounced(workingHoursPerDay, 500);
-  const debouncedPaidDays = useDebounced(paidDays, 500);
+  // Debounced values to prevent calculations while typing (400ms delay)
+  const debouncedBasicSalary = useDebounced(basicSalary, 400);
+  const debouncedOvertimeHours = useDebounced(overtimeHours, 400);
+  const debouncedWorkingHours = useDebounced(workingHoursPerDay, 400);
+  const debouncedPaidDays = useDebounced(paidDays, 400);
   
   useEffect(() => {
     const basicAmount = parseFloat(debouncedBasicSalary || '0');
