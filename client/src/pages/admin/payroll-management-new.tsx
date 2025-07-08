@@ -193,7 +193,7 @@ export default function PayrollManagementNew() {
   });
 
   const { data: users = [] } = useQuery<User[]>({
-    queryKey: ['/api/admin/users'],
+    queryKey: ['/api/admin/users/payroll'],
   });
 
   const { data: workLocations = [] } = useQuery<WorkLocation[]>({
