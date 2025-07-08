@@ -224,18 +224,15 @@ export default function PayrollManagementPage() {
     },
   });
 
-  // Watch form values for calculation
-  const basicSalary = form.watch('basicSalary');
-  const salaryType = form.watch('salaryType') || 'monthly';
-  const workingHoursPerDay = form.watch('workingHoursPerDay') || '8';
-  const overtimeHours = form.watch('overtimeHours') || '0';
-  const otRate = form.watch('otRate') || '1.0';
-  const actualDays = form.watch('actualDays') || '30';
-  const paidDays = form.watch('paidDays') || '30';
-
-
-
-
+  // Watch form values for calculation with memoized values to prevent re-renders
+  const watchedValues = form.watch();
+  const basicSalary = useMemo(() => watchedValues.basicSalary || '', [watchedValues.basicSalary]);
+  const salaryType = useMemo(() => watchedValues.salaryType || 'monthly', [watchedValues.salaryType]);
+  const workingHoursPerDay = useMemo(() => watchedValues.workingHoursPerDay || '8', [watchedValues.workingHoursPerDay]);
+  const overtimeHours = useMemo(() => watchedValues.overtimeHours || '0', [watchedValues.overtimeHours]);
+  const otRate = useMemo(() => watchedValues.otRate || '1.0', [watchedValues.otRate]);
+  const actualDays = useMemo(() => watchedValues.actualDays || '30', [watchedValues.actualDays]);
+  const paidDays = useMemo(() => watchedValues.paidDays || '30', [watchedValues.paidDays]);
 
   // Calculation function that runs on blur events
   const calculateSalaryValues = useCallback(() => {
@@ -388,9 +385,8 @@ export default function PayrollManagementPage() {
   };
 
   // Calculate live totals
-  const watchedValues = form.watch();
   const calculateTotals = () => {
-    const basic = parseFloat(watchedValues.basicSalary || "0");
+    const basic = parseFloat(basicSalary || "0");
     const actualDaysNum = parseFloat(actualDays || "30");
     const paidDaysNum = parseFloat(paidDays || "30");
     const workingHoursNum = parseFloat(workingHoursPerDay || "8");
@@ -642,9 +638,7 @@ export default function PayrollManagementPage() {
                         className={salaryType !== 'daily' ? 'bg-gray-100 cursor-not-allowed' : ''}
                         onBlur={(e) => {
                           field.onBlur(e);
-                          if (salaryType === 'daily') {
-                            calculateSalaryValues();
-                          }
+                          calculateSalaryValues();
                         }}
                       />
                     </FormControl>
