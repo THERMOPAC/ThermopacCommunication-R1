@@ -273,8 +273,8 @@ export default function PayrollManagementPage() {
       let pfBasicAmount;
       
       if (salaryType === 'daily') {
-        // For Daily workers: Calculate PF based on monthly equivalent (Basic per day × Paid days)
-        pfBasicAmount = basicAmount * paidDaysNum;
+        // For Daily workers: Use actual earning amount, not inflated monthly equivalent
+        pfBasicAmount = proRatedBasic; // This is already Basic per day × Paid days
       } else {
         // For Monthly workers: Use pro-rated basic
         pfBasicAmount = proRatedBasic;
@@ -309,9 +309,8 @@ export default function PayrollManagementPage() {
       let monthlyGratuityProvision;
       
       if (salaryType === 'daily') {
-        // For Daily workers: Calculate gratuity based on monthly equivalent (Basic per day × 30 days)
-        const monthlyEquivalentBasic = basicAmount * 30;
-        monthlyGratuityProvision = monthlyEquivalentBasic * 0.0481;
+        // For Daily workers: Calculate gratuity based on actual earning amount
+        monthlyGratuityProvision = proRatedBasic * 0.0481;
       } else {
         // For Monthly workers: Use original basic (not pro-rated)
         monthlyGratuityProvision = basicAmount * 0.0481;
