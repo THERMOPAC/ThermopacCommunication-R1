@@ -524,6 +524,8 @@ function SalaryForm({ users, workLocations, initialData, onSubmit, isLoading }: 
       ...values,
       bonus: calculations.bonus.toString()
     };
+    console.log('Form submission values:', submissionValues);
+    console.log('Form validation errors:', form.formState.errors);
     onSubmit(submissionValues);
   };
 
@@ -944,7 +946,19 @@ function SalaryForm({ users, workLocations, initialData, onSubmit, isLoading }: 
           <Button type="button" variant="outline" onClick={() => form.reset()}>
             Reset
           </Button>
-          <Button type="submit" disabled={isLoading}>
+          <Button 
+            type="submit" 
+            disabled={isLoading}
+            onClick={(e) => {
+              console.log('Save button clicked, isLoading:', isLoading);
+              console.log('Form valid:', form.formState.isValid);
+              console.log('Form errors:', form.formState.errors);
+              if (!form.formState.isValid) {
+                e.preventDefault();
+                console.log('Form is invalid, preventing submission');
+              }
+            }}
+          >
             {isLoading ? 'Saving...' : 'Save Configuration'}
           </Button>
         </div>
