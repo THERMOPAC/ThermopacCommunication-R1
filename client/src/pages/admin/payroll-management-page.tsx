@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
@@ -255,6 +255,30 @@ export default function PayrollManagementPage() {
   const debouncedOvertimeHours = useDebounced(overtimeHours, 400);
   const debouncedWorkingHours = useDebounced(workingHoursPerDay, 400);
   const debouncedPaidDays = useDebounced(paidDays, 400);
+
+  // Track which fields are currently focused to prevent setValue during focus
+  const focusedFieldRef = useRef<string | null>(null);
+  const isUserTyping = useRef(false);
+
+  // State to hold calculated values without triggering form re-renders
+  const [calculatedValues, setCalculatedValues] = useState({
+    houseRentAllowance: '0',
+    conveyance: '0', 
+    lta: '0',
+    specialAllowance: '0',
+    supplementaryAllowance: '0',
+    employeePfContribution: '0',
+    employerPfContribution: '0',
+    employeeEsicContribution: '0',
+    employerEsicContribution: '0',
+    gratuityCost: '0',
+    proRatedBasic: '0',
+    overtimePay: '0',
+    grossSalary: '0',
+    takeHomeSalary: '0',
+    ctcMonthly: '0',
+    ctcYearly: '0'
+  });
   
   useEffect(() => {
     const basicAmount = parseFloat(debouncedBasicSalary || '0');
@@ -336,28 +360,39 @@ export default function PayrollManagementPage() {
         monthlyGratuityProvision = basicAmount * 0.0481;
       }
       
-      // Set all form values
-      form.setValue('houseRentAllowance', hra.toFixed(2));
-      form.setValue('conveyance', conveyance.toFixed(2));
-      form.setValue('lta', lta.toFixed(2));
-      form.setValue('specialAllowance', special.toFixed(2));
-      form.setValue('supplementaryAllowance', supplementary.toFixed(2));
-      
-      form.setValue('employeePfContribution', employeePF.toFixed(2));
-      form.setValue('employerPfContribution', employerPF.toFixed(2));
-      form.setValue('employeeEsicContribution', employeeESIC.toFixed(2));
-      form.setValue('employerEsicContribution', employerESIC.toFixed(2));
-      form.setValue('gratuityCost', monthlyGratuityProvision.toFixed(2));
-      
-      // Store calculated values for summary display
-      form.setValue('proRatedBasic', proRatedBasic.toFixed(2));
-      form.setValue('overtimePay', overtimePay.toFixed(2));
-      form.setValue('grossSalary', grossSalary.toFixed(2));
+      // Update calculated values state (won't trigger form re-renders)
+      setCalculatedValues({
+        houseRentAllowance: hra.toFixed(2),
+        conveyance: conveyance.toFixed(2),
+        lta: lta.toFixed(2),
+        specialAllowance: special.toFixed(2),
+        supplementaryAllowance: supplementary.toFixed(2),
+        employeePfContribution: employeePF.toFixed(2),
+        employerPfContribution: employerPF.toFixed(2),
+        employeeEsicContribution: employeeESIC.toFixed(2),
+        employerEsicContribution: employerESIC.toFixed(2),
+        gratuityCost: monthlyGratuityProvision.toFixed(2),
+        proRatedBasic: proRatedBasic.toFixed(2),
+        overtimePay: overtimePay.toFixed(2),
+        grossSalary: grossSalary.toFixed(2),
+        takeHomeSalary: (grossSalary - employeePF - employeeESIC).toFixed(2),
+        ctcMonthly: (grossSalary + employerPF + employerESIC + monthlyGratuityProvision).toFixed(2),
+        ctcYearly: ((grossSalary + employerPF + employerESIC + monthlyGratuityProvision) * 12).toFixed(2)
+      });
     }
   }, [debouncedBasicSalary, salaryType, actualDays, debouncedPaidDays, debouncedWorkingHours, debouncedOvertimeHours, otRate, form]);
 
   const onSubmit = (values: SalaryFormValues) => {
-    saveSalaryMutation.mutate(values);
+    // Merge form values with calculated values
+    const finalValues = {
+      ...values,
+      ...calculatedValues,
+      // Convert calculated values back to string format
+      takeHomeSalary: calculatedValues.takeHomeSalary,
+      ctcMonthly: calculatedValues.ctcMonthly,
+      ctcYearly: calculatedValues.ctcYearly
+    };
+    saveSalaryMutation.mutate(finalValues);
   };
 
   const handleEdit = (config: SalaryConfig) => {
@@ -694,7 +729,7 @@ export default function PayrollManagementPage() {
                     <FormControl>
                       <Input 
                         placeholder="0" 
-                        {...field} 
+                        value={calculatedValues.houseRentAllowance}
                         readOnly
                         className="bg-gray-50 cursor-not-allowed"
                       />
