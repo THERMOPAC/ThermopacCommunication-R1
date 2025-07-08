@@ -746,10 +746,10 @@ export default function PayrollManagementPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-blue-900">Total Compensation (2.5× Basic)</span>
                     <span className="text-lg font-bold text-blue-700">
-                      ₹{((parseFloat(basicSalary || '0') * 2.5).toLocaleString('en-IN', {
+                      ₹{calculatedValues.grossSalary ? ((parseFloat(basicSalary || '0') * 2.5).toLocaleString('en-IN', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
-                      }))}
+                      })) : '0.00'}
                     </span>
                   </div>
                   <p className="text-xs text-blue-600 mt-1">
