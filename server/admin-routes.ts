@@ -357,6 +357,8 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
   try {
     const salaryData = req.body;
     const currentUser = req.user as any;
+    
+    console.log('Received salary data:', JSON.stringify(salaryData, null, 2));
 
     // Calculate CTC values
     const grossSalary = parseFloat(salaryData.basicSalary) + 
@@ -392,35 +394,43 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
 
     if (existingConfig) {
       // Update existing configuration
+      const updateData = {
+        ...salaryData,
+        baseSalary: salaryData.basicSalary, // Map basicSalary to baseSalary
+        ctcMonthly: ctcMonthly.toString(),
+        ctcYearly: ctcYearly.toString(),
+        takeHomeSalary: takeHomeSalary.toString(),
+        actualSalaryForMonth: takeHomeSalary.toString(),
+        updatedAt: new Date()
+      };
+      
+      console.log('Update data:', JSON.stringify(updateData, null, 2));
+      
       const [updated] = await db
         .update(employeeSalaries)
-        .set({
-          ...salaryData,
-          baseSalary: salaryData.basicSalary, // Map basicSalary to baseSalary for database
-          ctcMonthly: ctcMonthly.toString(),
-          ctcYearly: ctcYearly.toString(),
-          takeHomeSalary: takeHomeSalary.toString(),
-          actualSalaryForMonth: takeHomeSalary.toString(),
-          updatedAt: new Date()
-        })
+        .set(updateData)
         .where(eq(employeeSalaries.id, existingConfig.id))
         .returning();
 
       res.json(updated);
     } else {
       // Create new configuration
+      const insertData = {
+        ...salaryData,
+        baseSalary: salaryData.basicSalary, // Map basicSalary to baseSalary
+        ctcMonthly: ctcMonthly.toString(),
+        ctcYearly: ctcYearly.toString(),
+        takeHomeSalary: takeHomeSalary.toString(),
+        actualSalaryForMonth: takeHomeSalary.toString(),
+        effectiveDate: salaryData.salaryStartDate,
+        createdBy: currentUser.id
+      };
+      
+      console.log('Insert data:', JSON.stringify(insertData, null, 2));
+      
       const [newConfig] = await db
         .insert(employeeSalaries)
-        .values({
-          ...salaryData,
-          baseSalary: salaryData.basicSalary, // Map basicSalary to baseSalary for database
-          ctcMonthly: ctcMonthly.toString(),
-          ctcYearly: ctcYearly.toString(),
-          takeHomeSalary: takeHomeSalary.toString(),
-          actualSalaryForMonth: takeHomeSalary.toString(),
-          effectiveDate: salaryData.salaryStartDate,
-          createdBy: currentUser.id
-        })
+        .values(insertData)
         .returning();
 
       res.status(201).json(newConfig);

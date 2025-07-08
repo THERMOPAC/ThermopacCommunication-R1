@@ -2986,6 +2986,7 @@ export const dailyQuotes = pgTable('daily_quotes', {
 export const employeeSalaries = pgTable('employee_salaries', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  baseSalary: decimal('base_salary', { precision: 12, scale: 2 }).notNull(),
   salaryStartDate: date('salary_start_date').notNull(),
   basicSalary: decimal('basic_salary', { precision: 12, scale: 2 }).notNull(),
   houseRentAllowance: decimal('house_rent_allowance', { precision: 10, scale: 2 }).default('0'),
