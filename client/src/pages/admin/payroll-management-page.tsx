@@ -225,7 +225,7 @@ export default function PayrollManagementPage() {
   });
 
   // Keep only OT rate state (needed for select component)
-  const [otRate, setOtRate] = useState('1.0');
+
 
   // Removed useDebounced hook to prevent reactive behavior
 
@@ -743,7 +743,7 @@ export default function PayrollManagementPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-blue-900">Total Compensation (2.5× Basic)</span>
                     <span className="text-lg font-bold text-blue-700">
-                      ₹{(calculatedValues.houseRentAllowance && parseFloat(calculatedValues.houseRentAllowance) > 0) ? ((parseFloat(basicSalary || '0') * 2.5).toLocaleString('en-IN', {
+                      ₹{(calculatedValues.houseRentAllowance && parseFloat(calculatedValues.houseRentAllowance) > 0) ? ((parseFloat(form.getValues('basicSalary') || '0') * 2.5).toLocaleString('en-IN', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
                       })) : '0.00'}
@@ -986,7 +986,7 @@ export default function PayrollManagementPage() {
             </div>
             
             {/* Total PF & ESIC Summary */}
-            {parseFloat(basicSalary || '0') > 0 && (
+            {parseFloat(form.getValues('basicSalary') || '0') > 0 && (
               <div className="mt-4 space-y-4">
                 {/* PF Summary */}
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -1077,7 +1077,7 @@ export default function PayrollManagementPage() {
                     <div className="flex justify-between">
                       <span className="text-orange-700">Basic Salary:</span>
                       <span className="font-medium text-orange-800">
-                        ₹{(calculatedValues.houseRentAllowance && parseFloat(calculatedValues.houseRentAllowance) > 0) ? (parseFloat(basicSalary || '0')).toLocaleString('en-IN', {
+                        ₹{(calculatedValues.houseRentAllowance && parseFloat(calculatedValues.houseRentAllowance) > 0) ? (parseFloat(form.getValues('basicSalary') || '0')).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         }) : '0.00'}
@@ -1148,7 +1148,7 @@ export default function PayrollManagementPage() {
         </Tabs>
 
         {/* Comprehensive Payroll Summary */}
-        {parseFloat(basicSalary || '0') > 0 && (
+        {parseFloat(form.getValues('basicSalary') || '0') > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Comprehensive Payroll Summary</CardTitle>
@@ -1184,7 +1184,7 @@ export default function PayrollManagementPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-slate-600">Basic Salary (Original):</span>
-                      <span className="font-medium">₹{(calculatedValues.houseRentAllowance && parseFloat(calculatedValues.houseRentAllowance) > 0) ? (parseFloat(basicSalary || '0')).toLocaleString('en-IN') : '0'}</span>
+                      <span className="font-medium">₹{(calculatedValues.houseRentAllowance && parseFloat(calculatedValues.houseRentAllowance) > 0) ? (parseFloat(form.getValues('basicSalary') || '0')).toLocaleString('en-IN') : '0'}</span>
                     </div>
                     {parseFloat(paidDays) < parseFloat(actualDays) && salaryType === 'monthly' && (calculatedValues.houseRentAllowance && parseFloat(calculatedValues.houseRentAllowance) > 0) && (
                       <div className="flex justify-between">
@@ -1215,7 +1215,7 @@ export default function PayrollManagementPage() {
                     {salaryType === 'daily' && parseFloat(overtimeHours) > 0 && (
                       <div className="flex justify-between border-t pt-2">
                         <span className="text-slate-600">Overtime Pay:</span>
-                        <span className="font-medium text-green-600">₹{((parseFloat(basicSalary || '0') / parseFloat(workingHoursPerDay)) * parseFloat(otRate) * parseFloat(overtimeHours)).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                        <span className="font-medium text-green-600">₹{((parseFloat(form.getValues('basicSalary') || '0') / parseFloat(form.getValues('workingHoursPerDay'))) * parseFloat(form.getValues('otRate')) * parseFloat(form.getValues('overtimeHours'))).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                       </div>
                     )}
                   </div>
@@ -1296,10 +1296,10 @@ export default function PayrollManagementPage() {
                   <li>• ESIC applies only if gross salary ≤ ₹21,000</li>
                   <li>• Gratuity provision is calculated monthly but payable after 5 years of service</li>
                   {salaryType === 'monthly' && parseFloat(paidDays) < parseFloat(actualDays) && (
-                    <li>• Basic salary is pro-rated: ({basicSalary} ÷ {actualDays}) × {paidDays} days</li>
+                    <li>• Basic salary is pro-rated: ({form.getValues('basicSalary')} ÷ {form.getValues('actualDays')}) × {form.getValues('paidDays')} days</li>
                   )}
                   {salaryType === 'daily' && parseFloat(overtimeHours) > 0 && (
-                    <li>• Overtime: Hourly Rate (₹{(parseFloat(basicSalary || '0') / parseFloat(workingHoursPerDay)).toFixed(2)}) × {otRate}x × {overtimeHours} hours</li>
+                    <li>• Overtime: Hourly Rate (₹{(parseFloat(form.getValues('basicSalary') || '0') / parseFloat(form.getValues('workingHoursPerDay'))).toFixed(2)}) × {form.getValues('otRate')}x × {form.getValues('overtimeHours')} hours</li>
                   )}
                 </ul>
               </div>
