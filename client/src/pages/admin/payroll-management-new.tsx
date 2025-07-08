@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { Helmet } from "react-helmet";
+import Layout from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -282,8 +284,12 @@ export default function PayrollManagementNew() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6">
+    <Layout>
+      <Helmet>
+        <title>Payroll Management - THERMOPAC</title>
+      </Helmet>
+
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -455,7 +461,7 @@ export default function PayrollManagementNew() {
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </Layout>
   );
 }
 
