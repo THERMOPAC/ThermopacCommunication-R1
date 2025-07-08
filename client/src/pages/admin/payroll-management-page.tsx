@@ -727,7 +727,7 @@ export default function PayrollManagementPage() {
             </div>
             
             {/* Manual Update Button */}
-            {parseFloat(basicSalary || '0') > 0 && (
+            {parseFloat(form.getValues('basicSalary') || '0') > 0 && (
               <div className="flex flex-col gap-4">
                 <Button 
                   type="button" 
