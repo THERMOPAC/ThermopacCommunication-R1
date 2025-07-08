@@ -524,7 +524,17 @@ export default function PayrollManagementPage() {
     };
   };
 
-  const totals = calculateTotals();
+  // Use calculated values from state instead of automatic calculations
+  const totals = {
+    grossSalary: parseFloat(calculatedValues.grossSalary || '0'),
+    totalDeductions: parseFloat(calculatedValues.employeePfContribution || '0') + parseFloat(calculatedValues.employeeEsicContribution || '0'),
+    takeHome: parseFloat(calculatedValues.takeHomeSalary || '0'),
+    employerContributions: parseFloat(calculatedValues.employerPfContribution || '0') + parseFloat(calculatedValues.employerEsicContribution || '0') + parseFloat(calculatedValues.gratuityCost || '0'),
+    ctcMonthly: parseFloat(calculatedValues.ctcMonthly || '0'),
+    ctcYearly: parseFloat(calculatedValues.ctcYearly || '0'),
+    effectiveBasic: parseFloat(calculatedValues.proRatedBasic || '0'),
+    overtimePay: parseFloat(calculatedValues.overtimePay || '0')
+  };
 
   const SalaryForm = () => (
     <Form {...form}>
