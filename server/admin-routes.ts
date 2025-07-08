@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import { db } from './db';
-import { users, employeeSalaries, payrollPeriods, payrollRecords } from '../shared/schema';
-import { eq, and, desc, asc } from 'drizzle-orm';
+import { users, employeeSalaries, payrollPeriods, payrollRecords, attendanceRecords } from '../shared/schema';
+import { eq, and, desc, asc, gte, lte } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { ensureAuthenticated } from './auth-middleware';
 
@@ -595,18 +595,18 @@ router.get('/attendance/stats', ensureAuthenticated, async (req: Request, res: R
         WHERE a.date = '${today}'
       `);
 
-      const presentUserIds = new Set(todayRecords.map((r: any) => r.user_id));
+      const presentUserIds = new Set(Array.isArray(todayRecords) ? todayRecords.map((r: any) => r.user_id) : []);
       stats.presentToday = presentUserIds.size;
       stats.absentToday = stats.totalEmployees - stats.presentToday;
       
       // Count late arrivals (after 9:30 AM)
-      stats.lateToday = todayRecords.filter((r: any) => {
+      stats.lateToday = Array.isArray(todayRecords) ? todayRecords.filter((r: any) => {
         if (!r.check_in_time) return false;
         const checkIn = new Date(r.check_in_time);
         const lateThreshold = new Date(checkIn);
         lateThreshold.setHours(9, 30, 0, 0);
         return checkIn > lateThreshold;
-      }).length;
+      }).length : 0;
 
       stats.presentPercentage = stats.totalEmployees > 0 
         ? Math.round((stats.presentToday / stats.totalEmployees) * 100)
@@ -677,56 +677,59 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
         break;
     }
 
-    // Build query with filters
-    let query = `
-      SELECT 
-        a.id,
-        a.user_id,
-        a.date,
-        a.check_in_time,
-        a.check_out_time,
-        u.username as user_name,
-        u.first_name,
-        u.last_name,
-        u.department
-      FROM attendance_records a
-      JOIN users u ON a.user_id = u.id
-      WHERE a.date >= '${startDate.toISOString().split('T')[0]}' AND a.date <= '${endDate.toISOString().split('T')[0]}'
-      AND u.is_active = true
-    `;
+    // Use Drizzle ORM with proper joins
+    let baseQuery = db
+      .select({
+        id: attendanceRecords.id,
+        userId: attendanceRecords.userId,
+        date: attendanceRecords.date,
+        checkInTime: attendanceRecords.checkInTime,
+        checkOutTime: attendanceRecords.checkOutTime,
+        userName: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        department: users.department
+      })
+      .from(attendanceRecords)
+      .innerJoin(users, eq(attendanceRecords.userId, users.id))
+      .where(and(
+        gte(attendanceRecords.date, startDate.toISOString().split('T')[0]),
+        lte(attendanceRecords.date, endDate.toISOString().split('T')[0]),
+        eq(users.isActive, true)
+      ));
 
     // Add department filter
     if (department !== 'all') {
-      query += ` AND u.department = '${department}'`;
+      baseQuery = baseQuery.where(and(
+        gte(attendanceRecords.date, startDate.toISOString().split('T')[0]),
+        lte(attendanceRecords.date, endDate.toISOString().split('T')[0]),
+        eq(users.isActive, true),
+        eq(users.department, department)
+      ));
     }
 
-    // Add search filter
-    if (search) {
-      query += ` AND (u.username ILIKE '%${search}%' OR u.first_name ILIKE '%${search}%' OR u.last_name ILIKE '%${search}%')`;
-    }
-
-    query += ` ORDER BY a.date DESC, a.check_in_time DESC`;
-
-    const records = await db.execute(query);
+    const records = await baseQuery
+      .orderBy(desc(attendanceRecords.date), desc(attendanceRecords.checkInTime))
+      .limit(100);
 
     // Transform records with calculated fields
-    const transformedRecords = records.map((record: any) => {
-      const workHours = calculateWorkHours(record.check_in_time, record.check_out_time);
-      const status = getAttendanceStatus(record.check_in_time, record.check_out_time);
+    const transformedRecords = Array.isArray(records) ? records.map((record: any) => {
+      const workHours = calculateWorkHours(record.checkInTime, record.checkOutTime);
+      const status = getAttendanceStatus(record.checkInTime, record.checkOutTime);
       
       return {
         id: record.id,
-        userId: record.user_id,
-        userName: record.user_name,
-        department: record.department,
+        userId: record.userId,
+        userName: record.userName || record.firstName || 'Unknown',
+        department: record.department || 'N/A',
         date: record.date,
-        timeIn: record.check_in_time,
-        timeOut: record.check_out_time,
+        timeIn: record.checkInTime,
+        timeOut: record.checkOutTime,
         workHours,
         status,
         location: 'Office'
       };
-    });
+    }) : [];
 
     res.json(transformedRecords);
   } catch (error) {

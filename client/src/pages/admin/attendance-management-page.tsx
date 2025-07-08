@@ -22,7 +22,7 @@ interface AttendanceRecord {
 }
 
 export default function AttendanceManagementPage() {
-  const [selectedDateRange, setSelectedDateRange] = useState('today');
+  const [selectedDateRange, setSelectedDateRange] = useState('thisMonth');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
