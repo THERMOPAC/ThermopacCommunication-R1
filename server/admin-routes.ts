@@ -358,7 +358,7 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
     const salaryData = req.body;
     const currentUser = req.user as any;
     
-    console.log('Received salary data:', JSON.stringify(salaryData, null, 2));
+
 
     // Calculate CTC values
     const grossSalary = parseFloat(salaryData.basicSalary) + 
@@ -404,7 +404,7 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
         updatedAt: new Date()
       };
       
-      console.log('Update data:', JSON.stringify(updateData, null, 2));
+
       
       const [updated] = await db
         .update(employeeSalaries)
@@ -426,7 +426,7 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
         createdBy: currentUser.id
       };
       
-      console.log('Insert data:', JSON.stringify(insertData, null, 2));
+
       
       const [newConfig] = await db
         .insert(employeeSalaries)
