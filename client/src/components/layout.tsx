@@ -153,6 +153,19 @@ export default function Layout({ children }: LayoutProps) {
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
     { icon: Repeat, label: "Recurring Tasks", href: "/recurring-tasks" },
+    ...(user?.role === "Superuser" || user?.role === "General Manager" ? [{ 
+      icon: Settings, 
+      label: "Administration", 
+      isSubmenu: true,
+      isOpen: isAdministrationMenuOpen,
+      toggle: () => setIsAdministrationMenuOpen(!isAdministrationMenuOpen),
+      children: [
+        { icon: Settings, label: "Administration Dashboard", href: "/admin" },
+        { icon: UserCog, label: "User Management", href: "/admin/users" },
+        { icon: IndianRupee, label: "Payroll Management", href: "/admin/payroll" },
+        { icon: Shield, label: "Module Permissions", href: "/module-permissions" }
+      ]
+    }] : []),
     ...(hasViewPermission("Sales and Marketing") ? [{ 
       icon: Megaphone, 
       label: "Sales and Marketing", 
@@ -253,20 +266,7 @@ export default function Layout({ children }: LayoutProps) {
     { icon: Award, label: "Leaderboard", href: "/leaderboard" },
     { icon: Mail, label: "Emails", href: "/emails" },
     ...(user?.role === "Superuser" ? [{ icon: Settings, label: "Diagnostics", href: "/tools" }] : []),
-    { icon: UserIcon, label: "Profile", href: "/profile" },
-    ...(user?.role === "Superuser" || user?.role === "General Manager" ? [{ 
-      icon: Settings, 
-      label: "Administration", 
-      isSubmenu: true,
-      isOpen: isAdministrationMenuOpen,
-      toggle: () => setIsAdministrationMenuOpen(!isAdministrationMenuOpen),
-      children: [
-        { icon: Settings, label: "Administration Dashboard", href: "/admin" },
-        { icon: UserCog, label: "User Management", href: "/admin/users" },
-        { icon: IndianRupee, label: "Payroll Management", href: "/admin/payroll" },
-        { icon: Shield, label: "Module Permissions", href: "/module-permissions" }
-      ]
-    }] : [])
+    { icon: UserIcon, label: "Profile", href: "/profile" }
   ];
 
   return (
