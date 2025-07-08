@@ -224,14 +224,14 @@ export default function PayrollManagementPage() {
     },
   });
 
-  // Watch form values for calculation
-  const basicSalary = form.watch('basicSalary');
-  const salaryType = form.watch('salaryType') || 'monthly';
-  const workingHoursPerDay = form.watch('workingHoursPerDay') || '8';
-  const overtimeHours = form.watch('overtimeHours') || '0';
-  const otRate = form.watch('otRate') || '1.0';
-  const actualDays = form.watch('actualDays') || '30';
-  const paidDays = form.watch('paidDays') || '30';
+  // Form values - removed reactive watchers to prevent focus loss
+  const [basicSalary, setBasicSalary] = useState('');
+  const [salaryType, setSalaryType] = useState('monthly');
+  const [workingHoursPerDay, setWorkingHoursPerDay] = useState('8');
+  const [overtimeHours, setOvertimeHours] = useState('0');
+  const [otRate, setOtRate] = useState('1.0');
+  const [actualDays, setActualDays] = useState('30');
+  const [paidDays, setPaidDays] = useState('30');
 
   // Custom hook for debounced value
   const useDebounced = (value: string, delay: number) => {
@@ -603,7 +603,10 @@ export default function PayrollManagementPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Salary Type *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || 'monthly'}>
+                    <Select onValueChange={(value) => {
+                      field.onChange(value);
+                      setSalaryType(value);
+                    }} defaultValue={field.value || 'monthly'}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select salary type" />
@@ -629,6 +632,10 @@ export default function PayrollManagementPage() {
                         placeholder="Enter basic salary" 
                         {...field}
                         key="basicSalary"
+                        onChange={(e) => {
+                          field.onChange(e);
+                          setBasicSalary(e.target.value);
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -642,7 +649,15 @@ export default function PayrollManagementPage() {
                   <FormItem>
                     <FormLabel>Actual Days (in Month)</FormLabel>
                     <FormControl>
-                      <Input placeholder="30" {...field} defaultValue="30" />
+                      <Input 
+                        placeholder="30" 
+                        {...field} 
+                        defaultValue="30"
+                        onChange={(e) => {
+                          field.onChange(e);
+                          setActualDays(e.target.value);
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -659,6 +674,10 @@ export default function PayrollManagementPage() {
                         placeholder="30" 
                         {...field}
                         key="paidDays"
+                        onChange={(e) => {
+                          field.onChange(e);
+                          setPaidDays(e.target.value);
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -676,6 +695,10 @@ export default function PayrollManagementPage() {
                         placeholder="8" 
                         {...field}
                         key="workingHoursPerDay"
+                        onChange={(e) => {
+                          field.onChange(e);
+                          setWorkingHoursPerDay(e.target.value);
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -695,6 +718,10 @@ export default function PayrollManagementPage() {
                         key="overtimeHours"
                         disabled={salaryType !== 'daily'}
                         className={salaryType !== 'daily' ? 'bg-gray-100 cursor-not-allowed' : ''}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          setOvertimeHours(e.target.value);
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -708,7 +735,10 @@ export default function PayrollManagementPage() {
                   <FormItem>
                     <FormLabel>OT Rate {salaryType === 'daily' ? '' : '(Daily Salary Only)'}</FormLabel>
                     <Select 
-                      onValueChange={field.onChange} 
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        setOtRate(value);
+                      }} 
                       defaultValue={field.value || '1.0'}
                       disabled={salaryType !== 'daily'}
                     >
