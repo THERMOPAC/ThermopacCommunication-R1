@@ -616,7 +616,6 @@ export default function PayrollManagementPage() {
                       <Input 
                         placeholder="Enter basic salary" 
                         {...field}
-                        key="basicSalary"
                         onChange={(e) => {
                           field.onChange(e);
                           setBasicSalary(e.target.value);
@@ -658,7 +657,6 @@ export default function PayrollManagementPage() {
                       <Input 
                         placeholder="30" 
                         {...field}
-                        key="paidDays"
                         onChange={(e) => {
                           field.onChange(e);
                           setPaidDays(e.target.value);
@@ -679,7 +677,6 @@ export default function PayrollManagementPage() {
                       <Input 
                         placeholder="8" 
                         {...field}
-                        key="workingHoursPerDay"
                         onChange={(e) => {
                           field.onChange(e);
                           setWorkingHoursPerDay(e.target.value);
@@ -700,7 +697,6 @@ export default function PayrollManagementPage() {
                       <Input 
                         placeholder="0" 
                         {...field}
-                        key="overtimeHours"
                         disabled={salaryType !== 'daily'}
                         className={salaryType !== 'daily' ? 'bg-gray-100 cursor-not-allowed' : ''}
                         onChange={(e) => {
