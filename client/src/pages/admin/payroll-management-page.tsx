@@ -224,14 +224,8 @@ export default function PayrollManagementPage() {
     },
   });
 
-  // Form values - removed reactive watchers to prevent focus loss
-  const [basicSalary, setBasicSalary] = useState('');
-  const [salaryType, setSalaryType] = useState('monthly');
-  const [workingHoursPerDay, setWorkingHoursPerDay] = useState('8');
-  const [overtimeHours, setOvertimeHours] = useState('0');
+  // Keep only OT rate state (needed for select component)
   const [otRate, setOtRate] = useState('1.0');
-  const [actualDays, setActualDays] = useState('30');
-  const [paidDays, setPaidDays] = useState('30');
 
   // Removed useDebounced hook to prevent reactive behavior
 
@@ -257,18 +251,19 @@ export default function PayrollManagementPage() {
 
   // Manual calculation function triggered by Update button
   const calculateSalaryComponents = () => {
-    const basicAmount = parseFloat(basicSalary || '0');
+    const formValues = form.getValues();
+    const basicAmount = parseFloat(formValues.basicSalary || '0');
     if (basicAmount > 0) {
-      const actualDaysNum = parseFloat(actualDays || '30');
-      const paidDaysNum = parseFloat(paidDays || '30');
-      const workingHoursNum = parseFloat(workingHoursPerDay || '8');
-      const overtimeHoursNum = parseFloat(overtimeHours || '0');
-      const otRateNum = parseFloat(otRate || '1.0');
+      const actualDaysNum = parseFloat(formValues.actualDays || '30');
+      const paidDaysNum = parseFloat(formValues.paidDays || '30');
+      const workingHoursNum = parseFloat(formValues.workingHoursPerDay || '8');
+      const overtimeHoursNum = parseFloat(formValues.overtimeHours || '0');
+      const otRateNum = parseFloat(formValues.otRate || '1.0');
       
       let proRatedBasic, overtimePay, grossSalary, employeePF, employerPF, employeeESIC, employerESIC, monthlyGratuityProvision;
       let hra = 0, conveyance = 0, lta = 0, special = 0, supplementary = 0;
       
-      if (salaryType === 'daily') {
+      if (formValues.salaryType === 'daily') {
         // 1️⃣ Gross Basic Salary for Daily workers
         const grossBasic = basicAmount * paidDaysNum;
         proRatedBasic = grossBasic;
@@ -588,10 +583,7 @@ export default function PayrollManagementPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Salary Type *</FormLabel>
-                    <Select onValueChange={(value) => {
-                      field.onChange(value);
-                      setSalaryType(value);
-                    }} defaultValue={field.value || 'monthly'}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || 'monthly'}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select salary type" />
@@ -609,22 +601,22 @@ export default function PayrollManagementPage() {
               <FormField
                 control={form.control}
                 name="basicSalary"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Basic Salary *</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="Enter basic salary" 
-                        {...field}
-                        onChange={(e) => {
-                          field.onChange(e);
-                          setBasicSalary(e.target.value);
-                        }}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  console.log('Basic Salary input mounted');
+                  return (
+                    <FormItem>
+                      <FormLabel>Basic Salary *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Enter basic salary" 
+                          {...field}
+                          onChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
               <FormField
                 control={form.control}
@@ -657,10 +649,7 @@ export default function PayrollManagementPage() {
                       <Input 
                         placeholder="30" 
                         {...field}
-                        onChange={(e) => {
-                          field.onChange(e);
-                          setPaidDays(e.target.value);
-                        }}
+                        onChange={field.onChange}
                       />
                     </FormControl>
                     <FormMessage />
@@ -677,10 +666,7 @@ export default function PayrollManagementPage() {
                       <Input 
                         placeholder="8" 
                         {...field}
-                        onChange={(e) => {
-                          field.onChange(e);
-                          setWorkingHoursPerDay(e.target.value);
-                        }}
+                        onChange={field.onChange}
                       />
                     </FormControl>
                     <FormMessage />
@@ -690,24 +676,24 @@ export default function PayrollManagementPage() {
               <FormField
                 control={form.control}
                 name="overtimeHours"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Overtime Hours {salaryType === 'daily' ? '' : '(Daily Salary Only)'}</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="0" 
-                        {...field}
-                        disabled={salaryType !== 'daily'}
-                        className={salaryType !== 'daily' ? 'bg-gray-100 cursor-not-allowed' : ''}
-                        onChange={(e) => {
-                          field.onChange(e);
-                          setOvertimeHours(e.target.value);
-                        }}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const currentSalaryType = form.getValues('salaryType');
+                  return (
+                    <FormItem>
+                      <FormLabel>Overtime Hours {currentSalaryType === 'daily' ? '' : '(Daily Salary Only)'}</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="0" 
+                          {...field}
+                          disabled={currentSalaryType !== 'daily'}
+                          className={currentSalaryType !== 'daily' ? 'bg-gray-100 cursor-not-allowed' : ''}
+                          onChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
               <FormField
                 control={form.control}
