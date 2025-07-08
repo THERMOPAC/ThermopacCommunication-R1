@@ -195,6 +195,10 @@ function Router() {
       {/* Administration Module Routes */}
       <ProtectedRoute path="/admin" component={AdministrationPage} />
       <ProtectedRoute path="/admin/administration" component={AdministrationPage} />
+      <ProtectedRoute path="/administration" component={AdministrationPage} />
+      <ProtectedRoute path="/administration/user-management" component={UserManagementPage} />
+      <ProtectedRoute path="/administration/attendance-management" component={AttendanceManagementPage} />
+      <ProtectedRoute path="/administration/payroll-management" component={PayrollManagementPage} />
       <ProtectedRoute path="/admin/users" component={UserManagementPage} />
       <ProtectedRoute path="/admin/user-management" component={UserManagementPage} />
       <ProtectedRoute path="/admin/attendance" component={AttendanceManagementPage} />
