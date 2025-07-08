@@ -1187,7 +1187,7 @@ export default function PayrollManagementPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-slate-600">Basic Salary (Original):</span>
-                      <span className="font-medium">₹{(parseFloat(basicSalary || '0')).toLocaleString('en-IN')}</span>
+                      <span className="font-medium">₹{calculatedValues.proRatedBasic ? (parseFloat(basicSalary || '0')).toLocaleString('en-IN') : '0'}</span>
                     </div>
                     {parseFloat(paidDays) < parseFloat(actualDays) && salaryType === 'monthly' && (
                       <div className="flex justify-between">
@@ -1197,23 +1197,23 @@ export default function PayrollManagementPage() {
                     )}
                     <div className="flex justify-between">
                       <span className="text-slate-600">HRA (40%):</span>
-                      <span className="font-medium">₹{(parseFloat(form.watch('houseRentAllowance') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium">₹{(parseFloat(calculatedValues.houseRentAllowance || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Conveyance (30%):</span>
-                      <span className="font-medium">₹{(parseFloat(form.watch('conveyance') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium">₹{(parseFloat(calculatedValues.conveyance || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">LTA (20%):</span>
-                      <span className="font-medium">₹{(parseFloat(form.watch('lta') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium">₹{(parseFloat(calculatedValues.lta || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Special Allowance (30%):</span>
-                      <span className="font-medium">₹{(parseFloat(form.watch('specialAllowance') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium">₹{(parseFloat(calculatedValues.specialAllowance || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Supplementary (30%):</span>
-                      <span className="font-medium">₹{(parseFloat(form.watch('supplementaryAllowance') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium">₹{(parseFloat(calculatedValues.supplementaryAllowance || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     {salaryType === 'daily' && parseFloat(overtimeHours) > 0 && (
                       <div className="flex justify-between border-t pt-2">
@@ -1230,16 +1230,16 @@ export default function PayrollManagementPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-slate-600">Employee PF (12%):</span>
-                      <span className="font-medium text-red-600">₹{(parseFloat(form.watch('employeePfContribution') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium text-red-600">₹{(parseFloat(calculatedValues.employeePfContribution || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Employee ESIC (0.75%):</span>
-                      <span className="font-medium text-red-600">₹{(parseFloat(form.watch('employeeEsicContribution') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium text-red-600">₹{(parseFloat(calculatedValues.employeeEsicContribution || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="border-t pt-2 mt-3">
                       <div className="flex justify-between font-medium">
                         <span className="text-slate-700">Total Deductions:</span>
-                        <span className="text-red-700">₹{((parseFloat(form.watch('employeePfContribution') || '0')) + (parseFloat(form.watch('employeeEsicContribution') || '0'))).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                        <span className="text-red-700">₹{((parseFloat(calculatedValues.employeePfContribution || '0')) + (parseFloat(calculatedValues.employeeEsicContribution || '0'))).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                       </div>
                     </div>
                   </div>
@@ -1251,20 +1251,20 @@ export default function PayrollManagementPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-slate-600">Employer PF (12%):</span>
-                      <span className="font-medium text-blue-600">₹{(parseFloat(form.watch('employerPfContribution') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium text-blue-600">₹{(parseFloat(calculatedValues.employerPfContribution || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Employer ESIC (3.25%):</span>
-                      <span className="font-medium text-blue-600">₹{(parseFloat(form.watch('employerEsicContribution') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium text-blue-600">₹{(parseFloat(calculatedValues.employerEsicContribution || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Gratuity Provision (4.81%):</span>
-                      <span className="font-medium text-orange-600">₹{(parseFloat(form.watch('gratuityCost') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium text-orange-600">₹{(parseFloat(calculatedValues.gratuityCost || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="border-t pt-2 mt-3">
                       <div className="flex justify-between font-medium">
                         <span className="text-slate-700">Total Contributions:</span>
-                        <span className="text-blue-700">₹{((parseFloat(form.watch('employerPfContribution') || '0')) + (parseFloat(form.watch('employerEsicContribution') || '0')) + (parseFloat(form.watch('gratuityCost') || '0'))).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                        <span className="text-blue-700">₹{((parseFloat(calculatedValues.employerPfContribution || '0')) + (parseFloat(calculatedValues.employerEsicContribution || '0')) + (parseFloat(calculatedValues.gratuityCost || '0'))).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                       </div>
                     </div>
                   </div>
