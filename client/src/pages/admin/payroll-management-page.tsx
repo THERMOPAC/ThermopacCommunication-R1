@@ -220,6 +220,22 @@ export default function PayrollManagementPage() {
       form.setValue('specialAllowance', (basicAmount * 0.30).toFixed(2));
       form.setValue('supplementaryAllowance', (basicAmount * 0.30).toFixed(2));
       
+      // Auto-calculate PF contributions with capping logic
+      let employeePF, employerPF;
+      
+      if (basicAmount <= 15000) {
+        // If Basic Salary ≤ ₹15,000: apply 12% directly
+        employeePF = basicAmount * 0.12;
+        employerPF = basicAmount * 0.12;
+      } else {
+        // If Basic Salary > ₹15,000: cap at ₹15,000 and apply 12%
+        employeePF = 15000 * 0.12; // ₹1,800
+        employerPF = 15000 * 0.12; // ₹1,800
+      }
+      
+      form.setValue('employeePfContribution', employeePF.toFixed(2));
+      form.setValue('employerPfContribution', employerPF.toFixed(2));
+      
       // Calculate total compensation (basicSalary * 2.5)
       const totalCompensation = basicAmount * 2.5;
       // Note: totalCompensation is calculated but not stored in form as it's not in the schema
@@ -538,9 +554,14 @@ export default function PayrollManagementPage() {
                 name="employeePfContribution"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Employee PF Contribution</FormLabel>
+                    <FormLabel>Employee PF Contribution <span className="text-xs text-muted-foreground">(Auto: 12% capped at ₹15,000)</span></FormLabel>
                     <FormControl>
-                      <Input placeholder="0" {...field} />
+                      <Input 
+                        placeholder="0" 
+                        {...field} 
+                        readOnly
+                        className="bg-gray-50 cursor-not-allowed"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -551,9 +572,14 @@ export default function PayrollManagementPage() {
                 name="employerPfContribution"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Employer PF Contribution</FormLabel>
+                    <FormLabel>Employer PF Contribution <span className="text-xs text-muted-foreground">(Auto: 12% capped at ₹15,000)</span></FormLabel>
                     <FormControl>
-                      <Input placeholder="0" {...field} />
+                      <Input 
+                        placeholder="0" 
+                        {...field} 
+                        readOnly
+                        className="bg-gray-50 cursor-not-allowed"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -612,6 +638,48 @@ export default function PayrollManagementPage() {
                 )}
               />
             </div>
+            
+            {/* Total PF Summary */}
+            {parseFloat(basicSalary || '0') > 0 && (
+              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-green-900">Total PF Calculation Summary</span>
+                </div>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-green-700">Employee PF:</span>
+                    <span className="font-medium text-green-800">
+                      ₹{(parseFloat(form.watch('employeePfContribution') || '0')).toLocaleString('en-IN', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-green-700">Employer PF:</span>
+                    <span className="font-medium text-green-800">
+                      ₹{(parseFloat(form.watch('employerPfContribution') || '0')).toLocaleString('en-IN', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-l border-green-300 pl-4">
+                    <span className="text-green-700 font-medium">Total PF:</span>
+                    <span className="font-bold text-green-900">
+                      ₹{((parseFloat(form.watch('employeePfContribution') || '0')) + 
+                          (parseFloat(form.watch('employerPfContribution') || '0'))).toLocaleString('en-IN', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-green-600 mt-2">
+                  PF is calculated at 12% of Basic Salary, capped at ₹15,000 maximum contribution base
+                </p>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="bank-details" className="space-y-4">
