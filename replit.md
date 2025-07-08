@@ -111,7 +111,6 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 - **Critical Variables**: GOOGLE_CLOUD_CREDENTIALS, GOOGLE_CLOUD_BUCKET, DATABASE_URL
 
 # Changelog
-- July 8, 2025. Refined Daily salary type calculation logic in Payroll Management per user requirements: Daily salary components are NOT auto-calculated, Total Compensation = Basic Salary per day × Paid Days, allowances must be manually entered. For Monthly salary type, auto-calculation remains active. Fixed variable scoping errors and enhanced calculation accuracy. Added comprehensive route configuration with /administration/payroll-management path for proper page accessibility.
 - July 8, 2025. Created comprehensive Attendance Management section under Administration Module positioned above Payroll Management. Added navigation menu item, full-featured attendance management page with statistics cards, filtering capabilities, and detailed attendance records table. Implemented API routes for attendance statistics and records retrieval with date range filtering, department filtering, and search functionality. Integrated with existing daily attendance collection system at /attendance page for seamless attendance tracking and reporting.
 - July 8, 2025. Moved Administration Module above Sales and Marketing Module in navigation order for better accessibility and prominence. Administration submenu now appears immediately after Tasks/Recurring Tasks in the main navigation.
 - June 19, 2025. Initial setup
