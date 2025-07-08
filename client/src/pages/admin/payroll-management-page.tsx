@@ -233,38 +233,17 @@ export default function PayrollManagementPage() {
   const actualDays = form.watch('actualDays') || '30';
   const paidDays = form.watch('paidDays') || '30';
 
-  // Custom hook for debounced value
-  const useDebounced = (value: string, delay: number) => {
-    const [debouncedValue, setDebouncedValue] = useState(value);
-    
-    useEffect(() => {
-      const handler = setTimeout(() => {
-        setDebouncedValue(value);
-      }, delay);
-      
-      return () => {
-        clearTimeout(handler);
-      };
-    }, [value, delay]);
-    
-    return debouncedValue;
-  };
 
-  // Debounced values to prevent calculations while typing
-  const debouncedBasicSalary = useDebounced(basicSalary, 500);
-  const debouncedOvertimeHours = useDebounced(overtimeHours, 500);
-  const debouncedWorkingHours = useDebounced(workingHoursPerDay, 500);
-  const debouncedPaidDays = useDebounced(paidDays, 500);
-  
-  // Memoized calculation to prevent re-renders
-  const calculatedValues = useMemo(() => {
-    const basicAmount = parseFloat(debouncedBasicSalary || '0');
-    if (basicAmount <= 0) return null;
+
+  // Calculation function that runs on blur events
+  const calculateSalaryValues = useCallback(() => {
+    const basicAmount = parseFloat(basicSalary || '0');
+    if (basicAmount <= 0) return;
 
     const actualDaysNum = parseFloat(actualDays || '30');
-    const paidDaysNum = parseFloat(debouncedPaidDays || '30');
-    const workingHoursNum = parseFloat(debouncedWorkingHours || '8');
-    const overtimeHoursNum = parseFloat(debouncedOvertimeHours || '0');
+    const paidDaysNum = parseFloat(paidDays || '30');
+    const workingHoursNum = parseFloat(workingHoursPerDay || '8');
+    const overtimeHoursNum = parseFloat(overtimeHours || '0');
     const otRateNum = parseFloat(otRate || '1.0');
     
     let proRatedBasic, overtimePay, grossSalary, employeePF, employerPF, employeeESIC, employerESIC, monthlyGratuityProvision;
@@ -338,34 +317,21 @@ export default function PayrollManagementPage() {
       monthlyGratuityProvision = basicAmount * 0.0481;
     }
     
-    return {
-      houseRentAllowance: hra.toFixed(2),
-      conveyance: conveyance.toFixed(2),
-      lta: lta.toFixed(2),
-      specialAllowance: special.toFixed(2),
-      supplementaryAllowance: supplementary.toFixed(2),
-      employeePfContribution: employeePF.toFixed(2),
-      employerPfContribution: employerPF.toFixed(2),
-      employeeEsicContribution: employeeESIC.toFixed(2),
-      employerEsicContribution: employerESIC.toFixed(2),
-      gratuityCost: monthlyGratuityProvision.toFixed(2),
-      proRatedBasic: proRatedBasic.toFixed(2),
-      overtimePay: overtimePay.toFixed(2),
-      grossSalary: grossSalary.toFixed(2)
-    };
-  }, [debouncedBasicSalary, salaryType, actualDays, debouncedPaidDays, debouncedWorkingHours, debouncedOvertimeHours, otRate]);
-
-  // Apply calculated values to form only when they change
-  useEffect(() => {
-    if (calculatedValues) {
-      Object.entries(calculatedValues).forEach(([key, value]) => {
-        const currentValue = form.getValues(key as any);
-        if (currentValue !== value) {
-          form.setValue(key as any, value, { shouldValidate: false, shouldDirty: false });
-        }
-      });
-    }
-  }, [calculatedValues, form]);
+    // Single batch update of all calculated values
+    form.setValue('houseRentAllowance', hra.toFixed(2), { shouldValidate: false });
+    form.setValue('conveyance', conveyance.toFixed(2), { shouldValidate: false });
+    form.setValue('lta', lta.toFixed(2), { shouldValidate: false });
+    form.setValue('specialAllowance', special.toFixed(2), { shouldValidate: false });
+    form.setValue('supplementaryAllowance', supplementary.toFixed(2), { shouldValidate: false });
+    form.setValue('employeePfContribution', employeePF.toFixed(2), { shouldValidate: false });
+    form.setValue('employerPfContribution', employerPF.toFixed(2), { shouldValidate: false });
+    form.setValue('employeeEsicContribution', employeeESIC.toFixed(2), { shouldValidate: false });
+    form.setValue('employerEsicContribution', employerESIC.toFixed(2), { shouldValidate: false });
+    form.setValue('gratuityCost', monthlyGratuityProvision.toFixed(2), { shouldValidate: false });
+    form.setValue('proRatedBasic', proRatedBasic.toFixed(2), { shouldValidate: false });
+    form.setValue('overtimePay', overtimePay.toFixed(2), { shouldValidate: false });
+    form.setValue('grossSalary', grossSalary.toFixed(2), { shouldValidate: false });
+  }, [basicSalary, salaryType, actualDays, paidDays, workingHoursPerDay, overtimeHours, otRate, form]);
 
   const onSubmit = (values: SalaryFormValues) => {
     saveSalaryMutation.mutate(values);
@@ -583,7 +549,14 @@ export default function PayrollManagementPage() {
                   <FormItem>
                     <FormLabel>Basic Salary *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter basic salary" {...field} />
+                      <Input 
+                        placeholder="Enter basic salary" 
+                        {...field} 
+                        onBlur={(e) => {
+                          field.onBlur(e);
+                          calculateSalaryValues();
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -596,7 +569,15 @@ export default function PayrollManagementPage() {
                   <FormItem>
                     <FormLabel>Actual Days (in Month)</FormLabel>
                     <FormControl>
-                      <Input placeholder="30" {...field} defaultValue="30" />
+                      <Input 
+                        placeholder="30" 
+                        {...field} 
+                        defaultValue="30" 
+                        onBlur={(e) => {
+                          field.onBlur(e);
+                          calculateSalaryValues();
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -609,7 +590,15 @@ export default function PayrollManagementPage() {
                   <FormItem>
                     <FormLabel>Paid Days</FormLabel>
                     <FormControl>
-                      <Input placeholder="30" {...field} defaultValue="30" />
+                      <Input 
+                        placeholder="30" 
+                        {...field} 
+                        defaultValue="30" 
+                        onBlur={(e) => {
+                          field.onBlur(e);
+                          calculateSalaryValues();
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -622,7 +611,15 @@ export default function PayrollManagementPage() {
                   <FormItem>
                     <FormLabel>Working Hours/Day</FormLabel>
                     <FormControl>
-                      <Input placeholder="8" {...field} defaultValue="8" />
+                      <Input 
+                        placeholder="8" 
+                        {...field} 
+                        defaultValue="8" 
+                        onBlur={(e) => {
+                          field.onBlur(e);
+                          calculateSalaryValues();
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -641,6 +638,12 @@ export default function PayrollManagementPage() {
                         defaultValue="0"
                         disabled={salaryType !== 'daily'}
                         className={salaryType !== 'daily' ? 'bg-gray-100 cursor-not-allowed' : ''}
+                        onBlur={(e) => {
+                          field.onBlur(e);
+                          if (salaryType === 'daily') {
+                            calculateSalaryValues();
+                          }
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -654,7 +657,12 @@ export default function PayrollManagementPage() {
                   <FormItem>
                     <FormLabel>OT Rate {salaryType === 'daily' ? '' : '(Daily Salary Only)'}</FormLabel>
                     <Select 
-                      onValueChange={field.onChange} 
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        if (salaryType === 'daily') {
+                          setTimeout(() => calculateSalaryValues(), 0);
+                        }
+                      }} 
                       defaultValue={field.value || '1.0'}
                       disabled={salaryType !== 'daily'}
                     >
