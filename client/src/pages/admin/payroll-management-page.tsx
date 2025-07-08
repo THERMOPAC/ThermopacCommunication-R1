@@ -238,12 +238,24 @@ export default function PayrollManagementPage() {
         overtimePay = hourlyRate * otRateNum * overtimeHoursNum;
       }
       
-      // Auto-populate allowances based on pro-rated basic salary
-      const hra = proRatedBasic * 0.40;
-      const conveyance = proRatedBasic * 0.30;
-      const lta = proRatedBasic * 0.20;
-      const special = proRatedBasic * 0.30;
-      const supplementary = proRatedBasic * 0.30;
+      // Auto-populate allowances based on salary type
+      let hra, conveyance, lta, special, supplementary;
+      
+      if (salaryType === 'daily') {
+        // For Daily workers: All allowances are 0%
+        hra = 0;
+        conveyance = 0;
+        lta = 0;
+        special = 0;
+        supplementary = 0;
+      } else {
+        // For Monthly workers: Calculate allowances based on pro-rated basic salary
+        hra = proRatedBasic * 0.40;
+        conveyance = proRatedBasic * 0.30;
+        lta = proRatedBasic * 0.20;
+        special = proRatedBasic * 0.30;
+        supplementary = proRatedBasic * 0.30;
+      }
       
       form.setValue('houseRentAllowance', hra.toFixed(2));
       form.setValue('conveyance', conveyance.toFixed(2));
@@ -256,12 +268,21 @@ export default function PayrollManagementPage() {
       const kgp = parseFloat(form.watch('kgpAllowance') || '0');
       const grossSalary = proRatedBasic + hra + conveyance + lta + special + supplementary + bonus + kgp + overtimePay;
       
-      // Auto-calculate PF contributions with capping logic (based on pro-rated basic)
+      // Auto-calculate PF contributions with capping logic
       let employeePF, employerPF;
+      let pfBasicAmount;
       
-      if (proRatedBasic <= 15000) {
-        employeePF = proRatedBasic * 0.12;
-        employerPF = proRatedBasic * 0.12;
+      if (salaryType === 'daily') {
+        // For Daily workers: Calculate PF based on monthly equivalent (Basic per day × Paid days)
+        pfBasicAmount = basicAmount * paidDaysNum;
+      } else {
+        // For Monthly workers: Use pro-rated basic
+        pfBasicAmount = proRatedBasic;
+      }
+      
+      if (pfBasicAmount <= 15000) {
+        employeePF = pfBasicAmount * 0.12;
+        employerPF = pfBasicAmount * 0.12;
       } else {
         employeePF = 15000 * 0.12; // ₹1,800
         employerPF = 15000 * 0.12; // ₹1,800
@@ -284,8 +305,18 @@ export default function PayrollManagementPage() {
       form.setValue('employeeEsicContribution', employeeESIC.toFixed(2));
       form.setValue('employerEsicContribution', employerESIC.toFixed(2));
       
-      // Auto-calculate Monthly Gratuity Provision (based on original basic, not pro-rated)
-      const monthlyGratuityProvision = basicAmount * 0.0481;
+      // Auto-calculate Monthly Gratuity Provision
+      let monthlyGratuityProvision;
+      
+      if (salaryType === 'daily') {
+        // For Daily workers: Calculate gratuity based on monthly equivalent (Basic per day × 30 days)
+        const monthlyEquivalentBasic = basicAmount * 30;
+        monthlyGratuityProvision = monthlyEquivalentBasic * 0.0481;
+      } else {
+        // For Monthly workers: Use original basic (not pro-rated)
+        monthlyGratuityProvision = basicAmount * 0.0481;
+      }
+      
       form.setValue('gratuityCost', monthlyGratuityProvision.toFixed(2));
       
       // Store calculated values for summary display
