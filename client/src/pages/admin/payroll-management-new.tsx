@@ -484,9 +484,11 @@ function SalaryForm({ users, workLocations, initialData, onSubmit, isLoading }: 
       bonus: initialData.bonus,
       kgpAllowance: initialData.kgpAllowance,
       workLocationId: initialData.workLocationId,
-      remarks: initialData.remarks,
+      remarks: initialData.remarks || '',
     } : {
+      salaryStartDate: '',
       salaryType: 'monthly',
+      basicSalary: '',
       actualDays: '30',
       paidDays: '30',
       workingHoursPerDay: '8',
@@ -494,6 +496,7 @@ function SalaryForm({ users, workLocations, initialData, onSubmit, isLoading }: 
       otRate: '1.0',
       bonus: '0',
       kgpAllowance: '0',
+      remarks: '',
     },
   });
 
