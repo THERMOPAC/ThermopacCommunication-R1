@@ -484,9 +484,9 @@ function SalaryForm({ users, workLocations, initialData, onSubmit, isLoading }: 
       salaryStartDate: initialData.salaryStartDate,
       salaryType: initialData.salaryType as 'monthly' | 'daily',
       basicSalary: initialData.basicSalary,
-      actualDays: initialData.actualDays,
-      paidDays: initialData.paidDays,
-      workingHoursPerDay: initialData.workingHoursPerDay,
+      actualDays: initialData.actualDays.toString(),
+      paidDays: initialData.paidDays.toString(),
+      workingHoursPerDay: initialData.workingHoursPerDay.toString(),
       overtimeHours: initialData.overtimeHours,
       otRate: initialData.otRate,
       bonus: initialData.bonus,
@@ -873,7 +873,7 @@ function SalaryForm({ users, workLocations, initialData, onSubmit, isLoading }: 
                   )}
                   <div className="flex justify-between">
                     <span className="text-sm">Bonus (8.33%):</span>
-                    <span className="font-medium">₹{calculations.bonus.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                    <span className="font-medium">₹{(calculations.bonus || 0).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between font-semibold">
