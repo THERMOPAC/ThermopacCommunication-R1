@@ -3009,6 +3009,13 @@ export const employeeSalaries = pgTable('employee_salaries', {
   bankAccountNo: text('bank_account_no'),
   debitAccount: text('debit_account'),
   
+  // Salary Configuration
+  salaryType: varchar('salary_type', { length: 20 }).default('monthly'),
+  actualDays: integer('actual_days').default(30),
+  workingHoursPerDay: integer('working_hours_per_day').default(8),
+  overtimeHours: decimal('overtime_hours', { precision: 5, scale: 2 }).default('0'),
+  otRate: decimal('ot_rate', { precision: 3, scale: 1 }).default('1.0'),
+  
   // Attendance-linked fields (optional integration)
   presentDays: integer('present_days').default(0),
   paidDays: integer('paid_days').default(0),

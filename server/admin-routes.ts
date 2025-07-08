@@ -305,6 +305,11 @@ router.get('/payroll/salary-setup', ensureAuthenticated, async (req: Request, re
         takeHomeSalary: employeeSalaries.takeHomeSalary,
         ctcMonthly: employeeSalaries.ctcMonthly,
         ctcYearly: employeeSalaries.ctcYearly,
+        salaryType: employeeSalaries.salaryType,
+        actualDays: employeeSalaries.actualDays,
+        workingHoursPerDay: employeeSalaries.workingHoursPerDay,
+        overtimeHours: employeeSalaries.overtimeHours,
+        otRate: employeeSalaries.otRate,
         isActive: employeeSalaries.isActive
       })
       .from(employeeSalaries)
