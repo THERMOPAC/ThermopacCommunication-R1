@@ -14,7 +14,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Users, CreditCard, Settings, BarChart3, UserPlus, Wallet } from "lucide-react";
+import { Users, CreditCard, Settings, BarChart3, UserPlus, Wallet, Clock } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 
@@ -28,6 +28,13 @@ export default function AdministrationPage() {
       icon: Users,
       link: "/admin/users",
       stats: { total: "45", active: "42", inactive: "3" }
+    },
+    {
+      title: "Attendance Management",
+      description: "Monitor and manage employee attendance records",
+      icon: Clock,
+      link: "/admin/attendance",
+      stats: { present: "38", absent: "7", late: "3" }
     },
     {
       title: "Payroll Management", 

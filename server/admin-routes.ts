@@ -7,6 +7,37 @@ import { ensureAuthenticated } from './auth-middleware';
 
 const router = express.Router();
 
+// Helper function to calculate work hours between two timestamps
+function calculateWorkHours(timeIn: string, timeOut: string | null): number | null {
+  if (!timeOut) return null;
+  
+  const start = new Date(timeIn);
+  const end = new Date(timeOut);
+  const diffMs = end.getTime() - start.getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  
+  return Math.round(diffHours * 10) / 10; // Round to 1 decimal place
+}
+
+// Helper function to determine attendance status
+function getAttendanceStatus(timeIn: string, timeOut: string | null): string {
+  const checkInTime = new Date(timeIn);
+  const startOfDay = new Date(checkInTime);
+  startOfDay.setHours(9, 30, 0, 0); // 9:30 AM threshold
+  
+  if (!timeOut) {
+    return checkInTime > startOfDay ? 'Late' : 'Present';
+  }
+  
+  const workHours = calculateWorkHours(timeIn, timeOut);
+  if (!workHours) return 'Present';
+  
+  if (workHours < 4) return 'Half Day';
+  if (checkInTime > startOfDay) return 'Late';
+  
+  return 'Present';
+}
+
 // ================================
 // USER MANAGEMENT ROUTES
 // ================================
@@ -463,6 +494,272 @@ router.get('/payroll/records/:periodId', ensureAuthenticated, async (req: Reques
   } catch (error) {
     console.error('Error fetching payroll records:', error);
     res.status(500).json({ error: 'Failed to fetch payroll records' });
+  }
+});
+
+// ================================
+// ATTENDANCE MANAGEMENT ROUTES
+// ================================
+
+// Get attendance statistics
+router.get('/attendance/stats', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { range = 'today' } = req.query;
+    
+    let startDate: Date;
+    let endDate: Date = new Date();
+    
+    // Calculate date range based on selection
+    switch (range) {
+      case 'yesterday':
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 1);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'thisWeek':
+        startDate = new Date();
+        const dayOfWeek = startDate.getDay();
+        const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        startDate.setDate(startDate.getDate() - daysToMonday);
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case 'lastWeek':
+        startDate = new Date();
+        const lastWeekDay = startDate.getDay();
+        const daysToLastMonday = lastWeekDay === 0 ? 13 : lastWeekDay + 6;
+        startDate.setDate(startDate.getDate() - daysToLastMonday);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 6);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'thisMonth':
+        startDate = new Date();
+        startDate.setDate(1);
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case 'lastMonth':
+        startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 1);
+        startDate.setDate(1);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate);
+        endDate.setMonth(endDate.getMonth() + 1);
+        endDate.setDate(0);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      default: // today
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
+        break;
+    }
+
+    // Get total active employees
+    const totalEmployees = await db.select().from(users).where(eq(users.isActive, true));
+    
+    // Get attendance records for the date range
+    const attendanceRecords = await db.execute(`
+      SELECT 
+        a.user_id,
+        a.check_in_time,
+        a.check_out_time,
+        u.username,
+        u.department
+      FROM attendance_records a
+      JOIN users u ON a.user_id = u.id
+      WHERE a.date >= $1 AND a.date <= $2
+      AND u.is_active = true
+    `, [startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]]);
+
+    // Calculate statistics
+    const stats = {
+      totalEmployees: totalEmployees.length,
+      presentToday: 0,
+      absentToday: 0,
+      lateToday: 0,
+      presentPercentage: 0
+    };
+
+    if (range === 'today') {
+      const today = new Date().toISOString().split('T')[0];
+      const todayRecords = await db.execute(`
+        SELECT 
+          a.user_id,
+          a.check_in_time,
+          a.check_out_time
+        FROM attendance_records a
+        WHERE a.date = $1
+      `, [today]);
+
+      const presentUserIds = new Set(todayRecords.map((r: any) => r.user_id));
+      stats.presentToday = presentUserIds.size;
+      stats.absentToday = stats.totalEmployees - stats.presentToday;
+      
+      // Count late arrivals (after 9:30 AM)
+      stats.lateToday = todayRecords.filter((r: any) => {
+        if (!r.check_in_time) return false;
+        const checkIn = new Date(r.check_in_time);
+        const lateThreshold = new Date(checkIn);
+        lateThreshold.setHours(9, 30, 0, 0);
+        return checkIn > lateThreshold;
+      }).length;
+
+      stats.presentPercentage = stats.totalEmployees > 0 
+        ? Math.round((stats.presentToday / stats.totalEmployees) * 100)
+        : 0;
+    }
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching attendance stats:', error);
+    res.status(500).json({ error: 'Failed to fetch attendance statistics' });
+  }
+});
+
+// Get attendance records with filtering
+router.get('/attendance/records', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { range = 'today', department = 'all', search = '' } = req.query;
+    
+    let startDate: Date;
+    let endDate: Date = new Date();
+    
+    // Calculate date range (same logic as stats endpoint)
+    switch (range) {
+      case 'yesterday':
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 1);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'thisWeek':
+        startDate = new Date();
+        const dayOfWeek = startDate.getDay();
+        const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        startDate.setDate(startDate.getDate() - daysToMonday);
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case 'lastWeek':
+        startDate = new Date();
+        const lastWeekDay = startDate.getDay();
+        const daysToLastMonday = lastWeekDay === 0 ? 13 : lastWeekDay + 6;
+        startDate.setDate(startDate.getDate() - daysToLastMonday);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 6);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'thisMonth':
+        startDate = new Date();
+        startDate.setDate(1);
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case 'lastMonth':
+        startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 1);
+        startDate.setDate(1);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate);
+        endDate.setMonth(endDate.getMonth() + 1);
+        endDate.setDate(0);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      default: // today
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
+        break;
+    }
+
+    // Build query with filters
+    let query = `
+      SELECT 
+        a.id,
+        a.user_id,
+        a.date,
+        a.check_in_time,
+        a.check_out_time,
+        a.location,
+        u.username as user_name,
+        u.first_name,
+        u.last_name,
+        u.department
+      FROM attendance_records a
+      JOIN users u ON a.user_id = u.id
+      WHERE a.date >= $1 AND a.date <= $2
+      AND u.is_active = true
+    `;
+    
+    const params: any[] = [startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]];
+    let paramIndex = 3;
+
+    // Add department filter
+    if (department !== 'all') {
+      query += ` AND u.department = $${paramIndex}`;
+      params.push(department);
+      paramIndex++;
+    }
+
+    // Add search filter
+    if (search) {
+      query += ` AND (u.username ILIKE $${paramIndex} OR u.first_name ILIKE $${paramIndex} OR u.last_name ILIKE $${paramIndex})`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY a.date DESC, a.check_in_time DESC`;
+
+    const records = await db.execute(query, params);
+
+    // Transform records with calculated fields
+    const transformedRecords = records.map((record: any) => {
+      const workHours = calculateWorkHours(record.check_in_time, record.check_out_time);
+      const status = getAttendanceStatus(record.check_in_time, record.check_out_time);
+      
+      return {
+        id: record.id,
+        userId: record.user_id,
+        userName: record.user_name,
+        department: record.department,
+        date: record.date,
+        timeIn: record.check_in_time,
+        timeOut: record.check_out_time,
+        workHours,
+        status,
+        location: record.location || 'Office'
+      };
+    });
+
+    res.json(transformedRecords);
+  } catch (error) {
+    console.error('Error fetching attendance records:', error);
+    res.status(500).json({ error: 'Failed to fetch attendance records' });
+  }
+});
+
+// Get list of departments for filter
+router.get('/departments', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const departments = await db.execute(`
+      SELECT DISTINCT department
+      FROM users
+      WHERE department IS NOT NULL 
+      AND department != ''
+      AND is_active = true
+      ORDER BY department
+    `);
+
+    const departmentList = departments.map((d: any) => d.department);
+    res.json(departmentList);
+  } catch (error) {
+    console.error('Error fetching departments:', error);
+    res.status(500).json({ error: 'Failed to fetch departments' });
   }
 });
 

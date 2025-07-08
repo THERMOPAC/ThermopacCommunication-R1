@@ -162,6 +162,7 @@ export default function Layout({ children }: LayoutProps) {
       children: [
         { icon: Settings, label: "Administration Dashboard", href: "/admin" },
         { icon: UserCog, label: "User Management", href: "/admin/users" },
+        { icon: CalendarClock, label: "Attendance Management", href: "/admin/attendance" },
         { icon: IndianRupee, label: "Payroll Management", href: "/admin/payroll" },
         { icon: Shield, label: "Module Permissions", href: "/module-permissions" }
       ]

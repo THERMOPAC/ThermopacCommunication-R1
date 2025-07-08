@@ -52,6 +52,7 @@ import BrcManagementPage from "@/pages/finance/brc-management-page";
 // Administration module pages
 import AdministrationPage from "@/pages/admin/administration-page";
 import UserManagementPage from "@/pages/admin/user-management-page";
+import AttendanceManagementPage from "@/pages/admin/attendance-management-page";
 import PayrollManagementPage from "@/pages/admin/payroll-management-page";
 import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
 import OutstandingReportPage from "@/pages/finance/reports/outstanding-page";
@@ -196,6 +197,8 @@ function Router() {
       <ProtectedRoute path="/admin/administration" component={AdministrationPage} />
       <ProtectedRoute path="/admin/users" component={UserManagementPage} />
       <ProtectedRoute path="/admin/user-management" component={UserManagementPage} />
+      <ProtectedRoute path="/admin/attendance" component={AttendanceManagementPage} />
+      <ProtectedRoute path="/admin/attendance-management" component={AttendanceManagementPage} />
       <ProtectedRoute path="/admin/payroll" component={PayrollManagementPage} />
       <ProtectedRoute path="/admin/payroll-management" component={PayrollManagementPage} />
       
