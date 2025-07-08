@@ -1000,7 +1000,7 @@ export default function PayrollManagementPage() {
                     <div className="flex justify-between">
                       <span className="text-green-700">Employee PF:</span>
                       <span className="font-medium text-green-800">
-                        ₹{(parseFloat(form.watch('employeePfContribution') || '0')).toLocaleString('en-IN', {
+                        ₹{(parseFloat(calculatedValues.employeePfContribution || '0')).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         })}
@@ -1009,7 +1009,7 @@ export default function PayrollManagementPage() {
                     <div className="flex justify-between">
                       <span className="text-green-700">Employer PF:</span>
                       <span className="font-medium text-green-800">
-                        ₹{(parseFloat(form.watch('employerPfContribution') || '0')).toLocaleString('en-IN', {
+                        ₹{(parseFloat(calculatedValues.employerPfContribution || '0')).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         })}
@@ -1018,8 +1018,8 @@ export default function PayrollManagementPage() {
                     <div className="flex justify-between border-l border-green-300 pl-4">
                       <span className="text-green-700 font-medium">Total PF:</span>
                       <span className="font-bold text-green-900">
-                        ₹{((parseFloat(form.watch('employeePfContribution') || '0')) + 
-                            (parseFloat(form.watch('employerPfContribution') || '0'))).toLocaleString('en-IN', {
+                        ₹{((parseFloat(calculatedValues.employeePfContribution || '0')) + 
+                            (parseFloat(calculatedValues.employerPfContribution || '0'))).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         })}
@@ -1040,7 +1040,7 @@ export default function PayrollManagementPage() {
                     <div className="flex justify-between">
                       <span className="text-blue-700">Employee ESIC:</span>
                       <span className="font-medium text-blue-800">
-                        ₹{(parseFloat(form.watch('employeeEsicContribution') || '0')).toLocaleString('en-IN', {
+                        ₹{(parseFloat(calculatedValues.employeeEsicContribution || '0')).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         })}
@@ -1049,7 +1049,7 @@ export default function PayrollManagementPage() {
                     <div className="flex justify-between">
                       <span className="text-blue-700">Employer ESIC:</span>
                       <span className="font-medium text-blue-800">
-                        ₹{(parseFloat(form.watch('employerEsicContribution') || '0')).toLocaleString('en-IN', {
+                        ₹{(parseFloat(calculatedValues.employerEsicContribution || '0')).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         })}
@@ -1058,8 +1058,8 @@ export default function PayrollManagementPage() {
                     <div className="flex justify-between border-l border-blue-300 pl-4">
                       <span className="text-blue-700 font-medium">Total ESIC:</span>
                       <span className="font-bold text-blue-900">
-                        ₹{((parseFloat(form.watch('employeeEsicContribution') || '0')) + 
-                            (parseFloat(form.watch('employerEsicContribution') || '0'))).toLocaleString('en-IN', {
+                        ₹{((parseFloat(calculatedValues.employeeEsicContribution || '0')) + 
+                            (parseFloat(calculatedValues.employerEsicContribution || '0'))).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         })}
@@ -1080,16 +1080,16 @@ export default function PayrollManagementPage() {
                     <div className="flex justify-between">
                       <span className="text-orange-700">Basic Salary:</span>
                       <span className="font-medium text-orange-800">
-                        ₹{(parseFloat(basicSalary || '0')).toLocaleString('en-IN', {
+                        ₹{(calculatedValues.houseRentAllowance && parseFloat(calculatedValues.houseRentAllowance) > 0) ? (parseFloat(basicSalary || '0')).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
-                        })}
+                        }) : '0.00'}
                       </span>
                     </div>
                     <div className="flex justify-between border-l border-orange-300 pl-4">
                       <span className="text-orange-700 font-medium">Monthly Provision (4.81%):</span>
                       <span className="font-bold text-orange-900">
-                        ₹{(parseFloat(form.watch('gratuityCost') || '0')).toLocaleString('en-IN', {
+                        ₹{(parseFloat(calculatedValues.gratuityCost || '0')).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         })}
