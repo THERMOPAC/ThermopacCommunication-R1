@@ -1187,12 +1187,12 @@ export default function PayrollManagementPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-slate-600">Basic Salary (Original):</span>
-                      <span className="font-medium">₹{calculatedValues.proRatedBasic ? (parseFloat(basicSalary || '0')).toLocaleString('en-IN') : '0'}</span>
+                      <span className="font-medium">₹{(calculatedValues.houseRentAllowance && parseFloat(calculatedValues.houseRentAllowance) > 0) ? (parseFloat(basicSalary || '0')).toLocaleString('en-IN') : '0'}</span>
                     </div>
-                    {parseFloat(paidDays) < parseFloat(actualDays) && salaryType === 'monthly' && (
+                    {parseFloat(paidDays) < parseFloat(actualDays) && salaryType === 'monthly' && (calculatedValues.houseRentAllowance && parseFloat(calculatedValues.houseRentAllowance) > 0) && (
                       <div className="flex justify-between">
                         <span className="text-slate-600">Pro-Rated Basic:</span>
-                        <span className="font-medium text-blue-600">₹{((parseFloat(basicSalary || '0') / parseFloat(actualDays)) * parseFloat(paidDays)).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                        <span className="font-medium text-blue-600">₹{(parseFloat(calculatedValues.proRatedBasic || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                       </div>
                     )}
                     <div className="flex justify-between">
