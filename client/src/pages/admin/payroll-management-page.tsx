@@ -256,105 +256,116 @@ export default function PayrollManagementPage() {
   const debouncedWorkingHours = useDebounced(workingHoursPerDay, 500);
   const debouncedPaidDays = useDebounced(paidDays, 500);
   
-  useEffect(() => {
+  // Memoized calculation to prevent re-renders
+  const calculatedValues = useMemo(() => {
     const basicAmount = parseFloat(debouncedBasicSalary || '0');
-    if (basicAmount > 0) {
-      const actualDaysNum = parseFloat(actualDays || '30');
-      const paidDaysNum = parseFloat(debouncedPaidDays || '30');
-      const workingHoursNum = parseFloat(debouncedWorkingHours || '8');
-      const overtimeHoursNum = parseFloat(debouncedOvertimeHours || '0');
-      const otRateNum = parseFloat(otRate || '1.0');
+    if (basicAmount <= 0) return null;
+
+    const actualDaysNum = parseFloat(actualDays || '30');
+    const paidDaysNum = parseFloat(debouncedPaidDays || '30');
+    const workingHoursNum = parseFloat(debouncedWorkingHours || '8');
+    const overtimeHoursNum = parseFloat(debouncedOvertimeHours || '0');
+    const otRateNum = parseFloat(otRate || '1.0');
+    
+    let proRatedBasic, overtimePay, grossSalary, employeePF, employerPF, employeeESIC, employerESIC, monthlyGratuityProvision;
+    let hra = 0, conveyance = 0, lta = 0, special = 0, supplementary = 0;
+    
+    if (salaryType === 'daily') {
+      // 1️⃣ Gross Basic Salary for Daily workers
+      const grossBasic = basicAmount * paidDaysNum;
+      proRatedBasic = grossBasic;
       
-      let proRatedBasic, overtimePay, grossSalary, employeePF, employerPF, employeeESIC, employerESIC, monthlyGratuityProvision;
-      let hra = 0, conveyance = 0, lta = 0, special = 0, supplementary = 0;
+      // 2️⃣ Overtime Calculation
+      const hourlyRate = basicAmount / workingHoursNum;
+      overtimePay = hourlyRate * overtimeHoursNum * otRateNum;
       
-      if (salaryType === 'daily') {
-        // 1️⃣ Gross Basic Salary for Daily workers
-        const grossBasic = basicAmount * paidDaysNum;
-        proRatedBasic = grossBasic;
-        
-        // 2️⃣ Overtime Calculation
-        const hourlyRate = basicAmount / workingHoursNum;
-        overtimePay = hourlyRate * overtimeHoursNum * otRateNum;
-        
-        // 3️⃣ Total Gross Earnings (Daily workers have 0% allowances)
-        const bonus = parseFloat(form.watch('bonus') || '0');
-        const kgp = parseFloat(form.watch('kgpAllowance') || '0');
-        const grossEarnings = grossBasic + overtimePay + bonus + kgp;
-        grossSalary = grossEarnings;
-        
-        // 4️⃣ Employee PF Deductions
-        const pfBase = Math.min(grossBasic, 15000); // PF cap on basic only
-        employeePF = pfBase * 0.12;
-        
-        // 4️⃣ Employee ESIC Deductions
-        if (grossEarnings <= 21000) {
-          employeeESIC = grossEarnings * 0.0075;
-        } else {
-          employeeESIC = 0;
-        }
-        
-        // 5️⃣ Employer Contributions
-        employerPF = pfBase * 0.12;
-        employerESIC = (grossEarnings <= 21000) ? grossEarnings * 0.0325 : 0;
-        monthlyGratuityProvision = grossEarnings * 0.0481;
-        
+      // 3️⃣ Total Gross Earnings (Daily workers have 0% allowances)
+      const bonus = parseFloat(form.getValues('bonus') || '0');
+      const kgp = parseFloat(form.getValues('kgpAllowance') || '0');
+      const grossEarnings = grossBasic + overtimePay + bonus + kgp;
+      grossSalary = grossEarnings;
+      
+      // 4️⃣ Employee PF Deductions
+      const pfBase = Math.min(grossBasic, 15000); // PF cap on basic only
+      employeePF = pfBase * 0.12;
+      
+      // 4️⃣ Employee ESIC Deductions
+      if (grossEarnings <= 21000) {
+        employeeESIC = grossEarnings * 0.0075;
       } else {
-        // Monthly worker logic
-        proRatedBasic = basicAmount;
-        if (paidDaysNum < actualDaysNum) {
-          proRatedBasic = (basicAmount / actualDaysNum) * paidDaysNum;
-        }
-        
-        overtimePay = 0; // No overtime for monthly workers
-        
-        // Calculate allowances for monthly workers
-        hra = proRatedBasic * 0.40;
-        conveyance = proRatedBasic * 0.30;
-        lta = proRatedBasic * 0.20;
-        special = proRatedBasic * 0.30;
-        supplementary = proRatedBasic * 0.30;
-        
-        const bonus = parseFloat(form.watch('bonus') || '0');
-        const kgp = parseFloat(form.watch('kgpAllowance') || '0');
-        grossSalary = proRatedBasic + hra + conveyance + lta + special + supplementary + bonus + kgp;
-        
-        // PF calculations for monthly workers
-        const pfBasicAmount = Math.min(proRatedBasic, 15000);
-        employeePF = pfBasicAmount * 0.12;
-        employerPF = pfBasicAmount * 0.12;
-        
-        // ESIC calculations for monthly workers
-        if (grossSalary <= 21000) {
-          employeeESIC = grossSalary * 0.0075;
-          employerESIC = grossSalary * 0.0325;
-        } else {
-          employeeESIC = 0;
-          employerESIC = 0;
-        }
-        
-        monthlyGratuityProvision = basicAmount * 0.0481;
+        employeeESIC = 0;
       }
       
-      // Set all form values
-      form.setValue('houseRentAllowance', hra.toFixed(2));
-      form.setValue('conveyance', conveyance.toFixed(2));
-      form.setValue('lta', lta.toFixed(2));
-      form.setValue('specialAllowance', special.toFixed(2));
-      form.setValue('supplementaryAllowance', supplementary.toFixed(2));
+      // 5️⃣ Employer Contributions
+      employerPF = pfBase * 0.12;
+      employerESIC = (grossEarnings <= 21000) ? grossEarnings * 0.0325 : 0;
+      monthlyGratuityProvision = grossEarnings * 0.0481;
       
-      form.setValue('employeePfContribution', employeePF.toFixed(2));
-      form.setValue('employerPfContribution', employerPF.toFixed(2));
-      form.setValue('employeeEsicContribution', employeeESIC.toFixed(2));
-      form.setValue('employerEsicContribution', employerESIC.toFixed(2));
-      form.setValue('gratuityCost', monthlyGratuityProvision.toFixed(2));
+    } else {
+      // Monthly worker logic
+      proRatedBasic = basicAmount;
+      if (paidDaysNum < actualDaysNum) {
+        proRatedBasic = (basicAmount / actualDaysNum) * paidDaysNum;
+      }
       
-      // Store calculated values for summary display
-      form.setValue('proRatedBasic', proRatedBasic.toFixed(2));
-      form.setValue('overtimePay', overtimePay.toFixed(2));
-      form.setValue('grossSalary', grossSalary.toFixed(2));
+      overtimePay = 0; // No overtime for monthly workers
+      
+      // Calculate allowances for monthly workers
+      hra = proRatedBasic * 0.40;
+      conveyance = proRatedBasic * 0.30;
+      lta = proRatedBasic * 0.20;
+      special = proRatedBasic * 0.30;
+      supplementary = proRatedBasic * 0.30;
+      
+      const bonus = parseFloat(form.getValues('bonus') || '0');
+      const kgp = parseFloat(form.getValues('kgpAllowance') || '0');
+      grossSalary = proRatedBasic + hra + conveyance + lta + special + supplementary + bonus + kgp;
+      
+      // PF calculations for monthly workers
+      const pfBasicAmount = Math.min(proRatedBasic, 15000);
+      employeePF = pfBasicAmount * 0.12;
+      employerPF = pfBasicAmount * 0.12;
+      
+      // ESIC calculations for monthly workers
+      if (grossSalary <= 21000) {
+        employeeESIC = grossSalary * 0.0075;
+        employerESIC = grossSalary * 0.0325;
+      } else {
+        employeeESIC = 0;
+        employerESIC = 0;
+      }
+      
+      monthlyGratuityProvision = basicAmount * 0.0481;
     }
-  }, [debouncedBasicSalary, salaryType, actualDays, debouncedPaidDays, debouncedWorkingHours, debouncedOvertimeHours, otRate, form]);
+    
+    return {
+      houseRentAllowance: hra.toFixed(2),
+      conveyance: conveyance.toFixed(2),
+      lta: lta.toFixed(2),
+      specialAllowance: special.toFixed(2),
+      supplementaryAllowance: supplementary.toFixed(2),
+      employeePfContribution: employeePF.toFixed(2),
+      employerPfContribution: employerPF.toFixed(2),
+      employeeEsicContribution: employeeESIC.toFixed(2),
+      employerEsicContribution: employerESIC.toFixed(2),
+      gratuityCost: monthlyGratuityProvision.toFixed(2),
+      proRatedBasic: proRatedBasic.toFixed(2),
+      overtimePay: overtimePay.toFixed(2),
+      grossSalary: grossSalary.toFixed(2)
+    };
+  }, [debouncedBasicSalary, salaryType, actualDays, debouncedPaidDays, debouncedWorkingHours, debouncedOvertimeHours, otRate]);
+
+  // Apply calculated values to form only when they change
+  useEffect(() => {
+    if (calculatedValues) {
+      Object.entries(calculatedValues).forEach(([key, value]) => {
+        const currentValue = form.getValues(key as any);
+        if (currentValue !== value) {
+          form.setValue(key as any, value, { shouldValidate: false, shouldDirty: false });
+        }
+      });
+    }
+  }, [calculatedValues, form]);
 
   const onSubmit = (values: SalaryFormValues) => {
     saveSalaryMutation.mutate(values);
