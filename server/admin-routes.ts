@@ -396,6 +396,7 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
         .update(employeeSalaries)
         .set({
           ...salaryData,
+          baseSalary: salaryData.basicSalary, // Map basicSalary to baseSalary for database
           ctcMonthly: ctcMonthly.toString(),
           ctcYearly: ctcYearly.toString(),
           takeHomeSalary: takeHomeSalary.toString(),
@@ -412,6 +413,7 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
         .insert(employeeSalaries)
         .values({
           ...salaryData,
+          baseSalary: salaryData.basicSalary, // Map basicSalary to baseSalary for database
           ctcMonthly: ctcMonthly.toString(),
           ctcYearly: ctcYearly.toString(),
           takeHomeSalary: takeHomeSalary.toString(),
