@@ -508,6 +508,74 @@ export default function UserManagementPage() {
           />
         </div>
 
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="reportingManagerId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Reporting Manager</FormLabel>
+                <Select 
+                  onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value))} 
+                  value={field.value ? field.value.toString() : "none"}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select reporting manager" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">No Manager</SelectItem>
+                    {users?.filter(u => u.id !== selectedUser?.id).map((user) => (
+                      <SelectItem key={user.id} value={user.id.toString()}>
+                        {user.firstName && user.lastName 
+                          ? `${user.firstName} ${user.lastName} (${user.username})`
+                          : user.username
+                        }
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          {selectedUser && (
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>New Password</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input 
+                        type={showPassword ? "text" : "password"} 
+                        placeholder="Leave blank to keep current password" 
+                        {...field} 
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                  <div className="text-xs text-muted-foreground">
+                    Leave blank to keep current password
+                  </div>
+                </FormItem>
+              )}
+            />
+          )}
+        </div>
+
         <div className="flex justify-end space-x-2 pt-4">
           <Button 
             type="button" 

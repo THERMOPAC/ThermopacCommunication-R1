@@ -185,9 +185,11 @@ router.put('/users/:id', ensureAuthenticated, async (req: Request, res: Response
     const userId = parseInt(req.params.id);
     const updateData = req.body;
 
-    // If password is being updated, hash it
-    if (updateData.password) {
+    // If password is being updated, hash it; if empty, remove it from update
+    if (updateData.password && updateData.password.trim() !== '') {
       updateData.password = await bcrypt.hash(updateData.password, 10);
+    } else if (updateData.password === '') {
+      delete updateData.password;
     }
 
     updateData.updatedAt = new Date();
