@@ -553,7 +553,9 @@ export default function PayrollManagementPage() {
                     <FormLabel>Basic Salary *</FormLabel>
                     <FormControl>
                       <Input 
+                        key="basicSalary"
                         placeholder="Enter basic salary" 
+                        autoComplete="off"
                         {...field} 
                         onBlur={(e) => {
                           field.onBlur(e);
@@ -594,7 +596,9 @@ export default function PayrollManagementPage() {
                     <FormLabel>Paid Days</FormLabel>
                     <FormControl>
                       <Input 
+                        key="paidDays"
                         placeholder="30" 
+                        autoComplete="off"
                         {...field} 
                         defaultValue="30" 
                         onBlur={(e) => {
@@ -615,7 +619,9 @@ export default function PayrollManagementPage() {
                     <FormLabel>Working Hours/Day</FormLabel>
                     <FormControl>
                       <Input 
+                        key="workingHoursPerDay"
                         placeholder="8" 
+                        autoComplete="off"
                         {...field} 
                         defaultValue="8" 
                         onBlur={(e) => {
@@ -636,7 +642,9 @@ export default function PayrollManagementPage() {
                     <FormLabel>Overtime Hours {salaryType === 'daily' ? '' : '(Daily Salary Only)'}</FormLabel>
                     <FormControl>
                       <Input 
+                        key="overtimeHours"
                         placeholder="0" 
+                        autoComplete="off"
                         {...field} 
                         defaultValue="0"
                         disabled={salaryType !== 'daily'}
