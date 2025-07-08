@@ -225,97 +225,88 @@ export default function PayrollManagementPage() {
       const overtimeHoursNum = parseFloat(overtimeHours || '0');
       const otRateNum = parseFloat(otRate || '1.0');
       
-      // Calculate pro-rated basic salary if applicable
-      let proRatedBasic = basicAmount;
-      if (paidDaysNum < actualDaysNum && salaryType === 'monthly') {
-        proRatedBasic = (basicAmount / actualDaysNum) * paidDaysNum;
-      }
-      
-      // Calculate overtime pay (for daily salary type only)
-      let overtimePay = 0;
-      if (salaryType === 'daily' && overtimeHoursNum > 0) {
-        const hourlyRate = basicAmount / workingHoursNum;
-        overtimePay = hourlyRate * otRateNum * overtimeHoursNum;
-      }
-      
-      // Auto-populate allowances based on salary type
-      let hra, conveyance, lta, special, supplementary;
+      let proRatedBasic, overtimePay, grossSalary, employeePF, employerPF, employeeESIC, employerESIC, monthlyGratuityProvision;
+      let hra = 0, conveyance = 0, lta = 0, special = 0, supplementary = 0;
       
       if (salaryType === 'daily') {
-        // For Daily workers: All allowances are 0%
-        hra = 0;
-        conveyance = 0;
-        lta = 0;
-        special = 0;
-        supplementary = 0;
+        // 1️⃣ Gross Basic Salary for Daily workers
+        const grossBasic = basicAmount * paidDaysNum;
+        proRatedBasic = grossBasic;
+        
+        // 2️⃣ Overtime Calculation
+        const hourlyRate = basicAmount / workingHoursNum;
+        overtimePay = hourlyRate * overtimeHoursNum * otRateNum;
+        
+        // 3️⃣ Total Gross Earnings (Daily workers have 0% allowances)
+        const bonus = parseFloat(form.watch('bonus') || '0');
+        const kgp = parseFloat(form.watch('kgpAllowance') || '0');
+        const grossEarnings = grossBasic + overtimePay + bonus + kgp;
+        grossSalary = grossEarnings;
+        
+        // 4️⃣ Employee PF Deductions
+        const pfBase = Math.min(grossBasic, 15000); // PF cap on basic only
+        employeePF = pfBase * 0.12;
+        
+        // 4️⃣ Employee ESIC Deductions
+        if (grossEarnings <= 21000) {
+          employeeESIC = grossEarnings * 0.0075;
+        } else {
+          employeeESIC = 0;
+        }
+        
+        // 5️⃣ Employer Contributions
+        employerPF = pfBase * 0.12;
+        employerESIC = (grossEarnings <= 21000) ? grossEarnings * 0.0325 : 0;
+        monthlyGratuityProvision = grossEarnings * 0.0481;
+        
       } else {
-        // For Monthly workers: Calculate allowances based on pro-rated basic salary
+        // Monthly worker logic
+        proRatedBasic = basicAmount;
+        if (paidDaysNum < actualDaysNum) {
+          proRatedBasic = (basicAmount / actualDaysNum) * paidDaysNum;
+        }
+        
+        overtimePay = 0; // No overtime for monthly workers
+        
+        // Calculate allowances for monthly workers
         hra = proRatedBasic * 0.40;
         conveyance = proRatedBasic * 0.30;
         lta = proRatedBasic * 0.20;
         special = proRatedBasic * 0.30;
         supplementary = proRatedBasic * 0.30;
+        
+        const bonus = parseFloat(form.watch('bonus') || '0');
+        const kgp = parseFloat(form.watch('kgpAllowance') || '0');
+        grossSalary = proRatedBasic + hra + conveyance + lta + special + supplementary + bonus + kgp;
+        
+        // PF calculations for monthly workers
+        const pfBasicAmount = Math.min(proRatedBasic, 15000);
+        employeePF = pfBasicAmount * 0.12;
+        employerPF = pfBasicAmount * 0.12;
+        
+        // ESIC calculations for monthly workers
+        if (grossSalary <= 21000) {
+          employeeESIC = grossSalary * 0.0075;
+          employerESIC = grossSalary * 0.0325;
+        } else {
+          employeeESIC = 0;
+          employerESIC = 0;
+        }
+        
+        monthlyGratuityProvision = basicAmount * 0.0481;
       }
       
+      // Set all form values
       form.setValue('houseRentAllowance', hra.toFixed(2));
       form.setValue('conveyance', conveyance.toFixed(2));
       form.setValue('lta', lta.toFixed(2));
       form.setValue('specialAllowance', special.toFixed(2));
       form.setValue('supplementaryAllowance', supplementary.toFixed(2));
       
-      // Calculate Gross Salary for ESIC calculation
-      const bonus = parseFloat(form.watch('bonus') || '0');
-      const kgp = parseFloat(form.watch('kgpAllowance') || '0');
-      const grossSalary = proRatedBasic + hra + conveyance + lta + special + supplementary + bonus + kgp + overtimePay;
-      
-      // Auto-calculate PF contributions with capping logic
-      let employeePF, employerPF;
-      let pfBasicAmount;
-      
-      if (salaryType === 'daily') {
-        // For Daily workers: Use actual earning amount, not inflated monthly equivalent
-        pfBasicAmount = proRatedBasic; // This is already Basic per day × Paid days
-      } else {
-        // For Monthly workers: Use pro-rated basic
-        pfBasicAmount = proRatedBasic;
-      }
-      
-      if (pfBasicAmount <= 15000) {
-        employeePF = pfBasicAmount * 0.12;
-        employerPF = pfBasicAmount * 0.12;
-      } else {
-        employeePF = 15000 * 0.12; // ₹1,800
-        employerPF = 15000 * 0.12; // ₹1,800
-      }
-      
       form.setValue('employeePfContribution', employeePF.toFixed(2));
       form.setValue('employerPfContribution', employerPF.toFixed(2));
-      
-      // Auto-calculate ESIC contributions based on Gross Salary
-      let employeeESIC, employerESIC;
-      
-      if (grossSalary <= 21000) {
-        employeeESIC = grossSalary * 0.0075; // 0.75%
-        employerESIC = grossSalary * 0.0325; // 3.25%
-      } else {
-        employeeESIC = 0;
-        employerESIC = 0;
-      }
-      
       form.setValue('employeeEsicContribution', employeeESIC.toFixed(2));
       form.setValue('employerEsicContribution', employerESIC.toFixed(2));
-      
-      // Auto-calculate Monthly Gratuity Provision
-      let monthlyGratuityProvision;
-      
-      if (salaryType === 'daily') {
-        // For Daily workers: Calculate gratuity based on actual earning amount
-        monthlyGratuityProvision = proRatedBasic * 0.0481;
-      } else {
-        // For Monthly workers: Use original basic (not pro-rated)
-        monthlyGratuityProvision = basicAmount * 0.0481;
-      }
-      
       form.setValue('gratuityCost', monthlyGratuityProvision.toFixed(2));
       
       // Store calculated values for summary display
