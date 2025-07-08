@@ -238,12 +238,18 @@ export default function PayrollManagementPage() {
         overtimePay = hourlyRate * otRateNum * overtimeHoursNum;
       }
       
-      // Auto-populate allowances based on pro-rated basic salary
-      const hra = proRatedBasic * 0.40;
-      const conveyance = proRatedBasic * 0.30;
-      const lta = proRatedBasic * 0.20;
-      const special = proRatedBasic * 0.30;
-      const supplementary = proRatedBasic * 0.30;
+      // Auto-populate allowances based on salary type
+      let baseForCalculation = proRatedBasic;
+      if (salaryType === 'daily') {
+        // For daily salary type: Basic Salary per day × 26
+        baseForCalculation = basicAmount * 26;
+      }
+      
+      const hra = baseForCalculation * 0.40;
+      const conveyance = baseForCalculation * 0.30;
+      const lta = baseForCalculation * 0.20;
+      const special = baseForCalculation * 0.30;
+      const supplementary = baseForCalculation * 0.30;
       
       form.setValue('houseRentAllowance', hra.toFixed(2));
       form.setValue('conveyance', conveyance.toFixed(2));
@@ -254,14 +260,15 @@ export default function PayrollManagementPage() {
       // Calculate Gross Salary for ESIC calculation
       const bonus = parseFloat(form.watch('bonus') || '0');
       const kgp = parseFloat(form.watch('kgpAllowance') || '0');
-      const grossSalary = proRatedBasic + hra + conveyance + lta + special + supplementary + bonus + kgp + overtimePay;
+      const grossSalary = baseForCalculation + hra + conveyance + lta + special + supplementary + bonus + kgp + overtimePay;
       
-      // Auto-calculate PF contributions with capping logic (based on pro-rated basic)
+      // Auto-calculate PF contributions with capping logic (based on monthly equivalent basic)
       let employeePF, employerPF;
+      const pfBaseAmount = salaryType === 'daily' ? basicAmount * 26 : proRatedBasic;
       
-      if (proRatedBasic <= 15000) {
-        employeePF = proRatedBasic * 0.12;
-        employerPF = proRatedBasic * 0.12;
+      if (pfBaseAmount <= 15000) {
+        employeePF = pfBaseAmount * 0.12;
+        employerPF = pfBaseAmount * 0.12;
       } else {
         employeePF = 15000 * 0.12; // ₹1,800
         employerPF = 15000 * 0.12; // ₹1,800
@@ -284,12 +291,13 @@ export default function PayrollManagementPage() {
       form.setValue('employeeEsicContribution', employeeESIC.toFixed(2));
       form.setValue('employerEsicContribution', employerESIC.toFixed(2));
       
-      // Auto-calculate Monthly Gratuity Provision (based on original basic, not pro-rated)
-      const monthlyGratuityProvision = basicAmount * 0.0481;
+      // Auto-calculate Monthly Gratuity Provision (based on monthly equivalent basic)
+      const gratuityBaseAmount = salaryType === 'daily' ? basicAmount * 26 : basicAmount;
+      const monthlyGratuityProvision = gratuityBaseAmount * 0.0481;
       form.setValue('gratuityCost', monthlyGratuityProvision.toFixed(2));
       
       // Store calculated values for summary display
-      form.setValue('proRatedBasic', proRatedBasic.toFixed(2));
+      form.setValue('proRatedBasic', baseForCalculation.toFixed(2));
       form.setValue('overtimePay', overtimePay.toFixed(2));
       form.setValue('grossSalary', grossSalary.toFixed(2));
     }
