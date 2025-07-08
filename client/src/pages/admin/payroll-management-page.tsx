@@ -234,15 +234,25 @@ export default function PayrollManagementPage() {
   const actualDays = useMemo(() => watchedValues.actualDays || '30', [watchedValues.actualDays]);
   const paidDays = useMemo(() => watchedValues.paidDays || '30', [watchedValues.paidDays]);
 
-  // Stabilized event handlers to prevent input recreation
-  const handleFieldBlur = useCallback(() => {
-    calculateSalaryValues();
-  }, [basicSalary, salaryType, workingHoursPerDay, overtimeHours, otRate, actualDays, paidDays]);
-
-  // Calculation function that runs on blur events
-  const calculateSalaryValues = useCallback(() => {
+  // Memoized calculated values to avoid remounting
+  const calculatedValues = useMemo(() => {
     const basicAmount = parseFloat(basicSalary || '0');
-    if (basicAmount <= 0) return;
+    if (basicAmount <= 0) return {
+      employeePfContribution: '0',
+      employerPfContribution: '0',
+      employeeEsicContribution: '0',
+      employerEsicContribution: '0',
+      gratuityCost: '0',
+      takeHomeSalary: '0',
+      ctcMonthly: '0',
+      ctcYearly: '0',
+      houseRentAllowance: salaryType === 'daily' ? '0' : '40',
+      conveyance: salaryType === 'daily' ? '0' : '30',
+      lta: salaryType === 'daily' ? '0' : '20',
+      specialAllowance: salaryType === 'daily' ? '0' : '30',
+      supplementaryAllowance: salaryType === 'daily' ? '0' : '30',
+      groupInsurance: salaryType === 'daily' ? '300' : '0'
+    };
 
     const actualDaysNum = parseFloat(actualDays || '30');
     const paidDaysNum = parseFloat(paidDays || '30');
@@ -254,46 +264,53 @@ export default function PayrollManagementPage() {
     let hra = 0, conveyance = 0, lta = 0, special = 0, supplementary = 0;
     
     if (salaryType === 'daily') {
-      // 1️⃣ Gross Basic Salary for Daily workers
+      // Daily worker calculations
       const grossBasic = basicAmount * paidDaysNum;
       proRatedBasic = grossBasic;
       
-      // 2️⃣ Overtime Calculation
       const hourlyRate = basicAmount / workingHoursNum;
       overtimePay = hourlyRate * overtimeHoursNum * otRateNum;
       
-      // 3️⃣ Total Gross Earnings (Daily workers have 0% allowances)
       const bonus = parseFloat(form.getValues('bonus') || '0');
       const kgp = parseFloat(form.getValues('kgpAllowance') || '0');
       const grossEarnings = grossBasic + overtimePay + bonus + kgp;
       grossSalary = grossEarnings;
       
-      // 4️⃣ Employee PF Deductions
-      const pfBase = Math.min(grossBasic, 15000); // PF cap on basic only
+      const pfBase = Math.min(grossBasic, 15000);
       employeePF = pfBase * 0.12;
-      
-      // 4️⃣ Employee ESIC Deductions
-      if (grossEarnings <= 21000) {
-        employeeESIC = grossEarnings * 0.0075;
-      } else {
-        employeeESIC = 0;
-      }
-      
-      // 5️⃣ Employer Contributions
       employerPF = pfBase * 0.12;
-      employerESIC = (grossEarnings <= 21000) ? grossEarnings * 0.0325 : 0;
+      
+      employeeESIC = grossEarnings <= 21000 ? grossEarnings * 0.0075 : 0;
+      employerESIC = grossEarnings <= 21000 ? grossEarnings * 0.0325 : 0;
+      
       monthlyGratuityProvision = grossEarnings * 0.0481;
       
+      const groupInsurance = 300;
+      const takeHomeSalary = grossEarnings - employeePF - employeeESIC;
+      const ctcMonthly = grossEarnings + employerPF + employerESIC + groupInsurance + monthlyGratuityProvision;
+      const ctcYearly = ctcMonthly * 12;
+      
+      return {
+        employeePfContribution: employeePF.toFixed(2),
+        employerPfContribution: employerPF.toFixed(2),
+        employeeEsicContribution: employeeESIC.toFixed(2),
+        employerEsicContribution: employerESIC.toFixed(2),
+        gratuityCost: monthlyGratuityProvision.toFixed(2),
+        takeHomeSalary: takeHomeSalary.toFixed(2),
+        ctcMonthly: ctcMonthly.toFixed(2),
+        ctcYearly: ctcYearly.toFixed(2),
+        houseRentAllowance: '0',
+        conveyance: '0',
+        lta: '0',
+        specialAllowance: '0',
+        supplementaryAllowance: '0',
+        groupInsurance: groupInsurance.toFixed(2)
+      };
+      
     } else {
-      // Monthly worker logic
-      proRatedBasic = basicAmount;
-      if (paidDaysNum < actualDaysNum) {
-        proRatedBasic = (basicAmount / actualDaysNum) * paidDaysNum;
-      }
+      // Monthly worker calculations
+      proRatedBasic = basicAmount * (paidDaysNum / actualDaysNum);
       
-      overtimePay = 0; // No overtime for monthly workers
-      
-      // Calculate allowances for monthly workers
       hra = proRatedBasic * 0.40;
       conveyance = proRatedBasic * 0.30;
       lta = proRatedBasic * 0.20;
@@ -304,38 +321,61 @@ export default function PayrollManagementPage() {
       const kgp = parseFloat(form.getValues('kgpAllowance') || '0');
       grossSalary = proRatedBasic + hra + conveyance + lta + special + supplementary + bonus + kgp;
       
-      // PF calculations for monthly workers
-      const pfBasicAmount = Math.min(proRatedBasic, 15000);
-      employeePF = pfBasicAmount * 0.12;
-      employerPF = pfBasicAmount * 0.12;
+      const pfBase = Math.min(proRatedBasic, 15000);
+      employeePF = pfBase * 0.12;
+      employerPF = pfBase * 0.12;
       
-      // ESIC calculations for monthly workers
-      if (grossSalary <= 21000) {
-        employeeESIC = grossSalary * 0.0075;
-        employerESIC = grossSalary * 0.0325;
-      } else {
-        employeeESIC = 0;
-        employerESIC = 0;
-      }
+      employeeESIC = grossSalary <= 21000 ? grossSalary * 0.0075 : 0;
+      employerESIC = grossSalary <= 21000 ? grossSalary * 0.0325 : 0;
       
-      monthlyGratuityProvision = basicAmount * 0.0481;
+      monthlyGratuityProvision = proRatedBasic * 0.0481;
+      
+      const groupInsurance = parseFloat(form.getValues('groupInsurance') || '0');
+      const takeHomeSalary = grossSalary - employeePF - employeeESIC;
+      const ctcMonthly = grossSalary + employerPF + employerESIC + groupInsurance + monthlyGratuityProvision;
+      const ctcYearly = ctcMonthly * 12;
+      
+      return {
+        employeePfContribution: employeePF.toFixed(2),
+        employerPfContribution: employerPF.toFixed(2),
+        employeeEsicContribution: employeeESIC.toFixed(2),
+        employerEsicContribution: employerESIC.toFixed(2),
+        gratuityCost: monthlyGratuityProvision.toFixed(2),
+        takeHomeSalary: takeHomeSalary.toFixed(2),
+        ctcMonthly: ctcMonthly.toFixed(2),
+        ctcYearly: ctcYearly.toFixed(2),
+        houseRentAllowance: '40',
+        conveyance: '30',
+        lta: '20',
+        specialAllowance: '30',
+        supplementaryAllowance: '30',
+        groupInsurance: groupInsurance.toFixed(2)
+      };
     }
-    
-    // Single batch update of all calculated values
-    form.setValue('houseRentAllowance', hra.toFixed(2), { shouldValidate: false });
-    form.setValue('conveyance', conveyance.toFixed(2), { shouldValidate: false });
-    form.setValue('lta', lta.toFixed(2), { shouldValidate: false });
-    form.setValue('specialAllowance', special.toFixed(2), { shouldValidate: false });
-    form.setValue('supplementaryAllowance', supplementary.toFixed(2), { shouldValidate: false });
-    form.setValue('employeePfContribution', employeePF.toFixed(2), { shouldValidate: false });
-    form.setValue('employerPfContribution', employerPF.toFixed(2), { shouldValidate: false });
-    form.setValue('employeeEsicContribution', employeeESIC.toFixed(2), { shouldValidate: false });
-    form.setValue('employerEsicContribution', employerESIC.toFixed(2), { shouldValidate: false });
-    form.setValue('gratuityCost', monthlyGratuityProvision.toFixed(2), { shouldValidate: false });
-    form.setValue('proRatedBasic', proRatedBasic.toFixed(2), { shouldValidate: false });
-    form.setValue('overtimePay', overtimePay.toFixed(2), { shouldValidate: false });
-    form.setValue('grossSalary', grossSalary.toFixed(2), { shouldValidate: false });
-  }, [basicSalary, salaryType, actualDays, paidDays, workingHoursPerDay, overtimeHours, otRate, form]);
+  }, [basicSalary, salaryType, workingHoursPerDay, overtimeHours, otRate, actualDays, paidDays, form]);
+
+  // Stabilized event handlers to prevent input recreation
+  const handleFieldBlur = useCallback(() => {
+    // Sync calculated values with form on blur to ensure they are saved
+    setTimeout(() => {
+      form.setValue('employeePfContribution', calculatedValues.employeePfContribution, { shouldValidate: false });
+      form.setValue('employerPfContribution', calculatedValues.employerPfContribution, { shouldValidate: false });
+      form.setValue('employeeEsicContribution', calculatedValues.employeeEsicContribution, { shouldValidate: false });
+      form.setValue('employerEsicContribution', calculatedValues.employerEsicContribution, { shouldValidate: false });
+      form.setValue('gratuityCost', calculatedValues.gratuityCost, { shouldValidate: false });
+      form.setValue('takeHomeSalary', calculatedValues.takeHomeSalary, { shouldValidate: false });
+      form.setValue('ctcMonthly', calculatedValues.ctcMonthly, { shouldValidate: false });
+      form.setValue('ctcYearly', calculatedValues.ctcYearly, { shouldValidate: false });
+      form.setValue('groupInsurance', calculatedValues.groupInsurance, { shouldValidate: false });
+      
+      // Set allowance percentages for display
+      form.setValue('houseRentAllowance', calculatedValues.houseRentAllowance, { shouldValidate: false });
+      form.setValue('conveyance', calculatedValues.conveyance, { shouldValidate: false });
+      form.setValue('lta', calculatedValues.lta, { shouldValidate: false });
+      form.setValue('specialAllowance', calculatedValues.specialAllowance, { shouldValidate: false });
+      form.setValue('supplementaryAllowance', calculatedValues.supplementaryAllowance, { shouldValidate: false });
+    }, 100);
+  }, [calculatedValues, form]);
 
   const onSubmit = (values: SalaryFormValues) => {
     saveSalaryMutation.mutate(values);
@@ -575,12 +615,14 @@ export default function PayrollManagementPage() {
                     <FormLabel>Actual Days (in Month)</FormLabel>
                     <FormControl>
                       <Input 
+                        key="actualDays"
                         placeholder="30" 
+                        autoComplete="off"
                         {...field} 
                         defaultValue="30" 
                         onBlur={(e) => {
                           field.onBlur(e);
-                          calculateSalaryValues();
+                          handleFieldBlur();
                         }}
                       />
                     </FormControl>
@@ -1179,16 +1221,16 @@ export default function PayrollManagementPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-slate-600">Employee PF (12%):</span>
-                      <span className="font-medium text-red-600">₹{(parseFloat(form.watch('employeePfContribution') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium text-red-600">₹{(parseFloat(calculatedValues.employeePfContribution || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Employee ESIC (0.75%):</span>
-                      <span className="font-medium text-red-600">₹{(parseFloat(form.watch('employeeEsicContribution') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium text-red-600">₹{(parseFloat(calculatedValues.employeeEsicContribution || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="border-t pt-2 mt-3">
                       <div className="flex justify-between font-medium">
                         <span className="text-slate-700">Total Deductions:</span>
-                        <span className="text-red-700">₹{((parseFloat(form.watch('employeePfContribution') || '0')) + (parseFloat(form.watch('employeeEsicContribution') || '0'))).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                        <span className="text-red-700">₹{((parseFloat(calculatedValues.employeePfContribution || '0')) + (parseFloat(calculatedValues.employeeEsicContribution || '0'))).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                       </div>
                     </div>
                   </div>
@@ -1200,20 +1242,20 @@ export default function PayrollManagementPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-slate-600">Employer PF (12%):</span>
-                      <span className="font-medium text-blue-600">₹{(parseFloat(form.watch('employerPfContribution') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium text-blue-600">₹{(parseFloat(calculatedValues.employerPfContribution || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Employer ESIC (3.25%):</span>
-                      <span className="font-medium text-blue-600">₹{(parseFloat(form.watch('employerEsicContribution') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium text-blue-600">₹{(parseFloat(calculatedValues.employerEsicContribution || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-600">Gratuity Provision (4.81%):</span>
-                      <span className="font-medium text-orange-600">₹{(parseFloat(form.watch('gratuityCost') || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium text-orange-600">₹{(parseFloat(calculatedValues.gratuityCost || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="border-t pt-2 mt-3">
                       <div className="flex justify-between font-medium">
                         <span className="text-slate-700">Total Contributions:</span>
-                        <span className="text-blue-700">₹{((parseFloat(form.watch('employerPfContribution') || '0')) + (parseFloat(form.watch('employerEsicContribution') || '0')) + (parseFloat(form.watch('gratuityCost') || '0'))).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                        <span className="text-blue-700">₹{((parseFloat(calculatedValues.employerPfContribution || '0')) + (parseFloat(calculatedValues.employerEsicContribution || '0')) + (parseFloat(calculatedValues.gratuityCost || '0'))).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                       </div>
                     </div>
                   </div>
@@ -1223,8 +1265,8 @@ export default function PayrollManagementPage() {
               {/* Final Calculations */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                 <div className="bg-green-50 p-4 rounded border border-green-200">
-                  <span className="text-sm text-green-700">Gross Earnings</span>
-                  <p className="text-xl font-bold text-green-800">₹{totals.grossSalary.toLocaleString('en-IN', {maximumFractionDigits: 2})}</p>
+                  <span className="text-sm text-green-700">Take Home Salary</span>
+                  <p className="text-xl font-bold text-green-800">₹{(parseFloat(calculatedValues.takeHomeSalary || '0')).toLocaleString('en-IN', {maximumFractionDigits: 2})}</p>
                 </div>
                 <div className="bg-red-50 p-4 rounded border border-red-200">
                   <span className="text-sm text-red-700">Total Deductions</span>
