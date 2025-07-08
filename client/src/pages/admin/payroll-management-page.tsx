@@ -250,13 +250,7 @@ export default function PayrollManagementPage() {
     return debouncedValue;
   };
 
-  // Debounced values to prevent calculations while typing (400ms delay)
-  const debouncedBasicSalary = useDebounced(basicSalary, 400);
-  const debouncedOvertimeHours = useDebounced(overtimeHours, 400);
-  const debouncedWorkingHours = useDebounced(workingHoursPerDay, 400);
-  const debouncedPaidDays = useDebounced(paidDays, 400);
-
-  // State to hold calculated values without triggering form re-renders
+  // State to hold calculated values
   const [calculatedValues, setCalculatedValues] = useState({
     houseRentAllowance: '0',
     conveyance: '0', 
@@ -276,14 +270,14 @@ export default function PayrollManagementPage() {
     ctcYearly: '0'
   });
 
-  useEffect(() => {
-    // Skip calculations to prevent re-renders that cause focus loss
-    const basicAmount = parseFloat(debouncedBasicSalary || '0');
-    if (basicAmount > 0 && document.activeElement?.tagName !== 'INPUT') {
+  // Manual calculation function triggered by Update button
+  const calculateSalaryComponents = useCallback(() => {
+    const basicAmount = parseFloat(basicSalary || '0');
+    if (basicAmount > 0) {
       const actualDaysNum = parseFloat(actualDays || '30');
-      const paidDaysNum = parseFloat(debouncedPaidDays || '30');
-      const workingHoursNum = parseFloat(debouncedWorkingHours || '8');
-      const overtimeHoursNum = parseFloat(debouncedOvertimeHours || '0');
+      const paidDaysNum = parseFloat(paidDays || '30');
+      const workingHoursNum = parseFloat(workingHoursPerDay || '8');
+      const overtimeHoursNum = parseFloat(overtimeHours || '0');
       const otRateNum = parseFloat(otRate || '1.0');
       
       let proRatedBasic, overtimePay, grossSalary, employeePF, employerPF, employeeESIC, employerESIC, monthlyGratuityProvision;
@@ -357,7 +351,7 @@ export default function PayrollManagementPage() {
         monthlyGratuityProvision = basicAmount * 0.0481;
       }
       
-      // Update calculated values state (won't trigger form re-renders)
+      // Update calculated values in state
       setCalculatedValues({
         houseRentAllowance: hra.toFixed(2),
         conveyance: conveyance.toFixed(2),
@@ -376,8 +370,25 @@ export default function PayrollManagementPage() {
         ctcMonthly: (grossSalary + employerPF + employerESIC + monthlyGratuityProvision).toFixed(2),
         ctcYearly: ((grossSalary + employerPF + employerESIC + monthlyGratuityProvision) * 12).toFixed(2)
       });
+
+      // Update form values for display
+      form.setValue('houseRentAllowance', hra.toFixed(2));
+      form.setValue('conveyance', conveyance.toFixed(2));
+      form.setValue('lta', lta.toFixed(2));
+      form.setValue('specialAllowance', special.toFixed(2));
+      form.setValue('supplementaryAllowance', supplementary.toFixed(2));
+      form.setValue('employeePfContribution', employeePF.toFixed(2));
+      form.setValue('employerPfContribution', employerPF.toFixed(2));
+      form.setValue('employeeEsicContribution', employeeESIC.toFixed(2));
+      form.setValue('employerEsicContribution', employerESIC.toFixed(2));
+      form.setValue('gratuityCost', monthlyGratuityProvision.toFixed(2));
+      
+      // Set take-home and CTC values
+      form.setValue('takeHomeSalary', (grossSalary - employeePF - employeeESIC).toFixed(2));
+      form.setValue('ctcMonthly', (grossSalary + employerPF + employerESIC + monthlyGratuityProvision).toFixed(2));
+      form.setValue('ctcYearly', ((grossSalary + employerPF + employerESIC + monthlyGratuityProvision) * 12).toFixed(2));
     }
-  }, [debouncedBasicSalary, salaryType, actualDays, debouncedPaidDays, debouncedWorkingHours, debouncedOvertimeHours, otRate, form]);
+  }, []);
 
   const onSubmit = (values: SalaryFormValues) => {
     // Merge form values with calculated values
@@ -708,21 +719,33 @@ export default function PayrollManagementPage() {
               />
             </div>
             
-            {/* Total Compensation Display */}
+            {/* Manual Update Button */}
             {parseFloat(basicSalary || '0') > 0 && (
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-blue-900">Total Compensation (2.5× Basic)</span>
-                  <span className="text-lg font-bold text-blue-700">
-                    ₹{((parseFloat(basicSalary || '0') * 2.5).toLocaleString('en-IN', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2
-                    }))}
-                  </span>
+              <div className="flex flex-col gap-4">
+                <Button 
+                  type="button" 
+                  onClick={calculateSalaryComponents}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Calculator className="w-4 h-4 mr-2" />
+                  Update Calculations
+                </Button>
+                
+                {/* Total Compensation Display */}
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-blue-900">Total Compensation (2.5× Basic)</span>
+                    <span className="text-lg font-bold text-blue-700">
+                      ₹{((parseFloat(basicSalary || '0') * 2.5).toLocaleString('en-IN', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      }))}
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Click "Update Calculations" to calculate allowances, PF, ESIC, etc.
+                  </p>
                 </div>
-                <p className="text-xs text-blue-600 mt-1">
-                  Auto-calculated allowances will be populated in the Allowances tab
-                </p>
               </div>
             )}
           </TabsContent>
