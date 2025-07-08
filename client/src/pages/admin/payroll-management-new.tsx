@@ -86,7 +86,8 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>) => {
     const workingHours = parseFloat(formData.workingHoursPerDay || '8');
     const overtimeHours = parseFloat(formData.overtimeHours || '0');
     const otRate = parseFloat(formData.otRate || '1.0');
-    const bonus = parseFloat(formData.bonus || '0');
+    // Auto-calculate bonus as 8.33% of Basic Salary
+    const bonus = basicAmount * 0.0833;
     const kgp = parseFloat(formData.kgpAllowance || '0');
 
     if (basicAmount <= 0) {
@@ -177,6 +178,7 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>) => {
       special,
       supplementary,
       groupInsurance,
+      bonus, // Auto-calculated bonus (8.33% of Basic Salary)
     };
   }, [formData]);
 };
@@ -517,7 +519,12 @@ function SalaryForm({ users, workLocations, initialData, onSubmit, isLoading }: 
   }, []);
 
   const handleSubmit = (values: SalaryFormValues) => {
-    onSubmit(values);
+    // Include the auto-calculated bonus in the submission
+    const submissionValues = {
+      ...values,
+      bonus: calculations.bonus.toString()
+    };
+    onSubmit(submissionValues);
   };
 
   return (
@@ -732,12 +739,15 @@ function SalaryForm({ users, workLocations, initialData, onSubmit, isLoading }: 
                 name="bonus"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bonus</FormLabel>
+                    <FormLabel>Bonus (Auto-calculated: 8.33% of Basic Salary)</FormLabel>
                     <FormControl>
                       <Input 
                         key="bonus"
-                        placeholder="0" 
+                        value={calculations.bonus ? `₹${calculations.bonus.toFixed(2)}` : '₹0.00'}
+                        placeholder="₹0.00" 
                         autoComplete="off"
+                        readOnly
+                        className="bg-gray-50 cursor-not-allowed"
                         {...field}
                       />
                     </FormControl>
@@ -859,6 +869,10 @@ function SalaryForm({ users, workLocations, initialData, onSubmit, isLoading }: 
                       <span className="font-medium">₹{calculations.overtimePay.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                     </div>
                   )}
+                  <div className="flex justify-between">
+                    <span className="text-sm">Bonus (8.33%):</span>
+                    <span className="font-medium">₹{calculations.bonus.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                  </div>
                   <Separator />
                   <div className="flex justify-between font-semibold">
                     <span>Gross Earnings:</span>
