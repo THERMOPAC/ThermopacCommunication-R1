@@ -378,24 +378,39 @@ export default function PayrollManagementPage() {
     const overtimeHoursNum = parseFloat(overtimeHours || "0");
     const otRateNum = parseFloat(otRate || "1.0");
     
-    // Calculate pro-rated basic if applicable
-    let effectiveBasic = basic;
-    if (paidDaysNum < actualDaysNum && salaryType === 'monthly') {
-      effectiveBasic = (basic / actualDaysNum) * paidDaysNum;
-    }
+    let effectiveBasic, overtimePay = 0, grossSalary;
+    let hra = 0, conveyance = 0, lta = 0, special = 0, supplementary = 0;
     
-    // Calculate overtime pay (for daily salary type only)
-    let overtimePay = 0;
-    if (salaryType === 'daily' && overtimeHoursNum > 0) {
+    if (salaryType === 'daily') {
+      // Daily worker calculation - use the same logic as auto-calculation
+      effectiveBasic = basic * paidDaysNum; // Gross Basic = Daily wage × Paid days
+      
+      // Overtime calculation
       const hourlyRate = basic / workingHoursNum;
-      overtimePay = hourlyRate * otRateNum * overtimeHoursNum;
+      overtimePay = hourlyRate * overtimeHoursNum * otRateNum;
+      
+      // Daily workers have 0% allowances - use form values (which should be 0)
+      hra = parseFloat(watchedValues.houseRentAllowance || "0");
+      conveyance = parseFloat(watchedValues.conveyance || "0");
+      lta = parseFloat(watchedValues.lta || "0");
+      special = parseFloat(watchedValues.specialAllowance || "0");
+      supplementary = parseFloat(watchedValues.supplementaryAllowance || "0");
+      
+    } else {
+      // Monthly worker calculation
+      effectiveBasic = basic;
+      if (paidDaysNum < actualDaysNum) {
+        effectiveBasic = (basic / actualDaysNum) * paidDaysNum;
+      }
+      
+      // Monthly workers get full allowances
+      hra = parseFloat(watchedValues.houseRentAllowance || "0");
+      conveyance = parseFloat(watchedValues.conveyance || "0");
+      lta = parseFloat(watchedValues.lta || "0");
+      special = parseFloat(watchedValues.specialAllowance || "0");
+      supplementary = parseFloat(watchedValues.supplementaryAllowance || "0");
     }
     
-    const hra = parseFloat(watchedValues.houseRentAllowance || "0");
-    const conveyance = parseFloat(watchedValues.conveyance || "0");
-    const lta = parseFloat(watchedValues.lta || "0");
-    const special = parseFloat(watchedValues.specialAllowance || "0");
-    const supplementary = parseFloat(watchedValues.supplementaryAllowance || "0");
     const bonus = parseFloat(watchedValues.bonus || "0");
     const kgp = parseFloat(watchedValues.kgpAllowance || "0");
     
@@ -407,7 +422,7 @@ export default function PayrollManagementPage() {
     const gratuity = parseFloat(watchedValues.gratuityCost || "0");
     const insurance = parseFloat(watchedValues.groupInsurance || "0");
 
-    const grossSalary = effectiveBasic + hra + conveyance + lta + special + supplementary + bonus + kgp + overtimePay;
+    grossSalary = effectiveBasic + hra + conveyance + lta + special + supplementary + bonus + kgp + overtimePay;
     const totalDeductions = empPf + empEsic;
     const takeHome = grossSalary - totalDeductions;
     const employerContributions = empPfEmployer + empEsicEmployer + gratuity + insurance;
