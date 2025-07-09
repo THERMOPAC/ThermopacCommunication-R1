@@ -24,7 +24,9 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  FileCheck
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -169,6 +171,60 @@ interface LegalAlert {
   alertMessage: string;
 }
 
+interface NdaAgreement {
+  id: number;
+  agreementNumber: string;
+  title: string;
+  description: string;
+  partyName: string;
+  partyType: string;
+  partyContact: string;
+  partyEmail: string;
+  ndaType: string;
+  disclosureScope: string;
+  purpose: string;
+  startDate: string;
+  endDate: string;
+  durationMonths: number;
+  confidentialityLevel: string;
+  status: string;
+  breachIncidents: number;
+  filePath: string;
+  fileUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  createdByName: string;
+  assignedToName: string;
+}
+
+interface ExclusivityAgreement {
+  id: number;
+  agreementNumber: string;
+  title: string;
+  description: string;
+  partyName: string;
+  partyType: string;
+  partyContact: string;
+  partyEmail: string;
+  exclusivityType: string;
+  exclusivityScope: string;
+  exclusivityLevel: string;
+  startDate: string;
+  endDate: string;
+  durationMonths: number;
+  agreementValue: number;
+  currency: string;
+  status: string;
+  breachIncidents: number;
+  performanceScore: number;
+  filePath: string;
+  fileUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  createdByName: string;
+  assignedToName: string;
+}
+
 const LegalManagementPage: React.FC = () => {
   const [location] = useLocation();
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -232,6 +288,18 @@ const LegalManagementPage: React.FC = () => {
   const { data: legalAlerts, isLoading: alertsLoading } = useQuery<LegalAlert[]>({
     queryKey: ['/api/legal/alerts', { status: filterStatus, alertType: filterType, sortBy, sortOrder }],
     enabled: activeTab === "alerts"
+  });
+
+  // NDA Agreements query
+  const { data: ndaAgreements, isLoading: ndaLoading } = useQuery<NdaAgreement[]>({
+    queryKey: ['/api/legal/nda-agreements', { status: filterStatus, partyType: filterType, sortBy, sortOrder }],
+    enabled: activeTab === "nda"
+  });
+
+  // Exclusivity Agreements query
+  const { data: exclusivityAgreements, isLoading: exclusivityLoading } = useQuery<ExclusivityAgreement[]>({
+    queryKey: ['/api/legal/exclusivity-agreements', { status: filterStatus, partyType: filterType, sortBy, sortOrder }],
+    enabled: activeTab === "exclusivity"
   });
 
   const getStatusColor = (status: string) => {
@@ -1397,6 +1465,221 @@ const LegalManagementPage: React.FC = () => {
     );
   };
 
+  const renderNdaAgreements = () => {
+    if (ndaLoading) {
+      return <div className="p-6">Loading NDA agreements...</div>;
+    }
+
+    return (
+      <div className="p-6 space-y-6">
+        {/* Header with Actions */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold">NDA Agreements</h2>
+            <p className="text-gray-600">Manage confidentiality and non-disclosure agreements</p>
+          </div>
+          <Button className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Add New NDA
+          </Button>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <Input
+              placeholder="Search NDAs..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-md"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Pending">Pending</SelectItem>
+                <SelectItem value="Expired">Expired</SelectItem>
+                <SelectItem value="Terminated">Terminated</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="Unilateral">Unilateral</SelectItem>
+                <SelectItem value="Bilateral">Bilateral</SelectItem>
+                <SelectItem value="Multilateral">Multilateral</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* NDA Table */}
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Agreement Number</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Party Name</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Start Date</TableHead>
+                  <TableHead>End Date</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ndaAgreements?.map((agreement) => (
+                  <TableRow key={agreement.id}>
+                    <TableCell className="font-medium">{agreement.agreementNumber}</TableCell>
+                    <TableCell>{agreement.title}</TableCell>
+                    <TableCell>{agreement.partyName}</TableCell>
+                    <TableCell>{agreement.ndaType}</TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(agreement.status)}>
+                        {agreement.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{agreement.startDate}</TableCell>
+                    <TableCell>{agreement.endDate}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-red-600">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
+  const renderExclusivityAgreements = () => {
+    if (exclusivityLoading) {
+      return <div className="p-6">Loading exclusivity agreements...</div>;
+    }
+
+    return (
+      <div className="p-6 space-y-6">
+        {/* Header with Actions */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold">Exclusivity Agreements</h2>
+            <p className="text-gray-600">Manage exclusive partnership and business agreements</p>
+          </div>
+          <Button className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Add New Exclusivity Agreement
+          </Button>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <Input
+              placeholder="Search exclusivity agreements..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-md"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Pending">Pending</SelectItem>
+                <SelectItem value="Expired">Expired</SelectItem>
+                <SelectItem value="Terminated">Terminated</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="Supplier">Supplier</SelectItem>
+                <SelectItem value="Customer">Customer</SelectItem>
+                <SelectItem value="Partner">Partner</SelectItem>
+                <SelectItem value="Distributor">Distributor</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Exclusivity Table */}
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Agreement Number</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Party Name</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Start Date</TableHead>
+                  <TableHead>End Date</TableHead>
+                  <TableHead>Value</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {exclusivityAgreements?.map((agreement) => (
+                  <TableRow key={agreement.id}>
+                    <TableCell className="font-medium">{agreement.agreementNumber}</TableCell>
+                    <TableCell>{agreement.title}</TableCell>
+                    <TableCell>{agreement.partyName}</TableCell>
+                    <TableCell>{agreement.exclusivityType}</TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(agreement.status)}>
+                        {agreement.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{agreement.startDate}</TableCell>
+                    <TableCell>{agreement.endDate}</TableCell>
+                    <TableCell>{agreement.agreementValue} {agreement.currency}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-red-600">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -1426,7 +1709,7 @@ const LegalManagementPage: React.FC = () => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 mb-6">
+          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10 mb-6">
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Dashboard
@@ -1459,6 +1742,14 @@ const LegalManagementPage: React.FC = () => {
               <BookOpen className="h-4 w-4" />
               Templates
             </TabsTrigger>
+            <TabsTrigger value="nda" className="flex items-center gap-2">
+              <Eye className="h-4 w-4" />
+              NDA
+            </TabsTrigger>
+            <TabsTrigger value="exclusivity" className="flex items-center gap-2">
+              <FileCheck className="h-4 w-4" />
+              Exclusivity
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard">{renderDashboard()}</TabsContent>
@@ -1469,6 +1760,8 @@ const LegalManagementPage: React.FC = () => {
           <TabsContent value="notices">{renderLegalNotices()}</TabsContent>
           <TabsContent value="counsel">{renderExternalCounsel()}</TabsContent>
           <TabsContent value="templates">{renderPolicyTemplates()}</TabsContent>
+          <TabsContent value="nda">{renderNdaAgreements()}</TabsContent>
+          <TabsContent value="exclusivity">{renderExclusivityAgreements()}</TabsContent>
         </Tabs>
       </div>
     </div>

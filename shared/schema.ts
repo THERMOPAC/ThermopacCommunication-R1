@@ -5048,6 +5048,184 @@ export const contractTypes = [
 
 export type ContractType = typeof contractTypes[number];
 
+// NDA and Exclusivity Agreement Tables
+
+// NDA (Non-Disclosure Agreement) Management
+export const ndaAgreements = pgTable('nda_agreements', {
+  id: serial('id').primaryKey(),
+  agreementNumber: varchar('agreement_number', { length: 255 }).unique().notNull(),
+  title: varchar('title', { length: 500 }).notNull(),
+  description: text('description'),
+  partyName: varchar('party_name', { length: 255 }).notNull(),
+  partyType: varchar('party_type', { length: 50 }).notNull(), // Individual, Company, Vendor, Client, Employee
+  partyContact: varchar('party_contact', { length: 255 }),
+  partyEmail: varchar('party_email', { length: 255 }),
+  ndaType: varchar('nda_type', { length: 50 }).notNull(), // Unilateral, Mutual, Multilateral
+  disclosureScope: text('disclosure_scope').notNull(),
+  purpose: text('purpose').notNull(),
+  startDate: date('start_date').notNull(),
+  endDate: date('end_date'),
+  durationMonths: integer('duration_months'),
+  confidentialityLevel: varchar('confidentiality_level', { length: 50 }).default('Standard'), // Standard, High, Critical
+  permittedUse: text('permitted_use'),
+  exceptions: text('exceptions'),
+  returnObligation: boolean('return_obligation').default(true),
+  monetaryDamages: decimal('monetary_damages', { precision: 15, scale: 2 }),
+  currency: varchar('currency', { length: 10 }).default('INR'),
+  governingLaw: varchar('governing_law', { length: 100 }).default('Indian Law'),
+  jurisdiction: varchar('jurisdiction', { length: 100 }),
+  status: varchar('status', { length: 50 }).default('Active'), // Active, Expired, Terminated, Breached
+  breachIncidents: integer('breach_incidents').default(0),
+  autoRenewal: boolean('auto_renewal').default(false),
+  noticePeriodDays: integer('notice_period_days').default(30),
+  filePath: varchar('file_path', { length: 500 }),
+  fileUrl: varchar('file_url', { length: 500 }),
+  digitalSignatureRequired: boolean('digital_signature_required').default(false),
+  signedDate: date('signed_date'),
+  witnessRequired: boolean('witness_required').default(false),
+  witnessName: varchar('witness_name', { length: 255 }),
+  witnessContact: varchar('witness_contact', { length: 255 }),
+  createdBy: integer('created_by').references(() => users.id),
+  assignedTo: integer('assigned_to').references(() => users.id),
+  approvedBy: integer('approved_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Exclusivity Agreement Management
+export const exclusivityAgreements = pgTable('exclusivity_agreements', {
+  id: serial('id').primaryKey(),
+  agreementNumber: varchar('agreement_number', { length: 255 }).unique().notNull(),
+  title: varchar('title', { length: 500 }).notNull(),
+  description: text('description'),
+  partyName: varchar('party_name', { length: 255 }).notNull(),
+  partyType: varchar('party_type', { length: 50 }).notNull(), // Vendor, Supplier, Distributor, Client, Partner
+  partyContact: varchar('party_contact', { length: 255 }),
+  partyEmail: varchar('party_email', { length: 255 }),
+  exclusivityType: varchar('exclusivity_type', { length: 50 }).notNull(), // Geographic, Product, Service, Territory, Time-based
+  exclusivityScope: text('exclusivity_scope').notNull(),
+  geographicalScope: text('geographical_scope'),
+  productServiceScope: text('product_service_scope'),
+  territoryRestrictions: text('territory_restrictions'),
+  startDate: date('start_date').notNull(),
+  endDate: date('end_date'),
+  durationMonths: integer('duration_months'),
+  minimumCommitment: decimal('minimum_commitment', { precision: 15, scale: 2 }),
+  performanceTargets: text('performance_targets'),
+  penaltyClause: text('penalty_clause'),
+  terminationConditions: text('termination_conditions'),
+  renewalTerms: text('renewal_terms'),
+  exclusivityLevel: varchar('exclusivity_level', { length: 50 }).default('Full'), // Full, Partial, Conditional
+  competingRestrictions: text('competing_restrictions'),
+  nonCompetePeriod: integer('non_compete_period'), // months after termination
+  agreementValue: decimal('agreement_value', { precision: 15, scale: 2 }),
+  currency: varchar('currency', { length: 10 }).default('INR'),
+  paymentTerms: text('payment_terms'),
+  milestoneRequirements: text('milestone_requirements'),
+  governingLaw: varchar('governing_law', { length: 100 }).default('Indian Law'),
+  jurisdiction: varchar('jurisdiction', { length: 100 }),
+  status: varchar('status', { length: 50 }).default('Active'), // Active, Expired, Terminated, Breached, Suspended
+  breachIncidents: integer('breach_incidents').default(0),
+  performanceScore: integer('performance_score').default(0), // 0-100 scale
+  autoRenewal: boolean('auto_renewal').default(false),
+  noticePeriodDays: integer('notice_period_days').default(60),
+  filePath: varchar('file_path', { length: 500 }),
+  fileUrl: varchar('file_url', { length: 500 }),
+  digitalSignatureRequired: boolean('digital_signature_required').default(false),
+  signedDate: date('signed_date'),
+  witnessRequired: boolean('witness_required').default(false),
+  witnessName: varchar('witness_name', { length: 255 }),
+  witnessContact: varchar('witness_contact', { length: 255 }),
+  createdBy: integer('created_by').references(() => users.id),
+  assignedTo: integer('assigned_to').references(() => users.id),
+  approvedBy: integer('approved_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// NDA Breach Incidents Tracking
+export const ndaBreachIncidents = pgTable('nda_breach_incidents', {
+  id: serial('id').primaryKey(),
+  ndaId: integer('nda_id').references(() => ndaAgreements.id, { onDelete: 'cascade' }),
+  incidentNumber: varchar('incident_number', { length: 255 }).unique().notNull(),
+  incidentDate: date('incident_date').notNull(),
+  incidentType: varchar('incident_type', { length: 100 }).notNull(), // Unauthorized Disclosure, Misuse, Data Leak, Violation
+  severity: varchar('severity', { length: 50 }).notNull(), // Minor, Moderate, Major, Critical
+  description: text('description').notNull(),
+  discoveredBy: varchar('discovered_by', { length: 255 }),
+  discoveryDate: date('discovery_date'),
+  investigationStatus: varchar('investigation_status', { length: 50 }).default('Open'), // Open, Under Investigation, Resolved, Closed
+  investigationFindings: text('investigation_findings'),
+  remedialActions: text('remedial_actions'),
+  legalActionTaken: boolean('legal_action_taken').default(false),
+  legalActionDetails: text('legal_action_details'),
+  damagesClaimed: decimal('damages_claimed', { precision: 15, scale: 2 }),
+  damagesAwarded: decimal('damages_awarded', { precision: 15, scale: 2 }),
+  currency: varchar('currency', { length: 10 }).default('INR'),
+  resolutionDate: date('resolution_date'),
+  lessonsLearned: text('lessons_learned'),
+  preventiveMeasures: text('preventive_measures'),
+  createdBy: integer('created_by').references(() => users.id),
+  assignedTo: integer('assigned_to').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Exclusivity Performance Tracking
+export const exclusivityPerformance = pgTable('exclusivity_performance', {
+  id: serial('id').primaryKey(),
+  exclusivityId: integer('exclusivity_id').references(() => exclusivityAgreements.id, { onDelete: 'cascade' }),
+  evaluationPeriod: varchar('evaluation_period', { length: 50 }).notNull(), // Monthly, Quarterly, Annual
+  evaluationDate: date('evaluation_date').notNull(),
+  targetAchievement: decimal('target_achievement', { precision: 5, scale: 2 }).default('0.00'), // Percentage
+  revenueGenerated: decimal('revenue_generated', { precision: 15, scale: 2 }).default('0.00'),
+  volumeAchieved: decimal('volume_achieved', { precision: 15, scale: 2 }).default('0.00'),
+  currency: varchar('currency', { length: 10 }).default('INR'),
+  performanceRating: varchar('performance_rating', { length: 50 }), // Excellent, Good, Average, Poor
+  performanceScore: integer('performance_score').default(0), // 0-100 scale
+  complianceScore: integer('compliance_score').default(0), // 0-100 scale
+  feedbackComments: text('feedback_comments'),
+  improvementAreas: text('improvement_areas'),
+  recognitionRewards: text('recognition_rewards'),
+  penaltyApplied: boolean('penalty_applied').default(false),
+  penaltyAmount: decimal('penalty_amount', { precision: 15, scale: 2 }),
+  penaltyReason: text('penalty_reason'),
+  nextEvaluationDate: date('next_evaluation_date'),
+  createdBy: integer('created_by').references(() => users.id),
+  evaluatedBy: integer('evaluated_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Agreement Renewals and Amendments Tracking
+export const agreementAmendments = pgTable('agreement_amendments', {
+  id: serial('id').primaryKey(),
+  agreementType: varchar('agreement_type', { length: 50 }).notNull(), // NDA, Exclusivity, Contract
+  agreementId: integer('agreement_id').notNull(),
+  amendmentNumber: varchar('amendment_number', { length: 255 }).notNull(),
+  amendmentDate: date('amendment_date').notNull(),
+  amendmentType: varchar('amendment_type', { length: 100 }).notNull(), // Extension, Modification, Termination, Renewal
+  previousTerms: text('previous_terms'),
+  newTerms: text('new_terms'),
+  changesSummary: text('changes_summary').notNull(),
+  reasonForChange: text('reason_for_change'),
+  effectiveDate: date('effective_date'),
+  approvalRequired: boolean('approval_required').default(true),
+  approvalStatus: varchar('approval_status', { length: 50 }).default('Pending'), // Pending, Approved, Rejected
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvalDate: date('approval_date'),
+  legalReviewRequired: boolean('legal_review_required').default(true),
+  legalReviewStatus: varchar('legal_review_status', { length: 50 }).default('Pending'),
+  legalReviewer: integer('legal_reviewer').references(() => users.id),
+  legalReviewDate: date('legal_review_date'),
+  legalReviewComments: text('legal_review_comments'),
+  filePath: varchar('file_path', { length: 500 }),
+  fileUrl: varchar('file_url', { length: 500 }),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
 // Contract Status
 export const contractStatuses = [
   "Active",
@@ -5671,3 +5849,201 @@ export type PolicyTemplate = typeof policyTemplates.$inferSelect;
 export type InsertPolicyTemplate = z.infer<typeof insertPolicyTemplateSchema>;
 export type LegalAlert = typeof legalAlerts.$inferSelect;
 export type InsertLegalAlert = z.infer<typeof insertLegalAlertSchema>;
+
+// NDA and Exclusivity Agreement Relations
+export const ndaAgreementsRelations = relations(ndaAgreements, ({ one, many }) => ({
+  createdByUser: one(users, {
+    fields: [ndaAgreements.createdBy],
+    references: [users.id],
+  }),
+  assignedToUser: one(users, {
+    fields: [ndaAgreements.assignedTo],
+    references: [users.id],
+  }),
+  approvedByUser: one(users, {
+    fields: [ndaAgreements.approvedBy],
+    references: [users.id],
+  }),
+  breachIncidents: many(ndaBreachIncidents),
+}));
+
+export const exclusivityAgreementsRelations = relations(exclusivityAgreements, ({ one, many }) => ({
+  createdByUser: one(users, {
+    fields: [exclusivityAgreements.createdBy],
+    references: [users.id],
+  }),
+  assignedToUser: one(users, {
+    fields: [exclusivityAgreements.assignedTo],
+    references: [users.id],
+  }),
+  approvedByUser: one(users, {
+    fields: [exclusivityAgreements.approvedBy],
+    references: [users.id],
+  }),
+  performanceRecords: many(exclusivityPerformance),
+}));
+
+export const ndaBreachIncidentsRelations = relations(ndaBreachIncidents, ({ one }) => ({
+  ndaAgreement: one(ndaAgreements, {
+    fields: [ndaBreachIncidents.ndaId],
+    references: [ndaAgreements.id],
+  }),
+  createdByUser: one(users, {
+    fields: [ndaBreachIncidents.createdBy],
+    references: [users.id],
+  }),
+  assignedToUser: one(users, {
+    fields: [ndaBreachIncidents.assignedTo],
+    references: [users.id],
+  }),
+}));
+
+export const exclusivityPerformanceRelations = relations(exclusivityPerformance, ({ one }) => ({
+  exclusivityAgreement: one(exclusivityAgreements, {
+    fields: [exclusivityPerformance.exclusivityId],
+    references: [exclusivityAgreements.id],
+  }),
+  createdByUser: one(users, {
+    fields: [exclusivityPerformance.createdBy],
+    references: [users.id],
+  }),
+  evaluatedByUser: one(users, {
+    fields: [exclusivityPerformance.evaluatedBy],
+    references: [users.id],
+  }),
+}));
+
+export const agreementAmendmentsRelations = relations(agreementAmendments, ({ one }) => ({
+  createdByUser: one(users, {
+    fields: [agreementAmendments.createdBy],
+    references: [users.id],
+  }),
+  approvedByUser: one(users, {
+    fields: [agreementAmendments.approvedBy],
+    references: [users.id],
+  }),
+  legalReviewerUser: one(users, {
+    fields: [agreementAmendments.legalReviewer],
+    references: [users.id],
+  }),
+}));
+
+// NDA and Exclusivity Agreement Zod Schemas
+export const insertNdaAgreementSchema = createInsertSchema(ndaAgreements)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    description: z.string().optional(),
+    partyContact: z.string().optional(),
+    partyEmail: z.string().optional(),
+    endDate: z.string().optional().transform(dateStringToDate),
+    durationMonths: z.number().optional(),
+    permittedUse: z.string().optional(),
+    exceptions: z.string().optional(),
+    monetaryDamages: z.string().optional(),
+    jurisdiction: z.string().optional(),
+    assignedTo: z.number().optional(),
+    approvedBy: z.number().optional(),
+    filePath: z.string().optional(),
+    fileUrl: z.string().optional(),
+    signedDate: z.string().optional().transform(dateStringToDate),
+    witnessName: z.string().optional(),
+    witnessContact: z.string().optional(),
+    startDate: z.string().transform(dateStringToDate),
+  });
+
+export const insertExclusivityAgreementSchema = createInsertSchema(exclusivityAgreements)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    description: z.string().optional(),
+    partyContact: z.string().optional(),
+    partyEmail: z.string().optional(),
+    geographicalScope: z.string().optional(),
+    productServiceScope: z.string().optional(),
+    territoryRestrictions: z.string().optional(),
+    endDate: z.string().optional().transform(dateStringToDate),
+    durationMonths: z.number().optional(),
+    minimumCommitment: z.string().optional(),
+    performanceTargets: z.string().optional(),
+    penaltyClause: z.string().optional(),
+    terminationConditions: z.string().optional(),
+    renewalTerms: z.string().optional(),
+    competingRestrictions: z.string().optional(),
+    nonCompetePeriod: z.number().optional(),
+    agreementValue: z.string().optional(),
+    paymentTerms: z.string().optional(),
+    milestoneRequirements: z.string().optional(),
+    jurisdiction: z.string().optional(),
+    assignedTo: z.number().optional(),
+    approvedBy: z.number().optional(),
+    filePath: z.string().optional(),
+    fileUrl: z.string().optional(),
+    signedDate: z.string().optional().transform(dateStringToDate),
+    witnessName: z.string().optional(),
+    witnessContact: z.string().optional(),
+    startDate: z.string().transform(dateStringToDate),
+  });
+
+export const insertNdaBreachIncidentSchema = createInsertSchema(ndaBreachIncidents)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    discoveredBy: z.string().optional(),
+    discoveryDate: z.string().optional().transform(dateStringToDate),
+    investigationFindings: z.string().optional(),
+    remedialActions: z.string().optional(),
+    legalActionDetails: z.string().optional(),
+    damagesClaimed: z.string().optional(),
+    damagesAwarded: z.string().optional(),
+    resolutionDate: z.string().optional().transform(dateStringToDate),
+    lessonsLearned: z.string().optional(),
+    preventiveMeasures: z.string().optional(),
+    assignedTo: z.number().optional(),
+    incidentDate: z.string().transform(dateStringToDate),
+  });
+
+export const insertExclusivityPerformanceSchema = createInsertSchema(exclusivityPerformance)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    targetAchievement: z.string().optional(),
+    revenueGenerated: z.string().optional(),
+    volumeAchieved: z.string().optional(),
+    performanceRating: z.string().optional(),
+    performanceScore: z.number().optional(),
+    complianceScore: z.number().optional(),
+    feedbackComments: z.string().optional(),
+    improvementAreas: z.string().optional(),
+    recognitionRewards: z.string().optional(),
+    penaltyAmount: z.string().optional(),
+    penaltyReason: z.string().optional(),
+    nextEvaluationDate: z.string().optional().transform(dateStringToDate),
+    evaluatedBy: z.number().optional(),
+    evaluationDate: z.string().transform(dateStringToDate),
+  });
+
+export const insertAgreementAmendmentSchema = createInsertSchema(agreementAmendments)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    previousTerms: z.string().optional(),
+    newTerms: z.string().optional(),
+    reasonForChange: z.string().optional(),
+    effectiveDate: z.string().optional().transform(dateStringToDate),
+    approvedBy: z.number().optional(),
+    approvalDate: z.string().optional().transform(dateStringToDate),
+    legalReviewer: z.number().optional(),
+    legalReviewDate: z.string().optional().transform(dateStringToDate),
+    legalReviewComments: z.string().optional(),
+    filePath: z.string().optional(),
+    fileUrl: z.string().optional(),
+    amendmentDate: z.string().transform(dateStringToDate),
+  });
+
+// NDA and Exclusivity Agreement Types
+export type NdaAgreement = typeof ndaAgreements.$inferSelect;
+export type InsertNdaAgreement = z.infer<typeof insertNdaAgreementSchema>;
+export type ExclusivityAgreement = typeof exclusivityAgreements.$inferSelect;
+export type InsertExclusivityAgreement = z.infer<typeof insertExclusivityAgreementSchema>;
+export type NdaBreachIncident = typeof ndaBreachIncidents.$inferSelect;
+export type InsertNdaBreachIncident = z.infer<typeof insertNdaBreachIncidentSchema>;
+export type ExclusivityPerformance = typeof exclusivityPerformance.$inferSelect;
+export type InsertExclusivityPerformance = z.infer<typeof insertExclusivityPerformanceSchema>;
+export type AgreementAmendment = typeof agreementAmendments.$inferSelect;
+export type InsertAgreementAmendment = z.infer<typeof insertAgreementAmendmentSchema>;

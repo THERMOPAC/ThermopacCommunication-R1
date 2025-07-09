@@ -10,6 +10,11 @@ import {
   policyTemplates,
   legalAlerts,
   users,
+  ndaAgreements,
+  exclusivityAgreements,
+  ndaBreachIncidents,
+  exclusivityPerformance,
+  agreementAmendments,
   insertContractSchema,
   insertLegalCaseSchema,
   insertComplianceRegisterSchema,
@@ -17,7 +22,12 @@ import {
   insertLegalNoticeSchema,
   insertExternalCounselSchema,
   insertPolicyTemplateSchema,
-  insertLegalAlertSchema
+  insertLegalAlertSchema,
+  insertNdaAgreementSchema,
+  insertExclusivityAgreementSchema,
+  insertNdaBreachIncidentSchema,
+  insertExclusivityPerformanceSchema,
+  insertAgreementAmendmentSchema
 } from "@shared/schema";
 import { eq, desc, asc, sql, and, or, gte, lte, like, isNull, isNotNull } from "drizzle-orm";
 import { ensureAuthenticated } from "./auth-middleware";
@@ -1506,6 +1516,563 @@ router.get("/users", ensureAuthenticated, async (req, res) => {
   } catch (error) {
     console.error("Error fetching users:", error);
     res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
+// ==================== NDA AGREEMENTS ====================
+
+// Get all NDA agreements
+router.get("/nda-agreements", ensureAuthenticated, async (req, res) => {
+  try {
+    const { status, partyType, ndaType, sortBy = "createdAt", sortOrder = "desc" } = req.query;
+    
+    let query = db
+      .select({
+        id: ndaAgreements.id,
+        agreementNumber: ndaAgreements.agreementNumber,
+        title: ndaAgreements.title,
+        description: ndaAgreements.description,
+        partyName: ndaAgreements.partyName,
+        partyType: ndaAgreements.partyType,
+        partyContact: ndaAgreements.partyContact,
+        partyEmail: ndaAgreements.partyEmail,
+        ndaType: ndaAgreements.ndaType,
+        disclosureScope: ndaAgreements.disclosureScope,
+        purpose: ndaAgreements.purpose,
+        startDate: ndaAgreements.startDate,
+        endDate: ndaAgreements.endDate,
+        durationMonths: ndaAgreements.durationMonths,
+        confidentialityLevel: ndaAgreements.confidentialityLevel,
+        status: ndaAgreements.status,
+        breachIncidents: ndaAgreements.breachIncidents,
+        filePath: ndaAgreements.filePath,
+        fileUrl: ndaAgreements.fileUrl,
+        createdAt: ndaAgreements.createdAt,
+        updatedAt: ndaAgreements.updatedAt,
+        createdBy: ndaAgreements.createdBy,
+        assignedTo: ndaAgreements.assignedTo,
+        createdByName: users.username,
+        assignedToName: sql<string>`assigned_user.username`
+      })
+      .from(ndaAgreements)
+      .leftJoin(users, eq(ndaAgreements.createdBy, users.id))
+      .leftJoin(sql`users assigned_user`, eq(ndaAgreements.assignedTo, sql`assigned_user.id`));
+
+    // Apply filters
+    if (status) {
+      query = query.where(eq(ndaAgreements.status, status as string));
+    }
+    
+    if (partyType) {
+      query = query.where(eq(ndaAgreements.partyType, partyType as string));
+    }
+    
+    if (ndaType) {
+      query = query.where(eq(ndaAgreements.ndaType, ndaType as string));
+    }
+
+    // Apply sorting
+    const orderColumn = sortBy === "agreementNumber" ? ndaAgreements.agreementNumber :
+                       sortBy === "title" ? ndaAgreements.title :
+                       sortBy === "partyName" ? ndaAgreements.partyName :
+                       sortBy === "startDate" ? ndaAgreements.startDate :
+                       sortBy === "endDate" ? ndaAgreements.endDate :
+                       ndaAgreements.createdAt;
+    
+    query = query.orderBy(sortOrder === "asc" ? asc(orderColumn) : desc(orderColumn));
+
+    const ndaList = await query;
+    res.json(ndaList);
+  } catch (error) {
+    console.error("Error fetching NDA agreements:", error);
+    res.status(500).json({ error: "Failed to fetch NDA agreements" });
+  }
+});
+
+// Create NDA agreement
+router.post("/nda-agreements", ensureAuthenticated, upload.single("file"), async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    const validatedData = insertNdaAgreementSchema.parse(req.body);
+    
+    let filePath = validatedData.filePath;
+    let fileUrl = validatedData.fileUrl;
+    
+    if (req.file) {
+      const fileName = `nda-agreements/${Date.now()}-${req.file.originalname}`;
+      const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
+      filePath = uploadResult.fileName;
+      fileUrl = uploadResult.publicUrl;
+    }
+
+    const [newNdaAgreement] = await db
+      .insert(ndaAgreements)
+      .values({
+        ...validatedData,
+        filePath,
+        fileUrl,
+        createdBy: userId,
+        updatedAt: new Date()
+      })
+      .returning();
+
+    if (newNdaAgreement) {
+      res.status(201).json(newNdaAgreement);
+    } else {
+      res.status(500).json({ error: "Failed to create NDA agreement" });
+    }
+  } catch (error) {
+    console.error("Error creating NDA agreement:", error);
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: "Invalid input data", details: error.errors });
+    } else {
+      res.status(500).json({ error: "Failed to create NDA agreement" });
+    }
+  }
+});
+
+// Update NDA agreement
+router.put("/nda-agreements/:id", ensureAuthenticated, upload.single("file"), async (req, res) => {
+  try {
+    const ndaId = parseInt(req.params.id);
+    const validatedData = insertNdaAgreementSchema.parse(req.body);
+    
+    let filePath = validatedData.filePath;
+    let fileUrl = validatedData.fileUrl;
+    
+    if (req.file) {
+      const fileName = `nda-agreements/${Date.now()}-${req.file.originalname}`;
+      const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
+      filePath = uploadResult.fileName;
+      fileUrl = uploadResult.publicUrl;
+    }
+
+    const [updatedNdaAgreement] = await db
+      .update(ndaAgreements)
+      .set({
+        ...validatedData,
+        filePath,
+        fileUrl,
+        updatedAt: new Date()
+      })
+      .where(eq(ndaAgreements.id, ndaId))
+      .returning();
+
+    if (!updatedNdaAgreement) {
+      return res.status(404).json({ error: "NDA agreement not found" });
+    }
+
+    res.json(updatedNdaAgreement);
+  } catch (error) {
+    console.error("Error updating NDA agreement:", error);
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: "Invalid input data", details: error.errors });
+    } else {
+      res.status(500).json({ error: "Failed to update NDA agreement" });
+    }
+  }
+});
+
+// Delete NDA agreement
+router.delete("/nda-agreements/:id", ensureAuthenticated, async (req, res) => {
+  try {
+    const ndaId = parseInt(req.params.id);
+    
+    const [deletedNdaAgreement] = await db
+      .delete(ndaAgreements)
+      .where(eq(ndaAgreements.id, ndaId))
+      .returning();
+
+    if (!deletedNdaAgreement) {
+      return res.status(404).json({ error: "NDA agreement not found" });
+    }
+
+    res.json({ message: "NDA agreement deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting NDA agreement:", error);
+    res.status(500).json({ error: "Failed to delete NDA agreement" });
+  }
+});
+
+// ==================== EXCLUSIVITY AGREEMENTS ====================
+
+// Get all exclusivity agreements
+router.get("/exclusivity-agreements", ensureAuthenticated, async (req, res) => {
+  try {
+    const { status, partyType, exclusivityType, sortBy = "createdAt", sortOrder = "desc" } = req.query;
+    
+    let query = db
+      .select({
+        id: exclusivityAgreements.id,
+        agreementNumber: exclusivityAgreements.agreementNumber,
+        title: exclusivityAgreements.title,
+        description: exclusivityAgreements.description,
+        partyName: exclusivityAgreements.partyName,
+        partyType: exclusivityAgreements.partyType,
+        partyContact: exclusivityAgreements.partyContact,
+        partyEmail: exclusivityAgreements.partyEmail,
+        exclusivityType: exclusivityAgreements.exclusivityType,
+        exclusivityScope: exclusivityAgreements.exclusivityScope,
+        exclusivityLevel: exclusivityAgreements.exclusivityLevel,
+        startDate: exclusivityAgreements.startDate,
+        endDate: exclusivityAgreements.endDate,
+        durationMonths: exclusivityAgreements.durationMonths,
+        agreementValue: exclusivityAgreements.agreementValue,
+        currency: exclusivityAgreements.currency,
+        status: exclusivityAgreements.status,
+        breachIncidents: exclusivityAgreements.breachIncidents,
+        performanceScore: exclusivityAgreements.performanceScore,
+        filePath: exclusivityAgreements.filePath,
+        fileUrl: exclusivityAgreements.fileUrl,
+        createdAt: exclusivityAgreements.createdAt,
+        updatedAt: exclusivityAgreements.updatedAt,
+        createdBy: exclusivityAgreements.createdBy,
+        assignedTo: exclusivityAgreements.assignedTo,
+        createdByName: users.username,
+        assignedToName: sql<string>`assigned_user.username`
+      })
+      .from(exclusivityAgreements)
+      .leftJoin(users, eq(exclusivityAgreements.createdBy, users.id))
+      .leftJoin(sql`users assigned_user`, eq(exclusivityAgreements.assignedTo, sql`assigned_user.id`));
+
+    // Apply filters
+    if (status) {
+      query = query.where(eq(exclusivityAgreements.status, status as string));
+    }
+    
+    if (partyType) {
+      query = query.where(eq(exclusivityAgreements.partyType, partyType as string));
+    }
+    
+    if (exclusivityType) {
+      query = query.where(eq(exclusivityAgreements.exclusivityType, exclusivityType as string));
+    }
+
+    // Apply sorting
+    const orderColumn = sortBy === "agreementNumber" ? exclusivityAgreements.agreementNumber :
+                       sortBy === "title" ? exclusivityAgreements.title :
+                       sortBy === "partyName" ? exclusivityAgreements.partyName :
+                       sortBy === "startDate" ? exclusivityAgreements.startDate :
+                       sortBy === "endDate" ? exclusivityAgreements.endDate :
+                       exclusivityAgreements.createdAt;
+    
+    query = query.orderBy(sortOrder === "asc" ? asc(orderColumn) : desc(orderColumn));
+
+    const exclusivityList = await query;
+    res.json(exclusivityList);
+  } catch (error) {
+    console.error("Error fetching exclusivity agreements:", error);
+    res.status(500).json({ error: "Failed to fetch exclusivity agreements" });
+  }
+});
+
+// Create exclusivity agreement
+router.post("/exclusivity-agreements", ensureAuthenticated, upload.single("file"), async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    const validatedData = insertExclusivityAgreementSchema.parse(req.body);
+    
+    let filePath = validatedData.filePath;
+    let fileUrl = validatedData.fileUrl;
+    
+    if (req.file) {
+      const fileName = `exclusivity-agreements/${Date.now()}-${req.file.originalname}`;
+      const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
+      filePath = uploadResult.fileName;
+      fileUrl = uploadResult.publicUrl;
+    }
+
+    const [newExclusivityAgreement] = await db
+      .insert(exclusivityAgreements)
+      .values({
+        ...validatedData,
+        filePath,
+        fileUrl,
+        createdBy: userId,
+        updatedAt: new Date()
+      })
+      .returning();
+
+    if (newExclusivityAgreement) {
+      res.status(201).json(newExclusivityAgreement);
+    } else {
+      res.status(500).json({ error: "Failed to create exclusivity agreement" });
+    }
+  } catch (error) {
+    console.error("Error creating exclusivity agreement:", error);
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: "Invalid input data", details: error.errors });
+    } else {
+      res.status(500).json({ error: "Failed to create exclusivity agreement" });
+    }
+  }
+});
+
+// Update exclusivity agreement
+router.put("/exclusivity-agreements/:id", ensureAuthenticated, upload.single("file"), async (req, res) => {
+  try {
+    const exclusivityId = parseInt(req.params.id);
+    const validatedData = insertExclusivityAgreementSchema.parse(req.body);
+    
+    let filePath = validatedData.filePath;
+    let fileUrl = validatedData.fileUrl;
+    
+    if (req.file) {
+      const fileName = `exclusivity-agreements/${Date.now()}-${req.file.originalname}`;
+      const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
+      filePath = uploadResult.fileName;
+      fileUrl = uploadResult.publicUrl;
+    }
+
+    const [updatedExclusivityAgreement] = await db
+      .update(exclusivityAgreements)
+      .set({
+        ...validatedData,
+        filePath,
+        fileUrl,
+        updatedAt: new Date()
+      })
+      .where(eq(exclusivityAgreements.id, exclusivityId))
+      .returning();
+
+    if (!updatedExclusivityAgreement) {
+      return res.status(404).json({ error: "Exclusivity agreement not found" });
+    }
+
+    res.json(updatedExclusivityAgreement);
+  } catch (error) {
+    console.error("Error updating exclusivity agreement:", error);
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: "Invalid input data", details: error.errors });
+    } else {
+      res.status(500).json({ error: "Failed to update exclusivity agreement" });
+    }
+  }
+});
+
+// Delete exclusivity agreement
+router.delete("/exclusivity-agreements/:id", ensureAuthenticated, async (req, res) => {
+  try {
+    const exclusivityId = parseInt(req.params.id);
+    
+    const [deletedExclusivityAgreement] = await db
+      .delete(exclusivityAgreements)
+      .where(eq(exclusivityAgreements.id, exclusivityId))
+      .returning();
+
+    if (!deletedExclusivityAgreement) {
+      return res.status(404).json({ error: "Exclusivity agreement not found" });
+    }
+
+    res.json({ message: "Exclusivity agreement deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting exclusivity agreement:", error);
+    res.status(500).json({ error: "Failed to delete exclusivity agreement" });
+  }
+});
+
+// ==================== NDA BREACH INCIDENTS ====================
+
+// Get NDA breach incidents
+router.get("/nda-breach-incidents", ensureAuthenticated, async (req, res) => {
+  try {
+    const { ndaId, severity, status, sortBy = "createdAt", sortOrder = "desc" } = req.query;
+    
+    let query = db
+      .select({
+        id: ndaBreachIncidents.id,
+        ndaId: ndaBreachIncidents.ndaId,
+        incidentNumber: ndaBreachIncidents.incidentNumber,
+        incidentDate: ndaBreachIncidents.incidentDate,
+        incidentType: ndaBreachIncidents.incidentType,
+        severity: ndaBreachIncidents.severity,
+        description: ndaBreachIncidents.description,
+        discoveredBy: ndaBreachIncidents.discoveredBy,
+        discoveryDate: ndaBreachIncidents.discoveryDate,
+        investigationStatus: ndaBreachIncidents.investigationStatus,
+        legalActionTaken: ndaBreachIncidents.legalActionTaken,
+        damagesClaimed: ndaBreachIncidents.damagesClaimed,
+        damagesAwarded: ndaBreachIncidents.damagesAwarded,
+        currency: ndaBreachIncidents.currency,
+        resolutionDate: ndaBreachIncidents.resolutionDate,
+        createdAt: ndaBreachIncidents.createdAt,
+        updatedAt: ndaBreachIncidents.updatedAt,
+        createdBy: ndaBreachIncidents.createdBy,
+        assignedTo: ndaBreachIncidents.assignedTo,
+        createdByName: users.username,
+        assignedToName: sql<string>`assigned_user.username`,
+        ndaAgreementNumber: ndaAgreements.agreementNumber,
+        ndaTitle: ndaAgreements.title
+      })
+      .from(ndaBreachIncidents)
+      .leftJoin(users, eq(ndaBreachIncidents.createdBy, users.id))
+      .leftJoin(sql`users assigned_user`, eq(ndaBreachIncidents.assignedTo, sql`assigned_user.id`))
+      .leftJoin(ndaAgreements, eq(ndaBreachIncidents.ndaId, ndaAgreements.id));
+
+    // Apply filters
+    if (ndaId) {
+      query = query.where(eq(ndaBreachIncidents.ndaId, parseInt(ndaId as string)));
+    }
+    
+    if (severity) {
+      query = query.where(eq(ndaBreachIncidents.severity, severity as string));
+    }
+    
+    if (status) {
+      query = query.where(eq(ndaBreachIncidents.investigationStatus, status as string));
+    }
+
+    // Apply sorting
+    const orderColumn = sortBy === "incidentNumber" ? ndaBreachIncidents.incidentNumber :
+                       sortBy === "incidentDate" ? ndaBreachIncidents.incidentDate :
+                       sortBy === "severity" ? ndaBreachIncidents.severity :
+                       ndaBreachIncidents.createdAt;
+    
+    query = query.orderBy(sortOrder === "asc" ? asc(orderColumn) : desc(orderColumn));
+
+    const incidentsList = await query;
+    res.json(incidentsList);
+  } catch (error) {
+    console.error("Error fetching NDA breach incidents:", error);
+    res.status(500).json({ error: "Failed to fetch NDA breach incidents" });
+  }
+});
+
+// Create NDA breach incident
+router.post("/nda-breach-incidents", ensureAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    const validatedData = insertNdaBreachIncidentSchema.parse(req.body);
+
+    const [newIncident] = await db
+      .insert(ndaBreachIncidents)
+      .values({
+        ...validatedData,
+        createdBy: userId,
+        updatedAt: new Date()
+      })
+      .returning();
+
+    if (newIncident) {
+      res.status(201).json(newIncident);
+    } else {
+      res.status(500).json({ error: "Failed to create NDA breach incident" });
+    }
+  } catch (error) {
+    console.error("Error creating NDA breach incident:", error);
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: "Invalid input data", details: error.errors });
+    } else {
+      res.status(500).json({ error: "Failed to create NDA breach incident" });
+    }
+  }
+});
+
+// ==================== EXCLUSIVITY PERFORMANCE ====================
+
+// Get exclusivity performance records
+router.get("/exclusivity-performance", ensureAuthenticated, async (req, res) => {
+  try {
+    const { exclusivityId, evaluationPeriod, sortBy = "evaluationDate", sortOrder = "desc" } = req.query;
+    
+    let query = db
+      .select({
+        id: exclusivityPerformance.id,
+        exclusivityId: exclusivityPerformance.exclusivityId,
+        evaluationPeriod: exclusivityPerformance.evaluationPeriod,
+        evaluationDate: exclusivityPerformance.evaluationDate,
+        targetAchievement: exclusivityPerformance.targetAchievement,
+        revenueGenerated: exclusivityPerformance.revenueGenerated,
+        volumeAchieved: exclusivityPerformance.volumeAchieved,
+        currency: exclusivityPerformance.currency,
+        performanceRating: exclusivityPerformance.performanceRating,
+        performanceScore: exclusivityPerformance.performanceScore,
+        complianceScore: exclusivityPerformance.complianceScore,
+        feedbackComments: exclusivityPerformance.feedbackComments,
+        penaltyApplied: exclusivityPerformance.penaltyApplied,
+        penaltyAmount: exclusivityPerformance.penaltyAmount,
+        nextEvaluationDate: exclusivityPerformance.nextEvaluationDate,
+        createdAt: exclusivityPerformance.createdAt,
+        updatedAt: exclusivityPerformance.updatedAt,
+        createdBy: exclusivityPerformance.createdBy,
+        evaluatedBy: exclusivityPerformance.evaluatedBy,
+        createdByName: users.username,
+        evaluatedByName: sql<string>`evaluated_user.username`,
+        exclusivityAgreementNumber: exclusivityAgreements.agreementNumber,
+        exclusivityTitle: exclusivityAgreements.title
+      })
+      .from(exclusivityPerformance)
+      .leftJoin(users, eq(exclusivityPerformance.createdBy, users.id))
+      .leftJoin(sql`users evaluated_user`, eq(exclusivityPerformance.evaluatedBy, sql`evaluated_user.id`))
+      .leftJoin(exclusivityAgreements, eq(exclusivityPerformance.exclusivityId, exclusivityAgreements.id));
+
+    // Apply filters
+    if (exclusivityId) {
+      query = query.where(eq(exclusivityPerformance.exclusivityId, parseInt(exclusivityId as string)));
+    }
+    
+    if (evaluationPeriod) {
+      query = query.where(eq(exclusivityPerformance.evaluationPeriod, evaluationPeriod as string));
+    }
+
+    // Apply sorting
+    const orderColumn = sortBy === "evaluationDate" ? exclusivityPerformance.evaluationDate :
+                       sortBy === "performanceScore" ? exclusivityPerformance.performanceScore :
+                       exclusivityPerformance.createdAt;
+    
+    query = query.orderBy(sortOrder === "asc" ? asc(orderColumn) : desc(orderColumn));
+
+    const performanceList = await query;
+    res.json(performanceList);
+  } catch (error) {
+    console.error("Error fetching exclusivity performance:", error);
+    res.status(500).json({ error: "Failed to fetch exclusivity performance" });
+  }
+});
+
+// Create exclusivity performance record
+router.post("/exclusivity-performance", ensureAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    const validatedData = insertExclusivityPerformanceSchema.parse(req.body);
+
+    const [newPerformance] = await db
+      .insert(exclusivityPerformance)
+      .values({
+        ...validatedData,
+        createdBy: userId,
+        updatedAt: new Date()
+      })
+      .returning();
+
+    if (newPerformance) {
+      res.status(201).json(newPerformance);
+    } else {
+      res.status(500).json({ error: "Failed to create exclusivity performance record" });
+    }
+  } catch (error) {
+    console.error("Error creating exclusivity performance:", error);
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: "Invalid input data", details: error.errors });
+    } else {
+      res.status(500).json({ error: "Failed to create exclusivity performance record" });
+    }
   }
 });
 
