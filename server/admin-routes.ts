@@ -1214,6 +1214,59 @@ router.post('/company-holidays', ensureAuthenticated, async (req: Request, res: 
 });
 
 /**
+ * Update company holiday
+ */
+router.put('/company-holidays/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const validatedData = insertCompanyHolidaySchema.parse(req.body);
+    const currentUser = (req as any).user;
+
+    const [updatedHoliday] = await db
+      .update(companyHolidays)
+      .set({
+        ...validatedData,
+        updatedAt: new Date(),
+        updatedBy: currentUser.id
+      })
+      .where(eq(companyHolidays.id, id))
+      .returning();
+
+    if (!updatedHoliday) {
+      return res.status(404).json({ error: 'Holiday not found' });
+    }
+
+    res.json(updatedHoliday);
+  } catch (error) {
+    console.error('Error updating company holiday:', error);
+    res.status(500).json({ error: 'Failed to update company holiday' });
+  }
+});
+
+/**
+ * Delete company holiday
+ */
+router.delete('/company-holidays/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+
+    const [deletedHoliday] = await db
+      .delete(companyHolidays)
+      .where(eq(companyHolidays.id, id))
+      .returning();
+
+    if (!deletedHoliday) {
+      return res.status(404).json({ error: 'Holiday not found' });
+    }
+
+    res.json({ message: 'Holiday deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting company holiday:', error);
+    res.status(500).json({ error: 'Failed to delete company holiday' });
+  }
+});
+
+/**
  * Get leave policies
  */
 router.get('/leave-policies', ensureAuthenticated, async (req: Request, res: Response) => {

@@ -82,8 +82,16 @@ const leaveTypeSchema = z.object({
   colorCode: z.string().default('#3B82F6')
 });
 
+const holidaySchema = z.object({
+  name: z.string().min(1, 'Holiday name is required'),
+  date: z.string().min(1, 'Date is required'),
+  description: z.string().optional(),
+  isOptional: z.boolean().default(false)
+});
+
 type LeaveRequestForm = z.infer<typeof leaveRequestSchema>;
 type LeaveTypeForm = z.infer<typeof leaveTypeSchema>;
+type HolidayForm = z.infer<typeof holidaySchema>;
 
 export default function LeaveManagementPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -92,7 +100,10 @@ export default function LeaveManagementPage() {
   const [filterEmployee, setFilterEmployee] = useState('all');
   const [showNewRequestDialog, setShowNewRequestDialog] = useState(false);
   const [showNewTypeDialog, setShowNewTypeDialog] = useState(false);
+  const [showNewHolidayDialog, setShowNewHolidayDialog] = useState(false);
+  const [showEditHolidayDialog, setShowEditHolidayDialog] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [selectedHoliday, setSelectedHoliday] = useState<any>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -161,6 +172,45 @@ export default function LeaveManagementPage() {
     }
   });
 
+  const createHolidayMutation = useMutation({
+    mutationFn: (data: HolidayForm) => apiRequest('POST', '/api/admin/company-holidays', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/company-holidays'] });
+      setShowNewHolidayDialog(false);
+      holidayForm.reset();
+      toast({ title: 'Holiday created successfully' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to create holiday', variant: 'destructive' });
+    }
+  });
+
+  const updateHolidayMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: HolidayForm }) => 
+      apiRequest('PUT', `/api/admin/company-holidays/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/company-holidays'] });
+      setShowEditHolidayDialog(false);
+      setSelectedHoliday(null);
+      editHolidayForm.reset();
+      toast({ title: 'Holiday updated successfully' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to update holiday', variant: 'destructive' });
+    }
+  });
+
+  const deleteHolidayMutation = useMutation({
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/admin/company-holidays/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/company-holidays'] });
+      toast({ title: 'Holiday deleted successfully' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to delete holiday', variant: 'destructive' });
+    }
+  });
+
   // Forms
   const requestForm = useForm<LeaveRequestForm>({
     resolver: zodResolver(leaveRequestSchema),
@@ -179,6 +229,20 @@ export default function LeaveManagementPage() {
       canBeHalfDay: true,
       noticeDaysRequired: 1,
       colorCode: '#3B82F6'
+    }
+  });
+
+  const holidayForm = useForm<HolidayForm>({
+    resolver: zodResolver(holidaySchema),
+    defaultValues: {
+      isOptional: false
+    }
+  });
+
+  const editHolidayForm = useForm<HolidayForm>({
+    resolver: zodResolver(holidaySchema),
+    defaultValues: {
+      isOptional: false
     }
   });
 
@@ -741,11 +805,17 @@ export default function LeaveManagementPage() {
           {/* Company Holidays Tab */}
           <TabsContent value="holidays" className="space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle>Company Holidays ({selectedYear})</CardTitle>
-                <CardDescription>
-                  Manage company-wide holidays and observances
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Company Holidays ({selectedYear})</CardTitle>
+                  <CardDescription>
+                    Manage company-wide holidays and observances
+                  </CardDescription>
+                </div>
+                <Button onClick={() => setShowNewHolidayDialog(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Holiday
+                </Button>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -754,9 +824,38 @@ export default function LeaveManagementPage() {
                       <div className="space-y-2">
                         <div className="flex justify-between items-start">
                           <h4 className="font-medium">{holiday.name}</h4>
-                          {holiday.isOptional && (
-                            <Badge variant="secondary" className="text-xs">Optional</Badge>
-                          )}
+                          <div className="flex items-center space-x-1">
+                            {holiday.isOptional && (
+                              <Badge variant="secondary" className="text-xs">Optional</Badge>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedHoliday(holiday);
+                                editHolidayForm.reset({
+                                  name: holiday.name,
+                                  date: holiday.date.split('T')[0],
+                                  description: holiday.description || '',
+                                  isOptional: holiday.isOptional
+                                });
+                                setShowEditHolidayDialog(true);
+                              }}
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                if (confirm('Are you sure you want to delete this holiday?')) {
+                                  deleteHolidayMutation.mutate(holiday.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </div>
                         <p className="text-sm text-muted-foreground">
                           {new Date(holiday.date).toLocaleDateString('en-US', {
@@ -1033,6 +1132,141 @@ export default function LeaveManagementPage() {
             </DialogContent>
           </Dialog>
         )}
+
+        {/* Add New Holiday Dialog */}
+        <Dialog open={showNewHolidayDialog} onOpenChange={setShowNewHolidayDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add Company Holiday</DialogTitle>
+              <DialogDescription>
+                Create a new company holiday for {selectedYear}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={holidayForm.handleSubmit((data) => createHolidayMutation.mutate(data))} className="space-y-4">
+              <div>
+                <Label htmlFor="holidayName">Holiday Name</Label>
+                <Input
+                  id="holidayName"
+                  placeholder="e.g., Independence Day"
+                  {...holidayForm.register('name')}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="holidayDate">Date</Label>
+                <Input
+                  id="holidayDate"
+                  type="date"
+                  {...holidayForm.register('date')}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="holidayDescription">Description (Optional)</Label>
+                <Textarea
+                  id="holidayDescription"
+                  placeholder="Brief description of the holiday"
+                  {...holidayForm.register('description')}
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="isOptional"
+                  checked={holidayForm.watch('isOptional')}
+                  onCheckedChange={(checked) => holidayForm.setValue('isOptional', !!checked)}
+                />
+                <Label htmlFor="isOptional">Optional Holiday</Label>
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowNewHolidayDialog(false);
+                    holidayForm.reset();
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createHolidayMutation.isPending}>
+                  {createHolidayMutation.isPending ? 'Creating...' : 'Create Holiday'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Holiday Dialog */}
+        <Dialog open={showEditHolidayDialog} onOpenChange={setShowEditHolidayDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Holiday</DialogTitle>
+              <DialogDescription>
+                Update holiday information
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={editHolidayForm.handleSubmit((data) => {
+              if (selectedHoliday) {
+                updateHolidayMutation.mutate({ id: selectedHoliday.id, data });
+              }
+            })} className="space-y-4">
+              <div>
+                <Label htmlFor="editHolidayName">Holiday Name</Label>
+                <Input
+                  id="editHolidayName"
+                  placeholder="e.g., Independence Day"
+                  {...editHolidayForm.register('name')}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="editHolidayDate">Date</Label>
+                <Input
+                  id="editHolidayDate"
+                  type="date"
+                  {...editHolidayForm.register('date')}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="editHolidayDescription">Description (Optional)</Label>
+                <Textarea
+                  id="editHolidayDescription"
+                  placeholder="Brief description of the holiday"
+                  {...editHolidayForm.register('description')}
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="editIsOptional"
+                  checked={editHolidayForm.watch('isOptional')}
+                  onCheckedChange={(checked) => editHolidayForm.setValue('isOptional', !!checked)}
+                />
+                <Label htmlFor="editIsOptional">Optional Holiday</Label>
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowEditHolidayDialog(false);
+                    setSelectedHoliday(null);
+                    editHolidayForm.reset();
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={updateHolidayMutation.isPending}>
+                  {updateHolidayMutation.isPending ? 'Updating...' : 'Update Holiday'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
