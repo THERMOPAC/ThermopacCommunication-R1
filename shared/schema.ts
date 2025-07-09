@@ -6,6 +6,7 @@ import { relations } from "drizzle-orm";
 
 // Available system modules
 export const modules = [
+  "Administration",
   "Sales and Marketing",
   "Finance",
   "Project Management",
