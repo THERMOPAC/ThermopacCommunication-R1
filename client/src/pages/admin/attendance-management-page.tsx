@@ -147,7 +147,14 @@ export default function AttendanceManagementPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Present Today</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {selectedDateRange === 'today' ? 'Present Today' : 
+               selectedDateRange === 'yesterday' ? 'Present Yesterday' :
+               selectedDateRange === 'thisWeek' ? 'Present This Week' :
+               selectedDateRange === 'lastWeek' ? 'Present Last Week' :
+               selectedDateRange === 'thisMonth' ? 'Present This Month' :
+               selectedDateRange === 'lastMonth' ? 'Present Last Month' : 'Present'}
+            </CardTitle>
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
@@ -160,20 +167,34 @@ export default function AttendanceManagementPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Absent Today</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {selectedDateRange === 'today' ? 'Absent Today' : 
+               selectedDateRange === 'yesterday' ? 'Absent Yesterday' :
+               selectedDateRange === 'thisWeek' ? 'Absent This Week' :
+               selectedDateRange === 'lastWeek' ? 'Absent Last Week' :
+               selectedDateRange === 'thisMonth' ? 'Absent This Month' :
+               selectedDateRange === 'lastMonth' ? 'Absent Last Month' : 'Absent'}
+            </CardTitle>
             <AlertCircle className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{attendanceStats?.absentToday || 0}</div>
             <p className="text-xs text-muted-foreground">
-              Employees not checked in
+              {selectedDateRange === 'today' || selectedDateRange === 'yesterday' ? 'Employees not checked in' : 'Days absent in period'}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Late Arrivals</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {selectedDateRange === 'today' ? 'Late Arrivals' : 
+               selectedDateRange === 'yesterday' ? 'Late Yesterday' :
+               selectedDateRange === 'thisWeek' ? 'Late This Week' :
+               selectedDateRange === 'lastWeek' ? 'Late Last Week' :
+               selectedDateRange === 'thisMonth' ? 'Late This Month' :
+               selectedDateRange === 'lastMonth' ? 'Late Last Month' : 'Late Arrivals'}
+            </CardTitle>
             <Clock className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>

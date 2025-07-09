@@ -644,8 +644,8 @@ router.get('/attendance/stats', ensureAuthenticated, async (req: Request, res: R
     
     const attendanceRecordsResult = await attendanceQuery;
 
-    // For 'today' range, calculate present/absent/late statistics
-    if (range === 'today') {
+    if (range === 'today' || range === 'yesterday') {
+      // For single day ranges, calculate present/absent/late statistics
       const presentUserIds = new Set(attendanceRecordsResult.map((r: any) => r.userId));
       stats.presentToday = presentUserIds.size;
       stats.absentToday = Math.max(0, totalEmployeeCount - stats.presentToday);
@@ -663,23 +663,51 @@ router.get('/attendance/stats', ensureAuthenticated, async (req: Request, res: R
         ? Math.round((stats.presentToday / totalEmployeeCount) * 100)
         : 0;
     } else {
-      // For other date ranges, show unique users who attended during the period
-      const uniqueUserIds = new Set(attendanceRecordsResult.map((r: any) => r.userId));
-      stats.presentToday = uniqueUserIds.size;
-      stats.absentToday = Math.max(0, totalEmployeeCount - stats.presentToday);
-      
-      // Count late arrivals across the date range
-      stats.lateToday = attendanceRecordsResult.filter((r: any) => {
-        if (!r.checkInTime) return false;
-        const checkIn = new Date(r.checkInTime);
-        const lateThreshold = new Date(checkIn);
-        lateThreshold.setHours(9, 30, 0, 0);
-        return checkIn > lateThreshold;
-      }).length;
+      // For multi-day ranges (weeks/months), calculate days present/absent/late
+      if (employee !== 'all') {
+        // When filtering by specific employee, count days in the period
+        const employeeId = parseInt(employee as string);
+        if (!isNaN(employeeId)) {
+          // Calculate total working days in the period (excluding weekends for now)
+          const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)) + 1;
+          
+          // Get unique dates when the employee was present
+          const presentDates = new Set(attendanceRecordsResult.map((r: any) => r.date));
+          stats.presentToday = presentDates.size;
+          stats.absentToday = Math.max(0, totalDays - stats.presentToday);
+          
+          // Count late arrivals across the date range
+          stats.lateToday = attendanceRecordsResult.filter((r: any) => {
+            if (!r.checkInTime) return false;
+            const checkIn = new Date(r.checkInTime);
+            const lateThreshold = new Date(checkIn);
+            lateThreshold.setHours(9, 30, 0, 0);
+            return checkIn > lateThreshold;
+          }).length;
 
-      stats.presentPercentage = totalEmployeeCount > 0 
-        ? Math.round((stats.presentToday / totalEmployeeCount) * 100)
-        : 0;
+          stats.presentPercentage = totalDays > 0 
+            ? Math.round((stats.presentToday / totalDays) * 100)
+            : 0;
+        }
+      } else {
+        // For multiple employees, show unique users who attended during the period
+        const uniqueUserIds = new Set(attendanceRecordsResult.map((r: any) => r.userId));
+        stats.presentToday = uniqueUserIds.size;
+        stats.absentToday = Math.max(0, totalEmployeeCount - stats.presentToday);
+        
+        // Count late arrivals across the date range
+        stats.lateToday = attendanceRecordsResult.filter((r: any) => {
+          if (!r.checkInTime) return false;
+          const checkIn = new Date(r.checkInTime);
+          const lateThreshold = new Date(checkIn);
+          lateThreshold.setHours(9, 30, 0, 0);
+          return checkIn > lateThreshold;
+        }).length;
+
+        stats.presentPercentage = totalEmployeeCount > 0 
+          ? Math.round((stats.presentToday / totalEmployeeCount) * 100)
+          : 0;
+      }
     }
 
     res.json(stats);
