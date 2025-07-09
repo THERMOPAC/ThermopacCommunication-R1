@@ -324,6 +324,7 @@ export default function PayrollManagementNew() {
               </DialogHeader>
               <SalaryForm 
                 users={availableUsers}
+                groupedUsers={groupedUsers}
                 workLocations={workLocations}
                 onSubmit={(values) => saveSalaryMutation.mutate(values)}
                 isLoading={saveSalaryMutation.isPending}
@@ -483,13 +484,14 @@ export default function PayrollManagementNew() {
 // Salary Form Component
 interface SalaryFormProps {
   users: User[];
+  groupedUsers?: Record<string, User[]>;
   workLocations: WorkLocation[];
   initialData?: SalaryConfig;
   onSubmit: (values: SalaryFormValues) => void;
   isLoading: boolean;
 }
 
-function SalaryForm({ users, workLocations, initialData, onSubmit, isLoading }: SalaryFormProps) {
+function SalaryForm({ users, groupedUsers, workLocations, initialData, onSubmit, isLoading }: SalaryFormProps) {
   const form = useForm<SalaryFormValues>({
     resolver: zodResolver(salaryFormSchema),
     defaultValues: initialData ? {
@@ -568,7 +570,7 @@ function SalaryForm({ users, workLocations, initialData, onSubmit, isLoading }: 
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {Object.keys(groupedUsers).length > 0 ? (
+                          {groupedUsers && Object.keys(groupedUsers).length > 0 ? (
                             Object.entries(groupedUsers).map(([role, roleUsers]) => (
                               <SelectGroup key={role}>
                                 <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
@@ -584,6 +586,16 @@ function SalaryForm({ users, workLocations, initialData, onSubmit, isLoading }: 
                                   </SelectItem>
                                 ))}
                               </SelectGroup>
+                            ))
+                          ) : users.length > 0 ? (
+                            users.map((user) => (
+                              <SelectItem key={user.id} value={user.id.toString()}>
+                                {user.firstName && user.lastName 
+                                  ? `${user.firstName} ${user.lastName} (${user.username})`
+                                  : user.username
+                                }
+                                {user.employeeCode && ` - ${user.employeeCode}`}
+                              </SelectItem>
                             ))
                           ) : (
                             <SelectItem value="no-employees" disabled>
