@@ -3189,6 +3189,15 @@ export const payrollRecords = pgTable('payroll_records', {
   taskCompletionBonus: decimal('task_completion_bonus', { precision: 10, scale: 2 }).default('0'),
   satisfactionBonus: decimal('satisfaction_bonus', { precision: 10, scale: 2 }).default('0'),
   
+  // Individual allowances for salary slip
+  hra: decimal('hra', { precision: 10, scale: 2 }).default('0'),
+  conveyanceAllowance: decimal('conveyance_allowance', { precision: 10, scale: 2 }).default('0'),
+  ltaAllowance: decimal('lta_allowance', { precision: 10, scale: 2 }).default('0'),
+  specialAllowance: decimal('special_allowance', { precision: 10, scale: 2 }).default('0'),
+  supplementaryAllowance: decimal('supplementary_allowance', { precision: 10, scale: 2 }).default('0'),
+  kgpAllowance: decimal('kgp_allowance', { precision: 10, scale: 2 }).default('0'),
+  bonus: decimal('bonus', { precision: 10, scale: 2 }).default('0'),
+  
   // Other allowances
   overtimeHours: decimal('overtime_hours', { precision: 5, scale: 2 }).default('0'),
   overtimePay: decimal('overtime_pay', { precision: 10, scale: 2 }).default('0'),
@@ -3202,6 +3211,8 @@ export const payrollRecords = pgTable('payroll_records', {
   professionalTax: decimal('professional_tax', { precision: 10, scale: 2 }).default('0'),
   providentFund: decimal('provident_fund', { precision: 10, scale: 2 }).default('0'),
   esiDeduction: decimal('esi_deduction', { precision: 10, scale: 2 }).default('0'),
+  esic: decimal('esic', { precision: 10, scale: 2 }).default('0'),
+  groupInsurance: decimal('group_insurance', { precision: 10, scale: 2 }).default('0'),
   otherDeductions: decimal('other_deductions', { precision: 10, scale: 2 }).default('0'),
   totalDeductions: decimal('total_deductions', { precision: 10, scale: 2 }).default('0'),
   

@@ -1881,8 +1881,6 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         incomeTax: payrollRecords.incomeTax,
         professionalTax: payrollRecords.professionalTax,
         providentFund: payrollRecords.providentFund,
-        esic: payrollRecords.esic,
-        groupInsurance: payrollRecords.groupInsurance,
         hra: payrollRecords.hra,
         conveyanceAllowance: payrollRecords.conveyanceAllowance,
         ltaAllowance: payrollRecords.ltaAllowance,
@@ -1892,6 +1890,8 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         overtimePay: payrollRecords.overtimePay,
         bonus: payrollRecords.bonus,
         otherAllowances: payrollRecords.otherAllowances,
+        esic: payrollRecords.esic,
+        groupInsurance: payrollRecords.groupInsurance,
         otherDeductions: payrollRecords.otherDeductions,
         createdAt: payrollRecords.createdAt,
         
