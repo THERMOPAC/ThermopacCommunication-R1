@@ -523,7 +523,7 @@ router.get('/payroll/records/:periodId', ensureAuthenticated, async (req: Reques
 // Get attendance statistics
 router.get('/attendance/stats', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const { range = 'today' } = req.query;
+    const { range = 'today', department = 'all', employee = 'all' } = req.query;
     
     let startDate: Date;
     let endDate: Date = new Date();
@@ -577,10 +577,29 @@ router.get('/attendance/stats', ensureAuthenticated, async (req: Request, res: R
         break;
     }
 
-    // Get total active employees
-    const totalEmployees = await db.select().from(users).where(eq(users.isActive, true));
+    // Build filter conditions for SQL queries
+    let userFilter = 'u.is_active = true';
+    let attendanceFilter = `a.date >= '${startDate.toISOString().split('T')[0]}' AND a.date <= '${endDate.toISOString().split('T')[0]}'`;
     
-    // Get attendance records for the date range
+    if (department !== 'all') {
+      userFilter += ` AND u.department = '${department}'`;
+    }
+    
+    if (employee !== 'all') {
+      const employeeId = parseInt(employee as string);
+      if (!isNaN(employeeId)) {
+        userFilter += ` AND u.id = ${employeeId}`;
+        attendanceFilter += ` AND a.user_id = ${employeeId}`;
+      }
+    }
+
+    // Get total active employees (filtered)
+    const totalEmployeesQuery = employee !== 'all' 
+      ? `SELECT * FROM users WHERE ${userFilter}`
+      : `SELECT * FROM users WHERE ${userFilter}`;
+    const totalEmployees = await db.execute(totalEmployeesQuery);
+    
+    // Get attendance records for the date range (filtered)
     const attendanceRecords = await db.execute(`
       SELECT 
         a.user_id,
@@ -590,13 +609,13 @@ router.get('/attendance/stats', ensureAuthenticated, async (req: Request, res: R
         u.department
       FROM attendance_records a
       JOIN users u ON a.user_id = u.id
-      WHERE a.date >= '${startDate.toISOString().split('T')[0]}' AND a.date <= '${endDate.toISOString().split('T')[0]}'
-      AND u.is_active = true
+      WHERE ${attendanceFilter} AND ${userFilter}
     `);
 
     // Calculate statistics
+    const totalEmployeeCount = Array.isArray(totalEmployees) ? totalEmployees.length : 0;
     const stats = {
-      totalEmployees: totalEmployees.length,
+      totalEmployees: totalEmployeeCount,
       presentToday: 0,
       absentToday: 0,
       lateToday: 0,
@@ -605,18 +624,21 @@ router.get('/attendance/stats', ensureAuthenticated, async (req: Request, res: R
 
     if (range === 'today') {
       const today = new Date().toISOString().split('T')[0];
-      const todayRecords = await db.execute(`
+      let todayQuery = `
         SELECT 
           a.user_id,
           a.check_in_time,
           a.check_out_time
         FROM attendance_records a
-        WHERE a.date = '${today}'
-      `);
+        JOIN users u ON a.user_id = u.id
+        WHERE a.date = '${today}' AND ${userFilter}
+      `;
+      
+      const todayRecords = await db.execute(todayQuery);
 
       const presentUserIds = new Set(Array.isArray(todayRecords) ? todayRecords.map((r: any) => r.user_id) : []);
       stats.presentToday = presentUserIds.size;
-      stats.absentToday = stats.totalEmployees - stats.presentToday;
+      stats.absentToday = totalEmployeeCount - stats.presentToday;
       
       // Count late arrivals (after 9:30 AM)
       stats.lateToday = Array.isArray(todayRecords) ? todayRecords.filter((r: any) => {
@@ -627,8 +649,8 @@ router.get('/attendance/stats', ensureAuthenticated, async (req: Request, res: R
         return checkIn > lateThreshold;
       }).length : 0;
 
-      stats.presentPercentage = stats.totalEmployees > 0 
-        ? Math.round((stats.presentToday / stats.totalEmployees) * 100)
+      stats.presentPercentage = totalEmployeeCount > 0 
+        ? Math.round((stats.presentToday / totalEmployeeCount) * 100)
         : 0;
     }
 

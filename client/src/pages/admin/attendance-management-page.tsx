@@ -30,9 +30,14 @@ export default function AttendanceManagementPage() {
 
   // Query for attendance summary stats
   const { data: attendanceStats } = useQuery({
-    queryKey: ['/api/admin/attendance/stats', selectedDateRange],
+    queryKey: ['/api/admin/attendance/stats', selectedDateRange, selectedDepartment, selectedEmployee],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/attendance/stats?range=${selectedDateRange}`);
+      const params = new URLSearchParams({
+        range: selectedDateRange,
+        department: selectedDepartment,
+        employee: selectedEmployee
+      });
+      const response = await fetch(`/api/admin/attendance/stats?${params}`);
       return response.json();
     }
   });
