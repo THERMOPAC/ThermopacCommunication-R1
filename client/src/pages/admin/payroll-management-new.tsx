@@ -80,7 +80,7 @@ interface WorkLocation {
 }
 
 // Calculation hook for salary computations
-const useSalaryCalculations = (formData: Partial<SalaryFormValues>) => {
+const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUserRole?: string) => {
   return useMemo(() => {
     const basicAmount = parseFloat(formData.basicSalary || '0');
     const salaryType = formData.salaryType || 'monthly';
@@ -91,7 +91,16 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>) => {
     const otRate = parseFloat(formData.otRate || '1.0');
     // Auto-calculate bonus as 8.33% of Basic Salary
     const bonus = basicAmount * 0.0833;
-    const kgp = parseFloat(formData.kgpAllowance || '0');
+    
+    // Auto-calculate KGP Allowance: 15% of Basic Salary for Monthly salary types
+    // Only for Manager and Employee roles (excluding Senior Manager, General Manager, Superuser)
+    let kgp = 0;
+    if (salaryType === 'monthly' && selectedUserRole && ['Manager', 'Employee'].includes(selectedUserRole)) {
+      kgp = basicAmount * 0.15; // 15% of Basic Salary
+    } else {
+      kgp = parseFloat(formData.kgpAllowance || '0');
+    }
+    
     const groupInsuranceAmount = parseFloat(formData.groupInsurance || '1500');
 
     if (basicAmount <= 0) {
@@ -182,8 +191,9 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>) => {
       supplementary,
       groupInsurance: groupInsuranceAmount,
       bonus, // Auto-calculated bonus (8.33% of Basic Salary)
+      kgpAllowance: kgp, // Auto-calculated KGP Allowance (15% of Basic Salary for Monthly Manager/Employee roles)
     };
-  }, [formData]);
+  }, [formData, selectedUserRole]);
 };
 
 export default function PayrollManagementNew() {
@@ -558,7 +568,12 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
 
   // Watch form values for calculations
   const watchedValues = form.watch();
-  const calculations = useSalaryCalculations(watchedValues);
+  
+  // Get selected user role for KGP calculation
+  const selectedUser = users.find(u => u.id === watchedValues.userId);
+  const selectedUserRole = selectedUser?.role;
+  
+  const calculations = useSalaryCalculations(watchedValues, selectedUserRole);
 
   // Manual form sync function
   const syncCalculationsToForm = useCallback(() => {
@@ -567,10 +582,11 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
   }, []);
 
   const handleSubmit = (values: SalaryFormValues) => {
-    // Include the auto-calculated bonus in the submission
+    // Include the auto-calculated bonus and KGP allowance in the submission
     const submissionValues = {
       ...values,
-      bonus: calculations.bonus.toString()
+      bonus: calculations.bonus.toString(),
+      kgpAllowance: calculations.kgpAllowance.toString()
     };
     console.log('Form submission values:', submissionValues);
     console.log('Form validation errors:', form.formState.errors);
@@ -828,12 +844,38 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
                 name="kgpAllowance"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>KGP Allowance</FormLabel>
+                    <FormLabel>
+                      KGP Allowance
+                      {watchedValues.salaryType === 'monthly' && 
+                       selectedUserRole && 
+                       ['Manager', 'Employee'].includes(selectedUserRole) && 
+                       ' (Auto-calculated: 15% of Basic Salary)'
+                      }
+                    </FormLabel>
                     <FormControl>
                       <Input 
                         key="kgpAllowance"
+                        value={
+                          watchedValues.salaryType === 'monthly' && 
+                          selectedUserRole && 
+                          ['Manager', 'Employee'].includes(selectedUserRole)
+                            ? `₹${calculations.kgpAllowance ? calculations.kgpAllowance.toFixed(2) : '0.00'}`
+                            : field.value
+                        }
                         placeholder="0" 
                         autoComplete="off"
+                        readOnly={
+                          watchedValues.salaryType === 'monthly' && 
+                          selectedUserRole && 
+                          ['Manager', 'Employee'].includes(selectedUserRole)
+                        }
+                        className={
+                          watchedValues.salaryType === 'monthly' && 
+                          selectedUserRole && 
+                          ['Manager', 'Employee'].includes(selectedUserRole)
+                            ? 'bg-gray-50 cursor-not-allowed'
+                            : ''
+                        }
                         {...field}
                       />
                     </FormControl>
@@ -964,6 +1006,17 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
                   <div className="flex justify-between">
                     <span className="text-sm">Bonus (8.33%):</span>
                     <span className="font-medium">₹{Math.round(calculations.bonus || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">
+                      KGP Allowance
+                      {watchedValues.salaryType === 'monthly' && 
+                       selectedUserRole && 
+                       ['Manager', 'Employee'].includes(selectedUserRole) && 
+                       ' (15%)'
+                      }:
+                    </span>
+                    <span className="font-medium">₹{Math.round(calculations.kgpAllowance || 0).toLocaleString('en-IN')}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between font-semibold">
