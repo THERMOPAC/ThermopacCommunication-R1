@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
+import { Layout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -566,7 +567,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="Active">Active</SelectItem>
                 <SelectItem value="Expired">Expired</SelectItem>
                 <SelectItem value="Pending">Pending</SelectItem>
@@ -578,7 +579,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="Service Agreement">Service Agreement</SelectItem>
                 <SelectItem value="Purchase Order">Purchase Order</SelectItem>
                 <SelectItem value="NDA">NDA</SelectItem>
@@ -682,7 +683,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="Active">Active</SelectItem>
                 <SelectItem value="Closed">Closed</SelectItem>
                 <SelectItem value="Pending">Pending</SelectItem>
@@ -694,7 +695,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="Civil">Civil</SelectItem>
                 <SelectItem value="Criminal">Criminal</SelectItem>
                 <SelectItem value="Corporate">Corporate</SelectItem>
@@ -804,7 +805,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="Compliant">Compliant</SelectItem>
                 <SelectItem value="Pending">Pending</SelectItem>
                 <SelectItem value="Overdue">Overdue</SelectItem>
@@ -816,7 +817,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="Labor Law">Labor Law</SelectItem>
                 <SelectItem value="Environmental">Environmental</SelectItem>
                 <SelectItem value="Health & Safety">Health & Safety</SelectItem>
@@ -917,7 +918,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="Active">Active</SelectItem>
                 <SelectItem value="Closed">Closed</SelectItem>
                 <SelectItem value="Under Investigation">Under Investigation</SelectItem>
@@ -929,7 +930,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="Harassment">Harassment</SelectItem>
                 <SelectItem value="Discrimination">Discrimination</SelectItem>
                 <SelectItem value="Hostile Work Environment">Hostile Work Environment</SelectItem>
@@ -1033,7 +1034,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="Pending Response">Pending Response</SelectItem>
                 <SelectItem value="Responded">Responded</SelectItem>
                 <SelectItem value="Overdue">Overdue</SelectItem>
@@ -1045,7 +1046,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="Legal Notice">Legal Notice</SelectItem>
                 <SelectItem value="Demand Notice">Demand Notice</SelectItem>
                 <SelectItem value="Cease and Desist">Cease and Desist</SelectItem>
@@ -1151,7 +1152,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="Active">Active</SelectItem>
                 <SelectItem value="Inactive">Inactive</SelectItem>
                 <SelectItem value="Preferred">Preferred</SelectItem>
@@ -1163,7 +1164,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Specialization" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Specializations</SelectItem>
+                <SelectItem value="all">All Specializations</SelectItem>
                 <SelectItem value="Corporate Law">Corporate Law</SelectItem>
                 <SelectItem value="Civil Litigation">Civil Litigation</SelectItem>
                 <SelectItem value="Criminal Law">Criminal Law</SelectItem>
@@ -1269,7 +1270,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="Draft">Draft</SelectItem>
                 <SelectItem value="Under Review">Under Review</SelectItem>
                 <SelectItem value="Approved">Approved</SelectItem>
@@ -1282,7 +1283,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="Policy">Policy</SelectItem>
                 <SelectItem value="Procedure">Procedure</SelectItem>
                 <SelectItem value="Guideline">Guideline</SelectItem>
@@ -1390,7 +1391,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="Active">Active</SelectItem>
                 <SelectItem value="Dismissed">Dismissed</SelectItem>
                 <SelectItem value="Resolved">Resolved</SelectItem>
@@ -1401,7 +1402,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="Contract Expiry">Contract Expiry</SelectItem>
                 <SelectItem value="Hearing Reminder">Hearing Reminder</SelectItem>
                 <SelectItem value="Compliance Due">Compliance Due</SelectItem>
@@ -1500,7 +1501,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="Active">Active</SelectItem>
                 <SelectItem value="Pending">Pending</SelectItem>
                 <SelectItem value="Expired">Expired</SelectItem>
@@ -1512,7 +1513,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="Unilateral">Unilateral</SelectItem>
                 <SelectItem value="Bilateral">Bilateral</SelectItem>
                 <SelectItem value="Multilateral">Multilateral</SelectItem>
@@ -1606,7 +1607,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="Active">Active</SelectItem>
                 <SelectItem value="Pending">Pending</SelectItem>
                 <SelectItem value="Expired">Expired</SelectItem>
@@ -1618,7 +1619,7 @@ const LegalManagementPage: React.FC = () => {
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="Supplier">Supplier</SelectItem>
                 <SelectItem value="Customer">Customer</SelectItem>
                 <SelectItem value="Partner">Partner</SelectItem>
@@ -1681,90 +1682,92 @@ const LegalManagementPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Legal Management</h1>
-              <p className="mt-1 text-sm text-gray-500">
-                Comprehensive legal management system for contracts, cases, compliance, and more
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Export Report
-              </Button>
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
-                Advanced Filter
-              </Button>
+    <Layout>
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <div className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-6">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Legal Management</h1>
+                <p className="mt-1 text-sm text-gray-500">
+                  Comprehensive legal management system for contracts, cases, compliance, and more
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Report
+                </Button>
+                <Button variant="outline" size="sm">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Advanced Filter
+                </Button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10 mb-6">
-            <TabsTrigger value="dashboard" className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Dashboard
-            </TabsTrigger>
-            <TabsTrigger value="contracts" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Contracts
-            </TabsTrigger>
-            <TabsTrigger value="cases" className="flex items-center gap-2">
-              <Scale className="h-4 w-4" />
-              Cases
-            </TabsTrigger>
-            <TabsTrigger value="compliance" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Compliance
-            </TabsTrigger>
-            <TabsTrigger value="posh" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              POSH
-            </TabsTrigger>
-            <TabsTrigger value="notices" className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              Notices
-            </TabsTrigger>
-            <TabsTrigger value="counsel" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Counsel
-            </TabsTrigger>
-            <TabsTrigger value="templates" className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4" />
-              Templates
-            </TabsTrigger>
-            <TabsTrigger value="nda" className="flex items-center gap-2">
-              <Eye className="h-4 w-4" />
-              NDA
-            </TabsTrigger>
-            <TabsTrigger value="exclusivity" className="flex items-center gap-2">
-              <FileCheck className="h-4 w-4" />
-              Exclusivity
-            </TabsTrigger>
-          </TabsList>
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10 mb-6">
+              <TabsTrigger value="dashboard" className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Dashboard
+              </TabsTrigger>
+              <TabsTrigger value="contracts" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Contracts
+              </TabsTrigger>
+              <TabsTrigger value="cases" className="flex items-center gap-2">
+                <Scale className="h-4 w-4" />
+                Cases
+              </TabsTrigger>
+              <TabsTrigger value="compliance" className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                Compliance
+              </TabsTrigger>
+              <TabsTrigger value="posh" className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                POSH
+              </TabsTrigger>
+              <TabsTrigger value="notices" className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Notices
+              </TabsTrigger>
+              <TabsTrigger value="counsel" className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Counsel
+              </TabsTrigger>
+              <TabsTrigger value="templates" className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                Templates
+              </TabsTrigger>
+              <TabsTrigger value="nda" className="flex items-center gap-2">
+                <Eye className="h-4 w-4" />
+                NDA
+              </TabsTrigger>
+              <TabsTrigger value="exclusivity" className="flex items-center gap-2">
+                <FileCheck className="h-4 w-4" />
+                Exclusivity
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="dashboard">{renderDashboard()}</TabsContent>
-          <TabsContent value="contracts">{renderContracts()}</TabsContent>
-          <TabsContent value="cases">{renderCases()}</TabsContent>
-          <TabsContent value="compliance">{renderCompliance()}</TabsContent>
-          <TabsContent value="posh">{renderPoshCases()}</TabsContent>
-          <TabsContent value="notices">{renderLegalNotices()}</TabsContent>
-          <TabsContent value="counsel">{renderExternalCounsel()}</TabsContent>
-          <TabsContent value="templates">{renderPolicyTemplates()}</TabsContent>
-          <TabsContent value="nda">{renderNdaAgreements()}</TabsContent>
-          <TabsContent value="exclusivity">{renderExclusivityAgreements()}</TabsContent>
-        </Tabs>
+            <TabsContent value="dashboard">{renderDashboard()}</TabsContent>
+            <TabsContent value="contracts">{renderContracts()}</TabsContent>
+            <TabsContent value="cases">{renderCases()}</TabsContent>
+            <TabsContent value="compliance">{renderCompliance()}</TabsContent>
+            <TabsContent value="posh">{renderPoshCases()}</TabsContent>
+            <TabsContent value="notices">{renderLegalNotices()}</TabsContent>
+            <TabsContent value="counsel">{renderExternalCounsel()}</TabsContent>
+            <TabsContent value="templates">{renderPolicyTemplates()}</TabsContent>
+            <TabsContent value="nda">{renderNdaAgreements()}</TabsContent>
+            <TabsContent value="exclusivity">{renderExclusivityAgreements()}</TabsContent>
+          </Tabs>
+        </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 
