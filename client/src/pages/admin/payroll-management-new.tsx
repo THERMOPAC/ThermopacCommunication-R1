@@ -266,6 +266,12 @@ function GeneratedSalariesView() {
     enabled: true
   });
 
+  const handleDownloadSalarySlip = (payrollRecordId: number) => {
+    // Open the PDF in a new window/tab
+    const url = `/api/admin/salary-slip/${payrollRecordId}`;
+    window.open(url, '_blank');
+  };
+
   if (isLoadingGenerated) {
     return (
       <Card>
@@ -634,12 +640,6 @@ export default function PayrollManagementNew() {
     setSelectedMonth('12'); // Default to December
     setSelectedYear('2024'); // Default to 2024
     setIsSalaryGenerationDialogOpen(true);
-  };
-
-  const handleDownloadSalarySlip = (payrollRecordId: number) => {
-    // Open the PDF in a new window/tab
-    const url = `/api/admin/salary-slip/${payrollRecordId}`;
-    window.open(url, '_blank');
   };
 
   return (
