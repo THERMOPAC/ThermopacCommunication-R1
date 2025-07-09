@@ -3070,6 +3070,97 @@ export type InsertVisaAlert = z.infer<typeof insertVisaAlertSchema>;
 export type VisaQuotaSetting = typeof visaQuotaSettings.$inferSelect;
 export type InsertVisaQuotaSetting = z.infer<typeof insertVisaQuotaSettingSchema>;
 
+// ==================== SCHENGEN TRAVEL TRACKING ====================
+
+// Schengen Countries
+export const schengenCountries = [
+  "Austria", "Belgium", "Croatia", "Czech Republic", "Denmark", "Estonia",
+  "Finland", "France", "Germany", "Greece", "Hungary", "Iceland", "Italy",
+  "Latvia", "Liechtenstein", "Lithuania", "Luxembourg", "Malta", "Netherlands",
+  "Norway", "Poland", "Portugal", "Slovakia", "Slovenia", "Spain", "Sweden", "Switzerland"
+] as const;
+
+export type SchengenCountry = typeof schengenCountries[number];
+
+// Alert Types for Schengen
+export const schengenAlertTypes = [
+  "warning_60", // 60 days used
+  "warning_80", // 80 days used
+  "exceeded_90"  // Over 90 days
+] as const;
+
+export type SchengenAlertType = typeof schengenAlertTypes[number];
+
+// Schengen Travel Log table
+export const schengenTravelLog = pgTable('schengen_travel_log', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  country: varchar('country', { length: 100 }).notNull(),
+  entryDate: date('entry_date').notNull(),
+  exitDate: date('exit_date'),
+  purpose: varchar('purpose', { length: 200 }),
+  notes: text('notes'),
+  isBusinessTrip: boolean('is_business_trip').notNull().default(false),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Schengen Alerts table
+export const schengenAlerts = pgTable('schengen_alerts', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  alertType: varchar('alert_type', { length: 50 }).notNull(),
+  daysUsed: integer('days_used').notNull(),
+  calculationDate: date('calculation_date').notNull(),
+  isAcknowledged: boolean('is_acknowledged').notNull().default(false),
+  acknowledgedBy: integer('acknowledged_by').references(() => users.id),
+  acknowledgedAt: timestamp('acknowledged_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow()
+});
+
+// Schengen Relations
+export const schengenTravelLogRelations = relations(schengenTravelLog, ({ one }) => ({
+  employee: one(users, {
+    fields: [schengenTravelLog.employeeId],
+    references: [users.id],
+  }),
+  createdByUser: one(users, {
+    fields: [schengenTravelLog.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const schengenAlertsRelations = relations(schengenAlerts, ({ one }) => ({
+  employee: one(users, {
+    fields: [schengenAlerts.employeeId],
+    references: [users.id],
+  }),
+  acknowledgedByUser: one(users, {
+    fields: [schengenAlerts.acknowledgedBy],
+    references: [users.id],
+  }),
+}));
+
+// Schengen Zod Schemas
+export const insertSchengenTravelLogSchema = createInsertSchema(schengenTravelLog)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    entryDate: z.string().transform(dateStringToDate),
+    exitDate: z.string().optional().transform(dateStringToDate),
+    purpose: z.string().optional(),
+    notes: z.string().optional(),
+  });
+
+export const insertSchengenAlertSchema = createInsertSchema(schengenAlerts)
+  .omit({ id: true, createdAt: true });
+
+// Schengen Types
+export type SchengenTravelLog = typeof schengenTravelLog.$inferSelect;
+export type InsertSchengenTravelLog = z.infer<typeof insertSchengenTravelLogSchema>;
+export type SchengenAlert = typeof schengenAlerts.$inferSelect;
+export type InsertSchengenAlert = z.infer<typeof insertSchengenAlertSchema>;
+
 // ==================== BUSINESS TRIP MANAGEMENT ====================
 
 // Business Trip Status

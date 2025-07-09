@@ -15,6 +15,8 @@ import { apiRequest } from '@/lib/queryClient';
 import { Plus, FileText, AlertTriangle, Download, Upload, Edit, Trash2, Filter, Calendar, Users, Globe, Plane } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import SchengenTracker from './schengen-tracker';
 
 interface VisaRecord {
   id: number;
@@ -234,11 +236,23 @@ export default function VisaManagement() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Visa Management</h1>
-          <p className="text-gray-600 mt-1">Track employee visa records, renewals, and expiry alerts</p>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold">Visa Management</h1>
+        <p className="text-gray-600 mt-1">Track employee visa records and Schengen travel compliance</p>
+      </div>
+
+      <Tabs defaultValue="visa-records" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="visa-records">Visa Records</TabsTrigger>
+          <TabsTrigger value="schengen-tracker">EU 180-Day Rule Tracker</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="visa-records" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-semibold">Visa Records</h2>
+              <p className="text-gray-600">Track employee visa records, renewals, and expiry alerts</p>
+            </div>
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
             <Button>
@@ -799,14 +813,20 @@ export default function VisaManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Hidden file input for uploads */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        style={{ display: 'none' }}
-        accept=".pdf,.jpg,.jpeg,.png"
-        onChange={() => {}} // Handled in onClick
-      />
+          {/* Hidden file input for uploads */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            accept=".pdf,.jpg,.jpeg,.png"
+            onChange={() => {}} // Handled in onClick
+          />
+        </TabsContent>
+
+        <TabsContent value="schengen-tracker">
+          <SchengenTracker />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
