@@ -15,9 +15,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import * as XLSX from 'xlsx';
 
 // Schema for salary form
 const salaryFormSchema = z.object({
@@ -129,6 +130,124 @@ interface EmployeeWorkweekAssignment {
   isActive: boolean;
   createdAt: string;
 }
+
+// Excel Export Function
+const exportToExcel = (employee: any, month: string, year: string, calculationData: any) => {
+  // Create workbook
+  const wb = XLSX.utils.book_new();
+  
+  // Employee name for display
+  const employeeName = employee.firstName && employee.lastName 
+    ? `${employee.firstName} ${employee.lastName}`
+    : employee.username;
+  
+  // Parse calculation data values
+  const basicSalary = Math.round(parseFloat(calculationData?.grossBasic || calculationData?.basicSalary || 0));
+  const hra = Math.round(parseFloat(calculationData?.houseRentAllowance || 0));
+  const conveyance = Math.round(parseFloat(calculationData?.conveyanceAllowance || 0));
+  const lta = Math.round(parseFloat(calculationData?.ltaAllowance || 0));
+  const special = Math.round(parseFloat(calculationData?.specialAllowance || 0));
+  const supplementary = Math.round(parseFloat(calculationData?.supplementaryAllowance || 0));
+  const kgp = Math.round(parseFloat(calculationData?.kgpAllowance || 0));
+  const bonus = Math.round(parseFloat(calculationData?.bonus || 0));
+  const grossEarnings = Math.round(parseFloat(calculationData?.grossEarnings || 0));
+  
+  const pf = Math.round(parseFloat(calculationData?.employeePF || 0));
+  const esic = Math.round(parseFloat(calculationData?.employeeESIC || 0));
+  const pt = Math.round(parseFloat(calculationData?.professionalTax || 0));
+  const groupInsurance = Math.round(parseFloat(calculationData?.groupInsurance || 0));
+  const totalDeductions = Math.round(parseFloat(calculationData?.totalDeductions || 0));
+  
+  const netPay = Math.round(parseFloat(calculationData?.netPay || 0));
+  
+  // Create salary breakdown data
+  const salaryData = [
+    ['SALARY CALCULATION BREAKDOWN', '', ''],
+    ['', '', ''],
+    ['Employee Information', '', ''],
+    ['Employee Name', employeeName, ''],
+    ['Department', employee.department || 'N/A', ''],
+    ['Salary Period', `${month}/${year}`, ''],
+    ['Salary Type', calculationData?.salaryType || 'monthly', ''],
+    ['', '', ''],
+    ['Attendance Summary', '', ''],
+    ['Working Days', calculationData?.workingDays || 0, ''],
+    ['Present Days', calculationData?.presentDays || 0, ''],
+    ['Paid Days', calculationData?.paidDays || 0, ''],
+    ['', '', ''],
+    ['EARNINGS', 'Amount (₹)', ''],
+    ['Basic Salary', basicSalary, ''],
+    ['HRA', hra, ''],
+    ['Conveyance Allowance', conveyance, ''],
+    ['LTA', lta, ''],
+    ['Special Allowance', special, ''],
+    ['Supplementary Allowance', supplementary, ''],
+    ['KGP Allowance', kgp, ''],
+    ['Bonus (Calculated, Not Paid Monthly)', bonus, ''],
+    ['Gross Earnings', grossEarnings, ''],
+    ['', '', ''],
+    ['DEDUCTIONS', 'Amount (₹)', ''],
+    ['Provident Fund (PF)', pf, ''],
+    ['ESIC', esic, ''],
+    ['Professional Tax', pt, ''],
+    ['Group Insurance', groupInsurance, ''],
+    ['Total Deductions', totalDeductions, ''],
+    ['', '', ''],
+    ['NET SALARY', netPay, ''],
+  ];
+  
+  // Create worksheet
+  const ws = XLSX.utils.aoa_to_sheet(salaryData);
+  
+  // Set column widths
+  ws['!cols'] = [
+    { width: 35 }, // Description column
+    { width: 15 }, // Amount column
+    { width: 10 }  // Extra column
+  ];
+  
+  // Style the header row
+  if (ws['A1']) {
+    ws['A1'].s = {
+      font: { bold: true, sz: 14 },
+      alignment: { horizontal: 'center' }
+    };
+  }
+  
+  // Style section headers
+  const sectionHeaders = ['A3', 'A9', 'A14', 'A25', 'A32'];
+  sectionHeaders.forEach(cell => {
+    if (ws[cell]) {
+      ws[cell].s = {
+        font: { bold: true, sz: 12 },
+        fill: { fgColor: { rgb: 'E6F3FF' } }
+      };
+    }
+  });
+  
+  // Style the final net salary row
+  if (ws['A32']) {
+    ws['A32'].s = {
+      font: { bold: true, sz: 12 },
+      fill: { fgColor: { rgb: 'D4FFD4' } }
+    };
+  }
+  if (ws['B32']) {
+    ws['B32'].s = {
+      font: { bold: true, sz: 12 },
+      fill: { fgColor: { rgb: 'D4FFD4' } }
+    };
+  }
+  
+  // Add worksheet to workbook
+  XLSX.utils.book_append_sheet(wb, ws, 'Salary Breakdown');
+  
+  // Generate filename
+  const filename = `Salary_Breakdown_${employeeName.replace(/\s+/g, '_')}_${month}-${year}.xlsx`;
+  
+  // Save file
+  XLSX.writeFile(wb, filename);
+};
 
 // Calculation hook for salary computations
 const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUserRole?: string) => {
@@ -1129,6 +1248,18 @@ export default function PayrollManagementNew() {
                     }}
                   >
                     Cancel
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      if (selectedEmployeeForSalary && selectedMonth && selectedYear && calculationPreview) {
+                        exportToExcel(selectedEmployeeForSalary, selectedMonth, selectedYear, calculationPreview.data);
+                      }
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Export to Excel (.xlsx)
                   </Button>
                   <Button 
                     onClick={() => {
