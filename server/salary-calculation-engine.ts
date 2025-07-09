@@ -182,7 +182,7 @@ export class SalaryCalculationEngine {
   /**
    * Get workweek policy for employee
    */
-  private async getWorkweekPolicy(workLocationId?: number, department?: string) {
+  async getWorkweekPolicy(workLocationId?: number, department?: string) {
     // Priority: Location-specific > Department-specific > Global
     let policy = null;
     
@@ -233,7 +233,7 @@ export class SalaryCalculationEngine {
   /**
    * Calculate working days for a month
    */
-  private async calculateWorkingDays(month: number, year: number, workweekPolicy: any) {
+  async calculateWorkingDays(month: number, year: number, workweekPolicy: any) {
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0);
     
@@ -286,7 +286,8 @@ export class SalaryCalculationEngine {
     let overtimeHours = 0;
     
     attendance.forEach(record => {
-      if (record.status === 'present') {
+      // Check if employee is present (has check-in time)
+      if (record.checkInTime) {
         presentDays++;
         totalWorkingHours += parseFloat(record.workingHours || '0');
         overtimeHours += parseFloat(record.overtimeHours || '0');

@@ -1920,15 +1920,54 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
 
     const record = payrollRecord[0];
 
-    // Get salary configuration for working days
-    const salaryConfig = await db
-      .select()
-      .from(employeeSalaries)
-      .where(eq(employeeSalaries.userId, record.userId))
-      .limit(1);
+    // Calculate actual working days based on workweek policy and month
+    let workingDays = 30; // Default fallback
+    let paidDays = 30; // Default fallback
+    
+    try {
+      // Import SalaryCalculationEngine for working days calculation
+      const { SalaryCalculationEngine } = await import('./salary-calculation-engine');
+      const salaryEngine = new SalaryCalculationEngine();
+      
+      // Extract month and year from period start date
+      const periodStartDate = new Date(record.startDate);
+      const month = periodStartDate.getMonth() + 1; // getMonth() returns 0-11
+      const year = periodStartDate.getFullYear();
+      
+      // Get employee details for workweek policy
+      const [employee] = await db
+        .select({
+          id: users.id,
+          workLocationId: users.workLocationId,
+          department: users.department
+        })
+        .from(users)
+        .where(eq(users.id, record.userId))
+        .limit(1);
+      
+      if (employee) {
+        // Get workweek policy
+        const workweekPolicy = await salaryEngine.getWorkweekPolicy(employee.workLocationId, employee.department);
+        
+        // Calculate actual working days for the month
+        const workingDaysData = await salaryEngine.calculateWorkingDays(month, year, workweekPolicy);
+        workingDays = workingDaysData.workingDays;
+        paidDays = workingDays; // Assuming paid days = working days unless on leave
+        
+        console.log(`📅 Calculated working days for ${month}/${year}: ${workingDays} days`);
+      }
+    } catch (error) {
+      console.error('Error calculating working days, using fallback:', error);
+      // Fall back to salary configuration values
+      const salaryConfig = await db
+        .select()
+        .from(employeeSalaries)
+        .where(eq(employeeSalaries.userId, record.userId))
+        .limit(1);
 
-    const workingDays = salaryConfig.length > 0 ? (salaryConfig[0].workingDaysPerMonth || 30) : 30;
-    const paidDays = salaryConfig.length > 0 ? (salaryConfig[0].paidDays || workingDays) : workingDays;
+      workingDays = salaryConfig.length > 0 ? (parseInt(salaryConfig[0].actualDays) || 30) : 30;
+      paidDays = salaryConfig.length > 0 ? (parseInt(salaryConfig[0].paidDays) || workingDays) : workingDays;
+    }
 
     // Prepare salary slip data
     const employeeFullName = record.firstName && record.lastName 
