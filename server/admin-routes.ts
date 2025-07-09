@@ -1757,14 +1757,21 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
         // Get period info for month/year
         const period = await db
           .select({
-            month: payrollPeriods.month,
-            year: payrollPeriods.year
+            periodName: payrollPeriods.periodName,
+            startDate: payrollPeriods.startDate
           })
           .from(payrollPeriods)
           .where(eq(payrollPeriods.id, record.periodId))
           .limit(1);
 
-        const periodInfo = period[0] || { month: 0, year: 0 };
+        const periodInfo = period[0];
+        let month = 0, year = 0;
+        
+        if (periodInfo && periodInfo.startDate) {
+          const startDate = new Date(periodInfo.startDate);
+          month = startDate.getMonth() + 1; // JavaScript months are 0-indexed
+          year = startDate.getFullYear();
+        }
 
         // Calculate total deductions
         const totalDeductions = (parseFloat(record.incomeTax || '0') + 
@@ -1779,8 +1786,8 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
           grossEarnings: record.grossPay,
           totalDeductions,
           netSalary: record.netPay,
-          month: periodInfo.month,
-          year: periodInfo.year,
+          month: month,
+          year: year,
           createdAt: record.createdAt
         };
       })
