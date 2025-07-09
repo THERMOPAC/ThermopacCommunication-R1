@@ -929,42 +929,42 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
                 <CardContent className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-sm">Basic Salary:</span>
-                    <span className="font-medium">₹{calculations.grossBasic.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                    <span className="font-medium">₹{Math.round(calculations.grossBasic).toLocaleString('en-IN')}</span>
                   </div>
                   {watchedValues.salaryType === 'monthly' && (
                     <>
                       <div className="flex justify-between">
                         <span className="text-sm">HRA:</span>
-                        <span className="font-medium">₹{calculations.houseRent.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                        <span className="font-medium">₹{Math.round(calculations.houseRent).toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm">Conveyance:</span>
-                        <span className="font-medium">₹{calculations.conveyance.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                        <span className="font-medium">₹{Math.round(calculations.conveyance).toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm">LTA:</span>
-                        <span className="font-medium">₹{calculations.lta.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                        <span className="font-medium">₹{Math.round(calculations.lta).toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm">Special:</span>
-                        <span className="font-medium">₹{calculations.special.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                        <span className="font-medium">₹{Math.round(calculations.special).toLocaleString('en-IN')}</span>
                       </div>
                     </>
                   )}
                   {watchedValues.salaryType === 'daily' && parseFloat(watchedValues.overtimeHours || '0') > 0 && (
                     <div className="flex justify-between">
                       <span className="text-sm">Overtime:</span>
-                      <span className="font-medium">₹{calculations.overtimePay.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="font-medium">₹{Math.round(calculations.overtimePay).toLocaleString('en-IN')}</span>
                     </div>
                   )}
                   <div className="flex justify-between">
                     <span className="text-sm">Bonus (8.33%):</span>
-                    <span className="font-medium">₹{(calculations.bonus || 0).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                    <span className="font-medium">₹{Math.round(calculations.bonus || 0).toLocaleString('en-IN')}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between font-semibold">
                     <span>Gross Earnings:</span>
-                    <span>₹{calculations.grossEarnings.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                    <span>₹{Math.round(calculations.grossEarnings).toLocaleString('en-IN')}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -977,16 +977,16 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
                 <CardContent className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-sm">Employee PF:</span>
-                    <span className="font-medium">₹{calculations.employeePF.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                    <span className="font-medium">₹{Math.round(calculations.employeePF).toLocaleString('en-IN')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm">Employee ESIC:</span>
-                    <span className="font-medium">₹{calculations.employeeESIC.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                    <span className="font-medium">₹{Math.round(calculations.employeeESIC).toLocaleString('en-IN')}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between font-semibold">
                     <span>Total Deductions:</span>
-                    <span>₹{(calculations.employeePF + calculations.employeeESIC).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                    <span>₹{Math.round(calculations.employeePF + calculations.employeeESIC).toLocaleString('en-IN')}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -999,32 +999,32 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
                 <CardContent className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-sm">Take Home:</span>
-                    <span className="font-medium">₹{calculations.takeHome.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                    <span className="font-medium">₹{Math.round(calculations.takeHome).toLocaleString('en-IN')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm">Employer PF:</span>
-                    <span className="font-medium">₹{calculations.employerPF.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                    <span className="font-medium">₹{Math.round(calculations.employerPF).toLocaleString('en-IN')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm">Employer ESIC:</span>
-                    <span className="font-medium">₹{calculations.employerESIC.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                    <span className="font-medium">₹{Math.round(calculations.employerESIC).toLocaleString('en-IN')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm">Gratuity:</span>
-                    <span className="font-medium">₹{calculations.gratuity.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                    <span className="font-medium">₹{Math.round(calculations.gratuity).toLocaleString('en-IN')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm">Group Insurance:</span>
-                    <span className="font-medium">₹{calculations.groupInsurance.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                    <span className="font-medium">₹{Math.round(calculations.groupInsurance).toLocaleString('en-IN')}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between font-semibold">
                     <span>CTC Monthly:</span>
-                    <span>₹{calculations.ctcMonthly.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                    <span>₹{Math.round(calculations.ctcMonthly).toLocaleString('en-IN')}</span>
                   </div>
                   <div className="flex justify-between font-semibold">
                     <span>CTC Yearly:</span>
-                    <span>₹{calculations.ctcYearly.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                    <span>₹{Math.round(calculations.ctcYearly).toLocaleString('en-IN')}</span>
                   </div>
                 </CardContent>
               </Card>
