@@ -1714,6 +1714,38 @@ router.get('/work-locations', ensureAuthenticated, async (req: Request, res: Res
 });
 
 /**
+ * Get payroll records
+ */
+router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const records = await db
+      .select({
+        id: payrollRecords.id,
+        periodId: payrollRecords.periodId,
+        employeeId: payrollRecords.employeeId,
+        employeeName: payrollRecords.employeeName,
+        employeeCode: payrollRecords.employeeCode,
+        basicSalary: payrollRecords.basicSalary,
+        grossEarnings: payrollRecords.grossEarnings,
+        totalDeductions: payrollRecords.totalDeductions,
+        netSalary: payrollRecords.netSalary,
+        month: payrollRecords.month,
+        year: payrollRecords.year,
+        status: payrollRecords.status,
+        createdAt: payrollRecords.createdAt,
+        updatedAt: payrollRecords.updatedAt
+      })
+      .from(payrollRecords)
+      .orderBy(desc(payrollRecords.createdAt));
+
+    res.json(records);
+  } catch (error) {
+    console.error('Error fetching payroll records:', error);
+    res.status(500).json({ error: 'Failed to fetch payroll records' });
+  }
+});
+
+/**
  * Generate salary for an employee
  */
 router.post('/generate-salary', ensureAuthenticated, async (req: Request, res: Response) => {

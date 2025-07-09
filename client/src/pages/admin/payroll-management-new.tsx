@@ -259,6 +259,91 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUser
   }, [formData, selectedUserRole]);
 };
 
+// Generated Salaries View Component
+function GeneratedSalariesView() {
+  const { data: generatedSalaries, isLoading: isLoadingGenerated } = useQuery({
+    queryKey: ['/api/admin/payroll/records'],
+    enabled: true
+  });
+
+  if (isLoadingGenerated) {
+    return (
+      <Card>
+        <CardContent className="p-8">
+          <div className="text-center">Loading generated salaries...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!generatedSalaries || generatedSalaries.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-8">
+          <div className="text-center text-gray-500">
+            No salary records generated yet. Use the "Generate Salary" button from the configurations tab to create salary records.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Generated Salary Records</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left p-4">Employee</th>
+                <th className="text-left p-4">Period</th>
+                <th className="text-left p-4">Basic Salary</th>
+                <th className="text-left p-4">Gross Earnings</th>
+                <th className="text-left p-4">Deductions</th>
+                <th className="text-left p-4">Net Salary</th>
+                <th className="text-left p-4">Generated On</th>
+              </tr>
+            </thead>
+            <tbody>
+              {generatedSalaries.map((record: any) => (
+                <tr key={record.id} className="border-b hover:bg-gray-50">
+                  <td className="p-4">
+                    <div className="font-medium">{record.employeeName}</div>
+                    <div className="text-sm text-gray-500">{record.employeeCode}</div>
+                  </td>
+                  <td className="p-4">
+                    {record.month}/{record.year}
+                  </td>
+                  <td className="p-4">
+                    ₹{parseFloat(record.basicSalary || 0).toLocaleString('en-IN')}
+                  </td>
+                  <td className="p-4">
+                    ₹{parseFloat(record.grossEarnings || 0).toLocaleString('en-IN')}
+                  </td>
+                  <td className="p-4">
+                    ₹{parseFloat(record.totalDeductions || 0).toLocaleString('en-IN')}
+                  </td>
+                  <td className="p-4">
+                    <span className="font-medium text-green-600">
+                      ₹{parseFloat(record.netSalary || 0).toLocaleString('en-IN')}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    {new Date(record.createdAt).toLocaleDateString('en-IN')}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function PayrollManagementNew() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<SalaryConfig | null>(null);
@@ -615,11 +700,19 @@ export default function PayrollManagementNew() {
           </Card>
         </div>
 
-        {/* Salary Configurations Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Salary Configurations</CardTitle>
-          </CardHeader>
+        {/* Tabs for Salary Configurations and Generated Salaries */}
+        <Tabs defaultValue="configurations" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="configurations">Salary Configurations</TabsTrigger>
+            <TabsTrigger value="generated">Generated Salaries</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="configurations">
+            {/* Salary Configurations Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Salary Configurations</CardTitle>
+              </CardHeader>
           <CardContent>
             {isLoading ? (
               <div className="text-center py-8">Loading...</div>
@@ -706,6 +799,12 @@ export default function PayrollManagementNew() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="generated">
+            <GeneratedSalariesView />
+          </TabsContent>
+        </Tabs>
 
         {/* Edit Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
