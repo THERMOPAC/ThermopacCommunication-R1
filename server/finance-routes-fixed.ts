@@ -911,51 +911,77 @@ router.get('/invoices/:id/allocations', ensureAuthenticated, async (req: Request
  */
 router.post('/brc', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    console.log('BRC creation request:', req.body);
+    console.log('🔥 BRC creation request received:', req.body);
     const { invoiceId, brcNumber, brcDate, bankName, amountRealized, currency, notes, documentPath } = req.body;
     
     // Validate required fields
     if (!invoiceId || !brcNumber || !brcDate || !bankName) {
-      console.log('Missing required fields:', { invoiceId, brcNumber, brcDate, bankName });
+      console.log('❌ Missing required fields:', { invoiceId, brcNumber, brcDate, bankName });
       return res.status(400).json({ 
         error: 'Missing required fields',
         required: ['invoiceId', 'brcNumber', 'brcDate', 'bankName']
       });
     }
     
-    // Insert directly into database with correct column names including document_path
-    const result = await pool.query(`
-      INSERT INTO bank_realization_certificates 
-      (related_invoice_id, certificate_number, issue_date, bank_name, amount, currency, notes, document_path, created_by, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
-      RETURNING *
-    `, [
-      parseInt(invoiceId),
-      brcNumber,
-      brcDate,
-      bankName,
-      parseFloat(amountRealized || 0),
-      currency || 'USD',
-      notes || '',
-      documentPath || null,
-      req.user?.id || 1
-    ]);
+    // Start transaction
+    const client = await pool.connect();
     
-    // Update the invoice's brc_received status to true
-    await pool.query(`
-      UPDATE invoices 
-      SET brc_received = true, updated_at = NOW()
-      WHERE id = $1
-    `, [parseInt(invoiceId)]);
+    try {
+      await client.query('BEGIN');
+      
+      // Insert BRC certificate
+      const brcResult = await client.query(`
+        INSERT INTO bank_realization_certificates 
+        (related_invoice_id, certificate_number, issue_date, bank_name, amount, currency, notes, document_path, created_by, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+        RETURNING *
+      `, [
+        parseInt(invoiceId),
+        brcNumber,
+        brcDate,
+        bankName,
+        parseFloat(amountRealized || 0),
+        currency || 'USD',
+        notes || '',
+        documentPath || null,
+        req.user?.id || 1
+      ]);
+      
+      console.log('✅ BRC certificate inserted:', brcResult.rows[0]);
+      
+      // Update invoice status
+      const invoiceUpdateResult = await client.query(`
+        UPDATE invoices 
+        SET brc_received = true, updated_at = NOW()
+        WHERE id = $1
+        RETURNING id, invoice_number, brc_received
+      `, [parseInt(invoiceId)]);
+      
+      if (invoiceUpdateResult.rows.length === 0) {
+        throw new Error(`Invoice with ID ${invoiceId} not found`);
+      }
+      
+      console.log('✅ Invoice status updated:', invoiceUpdateResult.rows[0]);
+      
+      // Commit transaction
+      await client.query('COMMIT');
+      
+      res.status(201).json({ 
+        success: true,
+        brc: brcResult.rows[0],
+        invoiceUpdate: invoiceUpdateResult.rows[0]
+      });
+      
+    } catch (transactionError) {
+      // Rollback on error
+      await client.query('ROLLBACK');
+      throw transactionError;
+    } finally {
+      client.release();
+    }
     
-    console.log('BRC created successfully:', result.rows[0]);
-    console.log('Invoice BRC status updated to received for invoice ID:', invoiceId);
-    res.status(201).json({ 
-      success: true,
-      brc: result.rows[0]
-    });
   } catch (error: any) {
-    console.error('Error creating BRC:', error);
+    console.error('❌ Error creating BRC:', error);
     res.status(500).json({ 
       success: false,
       error: 'Failed to create BRC',
@@ -969,35 +995,75 @@ router.post('/brc', ensureAuthenticated, async (req: Request, res: Response) => 
  */
 router.put('/brc/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    console.log('🔥 BRC update request received:', { id: req.params.id, body: req.body });
     const { id } = req.params;
     const { invoiceId, brcNumber, brcDate, bankName, amountRealized, currency, notes, documentPath } = req.body;
     
-    // Update directly in database with correct column names including document_path
-    const result = await pool.query(`
-      UPDATE bank_realization_certificates 
-      SET related_invoice_id = $1, certificate_number = $2, issue_date = $3, bank_name = $4, 
-          amount = $5, currency = $6, notes = $7, document_path = $8, updated_at = NOW()
-      WHERE id = $9
-      RETURNING *
-    `, [
-      parseInt(invoiceId),
-      brcNumber,
-      brcDate,
-      bankName,
-      parseFloat(amountRealized),
-      currency,
-      notes,
-      documentPath || null,
-      parseInt(id)
-    ]);
+    // Start transaction
+    const client = await pool.connect();
     
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'BRC not found' });
+    try {
+      await client.query('BEGIN');
+      
+      // Update BRC certificate
+      const brcResult = await client.query(`
+        UPDATE bank_realization_certificates 
+        SET related_invoice_id = $1, certificate_number = $2, issue_date = $3, bank_name = $4, 
+            amount = $5, currency = $6, notes = $7, document_path = $8, updated_at = NOW()
+        WHERE id = $9
+        RETURNING *
+      `, [
+        parseInt(invoiceId),
+        brcNumber,
+        brcDate,
+        bankName,
+        parseFloat(amountRealized),
+        currency,
+        notes,
+        documentPath || null,
+        parseInt(id)
+      ]);
+      
+      if (brcResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(404).json({ error: 'BRC not found' });
+      }
+      
+      console.log('✅ BRC certificate updated:', brcResult.rows[0]);
+      
+      // Update invoice status to received
+      const invoiceUpdateResult = await client.query(`
+        UPDATE invoices 
+        SET brc_received = true, updated_at = NOW()
+        WHERE id = $1
+        RETURNING id, invoice_number, brc_received
+      `, [parseInt(invoiceId)]);
+      
+      if (invoiceUpdateResult.rows.length === 0) {
+        console.log('⚠️ Invoice not found for update, but BRC updated successfully');
+      } else {
+        console.log('✅ Invoice status updated:', invoiceUpdateResult.rows[0]);
+      }
+      
+      // Commit transaction
+      await client.query('COMMIT');
+      
+      res.json({
+        success: true,
+        brc: brcResult.rows[0],
+        invoiceUpdate: invoiceUpdateResult.rows[0]
+      });
+      
+    } catch (transactionError) {
+      await client.query('ROLLBACK');
+      throw transactionError;
+    } finally {
+      client.release();
     }
     
-    res.json(result.rows[0]);
   } catch (error: any) {
-    console.error('Error updating BRC:', error);
+    console.error('❌ Error updating BRC:', error);
     res.status(500).json({ 
       error: 'Failed to update BRC',
       message: error.message
