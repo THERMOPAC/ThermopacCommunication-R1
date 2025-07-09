@@ -210,16 +210,45 @@ export default function PayrollManagementNew() {
     !salaryConfigs.some(config => config.userId === user.id)
   );
 
-  // Group users by role
+  // Group users by role with proper ordering and sorting
   const groupedUsers = useMemo(() => {
-    return availableUsers.reduce((groups, user) => {
-      const role = user.role || 'Other';
+    const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Employee'];
+    
+    // Group users by role
+    const groups = availableUsers.reduce((groups, user) => {
+      const role = user.role || 'Employee';
       if (!groups[role]) {
         groups[role] = [];
       }
       groups[role].push(user);
       return groups;
     }, {} as Record<string, User[]>);
+    
+    // Sort employees alphabetically within each group
+    Object.keys(groups).forEach(role => {
+      groups[role].sort((a, b) => {
+        const nameA = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
+        const nameB = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
+        return nameA.localeCompare(nameB);
+      });
+    });
+    
+    // Return groups in specified order
+    const orderedGroups: Record<string, User[]> = {};
+    roleOrder.forEach(role => {
+      if (groups[role] && groups[role].length > 0) {
+        orderedGroups[role] = groups[role];
+      }
+    });
+    
+    // Add any remaining roles not in the predefined order
+    Object.keys(groups).forEach(role => {
+      if (!roleOrder.includes(role) && groups[role].length > 0) {
+        orderedGroups[role] = groups[role];
+      }
+    });
+    
+    return orderedGroups;
   }, [availableUsers]);
 
   // Filter configurations based on search
@@ -573,8 +602,12 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
                           {Object.keys(groupedUsers).length > 0 ? (
                             Object.entries(groupedUsers).map(([role, roleUsers]) => (
                               <SelectGroup key={role}>
-                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
-                                  {role}s
+                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400 py-2">
+                                  {role === 'Superuser' ? 'Superusers' :
+                                   role === 'General Manager' ? 'General Managers' :
+                                   role === 'Senior Manager' ? 'Senior Managers' :
+                                   role === 'Manager' ? 'Managers' :
+                                   role === 'Employee' ? 'Employees' : `${role}s`}
                                 </SelectLabel>
                                 {roleUsers.map((user) => (
                                   <SelectItem key={user.id} value={user.id.toString()}>
