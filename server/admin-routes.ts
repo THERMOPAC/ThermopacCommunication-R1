@@ -577,41 +577,27 @@ router.get('/attendance/stats', ensureAuthenticated, async (req: Request, res: R
         break;
     }
 
-    // Build filter conditions for SQL queries
-    let userFilter = 'u.is_active = true';
-    let attendanceFilter = `a.date >= '${startDate.toISOString().split('T')[0]}' AND a.date <= '${endDate.toISOString().split('T')[0]}'`;
+    // Build Drizzle filter conditions
+    let userConditions = [eq(users.isActive, true)];
     
     if (department !== 'all') {
-      userFilter += ` AND u.department = '${department}'`;
+      userConditions.push(eq(users.department, department));
     }
     
     if (employee !== 'all') {
       const employeeId = parseInt(employee as string);
       if (!isNaN(employeeId)) {
-        userFilter += ` AND u.id = ${employeeId}`;
-        attendanceFilter += ` AND a.user_id = ${employeeId}`;
+        userConditions.push(eq(users.id, employeeId));
       }
     }
 
     // Get total active employees (filtered)
-    const totalEmployeesQuery = `SELECT * FROM users WHERE ${userFilter}`;
-    const totalEmployees = await db.execute(totalEmployeesQuery);
+    const totalEmployees = await db
+      .select()
+      .from(users)
+      .where(and(...userConditions));
     
-    // Get attendance records for the date range (filtered)
-    const attendanceRecords = await db.execute(`
-      SELECT 
-        a.user_id,
-        a.check_in_time,
-        a.check_out_time,
-        u.username,
-        u.department
-      FROM attendance_records a
-      JOIN users u ON a.user_id = u.id
-      WHERE ${attendanceFilter} AND ${userFilter}
-    `);
-
-    // Calculate statistics
-    const totalEmployeeCount = Array.isArray(totalEmployees) ? totalEmployees.length : 0;
+    const totalEmployeeCount = totalEmployees.length;
     const stats = {
       totalEmployees: totalEmployeeCount,
       presentToday: 0,
@@ -620,32 +606,76 @@ router.get('/attendance/stats', ensureAuthenticated, async (req: Request, res: R
       presentPercentage: 0
     };
 
-    if (range === 'today') {
-      const today = new Date().toISOString().split('T')[0];
-      let todayQuery = `
-        SELECT 
-          a.user_id,
-          a.check_in_time,
-          a.check_out_time
-        FROM attendance_records a
-        JOIN users u ON a.user_id = u.id
-        WHERE a.date = '${today}' AND ${userFilter}
-      `;
-      
-      const todayRecords = await db.execute(todayQuery);
+    // Build attendance conditions for the selected date range
+    let attendanceConditions = [
+      gte(attendanceRecords.date, startDate.toISOString().split('T')[0]),
+      lte(attendanceRecords.date, endDate.toISOString().split('T')[0])
+    ];
+    
+    if (employee !== 'all') {
+      const employeeId = parseInt(employee as string);
+      if (!isNaN(employeeId)) {
+        attendanceConditions.push(eq(attendanceRecords.userId, employeeId));
+      }
+    }
+    
+    // Get attendance records for the date range (filtered)
+    let attendanceQuery = db
+      .select({
+        userId: attendanceRecords.userId,
+        checkInTime: attendanceRecords.checkInTime,
+        checkOutTime: attendanceRecords.checkOutTime,
+        date: attendanceRecords.date,
+        username: users.username,
+        department: users.department
+      })
+      .from(attendanceRecords)
+      .innerJoin(users, eq(attendanceRecords.userId, users.id))
+      .where(and(...attendanceConditions, eq(users.isActive, true)));
+    
+    // Add department filter if needed
+    if (department !== 'all') {
+      attendanceQuery = attendanceQuery.where(and(
+        ...attendanceConditions,
+        eq(users.isActive, true),
+        eq(users.department, department)
+      ));
+    }
+    
+    const attendanceRecordsResult = await attendanceQuery;
 
-      const presentUserIds = new Set(Array.isArray(todayRecords) ? todayRecords.map((r: any) => r.user_id) : []);
+    // For 'today' range, calculate present/absent/late statistics
+    if (range === 'today') {
+      const presentUserIds = new Set(attendanceRecordsResult.map((r: any) => r.userId));
       stats.presentToday = presentUserIds.size;
       stats.absentToday = Math.max(0, totalEmployeeCount - stats.presentToday);
       
       // Count late arrivals (after 9:30 AM)
-      stats.lateToday = Array.isArray(todayRecords) ? todayRecords.filter((r: any) => {
-        if (!r.check_in_time) return false;
-        const checkIn = new Date(r.check_in_time);
+      stats.lateToday = attendanceRecordsResult.filter((r: any) => {
+        if (!r.checkInTime) return false;
+        const checkIn = new Date(r.checkInTime);
         const lateThreshold = new Date(checkIn);
         lateThreshold.setHours(9, 30, 0, 0);
         return checkIn > lateThreshold;
-      }).length : 0;
+      }).length;
+
+      stats.presentPercentage = totalEmployeeCount > 0 
+        ? Math.round((stats.presentToday / totalEmployeeCount) * 100)
+        : 0;
+    } else {
+      // For other date ranges, show unique users who attended during the period
+      const uniqueUserIds = new Set(attendanceRecordsResult.map((r: any) => r.userId));
+      stats.presentToday = uniqueUserIds.size;
+      stats.absentToday = Math.max(0, totalEmployeeCount - stats.presentToday);
+      
+      // Count late arrivals across the date range
+      stats.lateToday = attendanceRecordsResult.filter((r: any) => {
+        if (!r.checkInTime) return false;
+        const checkIn = new Date(r.checkInTime);
+        const lateThreshold = new Date(checkIn);
+        lateThreshold.setHours(9, 30, 0, 0);
+        return checkIn > lateThreshold;
+      }).length;
 
       stats.presentPercentage = totalEmployeeCount > 0 
         ? Math.round((stats.presentToday / totalEmployeeCount) * 100)
