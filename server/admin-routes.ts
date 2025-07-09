@@ -323,6 +323,7 @@ router.get('/payroll/salary-setup', ensureAuthenticated, async (req: Request, re
         employeeEsicContribution: employeeSalaries.employeeEsicContribution,
         employerEsicContribution: employeeSalaries.employerEsicContribution,
         groupInsurance: employeeSalaries.groupInsurance,
+        professionalTax: employeeSalaries.professionalTax,
         bankName: employeeSalaries.bankName,
         bankAccountNo: employeeSalaries.bankAccountNo,
         debitAccount: employeeSalaries.debitAccount,
@@ -403,7 +404,8 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
     const ctcYearly = ctcMonthly * 12;
 
     const totalDeductions = parseFloat(salaryData.employeePfContribution || 0) + 
-                           parseFloat(salaryData.employeeEsicContribution || 0);
+                           parseFloat(salaryData.employeeEsicContribution || 0) +
+                           parseFloat(salaryData.professionalTax || 0);
 
     const takeHomeSalary = grossSalary - totalDeductions;
 

@@ -33,6 +33,7 @@ const salaryFormSchema = z.object({
   bonus: z.string().default('0'),
   kgpAllowance: z.string().default('0'),
   groupInsurance: z.string().default('300'),
+  professionalTax: z.string().default('0'),
   workLocationId: z.number().optional(),
   remarks: z.string().optional(),
 });
@@ -67,6 +68,7 @@ interface SalaryConfig {
   bonus: string;
   kgpAllowance: string;
   groupInsurance: string;
+  professionalTax: string;
   workLocationId?: number;
   remarks?: string;
   salaryStartDate: string;
@@ -173,6 +175,7 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUser
         groupInsurance: groupInsuranceAmount,
         bonus: 0,
         kgpAllowance: kgp, // Still return KGP value even when basicAmount is 0
+        professionalTax: 0, // No PT when basic amount is 0
       };
     }
 
@@ -196,7 +199,7 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUser
       
       // Calculate allowances as percentages
       houseRent = grossBasic * 0.4; // 40%
-      conveyance = grossBasic * 0.2; // 20%
+      conveyance = grossBasic * 0.3; // 30%
       lta = grossBasic * 0.2; // 20%
       special = grossBasic * 0.3; // 30%
       supplementary = grossBasic * 0.3; // 30%
@@ -216,8 +219,16 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUser
     // Gratuity calculation
     const gratuity = grossEarnings * 0.0481;
 
+    // Professional Tax calculation (PT)
+    // Default ₹200, ₹300 in February, not applicable to Superuser role
+    let professionalTax = 0;
+    if (selectedUserRole && selectedUserRole !== 'Superuser') {
+      const currentMonth = new Date().getMonth() + 1; // getMonth() returns 0-11, so add 1
+      professionalTax = currentMonth === 2 ? 300 : 200; // February = 300, others = 200
+    }
+
     // Take home salary
-    const takeHome = grossEarnings - employeePF - employeeESIC;
+    const takeHome = grossEarnings - employeePF - employeeESIC - professionalTax;
 
     // CTC calculations
     const ctcMonthly = grossEarnings + employerPF + employerESIC + gratuity + groupInsuranceAmount;
@@ -243,6 +254,7 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUser
       groupInsurance: groupInsuranceAmount,
       bonus, // Auto-calculated bonus (8.33% of Basic Salary)
       kgpAllowance: kgp, // Auto-calculated KGP Allowance (15% of Basic Salary for Monthly Manager/Employee roles)
+      professionalTax, // Auto-calculated Professional Tax (₹200/₹300, not applicable to Superuser)
     };
   }, [formData, selectedUserRole]);
 };
@@ -1143,7 +1155,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                 <div className="p-3 bg-gray-50 rounded border">
                   ₹{calculations.conveyance.toLocaleString('en-IN', {maximumFractionDigits: 2})}
                   <span className="text-xs text-gray-500 ml-2">
-                    {watchedValues.salaryType === 'daily' ? '(0%)' : '(20% of Basic)'}
+                    {watchedValues.salaryType === 'daily' ? '(0%)' : '(30% of Basic)'}
                   </span>
                 </div>
               </div>
@@ -1318,10 +1330,19 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                     <span className="text-sm">Employee ESIC:</span>
                     <span className="font-medium">₹{Math.round(calculations.employeeESIC).toLocaleString('en-IN')}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">
+                      Professional Tax
+                      {selectedUserRole === 'Superuser' ? ' (Not Applicable)' : 
+                       ` (₹${new Date().getMonth() + 1 === 2 ? '300' : '200'}/month)`
+                      }:
+                    </span>
+                    <span className="font-medium">₹{Math.round(calculations.professionalTax || 0).toLocaleString('en-IN')}</span>
+                  </div>
                   <Separator />
                   <div className="flex justify-between font-semibold">
                     <span>Total Deductions:</span>
-                    <span>₹{Math.round(calculations.employeePF + calculations.employeeESIC).toLocaleString('en-IN')}</span>
+                    <span>₹{Math.round(calculations.employeePF + calculations.employeeESIC + (calculations.professionalTax || 0)).toLocaleString('en-IN')}</span>
                   </div>
                 </CardContent>
               </Card>

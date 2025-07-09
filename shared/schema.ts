@@ -3113,6 +3113,7 @@ export const employeeSalaries = pgTable('employee_salaries', {
   employeeEsicContribution: decimal('employee_esic_contribution', { precision: 10, scale: 2 }).default('0'),
   employerEsicContribution: decimal('employer_esic_contribution', { precision: 10, scale: 2 }).default('0'),
   groupInsurance: decimal('group_insurance', { precision: 10, scale: 2 }).default('0'),
+  professionalTax: decimal('professional_tax', { precision: 10, scale: 2 }).default('0'),
   
   // Bank Details
   bankName: text('bank_name'),
