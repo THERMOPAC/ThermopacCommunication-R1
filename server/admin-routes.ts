@@ -1952,9 +1952,43 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         // Calculate actual working days for the month
         const workingDaysData = await salaryEngine.calculateWorkingDays(month, year, workweekPolicy);
         workingDays = workingDaysData.workingDays;
-        paidDays = workingDays; // Assuming paid days = working days unless on leave
+        
+        // 🔥 CRITICAL FIX: Use actual attendance-based calculation instead of assuming all working days are paid
+        const attendanceData = await salaryEngine.calculateAttendanceData(record.userId, month, year);
+        paidDays = attendanceData.presentDays + attendanceData.paidLeaveDays;
         
         console.log(`📅 Calculated working days for ${month}/${year}: ${workingDays} days`);
+        console.log(`👤 Attendance data for user ${record.userId}: Present: ${attendanceData.presentDays}, Paid Leave: ${attendanceData.paidLeaveDays}, Total Paid Days: ${paidDays}`);
+        
+        // 🔥 CRITICAL FIX: Recalculate salary with attendance-based pro-rating
+        const attendanceBasedSalary = await salaryEngine.calculateSalary({
+          userId: record.userId,
+          month: month,
+          year: year
+        });
+        
+        console.log(`💰 Attendance-based salary calculation completed:`);
+        console.log(`   - Original Basic Salary: ₹${record.baseSalary}`);
+        console.log(`   - Attendance-adjusted Basic: ₹${attendanceBasedSalary.grossBasic}`);
+        console.log(`   - Net Pay: ₹${attendanceBasedSalary.netPay}`);
+        
+        // Update the payroll record with attendance-based values
+        record.baseSalary = attendanceBasedSalary.grossBasic;
+        record.grossPay = attendanceBasedSalary.grossEarnings;
+        record.netPay = attendanceBasedSalary.netPay;
+        record.hra = attendanceBasedSalary.hra || 0;
+        record.conveyanceAllowance = attendanceBasedSalary.conveyanceAllowance || 0;
+        record.ltaAllowance = attendanceBasedSalary.ltaAllowance || 0;
+        record.specialAllowance = attendanceBasedSalary.specialAllowance || 0;
+        record.supplementaryAllowance = attendanceBasedSalary.supplementaryAllowance || 0;
+        record.kgpAllowance = attendanceBasedSalary.kgpAllowance || 0;
+        record.overtimePay = attendanceBasedSalary.overtimePay || 0;
+        record.bonus = attendanceBasedSalary.bonus || 0;
+        record.providentFund = attendanceBasedSalary.providentFund || 0;
+        record.professionalTax = attendanceBasedSalary.professionalTax || 0;
+        record.incomeTax = attendanceBasedSalary.incomeTax || 0;
+        record.esic = attendanceBasedSalary.esic || 0;
+        record.groupInsurance = attendanceBasedSalary.groupInsurance || 0;
       }
     } catch (error) {
       console.error('Error calculating working days, using fallback:', error);
