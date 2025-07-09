@@ -301,6 +301,114 @@ export const monthlyKpiSummary = pgTable('monthly_kpi_summary', {
   // UNIQUE(user_id, month, year)
 });
 
+// Leave Management Tables
+export const leaveTypes = pgTable('leave_types', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  code: varchar('code', { length: 20 }).notNull().unique(),
+  description: text('description'),
+  maxDaysPerYear: decimal('max_days_per_year', { precision: 5, scale: 2 }).default('0'),
+  carryoverAllowed: boolean('carryover_allowed').default(false),
+  maxCarryoverDays: decimal('max_carryover_days', { precision: 5, scale: 2 }).default('0'),
+  isPaid: boolean('is_paid').default(true),
+  requiresApproval: boolean('requires_approval').default(true),
+  noticeDaysRequired: integer('notice_days_required').default(1),
+  canBeHalfDay: boolean('can_be_half_day').default(true),
+  colorCode: varchar('color_code', { length: 7 }).default('#3B82F6'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const leaveBalances = pgTable('leave_balances', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  leaveTypeId: integer('leave_type_id').notNull().references(() => leaveTypes.id, { onDelete: 'cascade' }),
+  year: integer('year').notNull(),
+  allocatedDays: decimal('allocated_days', { precision: 5, scale: 2 }).notNull().default('0'),
+  usedDays: decimal('used_days', { precision: 5, scale: 2 }).notNull().default('0'),
+  pendingDays: decimal('pending_days', { precision: 5, scale: 2 }).notNull().default('0'),
+  carryoverDays: decimal('carryover_days', { precision: 5, scale: 2 }).notNull().default('0'),
+  lastUpdated: timestamp('last_updated').notNull().defaultNow(),
+  updatedBy: integer('updated_by').references(() => users.id),
+});
+
+export const leaveRequests = pgTable('leave_requests', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  leaveTypeId: integer('leave_type_id').notNull().references(() => leaveTypes.id, { onDelete: 'restrict' }),
+  
+  // Leave period
+  startDate: date('start_date').notNull(),
+  endDate: date('end_date').notNull(),
+  totalDays: decimal('total_days', { precision: 5, scale: 2 }).notNull(),
+  isHalfDay: boolean('is_half_day').default(false),
+  halfDayPeriod: varchar('half_day_period', { length: 10 }),
+  
+  // Request details
+  reason: text('reason').notNull(),
+  emergencyContact: text('emergency_contact'),
+  workHandoverNotes: text('work_handover_notes'),
+  attachmentUrl: text('attachment_url'),
+  
+  // Status and approval
+  status: varchar('status', { length: 20 }).notNull().default('pending'),
+  appliedDate: timestamp('applied_date').notNull().defaultNow(),
+  
+  // First level approval (Direct Manager)
+  managerId: integer('manager_id').references(() => users.id),
+  managerApprovalStatus: varchar('manager_approval_status', { length: 20 }),
+  managerApprovalDate: timestamp('manager_approval_date'),
+  managerComments: text('manager_comments'),
+  
+  // Second level approval (HR)
+  hrApprovalId: integer('hr_approval_id').references(() => users.id),
+  hrApprovalStatus: varchar('hr_approval_status', { length: 20 }),
+  hrApprovalDate: timestamp('hr_approval_date'),
+  hrComments: text('hr_comments'),
+  
+  // Final status
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedDate: timestamp('approved_date'),
+  rejectionReason: text('rejection_reason'),
+  
+  // Tracking
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const leaveApprovals = pgTable('leave_approvals', {
+  id: serial('id').primaryKey(),
+  leaveRequestId: integer('leave_request_id').notNull().references(() => leaveRequests.id, { onDelete: 'cascade' }),
+  approverId: integer('approver_id').notNull().references(() => users.id),
+  approvalLevel: integer('approval_level').notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('pending'),
+  comments: text('comments'),
+  approvedDate: timestamp('approved_date'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const companyHolidays = pgTable('company_holidays', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 200 }).notNull(),
+  date: date('date').notNull(),
+  isOptional: boolean('is_optional').default(false),
+  description: text('description'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  createdBy: integer('created_by').references(() => users.id),
+});
+
+export const leavePolicies = pgTable('leave_policies', {
+  id: serial('id').primaryKey(),
+  policyName: varchar('policy_name', { length: 100 }).notNull().unique(),
+  policyValue: text('policy_value').notNull(),
+  dataType: varchar('data_type', { length: 20 }).notNull().default('string'),
+  description: text('description'),
+  isActive: boolean('is_active').default(true),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  updatedBy: integer('updated_by').references(() => users.id),
+});
+
 // Sales and Marketing tables
 export const leadSourcesTable = pgTable('lead_sources', {
   id: serial('id').primaryKey(),
@@ -4091,3 +4199,157 @@ export type InsertBonusRule = z.infer<typeof insertBonusRuleSchema>;
 
 export type PayrollApproval = typeof payrollApprovals.$inferSelect;
 export type InsertPayrollApproval = z.infer<typeof insertPayrollApprovalSchema>;
+
+//==============================================================================
+// LEAVE MANAGEMENT MODULE RELATIONS
+//==============================================================================
+
+// Leave Types Relations
+export const leaveTypesRelations = relations(leaveTypes, ({ many }) => ({
+  balances: many(leaveBalances),
+  requests: many(leaveRequests)
+}));
+
+// Leave Balances Relations
+export const leaveBalancesRelations = relations(leaveBalances, ({ one }) => ({
+  user: one(users, {
+    fields: [leaveBalances.userId],
+    references: [users.id]
+  }),
+  leaveType: one(leaveTypes, {
+    fields: [leaveBalances.leaveTypeId],
+    references: [leaveTypes.id]
+  }),
+  updatedByUser: one(users, {
+    fields: [leaveBalances.updatedBy],
+    references: [users.id]
+  })
+}));
+
+// Leave Requests Relations
+export const leaveRequestsRelations = relations(leaveRequests, ({ one, many }) => ({
+  employee: one(users, {
+    fields: [leaveRequests.employeeId],
+    references: [users.id]
+  }),
+  leaveType: one(leaveTypes, {
+    fields: [leaveRequests.leaveTypeId],
+    references: [leaveTypes.id]
+  }),
+  manager: one(users, {
+    fields: [leaveRequests.managerId],
+    references: [users.id]
+  }),
+  hrApprover: one(users, {
+    fields: [leaveRequests.hrApprovalId],
+    references: [users.id]
+  }),
+  approvedByUser: one(users, {
+    fields: [leaveRequests.approvedBy],
+    references: [users.id]
+  }),
+  approvals: many(leaveApprovals)
+}));
+
+// Leave Approvals Relations
+export const leaveApprovalsRelations = relations(leaveApprovals, ({ one }) => ({
+  leaveRequest: one(leaveRequests, {
+    fields: [leaveApprovals.leaveRequestId],
+    references: [leaveRequests.id]
+  }),
+  approver: one(users, {
+    fields: [leaveApprovals.approverId],
+    references: [users.id]
+  })
+}));
+
+// Company Holidays Relations
+export const companyHolidaysRelations = relations(companyHolidays, ({ one }) => ({
+  createdByUser: one(users, {
+    fields: [companyHolidays.createdBy],
+    references: [users.id]
+  })
+}));
+
+// Leave Policies Relations
+export const leavePoliciesRelations = relations(leavePolicies, ({ one }) => ({
+  updatedByUser: one(users, {
+    fields: [leavePolicies.updatedBy],
+    references: [users.id]
+  })
+}));
+
+//==============================================================================
+// LEAVE MANAGEMENT INSERT SCHEMAS
+//==============================================================================
+
+export const insertLeaveTypeSchema = createInsertSchema(leaveTypes)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    maxDaysPerYear: z.string().transform(val => parseFloat(val) || 0),
+    maxCarryoverDays: z.string().transform(val => parseFloat(val) || 0),
+    noticeDaysRequired: z.number().default(1),
+    colorCode: z.string().regex(/^#[0-9A-Fa-f]{6}$/).default('#3B82F6')
+  });
+
+export const insertLeaveBalanceSchema = createInsertSchema(leaveBalances)
+  .omit({ id: true, lastUpdated: true })
+  .extend({
+    allocatedDays: z.string().transform(val => parseFloat(val) || 0),
+    usedDays: z.string().transform(val => parseFloat(val) || 0),
+    pendingDays: z.string().transform(val => parseFloat(val) || 0),
+    carryoverDays: z.string().transform(val => parseFloat(val) || 0)
+  });
+
+export const insertLeaveRequestSchema = createInsertSchema(leaveRequests)
+  .omit({ id: true, createdAt: true, updatedAt: true, appliedDate: true })
+  .extend({
+    startDate: z.string().transform(dateStringToDate),
+    endDate: z.string().transform(dateStringToDate),
+    totalDays: z.string().transform(val => parseFloat(val) || 0),
+    status: z.enum(['pending', 'approved', 'rejected', 'cancelled']).default('pending'),
+    managerApprovalStatus: z.enum(['pending', 'approved', 'rejected']).optional(),
+    hrApprovalStatus: z.enum(['pending', 'approved', 'rejected']).optional(),
+    halfDayPeriod: z.enum(['morning', 'afternoon']).optional()
+  });
+
+export const insertLeaveApprovalSchema = createInsertSchema(leaveApprovals)
+  .omit({ id: true, createdAt: true, approvedDate: true })
+  .extend({
+    status: z.enum(['pending', 'approved', 'rejected']).default('pending'),
+    approvalLevel: z.number().min(1).max(2)
+  });
+
+export const insertCompanyHolidaySchema = createInsertSchema(companyHolidays)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    date: z.string().transform(dateStringToDate)
+  });
+
+export const insertLeavePolicySchema = createInsertSchema(leavePolicies)
+  .omit({ id: true, updatedAt: true })
+  .extend({
+    dataType: z.enum(['string', 'number', 'boolean', 'json']).default('string')
+  });
+
+//==============================================================================
+// LEAVE MANAGEMENT TYPESCRIPT TYPES
+//==============================================================================
+
+export type LeaveType = typeof leaveTypes.$inferSelect;
+export type InsertLeaveType = z.infer<typeof insertLeaveTypeSchema>;
+
+export type LeaveBalance = typeof leaveBalances.$inferSelect;
+export type InsertLeaveBalance = z.infer<typeof insertLeaveBalanceSchema>;
+
+export type LeaveRequest = typeof leaveRequests.$inferSelect;
+export type InsertLeaveRequest = z.infer<typeof insertLeaveRequestSchema>;
+
+export type LeaveApproval = typeof leaveApprovals.$inferSelect;
+export type InsertLeaveApproval = z.infer<typeof insertLeaveApprovalSchema>;
+
+export type CompanyHoliday = typeof companyHolidays.$inferSelect;
+export type InsertCompanyHoliday = z.infer<typeof insertCompanyHolidaySchema>;
+
+export type LeavePolicy = typeof leavePolicies.$inferSelect;
+export type InsertLeavePolicy = z.infer<typeof insertLeavePolicySchema>;

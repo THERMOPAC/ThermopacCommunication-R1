@@ -31,6 +31,7 @@ import {
   Settings,
   FileCheck,
   CalendarClock,
+  Calendar,
   BarChart4,
   BarChart3,
   UsersRound,
@@ -163,6 +164,7 @@ export default function Layout({ children }: LayoutProps) {
         { icon: Settings, label: "Administration Dashboard", href: "/admin" },
         { icon: UserCog, label: "User Management", href: "/admin/users" },
         { icon: CalendarClock, label: "Attendance Management", href: "/admin/attendance" },
+        { icon: Calendar, label: "Leave Management", href: "/admin/leave" },
         { icon: IndianRupee, label: "Payroll Management", href: "/admin/payroll" },
         { icon: Shield, label: "Module Permissions", href: "/module-permissions" }
       ]
