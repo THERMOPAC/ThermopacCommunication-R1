@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Search, Plus, Edit, Trash2, Calculator, Save, X } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -77,6 +77,55 @@ interface SalaryConfig {
 interface WorkLocation {
   id: number;
   name: string;
+}
+
+interface WorkweekPolicy {
+  id: number;
+  name: string;
+  description?: string;
+  policyType: 'location' | 'department' | 'global';
+  locationId?: number;
+  locationName?: string;
+  department?: string;
+  workingDays: number[];
+  startTime: string;
+  endTime: string;
+  breakDurationMinutes: number;
+  weeklyHours: string;
+  overtimeThresholdDaily: string;
+  overtimeThresholdWeekly: string;
+  overtimeRateMultiplier: string;
+  halfDayHours: string;
+  includesSaturdays: boolean;
+  includesSundays: boolean;
+  followsNationalHolidays: boolean;
+  isActive: boolean;
+  effectiveFrom: string;
+  effectiveUntil?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: number;
+  creatorName?: string;
+}
+
+interface EmployeeWorkweekAssignment {
+  id: number;
+  employeeId: number;
+  employeeName: string;
+  workweekPolicyId: number;
+  policyName: string;
+  customWorkingDays?: number[];
+  customStartTime?: string;
+  customEndTime?: string;
+  customWeeklyHours?: string;
+  assignedDate: string;
+  effectiveFrom: string;
+  effectiveUntil?: string;
+  assignedBy: number;
+  assignedByName?: string;
+  notes?: string;
+  isActive: boolean;
+  createdAt: string;
 }
 
 // Calculation hook for salary computations
@@ -218,6 +267,108 @@ export default function PayrollManagementNew() {
   const { data: workLocations = [] } = useQuery<WorkLocation[]>({
     queryKey: ['/api/work-locations/active'],
   });
+
+  // Fetch workweek policies
+  const { data: workweekPolicies = [] } = useQuery<WorkweekPolicy[]>({
+    queryKey: ['/api/admin/workweek-policies'],
+  });
+
+  // Fetch employee workweek assignments
+  const { data: employeeAssignments = [] } = useQuery<EmployeeWorkweekAssignment[]>({
+    queryKey: ['/api/admin/employee-workweek-assignments'],
+  });
+
+  // Function to get workweek policy for an employee
+  const getEmployeeWorkweekPolicy = useCallback((employeeId: number, workLocationId?: number, department?: string) => {
+    // First check for direct employee assignment
+    const assignment = employeeAssignments.find(
+      assign => assign.employeeId === employeeId && assign.isActive
+    );
+    
+    if (assignment) {
+      const policy = workweekPolicies.find(p => p.id === assignment.workweekPolicyId);
+      if (policy) {
+        return {
+          policy,
+          assignment,
+          // Use custom values if set, otherwise fall back to policy defaults
+          workingDays: assignment.customWorkingDays || policy.workingDays,
+          startTime: assignment.customStartTime || policy.startTime,
+          endTime: assignment.customEndTime || policy.endTime,
+          weeklyHours: assignment.customWeeklyHours || policy.weeklyHours,
+          overtimeThresholdDaily: policy.overtimeThresholdDaily,
+          overtimeRateMultiplier: policy.overtimeRateMultiplier,
+        };
+      }
+    }
+    
+    // Then check for location-based policy
+    if (workLocationId) {
+      const locationPolicy = workweekPolicies.find(
+        p => p.policyType === 'location' && p.locationId === workLocationId && p.isActive
+      );
+      if (locationPolicy) {
+        return {
+          policy: locationPolicy,
+          assignment: null,
+          workingDays: locationPolicy.workingDays,
+          startTime: locationPolicy.startTime,
+          endTime: locationPolicy.endTime,
+          weeklyHours: locationPolicy.weeklyHours,
+          overtimeThresholdDaily: locationPolicy.overtimeThresholdDaily,
+          overtimeRateMultiplier: locationPolicy.overtimeRateMultiplier,
+        };
+      }
+    }
+    
+    // Then check for department-based policy
+    if (department) {
+      const deptPolicy = workweekPolicies.find(
+        p => p.policyType === 'department' && p.department === department && p.isActive
+      );
+      if (deptPolicy) {
+        return {
+          policy: deptPolicy,
+          assignment: null,
+          workingDays: deptPolicy.workingDays,
+          startTime: deptPolicy.startTime,
+          endTime: deptPolicy.endTime,
+          weeklyHours: deptPolicy.weeklyHours,
+          overtimeThresholdDaily: deptPolicy.overtimeThresholdDaily,
+          overtimeRateMultiplier: deptPolicy.overtimeRateMultiplier,
+        };
+      }
+    }
+    
+    // Finally check for global policy
+    const globalPolicy = workweekPolicies.find(
+      p => p.policyType === 'global' && p.isActive
+    );
+    if (globalPolicy) {
+      return {
+        policy: globalPolicy,
+        assignment: null,
+        workingDays: globalPolicy.workingDays,
+        startTime: globalPolicy.startTime,
+        endTime: globalPolicy.endTime,
+        weeklyHours: globalPolicy.weeklyHours,
+        overtimeThresholdDaily: globalPolicy.overtimeThresholdDaily,
+        overtimeRateMultiplier: globalPolicy.overtimeRateMultiplier,
+      };
+    }
+    
+    // Default fallback
+    return {
+      policy: null,
+      assignment: null,
+      workingDays: [1, 2, 3, 4, 5], // Monday to Friday
+      startTime: '09:00:00',
+      endTime: '18:00:00',
+      weeklyHours: '40.00',
+      overtimeThresholdDaily: '8.00',
+      overtimeRateMultiplier: '1.50',
+    };
+  }, [employeeAssignments, workweekPolicies]);
 
   // Filter available users
   const availableUsers = users.filter(user => 
@@ -369,6 +520,7 @@ export default function PayrollManagementNew() {
                 users={availableUsers}
                 groupedUsers={groupedUsers}
                 workLocations={workLocations}
+                getEmployeeWorkweekPolicy={getEmployeeWorkweekPolicy}
                 onSubmit={(values) => saveSalaryMutation.mutate(values)}
                 isLoading={saveSalaryMutation.isPending}
               />
@@ -509,6 +661,7 @@ export default function PayrollManagementNew() {
               <SalaryForm 
                 users={users}
                 workLocations={workLocations}
+                getEmployeeWorkweekPolicy={getEmployeeWorkweekPolicy}
                 initialData={selectedEmployee}
                 onSubmit={(values) => updateSalaryMutation.mutate({ 
                   id: selectedEmployee.id, 
@@ -529,12 +682,16 @@ interface SalaryFormProps {
   users: User[];
   groupedUsers?: Record<string, User[]>;
   workLocations: WorkLocation[];
+  getEmployeeWorkweekPolicy?: (employeeId: number, workLocationId?: number, department?: string) => any;
   initialData?: SalaryConfig;
   onSubmit: (values: SalaryFormValues) => void;
   isLoading: boolean;
 }
 
-function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSubmit, isLoading }: SalaryFormProps) {
+function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkweekPolicy, initialData, onSubmit, isLoading }: SalaryFormProps) {
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(initialData?.userId || null);
+  const [employeeWorkweekInfo, setEmployeeWorkweekInfo] = useState<any>(null);
+
   const form = useForm<SalaryFormValues>({
     resolver: zodResolver(salaryFormSchema),
     defaultValues: initialData ? {
@@ -574,6 +731,54 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
   // Get selected user role for KGP calculation
   const selectedUser = users.find(u => u.id === watchedValues.userId);
   const selectedUserRole = selectedUser?.role;
+
+  // Auto-populate working hours based on workweek policy when employee is selected
+  useEffect(() => {
+    if (watchedValues.userId && getEmployeeWorkweekPolicy && !initialData) {
+      const user = users.find(u => u.id === watchedValues.userId);
+      if (user) {
+        const workweekInfo = getEmployeeWorkweekPolicy(
+          user.id, 
+          user.workLocationId || undefined, 
+          user.department || undefined
+        );
+        
+        setEmployeeWorkweekInfo(workweekInfo);
+        
+        if (workweekInfo && workweekInfo.policy) {
+          // Calculate daily working hours from start/end times
+          const startTime = workweekInfo.startTime || '09:00:00';
+          const endTime = workweekInfo.endTime || '18:00:00';
+          
+          const [startHour, startMin] = startTime.split(':').map(Number);
+          const [endHour, endMin] = endTime.split(':').map(Number);
+          
+          const startMinutes = startHour * 60 + startMin;
+          const endMinutes = endHour * 60 + endMin;
+          const workingMinutes = endMinutes - startMinutes;
+          
+          // Subtract break duration (in minutes)
+          const breakMinutes = workweekInfo.policy.breakDurationMinutes || 60;
+          const netWorkingMinutes = workingMinutes - breakMinutes;
+          const dailyHours = (netWorkingMinutes / 60).toFixed(1);
+          
+          // Calculate monthly working days based on working days pattern
+          const workingDaysCount = workweekInfo.workingDays?.length || 5;
+          const monthlyWorkingDays = Math.round((workingDaysCount * 30) / 7); // Approximate
+          
+          // Auto-populate form fields
+          form.setValue('workingHoursPerDay', dailyHours);
+          form.setValue('actualDays', monthlyWorkingDays.toString());
+          form.setValue('paidDays', monthlyWorkingDays.toString());
+          
+          // Set overtime rate from policy
+          if (workweekInfo.overtimeRateMultiplier) {
+            form.setValue('otRate', workweekInfo.overtimeRateMultiplier);
+          }
+        }
+      }
+    }
+  }, [watchedValues.userId, getEmployeeWorkweekPolicy, users, form, initialData]);
   
 
   
@@ -966,6 +1171,75 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
           </TabsContent>
 
           <TabsContent value="calculations" className="space-y-4">
+            {/* Workweek Policy Information */}
+            {employeeWorkweekInfo && (
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle className="text-lg text-blue-700 flex items-center">
+                    <Clock className="h-5 w-5 mr-2" />
+                    Applied Workweek Policy
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-600">Policy Name:</span>
+                      <div className="font-semibold">
+                        {employeeWorkweekInfo.policy?.name || 'Default Policy'}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">Policy Type:</span>
+                      <div className="capitalize">
+                        {employeeWorkweekInfo.policy?.policyType || 'default'}
+                        {employeeWorkweekInfo.assignment && ' (Employee Specific)'}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">Working Hours:</span>
+                      <div>
+                        {employeeWorkweekInfo.startTime} - {employeeWorkweekInfo.endTime}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">Working Days:</span>
+                      <div>
+                        {employeeWorkweekInfo.workingDays?.length || 5} days/week
+                      </div>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">Overtime Rate:</span>
+                      <div>
+                        {parseFloat(employeeWorkweekInfo.overtimeRateMultiplier || '1.5').toFixed(1)}x
+                      </div>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">Weekly Hours:</span>
+                      <div>
+                        {employeeWorkweekInfo.weeklyHours || '40.00'} hours
+                      </div>
+                    </div>
+                    {employeeWorkweekInfo.policy?.breakDurationMinutes && (
+                      <div>
+                        <span className="font-medium text-gray-600">Break Duration:</span>
+                        <div>
+                          {employeeWorkweekInfo.policy.breakDurationMinutes} minutes
+                        </div>
+                      </div>
+                    )}
+                    {employeeWorkweekInfo.policy?.locationName && (
+                      <div>
+                        <span className="font-medium text-gray-600">Location:</span>
+                        <div>
+                          {employeeWorkweekInfo.policy.locationName}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Earnings */}
               <Card>
