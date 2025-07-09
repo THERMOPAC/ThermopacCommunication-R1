@@ -2948,6 +2948,128 @@ export const insertItpActivitySchema = createInsertSchema(itpActivities)
 export type ItpTemplate = typeof itpTemplates.$inferSelect;
 export type InsertItpTemplate = z.infer<typeof insertItpTemplateSchema>;
 
+// ==================== VISA MANAGEMENT ====================
+
+// Visa Status
+export const visaStatuses = [
+  "Active",
+  "Expiring Soon", 
+  "Expired",
+  "Cancelled"
+] as const;
+
+export type VisaStatus = typeof visaStatuses[number];
+
+// Visa Types
+export const visaTypes = [
+  "B1/B2 Business/Tourist",
+  "Standard Visitor",
+  "Schengen Business",
+  "Business Visa",
+  "Business Visitor", 
+  "Temporary Resident",
+  "Work Visa",
+  "Tourist Visa",
+  "Transit Visa"
+] as const;
+
+export type VisaType = typeof visaTypes[number];
+
+// Alert Types
+export const alertTypes = [
+  "60_days",
+  "30_days",
+  "7_days"
+] as const;
+
+export type AlertType = typeof alertTypes[number];
+
+// Visa Records table
+export const visaRecords = pgTable('visa_records', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  visaType: varchar('visa_type', { length: 100 }).notNull(),
+  country: varchar('country', { length: 100 }).notNull(),
+  visaNumber: varchar('visa_number', { length: 100 }).notNull().unique(),
+  issueDate: date('issue_date').notNull(),
+  expiryDate: date('expiry_date').notNull(),
+  status: varchar('status', { length: 50 }).notNull().default('Active'),
+  quotaReference: varchar('quota_reference', { length: 100 }),
+  filePath: text('file_path'),
+  fileUrl: text('file_url'),
+  notes: text('notes'),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Visa Alerts table
+export const visaAlerts = pgTable('visa_alerts', {
+  id: serial('id').primaryKey(),
+  visaRecordId: integer('visa_record_id').notNull().references(() => visaRecords.id, { onDelete: 'cascade' }),
+  alertType: varchar('alert_type', { length: 20 }).notNull(),
+  alertDate: date('alert_date').notNull(),
+  isSent: boolean('is_sent').notNull().default(false),
+  sentAt: timestamp('sent_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow()
+});
+
+// Visa Quota Settings table
+export const visaQuotaSettings = pgTable('visa_quota_settings', {
+  id: serial('id').primaryKey(),
+  country: varchar('country', { length: 100 }).notNull().unique(),
+  visaType: varchar('visa_type', { length: 100 }).notNull(),
+  totalQuota: integer('total_quota').notNull().default(0),
+  usedQuota: integer('used_quota').notNull().default(0),
+  financialYear: varchar('financial_year', { length: 10 }).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Visa Records Relations
+export const visaRecordsRelations = relations(visaRecords, ({ one, many }) => ({
+  employee: one(users, {
+    fields: [visaRecords.employeeId],
+    references: [users.id],
+  }),
+  createdByUser: one(users, {
+    fields: [visaRecords.createdBy],
+    references: [users.id],
+  }),
+  alerts: many(visaAlerts),
+}));
+
+export const visaAlertsRelations = relations(visaAlerts, ({ one }) => ({
+  visaRecord: one(visaRecords, {
+    fields: [visaAlerts.visaRecordId],
+    references: [visaRecords.id],
+  }),
+}));
+
+// Visa Management Zod Schemas
+export const insertVisaRecordSchema = createInsertSchema(visaRecords)
+  .omit({ id: true, createdAt: true, updatedAt: true, status: true })
+  .extend({
+    filePath: z.string().optional(),
+    fileUrl: z.string().optional(),
+    notes: z.string().optional(),
+    quotaReference: z.string().optional(),
+  });
+
+export const insertVisaAlertSchema = createInsertSchema(visaAlerts)
+  .omit({ id: true, createdAt: true });
+
+export const insertVisaQuotaSettingSchema = createInsertSchema(visaQuotaSettings)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+// Visa Management Types
+export type VisaRecord = typeof visaRecords.$inferSelect;
+export type InsertVisaRecord = z.infer<typeof insertVisaRecordSchema>;
+export type VisaAlert = typeof visaAlerts.$inferSelect;
+export type InsertVisaAlert = z.infer<typeof insertVisaAlertSchema>;
+export type VisaQuotaSetting = typeof visaQuotaSettings.$inferSelect;
+export type InsertVisaQuotaSetting = z.infer<typeof insertVisaQuotaSettingSchema>;
+
 // ==================== BUSINESS TRIP MANAGEMENT ====================
 
 // Business Trip Status

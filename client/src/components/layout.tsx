@@ -168,6 +168,7 @@ function Layout({ children }: LayoutProps) {
         { icon: Calendar, label: "Leave Management", href: "/admin/leave" },
         { icon: IndianRupee, label: "Payroll Management", href: "/admin/payroll" },
         { icon: Plane, label: "Business Trip Management", href: "/admin/business-trips" },
+        { icon: FileText, label: "Visa Management", href: "/admin/visa-management" },
         { icon: Calendar, label: "Workweek Policy Management", href: "/admin/workweek-policies" },
         { icon: Shield, label: "Module Permissions", href: "/module-permissions" }
       ]
