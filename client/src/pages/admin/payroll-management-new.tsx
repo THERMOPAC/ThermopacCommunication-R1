@@ -949,6 +949,10 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
                         <span className="text-sm">Special:</span>
                         <span className="font-medium">₹{Math.round(calculations.special).toLocaleString('en-IN')}</span>
                       </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Supplementary:</span>
+                        <span className="font-medium">₹{Math.round(calculations.supplementary).toLocaleString('en-IN')}</span>
+                      </div>
                     </>
                   )}
                   {watchedValues.salaryType === 'daily' && parseFloat(watchedValues.overtimeHours || '0') > 0 && (
