@@ -642,7 +642,7 @@ router.get('/attendance/stats', ensureAuthenticated, async (req: Request, res: R
 // Get attendance records with filtering
 router.get('/attendance/records', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const { range = 'today', department = 'all', search = '' } = req.query;
+    const { range = 'today', department = 'all', employee = 'all' } = req.query;
     
     let startDate: Date;
     let endDate: Date = new Date();
@@ -725,6 +725,20 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
         eq(users.isActive, true),
         eq(users.department, department)
       ));
+    }
+
+    // Add employee filter
+    if (employee !== 'all') {
+      const employeeId = parseInt(employee as string);
+      if (!isNaN(employeeId)) {
+        baseQuery = baseQuery.where(and(
+          gte(attendanceRecords.date, startDate.toISOString().split('T')[0]),
+          lte(attendanceRecords.date, endDate.toISOString().split('T')[0]),
+          eq(users.isActive, true),
+          eq(attendanceRecords.userId, employeeId),
+          ...(department !== 'all' ? [eq(users.department, department)] : [])
+        ));
+      }
     }
 
     const records = await baseQuery

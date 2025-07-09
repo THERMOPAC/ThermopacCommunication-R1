@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Calendar, Clock, User, Search, Filter, Download, Users, AlertCircle, CheckCircle } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 
@@ -26,7 +26,7 @@ interface AttendanceRecord {
 export default function AttendanceManagementPage() {
   const [selectedDateRange, setSelectedDateRange] = useState('thisMonth');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedEmployee, setSelectedEmployee] = useState('all');
 
   // Query for attendance summary stats
   const { data: attendanceStats } = useQuery({
@@ -39,12 +39,12 @@ export default function AttendanceManagementPage() {
 
   // Query for attendance records
   const { data: attendanceRecords = [] } = useQuery<AttendanceRecord[]>({
-    queryKey: ['/api/admin/attendance/records', selectedDateRange, selectedDepartment, searchTerm],
+    queryKey: ['/api/admin/attendance/records', selectedDateRange, selectedDepartment, selectedEmployee],
     queryFn: async () => {
       const params = new URLSearchParams({
         range: selectedDateRange,
         department: selectedDepartment,
-        search: searchTerm
+        employee: selectedEmployee
       });
       const response = await fetch(`/api/admin/attendance/records?${params}`);
       return response.json();
@@ -59,6 +59,25 @@ export default function AttendanceManagementPage() {
       return response.json();
     }
   });
+
+  // Query for users (for employee dropdown)
+  const { data: users = [] } = useQuery({
+    queryKey: ['/api/admin/users'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/users');
+      return response.json();
+    }
+  });
+
+  // Group users by role (similar to task assignment dropdown)
+  const groupedUsers = users.reduce((acc: Record<string, any[]>, user: any) => {
+    const role = user.role || 'Employee';
+    if (!acc[role]) {
+      acc[role] = [];
+    }
+    acc[role].push(user);
+    return acc;
+  }, {});
 
   const formatTime = (timeString: string) => {
     if (!timeString) return '-';
@@ -205,15 +224,30 @@ export default function AttendanceManagementPage() {
 
             <div>
               <label className="text-sm font-medium mb-2 block">Search Employee</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search by name..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+              <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Employees" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Employees</SelectItem>
+                  {Array.isArray(users) && users.length > 0 ? (
+                    Object.entries(groupedUsers).map(([role, roleUsers]) => (
+                      <SelectGroup key={role}>
+                        <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                          {role}s
+                        </SelectLabel>
+                        {roleUsers.map((user: any) => (
+                          <SelectItem key={user.id} value={user.id.toString()}>
+                            {user.username}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))
+                  ) : (
+                    <SelectItem value="loading" disabled>Loading employees...</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex items-end">
@@ -222,7 +256,7 @@ export default function AttendanceManagementPage() {
                 onClick={() => {
                   setSelectedDateRange('today');
                   setSelectedDepartment('all');
-                  setSearchTerm('');
+                  setSelectedEmployee('all');
                 }}
                 className="w-full"
               >
