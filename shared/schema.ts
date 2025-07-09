@@ -4353,3 +4353,208 @@ export type InsertCompanyHoliday = z.infer<typeof insertCompanyHolidaySchema>;
 
 export type LeavePolicy = typeof leavePolicies.$inferSelect;
 export type InsertLeavePolicy = z.infer<typeof insertLeavePolicySchema>;
+
+// =============================================
+// WORKWEEK POLICY MANAGEMENT
+// =============================================
+
+// Policy types for workweek management
+export const policyTypes = ['location', 'department', 'global'] as const;
+export type PolicyType = typeof policyTypes[number];
+
+// Override types for calendar exceptions
+export const overrideTypes = ['holiday', 'working_day', 'half_day', 'special_hours'] as const;
+export type OverrideType = typeof overrideTypes[number];
+
+// Workweek Policies table
+export const workweekPolicies = pgTable('workweek_policies', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  policyType: varchar('policy_type', { length: 50 }).notNull(),
+  locationId: integer('location_id').references(() => workLocations.id, { onDelete: 'cascade' }),
+  department: varchar('department', { length: 255 }),
+  
+  // Working days configuration (JSON array of day numbers: 0=Sunday, 1=Monday, etc.)
+  workingDays: jsonb('working_days').notNull().default('[1,2,3,4,5]'),
+  
+  // Working hours
+  startTime: varchar('start_time', { length: 8 }).notNull().default('09:00:00'),
+  endTime: varchar('end_time', { length: 8 }).notNull().default('18:00:00'),
+  breakDurationMinutes: integer('break_duration_minutes').default(60),
+  
+  // Weekly working hours
+  weeklyHours: decimal('weekly_hours', { precision: 5, scale: 2 }).default('40.00'),
+  
+  // Overtime policies
+  overtimeThresholdDaily: decimal('overtime_threshold_daily', { precision: 5, scale: 2 }).default('8.00'),
+  overtimeThresholdWeekly: decimal('overtime_threshold_weekly', { precision: 5, scale: 2 }).default('40.00'),
+  overtimeRateMultiplier: decimal('overtime_rate_multiplier', { precision: 4, scale: 2 }).default('1.50'),
+  
+  // Half-day policies
+  halfDayHours: decimal('half_day_hours', { precision: 4, scale: 2 }).default('4.00'),
+  
+  // Holiday and leave policies
+  includesSaturdays: boolean('includes_saturdays').default(false),
+  includesSundays: boolean('includes_sundays').default(false),
+  followsNationalHolidays: boolean('follows_national_holidays').default(true),
+  
+  // Status and metadata
+  isActive: boolean('is_active').default(true),
+  effectiveFrom: date('effective_from').notNull().defaultNow(),
+  effectiveUntil: date('effective_until'),
+  
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+  createdBy: integer('created_by').references(() => users.id),
+});
+
+// Employee Workweek Assignments table
+export const employeeWorkweekAssignments = pgTable('employee_workweek_assignments', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  workweekPolicyId: integer('workweek_policy_id').notNull().references(() => workweekPolicies.id, { onDelete: 'restrict' }),
+  
+  // Override fields (if different from policy defaults)
+  customWorkingDays: jsonb('custom_working_days'),
+  customStartTime: varchar('custom_start_time', { length: 8 }),
+  customEndTime: varchar('custom_end_time', { length: 8 }),
+  customWeeklyHours: decimal('custom_weekly_hours', { precision: 5, scale: 2 }),
+  
+  // Assignment metadata
+  assignedDate: date('assigned_date').notNull().defaultNow(),
+  effectiveFrom: date('effective_from').notNull().defaultNow(),
+  effectiveUntil: date('effective_until'),
+  assignedBy: integer('assigned_by').references(() => users.id),
+  notes: text('notes'),
+  
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Workweek Calendar Overrides table
+export const workweekCalendarOverrides = pgTable('workweek_calendar_overrides', {
+  id: serial('id').primaryKey(),
+  workweekPolicyId: integer('workweek_policy_id').notNull().references(() => workweekPolicies.id, { onDelete: 'cascade' }),
+  overrideDate: date('override_date').notNull(),
+  overrideType: varchar('override_type', { length: 50 }).notNull(),
+  
+  // Override details
+  isWorkingDay: boolean('is_working_day').notNull(),
+  customStartTime: varchar('custom_start_time', { length: 8 }),
+  customEndTime: varchar('custom_end_time', { length: 8 }),
+  reason: varchar('reason', { length: 255 }),
+  description: text('description'),
+  
+  createdAt: timestamp('created_at').defaultNow(),
+  createdBy: integer('created_by').references(() => users.id),
+});
+
+// Relations for workweek policies
+export const workweekPoliciesRelations = relations(workweekPolicies, ({ one, many }) => ({
+  location: one(workLocations, {
+    fields: [workweekPolicies.locationId],
+    references: [workLocations.id],
+  }),
+  creator: one(users, {
+    fields: [workweekPolicies.createdBy],
+    references: [users.id],
+  }),
+  employeeAssignments: many(employeeWorkweekAssignments),
+  calendarOverrides: many(workweekCalendarOverrides),
+}));
+
+// Relations for employee assignments
+export const employeeWorkweekAssignmentsRelations = relations(employeeWorkweekAssignments, ({ one }) => ({
+  employee: one(users, {
+    fields: [employeeWorkweekAssignments.employeeId],
+    references: [users.id],
+  }),
+  workweekPolicy: one(workweekPolicies, {
+    fields: [employeeWorkweekAssignments.workweekPolicyId],
+    references: [workweekPolicies.id],
+  }),
+  assignedByUser: one(users, {
+    fields: [employeeWorkweekAssignments.assignedBy],
+    references: [users.id],
+  }),
+}));
+
+// Relations for calendar overrides
+export const workweekCalendarOverridesRelations = relations(workweekCalendarOverrides, ({ one }) => ({
+  workweekPolicy: one(workweekPolicies, {
+    fields: [workweekCalendarOverrides.workweekPolicyId],
+    references: [workweekPolicies.id],
+  }),
+  creator: one(users, {
+    fields: [workweekCalendarOverrides.createdBy],
+    references: [users.id],
+  }),
+}));
+
+// Insert schemas for workweek policies
+export const insertWorkweekPolicySchema = createInsertSchema(workweekPolicies)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    policyType: z.enum(policyTypes),
+    workingDays: z.array(z.number().min(0).max(6)).default([1,2,3,4,5]),
+    startTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/),
+    endTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/),
+    effectiveFrom: z.string().optional().transform(dateStringToDate),
+    effectiveUntil: z.string().optional().transform(dateStringToDate),
+  });
+
+export const insertEmployeeWorkweekAssignmentSchema = createInsertSchema(employeeWorkweekAssignments)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    customWorkingDays: z.array(z.number().min(0).max(6)).optional(),
+    customStartTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/).optional(),
+    customEndTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/).optional(),
+    effectiveFrom: z.string().optional().transform(dateStringToDate),
+    effectiveUntil: z.string().optional().transform(dateStringToDate),
+  });
+
+export const insertWorkweekCalendarOverrideSchema = createInsertSchema(workweekCalendarOverrides)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    overrideType: z.enum(overrideTypes),
+    overrideDate: z.string().transform(dateStringToDate),
+    customStartTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/).optional(),
+    customEndTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/).optional(),
+  });
+
+// Export workweek policy types
+export type WorkweekPolicy = typeof workweekPolicies.$inferSelect;
+export type InsertWorkweekPolicy = z.infer<typeof insertWorkweekPolicySchema>;
+
+export type EmployeeWorkweekAssignment = typeof employeeWorkweekAssignments.$inferSelect;
+export type InsertEmployeeWorkweekAssignment = z.infer<typeof insertEmployeeWorkweekAssignmentSchema>;
+
+export type WorkweekCalendarOverride = typeof workweekCalendarOverrides.$inferSelect;
+export type InsertWorkweekCalendarOverride = z.infer<typeof insertWorkweekCalendarOverrideSchema>;
+
+// Form schemas for UI validation
+export const workweekPolicyFormSchema = insertWorkweekPolicySchema
+  .extend({
+    locationId: z.number().optional(),
+    department: z.string().optional(),
+  })
+  .refine((data) => {
+    if (data.policyType === 'location' && !data.locationId) {
+      return false;
+    }
+    if (data.policyType === 'department' && !data.department) {
+      return false;
+    }
+    return true;
+  }, {
+    message: "Location is required for location-based policies, Department is required for department-based policies",
+  });
+
+export const employeeAssignmentFormSchema = insertEmployeeWorkweekAssignmentSchema;
+export const calendarOverrideFormSchema = insertWorkweekCalendarOverrideSchema;
+
+export type WorkweekPolicyForm = z.infer<typeof workweekPolicyFormSchema>;
+export type EmployeeAssignmentForm = z.infer<typeof employeeAssignmentFormSchema>;
+export type CalendarOverrideForm = z.infer<typeof calendarOverrideFormSchema>;

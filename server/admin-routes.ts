@@ -12,11 +12,18 @@ import {
   leaveApprovals,
   companyHolidays,
   leavePolicies,
+  workweekPolicies,
+  employeeWorkweekAssignments,
+  workweekCalendarOverrides,
+  workLocations,
   insertLeaveTypeSchema,
   insertLeaveBalanceSchema,
   insertLeaveRequestSchema,
   insertCompanyHolidaySchema,
-  insertLeavePolicySchema
+  insertLeavePolicySchema,
+  insertWorkweekPolicySchema,
+  insertEmployeeWorkweekAssignmentSchema,
+  insertWorkweekCalendarOverrideSchema
 } from '../shared/schema';
 import { eq, and, desc, asc, gte, lte, sql, count } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
@@ -1369,6 +1376,337 @@ router.get('/leave-dashboard', ensureAuthenticated, async (req: Request, res: Re
   } catch (error) {
     console.error('Error fetching leave dashboard data:', error);
     res.status(500).json({ error: 'Failed to fetch leave dashboard data' });
+  }
+});
+
+// ================================
+// WORKWEEK POLICY MANAGEMENT ROUTES
+// ================================
+
+/**
+ * Get all workweek policies with location and creator details
+ */
+router.get('/workweek-policies', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const policies = await db
+      .select({
+        id: workweekPolicies.id,
+        name: workweekPolicies.name,
+        description: workweekPolicies.description,
+        policyType: workweekPolicies.policyType,
+        locationId: workweekPolicies.locationId,
+        locationName: workLocations.name,
+        department: workweekPolicies.department,
+        workingDays: workweekPolicies.workingDays,
+        startTime: workweekPolicies.startTime,
+        endTime: workweekPolicies.endTime,
+        breakDurationMinutes: workweekPolicies.breakDurationMinutes,
+        weeklyHours: workweekPolicies.weeklyHours,
+        overtimeThresholdDaily: workweekPolicies.overtimeThresholdDaily,
+        overtimeThresholdWeekly: workweekPolicies.overtimeThresholdWeekly,
+        overtimeRateMultiplier: workweekPolicies.overtimeRateMultiplier,
+        halfDayHours: workweekPolicies.halfDayHours,
+        includesSaturdays: workweekPolicies.includesSaturdays,
+        includesSundays: workweekPolicies.includesSundays,
+        followsNationalHolidays: workweekPolicies.followsNationalHolidays,
+        isActive: workweekPolicies.isActive,
+        effectiveFrom: workweekPolicies.effectiveFrom,
+        effectiveUntil: workweekPolicies.effectiveUntil,
+        createdAt: workweekPolicies.createdAt,
+        updatedAt: workweekPolicies.updatedAt,
+        createdBy: workweekPolicies.createdBy,
+        creatorName: sql`COALESCE(${users.firstName} || ' ' || ${users.lastName}, ${users.username})`.as('creatorName')
+      })
+      .from(workweekPolicies)
+      .leftJoin(workLocations, eq(workweekPolicies.locationId, workLocations.id))
+      .leftJoin(users, eq(workweekPolicies.createdBy, users.id))
+      .orderBy(desc(workweekPolicies.createdAt));
+
+    res.json(policies);
+  } catch (error) {
+    console.error('Error fetching workweek policies:', error);
+    res.status(500).json({ error: 'Failed to fetch workweek policies' });
+  }
+});
+
+/**
+ * Get a specific workweek policy by ID
+ */
+router.get('/workweek-policies/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const [policy] = await db
+      .select()
+      .from(workweekPolicies)
+      .where(eq(workweekPolicies.id, parseInt(id)));
+
+    if (!policy) {
+      return res.status(404).json({ error: 'Workweek policy not found' });
+    }
+
+    res.json(policy);
+  } catch (error) {
+    console.error('Error fetching workweek policy:', error);
+    res.status(500).json({ error: 'Failed to fetch workweek policy' });
+  }
+});
+
+/**
+ * Create a new workweek policy
+ */
+router.post('/workweek-policies', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const currentUser = req.user as any;
+    
+    // Validate request body
+    const validatedData = insertWorkweekPolicySchema.parse({
+      ...req.body,
+      createdBy: currentUser.id
+    });
+
+    const [newPolicy] = await db
+      .insert(workweekPolicies)
+      .values(validatedData)
+      .returning();
+
+    res.status(201).json(newPolicy);
+  } catch (error) {
+    console.error('Error creating workweek policy:', error);
+    if (error.name === 'ZodError') {
+      return res.status(400).json({ error: 'Invalid input data', details: error.errors });
+    }
+    res.status(500).json({ error: 'Failed to create workweek policy' });
+  }
+});
+
+/**
+ * Update a workweek policy
+ */
+router.put('/workweek-policies/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    // Validate request body
+    const validatedData = insertWorkweekPolicySchema.partial().parse(req.body);
+
+    const [updatedPolicy] = await db
+      .update(workweekPolicies)
+      .set({ ...validatedData, updatedAt: new Date() })
+      .where(eq(workweekPolicies.id, parseInt(id)))
+      .returning();
+
+    if (!updatedPolicy) {
+      return res.status(404).json({ error: 'Workweek policy not found' });
+    }
+
+    res.json(updatedPolicy);
+  } catch (error) {
+    console.error('Error updating workweek policy:', error);
+    if (error.name === 'ZodError') {
+      return res.status(400).json({ error: 'Invalid input data', details: error.errors });
+    }
+    res.status(500).json({ error: 'Failed to update workweek policy' });
+  }
+});
+
+/**
+ * Delete a workweek policy
+ */
+router.delete('/workweek-policies/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const [deletedPolicy] = await db
+      .delete(workweekPolicies)
+      .where(eq(workweekPolicies.id, parseInt(id)))
+      .returning();
+
+    if (!deletedPolicy) {
+      return res.status(404).json({ error: 'Workweek policy not found' });
+    }
+
+    res.json({ message: 'Workweek policy deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting workweek policy:', error);
+    res.status(500).json({ error: 'Failed to delete workweek policy' });
+  }
+});
+
+/**
+ * Get employee workweek assignments
+ */
+router.get('/employee-workweek-assignments', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const assignments = await db
+      .select({
+        id: employeeWorkweekAssignments.id,
+        employeeId: employeeWorkweekAssignments.employeeId,
+        employeeName: sql`COALESCE(${users.firstName} || ' ' || ${users.lastName}, ${users.username})`.as('employeeName'),
+        workweekPolicyId: employeeWorkweekAssignments.workweekPolicyId,
+        policyName: workweekPolicies.name,
+        customWorkingDays: employeeWorkweekAssignments.customWorkingDays,
+        customStartTime: employeeWorkweekAssignments.customStartTime,
+        customEndTime: employeeWorkweekAssignments.customEndTime,
+        customWeeklyHours: employeeWorkweekAssignments.customWeeklyHours,
+        assignedDate: employeeWorkweekAssignments.assignedDate,
+        effectiveFrom: employeeWorkweekAssignments.effectiveFrom,
+        effectiveUntil: employeeWorkweekAssignments.effectiveUntil,
+        assignedBy: employeeWorkweekAssignments.assignedBy,
+        assignedByName: sql`COALESCE(assigned_by_user.firstName || ' ' || assigned_by_user.lastName, assigned_by_user.username)`.as('assignedByName'),
+        notes: employeeWorkweekAssignments.notes,
+        isActive: employeeWorkweekAssignments.isActive,
+        createdAt: employeeWorkweekAssignments.createdAt
+      })
+      .from(employeeWorkweekAssignments)
+      .innerJoin(users, eq(employeeWorkweekAssignments.employeeId, users.id))
+      .innerJoin(workweekPolicies, eq(employeeWorkweekAssignments.workweekPolicyId, workweekPolicies.id))
+      .leftJoin(users.as('assigned_by_user'), eq(employeeWorkweekAssignments.assignedBy, users.as('assigned_by_user').id))
+      .where(eq(employeeWorkweekAssignments.isActive, true))
+      .orderBy(desc(employeeWorkweekAssignments.createdAt));
+
+    res.json(assignments);
+  } catch (error) {
+    console.error('Error fetching employee workweek assignments:', error);
+    res.status(500).json({ error: 'Failed to fetch employee workweek assignments' });
+  }
+});
+
+/**
+ * Create employee workweek assignment
+ */
+router.post('/employee-workweek-assignments', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const currentUser = req.user as any;
+    
+    // Validate request body
+    const validatedData = insertEmployeeWorkweekAssignmentSchema.parse({
+      ...req.body,
+      assignedBy: currentUser.id
+    });
+
+    const [newAssignment] = await db
+      .insert(employeeWorkweekAssignments)
+      .values(validatedData)
+      .returning();
+
+    res.status(201).json(newAssignment);
+  } catch (error) {
+    console.error('Error creating employee workweek assignment:', error);
+    if (error.name === 'ZodError') {
+      return res.status(400).json({ error: 'Invalid input data', details: error.errors });
+    }
+    res.status(500).json({ error: 'Failed to create employee workweek assignment' });
+  }
+});
+
+/**
+ * Get workweek calendar overrides for a policy
+ */
+router.get('/workweek-calendar-overrides/:policyId', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { policyId } = req.params;
+    
+    const overrides = await db
+      .select({
+        id: workweekCalendarOverrides.id,
+        workweekPolicyId: workweekCalendarOverrides.workweekPolicyId,
+        overrideDate: workweekCalendarOverrides.overrideDate,
+        overrideType: workweekCalendarOverrides.overrideType,
+        isWorkingDay: workweekCalendarOverrides.isWorkingDay,
+        customStartTime: workweekCalendarOverrides.customStartTime,
+        customEndTime: workweekCalendarOverrides.customEndTime,
+        reason: workweekCalendarOverrides.reason,
+        description: workweekCalendarOverrides.description,
+        createdAt: workweekCalendarOverrides.createdAt,
+        createdBy: workweekCalendarOverrides.createdBy,
+        creatorName: sql`COALESCE(${users.firstName} || ' ' || ${users.lastName}, ${users.username})`.as('creatorName')
+      })
+      .from(workweekCalendarOverrides)
+      .leftJoin(users, eq(workweekCalendarOverrides.createdBy, users.id))
+      .where(eq(workweekCalendarOverrides.workweekPolicyId, parseInt(policyId)))
+      .orderBy(asc(workweekCalendarOverrides.overrideDate));
+
+    res.json(overrides);
+  } catch (error) {
+    console.error('Error fetching workweek calendar overrides:', error);
+    res.status(500).json({ error: 'Failed to fetch workweek calendar overrides' });
+  }
+});
+
+/**
+ * Create workweek calendar override
+ */
+router.post('/workweek-calendar-overrides', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const currentUser = req.user as any;
+    
+    // Validate request body
+    const validatedData = insertWorkweekCalendarOverrideSchema.parse({
+      ...req.body,
+      createdBy: currentUser.id
+    });
+
+    const [newOverride] = await db
+      .insert(workweekCalendarOverrides)
+      .values(validatedData)
+      .returning();
+
+    res.status(201).json(newOverride);
+  } catch (error) {
+    console.error('Error creating workweek calendar override:', error);
+    if (error.name === 'ZodError') {
+      return res.status(400).json({ error: 'Invalid input data', details: error.errors });
+    }
+    res.status(500).json({ error: 'Failed to create workweek calendar override' });
+  }
+});
+
+/**
+ * Delete workweek calendar override
+ */
+router.delete('/workweek-calendar-overrides/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const [deletedOverride] = await db
+      .delete(workweekCalendarOverrides)
+      .where(eq(workweekCalendarOverrides.id, parseInt(id)))
+      .returning();
+
+    if (!deletedOverride) {
+      return res.status(404).json({ error: 'Workweek calendar override not found' });
+    }
+
+    res.json({ message: 'Workweek calendar override deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting workweek calendar override:', error);
+    res.status(500).json({ error: 'Failed to delete workweek calendar override' });
+  }
+});
+
+/**
+ * Get work locations for policy assignment
+ */
+router.get('/work-locations', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const locations = await db
+      .select({
+        id: workLocations.id,
+        name: workLocations.name,
+        address: workLocations.address,
+        city: workLocations.city,
+        state: workLocations.state,
+        isActive: workLocations.isActive
+      })
+      .from(workLocations)
+      .where(eq(workLocations.isActive, true))
+      .orderBy(asc(workLocations.name));
+
+    res.json(locations);
+  } catch (error) {
+    console.error('Error fetching work locations:', error);
+    res.status(500).json({ error: 'Failed to fetch work locations' });
   }
 });
 

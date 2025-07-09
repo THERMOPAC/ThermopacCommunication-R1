@@ -52,7 +52,7 @@ type LayoutProps = {
   children: React.ReactNode;
 };
 
-export default function Layout({ children }: LayoutProps) {
+function Layout({ children }: LayoutProps) {
   const { user } = useAuth();
   const [location] = useLocation();
   const [isSalesAndMarketingMenuOpen, setIsSalesAndMarketingMenuOpen] = useState(false);
@@ -166,6 +166,7 @@ export default function Layout({ children }: LayoutProps) {
         { icon: CalendarClock, label: "Attendance Management", href: "/admin/attendance" },
         { icon: Calendar, label: "Leave Management", href: "/admin/leave" },
         { icon: IndianRupee, label: "Payroll Management", href: "/admin/payroll" },
+        { icon: Calendar, label: "Workweek Policy Management", href: "/admin/workweek-policies" },
         { icon: Shield, label: "Module Permissions", href: "/module-permissions" }
       ]
     }] : []),
@@ -507,3 +508,6 @@ export default function Layout({ children }: LayoutProps) {
     </div>
   );
 }
+
+export { Layout };
+export default Layout;

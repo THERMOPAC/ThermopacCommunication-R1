@@ -55,6 +55,7 @@ import UserManagementPage from "@/pages/admin/user-management-page";
 import AttendanceManagementPage from "@/pages/admin/attendance-management-page";
 import LeaveManagementPage from "@/pages/admin/leave-management-page";
 import PayrollManagementPage from "@/pages/admin/payroll-management-new";
+import WorkweekPolicyManagementPage from "@/pages/admin/workweek-policy-management-page";
 import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
 import OutstandingReportPage from "@/pages/finance/reports/outstanding-page";
 import RemittancesReportPage from "@/pages/finance/reports/remittances-page";
@@ -204,6 +205,8 @@ function Router() {
       <ProtectedRoute path="/admin/leave-management" component={LeaveManagementPage} />
       <ProtectedRoute path="/admin/payroll" component={PayrollManagementPage} />
       <ProtectedRoute path="/admin/payroll-management" component={PayrollManagementPage} />
+      <ProtectedRoute path="/admin/workweek-policies" component={WorkweekPolicyManagementPage} />
+      <ProtectedRoute path="/admin/workweek-policy-management" component={WorkweekPolicyManagementPage} />
       
       <ProtectedRoute path="/project-dashboard" component={ProjectDashboardPage} />
       <ProtectedRoute path="/projects" component={ProjectsPage} />
