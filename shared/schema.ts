@@ -2948,6 +2948,250 @@ export const insertItpActivitySchema = createInsertSchema(itpActivities)
 export type ItpTemplate = typeof itpTemplates.$inferSelect;
 export type InsertItpTemplate = z.infer<typeof insertItpTemplateSchema>;
 
+// ==================== BUSINESS TRIP MANAGEMENT ====================
+
+// Business Trip Status
+export const tripStatuses = [
+  "draft",
+  "submitted", 
+  "manager_approved",
+  "final_approved",
+  "rejected"
+] as const;
+
+export type TripStatus = typeof tripStatuses[number];
+
+// Approval Types
+export const approvalTypes = [
+  "manager",
+  "admin", 
+  "finance"
+] as const;
+
+export type ApprovalType = typeof approvalTypes[number];
+
+// Approval Status
+export const approvalStatuses = [
+  "pending",
+  "approved",
+  "rejected"
+] as const;
+
+export type ApprovalStatus = typeof approvalStatuses[number];
+
+// Booking Types
+export const bookingTypes = [
+  "flight",
+  "hotel",
+  "transport",
+  "visa"
+] as const;
+
+export type BookingType = typeof bookingTypes[number];
+
+// Expense Categories
+export const expenseCategories = [
+  "travel",
+  "meals",
+  "stay",
+  "misc"
+] as const;
+
+export type ExpenseCategory = typeof expenseCategories[number];
+
+// Reimbursement Status
+export const reimbursementStatuses = [
+  "pending",
+  "approved",
+  "processed",
+  "settled"
+] as const;
+
+export type ReimbursementStatus = typeof reimbursementStatuses[number];
+
+// Main business trips table
+export const businessTrips = pgTable('business_trips', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').notNull().references(() => users.id),
+  tripTitle: varchar('trip_title', { length: 255 }).notNull(),
+  purpose: text('purpose').notNull(),
+  destination: varchar('destination', { length: 255 }).notNull(),
+  fromDate: date('from_date').notNull(),
+  toDate: date('to_date').notNull(),
+  estimatedTravelCost: decimal('estimated_travel_cost', { precision: 10, scale: 2 }).default('0'),
+  estimatedAccommodationCost: decimal('estimated_accommodation_cost', { precision: 10, scale: 2 }).default('0'),
+  estimatedMiscCost: decimal('estimated_misc_cost', { precision: 10, scale: 2 }).default('0'),
+  advanceRequested: decimal('advance_requested', { precision: 10, scale: 2 }).default('0'),
+  supportingDocumentUrl: text('supporting_document_url'),
+  status: varchar('status', { length: 50 }).notNull().default('draft'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Trip approvals table (for workflow tracking)
+export const tripApprovals = pgTable('trip_approvals', {
+  id: serial('id').primaryKey(),
+  tripId: integer('trip_id').notNull().references(() => businessTrips.id, { onDelete: 'cascade' }),
+  approverId: integer('approver_id').notNull().references(() => users.id),
+  approvalType: varchar('approval_type', { length: 50 }).notNull(),
+  status: varchar('status', { length: 50 }).notNull(),
+  comments: text('comments'),
+  approvedAt: timestamp('approved_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow()
+});
+
+// Trip bookings table (admin managed)
+export const tripBookings = pgTable('trip_bookings', {
+  id: serial('id').primaryKey(),
+  tripId: integer('trip_id').notNull().references(() => businessTrips.id, { onDelete: 'cascade' }),
+  bookingType: varchar('booking_type', { length: 50 }).notNull(),
+  bookingDetails: text('booking_details'),
+  pnrReference: varchar('pnr_reference', { length: 255 }),
+  hotelName: varchar('hotel_name', { length: 255 }),
+  visaStatus: varchar('visa_status', { length: 100 }),
+  bookingDocumentUrl: text('booking_document_url'),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Trip expenses table (employee submitted post-trip)
+export const tripExpenses = pgTable('trip_expenses', {
+  id: serial('id').primaryKey(),
+  tripId: integer('trip_id').notNull().references(() => businessTrips.id, { onDelete: 'cascade' }),
+  category: varchar('category', { length: 50 }).notNull(),
+  description: text('description'),
+  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+  receiptUrl: text('receipt_url'),
+  expenseDate: date('expense_date').notNull(),
+  submittedBy: integer('submitted_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow()
+});
+
+// Trip reimbursements table (finance processed)
+export const tripReimbursements = pgTable('trip_reimbursements', {
+  id: serial('id').primaryKey(),
+  tripId: integer('trip_id').notNull().references(() => businessTrips.id, { onDelete: 'cascade' }),
+  totalExpenses: decimal('total_expenses', { precision: 10, scale: 2 }).notNull(),
+  advanceGiven: decimal('advance_given', { precision: 10, scale: 2 }).default('0'),
+  status: varchar('status', { length: 50 }).notNull().default('pending'),
+  processedBy: integer('processed_by').references(() => users.id),
+  processedAt: timestamp('processed_at'),
+  paymentReference: varchar('payment_reference', { length: 255 }),
+  createdAt: timestamp('created_at').notNull().defaultNow()
+});
+
+// Business Trip Relations
+export const businessTripsRelations = relations(businessTrips, ({ one, many }) => ({
+  employee: one(users, {
+    fields: [businessTrips.employeeId],
+    references: [users.id],
+  }),
+  approvals: many(tripApprovals),
+  bookings: many(tripBookings),
+  expenses: many(tripExpenses),
+  reimbursement: one(tripReimbursements),
+}));
+
+export const tripApprovalsRelations = relations(tripApprovals, ({ one }) => ({
+  trip: one(businessTrips, {
+    fields: [tripApprovals.tripId],
+    references: [businessTrips.id],
+  }),
+  approver: one(users, {
+    fields: [tripApprovals.approverId],
+    references: [users.id],
+  }),
+}));
+
+export const tripBookingsRelations = relations(tripBookings, ({ one }) => ({
+  trip: one(businessTrips, {
+    fields: [tripBookings.tripId],
+    references: [businessTrips.id],
+  }),
+  createdByUser: one(users, {
+    fields: [tripBookings.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const tripExpensesRelations = relations(tripExpenses, ({ one }) => ({
+  trip: one(businessTrips, {
+    fields: [tripExpenses.tripId],
+    references: [businessTrips.id],
+  }),
+  submittedByUser: one(users, {
+    fields: [tripExpenses.submittedBy],
+    references: [users.id],
+  }),
+}));
+
+export const tripReimbursementsRelations = relations(tripReimbursements, ({ one }) => ({
+  trip: one(businessTrips, {
+    fields: [tripReimbursements.tripId],
+    references: [businessTrips.id],
+  }),
+  processedByUser: one(users, {
+    fields: [tripReimbursements.processedBy],
+    references: [users.id],
+  }),
+}));
+
+// Business Trip Zod Schemas
+export const insertBusinessTripSchema = createInsertSchema(businessTrips)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    supportingDocumentUrl: z.string().optional(),
+  });
+
+export const insertTripApprovalSchema = createInsertSchema(tripApprovals)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    comments: z.string().optional(),
+    approvedAt: z.date().optional(),
+  });
+
+export const insertTripBookingSchema = createInsertSchema(tripBookings)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    bookingDetails: z.string().optional(),
+    pnrReference: z.string().optional(),
+    hotelName: z.string().optional(),
+    visaStatus: z.string().optional(),
+    bookingDocumentUrl: z.string().optional(),
+  });
+
+export const insertTripExpenseSchema = createInsertSchema(tripExpenses)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    description: z.string().optional(),
+    receiptUrl: z.string().optional(),
+  });
+
+export const insertTripReimbursementSchema = createInsertSchema(tripReimbursements)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    processedBy: z.number().optional(),
+    processedAt: z.date().optional(),
+    paymentReference: z.string().optional(),
+  });
+
+// Business Trip Types
+export type BusinessTrip = typeof businessTrips.$inferSelect;
+export type InsertBusinessTrip = z.infer<typeof insertBusinessTripSchema>;
+
+export type TripApproval = typeof tripApprovals.$inferSelect;
+export type InsertTripApproval = z.infer<typeof insertTripApprovalSchema>;
+
+export type TripBooking = typeof tripBookings.$inferSelect;
+export type InsertTripBooking = z.infer<typeof insertTripBookingSchema>;
+
+export type TripExpense = typeof tripExpenses.$inferSelect;
+export type InsertTripExpense = z.infer<typeof insertTripExpenseSchema>;
+
+export type TripReimbursement = typeof tripReimbursements.$inferSelect;
+export type InsertTripReimbursement = z.infer<typeof insertTripReimbursementSchema>;
+
 export type Itp = typeof itps.$inferSelect;
 export type InsertItp = z.infer<typeof insertItpSchema>;
 

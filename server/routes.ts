@@ -68,6 +68,7 @@ import { registerCalibrationTestRoutes } from "./calibration-test-routes";
 import { db } from "./db";
 import { masterItems as masterItemsTable, projectItems as projectItemsTable } from "@shared/schema";
 import { checkGcsPermissions } from "./utils/gcs-permissions-check";
+import { default as tripManagementRoutes } from "./trip-management-routes";
 
 const scryptAsync = promisify(scrypt);
 
@@ -357,6 +358,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up Salary Calculation Engine routes
   app.use('/api/salary-calculation', salaryCalculationRoutes);
   console.log('Salary calculation routes registered at /api/salary-calculation');
+
+  // Set up Business Trip Management routes
+  app.get('/api/trips/user', ensureAuthenticated, tripManagementRoutes.getUserTrips);
+  app.get('/api/trips/all', ensureAuthenticated, tripManagementRoutes.getAllTrips);
+  app.get('/api/trips/dashboard', ensureAuthenticated, tripManagementRoutes.getTripDashboard);
+  app.get('/api/trips/:id', ensureAuthenticated, tripManagementRoutes.getTripById);
+  app.post('/api/trips', ensureAuthenticated, tripManagementRoutes.createTrip);
+  app.put('/api/trips/:id', ensureAuthenticated, tripManagementRoutes.updateTrip);
+  app.post('/api/trips/:id/submit', ensureAuthenticated, tripManagementRoutes.submitTrip);
+  app.post('/api/trips/:id/approve', ensureAuthenticated, tripManagementRoutes.approveTrip);
+  console.log('Business trip management routes registered at /api/trips');
 
   // DIRECT WRITE-OFF APPROVAL ENDPOINT - COMPLETELY SEPARATE FROM FINANCE ROUTES
   app.post('/api/approve-writeoff/:id', async (req: any, res: any) => {

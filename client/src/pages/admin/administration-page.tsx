@@ -14,7 +14,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Users, CreditCard, Settings, BarChart3, UserPlus, Wallet, Clock } from "lucide-react";
+import { Users, CreditCard, Settings, BarChart3, UserPlus, Wallet, Clock, Plane } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 
@@ -42,6 +42,13 @@ export default function AdministrationPage() {
       icon: CreditCard,
       link: "/admin/payroll",
       stats: { setup: "35", pending: "12", processed: "23" }
+    },
+    {
+      title: "Business Trip Management",
+      description: "Manage employee travel requests, bookings, and expenses",
+      icon: Plane,
+      link: "/admin/business-trips",
+      stats: { active: "5", pending: "3", completed: "12" }
     },
     {
       title: "System Settings",
