@@ -92,7 +92,7 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>) => {
     // Auto-calculate bonus as 8.33% of Basic Salary
     const bonus = basicAmount * 0.0833;
     const kgp = parseFloat(formData.kgpAllowance || '0');
-    const groupInsuranceAmount = parseFloat(formData.groupInsurance || '300');
+    const groupInsuranceAmount = parseFloat(formData.groupInsurance || '1500');
 
     if (basicAmount <= 0) {
       return {
@@ -853,7 +853,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
                     <FormControl>
                       <Input 
                         key="groupInsurance"
-                        placeholder="300" 
+                        placeholder="1500" 
                         autoComplete="off"
                         {...field}
                       />
