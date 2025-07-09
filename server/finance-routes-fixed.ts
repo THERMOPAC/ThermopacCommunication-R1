@@ -941,7 +941,15 @@ router.post('/brc', ensureAuthenticated, async (req: Request, res: Response) => 
       req.user?.id || 1
     ]);
     
+    // Update the invoice's brc_received status to true
+    await pool.query(`
+      UPDATE invoices 
+      SET brc_received = true, updated_at = NOW()
+      WHERE id = $1
+    `, [parseInt(invoiceId)]);
+    
     console.log('BRC created successfully:', result.rows[0]);
+    console.log('Invoice BRC status updated to received for invoice ID:', invoiceId);
     res.status(201).json({ 
       success: true,
       brc: result.rows[0]
