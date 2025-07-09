@@ -7,6 +7,7 @@ import { relations } from "drizzle-orm";
 // Available system modules
 export const modules = [
   "Administration",
+  "Legal Management",
   "Sales and Marketing",
   "Finance",
   "Project Management",
@@ -5028,3 +5029,645 @@ export const calendarOverrideFormSchema = insertWorkweekCalendarOverrideSchema;
 export type WorkweekPolicyForm = z.infer<typeof workweekPolicyFormSchema>;
 export type EmployeeAssignmentForm = z.infer<typeof employeeAssignmentFormSchema>;
 export type CalendarOverrideForm = z.infer<typeof calendarOverrideFormSchema>;
+
+// ==================== LEGAL MANAGEMENT ====================
+
+// Contract Types
+export const contractTypes = [
+  "Service Agreement",
+  "Purchase Agreement", 
+  "Employment Contract",
+  "Non-Disclosure Agreement",
+  "Lease Agreement",
+  "Vendor Agreement",
+  "Consulting Agreement",
+  "Maintenance Contract",
+  "License Agreement",
+  "Joint Venture Agreement"
+] as const;
+
+export type ContractType = typeof contractTypes[number];
+
+// Contract Status
+export const contractStatuses = [
+  "Active",
+  "Expired", 
+  "Terminated",
+  "Pending",
+  "Under Review"
+] as const;
+
+export type ContractStatus = typeof contractStatuses[number];
+
+// Case Types
+export const caseTypes = [
+  "Civil",
+  "Criminal",
+  "Employment",
+  "Intellectual Property", 
+  "Contract Dispute",
+  "Regulatory",
+  "Tax",
+  "Environmental",
+  "Corporate"
+] as const;
+
+export type CaseType = typeof caseTypes[number];
+
+// Case Status
+export const caseStatuses = [
+  "Active",
+  "Closed",
+  "Pending",
+  "On Hold",
+  "Under Review"
+] as const;
+
+export type CaseStatus = typeof caseStatuses[number];
+
+// Priority Levels
+export const priorityLevels = [
+  "High",
+  "Medium",
+  "Low"
+] as const;
+
+export type PriorityLevel = typeof priorityLevels[number];
+
+// Compliance Types
+export const complianceTypes = [
+  "Legal",
+  "Regulatory",
+  "Statutory",
+  "Environmental",
+  "Safety",
+  "Tax",
+  "Labour",
+  "Corporate"
+] as const;
+
+export type ComplianceType = typeof complianceTypes[number];
+
+// Compliance Status
+export const complianceStatuses = [
+  "Pending",
+  "Completed",
+  "Overdue",
+  "N/A"
+] as const;
+
+export type ComplianceStatus = typeof complianceStatuses[number];
+
+// Compliance Frequency
+export const complianceFrequencies = [
+  "Monthly",
+  "Quarterly",
+  "Half-yearly",
+  "Yearly",
+  "One-time"
+] as const;
+
+export type ComplianceFrequency = typeof complianceFrequencies[number];
+
+// POSH Case Types
+export const poshCaseTypes = [
+  "Sexual Harassment",
+  "Discrimination",
+  "Retaliation",
+  "Hostile Work Environment"
+] as const;
+
+export type PoshCaseType = typeof poshCaseTypes[number];
+
+// POSH Case Status
+export const poshCaseStatuses = [
+  "Investigation",
+  "Inquiry",
+  "Closed",
+  "Dismissed",
+  "Under Review"
+] as const;
+
+export type PoshCaseStatus = typeof poshCaseStatuses[number];
+
+// Notice Types
+export const noticeTypes = [
+  "Received",
+  "Sent",
+  "Show Cause",
+  "Demand Notice",
+  "Termination Notice",
+  "Legal Notice",
+  "Cease and Desist"
+] as const;
+
+export type NoticeType = typeof noticeTypes[number];
+
+// Notice Status
+export const noticeStatuses = [
+  "Pending",
+  "Responded",
+  "Closed",
+  "Escalated",
+  "Under Review"
+] as const;
+
+export type NoticeStatus = typeof noticeStatuses[number];
+
+// Specializations
+export const specializations = [
+  "Corporate Law",
+  "Litigation",
+  "Intellectual Property",
+  "Employment Law",
+  "Tax Law",
+  "Environmental Law",
+  "Real Estate Law",
+  "Banking & Finance",
+  "Regulatory Compliance"
+] as const;
+
+export type Specialization = typeof specializations[number];
+
+// Counsel Status
+export const counselStatuses = [
+  "Active",
+  "Inactive",
+  "Blacklisted"
+] as const;
+
+export type CounselStatus = typeof counselStatuses[number];
+
+// Template Types
+export const templateTypes = [
+  "HR Policy",
+  "Legal Policy",
+  "Compliance Policy",
+  "Safety Policy",
+  "IT Policy",
+  "Security Policy",
+  "Code of Conduct"
+] as const;
+
+export type TemplateType = typeof templateTypes[number];
+
+// Template Categories
+export const templateCategories = [
+  "Employment",
+  "Privacy",
+  "Code of Conduct",
+  "Anti-Harassment",
+  "Leave Policy",
+  "Disciplinary Policy",
+  "Data Protection",
+  "Whistleblower Policy"
+] as const;
+
+export type TemplateCategory = typeof templateCategories[number];
+
+// Policy Approval Status
+export const policyApprovalStatuses = [
+  "Draft",
+  "Under Review",
+  "Approved",
+  "Rejected",
+  "Archived"
+] as const;
+
+export type PolicyApprovalStatus = typeof policyApprovalStatuses[number];
+
+// Alert Types
+export const legalAlertTypes = [
+  "Contract Expiry",
+  "Hearing Date",
+  "Compliance Due",
+  "Notice Response",
+  "Renewal Reminder",
+  "Document Expiry"
+] as const;
+
+export type LegalAlertType = typeof legalAlertTypes[number];
+
+// Alert Status
+export const legalAlertStatuses = [
+  "Active",
+  "Dismissed",
+  "Resolved"
+] as const;
+
+export type LegalAlertStatus = typeof legalAlertStatuses[number];
+
+// Contracts table
+export const contracts = pgTable('contracts', {
+  id: serial('id').primaryKey(),
+  contractNumber: varchar('contract_number', { length: 255 }).notNull().unique(),
+  title: varchar('title', { length: 500 }).notNull(),
+  description: text('description'),
+  contractType: varchar('contract_type', { length: 100 }).notNull(),
+  partyName: varchar('party_name', { length: 255 }).notNull(),
+  partyContact: varchar('party_contact', { length: 255 }),
+  partyEmail: varchar('party_email', { length: 255 }),
+  startDate: date('start_date').notNull(),
+  endDate: date('end_date'),
+  renewalDate: date('renewal_date'),
+  contractValue: decimal('contract_value', { precision: 15, scale: 2 }),
+  currency: varchar('currency', { length: 10 }).notNull().default('INR'),
+  status: varchar('status', { length: 50 }).notNull().default('Active'),
+  autoRenewal: boolean('auto_renewal').notNull().default(false),
+  noticePeriodDays: integer('notice_period_days').notNull().default(30),
+  filePath: varchar('file_path', { length: 500 }),
+  fileUrl: varchar('file_url', { length: 500 }),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  assignedTo: integer('assigned_to').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Legal Cases table
+export const legalCases = pgTable('legal_cases', {
+  id: serial('id').primaryKey(),
+  caseNumber: varchar('case_number', { length: 255 }).notNull().unique(),
+  caseTitle: varchar('case_title', { length: 500 }).notNull(),
+  caseType: varchar('case_type', { length: 100 }).notNull(),
+  caseStatus: varchar('case_status', { length: 50 }).notNull().default('Active'),
+  courtName: varchar('court_name', { length: 255 }),
+  judgeName: varchar('judge_name', { length: 255 }),
+  opposingParty: varchar('opposing_party', { length: 255 }),
+  caseValue: decimal('case_value', { precision: 15, scale: 2 }),
+  currency: varchar('currency', { length: 10 }).notNull().default('INR'),
+  filingDate: date('filing_date'),
+  nextHearingDate: date('next_hearing_date'),
+  expectedClosureDate: date('expected_closure_date'),
+  priority: varchar('priority', { length: 20 }).notNull().default('Medium'),
+  description: text('description'),
+  outcome: text('outcome'),
+  internalCounsel: integer('internal_counsel').references(() => users.id),
+  externalCounselId: integer('external_counsel_id'),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Compliance Register table
+export const complianceRegister = pgTable('compliance_register', {
+  id: serial('id').primaryKey(),
+  complianceType: varchar('compliance_type', { length: 100 }).notNull(),
+  regulationName: varchar('regulation_name', { length: 255 }).notNull(),
+  applicableSection: varchar('applicable_section', { length: 255 }),
+  complianceRequirement: text('compliance_requirement').notNull(),
+  frequency: varchar('frequency', { length: 50 }).notNull(),
+  dueDate: date('due_date').notNull(),
+  completionDate: date('completion_date'),
+  status: varchar('status', { length: 50 }).notNull().default('Pending'),
+  responsiblePerson: integer('responsible_person').references(() => users.id),
+  complianceEvidence: text('compliance_evidence'),
+  filePath: varchar('file_path', { length: 500 }),
+  fileUrl: varchar('file_url', { length: 500 }),
+  penaltyAmount: decimal('penalty_amount', { precision: 15, scale: 2 }),
+  remarks: text('remarks'),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// POSH Cases table
+export const poshCases = pgTable('posh_cases', {
+  id: serial('id').primaryKey(),
+  caseNumber: varchar('case_number', { length: 255 }).notNull().unique(),
+  complaintDate: date('complaint_date').notNull(),
+  complainantName: varchar('complainant_name', { length: 255 }).notNull(),
+  complainantDesignation: varchar('complainant_designation', { length: 255 }),
+  complainantDepartment: varchar('complainant_department', { length: 255 }),
+  respondentName: varchar('respondent_name', { length: 255 }).notNull(),
+  respondentDesignation: varchar('respondent_designation', { length: 255 }),
+  respondentDepartment: varchar('respondent_department', { length: 255 }),
+  incidentDate: date('incident_date'),
+  incidentLocation: varchar('incident_location', { length: 255 }),
+  caseType: varchar('case_type', { length: 100 }).notNull(),
+  caseStatus: varchar('case_status', { length: 50 }).notNull().default('Investigation'),
+  priority: varchar('priority', { length: 20 }).notNull().default('High'),
+  description: text('description').notNull(),
+  actionTaken: text('action_taken'),
+  outcome: varchar('outcome', { length: 100 }),
+  closureDate: date('closure_date'),
+  committeeMembers: text('committee_members'),
+  investigationOfficer: integer('investigation_officer').references(() => users.id),
+  filePath: varchar('file_path', { length: 500 }),
+  fileUrl: varchar('file_url', { length: 500 }),
+  confidentialityLevel: varchar('confidentiality_level', { length: 50 }).notNull().default('Confidential'),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Legal Notices table
+export const legalNotices = pgTable('legal_notices', {
+  id: serial('id').primaryKey(),
+  noticeNumber: varchar('notice_number', { length: 255 }).notNull().unique(),
+  noticeType: varchar('notice_type', { length: 100 }).notNull(),
+  fromParty: varchar('from_party', { length: 255 }).notNull(),
+  toParty: varchar('to_party', { length: 255 }).notNull(),
+  subject: varchar('subject', { length: 500 }).notNull(),
+  noticeDate: date('notice_date').notNull(),
+  responseDueDate: date('response_due_date'),
+  responseDate: date('response_date'),
+  status: varchar('status', { length: 50 }).notNull().default('Pending'),
+  priority: varchar('priority', { length: 20 }).notNull().default('Medium'),
+  description: text('description').notNull(),
+  responseSummary: text('response_summary'),
+  actionRequired: text('action_required'),
+  assignedTo: integer('assigned_to').references(() => users.id),
+  filePath: varchar('file_path', { length: 500 }),
+  fileUrl: varchar('file_url', { length: 500 }),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// External Counsel Directory table
+export const externalCounsel = pgTable('external_counsel', {
+  id: serial('id').primaryKey(),
+  firmName: varchar('firm_name', { length: 255 }).notNull(),
+  contactPerson: varchar('contact_person', { length: 255 }).notNull(),
+  designation: varchar('designation', { length: 255 }),
+  specialization: varchar('specialization', { length: 255 }),
+  phone: varchar('phone', { length: 50 }),
+  email: varchar('email', { length: 255 }),
+  address: text('address'),
+  city: varchar('city', { length: 100 }),
+  state: varchar('state', { length: 100 }),
+  country: varchar('country', { length: 100 }).notNull().default('India'),
+  barCouncilNumber: varchar('bar_council_number', { length: 100 }),
+  yearsExperience: integer('years_experience'),
+  hourlyRate: decimal('hourly_rate', { precision: 10, scale: 2 }),
+  currency: varchar('currency', { length: 10 }).notNull().default('INR'),
+  rating: integer('rating'),
+  status: varchar('status', { length: 50 }).notNull().default('Active'),
+  retainerAgreement: boolean('retainer_agreement').notNull().default(false),
+  notes: text('notes'),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Policy Templates table
+export const policyTemplates = pgTable('policy_templates', {
+  id: serial('id').primaryKey(),
+  templateName: varchar('template_name', { length: 255 }).notNull(),
+  templateType: varchar('template_type', { length: 100 }).notNull(),
+  category: varchar('category', { length: 100 }),
+  version: varchar('version', { length: 50 }).notNull(),
+  effectiveDate: date('effective_date').notNull(),
+  reviewDate: date('review_date'),
+  approvalStatus: varchar('approval_status', { length: 50 }).notNull().default('Draft'),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvalDate: date('approval_date'),
+  templateContent: text('template_content').notNull(),
+  filePath: varchar('file_path', { length: 500 }),
+  fileUrl: varchar('file_url', { length: 500 }),
+  applicableLocations: text('applicable_locations'),
+  mandatory: boolean('mandatory').notNull().default(false),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Legal Alerts table
+export const legalAlerts = pgTable('legal_alerts', {
+  id: serial('id').primaryKey(),
+  alertType: varchar('alert_type', { length: 100 }).notNull(),
+  referenceType: varchar('reference_type', { length: 100 }).notNull(),
+  referenceId: integer('reference_id').notNull(),
+  alertDate: date('alert_date').notNull(),
+  alertTitle: varchar('alert_title', { length: 255 }).notNull(),
+  alertMessage: text('alert_message').notNull(),
+  status: varchar('status', { length: 50 }).notNull().default('Active'),
+  priority: varchar('priority', { length: 20 }).notNull().default('Medium'),
+  assignedTo: integer('assigned_to').references(() => users.id),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Legal Management Relations
+export const contractsRelations = relations(contracts, ({ one }) => ({
+  createdByUser: one(users, {
+    fields: [contracts.createdBy],
+    references: [users.id],
+  }),
+  assignedToUser: one(users, {
+    fields: [contracts.assignedTo],
+    references: [users.id],
+  }),
+}));
+
+export const legalCasesRelations = relations(legalCases, ({ one }) => ({
+  createdByUser: one(users, {
+    fields: [legalCases.createdBy],
+    references: [users.id],
+  }),
+  internalCounselUser: one(users, {
+    fields: [legalCases.internalCounsel],
+    references: [users.id],
+  }),
+  externalCounselUser: one(externalCounsel, {
+    fields: [legalCases.externalCounselId],
+    references: [externalCounsel.id],
+  }),
+}));
+
+export const complianceRegisterRelations = relations(complianceRegister, ({ one }) => ({
+  createdByUser: one(users, {
+    fields: [complianceRegister.createdBy],
+    references: [users.id],
+  }),
+  responsiblePersonUser: one(users, {
+    fields: [complianceRegister.responsiblePerson],
+    references: [users.id],
+  }),
+}));
+
+export const poshCasesRelations = relations(poshCases, ({ one }) => ({
+  createdByUser: one(users, {
+    fields: [poshCases.createdBy],
+    references: [users.id],
+  }),
+  investigationOfficerUser: one(users, {
+    fields: [poshCases.investigationOfficer],
+    references: [users.id],
+  }),
+}));
+
+export const legalNoticesRelations = relations(legalNotices, ({ one }) => ({
+  createdByUser: one(users, {
+    fields: [legalNotices.createdBy],
+    references: [users.id],
+  }),
+  assignedToUser: one(users, {
+    fields: [legalNotices.assignedTo],
+    references: [users.id],
+  }),
+}));
+
+export const externalCounselRelations = relations(externalCounsel, ({ one, many }) => ({
+  createdByUser: one(users, {
+    fields: [externalCounsel.createdBy],
+    references: [users.id],
+  }),
+  cases: many(legalCases),
+}));
+
+export const policyTemplatesRelations = relations(policyTemplates, ({ one }) => ({
+  createdByUser: one(users, {
+    fields: [policyTemplates.createdBy],
+    references: [users.id],
+  }),
+  approvedByUser: one(users, {
+    fields: [policyTemplates.approvedBy],
+    references: [users.id],
+  }),
+}));
+
+export const legalAlertsRelations = relations(legalAlerts, ({ one }) => ({
+  createdByUser: one(users, {
+    fields: [legalAlerts.createdBy],
+    references: [users.id],
+  }),
+  assignedToUser: one(users, {
+    fields: [legalAlerts.assignedTo],
+    references: [users.id],
+  }),
+}));
+
+// Legal Management Zod Schemas
+export const insertContractSchema = createInsertSchema(contracts)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    description: z.string().optional(),
+    partyContact: z.string().optional(),
+    partyEmail: z.string().optional(),
+    endDate: z.string().optional().transform(dateStringToDate),
+    renewalDate: z.string().optional().transform(dateStringToDate),
+    contractValue: z.string().optional(),
+    assignedTo: z.number().optional(),
+    filePath: z.string().optional(),
+    fileUrl: z.string().optional(),
+    startDate: z.string().transform(dateStringToDate),
+  });
+
+export const insertLegalCaseSchema = createInsertSchema(legalCases)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    courtName: z.string().optional(),
+    judgeName: z.string().optional(),
+    opposingParty: z.string().optional(),
+    caseValue: z.string().optional(),
+    filingDate: z.string().optional().transform(dateStringToDate),
+    nextHearingDate: z.string().optional().transform(dateStringToDate),
+    expectedClosureDate: z.string().optional().transform(dateStringToDate),
+    description: z.string().optional(),
+    outcome: z.string().optional(),
+    internalCounsel: z.number().optional(),
+    externalCounselId: z.number().optional(),
+  });
+
+export const insertComplianceRegisterSchema = createInsertSchema(complianceRegister)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    applicableSection: z.string().optional(),
+    completionDate: z.string().optional().transform(dateStringToDate),
+    responsiblePerson: z.number().optional(),
+    complianceEvidence: z.string().optional(),
+    filePath: z.string().optional(),
+    fileUrl: z.string().optional(),
+    penaltyAmount: z.string().optional(),
+    remarks: z.string().optional(),
+    dueDate: z.string().transform(dateStringToDate),
+  });
+
+export const insertPoshCaseSchema = createInsertSchema(poshCases)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    complainantDesignation: z.string().optional(),
+    complainantDepartment: z.string().optional(),
+    respondentDesignation: z.string().optional(),
+    respondentDepartment: z.string().optional(),
+    incidentDate: z.string().optional().transform(dateStringToDate),
+    incidentLocation: z.string().optional(),
+    actionTaken: z.string().optional(),
+    outcome: z.string().optional(),
+    closureDate: z.string().optional().transform(dateStringToDate),
+    committeeMembers: z.string().optional(),
+    investigationOfficer: z.number().optional(),
+    filePath: z.string().optional(),
+    fileUrl: z.string().optional(),
+    complaintDate: z.string().transform(dateStringToDate),
+  });
+
+export const insertLegalNoticeSchema = createInsertSchema(legalNotices)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    responseDueDate: z.string().optional().transform(dateStringToDate),
+    responseDate: z.string().optional().transform(dateStringToDate),
+    responseSummary: z.string().optional(),
+    actionRequired: z.string().optional(),
+    assignedTo: z.number().optional(),
+    filePath: z.string().optional(),
+    fileUrl: z.string().optional(),
+    noticeDate: z.string().transform(dateStringToDate),
+  });
+
+export const insertExternalCounselSchema = createInsertSchema(externalCounsel)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    designation: z.string().optional(),
+    specialization: z.string().optional(),
+    phone: z.string().optional(),
+    email: z.string().optional(),
+    address: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    barCouncilNumber: z.string().optional(),
+    yearsExperience: z.number().optional(),
+    hourlyRate: z.string().optional(),
+    rating: z.number().optional(),
+    notes: z.string().optional(),
+  });
+
+export const insertPolicyTemplateSchema = createInsertSchema(policyTemplates)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    category: z.string().optional(),
+    reviewDate: z.string().optional().transform(dateStringToDate),
+    approvedBy: z.number().optional(),
+    approvalDate: z.string().optional().transform(dateStringToDate),
+    filePath: z.string().optional(),
+    fileUrl: z.string().optional(),
+    applicableLocations: z.string().optional(),
+    effectiveDate: z.string().transform(dateStringToDate),
+  });
+
+export const insertLegalAlertSchema = createInsertSchema(legalAlerts)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    assignedTo: z.number().optional(),
+    alertDate: z.string().transform(dateStringToDate),
+  });
+
+// Legal Management Types
+export type Contract = typeof contracts.$inferSelect;
+export type InsertContract = z.infer<typeof insertContractSchema>;
+export type LegalCase = typeof legalCases.$inferSelect;
+export type InsertLegalCase = z.infer<typeof insertLegalCaseSchema>;
+export type ComplianceRegister = typeof complianceRegister.$inferSelect;
+export type InsertComplianceRegister = z.infer<typeof insertComplianceRegisterSchema>;
+export type PoshCase = typeof poshCases.$inferSelect;
+export type InsertPoshCase = z.infer<typeof insertPoshCaseSchema>;
+export type LegalNotice = typeof legalNotices.$inferSelect;
+export type InsertLegalNotice = z.infer<typeof insertLegalNoticeSchema>;
+export type ExternalCounsel = typeof externalCounsel.$inferSelect;
+export type InsertExternalCounsel = z.infer<typeof insertExternalCounselSchema>;
+export type PolicyTemplate = typeof policyTemplates.$inferSelect;
+export type InsertPolicyTemplate = z.infer<typeof insertPolicyTemplateSchema>;
+export type LegalAlert = typeof legalAlerts.$inferSelect;
+export type InsertLegalAlert = z.infer<typeof insertLegalAlertSchema>;

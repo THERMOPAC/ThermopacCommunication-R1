@@ -82,6 +82,7 @@ import {
   getPendingAlerts 
 } from "./visa-management-routes";
 import { default as schengenRoutes } from "./schengen-routes";
+import { default as legalManagementRoutes } from "./legal-management-routes";
 
 const scryptAsync = promisify(scrypt);
 
@@ -2732,6 +2733,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Schengen 180-Day Rule Tracker routes
   app.use('/api/schengen', schengenRoutes);
   console.log('Schengen 180-Day Rule Tracker routes registered at /api/schengen');
+
+  // Legal Management routes
+  app.use('/api/legal', legalManagementRoutes);
+  console.log('Legal Management routes registered at /api/legal');
 
   const httpServer = createServer(app);
   return httpServer;

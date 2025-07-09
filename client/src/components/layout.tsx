@@ -43,7 +43,8 @@ import {
   DollarSign,
   Palette,
   FileText,
-  Plane
+  Plane,
+  Gavel
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -108,6 +109,10 @@ function Layout({ children }: LayoutProps) {
                         location.startsWith('/finance/reports') ||
                         location === '/finance/brc';
   
+  // Check if we're on any administration-related page
+  const isOnAdministrationPage = location.startsWith('/admin') ||
+                               location === '/module-permissions';
+  
   // Auto-open menus based on current page
   useEffect(() => {
     if (isOnSalesAndMarketingPage && !isSalesAndMarketingMenuOpen) {
@@ -133,7 +138,11 @@ function Layout({ children }: LayoutProps) {
     if (isOnFinancePage && !isFinanceMenuOpen) {
       setIsFinanceMenuOpen(true);
     }
-  }, [isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage]);
+    
+    if (isOnAdministrationPage && !isAdministrationMenuOpen) {
+      setIsAdministrationMenuOpen(true);
+    }
+  }, [isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage]);
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
@@ -169,6 +178,7 @@ function Layout({ children }: LayoutProps) {
         { icon: IndianRupee, label: "Payroll Management", href: "/admin/payroll" },
         { icon: Plane, label: "Business Trip Management", href: "/admin/business-trips" },
         { icon: FileText, label: "Visa Management", href: "/admin/visa-management" },
+        { icon: Gavel, label: "Legal Management", href: "/admin/legal-management" },
         { icon: Calendar, label: "Workweek Policy Management", href: "/admin/workweek-policies" },
         { icon: Shield, label: "Module Permissions", href: "/module-permissions" }
       ]
