@@ -405,11 +405,17 @@ export default function BrcManagementPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Customers</SelectItem>
-                    {customers?.map((customer: any) => (
-                      <SelectItem key={customer.id} value={customer.id.toString()}>
-                        {customer.companyName || customer.bpName}
-                      </SelectItem>
-                    ))}
+                    {customers
+                      ?.sort((a: any, b: any) => {
+                        const nameA = (a.companyName || a.bpName || '').toLowerCase();
+                        const nameB = (b.companyName || b.bpName || '').toLowerCase();
+                        return nameA.localeCompare(nameB);
+                      })
+                      ?.map((customer: any) => (
+                        <SelectItem key={customer.id} value={customer.id.toString()}>
+                          {customer.companyName || customer.bpName}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
