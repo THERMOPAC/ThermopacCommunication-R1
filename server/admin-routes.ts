@@ -1722,23 +1722,71 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
       .select({
         id: payrollRecords.id,
         periodId: payrollRecords.periodId,
-        employeeId: payrollRecords.employeeId,
-        employeeName: payrollRecords.employeeName,
-        employeeCode: payrollRecords.employeeCode,
-        basicSalary: payrollRecords.basicSalary,
-        grossEarnings: payrollRecords.grossEarnings,
-        totalDeductions: payrollRecords.totalDeductions,
-        netSalary: payrollRecords.netSalary,
-        month: payrollRecords.month,
-        year: payrollRecords.year,
-        status: payrollRecords.status,
+        userId: payrollRecords.userId,
+        baseSalary: payrollRecords.baseSalary,
+        grossPay: payrollRecords.grossPay,
+        netPay: payrollRecords.netPay,
+        incomeTax: payrollRecords.incomeTax,
+        professionalTax: payrollRecords.professionalTax,
+        providentFund: payrollRecords.providentFund,
         createdAt: payrollRecords.createdAt,
         updatedAt: payrollRecords.updatedAt
       })
       .from(payrollRecords)
       .orderBy(desc(payrollRecords.createdAt));
 
-    res.json(records);
+    // Get user details for each record
+    const recordsWithUserInfo = await Promise.all(
+      records.map(async (record) => {
+        const user = await db
+          .select({
+            username: users.username,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            employeeCode: users.employeeCode
+          })
+          .from(users)
+          .where(eq(users.id, record.userId))
+          .limit(1);
+
+        const userInfo = user[0] || {};
+        const employeeName = userInfo.firstName && userInfo.lastName 
+          ? `${userInfo.firstName} ${userInfo.lastName}`
+          : userInfo.username || 'Unknown';
+
+        // Get period info for month/year
+        const period = await db
+          .select({
+            month: payrollPeriods.month,
+            year: payrollPeriods.year
+          })
+          .from(payrollPeriods)
+          .where(eq(payrollPeriods.id, record.periodId))
+          .limit(1);
+
+        const periodInfo = period[0] || { month: 0, year: 0 };
+
+        // Calculate total deductions
+        const totalDeductions = (parseFloat(record.incomeTax || '0') + 
+                               parseFloat(record.professionalTax || '0') + 
+                               parseFloat(record.providentFund || '0')).toFixed(2);
+
+        return {
+          id: record.id,
+          employeeName,
+          employeeCode: userInfo.employeeCode,
+          basicSalary: record.baseSalary,
+          grossEarnings: record.grossPay,
+          totalDeductions,
+          netSalary: record.netPay,
+          month: periodInfo.month,
+          year: periodInfo.year,
+          createdAt: record.createdAt
+        };
+      })
+    );
+
+    res.json(recordsWithUserInfo);
   } catch (error) {
     console.error('Error fetching payroll records:', error);
     res.status(500).json({ error: 'Failed to fetch payroll records' });
