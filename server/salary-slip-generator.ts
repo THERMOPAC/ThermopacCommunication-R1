@@ -198,7 +198,7 @@ export class SalarySlipGenerator {
       ['Supplementary Allowance', data.earnings.supplementaryAllowance],
       ['KGP Allowance', data.earnings.kgpAllowance],
       ['Overtime Pay', data.earnings.overtimePay],
-      ['Bonus', data.earnings.bonus],
+      ['Bonus (Not Paid Monthly)', 0], // Bonus calculated but not paid monthly
       ['Other Allowances', data.earnings.otherAllowances]
     ];
 
@@ -263,10 +263,24 @@ export class SalarySlipGenerator {
     this.doc.fontSize(10).font('Helvetica');
     this.doc.text(`Net Pay in Words: ${data.netPayInWords}`, this.margin, totalsY + 70, 
                  { width: this.contentWidth });
+
+    // Bonus Information Section
+    this.doc.moveTo(this.margin, totalsY + 100)
+           .lineTo(this.pageWidth - this.margin, totalsY + 100)
+           .stroke();
+    
+    this.doc.fontSize(11).font('Helvetica-Bold');
+    this.doc.text('BONUS INFORMATION', this.margin, totalsY + 110);
+    
+    this.doc.fontSize(10).font('Helvetica');
+    this.doc.text(`Calculated Bonus (8.33% of Basic): ₹${Math.round(data.earnings.bonus).toLocaleString('en-IN')}`, 
+                 this.margin, totalsY + 130);
+    this.doc.text('Note: Bonus amount is calculated and recorded but not included in monthly salary payments.', 
+                 this.margin, totalsY + 150, { width: this.contentWidth });
   }
 
   private addFooter(data: SalarySlipData): void {
-    const footerY = this.pageHeight - 150;
+    const footerY = this.pageHeight - 100;
 
     this.doc.moveTo(this.margin, footerY)
            .lineTo(this.pageWidth - this.margin, footerY)

@@ -187,7 +187,8 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUser
       grossBasic = basicAmount * paidDays;
       const hourlyRate = basicAmount / workingHours;
       overtimePay = hourlyRate * overtimeHours * otRate;
-      grossEarnings = grossBasic + overtimePay + bonus + kgp;
+      // Bonus excluded from monthly gross earnings - calculated but not paid monthly
+      grossEarnings = grossBasic + overtimePay + kgp;
       
       // Daily workers have 0% allowances
       houseRent = conveyance = lta = special = supplementary = 0;
@@ -204,7 +205,8 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUser
       special = grossBasic * 0.3; // 30%
       supplementary = grossBasic * 0.3; // 30%
       
-      grossEarnings = grossBasic + houseRent + conveyance + lta + special + supplementary + bonus + kgp;
+      // Bonus excluded from monthly gross earnings - calculated but not paid monthly
+      grossEarnings = grossBasic + houseRent + conveyance + lta + special + supplementary + kgp;
     }
 
     // PF calculations
@@ -1057,8 +1059,8 @@ export default function PayrollManagementNew() {
                         <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.kgpAllowance || 0)).toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Bonus:</span>
-                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.bonus || 0)).toLocaleString('en-IN')}</span>
+                        <span>Bonus (Calculated, Not Paid Monthly):</span>
+                        <span className="font-medium text-orange-600">₹{Math.round(parseFloat(calculationPreview.data?.bonus || 0)).toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between border-t pt-2">
                         <span className="font-medium">Gross Earnings:</span>
@@ -1507,7 +1509,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                 name="bonus"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bonus (Auto-calculated: 8.33% of Basic Salary)</FormLabel>
+                    <FormLabel>Bonus (Auto-calculated: 8.33% - Not Paid Monthly)</FormLabel>
                     <FormControl>
                       <Input 
                         key="bonus"
@@ -1758,8 +1760,8 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                     </div>
                   )}
                   <div className="flex justify-between">
-                    <span className="text-sm">Bonus (8.33%):</span>
-                    <span className="font-medium">₹{Math.round(calculations.bonus || 0).toLocaleString('en-IN')}</span>
+                    <span className="text-sm">Bonus (8.33%) - Calculated Only:</span>
+                    <span className="font-medium text-orange-600">₹{Math.round(calculations.bonus || 0).toLocaleString('en-IN')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm">

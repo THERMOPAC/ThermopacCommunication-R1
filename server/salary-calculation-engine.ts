@@ -429,10 +429,10 @@ export class SalaryCalculationEngine {
     // Bonus calculation (8.33% of basic salary)
     const bonus = (input.bonusAmount !== undefined) ? input.bonusAmount : (grossBasic * 0.0833);
     
-    // Gross earnings
+    // Gross earnings (excluding bonus - bonus is calculated but not paid monthly)
     const grossEarnings = grossBasic + houseRentAllowance + conveyanceAllowance + 
                          ltaAllowance + specialAllowance + supplementaryAllowance + 
-                         kgpAllowance + bonus + overtimePay;
+                         kgpAllowance + overtimePay;
     
     // PF calculations
     const pfBase = Math.min(grossBasic, 15000);
