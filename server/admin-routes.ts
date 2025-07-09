@@ -1863,6 +1863,67 @@ router.post('/generate-salary', ensureAuthenticated, async (req: Request, res: R
 });
 
 /**
+ * Get salary calculation preview without saving
+ */
+router.post('/salary-calculation-preview', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { employeeId, month, year } = req.body;
+    
+    // Validate required fields
+    if (!employeeId || !month || !year) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: employeeId, month, year'
+      });
+    }
+    
+    // Convert month and year to numbers
+    const monthNum = parseInt(month);
+    const yearNum = parseInt(year);
+    
+    // Validate month and year ranges
+    if (monthNum < 1 || monthNum > 12) {
+      return res.status(400).json({
+        success: false,
+        error: 'Month must be between 1 and 12'
+      });
+    }
+    
+    if (yearNum < 2000 || yearNum > 2100) {
+      return res.status(400).json({
+        success: false,
+        error: 'Year must be between 2000 and 2100'
+      });
+    }
+    
+    console.log(`👀 Generating salary preview for employee ${employeeId}, ${month}/${year}`);
+    
+    // Use the salary calculation engine to calculate salary preview
+    const salaryInput = {
+      userId: parseInt(employeeId),
+      month: monthNum,
+      year: yearNum
+    };
+    
+    const result = await salaryCalculationEngine.calculateSalary(salaryInput);
+    
+    res.json({
+      success: true,
+      message: 'Salary calculation preview generated successfully',
+      data: result
+    });
+    
+  } catch (error: any) {
+    console.error('❌ Error generating salary preview:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate salary preview',
+      message: error.message
+    });
+  }
+});
+
+/**
  * Generate salary slip PDF
  */
 router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Request, res: Response) => {

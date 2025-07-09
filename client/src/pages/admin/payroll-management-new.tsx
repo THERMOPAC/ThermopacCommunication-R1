@@ -368,8 +368,10 @@ export default function PayrollManagementNew() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSalaryGenerationDialogOpen, setIsSalaryGenerationDialogOpen] = useState(false);
+  const [isConfirmationDialogOpen, setIsConfirmationDialogOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
+  const [calculationPreview, setCalculationPreview] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -610,6 +612,29 @@ export default function PayrollManagementNew() {
     }
   };
 
+  // Fetch salary calculation preview mutation
+  const fetchCalculationPreviewMutation = useMutation({
+    mutationFn: async ({ employeeId, month, year }: { employeeId: number; month: string; year: string }) => {
+      return await apiRequest('POST', '/api/admin/salary-calculation-preview', {
+        employeeId,
+        month,
+        year
+      });
+    },
+    onSuccess: (data) => {
+      setCalculationPreview(data);
+      setIsSalaryGenerationDialogOpen(false);
+      setIsConfirmationDialogOpen(true);
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error', 
+        description: error.message || 'Failed to fetch salary calculation preview',
+        variant: 'destructive' 
+      });
+    },
+  });
+
   // Generate salary mutation
   const generateSalaryMutation = useMutation({
     mutationFn: async ({ employeeId, month, year }: { employeeId: number; month: string; year: string }) => {
@@ -621,10 +646,11 @@ export default function PayrollManagementNew() {
     },
     onSuccess: () => {
       toast({ title: 'Success', description: 'Salary generated successfully' });
-      setIsSalaryGenerationDialogOpen(false);
+      setIsConfirmationDialogOpen(false);
       setSelectedEmployeeForSalary(null);
       setSelectedMonth('');
       setSelectedYear('');
+      setCalculationPreview(null);
     },
     onError: (error: any) => {
       toast({ 
@@ -924,6 +950,187 @@ export default function PayrollManagementNew() {
                   <Button 
                     onClick={() => {
                       if (selectedEmployeeForSalary && selectedMonth && selectedYear) {
+                        fetchCalculationPreviewMutation.mutate({
+                          employeeId: selectedEmployeeForSalary.userId,
+                          month: selectedMonth,
+                          year: selectedYear
+                        });
+                      }
+                    }}
+                    disabled={!selectedMonth || !selectedYear || fetchCalculationPreviewMutation.isPending}
+                  >
+                    {fetchCalculationPreviewMutation.isPending ? 'Loading...' : 'Preview Calculation'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Salary Calculation Confirmation Dialog */}
+        <Dialog open={isConfirmationDialogOpen} onOpenChange={setIsConfirmationDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Salary Calculation Breakdown</DialogTitle>
+            </DialogHeader>
+            {calculationPreview && selectedEmployeeForSalary && (
+              <div className="space-y-6">
+                {/* Employee Information */}
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h3 className="font-medium text-blue-900 mb-2">Employee Details</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-blue-700">
+                        <strong>Name:</strong> {selectedEmployeeForSalary.firstName && selectedEmployeeForSalary.lastName 
+                          ? `${selectedEmployeeForSalary.firstName} ${selectedEmployeeForSalary.lastName}`
+                          : selectedEmployeeForSalary.username}
+                      </p>
+                      <p className="text-blue-700">
+                        <strong>Department:</strong> {selectedEmployeeForSalary.department || 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-blue-700">
+                        <strong>Period:</strong> {selectedMonth}/{selectedYear}
+                      </p>
+                      <p className="text-blue-700">
+                        <strong>Salary Type:</strong> {selectedEmployeeForSalary.salaryType}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Attendance Information */}
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <h3 className="font-medium text-yellow-900 mb-2">Attendance Summary</h3>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-yellow-700">
+                        <strong>Working Days:</strong> {calculationPreview.workingDays || 0}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-yellow-700">
+                        <strong>Present Days:</strong> {calculationPreview.presentDays || 0}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-yellow-700">
+                        <strong>Paid Days:</strong> {calculationPreview.paidDays || 0}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Salary Breakdown */}
+                <div className="grid grid-cols-2 gap-6">
+                  {/* Earnings */}
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <h3 className="font-medium text-green-900 mb-3">Earnings</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Basic Salary:</span>
+                        <span className="font-medium">₹{parseFloat(calculationPreview.basicSalary || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>HRA:</span>
+                        <span className="font-medium">₹{parseFloat(calculationPreview.hra || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Conveyance:</span>
+                        <span className="font-medium">₹{parseFloat(calculationPreview.conveyanceAllowance || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>LTA:</span>
+                        <span className="font-medium">₹{parseFloat(calculationPreview.lta || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Special Allowance:</span>
+                        <span className="font-medium">₹{parseFloat(calculationPreview.specialAllowance || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Supplementary:</span>
+                        <span className="font-medium">₹{parseFloat(calculationPreview.supplementaryAllowance || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>KGP Allowance:</span>
+                        <span className="font-medium">₹{parseFloat(calculationPreview.kgpAllowance || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Bonus:</span>
+                        <span className="font-medium">₹{parseFloat(calculationPreview.bonus || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="font-medium">Gross Earnings:</span>
+                        <span className="font-bold text-green-600">₹{parseFloat(calculationPreview.grossEarnings || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Deductions */}
+                  <div className="bg-red-50 p-4 rounded-lg">
+                    <h3 className="font-medium text-red-900 mb-3">Deductions</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>PF:</span>
+                        <span className="font-medium">₹{parseFloat(calculationPreview.pf || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>ESIC:</span>
+                        <span className="font-medium">₹{parseFloat(calculationPreview.esic || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Professional Tax:</span>
+                        <span className="font-medium">₹{parseFloat(calculationPreview.professionalTax || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Group Insurance:</span>
+                        <span className="font-medium">₹{parseFloat(calculationPreview.groupInsurance || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="font-medium">Total Deductions:</span>
+                        <span className="font-bold text-red-600">₹{parseFloat(calculationPreview.totalDeductions || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Net Salary */}
+                <div className="bg-blue-100 p-4 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-bold text-blue-900">Net Salary</h3>
+                    <span className="text-2xl font-bold text-blue-600">
+                      ₹{parseFloat(calculationPreview.netSalary || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setIsConfirmationDialogOpen(false);
+                      setIsSalaryGenerationDialogOpen(true);
+                    }}
+                  >
+                    Back to Edit
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setIsConfirmationDialogOpen(false);
+                      setCalculationPreview(null);
+                      setSelectedEmployeeForSalary(null);
+                      setSelectedMonth('');
+                      setSelectedYear('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      if (selectedEmployeeForSalary && selectedMonth && selectedYear) {
                         generateSalaryMutation.mutate({
                           employeeId: selectedEmployeeForSalary.userId,
                           month: selectedMonth,
@@ -931,9 +1138,10 @@ export default function PayrollManagementNew() {
                         });
                       }
                     }}
-                    disabled={!selectedMonth || !selectedYear || generateSalaryMutation.isPending}
+                    disabled={generateSalaryMutation.isPending}
+                    className="bg-green-600 hover:bg-green-700"
                   >
-                    {generateSalaryMutation.isPending ? 'Generating...' : 'Generate Salary'}
+                    {generateSalaryMutation.isPending ? 'Generating...' : 'Generate & Download PDF'}
                   </Button>
                 </div>
               </div>
