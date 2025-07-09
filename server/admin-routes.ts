@@ -29,6 +29,7 @@ import { eq, and, desc, asc, gte, lte, sql, count } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { ensureAuthenticated } from './auth-middleware';
 import { salaryCalculationEngine } from './salary-calculation-engine';
+import { SalarySlipGenerator, numberToWords } from './salary-slip-generator';
 
 const router = express.Router();
 
@@ -1858,6 +1859,138 @@ router.post('/generate-salary', ensureAuthenticated, async (req: Request, res: R
       error: 'Failed to generate salary',
       message: error.message
     });
+  }
+});
+
+/**
+ * Generate salary slip PDF
+ */
+router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { payrollRecordId } = req.params;
+
+    // Get payroll record with employee details
+    const payrollRecord = await db
+      .select({
+        id: payrollRecords.id,
+        periodId: payrollRecords.periodId,
+        userId: payrollRecords.userId,
+        baseSalary: payrollRecords.baseSalary,
+        grossPay: payrollRecords.grossPay,
+        netPay: payrollRecords.netPay,
+        incomeTax: payrollRecords.incomeTax,
+        professionalTax: payrollRecords.professionalTax,
+        providentFund: payrollRecords.providentFund,
+        esic: payrollRecords.esic,
+        groupInsurance: payrollRecords.groupInsurance,
+        hra: payrollRecords.hra,
+        conveyanceAllowance: payrollRecords.conveyanceAllowance,
+        ltaAllowance: payrollRecords.ltaAllowance,
+        specialAllowance: payrollRecords.specialAllowance,
+        supplementaryAllowance: payrollRecords.supplementaryAllowance,
+        kgpAllowance: payrollRecords.kgpAllowance,
+        overtimePay: payrollRecords.overtimePay,
+        bonus: payrollRecords.bonus,
+        otherAllowances: payrollRecords.otherAllowances,
+        otherDeductions: payrollRecords.otherDeductions,
+        createdAt: payrollRecords.createdAt,
+        
+        // Employee details
+        employeeName: users.username,
+        employeeCode: users.employeeCode,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        jobTitle: users.jobTitle,
+        department: users.department,
+        
+        // Period details
+        periodName: payrollPeriods.periodName,
+        startDate: payrollPeriods.startDate,
+        endDate: payrollPeriods.endDate
+      })
+      .from(payrollRecords)
+      .innerJoin(users, eq(payrollRecords.userId, users.id))
+      .innerJoin(payrollPeriods, eq(payrollRecords.periodId, payrollPeriods.id))
+      .where(eq(payrollRecords.id, parseInt(payrollRecordId)))
+      .limit(1);
+
+    if (!payrollRecord.length) {
+      return res.status(404).json({ error: 'Payroll record not found' });
+    }
+
+    const record = payrollRecord[0];
+
+    // Get salary configuration for working days
+    const salaryConfig = await db
+      .select()
+      .from(employeeSalaries)
+      .where(eq(employeeSalaries.userId, record.userId))
+      .limit(1);
+
+    const workingDays = salaryConfig.length > 0 ? (salaryConfig[0].workingDaysPerMonth || 30) : 30;
+    const paidDays = salaryConfig.length > 0 ? (salaryConfig[0].paidDays || workingDays) : workingDays;
+
+    // Prepare salary slip data
+    const employeeFullName = record.firstName && record.lastName 
+      ? `${record.firstName} ${record.lastName}` 
+      : record.employeeName;
+
+    const salarySlipData = {
+      employee: {
+        name: employeeFullName,
+        employeeCode: record.employeeCode || 'N/A',
+        designation: record.jobTitle || 'N/A',
+        department: record.department || 'N/A',
+        joiningDate: 'N/A', // Would need to be added to users table
+        bankAccount: 'N/A', // Would need to be added to users table
+        panNumber: undefined,
+        uan: undefined
+      },
+      company: {
+        name: 'THERMOPAC',
+        address: 'B-20 TPEL Factory Area, Industrial Area, Phase II, Chandigarh - 160002'
+      },
+      period: {
+        month: record.periodName || new Date(record.startDate).toLocaleDateString('en-US', { month: 'long' }),
+        year: new Date(record.startDate).getFullYear(),
+        workingDays: workingDays,
+        paidDays: paidDays
+      },
+      earnings: {
+        basicSalary: parseFloat(record.baseSalary?.toString() || '0'),
+        hra: parseFloat(record.hra?.toString() || '0'),
+        conveyanceAllowance: parseFloat(record.conveyanceAllowance?.toString() || '0'),
+        ltaAllowance: parseFloat(record.ltaAllowance?.toString() || '0'),
+        specialAllowance: parseFloat(record.specialAllowance?.toString() || '0'),
+        supplementaryAllowance: parseFloat(record.supplementaryAllowance?.toString() || '0'),
+        kgpAllowance: parseFloat(record.kgpAllowance?.toString() || '0'),
+        overtimePay: parseFloat(record.overtimePay?.toString() || '0'),
+        bonus: parseFloat(record.bonus?.toString() || '0'),
+        otherAllowances: parseFloat(record.otherAllowances?.toString() || '0')
+      },
+      deductions: {
+        providentFund: parseFloat(record.providentFund?.toString() || '0'),
+        professionalTax: parseFloat(record.professionalTax?.toString() || '0'),
+        incomeTax: parseFloat(record.incomeTax?.toString() || '0'),
+        esic: parseFloat(record.esic?.toString() || '0'),
+        groupInsurance: parseFloat(record.groupInsurance?.toString() || '0'),
+        otherDeductions: parseFloat(record.otherDeductions?.toString() || '0')
+      },
+      totals: {
+        grossEarnings: parseFloat(record.grossPay?.toString() || '0'),
+        totalDeductions: parseFloat(record.grossPay?.toString() || '0') - parseFloat(record.netPay?.toString() || '0'),
+        netPay: parseFloat(record.netPay?.toString() || '0')
+      },
+      netPayInWords: numberToWords(parseFloat(record.netPay?.toString() || '0'))
+    };
+
+    // Generate and send PDF
+    const generator = new SalarySlipGenerator();
+    await generator.generateSalarySlip(salarySlipData, res);
+
+  } catch (error) {
+    console.error('Error generating salary slip:', error);
+    res.status(500).json({ error: 'Failed to generate salary slip' });
   }
 });
 

@@ -305,6 +305,7 @@ function GeneratedSalariesView() {
                 <th className="text-left p-4">Deductions</th>
                 <th className="text-left p-4">Net Salary</th>
                 <th className="text-left p-4">Generated On</th>
+                <th className="text-left p-4">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -333,6 +334,16 @@ function GeneratedSalariesView() {
                   </td>
                   <td className="p-4">
                     {new Date(record.createdAt).toLocaleDateString('en-IN')}
+                  </td>
+                  <td className="p-4">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleDownloadSalarySlip(record.id)}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      Download Slip
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -623,6 +634,12 @@ export default function PayrollManagementNew() {
     setSelectedMonth('12'); // Default to December
     setSelectedYear('2024'); // Default to 2024
     setIsSalaryGenerationDialogOpen(true);
+  };
+
+  const handleDownloadSalarySlip = (payrollRecordId: number) => {
+    // Open the PDF in a new window/tab
+    const url = `/api/admin/salary-slip/${payrollRecordId}`;
+    window.open(url, '_blank');
   };
 
   return (
