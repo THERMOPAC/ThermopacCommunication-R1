@@ -140,6 +140,14 @@ function PasswordManagementPage() {
   );
 }
 
+function VisaManagementWrapper() {
+  return (
+    <Layout>
+      <VisaManagementPage />
+    </Layout>
+  );
+}
+
 function Router() {
   return (
     <Switch>
@@ -211,7 +219,7 @@ function Router() {
       <ProtectedRoute path="/admin/workweek-policy-management" component={WorkweekPolicyManagementPage} />
       <ProtectedRoute path="/admin/business-trips" component={BusinessTripManagementPage} />
       <ProtectedRoute path="/admin/business-trip-management" component={BusinessTripManagementPage} />
-      <ProtectedRoute path="/admin/visa-management" component={VisaManagementPage} />
+      <ProtectedRoute path="/admin/visa-management" component={VisaManagementWrapper} />
       
       <ProtectedRoute path="/project-dashboard" component={ProjectDashboardPage} />
       <ProtectedRoute path="/projects" component={ProjectsPage} />
