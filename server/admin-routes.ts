@@ -28,6 +28,7 @@ import {
 import { eq, and, desc, asc, gte, lte, sql, count } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { ensureAuthenticated } from './auth-middleware';
+import { salaryCalculationEngine } from './salary-calculation-engine';
 
 const router = express.Router();
 
@@ -1709,6 +1710,67 @@ router.get('/work-locations', ensureAuthenticated, async (req: Request, res: Res
   } catch (error) {
     console.error('Error fetching work locations:', error);
     res.status(500).json({ error: 'Failed to fetch work locations' });
+  }
+});
+
+/**
+ * Generate salary for an employee
+ */
+router.post('/generate-salary', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { employeeId, month, year } = req.body;
+    
+    // Validate required fields
+    if (!employeeId || !month || !year) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: employeeId, month, year'
+      });
+    }
+    
+    // Convert month and year to numbers
+    const monthNum = parseInt(month);
+    const yearNum = parseInt(year);
+    
+    // Validate month and year ranges
+    if (monthNum < 1 || monthNum > 12) {
+      return res.status(400).json({
+        success: false,
+        error: 'Month must be between 1 and 12'
+      });
+    }
+    
+    if (yearNum < 2000 || yearNum > 2100) {
+      return res.status(400).json({
+        success: false,
+        error: 'Year must be between 2000 and 2100'
+      });
+    }
+    
+    console.log(`💰 Generating salary for employee ${employeeId}, ${month}/${year}`);
+    
+    // Use the salary calculation engine to generate salary
+    const salaryInput = {
+      userId: parseInt(employeeId),
+      month: monthNum,
+      year: yearNum
+    };
+    
+    const result = await salaryCalculationEngine.calculateSalary(salaryInput);
+    
+    res.json({
+      success: true,
+      message: 'Salary generated successfully',
+      data: result
+    });
+    
+  } catch (error: any) {
+    console.error('❌ Error generating salary:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate salary',
+      message: error.message
+    });
   }
 });
 

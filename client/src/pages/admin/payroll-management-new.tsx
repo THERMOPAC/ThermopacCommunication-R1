@@ -262,8 +262,12 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUser
 export default function PayrollManagementNew() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<SalaryConfig | null>(null);
+  const [selectedEmployeeForSalary, setSelectedEmployeeForSalary] = useState<SalaryConfig | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isSalaryGenerationDialogOpen, setIsSalaryGenerationDialogOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -504,6 +508,38 @@ export default function PayrollManagementNew() {
     }
   };
 
+  // Generate salary mutation
+  const generateSalaryMutation = useMutation({
+    mutationFn: async ({ employeeId, month, year }: { employeeId: number; month: string; year: string }) => {
+      return await apiRequest('POST', '/api/admin/generate-salary', {
+        employeeId,
+        month,
+        year
+      });
+    },
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Salary generated successfully' });
+      setIsSalaryGenerationDialogOpen(false);
+      setSelectedEmployeeForSalary(null);
+      setSelectedMonth('');
+      setSelectedYear('');
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error', 
+        description: error.message || 'Failed to generate salary',
+        variant: 'destructive' 
+      });
+    },
+  });
+
+  const handleGenerateSalary = (config: SalaryConfig) => {
+    setSelectedEmployeeForSalary(config);
+    setSelectedMonth('12'); // Default to December
+    setSelectedYear('2024'); // Default to 2024
+    setIsSalaryGenerationDialogOpen(true);
+  };
+
   return (
     <Layout>
       <Helmet>
@@ -641,6 +677,14 @@ export default function PayrollManagementNew() {
                             <Button
                               variant="outline"
                               size="sm"
+                              onClick={() => handleGenerateSalary(config)}
+                              title="Generate Salary"
+                            >
+                              <Calculator className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={() => handleEdit(config)}
                             >
                               <Edit className="h-4 w-4" />
@@ -681,6 +725,93 @@ export default function PayrollManagementNew() {
                 })}
                 isLoading={updateSalaryMutation.isPending}
               />
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Salary Generation Dialog */}
+        <Dialog open={isSalaryGenerationDialogOpen} onOpenChange={setIsSalaryGenerationDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Generate Salary</DialogTitle>
+            </DialogHeader>
+            {selectedEmployeeForSalary && (
+              <div className="space-y-6">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h3 className="font-medium text-blue-900">Employee Details</h3>
+                  <p className="text-sm text-blue-700 mt-1">
+                    {selectedEmployeeForSalary.firstName && selectedEmployeeForSalary.lastName 
+                      ? `${selectedEmployeeForSalary.firstName} ${selectedEmployeeForSalary.lastName}`
+                      : selectedEmployeeForSalary.username
+                    }
+                  </p>
+                  <p className="text-sm text-blue-600">
+                    Basic Salary: ₹{parseFloat(selectedEmployeeForSalary.basicSalary).toLocaleString('en-IN')}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="month">Month</Label>
+                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="01">January</SelectItem>
+                        <SelectItem value="02">February</SelectItem>
+                        <SelectItem value="03">March</SelectItem>
+                        <SelectItem value="04">April</SelectItem>
+                        <SelectItem value="05">May</SelectItem>
+                        <SelectItem value="06">June</SelectItem>
+                        <SelectItem value="07">July</SelectItem>
+                        <SelectItem value="08">August</SelectItem>
+                        <SelectItem value="09">September</SelectItem>
+                        <SelectItem value="10">October</SelectItem>
+                        <SelectItem value="11">November</SelectItem>
+                        <SelectItem value="12">December</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="year">Year</Label>
+                    <Select value={selectedYear} onValueChange={setSelectedYear}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="2024">2024</SelectItem>
+                        <SelectItem value="2025">2025</SelectItem>
+                        <SelectItem value="2026">2026</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setIsSalaryGenerationDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      if (selectedEmployeeForSalary && selectedMonth && selectedYear) {
+                        generateSalaryMutation.mutate({
+                          employeeId: selectedEmployeeForSalary.userId,
+                          month: selectedMonth,
+                          year: selectedYear
+                        });
+                      }
+                    }}
+                    disabled={!selectedMonth || !selectedYear || generateSalaryMutation.isPending}
+                  >
+                    {generateSalaryMutation.isPending ? 'Generating...' : 'Generate Salary'}
+                  </Button>
+                </div>
+              </div>
             )}
           </DialogContent>
         </Dialog>
