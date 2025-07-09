@@ -594,9 +594,7 @@ router.get('/attendance/stats', ensureAuthenticated, async (req: Request, res: R
     }
 
     // Get total active employees (filtered)
-    const totalEmployeesQuery = employee !== 'all' 
-      ? `SELECT * FROM users WHERE ${userFilter}`
-      : `SELECT * FROM users WHERE ${userFilter}`;
+    const totalEmployeesQuery = `SELECT * FROM users WHERE ${userFilter}`;
     const totalEmployees = await db.execute(totalEmployeesQuery);
     
     // Get attendance records for the date range (filtered)
@@ -638,7 +636,7 @@ router.get('/attendance/stats', ensureAuthenticated, async (req: Request, res: R
 
       const presentUserIds = new Set(Array.isArray(todayRecords) ? todayRecords.map((r: any) => r.user_id) : []);
       stats.presentToday = presentUserIds.size;
-      stats.absentToday = totalEmployeeCount - stats.presentToday;
+      stats.absentToday = Math.max(0, totalEmployeeCount - stats.presentToday);
       
       // Count late arrivals (after 9:30 AM)
       stats.lateToday = Array.isArray(todayRecords) ? todayRecords.filter((r: any) => {
