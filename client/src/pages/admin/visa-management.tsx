@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -51,6 +51,10 @@ interface Employee {
   username: string;
   department?: string;
   email: string;
+  role?: string;
+  firstName?: string;
+  lastName?: string;
+  employeeCode?: string;
 }
 
 interface VisaOptions {
@@ -106,6 +110,43 @@ export default function VisaManagement() {
     queryKey: ['/api/visa/options'],
     queryFn: () => apiRequest('GET', '/api/visa/options'),
   });
+
+  // Group employees by role with proper ordering and sorting
+  const groupedEmployees = useMemo(() => {
+    const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Employee'];
+    
+    // Group employees by role
+    const groups = employees.reduce((groups, employee) => {
+      const role = employee.role || 'Employee';
+      if (!groups[role]) {
+        groups[role] = [];
+      }
+      groups[role].push(employee);
+      return groups;
+    }, {} as Record<string, Employee[]>);
+
+    // Sort each role group alphabetically by username
+    Object.keys(groups).forEach(role => {
+      groups[role].sort((a, b) => a.username.localeCompare(b.username));
+    });
+
+    // Return roles in order, filtering out empty groups
+    const orderedGroups: Record<string, Employee[]> = {};
+    roleOrder.forEach(role => {
+      if (groups[role] && groups[role].length > 0) {
+        orderedGroups[role] = groups[role];
+      }
+    });
+
+    // Add any roles not in roleOrder
+    Object.keys(groups).forEach(role => {
+      if (!roleOrder.includes(role) && groups[role].length > 0) {
+        orderedGroups[role] = groups[role];
+      }
+    });
+
+    return orderedGroups;
+  }, [employees]);
 
   // Form for adding/editing visa records
   const form = useForm<InsertVisaRecord>({
@@ -286,11 +327,33 @@ export default function VisaManagement() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {employees.map((emp) => (
-                              <SelectItem key={emp.id} value={emp.id.toString()}>
-                                {emp.username} {emp.department && `(${emp.department})`}
+                            {Object.keys(groupedEmployees).length > 0 ? (
+                              Object.entries(groupedEmployees).map(([role, roleEmployees]) => (
+                                <SelectGroup key={role}>
+                                  <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400 py-2">
+                                    {role === 'Superuser' ? 'Superusers' :
+                                     role === 'General Manager' ? 'General Managers' :
+                                     role === 'Senior Manager' ? 'Senior Managers' :
+                                     role === 'Manager' ? 'Managers' :
+                                     role === 'Employee' ? 'Employees' : `${role}s`}
+                                  </SelectLabel>
+                                  {roleEmployees.map((emp) => (
+                                    <SelectItem key={emp.id} value={emp.id.toString()}>
+                                      {emp.firstName && emp.lastName 
+                                        ? `${emp.firstName} ${emp.lastName} (${emp.username})`
+                                        : emp.username
+                                      }
+                                      {emp.employeeCode && ` - ${emp.employeeCode}`}
+                                      {emp.department && ` (${emp.department})`}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              ))
+                            ) : (
+                              <SelectItem value="no-employees" disabled>
+                                No available employees
                               </SelectItem>
-                            ))}
+                            )}
                           </SelectContent>
                         </Select>
                         <FormMessage />

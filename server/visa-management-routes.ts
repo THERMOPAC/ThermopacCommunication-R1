@@ -402,11 +402,15 @@ export const getEmployeesForVisas = async (req: Request, res: Response) => {
         id: users.id,
         username: users.username,
         department: users.department,
-        email: users.email
+        email: users.email,
+        role: users.role,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        employeeCode: users.employeeCode
       })
       .from(users)
       .where(eq(users.isActive, true))
-      .orderBy(users.username);
+      .orderBy(users.role, users.username);
 
     res.json(employees);
   } catch (error) {
