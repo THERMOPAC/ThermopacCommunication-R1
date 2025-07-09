@@ -125,25 +125,25 @@ export default function WorkweekPolicyManagementPage() {
   // Fetch workweek policies
   const { data: policies = [], isLoading: policiesLoading } = useQuery({
     queryKey: ['/api/admin/workweek-policies'],
-    queryFn: () => apiRequest('/api/admin/workweek-policies')
+    queryFn: () => apiRequest('GET', '/api/admin/workweek-policies')
   });
 
   // Fetch work locations
   const { data: locations = [], isLoading: locationsLoading } = useQuery({
     queryKey: ['/api/admin/work-locations'],
-    queryFn: () => apiRequest('/api/admin/work-locations')
+    queryFn: () => apiRequest('GET', '/api/admin/work-locations')
   });
 
   // Fetch employee assignments
   const { data: assignments = [], isLoading: assignmentsLoading } = useQuery({
     queryKey: ['/api/admin/employee-workweek-assignments'],
-    queryFn: () => apiRequest('/api/admin/employee-workweek-assignments')
+    queryFn: () => apiRequest('GET', '/api/admin/employee-workweek-assignments')
   });
 
   // Create policy mutation
   const createPolicyMutation = useMutation({
     mutationFn: (data: WorkweekPolicyForm) => 
-      apiRequest('/api/admin/workweek-policies', 'POST', data),
+      apiRequest('POST', '/api/admin/workweek-policies', data),
     onSuccess: () => {
       toast({ title: 'Success', description: 'Workweek policy created successfully' });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/workweek-policies'] });
@@ -161,7 +161,7 @@ export default function WorkweekPolicyManagementPage() {
   // Update policy mutation
   const updatePolicyMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<WorkweekPolicyForm> }) => 
-      apiRequest(`/api/admin/workweek-policies/${id}`, 'PUT', data),
+      apiRequest('PUT', `/api/admin/workweek-policies/${id}`, data),
     onSuccess: () => {
       toast({ title: 'Success', description: 'Workweek policy updated successfully' });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/workweek-policies'] });
@@ -179,7 +179,7 @@ export default function WorkweekPolicyManagementPage() {
 
   // Delete policy mutation
   const deletePolicyMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/admin/workweek-policies/${id}`, 'DELETE'),
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/admin/workweek-policies/${id}`),
     onSuccess: () => {
       toast({ title: 'Success', description: 'Workweek policy deleted successfully' });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/workweek-policies'] });
