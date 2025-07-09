@@ -154,7 +154,7 @@ function Layout({ children }: LayoutProps) {
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
     { icon: Repeat, label: "Recurring Tasks", href: "/recurring-tasks" },
-    ...(user?.role === "Superuser" || user?.role === "General Manager" ? [{ 
+    ...(hasViewPermission("Administration") ? [{ 
       icon: Settings, 
       label: "Administration", 
       isSubmenu: true,
