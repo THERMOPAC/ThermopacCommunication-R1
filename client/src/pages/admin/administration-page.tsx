@@ -198,6 +198,11 @@ export default function AdministrationPage() {
           </TabsContent>
 
           <TabsContent value="modules" className="space-y-4">
+            <div className="mb-4">
+              <p className="text-sm text-muted-foreground">
+                Available administration modules ({moduleCards.length} total):
+              </p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {moduleCards.map((module) => {
                 const IconComponent = module.icon;

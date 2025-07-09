@@ -42,7 +42,8 @@ import {
   PieChart,
   DollarSign,
   Palette,
-  FileText
+  FileText,
+  Plane
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -166,6 +167,7 @@ function Layout({ children }: LayoutProps) {
         { icon: CalendarClock, label: "Attendance Management", href: "/admin/attendance" },
         { icon: Calendar, label: "Leave Management", href: "/admin/leave" },
         { icon: IndianRupee, label: "Payroll Management", href: "/admin/payroll" },
+        { icon: Plane, label: "Business Trip Management", href: "/admin/business-trips" },
         { icon: Calendar, label: "Workweek Policy Management", href: "/admin/workweek-policies" },
         { icon: Shield, label: "Module Permissions", href: "/module-permissions" }
       ]
