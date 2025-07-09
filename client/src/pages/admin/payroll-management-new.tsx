@@ -1030,39 +1030,39 @@ export default function PayrollManagementNew() {
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span>Basic Salary:</span>
-                        <span className="font-medium">₹{parseFloat(calculationPreview.data?.grossBasic || calculationPreview.data?.basicSalary || 0).toLocaleString('en-IN')}</span>
+                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.grossBasic || calculationPreview.data?.basicSalary || 0)).toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>HRA:</span>
-                        <span className="font-medium">₹{parseFloat(calculationPreview.data?.houseRentAllowance || 0).toLocaleString('en-IN')}</span>
+                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.houseRentAllowance || 0)).toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Conveyance:</span>
-                        <span className="font-medium">₹{parseFloat(calculationPreview.data?.conveyanceAllowance || 0).toLocaleString('en-IN')}</span>
+                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.conveyanceAllowance || 0)).toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>LTA:</span>
-                        <span className="font-medium">₹{parseFloat(calculationPreview.data?.ltaAllowance || 0).toLocaleString('en-IN')}</span>
+                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.ltaAllowance || 0)).toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Special Allowance:</span>
-                        <span className="font-medium">₹{parseFloat(calculationPreview.data?.specialAllowance || 0).toLocaleString('en-IN')}</span>
+                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.specialAllowance || 0)).toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Supplementary:</span>
-                        <span className="font-medium">₹{parseFloat(calculationPreview.data?.supplementaryAllowance || 0).toLocaleString('en-IN')}</span>
+                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.supplementaryAllowance || 0)).toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>KGP Allowance:</span>
-                        <span className="font-medium">₹{parseFloat(calculationPreview.data?.kgpAllowance || 0).toLocaleString('en-IN')}</span>
+                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.kgpAllowance || 0)).toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Bonus:</span>
-                        <span className="font-medium">₹{parseFloat(calculationPreview.data?.bonus || 0).toLocaleString('en-IN')}</span>
+                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.bonus || 0)).toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between border-t pt-2">
                         <span className="font-medium">Gross Earnings:</span>
-                        <span className="font-bold text-green-600">₹{parseFloat(calculationPreview.data?.grossEarnings || 0).toLocaleString('en-IN')}</span>
+                        <span className="font-bold text-green-600">₹{Math.round(parseFloat(calculationPreview.data?.grossEarnings || 0)).toLocaleString('en-IN')}</span>
                       </div>
                     </div>
                   </div>
@@ -1073,23 +1073,23 @@ export default function PayrollManagementNew() {
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span>PF:</span>
-                        <span className="font-medium">₹{parseFloat(calculationPreview.data?.employeePF || 0).toLocaleString('en-IN')}</span>
+                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.employeePF || 0)).toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>ESIC:</span>
-                        <span className="font-medium">₹{parseFloat(calculationPreview.data?.employeeESIC || 0).toLocaleString('en-IN')}</span>
+                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.employeeESIC || 0)).toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Professional Tax:</span>
-                        <span className="font-medium">₹{parseFloat(calculationPreview.data?.professionalTax || 0).toLocaleString('en-IN')}</span>
+                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.professionalTax || 0)).toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Group Insurance:</span>
-                        <span className="font-medium">₹{parseFloat(calculationPreview.data?.groupInsurance || 0).toLocaleString('en-IN')}</span>
+                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.groupInsurance || 0)).toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between border-t pt-2">
                         <span className="font-medium">Total Deductions:</span>
-                        <span className="font-bold text-red-600">₹{parseFloat(calculationPreview.data?.totalDeductions || 0).toLocaleString('en-IN')}</span>
+                        <span className="font-bold text-red-600">₹{Math.round(parseFloat(calculationPreview.data?.totalDeductions || 0)).toLocaleString('en-IN')}</span>
                       </div>
                     </div>
                   </div>
@@ -1100,7 +1100,7 @@ export default function PayrollManagementNew() {
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-bold text-blue-900">Net Salary</h3>
                     <span className="text-2xl font-bold text-blue-600">
-                      ₹{parseFloat(calculationPreview.data?.netPay || 0).toLocaleString('en-IN')}
+                      ₹{Math.round(parseFloat(calculationPreview.data?.netPay || 0)).toLocaleString('en-IN')}
                     </span>
                   </div>
                 </div>

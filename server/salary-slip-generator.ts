@@ -216,7 +216,7 @@ export class SalarySlipGenerator {
     earnings.forEach(([label, amount], index) => {
       if (amount > 0) {
         this.doc.text(label, this.margin, currentY);
-        this.doc.text(amount.toLocaleString('en-IN', { minimumFractionDigits: 2 }), 
+        this.doc.text(Math.round(amount).toLocaleString('en-IN'), 
                      this.margin + columnWidth * 1.5, currentY, { align: 'right', width: columnWidth });
         currentY += 18;
       }
@@ -227,7 +227,7 @@ export class SalarySlipGenerator {
     deductions.forEach(([label, amount], index) => {
       if (amount > 0) {
         this.doc.text(label, this.margin + columnWidth * 2.5, deductionY);
-        this.doc.text(amount.toLocaleString('en-IN', { minimumFractionDigits: 2 }), 
+        this.doc.text(Math.round(amount).toLocaleString('en-IN'), 
                      this.margin + columnWidth * 3.5, deductionY, { align: 'right', width: columnWidth });
         deductionY += 18;
       }
@@ -242,11 +242,11 @@ export class SalarySlipGenerator {
 
     this.doc.fontSize(11).font('Helvetica-Bold');
     this.doc.text('GROSS EARNINGS', this.margin, totalsY + 10);
-    this.doc.text(data.totals.grossEarnings.toLocaleString('en-IN', { minimumFractionDigits: 2 }), 
+    this.doc.text(Math.round(data.totals.grossEarnings).toLocaleString('en-IN'), 
                  this.margin + columnWidth * 1.5, totalsY + 10, { align: 'right', width: columnWidth });
 
     this.doc.text('TOTAL DEDUCTIONS', this.margin + columnWidth * 2.5, totalsY + 10);
-    this.doc.text(data.totals.totalDeductions.toLocaleString('en-IN', { minimumFractionDigits: 2 }), 
+    this.doc.text(Math.round(data.totals.totalDeductions).toLocaleString('en-IN'), 
                  this.margin + columnWidth * 3.5, totalsY + 10, { align: 'right', width: columnWidth });
 
     // Net Pay
@@ -256,7 +256,7 @@ export class SalarySlipGenerator {
 
     this.doc.fontSize(12).font('Helvetica-Bold');
     this.doc.text('NET PAY', this.margin, totalsY + 45);
-    this.doc.text(data.totals.netPay.toLocaleString('en-IN', { minimumFractionDigits: 2 }), 
+    this.doc.text(Math.round(data.totals.netPay).toLocaleString('en-IN'), 
                  this.margin + columnWidth * 3.5, totalsY + 45, { align: 'right', width: columnWidth });
 
     // Net pay in words

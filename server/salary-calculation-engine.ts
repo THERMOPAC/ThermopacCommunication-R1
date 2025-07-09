@@ -498,42 +498,42 @@ export class SalaryCalculationEngine {
       totalWorkingHours: attendanceData.totalWorkingHours,
       overtimeHours: input.overtimeHours || attendanceData.overtimeHours,
       
-      // Earnings
-      basicSalary,
-      grossBasic,
-      houseRentAllowance,
-      conveyanceAllowance,
-      ltaAllowance,
-      specialAllowance,
-      supplementaryAllowance,
-      kgpAllowance,
-      bonus,
-      overtimePay,
-      grossEarnings,
+      // Earnings (rounded to nearest whole number)
+      basicSalary: Math.round(basicSalary),
+      grossBasic: Math.round(grossBasic),
+      houseRentAllowance: Math.round(houseRentAllowance),
+      conveyanceAllowance: Math.round(conveyanceAllowance),
+      ltaAllowance: Math.round(ltaAllowance),
+      specialAllowance: Math.round(specialAllowance),
+      supplementaryAllowance: Math.round(supplementaryAllowance),
+      kgpAllowance: Math.round(kgpAllowance),
+      bonus: Math.round(bonus),
+      overtimePay: Math.round(overtimePay),
+      grossEarnings: Math.round(grossEarnings),
       
-      // Deductions
-      employeePF,
-      employeeESIC,
-      professionalTax,
-      loanDeduction,
-      advanceDeduction,
-      otherDeductions,
-      leaveWithoutPayDeduction,
-      totalDeductions,
+      // Deductions (rounded to nearest whole number)
+      employeePF: Math.round(employeePF),
+      employeeESIC: Math.round(employeeESIC),
+      professionalTax: Math.round(professionalTax),
+      loanDeduction: Math.round(loanDeduction),
+      advanceDeduction: Math.round(advanceDeduction),
+      otherDeductions: Math.round(otherDeductions),
+      leaveWithoutPayDeduction: Math.round(leaveWithoutPayDeduction),
+      totalDeductions: Math.round(totalDeductions),
       
-      // Net Pay
-      netPay,
+      // Net Pay (rounded to nearest whole number)
+      netPay: Math.round(netPay),
       
-      // Employer Contributions
-      employerPF,
-      employerESIC,
-      gratuity,
-      groupInsurance,
-      totalEmployerContributions,
+      // Employer Contributions (rounded to nearest whole number)
+      employerPF: Math.round(employerPF),
+      employerESIC: Math.round(employerESIC),
+      gratuity: Math.round(gratuity),
+      groupInsurance: Math.round(groupInsurance),
+      totalEmployerContributions: Math.round(totalEmployerContributions),
       
-      // CTC
-      ctcMonthly,
-      ctcYearly,
+      // CTC (rounded to nearest whole number)
+      ctcMonthly: Math.round(ctcMonthly),
+      ctcYearly: Math.round(ctcYearly),
       
       // Leave Balance
       leaveBalance,

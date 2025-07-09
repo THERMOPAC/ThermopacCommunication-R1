@@ -2091,31 +2091,31 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         paidDays: paidDays
       },
       earnings: {
-        basicSalary: parseFloat(record.baseSalary?.toString() || '0'),
-        hra: parseFloat(record.hra?.toString() || '0'),
-        conveyanceAllowance: parseFloat(record.conveyanceAllowance?.toString() || '0'),
-        ltaAllowance: parseFloat(record.ltaAllowance?.toString() || '0'),
-        specialAllowance: parseFloat(record.specialAllowance?.toString() || '0'),
-        supplementaryAllowance: parseFloat(record.supplementaryAllowance?.toString() || '0'),
-        kgpAllowance: parseFloat(record.kgpAllowance?.toString() || '0'),
-        overtimePay: parseFloat(record.overtimePay?.toString() || '0'),
-        bonus: parseFloat(record.bonus?.toString() || '0'),
-        otherAllowances: parseFloat(record.otherAllowances?.toString() || '0')
+        basicSalary: Math.round(parseFloat(record.baseSalary?.toString() || '0')),
+        hra: Math.round(parseFloat(record.hra?.toString() || '0')),
+        conveyanceAllowance: Math.round(parseFloat(record.conveyanceAllowance?.toString() || '0')),
+        ltaAllowance: Math.round(parseFloat(record.ltaAllowance?.toString() || '0')),
+        specialAllowance: Math.round(parseFloat(record.specialAllowance?.toString() || '0')),
+        supplementaryAllowance: Math.round(parseFloat(record.supplementaryAllowance?.toString() || '0')),
+        kgpAllowance: Math.round(parseFloat(record.kgpAllowance?.toString() || '0')),
+        overtimePay: Math.round(parseFloat(record.overtimePay?.toString() || '0')),
+        bonus: Math.round(parseFloat(record.bonus?.toString() || '0')),
+        otherAllowances: Math.round(parseFloat(record.otherAllowances?.toString() || '0'))
       },
       deductions: {
-        providentFund: parseFloat(record.providentFund?.toString() || '0'),
-        professionalTax: parseFloat(record.professionalTax?.toString() || '0'),
-        incomeTax: parseFloat(record.incomeTax?.toString() || '0'),
-        esic: parseFloat(record.esic?.toString() || '0'),
-        groupInsurance: parseFloat(record.groupInsurance?.toString() || '0'),
-        otherDeductions: parseFloat(record.otherDeductions?.toString() || '0')
+        providentFund: Math.round(parseFloat(record.providentFund?.toString() || '0')),
+        professionalTax: Math.round(parseFloat(record.professionalTax?.toString() || '0')),
+        incomeTax: Math.round(parseFloat(record.incomeTax?.toString() || '0')),
+        esic: Math.round(parseFloat(record.esic?.toString() || '0')),
+        groupInsurance: Math.round(parseFloat(record.groupInsurance?.toString() || '0')),
+        otherDeductions: Math.round(parseFloat(record.otherDeductions?.toString() || '0'))
       },
       totals: {
-        grossEarnings: parseFloat(record.grossPay?.toString() || '0'),
-        totalDeductions: parseFloat(record.grossPay?.toString() || '0') - parseFloat(record.netPay?.toString() || '0'),
-        netPay: parseFloat(record.netPay?.toString() || '0')
+        grossEarnings: Math.round(parseFloat(record.grossPay?.toString() || '0')),
+        totalDeductions: Math.round(parseFloat(record.grossPay?.toString() || '0') - parseFloat(record.netPay?.toString() || '0')),
+        netPay: Math.round(parseFloat(record.netPay?.toString() || '0'))
       },
-      netPayInWords: numberToWords(parseFloat(record.netPay?.toString() || '0'))
+      netPayInWords: numberToWords(Math.round(parseFloat(record.netPay?.toString() || '0')))
     };
 
     // Generate and send PDF
