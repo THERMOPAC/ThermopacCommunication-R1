@@ -122,6 +122,8 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUser
         special: 0,
         supplementary: 0,
         groupInsurance: groupInsuranceAmount,
+        bonus: 0,
+        kgpAllowance: kgp, // Still return KGP value even when basicAmount is 0
       };
     }
 
@@ -572,6 +574,8 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
   // Get selected user role for KGP calculation
   const selectedUser = users.find(u => u.id === watchedValues.userId);
   const selectedUserRole = selectedUser?.role;
+  
+
   
   const calculations = useSalaryCalculations(watchedValues, selectedUserRole);
 
