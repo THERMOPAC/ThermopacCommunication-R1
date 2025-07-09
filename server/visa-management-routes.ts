@@ -73,7 +73,7 @@ export const getVisaDashboard = async (req: Request, res: Response) => {
         visaType: visaRecords.visaType,
         expiryDate: visaRecords.expiryDate,
         status: visaRecords.status,
-        daysToExpiry: sql<number>`DATE_PART('day', ${visaRecords.expiryDate} - CURRENT_DATE)`
+        daysToExpiry: sql<number>`(${visaRecords.expiryDate}::date - CURRENT_DATE)`
       })
       .from(visaRecords)
       .leftJoin(users, eq(visaRecords.employeeId, users.id))
@@ -148,7 +148,7 @@ export const getVisaRecords = async (req: Request, res: Response) => {
         notes: visaRecords.notes,
         createdAt: visaRecords.createdAt,
         createdByName: sql<string>`creator.username`,
-        daysToExpiry: sql<number>`DATE_PART('day', ${visaRecords.expiryDate} - CURRENT_DATE)`
+        daysToExpiry: sql<number>`(${visaRecords.expiryDate}::date - CURRENT_DATE)`
       })
       .from(visaRecords)
       .leftJoin(users, eq(visaRecords.employeeId, users.id))

@@ -62,25 +62,35 @@ export default function VisaManagement() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingRecord, setEditingRecord] = useState<VisaRecord | null>(null);
   const [filters, setFilters] = useState({
-    country: '',
-    visaType: '',
-    status: '',
-    employeeId: ''
+    country: 'all',
+    visaType: 'all',
+    status: 'all',
+    employeeId: 'all'
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Create filtered parameters (exclude 'all' values)
+  const getFilterParams = () => {
+    const params: Record<string, string> = {};
+    if (filters.country && filters.country !== 'all') params.country = filters.country;
+    if (filters.visaType && filters.visaType !== 'all') params.visaType = filters.visaType;
+    if (filters.status && filters.status !== 'all') params.status = filters.status;
+    if (filters.employeeId && filters.employeeId !== 'all') params.employeeId = filters.employeeId;
+    return params;
+  };
+
   // Fetch dashboard data
   const { data: dashboardData, isLoading: dashboardLoading } = useQuery<DashboardData>({
     queryKey: ['/api/visa/dashboard', filters],
-    queryFn: () => apiRequest('GET', '/api/visa/dashboard', undefined, filters),
+    queryFn: () => apiRequest('GET', '/api/visa/dashboard', undefined, getFilterParams()),
   });
 
   // Fetch visa records
   const { data: visaRecords = [], isLoading: recordsLoading } = useQuery<VisaRecord[]>({
     queryKey: ['/api/visa/records', filters],
-    queryFn: () => apiRequest('GET', '/api/visa/records', undefined, filters),
+    queryFn: () => apiRequest('GET', '/api/visa/records', undefined, getFilterParams()),
   });
 
   // Fetch employees for dropdown
@@ -462,7 +472,7 @@ export default function VisaManagement() {
                 <SelectValue placeholder="All Countries" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Countries</SelectItem>
+                <SelectItem value="all">All Countries</SelectItem>
                 {visaOptions?.countries.map((country) => (
                   <SelectItem key={country} value={country}>
                     {country}
@@ -475,7 +485,7 @@ export default function VisaManagement() {
                 <SelectValue placeholder="All Visa Types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Visa Types</SelectItem>
+                <SelectItem value="all">All Visa Types</SelectItem>
                 {visaOptions?.visaTypes.map((type) => (
                   <SelectItem key={type} value={type}>
                     {type}
@@ -488,7 +498,7 @@ export default function VisaManagement() {
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="Active">Active</SelectItem>
                 <SelectItem value="Expiring Soon">Expiring Soon</SelectItem>
                 <SelectItem value="Expired">Expired</SelectItem>
@@ -500,7 +510,7 @@ export default function VisaManagement() {
                 <SelectValue placeholder="All Employees" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Employees</SelectItem>
+                <SelectItem value="all">All Employees</SelectItem>
                 {employees.map((emp) => (
                   <SelectItem key={emp.id} value={emp.id.toString()}>
                     {emp.username}
@@ -523,7 +533,7 @@ export default function VisaManagement() {
         <CardContent>
           {recordsLoading ? (
             <div className="text-center py-8">Loading visa records...</div>
-          ) : visaRecords.length === 0 ? (
+          ) : !Array.isArray(visaRecords) || visaRecords.length === 0 ? (
             <div className="text-center py-8 text-gray-500">No visa records found</div>
           ) : (
             <div className="overflow-x-auto">
