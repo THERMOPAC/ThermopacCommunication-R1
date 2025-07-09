@@ -32,6 +32,7 @@ const salaryFormSchema = z.object({
   otRate: z.string().default('1.0'),
   bonus: z.string().default('0'),
   kgpAllowance: z.string().default('0'),
+  groupInsurance: z.string().default('300'),
   workLocationId: z.number().optional(),
   remarks: z.string().optional(),
 });
@@ -65,6 +66,7 @@ interface SalaryConfig {
   otRate: string;
   bonus: string;
   kgpAllowance: string;
+  groupInsurance: string;
   workLocationId?: number;
   remarks?: string;
   salaryStartDate: string;
@@ -90,6 +92,7 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>) => {
     // Auto-calculate bonus as 8.33% of Basic Salary
     const bonus = basicAmount * 0.0833;
     const kgp = parseFloat(formData.kgpAllowance || '0');
+    const groupInsuranceAmount = parseFloat(formData.groupInsurance || '300');
 
     if (basicAmount <= 0) {
       return {
@@ -109,7 +112,7 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>) => {
         lta: 0,
         special: 0,
         supplementary: 0,
-        groupInsurance: 300,
+        groupInsurance: groupInsuranceAmount,
       };
     }
 
@@ -157,8 +160,7 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>) => {
     const takeHome = grossEarnings - employeePF - employeeESIC;
 
     // CTC calculations
-    const groupInsurance = 300;
-    const ctcMonthly = grossEarnings + employerPF + employerESIC + gratuity + groupInsurance;
+    const ctcMonthly = grossEarnings + employerPF + employerESIC + gratuity + groupInsuranceAmount;
     const ctcYearly = ctcMonthly * 12;
 
     return {
@@ -178,7 +180,7 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>) => {
       lta,
       special,
       supplementary,
-      groupInsurance,
+      groupInsurance: groupInsuranceAmount,
       bonus, // Auto-calculated bonus (8.33% of Basic Salary)
     };
   }, [formData]);
@@ -535,6 +537,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
       otRate: initialData.otRate,
       bonus: initialData.bonus,
       kgpAllowance: initialData.kgpAllowance,
+      groupInsurance: initialData.groupInsurance || '300',
       workLocationId: initialData.workLocationId,
       remarks: initialData.remarks || '',
     } : {
@@ -548,6 +551,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
       otRate: '1.0',
       bonus: '0',
       kgpAllowance: '0',
+      groupInsurance: '300',
       remarks: '',
     },
   });
@@ -838,6 +842,27 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
                 )}
               />
             </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              <FormField
+                control={form.control}
+                name="groupInsurance"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Group Insurance Cost</FormLabel>
+                    <FormControl>
+                      <Input 
+                        key="groupInsurance"
+                        placeholder="300" 
+                        autoComplete="off"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </TabsContent>
 
           <TabsContent value="allowances" className="space-y-4">
@@ -987,6 +1012,10 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
                   <div className="flex justify-between">
                     <span className="text-sm">Gratuity:</span>
                     <span className="font-medium">₹{calculations.gratuity.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Group Insurance:</span>
+                    <span className="font-medium">₹{calculations.groupInsurance.toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between font-semibold">
