@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -45,6 +45,7 @@ interface User {
   lastName?: string;
   department?: string;
   employeeCode?: string;
+  role?: string;
 }
 
 interface SalaryConfig {
@@ -208,6 +209,18 @@ export default function PayrollManagementNew() {
   const availableUsers = users.filter(user => 
     !salaryConfigs.some(config => config.userId === user.id)
   );
+
+  // Group users by role
+  const groupedUsers = useMemo(() => {
+    return availableUsers.reduce((groups, user) => {
+      const role = user.role || 'Other';
+      if (!groups[role]) {
+        groups[role] = [];
+      }
+      groups[role].push(user);
+      return groups;
+    }, {} as Record<string, User[]>);
+  }, [availableUsers]);
 
   // Filter configurations based on search
   const filteredConfigs = salaryConfigs.filter(config =>
@@ -555,15 +568,28 @@ function SalaryForm({ users, workLocations, initialData, onSubmit, isLoading }: 
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {users.map((user) => (
-                            <SelectItem key={user.id} value={user.id.toString()}>
-                              {user.firstName && user.lastName 
-                                ? `${user.firstName} ${user.lastName} (${user.username})`
-                                : user.username
-                              }
-                              {user.employeeCode && ` - ${user.employeeCode}`}
+                          {Object.keys(groupedUsers).length > 0 ? (
+                            Object.entries(groupedUsers).map(([role, roleUsers]) => (
+                              <SelectGroup key={role}>
+                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                  {role}s
+                                </SelectLabel>
+                                {roleUsers.map((user) => (
+                                  <SelectItem key={user.id} value={user.id.toString()}>
+                                    {user.firstName && user.lastName 
+                                      ? `${user.firstName} ${user.lastName} (${user.username})`
+                                      : user.username
+                                    }
+                                    {user.employeeCode && ` - ${user.employeeCode}`}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            ))
+                          ) : (
+                            <SelectItem value="no-employees" disabled>
+                              No available employees
                             </SelectItem>
-                          ))}
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
