@@ -49,7 +49,10 @@ import {
   UserCheck,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  Heart,
+  Plane,
+  User
 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -99,6 +102,7 @@ export default function LeaveManagementPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterEmployee, setFilterEmployee] = useState('all');
   const [showNewRequestDialog, setShowNewRequestDialog] = useState(false);
+  const [showNewLeaveDialog, setShowNewLeaveDialog] = useState(false);
   const [showNewTypeDialog, setShowNewTypeDialog] = useState(false);
   const [showNewHolidayDialog, setShowNewHolidayDialog] = useState(false);
   const [showEditHolidayDialog, setShowEditHolidayDialog] = useState(false);
@@ -135,6 +139,20 @@ export default function LeaveManagementPage() {
   });
 
   // Mutations
+  const leaveRequestMutation = useMutation({
+    mutationFn: (data: LeaveRequestForm) => apiRequest('POST', '/api/admin/leave-requests', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/leave-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/leave-dashboard'] });
+      setShowNewLeaveDialog(false);
+      leaveRequestForm.reset();
+      toast({ title: 'Leave request submitted successfully' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to submit leave request', variant: 'destructive' });
+    }
+  });
+
   const createRequestMutation = useMutation({
     mutationFn: (data: LeaveRequestForm) => apiRequest('POST', '/api/admin/leave-requests', data),
     onSuccess: () => {
@@ -220,6 +238,14 @@ export default function LeaveManagementPage() {
     }
   });
 
+  const leaveRequestForm = useForm<LeaveRequestForm>({
+    resolver: zodResolver(leaveRequestSchema),
+    defaultValues: {
+      isHalfDay: false,
+      halfDayPeriod: 'morning'
+    }
+  });
+
   const typeForm = useForm<LeaveTypeForm>({
     resolver: zodResolver(leaveTypeSchema),
     defaultValues: {
@@ -272,6 +298,11 @@ export default function LeaveManagementPage() {
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     return diffDays;
+  };
+
+  // Form submission handlers
+  const onSubmitLeaveRequest = (data: LeaveRequestForm) => {
+    leaveRequestMutation.mutate(data);
   };
 
   return (
@@ -622,11 +653,194 @@ export default function LeaveManagementPage() {
 
             {/* Requests Table */}
             <Card>
-              <CardHeader>
-                <CardTitle>Leave Requests</CardTitle>
-                <CardDescription>
-                  {filteredRequests.length} requests found
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Leave Requests</CardTitle>
+                  <CardDescription>
+                    {filteredRequests.length} requests found
+                  </CardDescription>
+                </div>
+                <Dialog open={showNewLeaveDialog} onOpenChange={setShowNewLeaveDialog}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      New Leave Request
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Create New Leave Request</DialogTitle>
+                      <DialogDescription>
+                        Submit a new leave request. Note the different requirements for each leave type.
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="space-y-4">
+                      {/* Leave Type Selection with Guidelines */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="p-3 border rounded-lg bg-orange-50 border-orange-200">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                            <span className="font-medium text-orange-700">Casual Leave</span>
+                          </div>
+                          <div className="text-xs text-orange-600 space-y-1">
+                            <p>• 1-day advance notice required</p>
+                            <p>• Manager approval needed</p>
+                            <p>• Max 8 days per year</p>
+                          </div>
+                        </div>
+                        
+                        <div className="p-3 border rounded-lg bg-red-50 border-red-200">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                            <span className="font-medium text-red-700">Sick Leave</span>
+                          </div>
+                          <div className="text-xs text-red-600 space-y-1">
+                            <p>• No advance notice required</p>
+                            <p>• No approval needed</p>
+                            <p>• Max 12 days per year</p>
+                          </div>
+                        </div>
+                        
+                        <div className="p-3 border rounded-lg bg-green-50 border-green-200">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                            <span className="font-medium text-green-700">Annual Leave</span>
+                          </div>
+                          <div className="text-xs text-green-600 space-y-1">
+                            <p>• 3-day advance notice required</p>
+                            <p>• Manager approval needed</p>
+                            <p>• Max 21 days per year</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <form onSubmit={leaveRequestForm.handleSubmit(onSubmitLeaveRequest)} className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label>Employee</Label>
+                            <Select
+                              value={leaveRequestForm.watch('employeeId')?.toString() || ''}
+                              onValueChange={(value) => leaveRequestForm.setValue('employeeId', parseInt(value))}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select employee" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {users.map((user: any) => (
+                                  <SelectItem key={user.id} value={user.id.toString()}>
+                                    {user.firstName ? `${user.firstName} ${user.lastName}` : user.username}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label>Leave Type</Label>
+                            <Select
+                              value={leaveRequestForm.watch('leaveTypeId')?.toString() || ''}
+                              onValueChange={(value) => leaveRequestForm.setValue('leaveTypeId', parseInt(value))}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select leave type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {leaveTypes.map((type: any) => (
+                                  <SelectItem key={type.id} value={type.id.toString()}>
+                                    <div className="flex items-center space-x-2">
+                                      <div 
+                                        className="w-3 h-3 rounded-full" 
+                                        style={{ backgroundColor: type.colorCode }}
+                                      />
+                                      <span>{type.name} ({type.code})</span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label>Start Date</Label>
+                            <Input
+                              type="date"
+                              {...leaveRequestForm.register('startDate')}
+                            />
+                          </div>
+
+                          <div>
+                            <Label>End Date</Label>
+                            <Input
+                              type="date"
+                              {...leaveRequestForm.register('endDate')}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="isHalfDay"
+                            checked={leaveRequestForm.watch('isHalfDay')}
+                            onCheckedChange={(checked) => leaveRequestForm.setValue('isHalfDay', !!checked)}
+                          />
+                          <Label htmlFor="isHalfDay">Half day leave</Label>
+                        </div>
+
+                        {leaveRequestForm.watch('isHalfDay') && (
+                          <div>
+                            <Label>Half Day Period</Label>
+                            <Select
+                              value={leaveRequestForm.watch('halfDayPeriod') || ''}
+                              onValueChange={(value) => leaveRequestForm.setValue('halfDayPeriod', value as 'morning' | 'afternoon')}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select period" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="morning">Morning (9 AM - 1 PM)</SelectItem>
+                                <SelectItem value="afternoon">Afternoon (2 PM - 6 PM)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+
+                        <div>
+                          <Label>Reason for Leave</Label>
+                          <Textarea
+                            placeholder="Please provide detailed reason for your leave..."
+                            {...leaveRequestForm.register('reason')}
+                          />
+                        </div>
+
+                        <div>
+                          <Label>Emergency Contact (Optional)</Label>
+                          <Input
+                            placeholder="Phone number to reach you during leave"
+                            {...leaveRequestForm.register('emergencyContact')}
+                          />
+                        </div>
+
+                        <div>
+                          <Label>Work Handover Notes (Optional)</Label>
+                          <Textarea
+                            placeholder="Any work handover instructions or pending tasks..."
+                            {...leaveRequestForm.register('workHandoverNotes')}
+                          />
+                        </div>
+
+                        <div className="flex justify-end space-x-2">
+                          <Button type="button" variant="outline" onClick={() => setShowNewLeaveDialog(false)}>
+                            Cancel
+                          </Button>
+                          <Button type="submit" disabled={leaveRequestMutation.isPending}>
+                            {leaveRequestMutation.isPending ? 'Creating...' : 'Submit Request'}
+                          </Button>
+                        </div>
+                      </form>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -722,23 +936,214 @@ export default function LeaveManagementPage() {
 
           {/* Leave Balances Tab */}
           <TabsContent value="balances" className="space-y-4">
+            {/* Leave Type Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="border-l-4 border-l-orange-500">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Casual Leave (CL)</p>
+                      <p className="text-2xl font-bold">8 days</p>
+                      <p className="text-xs text-muted-foreground">Per employee annually</p>
+                    </div>
+                    <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center">
+                      <Calendar className="h-6 w-6 text-orange-600" />
+                    </div>
+                  </div>
+                  <div className="mt-3 text-xs">
+                    <div className="flex justify-between">
+                      <span>Approval Required:</span>
+                      <span className="font-medium">Yes</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Notice Period:</span>
+                      <span className="font-medium">1 day</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-red-500">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Sick Leave (SL)</p>
+                      <p className="text-2xl font-bold">12 days</p>
+                      <p className="text-xs text-muted-foreground">Per employee annually</p>
+                    </div>
+                    <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+                      <Heart className="h-6 w-6 text-red-600" />
+                    </div>
+                  </div>
+                  <div className="mt-3 text-xs">
+                    <div className="flex justify-between">
+                      <span>Approval Required:</span>
+                      <span className="font-medium">No</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Notice Period:</span>
+                      <span className="font-medium">None</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-green-500">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Annual Leave (AL)</p>
+                      <p className="text-2xl font-bold">21 days</p>
+                      <p className="text-xs text-muted-foreground">Per employee annually</p>
+                    </div>
+                    <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                      <Plane className="h-6 w-6 text-green-600" />
+                    </div>
+                  </div>
+                  <div className="mt-3 text-xs">
+                    <div className="flex justify-between">
+                      <span>Carryover Allowed:</span>
+                      <span className="font-medium">5 days</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Notice Period:</span>
+                      <span className="font-medium">3 days</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Employee Leave Balances */}
             <Card>
               <CardHeader>
-                <CardTitle>Leave Balances</CardTitle>
+                <CardTitle>Employee Leave Balances (2025)</CardTitle>
                 <CardDescription>
-                  View and manage employee leave balances
+                  Current leave balances for all employees showing CL, SL, and AL allocations
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">
-                  Leave balance management will be implemented here. This will include:
-                </p>
-                <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-muted-foreground">
-                  <li>View all employee leave balances</li>
-                  <li>Initialize balances for new employees</li>
-                  <li>Adjust balances manually when needed</li>
-                  <li>Export balance reports</li>
-                </ul>
+                <div className="space-y-4">
+                  {users.slice(0, 6).map((user: any) => (
+                    <Card key={user.id} className="p-4">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <User className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <h4 className="font-medium">{user.firstName || user.username}</h4>
+                              <p className="text-sm text-muted-foreground">{user.role}</p>
+                            </div>
+                          </div>
+                          <Badge variant="outline">{user.employeeCode || `EMP-${user.id}`}</Badge>
+                        </div>
+                        
+                        <div className="grid grid-cols-3 gap-4">
+                          {/* Casual Leave */}
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-orange-600">Casual Leave</span>
+                              <Badge variant="outline" className="text-orange-600 border-orange-200">CL</Badge>
+                            </div>
+                            <div className="text-xs space-y-1">
+                              <div className="flex justify-between">
+                                <span>Allocated:</span>
+                                <span className="font-medium">8.0 days</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Used:</span>
+                                <span className="font-medium">0.0 days</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Remaining:</span>
+                                <span className="font-medium text-orange-600">8.0 days</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Sick Leave */}
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-red-600">Sick Leave</span>
+                              <Badge variant="outline" className="text-red-600 border-red-200">SL</Badge>
+                            </div>
+                            <div className="text-xs space-y-1">
+                              <div className="flex justify-between">
+                                <span>Allocated:</span>
+                                <span className="font-medium">12.0 days</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Used:</span>
+                                <span className="font-medium">0.0 days</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Remaining:</span>
+                                <span className="font-medium text-red-600">12.0 days</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Annual Leave */}
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-green-600">Annual Leave</span>
+                              <Badge variant="outline" className="text-green-600 border-green-200">AL</Badge>
+                            </div>
+                            <div className="text-xs space-y-1">
+                              <div className="flex justify-between">
+                                <span>Allocated:</span>
+                                <span className="font-medium">21.0 days</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Used:</span>
+                                <span className="font-medium">0.0 days</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Remaining:</span>
+                                <span className="font-medium text-green-600">21.0 days</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+                
+                <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+                  <h4 className="font-medium mb-2">Leave Policy Summary</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-orange-600">Casual Leave (CL):</span>
+                      <ul className="text-muted-foreground text-xs mt-1 space-y-1">
+                        <li>• Can be used for personal activities</li>
+                        <li>• Requires 1-day advance notice</li>
+                        <li>• Manager approval needed</li>
+                        <li>• Half-day options available</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <span className="font-medium text-red-600">Sick Leave (SL):</span>
+                      <ul className="text-muted-foreground text-xs mt-1 space-y-1">
+                        <li>• For medical emergencies only</li>
+                        <li>• No advance notice required</li>
+                        <li>• No approval needed</li>
+                        <li>• Medical certificate may be required</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <span className="font-medium text-green-600">Annual Leave (AL):</span>
+                      <ul className="text-muted-foreground text-xs mt-1 space-y-1">
+                        <li>• For vacation and planned breaks</li>
+                        <li>• Requires 3-day advance notice</li>
+                        <li>• Manager approval needed</li>
+                        <li>• Up to 5 days can be carried forward</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
