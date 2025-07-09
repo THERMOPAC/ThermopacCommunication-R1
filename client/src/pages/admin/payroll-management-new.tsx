@@ -637,8 +637,17 @@ export default function PayrollManagementNew() {
 
   const handleGenerateSalary = (config: SalaryConfig) => {
     setSelectedEmployeeForSalary(config);
-    setSelectedMonth('12'); // Default to December
-    setSelectedYear('2024'); // Default to 2024
+    
+    // Calculate previous month based on current date
+    const currentDate = new Date();
+    const previousMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    
+    // Format month as 2-digit string (01-12)
+    const monthString = (previousMonth.getMonth() + 1).toString().padStart(2, '0');
+    const yearString = previousMonth.getFullYear().toString();
+    
+    setSelectedMonth(monthString);
+    setSelectedYear(yearString);
     setIsSalaryGenerationDialogOpen(true);
   };
 
