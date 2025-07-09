@@ -537,7 +537,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
       otRate: initialData.otRate,
       bonus: initialData.bonus,
       kgpAllowance: initialData.kgpAllowance,
-      groupInsurance: initialData.groupInsurance || '300',
+      groupInsurance: initialData.groupInsurance || '1500',
       workLocationId: initialData.workLocationId,
       remarks: initialData.remarks || '',
     } : {
@@ -551,7 +551,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, initialData, onSu
       otRate: '1.0',
       bonus: '0',
       kgpAllowance: '0',
-      groupInsurance: '300',
+      groupInsurance: '1500',
       remarks: '',
     },
   });
