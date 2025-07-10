@@ -3051,6 +3051,12 @@ export const visaAlertsRelations = relations(visaAlerts, ({ one }) => ({
 export const insertVisaRecordSchema = createInsertSchema(visaRecords)
   .omit({ id: true, createdAt: true, updatedAt: true, status: true })
   .extend({
+    employeeId: z.number().min(1, "Please select an employee"),
+    visaType: z.string().min(1, "Please select a visa type"),
+    country: z.string().min(1, "Please select a country"),
+    visaNumber: z.string().min(1, "Visa number is required"),
+    issueDate: z.string().min(1, "Issue date is required"),
+    expiryDate: z.string().min(1, "Expiry date is required"),
     filePath: z.string().optional(),
     fileUrl: z.string().optional(),
     notes: z.string().optional(),

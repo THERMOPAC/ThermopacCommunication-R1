@@ -152,7 +152,7 @@ export default function VisaManagement() {
   const form = useForm<InsertVisaRecord>({
     resolver: zodResolver(insertVisaRecordSchema),
     defaultValues: {
-      employeeId: 0,
+      employeeId: undefined as any, // Will be set when user selects an employee
       visaType: '',
       country: '',
       visaNumber: '',
