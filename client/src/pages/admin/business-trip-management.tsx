@@ -234,7 +234,7 @@ const TripReports = () => {
                   <SelectValue placeholder="All Employees" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Employees</SelectItem>
+                  <SelectItem value="all">All Employees</SelectItem>
                   {employees?.map((employee: any) => (
                     <SelectItem key={employee.id} value={employee.id.toString()}>
                       {employee.firstName && employee.lastName ? 
@@ -254,7 +254,7 @@ const TripReports = () => {
                   <SelectValue placeholder="All Statuses" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Statuses</SelectItem>
+                  <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="submitted">Submitted</SelectItem>
                   <SelectItem value="manager_approved">Manager Approved</SelectItem>
