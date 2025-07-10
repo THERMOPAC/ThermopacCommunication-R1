@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -675,15 +675,38 @@ function VisaRecordsTab() {
                           ) : employees.length === 0 ? (
                             <div className="p-2 text-sm text-muted-foreground">No employees found</div>
                           ) : (
-                            employees.map((employee: any) => (
-                              <SelectItem key={employee.id} value={employee.id.toString()}>
-                                {employee.firstName && employee.lastName 
-                                  ? `${employee.firstName} ${employee.lastName} (${employee.username})`
-                                  : employee.username
+                            (() => {
+                              // Group employees by role
+                              const groupedEmployees = employees.reduce((groups: Record<string, any[]>, employee: any) => {
+                                const role = employee.role || 'Employee';
+                                if (!groups[role]) {
+                                  groups[role] = [];
                                 }
-                                {employee.employeeCode && ` - ${employee.employeeCode}`}
-                              </SelectItem>
-                            ))
+                                groups[role].push(employee);
+                                return groups;
+                              }, {});
+
+                              // Sort roles: Superuser, General Manager, Senior Manager, Manager, Employee
+                              const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Employee'];
+                              const sortedRoles = Object.keys(groupedEmployees).sort((a, b) => {
+                                const aIndex = roleOrder.indexOf(a);
+                                const bIndex = roleOrder.indexOf(b);
+                                return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+                              });
+
+                              return sortedRoles.map((role) => (
+                                <SelectGroup key={role}>
+                                  <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                    {role}s
+                                  </SelectLabel>
+                                  {groupedEmployees[role].map((employee: any) => (
+                                    <SelectItem key={employee.id} value={employee.id.toString()}>
+                                      {employee.username}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              ));
+                            })()
                           )}
                         </SelectContent>
                       </Select>
