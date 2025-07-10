@@ -58,8 +58,10 @@ interface VisaRecord {
 interface Employee {
   id: number;
   username: string;
-  department: string;
+  department: string | null;
   role: string;
+  firstName?: string | null;
+  lastName?: string | null;
 }
 
 interface VisaOptions {
@@ -299,21 +301,33 @@ function VisaRecordsTab() {
     }
   ];
 
-  const employees: Employee[] = [
-    { id: 1, username: "John Smith", department: "Engineering", role: "Manager" },
-    { id: 2, username: "Maria Garcia", department: "Sales", role: "Employee" },
-    { id: 3, username: "Ahmed Hassan", department: "IT", role: "Senior Manager" },
-    { id: 4, username: "Sarah Johnson", department: "HR", role: "Manager" }
-  ];
+  // Fetch actual users from the database
+  const { data: employees = [], isLoading: isEmployeesLoading } = useQuery({
+    queryKey: ['/api/users/all'],
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
+  // Define comprehensive country list excluding individual Schengen countries
   const visaOptions: VisaOptions = {
     countries: [
-      "United States", "Germany", "Canada", "United Kingdom", "France", 
-      "Australia", "Japan", "Singapore", "UAE", "India", "China", "Brazil"
+      // Major non-EU countries
+      "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Argentina", "Armenia", "Australia", 
+      "Azerbaijan", "Bahrain", "Bangladesh", "Belarus", "Bosnia and Herzegovina", "Brazil", "Brunei", 
+      "Cambodia", "Cameroon", "Canada", "Chile", "China", "Colombia", "Costa Rica", "Cuba", 
+      "Dominican Republic", "Ecuador", "Egypt", "Ethiopia", "Georgia", "Ghana", "India", "Indonesia", 
+      "Iran", "Iraq", "Israel", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kuwait", "Kyrgyzstan", 
+      "Laos", "Lebanon", "Libya", "Malaysia", "Maldives", "Mexico", "Moldova", "Monaco", "Mongolia", 
+      "Montenegro", "Morocco", "Myanmar", "Nepal", "New Zealand", "Nigeria", "North Korea", "North Macedonia", 
+      "Oman", "Pakistan", "Panama", "Paraguay", "Peru", "Philippines", "Qatar", "Russia", "San Marino", 
+      "Saudi Arabia", "Serbia", "Singapore", "South Africa", "South Korea", "Sri Lanka", "Sudan", 
+      "Taiwan", "Tajikistan", "Thailand", "Tunisia", "Turkey", "Turkmenistan", "Ukraine", "United Arab Emirates", 
+      "United Kingdom", "United States", "Uruguay", "Uzbekistan", "Vatican City", "Venezuela", "Vietnam", "Yemen",
+      // Grouped Schengen Area (replaces individual EU countries)
+      "Schengen Area (EU)"
     ],
     visaTypes: [
       "Work Visa", "Business Visa", "Tourist Visa", "Student Visa", 
-      "Transit Visa", "Diplomatic Visa", "Schengen Area (EU)"
+      "Transit Visa", "Diplomatic Visa", "Family Reunion Visa", "Investor Visa"
     ]
   };
 
@@ -654,11 +668,17 @@ function VisaRecordsTab() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {employees.map((employee) => (
-                            <SelectItem key={employee.id} value={employee.id.toString()}>
-                              {employee.username} ({employee.department})
-                            </SelectItem>
-                          ))}
+                          {isEmployeesLoading ? (
+                            <div className="p-2 text-sm text-muted-foreground">Loading employees...</div>
+                          ) : employees.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground">No employees found</div>
+                          ) : (
+                            employees.map((employee: Employee) => (
+                              <SelectItem key={employee.id} value={employee.id.toString()}>
+                                {employee.username} {employee.department ? `(${employee.department})` : ''}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
