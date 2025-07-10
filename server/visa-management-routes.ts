@@ -114,6 +114,7 @@ export const getVisaDashboard = async (req: Request, res: Response) => {
  */
 export const getVisaRecords = async (req: Request, res: Response) => {
   try {
+    console.log('Fetching visa records...');
     const { country, visaType, department, status, employeeId } = req.query;
     
     let whereConditions: any[] = [];
@@ -134,13 +135,16 @@ export const getVisaRecords = async (req: Request, res: Response) => {
       whereConditions.push(eq(visaRecords.employeeId, parseInt(employeeId as string)));
     }
 
+    // Use aliases for multiple user joins
+    const employee = users.as('employee');
     const creator = users.as('creator');
+    
     const records = await db
       .select({
         id: visaRecords.id,
         employeeId: visaRecords.employeeId,
-        employeeName: users.username,
-        employeeDepartment: users.department,
+        employeeName: employee.username,
+        employeeDepartment: employee.department,
         visaType: visaRecords.visaType,
         country: visaRecords.country,
         visaNumber: visaRecords.visaNumber,
@@ -155,11 +159,12 @@ export const getVisaRecords = async (req: Request, res: Response) => {
         daysToExpiry: sql<number>`(${visaRecords.expiryDate}::date - CURRENT_DATE)`
       })
       .from(visaRecords)
-      .leftJoin(users, eq(visaRecords.employeeId, users.id))
+      .leftJoin(employee, eq(visaRecords.employeeId, employee.id))
       .leftJoin(creator, eq(visaRecords.createdBy, creator.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(desc(visaRecords.createdAt));
 
+    console.log(`Found ${records.length} visa records`);
     res.json(records);
   } catch (error) {
     console.error('Error fetching visa records:', error);
