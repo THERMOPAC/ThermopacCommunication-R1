@@ -67,22 +67,21 @@ export default function PaymentAllocationRedesigned() {
 
   // Fetch outstanding invoices
   const { data: invoicesData, isLoading: invoicesLoading } = useQuery({
-    queryKey: ['/api/finance/outstanding-invoices', selectedCustomerId, selectedPayment?.paymentType],
+    queryKey: ['/api/finance/outstanding-invoices', selectedCustomerId],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (selectedCustomerId && selectedCustomerId !== 'all') {
         params.append('customerId', selectedCustomerId);
       }
-      if (selectedPayment?.paymentType && selectedPayment.paymentType !== 'all') {
-        params.append('invoiceType', selectedPayment.paymentType);
-      }
+      // Remove paymentType filter to show ALL invoices for the customer
+      // Payment type validation will be done during allocation, not during display
       
       const response = await fetch(`/api/finance/outstanding-invoices?${params}`);
       if (!response.ok) {
         throw new Error('Failed to fetch invoices');
       }
       const data = await response.json();
-      console.log('Invoice data from API:', data);
+      console.log('Invoice data from API (all types for customer):', data);
       return data;
     },
     enabled: !!selectedCustomerId,
@@ -190,6 +189,16 @@ export default function PaymentAllocationRedesigned() {
       toast({
         title: "Error",
         description: "Please select payment, invoice, and enter allocation amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check payment type compatibility
+    if (selectedPayment.paymentType !== selectedInvoice.invoiceType) {
+      toast({
+        title: "Type Mismatch Warning",
+        description: `Payment type (${selectedPayment.paymentType}) does not match invoice type (${selectedInvoice.invoiceType}). Allocation may be rejected.`,
         variant: "destructive",
       });
       return;
@@ -322,30 +331,44 @@ export default function PaymentAllocationRedesigned() {
                 <p>No outstanding invoices found for this customer and payment type.</p>
               ) : (
                 <div className="space-y-2">
-                  {filteredInvoices.map((invoice) => (
-                    <div
-                      key={invoice.id}
-                      className={`p-4 border rounded cursor-pointer hover:bg-gray-50 ${
-                        selectedInvoice?.id === invoice.id ? 'border-orange-500 bg-orange-50' : ''
-                      }`}
-                      onClick={() => setSelectedInvoice(invoice)}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium">{invoice.invoiceNumber}</p>
-                          <p className="text-sm text-gray-600">Customer: {invoice.customerName}</p>
-                          <p className="text-sm text-gray-600">Date: {invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString() : 'N/A'}</p>
-                          <p className="text-sm text-gray-600">Type: {invoice.invoiceType}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-red-600">
-                            {invoice.currency} {invoice.outstandingAmount || invoice.outstanding_amount}
-                          </p>
-                          <p className="text-sm text-gray-600">Outstanding</p>
+                  {filteredInvoices.map((invoice) => {
+                    const isTypeCompatible = !selectedPayment || selectedPayment.paymentType === invoice.invoiceType;
+                    const borderColor = selectedInvoice?.id === invoice.id 
+                      ? 'border-orange-500 bg-orange-50' 
+                      : isTypeCompatible 
+                        ? 'border-green-200' 
+                        : 'border-yellow-300 bg-yellow-50';
+                    
+                    return (
+                      <div
+                        key={invoice.id}
+                        className={`p-4 border rounded cursor-pointer hover:bg-gray-50 ${borderColor}`}
+                        onClick={() => setSelectedInvoice(invoice)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium">{invoice.invoiceNumber}</p>
+                            <p className="text-sm text-gray-600">Customer: {invoice.customerName}</p>
+                            <p className="text-sm text-gray-600">Date: {invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString() : 'N/A'}</p>
+                            <p className="text-sm text-gray-600">
+                              Type: {invoice.invoiceType}
+                              {!isTypeCompatible && selectedPayment && (
+                                <span className="ml-2 px-2 py-1 bg-yellow-200 text-yellow-800 text-xs rounded">
+                                  ⚠️ Type mismatch with payment
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-red-600">
+                              {invoice.currency} {invoice.outstandingAmount || invoice.outstanding_amount}
+                            </p>
+                            <p className="text-sm text-gray-600">Outstanding</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
