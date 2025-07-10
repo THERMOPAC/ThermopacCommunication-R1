@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { apiRequest } from '@/lib/queryClient';
 import { Plus, Download, FileText, Eye, Edit, Trash2, Search, Filter, Globe, CreditCard, Clock, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 import Layout from '@/components/layout';
 
 // Form validation schema
@@ -65,8 +66,25 @@ interface VisaOptions {
   visaTypes: string[];
 }
 
+// Travel Log Form Schema
+const travelLogSchema = z.object({
+  employeeId: z.number().min(1, 'Please select an employee'),
+  country: z.string().min(1, 'Please select a country'),
+  entryDate: z.date(),
+  exitDate: z.date().optional(),
+  purpose: z.string().min(1, 'Purpose is required'),
+  notes: z.string().optional(),
+  isBusinessTrip: z.boolean().default(false)
+});
+
+type TravelLogFormData = z.infer<typeof travelLogSchema>;
+
 // EU 180-Day Rule Tracker Component
 function EU180DayTracker() {
+  const [isAddTravelDialogOpen, setIsAddTravelDialogOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   const { data: schengenData, isLoading: isSchengenLoading } = useQuery({
     queryKey: ['/api/schengen/dashboard'],
   });
@@ -74,6 +92,44 @@ function EU180DayTracker() {
   const { data: travelLog, isLoading: isTravelLoading } = useQuery({
     queryKey: ['/api/schengen/travel-log'],
   });
+
+  // Fetch employees for dropdown
+  const { data: employees } = useQuery({
+    queryKey: ['/api/admin/users'],
+  });
+
+  // Add travel log mutation
+  const addTravelLogMutation = useMutation({
+    mutationFn: (data: TravelLogFormData) => apiRequest('POST', '/api/schengen/travel-logs', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/schengen/dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/schengen/travel-log'] });
+      setIsAddTravelDialogOpen(false);
+      toast({
+        title: "Success",
+        description: "Travel entry added successfully"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add travel entry",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Form for adding travel logs
+  const travelForm = useForm<TravelLogFormData>({
+    resolver: zodResolver(travelLogSchema),
+    defaultValues: {
+      isBusinessTrip: false,
+    },
+  });
+
+  const onTravelSubmit = (data: TravelLogFormData) => {
+    addTravelLogMutation.mutate(data);
+  };
 
   if (isSchengenLoading || isTravelLoading) {
     return (
@@ -158,10 +214,162 @@ function EU180DayTracker() {
       {/* Travel Log Table */}
       <Card>
         <CardHeader>
-          <CardTitle>EU Travel Log & Compliance Status</CardTitle>
-          <CardDescription>
-            Monitor employee travel to Schengen Area countries and 90-day compliance
-          </CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>EU Travel Log & Compliance Status</CardTitle>
+              <CardDescription>
+                Monitor employee travel to Schengen Area countries and 90-day compliance
+              </CardDescription>
+            </div>
+            <Dialog open={isAddTravelDialogOpen} onOpenChange={setIsAddTravelDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Travel Entry
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Add EU Travel Entry</DialogTitle>
+                  <DialogDescription>
+                    Log your Schengen Area travel for compliance monitoring
+                  </DialogDescription>
+                </DialogHeader>
+                <Form {...travelForm}>
+                  <form onSubmit={travelForm.handleSubmit(onTravelSubmit)} className="space-y-4">
+                    <FormField
+                      control={travelForm.control}
+                      name="employeeId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Employee</FormLabel>
+                          <Select onValueChange={(value) => field.onChange(parseInt(value))}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select employee" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectGroup>
+                                <SelectLabel>Employees</SelectLabel>
+                                {employees?.map((employee: Employee) => (
+                                  <SelectItem key={employee.id} value={employee.id.toString()}>
+                                    {employee.username} - {employee.role}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={travelForm.control}
+                      name="country"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Schengen Country</FormLabel>
+                          <Select onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select country" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectGroup>
+                                <SelectLabel>Schengen Countries</SelectLabel>
+                                {['Austria', 'Belgium', 'Croatia', 'Czech Republic', 'Denmark', 'Estonia', 'Finland', 'France', 'Germany', 'Greece', 'Hungary', 'Iceland', 'Italy', 'Latvia', 'Liechtenstein', 'Lithuania', 'Luxembourg', 'Malta', 'Netherlands', 'Norway', 'Poland', 'Portugal', 'Slovakia', 'Slovenia', 'Spain', 'Sweden', 'Switzerland'].map((country) => (
+                                  <SelectItem key={country} value={country}>
+                                    {country}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={travelForm.control}
+                      name="entryDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Entry Date</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="date"
+                              value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                              onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={travelForm.control}
+                      name="exitDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Exit Date (Optional)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="date"
+                              value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                              onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={travelForm.control}
+                      name="purpose"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Purpose</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Business meeting, conference, etc." {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={travelForm.control}
+                      name="notes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Notes (Optional)</FormLabel>
+                          <FormControl>
+                            <Textarea placeholder="Additional notes..." {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" variant="outline" onClick={() => setIsAddTravelDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={addTravelLogMutation.isPending}>
+                        {addTravelLogMutation.isPending ? 'Adding...' : 'Add Travel Entry'}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
