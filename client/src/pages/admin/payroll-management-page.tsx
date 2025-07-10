@@ -354,22 +354,24 @@ export default function PayrollManagementPage() {
     }
   }, [basicSalary, salaryType, workingHoursPerDay, overtimeHours, otRate, actualDays, paidDays, form]);
 
-  // Auto-update form with calculated values when inputs change
+  // Auto-update form with calculated values when basic salary changes
   useEffect(() => {
-    if (parseFloat(basicSalary || '0') > 0) {
-      // Debug log to see what's being calculated
-      console.log('Auto-update: basicSalary =', basicSalary);
-      console.log('Auto-update: calculated gratuity =', calculatedValues.gratuityCost);
-      console.log('Auto-update: full calculated values =', calculatedValues);
-
-      form.setValue('gratuityCost', calculatedValues.gratuityCost, { shouldValidate: false });
+    const basicAmount = parseFloat(basicSalary || '0');
+    if (basicAmount > 0) {
+      // Direct calculation without dependency on complex memoized values
+      const directGratuityCalculation = (basicAmount * 15 / 26) / 12;
+      
+      console.log('Direct calculation: basicSalary =', basicAmount);
+      console.log('Direct calculation: gratuity =', directGratuityCalculation.toFixed(2));
+      
+      // Set gratuity directly with the correct formula
+      form.setValue('gratuityCost', directGratuityCalculation.toFixed(2), { shouldValidate: false });
+      
+      // Also update other calculated values
       form.setValue('employeePfContribution', calculatedValues.employeePfContribution, { shouldValidate: false });
       form.setValue('employerPfContribution', calculatedValues.employerPfContribution, { shouldValidate: false });
       form.setValue('employeeEsicContribution', calculatedValues.employeeEsicContribution, { shouldValidate: false });
       form.setValue('employerEsicContribution', calculatedValues.employerEsicContribution, { shouldValidate: false });
-      form.setValue('takeHomeSalary', calculatedValues.takeHomeSalary, { shouldValidate: false });
-      form.setValue('ctcMonthly', calculatedValues.ctcMonthly, { shouldValidate: false });
-      form.setValue('ctcYearly', calculatedValues.ctcYearly, { shouldValidate: false });
       
       // Update allowances for monthly workers
       if (salaryType === 'monthly') {
@@ -380,7 +382,7 @@ export default function PayrollManagementPage() {
         form.setValue('supplementaryAllowance', calculatedValues.supplementaryAllowance, { shouldValidate: false });
       }
     }
-  }, [calculatedValues, form, basicSalary, salaryType]);
+  }, [basicSalary, salaryType, form, calculatedValues]);
 
   // Manual sync function to update form values only when needed (on save)
   const syncCalculatedToForm = useCallback(() => {
@@ -713,10 +715,7 @@ export default function PayrollManagementPage() {
                         defaultValue="0"
                         disabled={salaryType !== 'daily'}
                         className={salaryType !== 'daily' ? 'bg-gray-100 cursor-not-allowed' : ''}
-                        onBlur={(e) => {
-                          field.onBlur(e);
-                          handleFieldBlur();
-                        }}
+                        onBlur={field.onBlur}
                       />
                     </FormControl>
                     <FormMessage />

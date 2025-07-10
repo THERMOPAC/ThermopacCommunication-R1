@@ -33,7 +33,7 @@ export default function AuthPage() {
               alt="Thermopac Logo" 
               className="h-24 mb-4"
             />
-            <CardTitle>Communication System</CardTitle>
+            <CardTitle>Enterprise Resource Planning</CardTitle>
           </CardHeader>
           <CardContent>
             <LoginForm loginMutation={loginMutation} />
@@ -48,10 +48,10 @@ export default function AuthPage() {
             alt="Thermopac Logo" 
             className="h-20 mb-6"
           />
-          <h1 className="text-4xl font-bold mb-6 text-gray-800 text-center">Welcome to THERMOPAC</h1>
+          <h1 className="text-4xl font-bold mb-6 text-gray-800 text-center">Welcome to THERMOPAC ERP</h1>
           <p className="text-lg text-gray-600 text-center">
-            A comprehensive platform for intercompany communication and task management.
-            Connect with your team, manage tasks, and stay productive.
+            A comprehensive enterprise resource planning platform for financial management, 
+            quality control, production planning, HR administration, and business operations.
           </p>
         </div>
       </div>
