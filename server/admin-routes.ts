@@ -1392,6 +1392,8 @@ router.get('/leave-summary/:employeeId/:year/:month', ensureAuthenticated, async
     const year = parseInt(req.params.year);
     const month = parseInt(req.params.month);
 
+    console.log(`Fetching leave summary for employeeId: ${employeeId}, year: ${year}, month: ${month}`);
+
     // Get leave balances for the employee for the specified year
     const leaveBalanceData = await db
       .select({
@@ -1413,6 +1415,9 @@ router.get('/leave-summary/:employeeId/:year/:month', ensureAuthenticated, async
         eq(leaveBalances.year, year)
       ))
       .orderBy(asc(leaveTypes.name));
+
+    console.log(`Found ${leaveBalanceData.length} leave balance records for employee ${employeeId}`);
+    console.log('Leave balance data:', JSON.stringify(leaveBalanceData, null, 2));
 
     // Get leave requests for the specific month
     const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
