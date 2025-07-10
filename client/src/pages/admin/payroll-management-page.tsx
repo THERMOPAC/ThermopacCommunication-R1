@@ -283,7 +283,7 @@ export default function PayrollManagementPage() {
       employeeESIC = grossEarnings <= 21000 ? grossEarnings * 0.0075 : 0;
       employerESIC = grossEarnings <= 21000 ? grossEarnings * 0.0325 : 0;
       
-      monthlyGratuityProvision = grossEarnings * 0.0481;
+      monthlyGratuityProvision = (basicAmount * 15 / 26) / 12;
       
       const groupInsurance = 300;
       const takeHomeSalary = grossEarnings - employeePF - employeeESIC;
@@ -328,7 +328,7 @@ export default function PayrollManagementPage() {
       employeeESIC = grossSalary <= 21000 ? grossSalary * 0.0075 : 0;
       employerESIC = grossSalary <= 21000 ? grossSalary * 0.0325 : 0;
       
-      monthlyGratuityProvision = proRatedBasic * 0.0481;
+      monthlyGratuityProvision = (basicAmount * 15 / 26) / 12;
       
       const groupInsurance = parseFloat(form.getValues('groupInsurance') || '0');
       const takeHomeSalary = grossSalary - employeePF - employeeESIC;
@@ -935,7 +935,7 @@ export default function PayrollManagementPage() {
                 name="gratuityCost"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Gratuity Cost <span className="text-xs text-muted-foreground">(Auto: 4.81% of Basic Salary)</span></FormLabel>
+                    <FormLabel>Gratuity Cost <span className="text-xs text-muted-foreground">(Auto: Basic×15÷26÷12)</span></FormLabel>
                     <FormControl>
                       <Input 
                         placeholder="0" 
@@ -1062,7 +1062,7 @@ export default function PayrollManagementPage() {
                       </span>
                     </div>
                     <div className="flex justify-between border-l border-orange-300 pl-4">
-                      <span className="text-orange-700 font-medium">Monthly Provision (4.81%):</span>
+                      <span className="text-orange-700 font-medium">Monthly Provision:</span>
                       <span className="font-bold text-orange-900">
                         ₹{(parseFloat(form.watch('gratuityCost') || '0')).toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
@@ -1072,7 +1072,7 @@ export default function PayrollManagementPage() {
                     </div>
                   </div>
                   <p className="text-xs text-orange-600 mt-2">
-                    Monthly provision for gratuity calculated as (Basic Salary × 15) ÷ (26 × 12) = Basic Salary × 4.81%
+                    Monthly provision for gratuity calculated as (Basic Salary × 15) ÷ (26 × 12)
                   </p>
                   <p className="text-xs text-orange-500 mt-1">
                     Note: Actual gratuity is payable only after 5 years of continuous service as per Payment of Gratuity Act, 1972
