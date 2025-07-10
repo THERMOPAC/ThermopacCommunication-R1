@@ -424,7 +424,7 @@ export const getEmployeesForVisas = async (req: Request, res: Response) => {
  */
 export const getVisaOptions = async (req: Request, res: Response) => {
   try {
-    const countries = await db
+    const quotaData = await db
       .select({
         country: visaQuotaSettings.country,
         visaType: visaQuotaSettings.visaType,
@@ -434,8 +434,7 @@ export const getVisaOptions = async (req: Request, res: Response) => {
       .from(visaQuotaSettings)
       .orderBy(visaQuotaSettings.country);
 
-    const uniqueCountries = [...new Set(countries.map(c => c.country))];
-    const uniqueVisaTypes = [...new Set(countries.map(c => c.visaType))];
+    const uniqueVisaTypes = [...new Set(quotaData.map(c => c.visaType))];
 
     // List of Schengen countries to exclude from individual selection
     const schengenCountries = [
@@ -445,8 +444,34 @@ export const getVisaOptions = async (req: Request, res: Response) => {
       "Norway", "Poland", "Portugal", "Slovakia", "Slovenia", "Spain", "Sweden", "Switzerland"
     ];
 
-    // Filter out individual Schengen countries and add "Schengen Area (EU)" as grouped entry
-    const filteredCountries = uniqueCountries.filter(country => 
+    // Comprehensive list of all countries (excluding individual Schengen countries)
+    const allWorldCountries = [
+      "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", 
+      "Armenia", "Australia", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", 
+      "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", 
+      "Bulgaria", "Burkina Faso", "Burundi", "Cambodia", "Cameroon", "Canada", "Cape Verde", 
+      "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo", 
+      "Costa Rica", "Côte d'Ivoire", "Cuba", "Cyprus", "Dominican Republic", "Ecuador", "Egypt", 
+      "El Salvador", "Equatorial Guinea", "Eritrea", "Ethiopia", "Fiji", "Gabon", "Gambia", "Georgia", 
+      "Ghana", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras", 
+      "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Jamaica", "Japan", "Jordan", 
+      "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan", "Laos", "Lebanon", "Lesotho", 
+      "Liberia", "Libya", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Marshall Islands", 
+      "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", 
+      "Morocco", "Mozambique", "Myanmar", "Namibia", "Nauru", "Nepal", "New Zealand", "Nicaragua", 
+      "Niger", "Nigeria", "North Korea", "North Macedonia", "Oman", "Pakistan", "Palau", "Panama", 
+      "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Qatar", "Romania", "Russia", "Rwanda", 
+      "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", 
+      "São Tomé and Príncipe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", 
+      "Singapore", "Solomon Islands", "Somalia", "South Africa", "South Korea", "South Sudan", "Sri Lanka", 
+      "Sudan", "Suriname", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", 
+      "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", 
+      "United Arab Emirates", "United Kingdom", "United States", "Uruguay", "Uzbekistan", "Vanuatu", 
+      "Vatican City", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"
+    ];
+
+    // Filter out Schengen countries and add "Schengen Area (EU)" as grouped entry
+    const filteredCountries = allWorldCountries.filter(country => 
       !schengenCountries.includes(country)
     );
     
@@ -455,7 +480,7 @@ export const getVisaOptions = async (req: Request, res: Response) => {
     res.json({
       countries: allCountries,
       visaTypes: uniqueVisaTypes,
-      quotaSettings: countries
+      quotaSettings: quotaData
     });
   } catch (error) {
     console.error('Error fetching visa options:', error);
