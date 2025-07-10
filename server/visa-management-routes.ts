@@ -134,6 +134,7 @@ export const getVisaRecords = async (req: Request, res: Response) => {
       whereConditions.push(eq(visaRecords.employeeId, parseInt(employeeId as string)));
     }
 
+    const creator = users.as('creator');
     const records = await db
       .select({
         id: visaRecords.id,
@@ -150,12 +151,12 @@ export const getVisaRecords = async (req: Request, res: Response) => {
         fileUrl: visaRecords.fileUrl,
         notes: visaRecords.notes,
         createdAt: visaRecords.createdAt,
-        createdByName: sql<string>`creator.username`,
+        createdByName: creator.username,
         daysToExpiry: sql<number>`(${visaRecords.expiryDate}::date - CURRENT_DATE)`
       })
       .from(visaRecords)
       .leftJoin(users, eq(visaRecords.employeeId, users.id))
-      .leftJoin(users.as('creator'), eq(visaRecords.createdBy, users.id))
+      .leftJoin(creator, eq(visaRecords.createdBy, creator.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(desc(visaRecords.createdAt));
 
