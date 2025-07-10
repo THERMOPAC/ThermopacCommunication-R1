@@ -3108,6 +3108,8 @@ export const schengenTravelLog = pgTable('schengen_travel_log', {
   purpose: varchar('purpose', { length: 200 }),
   notes: text('notes'),
   isBusinessTrip: boolean('is_business_trip').notNull().default(false),
+  source: varchar('source', { length: 100 }).default('Manual Entry'), // Track entry source
+  businessTripId: integer('business_trip_id').references(() => businessTrips.id, { onDelete: 'set null' }), // Link to business trip
   createdBy: integer('created_by').notNull().references(() => users.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow()
@@ -3157,6 +3159,8 @@ export const insertSchengenTravelLogSchema = createInsertSchema(schengenTravelLo
     exitDate: z.string().optional().transform(dateStringToDate),
     purpose: z.string().optional(),
     notes: z.string().optional(),
+    source: z.string().optional(),
+    businessTripId: z.number().optional(),
   });
 
 export const insertSchengenAlertSchema = createInsertSchema(schengenAlerts)
@@ -3176,7 +3180,8 @@ export const tripStatuses = [
   "submitted", 
   "manager_approved",
   "final_approved",
-  "rejected"
+  "rejected",
+  "concluded"
 ] as const;
 
 export type TripStatus = typeof tripStatuses[number];

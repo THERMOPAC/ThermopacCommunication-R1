@@ -66,7 +66,8 @@ import {
   Filter,
   FileDown,
   RefreshCw,
-  Target
+  Target,
+  CheckSquare
 } from 'lucide-react';
 
 // Form schemas
@@ -804,6 +805,8 @@ const StatusBadge = ({ status }: { status: string }) => {
         return 'bg-blue-100 text-blue-800';
       case 'final_approved':
         return 'bg-green-100 text-green-800';
+      case 'concluded':
+        return 'bg-blue-100 text-blue-800';
       case 'rejected':
         return 'bg-red-100 text-red-800';
       default:
@@ -821,6 +824,8 @@ const StatusBadge = ({ status }: { status: string }) => {
         return 'Manager Approved';
       case 'final_approved':
         return 'Final Approved';
+      case 'concluded':
+        return 'Concluded';
       case 'rejected':
         return 'Rejected';
       default:
@@ -1666,7 +1671,7 @@ const TripEditForm = ({ trip, onSuccess }: { trip: any; onSuccess?: () => void }
         title: 'Success',
         description: 'Trip request updated successfully',
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/trips/user'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/all'] });
       onSuccess?.();
     },
     onError: (error: any) => {
@@ -1981,12 +1986,33 @@ const TripList = () => {
         title: 'Success',
         description: 'Trip request deleted successfully',
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/trips/user'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/all'] });
     },
     onError: (error: any) => {
       toast({
         title: 'Error',
         description: error.message || 'Failed to delete trip request',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const concludeTripMutation = useMutation({
+    mutationFn: (tripId: number) => apiRequest('POST', `/api/trips/${tripId}/conclude`),
+    onSuccess: (data: any) => {
+      toast({
+        title: 'Success',
+        description: data.autoLinked 
+          ? 'Trip concluded successfully and automatically linked to EU 180-Day Tracker'
+          : 'Trip concluded successfully',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/all'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/dashboard'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to conclude trip',
         variant: 'destructive',
       });
     },
@@ -2003,6 +2029,12 @@ const TripList = () => {
   const handleDelete = (trip: any) => {
     if (confirm(`Are you sure you want to delete the trip request "${trip.tripTitle}"?`)) {
       deleteTripMutation.mutate(trip.id);
+    }
+  };
+
+  const handleConclude = (trip: any) => {
+    if (confirm(`Are you sure you want to mark this trip "${trip.tripTitle}" as concluded? This action cannot be undone and will automatically create a travel entry in the EU 180-Day Tracker if the destination is in the Schengen Area.`)) {
+      concludeTripMutation.mutate(trip.id);
     }
   };
 
@@ -2055,6 +2087,7 @@ const TripList = () => {
                   <SelectItem value="admin_approved">Admin Approved</SelectItem>
                   <SelectItem value="finance_approved">Finance Approved</SelectItem>
                   <SelectItem value="final_approved">Final Approved</SelectItem>
+                  <SelectItem value="concluded">Concluded</SelectItem>
                   <SelectItem value="rejected">Rejected</SelectItem>
                 </SelectContent>
               </Select>
@@ -2179,6 +2212,15 @@ const TripList = () => {
                       <Edit className="mr-2 h-4 w-4" />
                       Edit
                     </DropdownMenuItem>
+                    {trip.status === 'final_approved' && (
+                      <DropdownMenuItem 
+                        onClick={() => handleConclude(trip)}
+                        className="text-green-600 focus:text-green-600"
+                      >
+                        <CheckSquare className="mr-2 h-4 w-4" />
+                        Conclude Trip
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem 
                       onClick={() => handleDelete(trip)}
                       className="text-red-600 focus:text-red-600"

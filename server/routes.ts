@@ -373,6 +373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/trips/:id', ensureAuthenticated, tripManagementRoutes.deleteTrip);
   app.post('/api/trips/:id/submit', ensureAuthenticated, tripManagementRoutes.submitTrip);
   app.post('/api/trips/:id/approve', ensureAuthenticated, tripManagementRoutes.approveTrip);
+  app.post('/api/trips/:id/conclude', ensureAuthenticated, tripManagementRoutes.concludeTrip);
   
   // Trip Document Management routes
   app.post('/api/trips/:tripId/documents', ensureAuthenticated, tripManagementRoutes.upload.single('file'), tripManagementRoutes.uploadTripDocument);

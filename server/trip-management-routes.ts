@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from './db';
-import { businessTrips, tripApprovals, tripBookings, tripExpenses, tripReimbursements, tripDocuments, users } from '@shared/schema';
+import { businessTrips, tripApprovals, tripBookings, tripExpenses, tripReimbursements, tripDocuments, users, schengenTravelLog, schengenCountries } from '@shared/schema';
 import { eq, and, or, desc, asc, sql, sum, count } from 'drizzle-orm';
 import { z } from 'zod';
 import multer from 'multer';
@@ -84,6 +84,72 @@ const generateGCSPath = (employeeData: any, destination: string, fromDate: strin
   
   // Generate path: FY/{user_id_or_name}/{Destination}/{From Date}/{Document Type}/filename
   return `${financialYear}/${employeeName}/${cleanDestination}/${formattedDate}/${cleanDocumentType}/${fileName}`;
+};
+
+// ===================== AUTO-LINKING HELPER FUNCTIONS =====================
+
+// Helper function to check if destination is in Schengen Area
+const isSchengenDestination = (destination: string): boolean => {
+  const normalizedDestination = destination.toLowerCase().trim();
+  
+  // Check if destination is explicitly "Schengen Area (EU)"
+  if (normalizedDestination.includes('schengen')) {
+    return true;
+  }
+  
+  // Check against individual Schengen countries
+  const schengenCountriesList = [
+    "austria", "belgium", "croatia", "czech republic", "denmark", "estonia",
+    "finland", "france", "germany", "greece", "hungary", "iceland", "italy",
+    "latvia", "liechtenstein", "lithuania", "luxembourg", "malta", "netherlands",
+    "norway", "poland", "portugal", "slovakia", "slovenia", "spain", "sweden", "switzerland"
+  ];
+  
+  return schengenCountriesList.some(country => 
+    normalizedDestination.includes(country)
+  );
+};
+
+// Helper function to auto-create Schengen travel log entry
+const createSchengenTravelEntry = async (trip: any, userId: number) => {
+  try {
+    // Get employee name for logging
+    const employee = await db
+      .select({
+        firstName: users.firstName,
+        lastName: users.lastName,
+        username: users.username,
+      })
+      .from(users)
+      .where(eq(users.id, trip.employeeId))
+      .limit(1);
+
+    const employeeName = employee[0]?.firstName && employee[0]?.lastName 
+      ? `${employee[0].firstName} ${employee[0].lastName}`
+      : employee[0]?.username || 'Unknown Employee';
+
+    console.log(`Auto-linking concluded trip to EU 180-Day Tracker for employee: ${employeeName}`);
+
+    // Create Schengen travel log entry
+    const travelLogEntry = await db.insert(schengenTravelLog).values({
+      employeeId: trip.employeeId,
+      country: trip.destination.includes('Schengen') ? "Schengen Area (EU)" : trip.destination,
+      entryDate: trip.fromDate,
+      exitDate: trip.toDate,
+      purpose: "Business Trip",
+      notes: `Auto-generated from Business Trip: ${trip.tripTitle}`,
+      isBusinessTrip: true,
+      source: "Business Trip Module",
+      businessTripId: trip.id,
+      createdBy: userId,
+    }).returning();
+
+    console.log(`✅ Auto-created Schengen travel entry ID: ${travelLogEntry[0].id} for trip ID: ${trip.id}`);
+    return travelLogEntry[0];
+  } catch (error) {
+    console.error(`❌ Error auto-creating Schengen travel entry for trip ID: ${trip.id}:`, error);
+    throw error;
+  }
 };
 
 // ===================== TRIP MANAGEMENT ENDPOINTS =====================
@@ -563,6 +629,90 @@ export const approveTrip = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error approving/rejecting trip:', error);
     res.status(500).json({ error: 'Failed to process approval' });
+  }
+};
+
+/**
+ * Mark trip as concluded (and auto-link to EU 180-Day Tracker if Schengen destination)
+ */
+export const concludeTrip = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
+
+    // Check if trip exists
+    const existingTrip = await db
+      .select()
+      .from(businessTrips)
+      .where(eq(businessTrips.id, parseInt(id)))
+      .limit(1);
+
+    if (!existingTrip.length) {
+      return res.status(404).json({ error: 'Trip not found' });
+    }
+
+    const trip = existingTrip[0];
+
+    // Only allow concluding if trip is final_approved
+    if (trip.status !== 'final_approved') {
+      return res.status(400).json({ 
+        error: 'Trip can only be concluded if it has final approval',
+        currentStatus: trip.status 
+      });
+    }
+
+    // Check permissions: only admin/superuser can conclude trips
+    const isAdmin = userRole === 'Superuser' || userRole === 'General Manager';
+    if (!isAdmin) {
+      return res.status(403).json({ 
+        error: 'Access denied. Only administrators can conclude trips.' 
+      });
+    }
+
+    // Update trip status to concluded
+    const updatedTrip = await db.update(businessTrips)
+      .set({
+        status: 'concluded',
+        updatedAt: new Date(),
+      })
+      .where(eq(businessTrips.id, parseInt(id)))
+      .returning();
+
+    console.log(`✅ Trip ID ${id} marked as concluded by user ${userId}`);
+
+    // Check if destination is Schengen Area and auto-create travel log entry
+    let autoLinkedEntry = null;
+    if (isSchengenDestination(trip.destination)) {
+      try {
+        console.log(`🔍 Detected Schengen destination: ${trip.destination}. Creating auto-linked travel entry...`);
+        autoLinkedEntry = await createSchengenTravelEntry(trip, userId);
+        console.log(`✅ Successfully auto-linked trip ${id} to EU 180-Day Tracker entry ${autoLinkedEntry.id}`);
+      } catch (autoLinkError) {
+        console.error(`❌ Failed to auto-link trip ${id} to EU tracker:`, autoLinkError);
+        // Don't fail the whole operation if auto-linking fails
+      }
+    } else {
+      console.log(`ℹ️ Trip destination '${trip.destination}' is not a Schengen area - no auto-linking performed`);
+    }
+
+    const response: any = { 
+      message: 'Trip concluded successfully',
+      trip: updatedTrip[0],
+      autoLinked: autoLinkedEntry ? true : false
+    };
+
+    if (autoLinkedEntry) {
+      response.schengenEntry = {
+        id: autoLinkedEntry.id,
+        message: 'Automatically created entry in EU 180-Day Rule Tracker'
+      };
+    }
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error concluding trip:', error);
+    res.status(500).json({ error: 'Failed to conclude trip' });
   }
 };
 
@@ -1127,6 +1277,7 @@ export default {
   deleteTrip,
   submitTrip,
   approveTrip,
+  concludeTrip,
   getTripDashboard,
   getTripReports,
   uploadTripDocument,
