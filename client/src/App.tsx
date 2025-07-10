@@ -57,7 +57,7 @@ import LeaveManagementPage from "@/pages/admin/leave-management-page";
 import PayrollManagementPage from "@/pages/admin/payroll-management-new";
 import WorkweekPolicyManagementPage from "@/pages/admin/workweek-policy-management-page";
 import BusinessTripManagementPage from "@/pages/admin/business-trip-management";
-import VisaManagementPage from "@/pages/admin/visa-management";
+import VisaManagementPage from "@/pages/admin/visa-management-simple";
 import LegalManagementPage from "@/pages/admin/legal-management";
 import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
 import OutstandingReportPage from "@/pages/finance/reports/outstanding-page";
