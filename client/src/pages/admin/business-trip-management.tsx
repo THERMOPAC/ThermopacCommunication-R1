@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -41,7 +41,11 @@ import {
   Paperclip,
   MoreVertical,
   Edit,
-  User
+  User,
+  Check,
+  X,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 // Form schemas
@@ -1558,6 +1562,275 @@ const TripDocumentsList = ({ tripId }: { tripId: number }) => {
   );
 };
 
+// Trip Approvals Tab Component
+const TripApprovalsTab = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  // Get all submitted trip requests that need approval
+  const { data: pendingTrips = [], isLoading } = useQuery({
+    queryKey: ['/api/trips/all'],
+    queryFn: () => apiRequest('GET', '/api/trips/all'),
+  });
+
+  // Filter for trips that need approval (submitted status)
+  const tripsAwaitingApproval = pendingTrips.filter((trip: any) => trip.status === 'submitted');
+
+  const approveTripMutation = useMutation({
+    mutationFn: ({ tripId, action, comments }: { tripId: number; action: 'approve' | 'reject'; comments?: string }) => 
+      apiRequest('POST', `/api/trips/${tripId}/approve`, { action, comments, approvalType: 'admin' }),
+    onSuccess: (data, variables) => {
+      toast({
+        title: 'Success',
+        description: `Trip request ${variables.action === 'approve' ? 'approved' : 'rejected'} successfully`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/all'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/dashboard'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to process approval',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleApproval = (tripId: number, action: 'approve' | 'reject', comments?: string) => {
+    approveTripMutation.mutate({ tripId, action, comments });
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading pending approvals...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5" />
+            Pending Trip Approvals ({tripsAwaitingApproval.length})
+          </CardTitle>
+          <CardDescription>
+            Review and approve business trip requests from your team members
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {tripsAwaitingApproval.length === 0 ? (
+            <div className="text-center py-8">
+              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+              <p className="text-lg font-medium text-gray-600">No pending approvals</p>
+              <p className="text-sm text-gray-500">All trip requests have been reviewed</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {tripsAwaitingApproval.map((trip: any) => (
+                <TripApprovalCard 
+                  key={trip.id} 
+                  trip={trip} 
+                  onApproval={handleApproval}
+                  isProcessing={approveTripMutation.isPending}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Trip Approval Card Component
+const TripApprovalCard = ({ 
+  trip, 
+  onApproval, 
+  isProcessing 
+}: { 
+  trip: any; 
+  onApproval: (tripId: number, action: 'approve' | 'reject', comments?: string) => void;
+  isProcessing: boolean;
+}) => {
+  const [showDetails, setShowDetails] = useState(false);
+  const [rejectComments, setRejectComments] = useState('');
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+
+  const totalCost = parseFloat(trip.estimatedTravelCost || '0') + 
+                   parseFloat(trip.estimatedAccommodationCost || '0') + 
+                   parseFloat(trip.estimatedMiscCost || '0');
+
+  const tripDuration = Math.ceil(
+    (new Date(trip.toDate).getTime() - new Date(trip.fromDate).getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  return (
+    <Card className="border-l-4 border-l-yellow-400">
+      <CardContent className="p-6">
+        <div className="space-y-4">
+          {/* Header */}
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold">{trip.tripTitle}</h3>
+              <p className="text-sm text-gray-600">
+                Requested by: <span className="font-medium">{trip.employeeName}</span>
+              </p>
+              <div className="flex items-center gap-4 text-sm text-gray-600">
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-4 w-4" />
+                  {trip.destination}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  {new Date(trip.fromDate).toLocaleDateString()} - {new Date(trip.toDate).toLocaleDateString()}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock className="h-4 w-4" />
+                  {tripDuration} days
+                </span>
+              </div>
+            </div>
+            <StatusBadge status={trip.status} />
+          </div>
+
+          {/* Summary Info */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <p className="text-sm text-blue-600 font-medium">Total Estimated Cost</p>
+              <p className="text-lg font-bold text-blue-700">₹{totalCost.toLocaleString()}</p>
+            </div>
+            <div className="bg-green-50 p-3 rounded-lg">
+              <p className="text-sm text-green-600 font-medium">Advance Requested</p>
+              <p className="text-lg font-bold text-green-700">₹{parseFloat(trip.advanceRequested || '0').toLocaleString()}</p>
+            </div>
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <p className="text-sm text-gray-600 font-medium">Submitted</p>
+              <p className="text-lg font-bold text-gray-700">{new Date(trip.createdAt).toLocaleDateString()}</p>
+            </div>
+          </div>
+
+          {/* Purpose */}
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-1">Purpose of Travel:</p>
+            <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded">{trip.purpose}</p>
+          </div>
+
+          {/* Details Toggle */}
+          <div className="border-t pt-4">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowDetails(!showDetails)}
+              className="mb-4"
+            >
+              {showDetails ? (
+                <>
+                  <ChevronUp className="h-4 w-4 mr-2" />
+                  Hide Details
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="h-4 w-4 mr-2" />
+                  Show Details
+                </>
+              )}
+            </Button>
+
+            {showDetails && (
+              <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-medium">Cost Breakdown</h4>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-600">Travel Cost</p>
+                    <p className="font-medium">₹{parseFloat(trip.estimatedTravelCost || '0').toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Accommodation</p>
+                    <p className="font-medium">₹{parseFloat(trip.estimatedAccommodationCost || '0').toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Miscellaneous</p>
+                    <p className="font-medium">₹{parseFloat(trip.estimatedMiscCost || '0').toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => setShowRejectDialog(true)}
+              disabled={isProcessing}
+              className="text-red-600 border-red-300 hover:bg-red-50"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Reject
+            </Button>
+            <Button
+              onClick={() => onApproval(trip.id, 'approve')}
+              disabled={isProcessing}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Check className="h-4 w-4 mr-2" />
+              Approve
+            </Button>
+          </div>
+        </div>
+
+        {/* Reject Dialog */}
+        <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reject Trip Request</DialogTitle>
+              <DialogDescription>
+                Please provide a reason for rejecting this trip request. This will help the employee understand your decision.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="comments">Rejection Reason</Label>
+                <Textarea
+                  id="comments"
+                  placeholder="Please explain why this trip request is being rejected..."
+                  value={rejectComments}
+                  onChange={(e) => setRejectComments(e.target.value)}
+                  rows={4}
+                />
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    onApproval(trip.id, 'reject', rejectComments);
+                    setShowRejectDialog(false);
+                    setRejectComments('');
+                  }}
+                  disabled={isProcessing}
+                >
+                  Reject Trip
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
+  );
+};
+
 // Trip Documents Tab Component
 const TripDocumentsTab = () => {
   const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
@@ -1783,14 +2056,7 @@ export default function BusinessTripManagement() {
           </TabsContent>
 
           <TabsContent value="approvals">
-            <Card>
-              <CardHeader>
-                <CardTitle>Pending Approvals</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">Approval workflow functionality coming soon...</p>
-              </CardContent>
-            </Card>
+            <TripApprovalsTab />
           </TabsContent>
 
           <TabsContent value="reports">
