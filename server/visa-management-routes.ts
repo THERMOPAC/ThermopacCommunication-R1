@@ -115,57 +115,76 @@ export const getVisaDashboard = async (req: Request, res: Response) => {
 export const getVisaRecords = async (req: Request, res: Response) => {
   try {
     console.log('Fetching visa records...');
-    const { country, visaType, department, status, employeeId } = req.query;
     
-    let whereConditions: any[] = [];
-    
-    if (country) {
-      whereConditions.push(eq(visaRecords.country, country as string));
-    }
-    
-    if (visaType) {
-      whereConditions.push(eq(visaRecords.visaType, visaType as string));
-    }
-    
-    if (status) {
-      whereConditions.push(eq(visaRecords.status, status as string));
-    }
-    
-    if (employeeId) {
-      whereConditions.push(eq(visaRecords.employeeId, parseInt(employeeId as string)));
-    }
-
-    // Use aliases for multiple user joins
-    const employee = users.as('employee');
-    const creator = users.as('creator');
-    
-    const records = await db
-      .select({
-        id: visaRecords.id,
-        employeeId: visaRecords.employeeId,
-        employeeName: employee.username,
-        employeeDepartment: employee.department,
-        visaType: visaRecords.visaType,
-        country: visaRecords.country,
-        visaNumber: visaRecords.visaNumber,
-        issueDate: visaRecords.issueDate,
-        expiryDate: visaRecords.expiryDate,
-        status: visaRecords.status,
-        quotaReference: visaRecords.quotaReference,
-        fileUrl: visaRecords.fileUrl,
-        notes: visaRecords.notes,
-        createdAt: visaRecords.createdAt,
-        createdByName: creator.username,
-        daysToExpiry: sql<number>`(${visaRecords.expiryDate}::date - CURRENT_DATE)`
-      })
+    // First get basic visa records without complex joins
+    const basicRecords = await db
+      .select()
       .from(visaRecords)
-      .leftJoin(employee, eq(visaRecords.employeeId, employee.id))
-      .leftJoin(creator, eq(visaRecords.createdBy, creator.id))
-      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(desc(visaRecords.createdAt));
 
-    console.log(`Found ${records.length} visa records`);
-    res.json(records);
+    console.log(`Found ${basicRecords.length} basic visa records`);
+
+    // Then enhance each record with employee information
+    const enhancedRecords = [];
+    for (const record of basicRecords) {
+      try {
+        // Get employee info
+        const employee = await db
+          .select({
+            username: users.username,
+            department: users.department
+          })
+          .from(users)
+          .where(eq(users.id, record.employeeId))
+          .limit(1);
+
+        // Get creator info
+        const creator = await db
+          .select({
+            username: users.username
+          })
+          .from(users)
+          .where(eq(users.id, record.createdBy))
+          .limit(1);
+
+        // Calculate days to expiry
+        const now = new Date();
+        const expiry = new Date(record.expiryDate);
+        const daysToExpiry = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+        enhancedRecords.push({
+          id: record.id,
+          employeeId: record.employeeId,
+          employeeName: employee[0]?.username || 'Unknown',
+          employeeDepartment: employee[0]?.department || null,
+          visaType: record.visaType,
+          country: record.country,
+          visaNumber: record.visaNumber,
+          issueDate: record.issueDate,
+          expiryDate: record.expiryDate,
+          status: record.status,
+          quotaReference: record.quotaReference,
+          fileUrl: record.fileUrl,
+          notes: record.notes,
+          createdAt: record.createdAt,
+          createdByName: creator[0]?.username || 'Unknown',
+          daysToExpiry: daysToExpiry
+        });
+      } catch (innerError) {
+        console.error('Error processing record:', record.id, innerError);
+        // Include record even if employee lookup fails
+        enhancedRecords.push({
+          ...record,
+          employeeName: 'Unknown',
+          employeeDepartment: null,
+          createdByName: 'Unknown',
+          daysToExpiry: 0
+        });
+      }
+    }
+
+    console.log(`Successfully enhanced ${enhancedRecords.length} visa records`);
+    res.json(enhancedRecords);
   } catch (error) {
     console.error('Error fetching visa records:', error);
     console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
