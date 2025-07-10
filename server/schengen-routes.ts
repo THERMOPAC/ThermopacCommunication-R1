@@ -250,6 +250,35 @@ router.post("/travel-logs", ensureAuthenticated, async (req, res) => {
       createdBy: req.user.id,
     });
 
+    // Check for overlapping travel entries for the same employee
+    const entryDate = new Date(validatedData.entryDate);
+    const exitDate = validatedData.exitDate ? new Date(validatedData.exitDate) : new Date();
+
+    const existingLogs = await db
+      .select()
+      .from(schengenTravelLog)
+      .where(eq(schengenTravelLog.employeeId, validatedData.employeeId));
+
+    // Check for overlaps with existing travel logs
+    for (const log of existingLogs) {
+      const existingEntry = new Date(log.entryDate);
+      const existingExit = log.exitDate ? new Date(log.exitDate) : new Date();
+
+      // Check if new entry overlaps with existing entry
+      const hasOverlap = (
+        (entryDate >= existingEntry && entryDate <= existingExit) ||
+        (exitDate >= existingEntry && exitDate <= existingExit) ||
+        (entryDate <= existingEntry && exitDate >= existingExit)
+      );
+
+      if (hasOverlap) {
+        return res.status(400).json({
+          error: "Travel entry overlaps with existing travel period",
+          details: `Overlaps with existing travel from ${existingEntry.toISOString().split('T')[0]} to ${existingExit.toISOString().split('T')[0]}`
+        });
+      }
+    }
+
     const [newLog] = await db
       .insert(schengenTravelLog)
       .values(validatedData)

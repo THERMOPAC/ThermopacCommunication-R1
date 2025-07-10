@@ -170,15 +170,19 @@ function EU180DayTracker() {
       queryClient.invalidateQueries({ queryKey: ['/api/schengen/dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['/api/schengen/travel-log'] });
       setIsAddTravelDialogOpen(false);
+      travelForm.reset();
       toast({
         title: "Success",
         description: "Travel entry added successfully"
       });
     },
     onError: (error: any) => {
+      const errorMessage = error.response?.data?.error || error.message || "Failed to add travel entry";
+      const errorDetails = error.response?.data?.details;
+      
       toast({
-        title: "Error",
-        description: error.message || "Failed to add travel entry",
+        title: "Cannot Add Travel Entry",
+        description: errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage,
         variant: "destructive"
       });
     }
