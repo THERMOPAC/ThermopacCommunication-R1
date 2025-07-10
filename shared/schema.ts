@@ -3423,7 +3423,7 @@ export const tripDocuments = pgTable('trip_documents', {
   tripId: integer('trip_id').notNull().references(() => businessTrips.id, { onDelete: 'cascade' }),
   documentType: varchar('document_type', { length: 100 }).notNull(),
   documentName: varchar('document_name', { length: 500 }).notNull(),
-  filePath: text('file_path').notNull(), // GCS path: Business_Trips/{FinancialYear}/{EmployeeName}/{Destination}/{FromDate}/{DocumentType}/filename
+  filePath: text('file_path').notNull(), // GCS path: Business_Trips/{BusinessYear}/{EmployeeName}/{Destination}/{FromDate}/{DocumentType}/filename
   fileUrl: text('file_url'), // Signed URL for access
   fileSize: integer('file_size'), // File size in bytes
   fileType: varchar('file_type', { length: 100 }), // MIME type
