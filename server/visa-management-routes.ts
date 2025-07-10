@@ -223,26 +223,22 @@ export const createVisaRecord = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const validatedData = insertVisaRecordSchema.parse(req.body);
-    
-    // Add the createdBy field separately since it's not in the form schema
-    const dataToInsert = {
-      ...validatedData,
+    const validatedData = insertVisaRecordSchema.parse({
+      ...req.body,
       createdBy: userId
-    };
+    });
 
     console.log('Create visa record - Validated data:', validatedData);
-    console.log('Create visa record - Data to insert:', dataToInsert);
 
     const [newRecord] = await db
       .insert(visaRecords)
-      .values(dataToInsert)
+      .values(validatedData)
       .returning();
 
     console.log('Create visa record - New record created:', newRecord);
 
     // Update quota usage
-    await updateQuotaUsage(dataToInsert.country, 1);
+    await updateQuotaUsage(validatedData.country, 1);
 
     res.status(201).json(newRecord);
   } catch (error) {
