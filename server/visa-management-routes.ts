@@ -216,6 +216,9 @@ export const getVisaRecord = async (req: Request, res: Response) => {
 export const createVisaRecord = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
+    console.log('Create visa record - User ID:', userId);
+    console.log('Create visa record - Request body:', req.body);
+    
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -225,10 +228,14 @@ export const createVisaRecord = async (req: Request, res: Response) => {
       createdBy: userId
     });
 
+    console.log('Create visa record - Validated data:', validatedData);
+
     const [newRecord] = await db
       .insert(visaRecords)
       .values(validatedData)
       .returning();
+
+    console.log('Create visa record - New record created:', newRecord);
 
     // Update quota usage
     await updateQuotaUsage(validatedData.country, 1);
@@ -236,6 +243,8 @@ export const createVisaRecord = async (req: Request, res: Response) => {
     res.status(201).json(newRecord);
   } catch (error) {
     console.error('Error creating visa record:', error);
+    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
     res.status(500).json({ error: 'Failed to create visa record' });
   }
 };
