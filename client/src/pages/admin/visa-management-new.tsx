@@ -681,7 +681,11 @@ function VisaRecordsTab() {
                           ) : (
                             employees.map((employee: any) => (
                               <SelectItem key={employee.id} value={employee.id.toString()}>
-                                {employee.username || employee.firstName || 'Unknown'} {employee.department ? `(${employee.department})` : ''}
+                                {employee.firstName && employee.lastName 
+                                  ? `${employee.firstName} ${employee.lastName} (${employee.username})`
+                                  : employee.username
+                                }
+                                {employee.employeeCode && ` - ${employee.employeeCode}`}
                               </SelectItem>
                             ))
                           )}
