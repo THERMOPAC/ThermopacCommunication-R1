@@ -45,7 +45,8 @@ import {
   Check,
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Search
 } from 'lucide-react';
 
 // Form schemas
@@ -1103,10 +1104,79 @@ const TripList = () => {
   const [editingTrip, setEditingTrip] = useState<any>(null);
   const [viewingTrip, setViewingTrip] = useState<any>(null);
   
+  // Filter and search states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [employeeFilter, setEmployeeFilter] = useState('all');
+  const [destinationFilter, setDestinationFilter] = useState('all');
+  const [fromDateFilter, setFromDateFilter] = useState('');
+  const [toDateFilter, setToDateFilter] = useState('');
+  
   const { data: trips, isLoading } = useQuery({
     queryKey: ['/api/trips/user'],
     queryFn: () => apiRequest('GET', '/api/trips/user'),
   });
+
+  // Get employees list for filter dropdown
+  const { data: employees = [] } = useQuery({
+    queryKey: ['/api/admin/users'],
+    queryFn: () => apiRequest('GET', '/api/admin/users')
+  });
+
+  // Filter and search logic
+  const filteredTrips = React.useMemo(() => {
+    if (!trips) return [];
+    
+    return trips.filter((trip: any) => {
+      // Search query filter (searches in title, destination, employee name)
+      const searchLower = searchQuery.toLowerCase();
+      const matchesSearch = !searchQuery || 
+        trip.tripTitle?.toLowerCase().includes(searchLower) ||
+        trip.destination?.toLowerCase().includes(searchLower) ||
+        trip.employeeName?.toLowerCase().includes(searchLower) ||
+        trip.purpose?.toLowerCase().includes(searchLower);
+      
+      // Status filter
+      const matchesStatus = statusFilter === 'all' || trip.status === statusFilter;
+      
+      // Employee filter
+      const matchesEmployee = employeeFilter === 'all' || trip.employeeId?.toString() === employeeFilter;
+      
+      // Destination filter
+      const matchesDestination = destinationFilter === 'all' || trip.destination === destinationFilter;
+      
+      // Date range filters
+      let matchesFromDate = true;
+      let matchesToDate = true;
+      
+      if (fromDateFilter && trip.fromDate) {
+        matchesFromDate = new Date(trip.fromDate) >= new Date(fromDateFilter);
+      }
+      
+      if (toDateFilter && trip.toDate) {
+        matchesToDate = new Date(trip.toDate) <= new Date(toDateFilter);
+      }
+      
+      return matchesSearch && matchesStatus && matchesEmployee && matchesDestination && matchesFromDate && matchesToDate;
+    });
+  }, [trips, searchQuery, statusFilter, employeeFilter, destinationFilter, fromDateFilter, toDateFilter]);
+
+  // Get unique destinations for filter
+  const uniqueDestinations = React.useMemo(() => {
+    if (!trips) return [];
+    const destinations = [...new Set(trips.map((trip: any) => trip.destination))];
+    return destinations.filter(Boolean).sort();
+  }, [trips]);
+
+  // Clear all filters
+  const clearFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setEmployeeFilter('all');
+    setDestinationFilter('all');
+    setFromDateFilter('');
+    setToDateFilter('');
+  };
 
   const deleteTripMutation = useMutation({
     mutationFn: (tripId: number) => apiRequest('DELETE', `/api/trips/${tripId}`),
@@ -1143,68 +1213,190 @@ const TripList = () => {
   if (isLoading) return <div>Loading trips...</div>;
 
   return (
-    <div className="space-y-2">
-      {trips?.map((trip: any) => (
-        <Card key={trip.id} className="hover:shadow-md transition-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              {/* Trip Info - Single Line */}
-              <div className="flex items-center gap-6 flex-1">
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold text-base truncate">{trip.tripTitle}</h3>
-                </div>
-                
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <MapPin className="h-4 w-4" />
-                  <span className="whitespace-nowrap">{trip.destination}</span>
-                </div>
-                
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="h-4 w-4" />
-                  <span className="whitespace-nowrap">
-                    {formatDate(trip.fromDate)} - {formatDate(trip.toDate)}
-                  </span>
-                </div>
-                
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <DollarSign className="h-4 w-4" />
-                  <span className="whitespace-nowrap">
-                    ₹{(parseFloat(trip.estimatedTravelCost) + parseFloat(trip.estimatedAccommodationCost) + parseFloat(trip.estimatedMiscCost)).toFixed(2)}
-                  </span>
-                </div>
-                
-                <StatusBadge status={trip.status} />
-              </div>
-
-              {/* 3-Dot Actions Menu */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => handleView(trip)}>
-                    <Eye className="mr-2 h-4 w-4" />
-                    View
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleEdit(trip)}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => handleDelete(trip)}
-                    className="text-red-600 focus:text-red-600"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+    <div className="space-y-6">
+      {/* Search and Filter Controls */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            Search & Filter Trip Requests
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Search Bar */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search by trip title, destination, employee name, or purpose..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
             </div>
-          </CardContent>
-        </Card>
-      ))}
+            {(searchQuery || statusFilter !== 'all' || employeeFilter !== 'all' || destinationFilter !== 'all' || fromDateFilter || toDateFilter) && (
+              <Button variant="outline" onClick={clearFilters} className="whitespace-nowrap">
+                <X className="h-4 w-4 mr-2" />
+                Clear Filters
+              </Button>
+            )}
+          </div>
+
+          {/* Filter Controls */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Status Filter */}
+            <div>
+              <Label className="text-sm font-medium">Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="submitted">Submitted</SelectItem>
+                  <SelectItem value="manager_approved">Manager Approved</SelectItem>
+                  <SelectItem value="admin_approved">Admin Approved</SelectItem>
+                  <SelectItem value="finance_approved">Finance Approved</SelectItem>
+                  <SelectItem value="final_approved">Final Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Employee Filter */}
+            <div>
+              <Label className="text-sm font-medium">Employee</Label>
+              <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Employees" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Employees</SelectItem>
+                  {employees.map((employee: any) => (
+                    <SelectItem key={employee.id} value={employee.id.toString()}>
+                      {employee.username}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Destination Filter */}
+            <div>
+              <Label className="text-sm font-medium">Destination</Label>
+              <Select value={destinationFilter} onValueChange={setDestinationFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Destinations" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Destinations</SelectItem>
+                  {uniqueDestinations.map((destination: string) => (
+                    <SelectItem key={destination} value={destination}>
+                      {destination}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* From Date Filter */}
+            <div>
+              <Label className="text-sm font-medium">From Date (After)</Label>
+              <Input
+                type="date"
+                value={fromDateFilter}
+                onChange={(e) => setFromDateFilter(e.target.value)}
+              />
+            </div>
+
+            {/* To Date Filter */}
+            <div>
+              <Label className="text-sm font-medium">To Date (Before)</Label>
+              <Input
+                type="date"
+                value={toDateFilter}
+                onChange={(e) => setToDateFilter(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Results Summary */}
+          <div className="flex items-center justify-between pt-2 border-t">
+            <p className="text-sm text-gray-600">
+              Showing {filteredTrips.length} of {trips?.length || 0} trip requests
+            </p>
+            {filteredTrips.length === 0 && trips?.length > 0 && (
+              <p className="text-sm text-amber-600">No trips match your current filters</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Trip List */}
+      <div className="space-y-2">
+        {filteredTrips?.map((trip: any) => (
+          <Card key={trip.id} className="hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                {/* Trip Info - Single Line */}
+                <div className="flex items-center gap-6 flex-1">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-base truncate">{trip.tripTitle}</h3>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <MapPin className="h-4 w-4" />
+                    <span className="whitespace-nowrap">{trip.destination}</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Calendar className="h-4 w-4" />
+                    <span className="whitespace-nowrap">
+                      {formatDate(trip.fromDate)} - {formatDate(trip.toDate)}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <DollarSign className="h-4 w-4" />
+                    <span className="whitespace-nowrap">
+                      ₹{(parseFloat(trip.estimatedTravelCost) + parseFloat(trip.estimatedAccommodationCost) + parseFloat(trip.estimatedMiscCost)).toFixed(2)}
+                    </span>
+                  </div>
+                  
+                  <StatusBadge status={trip.status} />
+                </div>
+
+                {/* 3-Dot Actions Menu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleView(trip)}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      View
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleEdit(trip)}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => handleDelete(trip)}
+                      className="text-red-600 focus:text-red-600"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
       {/* View Trip Dialog */}
       {viewingTrip && (
