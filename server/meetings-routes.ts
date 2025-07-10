@@ -10,12 +10,15 @@ import {
   meetingKpiLinks,
   meetingTemplates,
   users,
+  tasks,
   insertBusinessMeetingSchema,
   insertMeetingCommitmentSchema,
   insertMeetingAttendanceSchema,
+  insertTaskSchema,
   type BusinessMeeting,
   type MeetingCommitment,
-  type MeetingAttendance
+  type MeetingAttendance,
+  type Task
 } from '@shared/schema';
 import { ensureAuthenticated } from './middlewares/auth';
 
@@ -434,7 +437,7 @@ export const getUserPendingCommitments = async (req: Request, res: Response) => 
 };
 
 /**
- * Create commitment
+ * Create commitment and automatically generate linked task
  */
 export const createCommitment = async (req: Request, res: Response) => {
   try {
@@ -445,20 +448,60 @@ export const createCommitment = async (req: Request, res: Response) => {
       createdBy: user.id,
     });
 
-    const [commitment] = await db
-      .insert(meetingCommitments)
-      .values(validatedData)
-      .returning();
+    // Start database transaction to ensure data consistency
+    const result = await db.transaction(async (tx) => {
+      // Create the meeting commitment
+      const [commitment] = await tx
+        .insert(meetingCommitments)
+        .values(validatedData)
+        .returning();
 
-    res.status(201).json(commitment);
+      // Get meeting details for task description
+      const [meeting] = await tx
+        .select()
+        .from(businessMeetings)
+        .where(eq(businessMeetings.id, commitment.meetingId));
+
+      // Automatically create a linked task from the commitment
+      const taskData = {
+        title: commitment.title,
+        description: commitment.description || `Task generated from meeting commitment: ${commitment.title}`,
+        status: 'pending',
+        priority: commitment.priority || 'Medium',
+        startDate: new Date().toISOString().split('T')[0],
+        finishDate: commitment.dueDate,
+        dueDate: commitment.dueDate,
+        assignedTo: commitment.assignedToId,
+        createdBy: user.id,
+        createdAt: new Date().toISOString(),
+        category: 'Meeting Follow-up',
+        sourceType: 'meeting_commitment' as const,
+        sourceId: commitment.id
+      };
+
+      const [task] = await tx
+        .insert(tasks)
+        .values(taskData)
+        .returning();
+
+      return { commitment, task, meeting };
+    });
+
+    console.log(`Automatically created task ID ${result.task.id} for meeting commitment ID ${result.commitment.id} from meeting "${result.meeting?.title}"`);
+
+    res.status(201).json({
+      commitment: result.commitment,
+      linkedTask: result.task,
+      message: `Commitment created and task automatically generated (Task ID: ${result.task.id})`
+    });
   } catch (error) {
     console.error('Error creating commitment:', error);
-    res.status(500).json({ error: 'Failed to create commitment' });
+    res.status(500).json({ error: 'Failed to create commitment and linked task' });
   }
 };
 
 /**
- * Update commitment
+ * Update commitment with bidirectional task synchronization
  */
 export const updateCommitment = async (req: Request, res: Response) => {
   try {
@@ -470,17 +513,94 @@ export const updateCommitment = async (req: Request, res: Response) => {
       validatedData.completionDate = new Date().toISOString().split('T')[0];
     }
 
-    const [commitment] = await db
-      .update(meetingCommitments)
-      .set({ ...validatedData, updatedAt: new Date() })
-      .where(eq(meetingCommitments.id, parseInt(id)))
-      .returning();
+    // Start database transaction for bidirectional sync
+    const result = await db.transaction(async (tx) => {
+      // Update the commitment
+      const [commitment] = await tx
+        .update(meetingCommitments)
+        .set({ ...validatedData, updatedAt: new Date() })
+        .where(eq(meetingCommitments.id, parseInt(id)))
+        .returning();
 
-    if (!commitment) {
-      return res.status(404).json({ error: 'Commitment not found' });
-    }
+      if (!commitment) {
+        throw new Error('Commitment not found');
+      }
 
-    res.json(commitment);
+      // Find and update linked task if it exists
+      const linkedTasks = await tx
+        .select()
+        .from(tasks)
+        .where(
+          and(
+            eq(tasks.sourceType, 'meeting_commitment'),
+            eq(tasks.sourceId, commitment.id)
+          )
+        );
+
+      if (linkedTasks.length > 0) {
+        const linkedTask = linkedTasks[0];
+        
+        // Sync status between commitment and task
+        let taskStatus = linkedTask.status;
+        if (validatedData.status) {
+          switch (validatedData.status) {
+            case 'Pending':
+              taskStatus = 'pending';
+              break;
+            case 'In Progress':
+              taskStatus = 'in_progress';
+              break;
+            case 'Completed':
+              taskStatus = 'completed';
+              break;
+            case 'Overdue':
+              taskStatus = 'pending'; // Keep as pending but mark overdue
+              break;
+            case 'On Hold':
+              taskStatus = 'on_hold';
+              break;
+            case 'Cancelled':
+              taskStatus = 'canceled';
+              break;
+          }
+        }
+
+        // Update linked task with synchronized data
+        const taskUpdateData = {
+          ...(validatedData.title && { title: validatedData.title }),
+          ...(validatedData.description && { description: validatedData.description }),
+          ...(validatedData.priority && { priority: validatedData.priority }),
+          ...(validatedData.dueDate && { 
+            dueDate: validatedData.dueDate,
+            finishDate: validatedData.dueDate 
+          }),
+          ...(validatedData.status && { status: taskStatus }),
+          ...(validatedData.status === 'Completed' && { 
+            completedAt: new Date().toISOString() 
+          })
+        };
+
+        const [updatedTask] = await tx
+          .update(tasks)
+          .set(taskUpdateData)
+          .where(eq(tasks.id, linkedTask.id))
+          .returning();
+
+        console.log(`Synchronized task ID ${updatedTask.id} with commitment ID ${commitment.id} - Status: ${taskStatus}`);
+
+        return { commitment, linkedTask: updatedTask };
+      }
+
+      return { commitment, linkedTask: null };
+    });
+
+    res.json({
+      commitment: result.commitment,
+      linkedTask: result.linkedTask,
+      message: result.linkedTask 
+        ? `Commitment updated and linked task synchronized (Task ID: ${result.linkedTask.id})`
+        : 'Commitment updated (no linked task found)'
+    });
   } catch (error) {
     console.error('Error updating commitment:', error);
     res.status(500).json({ error: 'Failed to update commitment' });
@@ -709,4 +829,105 @@ export const escalateCommitment = async (req: Request, res: Response) => {
   }
 };
 
-// All functions are already exported above, no need for duplicate export block
+// =============================================================================
+// TASK INTEGRATION ENDPOINTS
+// =============================================================================
+
+/**
+ * Get tasks linked to meeting commitments for a specific meeting
+ */
+export const getMeetingTasks = async (req: Request, res: Response) => {
+  try {
+    const { meetingId } = req.params;
+
+    // Get all commitments for this meeting and their linked tasks
+    const results = await db
+      .select({
+        commitment: meetingCommitments,
+        task: tasks,
+        assignedTo: {
+          id: users.id,
+          username: users.username,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        }
+      })
+      .from(meetingCommitments)
+      .leftJoin(
+        tasks, 
+        and(
+          eq(tasks.sourceType, 'meeting_commitment'),
+          eq(tasks.sourceId, meetingCommitments.id)
+        )
+      )
+      .leftJoin(users, eq(meetingCommitments.assignedToId, users.id))
+      .where(eq(meetingCommitments.meetingId, parseInt(meetingId)));
+
+    res.json({ meetingTasks: results });
+  } catch (error) {
+    console.error('Error fetching meeting tasks:', error);
+    res.status(500).json({ error: 'Failed to fetch meeting tasks' });
+  }
+};
+
+/**
+ * Get all tasks generated from meeting commitments
+ */
+export const getCommitmentTasks = async (req: Request, res: Response) => {
+  try {
+    const { assignedToId, status, page = 1, limit = 20 } = req.query;
+
+    let query = db
+      .select({
+        task: tasks,
+        commitment: meetingCommitments,
+        meeting: {
+          id: businessMeetings.id,
+          title: businessMeetings.title,
+          meetingDate: businessMeetings.meetingDate,
+        },
+        assignedTo: {
+          id: users.id,
+          username: users.username,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        }
+      })
+      .from(tasks)
+      .innerJoin(
+        meetingCommitments,
+        eq(tasks.sourceId, meetingCommitments.id)
+      )
+      .leftJoin(businessMeetings, eq(meetingCommitments.meetingId, businessMeetings.id))
+      .leftJoin(users, eq(tasks.assignedTo, users.id))
+      .where(eq(tasks.sourceType, 'meeting_commitment'));
+
+    const conditions = [eq(tasks.sourceType, 'meeting_commitment')];
+
+    if (assignedToId) {
+      conditions.push(eq(tasks.assignedTo, parseInt(assignedToId as string)));
+    }
+
+    if (status) {
+      conditions.push(eq(tasks.status, status as string));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    // Apply pagination
+    const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+    query = query
+      .orderBy(asc(tasks.dueDate))
+      .limit(parseInt(limit as string))
+      .offset(offset);
+
+    const results = await query;
+
+    res.json({ commitmentTasks: results });
+  } catch (error) {
+    console.error('Error fetching commitment tasks:', error);
+    res.status(500).json({ error: 'Failed to fetch commitment tasks' });
+  }
+};

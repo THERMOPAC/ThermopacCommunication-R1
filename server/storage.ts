@@ -299,16 +299,86 @@ export class DatabaseStorage implements IStorage {
 
   async updateTask(id: number, updateData: Partial<Task>): Promise<Task> {
     console.log(`Updating task ${id} with data:`, updateData);
-    const result = await db
-      .update(tasksTable)
-      .set(updateData)
-      .where(eq(tasksTable.id, id))
-      .returning();
-    const task = result[0] as Task;
+    
+    return await db.transaction(async (tx) => {
+      // Update the task
+      const [task] = await tx
+        .update(tasksTable)
+        .set(updateData)
+        .where(eq(tasksTable.id, id))
+        .returning();
 
-    if (!task) throw new Error("Task not found");
-    console.log(`Updated task:`, task);
-    return task;
+      if (!task) throw new Error("Task not found");
+
+      // Check if this task is linked to a meeting commitment and sync if needed
+      if (task.sourceType === 'meeting_commitment' && task.sourceId) {
+        try {
+          // Import schema within transaction to avoid circular imports
+          const { meetingCommitments } = await import('@shared/schema');
+          
+          // Map task status to commitment status
+          let commitmentStatus: string | undefined;
+          if (updateData.status) {
+            switch (updateData.status) {
+              case 'pending':
+                commitmentStatus = 'Pending';
+                break;
+              case 'in_progress':
+                commitmentStatus = 'In Progress';
+                break;
+              case 'completed':
+                commitmentStatus = 'Completed';
+                break;
+              case 'on_hold':
+                commitmentStatus = 'On Hold';
+                break;
+              case 'canceled':
+                commitmentStatus = 'Cancelled';
+                break;
+            }
+          }
+
+          // Prepare commitment update data
+          const commitmentUpdateData: any = {};
+
+          if (updateData.title) {
+            commitmentUpdateData.title = updateData.title;
+          }
+          if (updateData.description) {
+            commitmentUpdateData.description = updateData.description;
+          }
+          if (updateData.dueDate) {
+            commitmentUpdateData.dueDate = new Date(updateData.dueDate).toISOString().split('T')[0];
+          }
+          if (commitmentStatus) {
+            commitmentUpdateData.status = commitmentStatus;
+            
+            // Set completion date if completed
+            if (commitmentStatus === 'Completed') {
+              commitmentUpdateData.completionDate = new Date().toISOString().split('T')[0];
+            }
+          }
+
+          // Only update if there's something to change
+          if (Object.keys(commitmentUpdateData).length > 0) {
+            commitmentUpdateData.updatedAt = new Date();
+            
+            await tx
+              .update(meetingCommitments)
+              .set(commitmentUpdateData)
+              .where(eq(meetingCommitments.id, task.sourceId));
+
+            console.log(`Reverse synchronized commitment ID ${task.sourceId} from task ID ${task.id} update`);
+          }
+        } catch (syncError) {
+          console.error('Error reverse synchronizing commitment from task update:', syncError);
+          // Don't fail the task update if sync fails
+        }
+      }
+
+      console.log(`Updated task:`, task);
+      return task;
+    });
   }
 
   // Task History Implementation

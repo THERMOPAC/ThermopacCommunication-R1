@@ -799,6 +799,10 @@ export const tasks = pgTable('tasks', {
   createdAt: text('created_at').notNull(),
   completedAt: text('completed_at'),
   category: text('category'), // Optional category for task classification
+  
+  // Meeting integration fields
+  sourceType: text('source_type'), // 'manual', 'meeting_commitment', 'recurring'
+  sourceId: integer('source_id'), // ID of the source record (meeting commitment ID if sourceType is 'meeting_commitment')
 });
 
 // Separate table for instances of recurring tasks
@@ -933,7 +937,9 @@ export const insertTaskSchema = createInsertSchema(tasks).extend({
   priority: z.enum(['Low', 'Medium', 'High']),
   startDate: z.string(),
   finishDate: z.string(),
-  dueDate: z.string().optional()
+  dueDate: z.string().optional(),
+  sourceType: z.enum(['manual', 'meeting_commitment', 'recurring']).optional(),
+  sourceId: z.number().optional()
 });
 
 // Create insert schemas for new tables
