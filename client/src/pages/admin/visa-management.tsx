@@ -165,8 +165,12 @@ export default function VisaManagement() {
 
   // Create visa record mutation
   const createMutation = useMutation({
-    mutationFn: (data: InsertVisaRecord) => apiRequest('POST', '/api/visa/records', data),
-    onSuccess: () => {
+    mutationFn: (data: InsertVisaRecord) => {
+      console.log('Sending API request with data:', data);
+      return apiRequest('POST', '/api/visa/records', data);
+    },
+    onSuccess: (response) => {
+      console.log('Create mutation success:', response);
       queryClient.invalidateQueries({ queryKey: ['/api/visa/dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['/api/visa/records'] });
       toast({ title: 'Success', description: 'Visa record created successfully' });
@@ -174,6 +178,7 @@ export default function VisaManagement() {
       form.reset();
     },
     onError: (error: any) => {
+      console.error('Create mutation error:', error);
       toast({ title: 'Error', description: error.message || 'Failed to create visa record', variant: 'destructive' });
     },
   });
@@ -225,9 +230,15 @@ export default function VisaManagement() {
   });
 
   const onSubmit = (data: InsertVisaRecord) => {
+    console.log('Form submitted with data:', data);
+    console.log('Editing record:', editingRecord);
+    console.log('Create mutation pending:', createMutation.isPending);
+    
     if (editingRecord) {
+      console.log('Updating existing record');
       updateMutation.mutate({ id: editingRecord.id, data });
     } else {
+      console.log('Creating new record');
       createMutation.mutate(data);
     }
   };
