@@ -23,10 +23,10 @@ router.post('/allocate-payment', async (req: Request, res: Response) => {
     // Import storage here to avoid circular dependency
     const { storage } = await import('./storage');
     
-    // Get current allocated amount from payment_invoice_links (single source of truth)
+    // Get current allocated amount from payment_allocations (correct table)
     const currentAllocations = await storage.db.execute(
       sql`SELECT COALESCE(SUM(amount_applied), 0) as total_allocated 
-          FROM payment_invoice_links WHERE payment_id = ${paymentId}`
+          FROM payment_allocations WHERE payment_id = ${paymentId}`
     );
     
     const currentPayment = await storage.db.execute(
@@ -50,26 +50,38 @@ router.post('/allocate-payment', async (req: Request, res: Response) => {
       });
     }
     
+    // Check if this exact allocation already exists
+    const existingAllocation = await storage.db.execute(
+      sql`SELECT id FROM payment_allocations 
+          WHERE payment_id = ${paymentId} AND invoice_id = ${invoiceId}`
+    );
+    
+    if (existingAllocation.rows.length > 0) {
+      return res.status(400).json({ 
+        error: 'Allocation between this payment and invoice already exists' 
+      });
+    }
+    
     // Insert allocation record first
     console.log(`🔥 Creating allocation record...`);
     await storage.db.execute(
-      sql`INSERT INTO payment_invoice_links (payment_id, invoice_id, amount_applied, created_at)
+      sql`INSERT INTO payment_allocations (payment_id, invoice_id, amount_applied, created_at)
           VALUES (${paymentId}, ${invoiceId}, ${allocationAmount}, NOW())`
     );
     
-    // Update payment amounts based on payment_invoice_links table (single source of truth)
+    // Update payment amounts based on payment_allocations table (correct table)
     console.log(`🔥 Updating payment ${paymentId} amounts...`);
     
     const updateResult = await storage.db.execute(
       sql`UPDATE payments SET 
         allocated_amount = (
           SELECT COALESCE(SUM(amount_applied), 0) 
-          FROM payment_invoice_links 
+          FROM payment_allocations 
           WHERE payment_id = ${paymentId}
         ),
         unallocated_amount = amount - (
           SELECT COALESCE(SUM(amount_applied), 0) 
-          FROM payment_invoice_links 
+          FROM payment_allocations 
           WHERE payment_id = ${paymentId}
         ),
         updated_at = NOW()
