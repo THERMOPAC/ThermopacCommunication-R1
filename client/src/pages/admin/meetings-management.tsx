@@ -143,9 +143,9 @@ interface User {
 export default function MeetingsManagement() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
   const [isCreateMeetingOpen, setIsCreateMeetingOpen] = useState(false);
   const [isCreateCommitmentOpen, setIsCreateCommitmentOpen] = useState(false);
   const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
@@ -266,9 +266,9 @@ export default function MeetingsManagement() {
         meeting.meeting.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         meeting.meeting.description?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesStatus = !statusFilter || meeting.meeting.status === statusFilter;
-      const matchesType = !typeFilter || meeting.meeting.meetingType === typeFilter;
-      const matchesPriority = !priorityFilter || meeting.meeting.priority === priorityFilter;
+      const matchesStatus = !statusFilter || statusFilter === 'all' || meeting.meeting.status === statusFilter;
+      const matchesType = !typeFilter || typeFilter === 'all' || meeting.meeting.meetingType === typeFilter;
+      const matchesPriority = !priorityFilter || priorityFilter === 'all' || meeting.meeting.priority === priorityFilter;
       
       return matchesSearch && matchesStatus && matchesType && matchesPriority;
     });
@@ -283,8 +283,8 @@ export default function MeetingsManagement() {
         commitment.commitment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         commitment.commitment.description?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesStatus = !statusFilter || commitment.commitment.status === statusFilter;
-      const matchesPriority = !priorityFilter || commitment.commitment.priority === priorityFilter;
+      const matchesStatus = !statusFilter || statusFilter === 'all' || commitment.commitment.status === statusFilter;
+      const matchesPriority = !priorityFilter || priorityFilter === 'all' || commitment.commitment.priority === priorityFilter;
       
       return matchesSearch && matchesStatus && matchesPriority;
     });
@@ -538,7 +538,7 @@ export default function MeetingsManagement() {
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Status</SelectItem>
+                    <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="Scheduled">Scheduled</SelectItem>
                     <SelectItem value="In Progress">In Progress</SelectItem>
                     <SelectItem value="Completed">Completed</SelectItem>
@@ -550,7 +550,7 @@ export default function MeetingsManagement() {
                     <SelectValue placeholder="Type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Types</SelectItem>
+                    <SelectItem value="all">All Types</SelectItem>
                     <SelectItem value="Team Meeting">Team Meeting</SelectItem>
                     <SelectItem value="One-on-One">One-on-One</SelectItem>
                     <SelectItem value="Board Meeting">Board Meeting</SelectItem>
@@ -563,7 +563,7 @@ export default function MeetingsManagement() {
                     <SelectValue placeholder="Priority" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Priority</SelectItem>
+                    <SelectItem value="all">All Priority</SelectItem>
                     <SelectItem value="Low">Low</SelectItem>
                     <SelectItem value="Medium">Medium</SelectItem>
                     <SelectItem value="High">High</SelectItem>
@@ -839,7 +839,7 @@ export default function MeetingsManagement() {
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Status</SelectItem>
+                    <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="Pending">Pending</SelectItem>
                     <SelectItem value="In Progress">In Progress</SelectItem>
                     <SelectItem value="Completed">Completed</SelectItem>
@@ -851,7 +851,7 @@ export default function MeetingsManagement() {
                     <SelectValue placeholder="Priority" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Priority</SelectItem>
+                    <SelectItem value="all">All Priority</SelectItem>
                     <SelectItem value="Low">Low</SelectItem>
                     <SelectItem value="Medium">Medium</SelectItem>
                     <SelectItem value="High">High</SelectItem>
