@@ -352,8 +352,10 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUser
     const takeHome = grossEarnings - employeePF - employeeESIC - professionalTax;
 
     // CTC calculations
+    // CTC Monthly excludes bonus (business requirement)
     const ctcMonthly = grossEarnings + employerPF + employerESIC + gratuity + groupInsuranceAmount;
-    const ctcYearly = ctcMonthly * 12;
+    // CTC Yearly includes bonus as part of annual cost (business requirement)
+    const ctcYearly = (ctcMonthly * 12) + (bonus * 12);
 
     return {
       grossBasic,

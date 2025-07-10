@@ -471,9 +471,11 @@ export class SalaryCalculationEngine {
     const groupInsurance = parseFloat(salaryConfig.groupInsurance || '1500');
     const totalEmployerContributions = employerPF + employerESIC + gratuity + groupInsurance;
     
-    // CTC
+    // CTC calculations
+    // CTC Monthly excludes bonus (business requirement)
     const ctcMonthly = grossEarnings + totalEmployerContributions;
-    const ctcYearly = ctcMonthly * 12;
+    // CTC Yearly includes bonus as part of annual cost (business requirement)
+    const ctcYearly = (ctcMonthly * 12) + (bonus * 12);
     
     return {
       // Employee Details

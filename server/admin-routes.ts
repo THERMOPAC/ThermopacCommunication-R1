@@ -402,8 +402,11 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
                                      parseFloat(salaryData.groupInsurance || 0) + 
                                      parseFloat(salaryData.gratuityCost || 0);
 
-    const ctcMonthly = grossSalary + totalEmployerContributions;
-    const ctcYearly = ctcMonthly * 12;
+    // CTC Monthly excludes bonus (business requirement)
+    const grossSalaryWithoutBonus = grossSalary - parseFloat(salaryData.bonus || 0);
+    const ctcMonthly = grossSalaryWithoutBonus + totalEmployerContributions;
+    // CTC Yearly includes bonus as part of annual cost (business requirement)
+    const ctcYearly = (ctcMonthly * 12) + (parseFloat(salaryData.bonus || 0) * 12);
 
     const totalDeductions = parseFloat(salaryData.employeePfContribution || 0) + 
                            parseFloat(salaryData.employeeEsicContribution || 0) +
@@ -503,8 +506,11 @@ router.put('/payroll/salary-setup/:id', ensureAuthenticated, async (req: Request
                                      parseFloat(salaryData.groupInsurance || 0) + 
                                      parseFloat(salaryData.gratuityCost || 0);
 
-    const ctcMonthly = grossSalary + totalEmployerContributions;
-    const ctcYearly = ctcMonthly * 12;
+    // CTC Monthly excludes bonus (business requirement)
+    const grossSalaryWithoutBonus = grossSalary - parseFloat(salaryData.bonus || 0);
+    const ctcMonthly = grossSalaryWithoutBonus + totalEmployerContributions;
+    // CTC Yearly includes bonus as part of annual cost (business requirement)
+    const ctcYearly = (ctcMonthly * 12) + (parseFloat(salaryData.bonus || 0) * 12);
 
     const totalDeductions = parseFloat(salaryData.employeePfContribution || 0) + 
                            parseFloat(salaryData.employeeEsicContribution || 0) +
