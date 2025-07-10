@@ -216,6 +216,7 @@ export const getVisaRecord = async (req: Request, res: Response) => {
 export const createVisaRecord = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
+    console.log('Create visa record - User object:', (req as any).user);
     console.log('Create visa record - User ID:', userId);
     console.log('Create visa record - Request body:', req.body);
     
@@ -226,13 +227,17 @@ export const createVisaRecord = async (req: Request, res: Response) => {
     const validatedData = insertVisaRecordSchema.parse(req.body);
 
     console.log('Create visa record - Validated data:', validatedData);
+    
+    const insertData = {
+      ...validatedData,
+      createdBy: userId
+    };
+    
+    console.log('Create visa record - Insert data with createdBy:', insertData);
 
     const [newRecord] = await db
       .insert(visaRecords)
-      .values({
-        ...validatedData,
-        createdBy: userId
-      })
+      .values(insertData)
       .returning();
 
     console.log('Create visa record - New record created:', newRecord);
