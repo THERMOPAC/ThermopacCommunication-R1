@@ -475,37 +475,7 @@ function Layout({ children }: LayoutProps) {
               </ul>
             </div>
             
-            {/* Admin Section */}
-            {(user?.role === "Superuser" || user?.role === "General Manager") && (
-              <div>
-                <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-2 px-3">Administration</h3>
-                <ul className="space-y-1">
-                  {menuItems.slice(-3).map((item, index) => {
-                    const Icon = item.icon;
-                    const isActive = item.href ? location === item.href : false;
-                    
-                    return (
-                      <li key={item.href || `admin-${index}`}>
-                        {item.href && (
-                          <Link href={item.href || ''}>
-                            <button
-                              className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#3B82F6] transition-colors
-                                ${isActive
-                                  ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold'
-                                  : 'hover:bg-[#F3F4F6] rounded-md'
-                                }`}
-                            >
-                              <Icon className={`h-5 w-5 ${isActive ? 'text-[#3B82F6]' : 'text-[#3B82F6]'}`} />
-                              <span>{item.label}</span>
-                            </button>
-                          </Link>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
+
           </div>
         </nav>
       </aside>
