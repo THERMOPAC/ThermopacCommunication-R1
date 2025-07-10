@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -37,6 +37,7 @@ import {
 
 // Form schemas
 const tripFormSchema = z.object({
+  employeeId: z.string().min(1, 'Employee is required'),
   tripTitle: z.string().min(1, 'Trip title is required'),
   purpose: z.string().min(1, 'Purpose is required'),
   destination: z.string().min(1, 'Destination is required'),
@@ -106,15 +107,44 @@ const TripRequestForm = ({ onSuccess }: { onSuccess?: () => void }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  // Get current user information
-  const { data: currentUser } = useQuery({
-    queryKey: ['/api/auth/user'],
-    queryFn: () => apiRequest('GET', '/api/auth/user')
+  // Get employees list for dropdown
+  const { data: employees = [] } = useQuery({
+    queryKey: ['/api/admin/users'],
+    queryFn: () => apiRequest('GET', '/api/admin/users')
   });
+
+  // Group employees by role for organized dropdown
+  const groupedEmployees = React.useMemo(() => {
+    const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Employee'];
+    const groups: Record<string, any[]> = {};
+    
+    employees.forEach((employee: any) => {
+      const role = employee.role || 'Employee';
+      if (!groups[role]) {
+        groups[role] = [];
+      }
+      groups[role].push(employee);
+    });
+    
+    // Sort employees within each group alphabetically
+    Object.values(groups).forEach(group => {
+      group.sort((a, b) => {
+        const nameA = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
+        const nameB = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
+        return nameA.localeCompare(nameB);
+      });
+    });
+    
+    return roleOrder.filter(role => groups[role]).map(role => ({
+      role,
+      employees: groups[role]
+    }));
+  }, [employees]);
   
   const form = useForm<TripFormData>({
     resolver: zodResolver(tripFormSchema),
     defaultValues: {
+      employeeId: '',
       tripTitle: '',
       purpose: '',
       destination: '',
@@ -160,37 +190,41 @@ const TripRequestForm = ({ onSuccess }: { onSuccess?: () => void }) => {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Requester Information */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center space-x-3">
-            <Users className="h-5 w-5 text-blue-600" />
-            <div>
-              <h3 className="font-semibold text-blue-900">Trip Requester</h3>
-              <p className="text-blue-700">
-                {currentUser ? (
-                  <>
-                    <span className="font-medium">
-                      {currentUser.firstName && currentUser.lastName 
-                        ? `${currentUser.firstName} ${currentUser.lastName}` 
-                        : currentUser.username}
-                    </span>
-                    {currentUser.role && (
-                      <span className="text-blue-600 ml-2">({currentUser.role})</span>
-                    )}
-                    {currentUser.department && (
-                      <span className="text-blue-600 ml-2">• {currentUser.department}</span>
-                    )}
-                  </>
-                ) : (
-                  'Loading user information...'
-                )}
-              </p>
-              {currentUser?.email && (
-                <p className="text-sm text-blue-600">{currentUser.email}</p>
-              )}
-            </div>
-          </div>
-        </div>
+        {/* Employee Selection */}
+        <FormField
+          control={form.control}
+          name="employeeId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Employee *</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select employee for trip request" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {groupedEmployees.map((group) => (
+                    <SelectGroup key={group.role}>
+                      <SelectLabel className="text-blue-600 font-semibold">
+                        {group.role}
+                      </SelectLabel>
+                      {group.employees.map((employee: any) => (
+                        <SelectItem key={employee.id} value={employee.id.toString()}>
+                          {employee.firstName && employee.lastName 
+                            ? `${employee.firstName} ${employee.lastName}` 
+                            : employee.username}
+                          {employee.department && ` • ${employee.department}`}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField

@@ -239,6 +239,7 @@ export const createTrip = async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any)?.id;
     const {
+      employeeId,
       tripTitle,
       purpose,
       destination,
@@ -252,12 +253,12 @@ export const createTrip = async (req: Request, res: Response) => {
     } = req.body;
 
     // Validate required fields
-    if (!tripTitle || !purpose || !destination || !fromDate || !toDate) {
+    if (!employeeId || !tripTitle || !purpose || !destination || !fromDate || !toDate) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
     const result = await db.insert(businessTrips).values({
-      employeeId: userId,
+      employeeId: parseInt(employeeId),
       tripTitle,
       purpose,
       destination,
