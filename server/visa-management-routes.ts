@@ -228,9 +228,24 @@ export const createVisaRecord = async (req: Request, res: Response) => {
 
     console.log('Create visa record - Validated data:', validatedData);
     
+    // Check if visa number already exists
+    const existingVisa = await db
+      .select()
+      .from(visaRecords)
+      .where(eq(visaRecords.visaNumber, validatedData.visaNumber))
+      .limit(1);
+
+    if (existingVisa.length > 0) {
+      return res.status(400).json({ 
+        error: 'Visa number already exists', 
+        message: `A visa record with number "${validatedData.visaNumber}" already exists. Please use a different visa number.` 
+      });
+    }
+    
     const insertData = {
       ...validatedData,
-      createdBy: userId
+      createdBy: userId,
+      status: 'Active' as const
     };
     
     console.log('Create visa record - Insert data with createdBy:', insertData);
@@ -250,6 +265,15 @@ export const createVisaRecord = async (req: Request, res: Response) => {
     console.error('Error creating visa record:', error);
     console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
     console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
+    
+    // Handle specific database constraint errors
+    if (error instanceof Error && error.message.includes('duplicate key')) {
+      return res.status(400).json({ 
+        error: 'Visa number already exists', 
+        message: 'A visa record with this visa number already exists. Please use a different visa number.' 
+      });
+    }
+    
     res.status(500).json({ error: 'Failed to create visa record' });
   }
 };

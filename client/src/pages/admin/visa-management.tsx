@@ -194,7 +194,23 @@ export default function VisaManagement() {
     },
     onError: (error: any) => {
       console.error('Create mutation error:', error);
-      toast({ title: 'Error', description: error.message || 'Failed to create visa record', variant: 'destructive' });
+      
+      // Handle specific error cases
+      let errorMessage = 'Failed to create visa record';
+      
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      toast({ 
+        title: 'Error', 
+        description: errorMessage, 
+        variant: 'destructive' 
+      });
     },
   });
 
