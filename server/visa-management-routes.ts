@@ -163,6 +163,8 @@ export const getVisaRecords = async (req: Request, res: Response) => {
     res.json(records);
   } catch (error) {
     console.error('Error fetching visa records:', error);
+    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
     res.status(500).json({ error: 'Failed to fetch visa records' });
   }
 };
