@@ -194,6 +194,96 @@ export const getVisaRecords = async (req: Request, res: Response) => {
 };
 
 /**
+ * Check visa validity for trip request
+ */
+export const checkVisaValidity = async (req: Request, res: Response) => {
+  try {
+    const { employeeId, destination, tripDate } = req.query;
+    
+    console.log('Checking visa validity for:', { employeeId, destination, tripDate });
+    
+    if (!employeeId || !destination) {
+      return res.status(400).json({ 
+        error: 'Missing required parameters: employeeId and destination' 
+      });
+    }
+
+    const travelDate = tripDate ? new Date(tripDate as string) : new Date();
+    
+    // For Schengen Area destinations, check for "Schengen Area (EU)" visas
+    let countryCondition;
+    if (destination === 'Schengen Area (EU)') {
+      countryCondition = eq(visaRecords.country, 'Schengen Area (EU)');
+    } else {
+      // For other destinations, match exact country or Schengen if it's a Schengen country
+      countryCondition = eq(visaRecords.country, destination as string);
+    }
+    
+    // Find valid visas for the employee and destination
+    const validVisas = await db
+      .select({
+        id: visaRecords.id,
+        visaType: visaRecords.visaType,
+        country: visaRecords.country,
+        visaNumber: visaRecords.visaNumber,
+        issueDate: visaRecords.issueDate,
+        expiryDate: visaRecords.expiryDate,
+        status: visaRecords.status,
+        daysToExpiry: sql<number>`(${visaRecords.expiryDate}::date - CURRENT_DATE)`
+      })
+      .from(visaRecords)
+      .where(
+        and(
+          eq(visaRecords.employeeId, parseInt(employeeId as string)),
+          countryCondition,
+          eq(visaRecords.status, 'Active'),
+          gte(visaRecords.expiryDate, sql`CURRENT_DATE`)
+        )
+      )
+      .orderBy(desc(visaRecords.expiryDate));
+
+    console.log(`Found ${validVisas.length} valid visas for employee ${employeeId} and destination ${destination}`);
+    
+    if (validVisas.length === 0) {
+      return res.json({
+        valid: false,
+        message: `No valid visa found for ${destination}`,
+        visas: []
+      });
+    }
+
+    // Check if any visa is valid for the travel date
+    const validForTravelDate = validVisas.filter(visa => {
+      const issueDate = new Date(visa.issueDate);
+      const expiryDate = new Date(visa.expiryDate);
+      return travelDate >= issueDate && travelDate <= expiryDate;
+    });
+
+    if (validForTravelDate.length === 0) {
+      return res.json({
+        valid: false,
+        message: `No visa valid for travel date ${travelDate.toLocaleDateString()}`,
+        visas: validVisas
+      });
+    }
+
+    // Return the most suitable visa (longest validity)
+    const bestVisa = validForTravelDate[0];
+    
+    res.json({
+      valid: true,
+      message: `Valid ${bestVisa.visaType} visa found (expires ${new Date(bestVisa.expiryDate).toLocaleDateString()})`,
+      visa: bestVisa,
+      visas: validForTravelDate
+    });
+    
+  } catch (error) {
+    console.error('Error checking visa validity:', error);
+    res.status(500).json({ error: 'Failed to check visa validity' });
+  }
+};
+
+/**
  * Get single visa record by ID
  */
 export const getVisaRecord = async (req: Request, res: Response) => {
@@ -612,6 +702,7 @@ async function updateQuotaUsage(country: string, change: number) {
 router.get('/dashboard', ensureAuthenticated, getVisaDashboard);
 router.get('/records', ensureAuthenticated, getVisaRecords);
 router.get('/records/:id', ensureAuthenticated, getVisaRecord);
+router.get('/check-validity', ensureAuthenticated, checkVisaValidity);
 router.post('/records', ensureAuthenticated, createVisaRecord);
 router.post('/upload', ensureAuthenticated, uploadVisaDocument);
 router.put('/records/:id', ensureAuthenticated, updateVisaRecord);

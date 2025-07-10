@@ -839,6 +839,11 @@ const StatusBadge = ({ status }: { status: string }) => {
 const TripRequestForm = ({ onSuccess }: { onSuccess?: () => void }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [visaValidation, setVisaValidation] = useState<{
+    valid: boolean;
+    message: string;
+    loading: boolean;
+  }>({ valid: false, message: '', loading: false });
   
   // Get employees list for dropdown
   const { data: employees = [] } = useQuery({
@@ -911,7 +916,66 @@ const TripRequestForm = ({ onSuccess }: { onSuccess?: () => void }) => {
     },
   });
 
+  // Function to check visa validity
+  const checkVisaValidity = async (employeeId: string, destination: string, tripDate?: string) => {
+    if (!employeeId || !destination) {
+      setVisaValidation({ valid: false, message: '', loading: false });
+      return;
+    }
+
+    setVisaValidation({ valid: false, message: '', loading: true });
+    
+    try {
+      const params = new URLSearchParams({
+        employeeId,
+        destination,
+        ...(tripDate && { tripDate })
+      });
+      
+      const response = await apiRequest('GET', `/api/visa/check-validity?${params}`);
+      
+      setVisaValidation({
+        valid: response.valid,
+        message: response.message,
+        loading: false
+      });
+    } catch (error) {
+      console.error('Error checking visa validity:', error);
+      setVisaValidation({
+        valid: false,
+        message: 'Error checking visa status',
+        loading: false
+      });
+    }
+  };
+
+  // Watch for changes in employee and destination to trigger visa validation
+  React.useEffect(() => {
+    const employeeId = form.watch('employeeId');
+    const destination = form.watch('destination');
+    const fromDate = form.watch('fromDate');
+    
+    if (employeeId && destination) {
+      checkVisaValidity(employeeId, destination, fromDate);
+    } else {
+      setVisaValidation({ valid: false, message: '', loading: false });
+    }
+  }, [form.watch('employeeId'), form.watch('destination'), form.watch('fromDate')]);
+
   const onSubmit = (data: TripFormData) => {
+    // Add validation to prevent submission if no valid visa (for non-admin users)
+    const user = (window as any).currentUser; // Assuming user context is available
+    const isAdmin = user?.role === 'Superuser' || user?.role === 'General Manager';
+    
+    if (!visaValidation.valid && !isAdmin) {
+      toast({
+        title: 'Visa Required',
+        description: 'A valid visa is required for this destination. Please contact HR to add visa records.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     createTripMutation.mutate(data);
   };
 
