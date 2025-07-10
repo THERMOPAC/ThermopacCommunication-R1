@@ -354,6 +354,30 @@ export default function PayrollManagementPage() {
     }
   }, [basicSalary, salaryType, workingHoursPerDay, overtimeHours, otRate, actualDays, paidDays, form]);
 
+  // Auto-update form with calculated values when inputs change
+  useEffect(() => {
+    if (parseFloat(basicSalary || '0') > 0) {
+
+      form.setValue('gratuityCost', calculatedValues.gratuityCost, { shouldValidate: false });
+      form.setValue('employeePfContribution', calculatedValues.employeePfContribution, { shouldValidate: false });
+      form.setValue('employerPfContribution', calculatedValues.employerPfContribution, { shouldValidate: false });
+      form.setValue('employeeEsicContribution', calculatedValues.employeeEsicContribution, { shouldValidate: false });
+      form.setValue('employerEsicContribution', calculatedValues.employerEsicContribution, { shouldValidate: false });
+      form.setValue('takeHomeSalary', calculatedValues.takeHomeSalary, { shouldValidate: false });
+      form.setValue('ctcMonthly', calculatedValues.ctcMonthly, { shouldValidate: false });
+      form.setValue('ctcYearly', calculatedValues.ctcYearly, { shouldValidate: false });
+      
+      // Update allowances for monthly workers
+      if (salaryType === 'monthly') {
+        form.setValue('houseRentAllowance', calculatedValues.houseRentAllowance, { shouldValidate: false });
+        form.setValue('conveyance', calculatedValues.conveyance, { shouldValidate: false });
+        form.setValue('lta', calculatedValues.lta, { shouldValidate: false });
+        form.setValue('specialAllowance', calculatedValues.specialAllowance, { shouldValidate: false });
+        form.setValue('supplementaryAllowance', calculatedValues.supplementaryAllowance, { shouldValidate: false });
+      }
+    }
+  }, [calculatedValues, form, basicSalary, salaryType]);
+
   // Manual sync function to update form values only when needed (on save)
   const syncCalculatedToForm = useCallback(() => {
     // Only sync calculated values to form when explicitly called (not during live typing)
