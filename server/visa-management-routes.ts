@@ -437,8 +437,20 @@ export const getVisaOptions = async (req: Request, res: Response) => {
     const uniqueCountries = [...new Set(countries.map(c => c.country))];
     const uniqueVisaTypes = [...new Set(countries.map(c => c.visaType))];
 
-    // Add "Schengen Area (EU)" as a special country option for EU 180-day rule tracking
-    const allCountries = ["Schengen Area (EU)", ...uniqueCountries].sort();
+    // List of Schengen countries to exclude from individual selection
+    const schengenCountries = [
+      "Austria", "Belgium", "Croatia", "Czech Republic", "Denmark", "Estonia",
+      "Finland", "France", "Germany", "Greece", "Hungary", "Iceland", "Italy",
+      "Latvia", "Liechtenstein", "Lithuania", "Luxembourg", "Malta", "Netherlands",
+      "Norway", "Poland", "Portugal", "Slovakia", "Slovenia", "Spain", "Sweden", "Switzerland"
+    ];
+
+    // Filter out individual Schengen countries and add "Schengen Area (EU)" as grouped entry
+    const filteredCountries = uniqueCountries.filter(country => 
+      !schengenCountries.includes(country)
+    );
+    
+    const allCountries = ["Schengen Area (EU)", ...filteredCountries].sort();
 
     res.json({
       countries: allCountries,
