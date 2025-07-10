@@ -382,6 +382,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/trips/:id', ensureAuthenticated, tripManagementRoutes.updateTrip);
   app.post('/api/trips/:id/submit', ensureAuthenticated, tripManagementRoutes.submitTrip);
   app.post('/api/trips/:id/approve', ensureAuthenticated, tripManagementRoutes.approveTrip);
+  
+  // Trip Document Management routes
+  app.post('/api/trips/:tripId/documents', ensureAuthenticated, tripManagementRoutes.upload.single('file'), tripManagementRoutes.uploadTripDocument);
+  app.get('/api/trips/:tripId/documents', ensureAuthenticated, tripManagementRoutes.getTripDocuments);
+  app.delete('/api/trip-documents/:documentId', ensureAuthenticated, tripManagementRoutes.deleteTripDocument);
+  app.get('/api/trip-documents/:documentId/download', ensureAuthenticated, tripManagementRoutes.downloadTripDocument);
+  
   console.log('Business trip management routes registered at /api/trips');
 
   // DIRECT WRITE-OFF APPROVAL ENDPOINT - COMPLETELY SEPARATE FROM FINANCE ROUTES

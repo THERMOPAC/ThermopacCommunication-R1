@@ -1,8 +1,90 @@
 import { Request, Response } from 'express';
 import { db } from './db';
-import { businessTrips, tripApprovals, tripBookings, tripExpenses, tripReimbursements, users } from '@shared/schema';
+import { businessTrips, tripApprovals, tripBookings, tripExpenses, tripReimbursements, tripDocuments, users } from '@shared/schema';
 import { eq, and, or, desc, asc, sql, sum, count } from 'drizzle-orm';
 import { z } from 'zod';
+import multer from 'multer';
+import { Storage } from '@google-cloud/storage';
+
+// ===================== GCS CONFIGURATION =====================
+
+// Initialize Google Cloud Storage
+let storage: Storage;
+let bucket: any;
+
+try {
+  const credentials = process.env.GOOGLE_CLOUD_CREDENTIALS 
+    ? JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS)
+    : null;
+
+  if (credentials) {
+    storage = new Storage({
+      credentials,
+      projectId: credentials.project_id,
+    });
+    bucket = storage.bucket('thermopac_storage');
+  } else {
+    console.log('Google Cloud credentials not found, file upload will be disabled');
+  }
+} catch (error) {
+  console.error('Error initializing Google Cloud Storage:', error);
+}
+
+// Configure multer for file upload
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow common document and image formats
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'text/plain',
+      'application/zip'
+    ];
+    
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only PDF, DOC, DOCX, XLS, XLSX, images, and ZIP files are allowed.'));
+    }
+  }
+});
+
+// Helper function to generate structured GCS path
+const generateGCSPath = (employeeData: any, destination: string, fromDate: string, documentType: string, fileName: string): string => {
+  // Get current financial year (April to March)
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1; // 0-based
+  
+  const financialYear = currentMonth >= 4 
+    ? `FY${currentYear}-${currentYear + 1}`
+    : `FY${currentYear - 1}-${currentYear}`;
+  
+  // Use employee name or username
+  const employeeName = employeeData.firstName && employeeData.lastName 
+    ? `${employeeData.firstName}_${employeeData.lastName}`.replace(/\s+/g, '_')
+    : employeeData.username.replace(/\s+/g, '_');
+  
+  // Clean destination and document type for file path
+  const cleanDestination = destination.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const cleanDocumentType = documentType.replace(/[^a-zA-Z0-9_-]/g, '_');
+  
+  // Format date for path
+  const formattedDate = new Date(fromDate).toISOString().split('T')[0]; // YYYY-MM-DD
+  
+  // Generate path: FY/{user_id_or_name}/{Destination}/{From Date}/{Document Type}/filename
+  return `${financialYear}/${employeeName}/${cleanDestination}/${formattedDate}/${cleanDocumentType}/${fileName}`;
+};
 
 // ===================== TRIP MANAGEMENT ENDPOINTS =====================
 
@@ -579,6 +661,246 @@ export const getTripDashboard = async (req: Request, res: Response) => {
   }
 };
 
+// ===================== TRIP DOCUMENT UPLOAD ENDPOINTS =====================
+
+/**
+ * Upload document for a business trip
+ */
+export const uploadTripDocument = async (req: Request, res: Response) => {
+  try {
+    if (!bucket) {
+      return res.status(500).json({ error: 'File upload service not available' });
+    }
+
+    const { tripId } = req.params;
+    const { documentType, description } = req.body;
+    const file = req.file;
+    const userId = (req.user as any)?.id;
+
+    if (!file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    if (!documentType) {
+      return res.status(400).json({ error: 'Document type is required' });
+    }
+
+    // Get trip details for path generation
+    const trip = await db
+      .select({
+        id: businessTrips.id,
+        destination: businessTrips.destination,
+        fromDate: businessTrips.fromDate,
+        employeeId: businessTrips.employeeId,
+      })
+      .from(businessTrips)
+      .where(eq(businessTrips.id, parseInt(tripId)))
+      .limit(1);
+
+    if (!trip.length) {
+      return res.status(404).json({ error: 'Trip not found' });
+    }
+
+    // Get employee details for path generation
+    const employee = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+      })
+      .from(users)
+      .where(eq(users.id, trip[0].employeeId))
+      .limit(1);
+
+    if (!employee.length) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    // Generate unique filename
+    const timestamp = Date.now();
+    const originalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const fileName = `${timestamp}_${originalName}`;
+
+    // Generate structured GCS path
+    const gcsPath = generateGCSPath(
+      employee[0],
+      trip[0].destination,
+      trip[0].fromDate.toString(),
+      documentType,
+      fileName
+    );
+
+    // Upload to Google Cloud Storage
+    const gcsFile = bucket.file(gcsPath);
+    const stream = gcsFile.createWriteStream({
+      metadata: {
+        contentType: file.mimetype,
+        cacheControl: 'no-cache',
+      },
+      resumable: false,
+    });
+
+    await new Promise((resolve, reject) => {
+      stream.on('error', reject);
+      stream.on('finish', resolve);
+      stream.end(file.buffer);
+    });
+
+    // Generate signed URL for access
+    const [signedUrl] = await gcsFile.getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year
+    });
+
+    // Save document record to database
+    const result = await db.insert(tripDocuments).values({
+      tripId: parseInt(tripId),
+      documentType,
+      documentName: file.originalname,
+      filePath: gcsPath,
+      fileUrl: signedUrl,
+      fileSize: file.size,
+      fileType: file.mimetype,
+      description: description || null,
+      uploadedBy: userId,
+    }).returning();
+
+    res.status(201).json({
+      message: 'Document uploaded successfully',
+      document: result[0],
+    });
+  } catch (error) {
+    console.error('Error uploading trip document:', error);
+    res.status(500).json({ error: 'Failed to upload document' });
+  }
+};
+
+/**
+ * Get all documents for a trip
+ */
+export const getTripDocuments = async (req: Request, res: Response) => {
+  try {
+    const { tripId } = req.params;
+
+    const documents = await db
+      .select({
+        id: tripDocuments.id,
+        documentType: tripDocuments.documentType,
+        documentName: tripDocuments.documentName,
+        filePath: tripDocuments.filePath,
+        fileUrl: tripDocuments.fileUrl,
+        fileSize: tripDocuments.fileSize,
+        fileType: tripDocuments.fileType,
+        description: tripDocuments.description,
+        uploadedAt: tripDocuments.uploadedAt,
+        uploadedByName: sql<string>`COALESCE(${users.firstName} || ' ' || ${users.lastName}, ${users.username})`,
+        uploadedBy: tripDocuments.uploadedBy,
+      })
+      .from(tripDocuments)
+      .leftJoin(users, eq(tripDocuments.uploadedBy, users.id))
+      .where(and(
+        eq(tripDocuments.tripId, parseInt(tripId)),
+        eq(tripDocuments.isActive, true)
+      ))
+      .orderBy(desc(tripDocuments.uploadedAt));
+
+    res.json(documents);
+  } catch (error) {
+    console.error('Error fetching trip documents:', error);
+    res.status(500).json({ error: 'Failed to fetch documents' });
+  }
+};
+
+/**
+ * Delete a trip document
+ */
+export const deleteTripDocument = async (req: Request, res: Response) => {
+  try {
+    const { documentId } = req.params;
+    const userId = (req.user as any)?.id;
+
+    // Get document details
+    const document = await db
+      .select()
+      .from(tripDocuments)
+      .where(eq(tripDocuments.id, parseInt(documentId)))
+      .limit(1);
+
+    if (!document.length) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    // Check if user can delete (uploaded by user or admin)
+    const userRole = (req.user as any)?.role;
+    if (document[0].uploadedBy !== userId && !['Superuser', 'General Manager'].includes(userRole)) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+
+    // Soft delete - mark as inactive
+    await db
+      .update(tripDocuments)
+      .set({ isActive: false })
+      .where(eq(tripDocuments.id, parseInt(documentId)));
+
+    res.json({ message: 'Document deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting trip document:', error);
+    res.status(500).json({ error: 'Failed to delete document' });
+  }
+};
+
+/**
+ * Download document (generate fresh signed URL)
+ */
+export const downloadTripDocument = async (req: Request, res: Response) => {
+  try {
+    if (!bucket) {
+      return res.status(500).json({ error: 'File download service not available' });
+    }
+
+    const { documentId } = req.params;
+
+    // Get document details
+    const document = await db
+      .select()
+      .from(tripDocuments)
+      .where(and(
+        eq(tripDocuments.id, parseInt(documentId)),
+        eq(tripDocuments.isActive, true)
+      ))
+      .limit(1);
+
+    if (!document.length) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const gcsFile = bucket.file(document[0].filePath);
+    
+    // Check if file exists in GCS
+    const [exists] = await gcsFile.exists();
+    if (!exists) {
+      return res.status(404).json({ error: 'File not found in storage' });
+    }
+
+    // Generate fresh signed URL for download
+    const [signedUrl] = await gcsFile.getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 60 * 60 * 1000, // 1 hour
+    });
+
+    res.json({
+      downloadUrl: signedUrl,
+      fileName: document[0].documentName,
+      fileType: document[0].fileType,
+      fileSize: document[0].fileSize,
+    });
+  } catch (error) {
+    console.error('Error generating download URL:', error);
+    res.status(500).json({ error: 'Failed to generate download URL' });
+  }
+};
+
 export default {
   getUserTrips,
   getAllTrips,
@@ -588,4 +910,9 @@ export default {
   submitTrip,
   approveTrip,
   getTripDashboard,
+  uploadTripDocument,
+  getTripDocuments,
+  deleteTripDocument,
+  downloadTripDocument,
+  upload, // Export multer upload middleware
 };

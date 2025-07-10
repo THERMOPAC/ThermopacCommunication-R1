@@ -3406,6 +3406,62 @@ export type InsertTripExpense = z.infer<typeof insertTripExpenseSchema>;
 export type TripReimbursement = typeof tripReimbursements.$inferSelect;
 export type InsertTripReimbursement = z.infer<typeof insertTripReimbursementSchema>;
 
+// Trip documents table for file uploads
+export const tripDocuments = pgTable('trip_documents', {
+  id: serial('id').primaryKey(),
+  tripId: integer('trip_id').notNull().references(() => businessTrips.id, { onDelete: 'cascade' }),
+  documentType: varchar('document_type', { length: 100 }).notNull(),
+  documentName: varchar('document_name', { length: 500 }).notNull(),
+  filePath: text('file_path').notNull(), // GCS path: FY/{user_id_or_name}/{Destination}/{From Date}/{Document Type}/filename
+  fileUrl: text('file_url'), // Signed URL for access
+  fileSize: integer('file_size'), // File size in bytes
+  fileType: varchar('file_type', { length: 100 }), // MIME type
+  description: text('description'),
+  uploadedBy: integer('uploaded_by').notNull().references(() => users.id),
+  uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
+  isActive: boolean('is_active').notNull().default(true), // For soft delete
+});
+
+// Document Types
+export const documentTypes = [
+  "travel_booking",
+  "hotel_confirmation", 
+  "meeting_invitation",
+  "visa_documents",
+  "advance_payment_request",
+  "correspondence",
+  "expense_receipt",
+  "trip_report"
+] as const;
+
+export type DocumentType = typeof documentTypes[number];
+
+// Trip Documents Relations
+export const tripDocumentsRelations = relations(tripDocuments, ({ one }) => ({
+  trip: one(businessTrips, {
+    fields: [tripDocuments.tripId],
+    references: [businessTrips.id],
+  }),
+  uploadedByUser: one(users, {
+    fields: [tripDocuments.uploadedBy],
+    references: [users.id],
+  }),
+}));
+
+// Trip Documents Zod Schema
+export const insertTripDocumentSchema = createInsertSchema(tripDocuments)
+  .omit({ id: true, uploadedAt: true })
+  .extend({
+    fileUrl: z.string().optional(),
+    fileSize: z.number().optional(),
+    fileType: z.string().optional(),
+    description: z.string().optional(),
+    isActive: z.boolean().optional(),
+  });
+
+export type TripDocument = typeof tripDocuments.$inferSelect;
+export type InsertTripDocument = z.infer<typeof insertTripDocumentSchema>;
+
 export type Itp = typeof itps.$inferSelect;
 export type InsertItp = z.infer<typeof insertItpSchema>;
 
