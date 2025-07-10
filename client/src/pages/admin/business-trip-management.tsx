@@ -813,29 +813,7 @@ const TripDashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Status Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {statusCounts.map((status: any) => (
-          <Card key={status.status}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 capitalize">{status.status.replace('_', ' ')}</p>
-                  <p className="text-2xl font-bold">{status.count}</p>
-                </div>
-                <div className="text-blue-600">
-                  {status.status === 'final_approved' && <CheckCircle className="h-8 w-8" />}
-                  {status.status === 'rejected' && <XCircle className="h-8 w-8" />}
-                  {status.status === 'submitted' && <Clock className="h-8 w-8" />}
-                  {status.status === 'draft' && <FileText className="h-8 w-8" />}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Search and Filter Section */}
+      {/* Search and Filter Section - Top Priority */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -950,6 +928,28 @@ const TripDashboard = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Status Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {statusCounts.map((status: any) => (
+          <Card key={status.status}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 capitalize">{status.status.replace('_', ' ')}</p>
+                  <p className="text-2xl font-bold">{status.count}</p>
+                </div>
+                <div className="text-blue-600">
+                  {status.status === 'final_approved' && <CheckCircle className="h-8 w-8" />}
+                  {status.status === 'rejected' && <XCircle className="h-8 w-8" />}
+                  {status.status === 'submitted' && <Clock className="h-8 w-8" />}
+                  {status.status === 'draft' && <FileText className="h-8 w-8" />}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
       {/* All Trip Requests */}
       <Card>
