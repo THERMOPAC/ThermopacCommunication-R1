@@ -342,6 +342,21 @@ const countries = [
   { code: 'ZW', name: 'Zimbabwe' }
 ];
 
+// Safe date formatting function
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return 'Not specified';
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    return date.toLocaleDateString();
+  } catch (error) {
+    return 'Invalid date';
+  }
+};
+
 // Status badge component
 const StatusBadge = ({ status }: { status: string }) => {
   const getStatusColor = (status: string) => {
@@ -749,7 +764,7 @@ const TripDashboard = () => {
                     <p className="text-sm text-gray-600">{trip.employeeName}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium">{new Date(trip.fromDate).toLocaleDateString()}</p>
+                    <p className="text-sm font-medium">{formatDate(trip.fromDate)}</p>
                     <StatusBadge status={trip.status} />
                   </div>
                 </div>
@@ -778,7 +793,7 @@ const TripDashboard = () => {
                     <p className="text-sm text-gray-600">{trip.employeeName}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium">{new Date(trip.fromDate).toLocaleDateString()}</p>
+                    <p className="text-sm font-medium">{formatDate(trip.fromDate)}</p>
                     <StatusBadge status={trip.status} />
                   </div>
                 </div>
@@ -1147,7 +1162,7 @@ const TripList = () => {
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Calendar className="h-4 w-4" />
                   <span className="whitespace-nowrap">
-                    {new Date(trip.fromDate).toLocaleDateString()} - {new Date(trip.toDate).toLocaleDateString()}
+                    {formatDate(trip.fromDate)} - {formatDate(trip.toDate)}
                   </span>
                 </div>
                 
@@ -1210,11 +1225,11 @@ const TripList = () => {
                 </div>
                 <div>
                   <Label className="text-sm font-medium">From Date</Label>
-                  <p className="text-sm text-gray-700">{new Date(viewingTrip.fromDate).toLocaleDateString()}</p>
+                  <p className="text-sm text-gray-700">{formatDate(viewingTrip.fromDate)}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">To Date</Label>
-                  <p className="text-sm text-gray-700">{new Date(viewingTrip.toDate).toLocaleDateString()}</p>
+                  <p className="text-sm text-gray-700">{formatDate(viewingTrip.toDate)}</p>
                 </div>
               </div>
               <div>
@@ -1531,7 +1546,7 @@ const TripDocumentsList = ({ tripId }: { tripId: number }) => {
                   <div>Type: {formatDocumentType(doc.documentType)}</div>
                   <div>Size: {formatFileSize(doc.fileSize)}</div>
                   <div>Uploaded by: {doc.uploadedByName}</div>
-                  <div>Date: {new Date(doc.uploadedAt).toLocaleDateString()}</div>
+                  <div>Date: {formatDate(doc.uploadedAt)}</div>
                   {doc.description && (
                     <div className="text-gray-600">Description: {doc.description}</div>
                   )}
@@ -1668,9 +1683,16 @@ const TripApprovalCard = ({
                    parseFloat(trip.estimatedAccommodationCost || '0') + 
                    parseFloat(trip.estimatedMiscCost || '0');
 
-  const tripDuration = Math.ceil(
-    (new Date(trip.toDate).getTime() - new Date(trip.fromDate).getTime()) / (1000 * 60 * 60 * 24)
-  );
+  const tripDuration = (() => {
+    try {
+      const fromDate = new Date(trip.fromDate);
+      const toDate = new Date(trip.toDate);
+      if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) return 0;
+      return Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24));
+    } catch {
+      return 0;
+    }
+  })();
 
   return (
     <Card className="border-l-4 border-l-yellow-400">
@@ -1690,7 +1712,7 @@ const TripApprovalCard = ({
                 </span>
                 <span className="flex items-center gap-1">
                   <Calendar className="h-4 w-4" />
-                  {new Date(trip.fromDate).toLocaleDateString()} - {new Date(trip.toDate).toLocaleDateString()}
+                  {formatDate(trip.fromDate)} - {formatDate(trip.toDate)}
                 </span>
                 <span className="flex items-center gap-1">
                   <Clock className="h-4 w-4" />
@@ -1713,7 +1735,7 @@ const TripApprovalCard = ({
             </div>
             <div className="bg-gray-50 p-3 rounded-lg">
               <p className="text-sm text-gray-600 font-medium">Submitted</p>
-              <p className="text-lg font-bold text-gray-700">{new Date(trip.createdAt).toLocaleDateString()}</p>
+              <p className="text-lg font-bold text-gray-700">{formatDate(trip.createdAt)}</p>
             </div>
           </div>
 
@@ -1890,7 +1912,7 @@ const TripDocumentsTab = () => {
                     </div>
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
-                      <span>{new Date(trip.fromDate).toLocaleDateString()}</span>
+                      <span>{formatDate(trip.fromDate)}</span>
                     </div>
                   </div>
                 </div>
@@ -1948,7 +1970,7 @@ const TripDetailsWithDocuments = ({ tripId }: { tripId: number }) => {
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-gray-500" />
-              <span>{new Date(trip.fromDate).toLocaleDateString()} - {new Date(trip.toDate).toLocaleDateString()}</span>
+              <span>{formatDate(trip.fromDate)} - {formatDate(trip.toDate)}</span>
             </div>
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-gray-500" />
