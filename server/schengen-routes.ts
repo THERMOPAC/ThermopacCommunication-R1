@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { ensureAuthenticated } from "./auth-middleware";
 import { db } from "./db";
-import { schengenTravelLog, schengenAlerts, users } from "@shared/schema";
+import { schengenTravelLog, schengenAlerts, users, visaRecords } from "@shared/schema";
 import { insertSchengenTravelLogSchema, insertSchengenAlertSchema } from "@shared/schema";
 import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
 
@@ -48,6 +48,7 @@ function calculateSchengenDays(travelLogs: any[], calculationDate: Date = new Da
 }
 
 // Get all employees with their Schengen compliance status
+// Only include employees who have an active visa with Country = "Schengen Area (EU)"
 router.get("/dashboard", ensureAuthenticated, async (req, res) => {
   try {
     const employees = await db
@@ -59,7 +60,14 @@ router.get("/dashboard", ensureAuthenticated, async (req, res) => {
         department: users.department,
       })
       .from(users)
-      .where(eq(users.isActive, true));
+      .innerJoin(visaRecords, eq(visaRecords.employeeId, users.id))
+      .where(
+        and(
+          eq(users.isActive, true),
+          eq(visaRecords.country, "Schengen Area (EU)"),
+          eq(visaRecords.status, "Active")
+        )
+      );
 
     const dashboardData = [];
 
@@ -316,6 +324,7 @@ router.put("/alerts/:id/acknowledge", ensureAuthenticated, async (req, res) => {
 });
 
 // Get employee list for dropdowns
+// Only include employees who have an active visa with Country = "Schengen Area (EU)"
 router.get("/employees", ensureAuthenticated, async (req, res) => {
   try {
     const employees = await db
@@ -327,7 +336,14 @@ router.get("/employees", ensureAuthenticated, async (req, res) => {
         department: users.department,
       })
       .from(users)
-      .where(eq(users.isActive, true))
+      .innerJoin(visaRecords, eq(visaRecords.employeeId, users.id))
+      .where(
+        and(
+          eq(users.isActive, true),
+          eq(visaRecords.country, "Schengen Area (EU)"),
+          eq(visaRecords.status, "Active")
+        )
+      )
       .orderBy(users.username);
 
     res.json(employees);
