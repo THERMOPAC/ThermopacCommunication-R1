@@ -355,6 +355,33 @@ function Layout({ children }: LayoutProps) {
             <div>
               <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-2 px-3">Modules</h3>
               <ul className="space-y-1">
+                {/* Show Meetings & Commitments first if available */}
+                {menuItems.filter(item => 
+                  !item.isSubmenu && item.href === '/admin/meetings-management'
+                ).map((item, index) => {
+                  const Icon = item.icon;
+                  const isActive = item.href ? location === item.href : false;
+                  
+                  return (
+                    <li key={item.href || `meeting-${index}`}>
+                      {item.href && (
+                        <Link href={item.href || ''}>
+                          <button
+                            className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#3B82F6] transition-all
+                              ${isActive
+                                ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold'
+                                : 'hover:bg-[#F3F4F6] rounded-md'
+                              }`}
+                          >
+                            <Icon className={`h-5 w-5 ${isActive ? 'text-[#3B82F6]' : 'text-[#3B82F6]'}`} />
+                            <span>{item.label}</span>
+                          </button>
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
+                
                 {/* Show submenu items */}
                 {menuItems.filter(item => item.isSubmenu).map((item, index) => {
                   const Icon = item.icon;
@@ -414,8 +441,7 @@ function Layout({ children }: LayoutProps) {
                 {/* Show individual module items (non-submenu) */}
                 {menuItems.filter(item => 
                   !item.isSubmenu && 
-                  (item.href === '/admin/meetings-management' ||
-                   item.href === '/project-commissioning' || 
+                  (item.href === '/project-commissioning' || 
                    item.href === '/dispatch-shipping' || 
                    item.href === '/after-sales')
                 ).map((item, index) => {
