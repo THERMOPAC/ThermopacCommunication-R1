@@ -420,16 +420,23 @@ export default function PayrollManagementPage() {
       specialAllowance: config.specialAllowance,
       supplementaryAllowance: config.supplementaryAllowance,
       bonus: config.bonus,
-      gratuityCost: config.gratuityCost,
+      // Don't load old gratuityCost - let it be recalculated
+      gratuityCost: "0",
       kgpAllowance: config.kgpAllowance,
-      employeePfContribution: config.employeePfContribution,
-      employerPfContribution: config.employerPfContribution,
-      employeeEsicContribution: config.employeeEsicContribution,
-      employerEsicContribution: config.employerEsicContribution,
+      // Don't load old calculated values - let them be recalculated
+      employeePfContribution: "0",
+      employerPfContribution: "0",
+      employeeEsicContribution: "0",
+      employerEsicContribution: "0",
       groupInsurance: config.groupInsurance,
       bankName: config.bankName || "",
       bankAccountNo: config.bankAccountNo || "",
       debitAccount: config.debitAccount || "",
+      salaryType: config.salaryType || "monthly",
+      actualDays: config.actualDays?.toString() || "30",
+      workingHoursPerDay: config.workingHoursPerDay?.toString() || "8",
+      overtimeHours: config.overtimeHours?.toString() || "0",
+      otRate: config.otRate?.toString() || "1.0",
     });
     setIsEditDialogOpen(true);
   };
