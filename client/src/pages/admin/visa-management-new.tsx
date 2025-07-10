@@ -787,8 +787,12 @@ function VisaRecordsTab() {
                             selected={field.value}
                             onSelect={field.onChange}
                             disabled={(date) =>
-                              date > new Date() || date < new Date("1900-01-01")
+                              date > new Date() || date < new Date("2000-01-01")
                             }
+                            defaultMonth={field.value || new Date()}
+                            fromYear={2000}
+                            toYear={new Date().getFullYear()}
+                            captionLayout="dropdown-buttons"
                             initialFocus
                           />
                         </PopoverContent>
@@ -831,6 +835,10 @@ function VisaRecordsTab() {
                             disabled={(date) =>
                               date < new Date()
                             }
+                            defaultMonth={field.value || new Date(new Date().setFullYear(new Date().getFullYear() + 1))}
+                            fromYear={new Date().getFullYear()}
+                            toYear={new Date().getFullYear() + 20}
+                            captionLayout="dropdown-buttons"
                             initialFocus
                           />
                         </PopoverContent>
