@@ -480,6 +480,72 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
 });
 
 /**
+ * Update salary configuration by ID
+ */
+router.put('/payroll/salary-setup/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const salaryData = req.body;
+    const currentUser = req.user as any;
+    
+    // Calculate CTC values
+    const grossSalary = parseFloat(salaryData.basicSalary) + 
+                       parseFloat(salaryData.houseRentAllowance || 0) + 
+                       parseFloat(salaryData.conveyance || 0) + 
+                       parseFloat(salaryData.lta || 0) + 
+                       parseFloat(salaryData.specialAllowance || 0) + 
+                       parseFloat(salaryData.supplementaryAllowance || 0) + 
+                       parseFloat(salaryData.bonus || 0) + 
+                       parseFloat(salaryData.kgpAllowance || 0);
+
+    const totalEmployerContributions = parseFloat(salaryData.employerPfContribution || 0) + 
+                                     parseFloat(salaryData.employerEsicContribution || 0) + 
+                                     parseFloat(salaryData.groupInsurance || 0) + 
+                                     parseFloat(salaryData.gratuityCost || 0);
+
+    const ctcMonthly = grossSalary + totalEmployerContributions;
+    const ctcYearly = ctcMonthly * 12;
+
+    const totalDeductions = parseFloat(salaryData.employeePfContribution || 0) + 
+                           parseFloat(salaryData.employeeEsicContribution || 0) +
+                           parseFloat(salaryData.professionalTax || 0);
+
+    const takeHomeSalary = grossSalary - totalDeductions;
+
+    // Update configuration
+    const updateData = {
+      ...salaryData,
+      baseSalary: salaryData.basicSalary, // Map basicSalary to baseSalary
+      ctcMonthly: ctcMonthly.toString(),
+      ctcYearly: ctcYearly.toString(),
+      takeHomeSalary: takeHomeSalary.toString(),
+      actualSalaryForMonth: takeHomeSalary.toString(),
+      updatedAt: new Date()
+    };
+    
+    // Convert string values to integers for database fields that expect integers
+    updateData.workingHoursPerDay = parseInt(salaryData.workingHoursPerDay) || 8;
+    updateData.actualDays = parseInt(salaryData.actualDays) || 30;
+    updateData.paidDays = parseInt(salaryData.paidDays) || 30;
+    
+    const [updated] = await db
+      .update(employeeSalaries)
+      .set(updateData)
+      .where(eq(employeeSalaries.id, id))
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json({ error: 'Salary configuration not found' });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating salary configuration:', error);
+    res.status(500).json({ error: 'Failed to update salary configuration' });
+  }
+});
+
+/**
  * Get payroll periods
  */
 router.get('/payroll/periods', ensureAuthenticated, async (req: Request, res: Response) => {
