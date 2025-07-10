@@ -244,8 +244,14 @@ function VisaRecordsTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Mock data for demonstration - replace with real API calls once authentication is fixed
-  const visaRecords: VisaRecord[] = [
+  // Fetch visa records from API
+  const { data: visaRecords = [], isLoading: isRecordsLoading, error: recordsError } = useQuery({
+    queryKey: ['/api/visa/records'],
+    staleTime: 30 * 1000, // 30 seconds
+  });
+
+  // Mock data for demo purposes (will be replaced by real API data)
+  const _mockVisaRecords: VisaRecord[] = [
     {
       id: 1,
       employeeId: 1,
@@ -329,21 +335,25 @@ function VisaRecordsTab() {
     ]
   };
 
-  const isRecordsLoading = false;
-  const recordsError = null;
+  // Loading and error states are handled by the useQuery hook above
 
-  // Create visa record mutation - mock for now
+  // Create visa record mutation
   const createMutation = useMutation({
     mutationFn: async (data: VisaFormValues) => {
-      // Mock API call - simulate success
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return { success: true, id: Date.now() };
+      const formattedData = {
+        ...data,
+        issueDate: data.issueDate instanceof Date ? format(data.issueDate, 'yyyy-MM-dd') : data.issueDate,
+        expiryDate: data.expiryDate instanceof Date ? format(data.expiryDate, 'yyyy-MM-dd') : data.expiryDate,
+      };
+      return apiRequest('POST', '/api/visa/records', formattedData);
     },
     onSuccess: () => {
       setIsCreateDialogOpen(false);
+      form.reset();
+      queryClient.invalidateQueries({ queryKey: ['/api/visa/records'] });
       toast({
         title: "Success",
-        description: "Visa record created successfully (Demo mode)",
+        description: "Visa record created successfully",
       });
     },
     onError: (error: any) => {
