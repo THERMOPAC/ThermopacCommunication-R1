@@ -151,8 +151,9 @@ export default function VisaManagement() {
   // Form for adding/editing visa records
   const form = useForm<InsertVisaRecord>({
     resolver: zodResolver(insertVisaRecordSchema),
+    mode: 'onChange', // Enable real-time validation
     defaultValues: {
-      employeeId: undefined as any, // Will be set when user selects an employee
+      employeeId: '' as any, // Will be set when user selects an employee
       visaType: '',
       country: '',
       visaNumber: '',
@@ -493,7 +494,14 @@ export default function VisaManagement() {
                   <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={createMutation.isPending}>
+                  <Button 
+                    type="submit" 
+                    disabled={createMutation.isPending}
+                    onClick={() => {
+                      console.log('Form errors:', form.formState.errors);
+                      console.log('Form values:', form.getValues());
+                    }}
+                  >
                     {createMutation.isPending ? 'Creating...' : 'Create Record'}
                   </Button>
                 </div>
