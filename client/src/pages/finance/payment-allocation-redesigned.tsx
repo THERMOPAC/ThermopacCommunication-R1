@@ -237,6 +237,13 @@ export default function PaymentAllocationRedesigned() {
           (link: any) => link.payment_id === selectedPayment.id && link.invoice_id === i.id
         );
         
+        // Debug logging
+        console.log(`Checking invoice ${i.invoiceNumber} (ID: ${i.id}) for payment ${selectedPayment.id}:`, {
+          existingAllocation,
+          existingLinksCount: existingLinks.length,
+          willShow: !existingAllocation
+        });
+        
         // Only show if no existing allocation
         return !existingAllocation;
       })
