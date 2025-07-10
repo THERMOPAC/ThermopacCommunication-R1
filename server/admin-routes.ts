@@ -421,7 +421,7 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
       ));
 
     if (existingConfig) {
-      // Update existing configuration
+      // Update existing configuration - convert string decimals to integers first
       const updateData = {
         ...salaryData,
         baseSalary: salaryData.basicSalary, // Map basicSalary to baseSalary
@@ -429,12 +429,13 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
         ctcYearly: ctcYearly.toString(),
         takeHomeSalary: takeHomeSalary.toString(),
         actualSalaryForMonth: takeHomeSalary.toString(),
-        updatedAt: new Date(),
-        // Convert string values to integers for database fields that expect integers
-        workingHoursPerDay: parseInt(salaryData.workingHoursPerDay) || 8,
-        actualDays: parseInt(salaryData.actualDays) || 30,
-        paidDays: parseInt(salaryData.paidDays) || 30
+        updatedAt: new Date()
       };
+      
+      // Convert string values to integers for database fields that expect integers - apply after spread
+      updateData.workingHoursPerDay = parseInt(salaryData.workingHoursPerDay) || 8;
+      updateData.actualDays = parseInt(salaryData.actualDays) || 30;
+      updateData.paidDays = parseInt(salaryData.paidDays) || 30;
       
 
       
@@ -446,7 +447,7 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
 
       res.json(updated);
     } else {
-      // Create new configuration
+      // Create new configuration - convert string decimals to integers first
       const insertData = {
         ...salaryData,
         baseSalary: salaryData.basicSalary, // Map basicSalary to baseSalary
@@ -455,12 +456,13 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
         takeHomeSalary: takeHomeSalary.toString(),
         actualSalaryForMonth: takeHomeSalary.toString(),
         effectiveDate: salaryData.salaryStartDate,
-        createdBy: currentUser.id,
-        // Convert string values to integers for database fields that expect integers
-        workingHoursPerDay: parseInt(salaryData.workingHoursPerDay) || 8,
-        actualDays: parseInt(salaryData.actualDays) || 30,
-        paidDays: parseInt(salaryData.paidDays) || 30
+        createdBy: currentUser.id
       };
+      
+      // Convert string values to integers for database fields that expect integers - apply after spread
+      insertData.workingHoursPerDay = parseInt(salaryData.workingHoursPerDay) || 8;
+      insertData.actualDays = parseInt(salaryData.actualDays) || 30;
+      insertData.paidDays = parseInt(salaryData.paidDays) || 30;
       
 
       
