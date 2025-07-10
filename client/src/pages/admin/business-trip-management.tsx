@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -37,7 +38,10 @@ import {
   Download,
   Trash2,
   Eye,
-  Paperclip
+  Paperclip,
+  MoreVertical,
+  Edit,
+  User
 } from 'lucide-react';
 
 // Form schemas
@@ -783,50 +787,475 @@ const TripDashboard = () => {
   );
 };
 
+// Trip edit form component
+const TripEditForm = ({ trip, onSuccess }: { trip: any; onSuccess?: () => void }) => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  // Get employees list for dropdown
+  const { data: employees = [] } = useQuery({
+    queryKey: ['/api/admin/users'],
+    queryFn: () => apiRequest('GET', '/api/admin/users')
+  });
+
+  // Group employees by role for organized dropdown
+  const groupedEmployees = React.useMemo(() => {
+    const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Employee'];
+    const groups: Record<string, any[]> = {};
+    
+    employees.forEach((employee: any) => {
+      const role = employee.role || 'Employee';
+      if (!groups[role]) {
+        groups[role] = [];
+      }
+      groups[role].push(employee);
+    });
+    
+    // Sort employees within each group alphabetically
+    Object.values(groups).forEach(group => {
+      group.sort((a, b) => {
+        const nameA = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
+        const nameB = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
+        return nameA.localeCompare(nameB);
+      });
+    });
+    
+    return roleOrder.filter(role => groups[role]).map(role => ({
+      role,
+      employees: groups[role]
+    }));
+  }, [employees]);
+  
+  const form = useForm<TripFormData>({
+    resolver: zodResolver(tripFormSchema),
+    defaultValues: {
+      employeeId: trip.employeeId?.toString() || '',
+      tripTitle: trip.tripTitle || '',
+      purpose: trip.purpose || '',
+      destination: trip.destination || '',
+      fromDate: trip.fromDate ? new Date(trip.fromDate).toISOString().split('T')[0] : '',
+      toDate: trip.toDate ? new Date(trip.toDate).toISOString().split('T')[0] : '',
+      estimatedTravelCost: trip.estimatedTravelCost?.toString() || '0',
+      estimatedAccommodationCost: trip.estimatedAccommodationCost?.toString() || '0',
+      estimatedMiscCost: trip.estimatedMiscCost?.toString() || '0',
+      advanceRequested: trip.advanceRequested?.toString() || '0',
+      supportingDocumentUrl: trip.supportingDocumentUrl || '',
+    },
+  });
+
+  const updateTripMutation = useMutation({
+    mutationFn: (data: TripFormData) => apiRequest('PUT', `/api/trips/${trip.id}`, data),
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Trip request updated successfully',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/user'] });
+      onSuccess?.();
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update trip request',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const onSubmit = (data: TripFormData) => {
+    updateTripMutation.mutate(data);
+  };
+
+  const totalEstimatedCost = 
+    parseFloat(form.watch('estimatedTravelCost') || '0') +
+    parseFloat(form.watch('estimatedAccommodationCost') || '0') +
+    parseFloat(form.watch('estimatedMiscCost') || '0');
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Employee Selection */}
+        <FormField
+          control={form.control}
+          name="employeeId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Employee *</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select employee for trip request" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {groupedEmployees.map((group) => (
+                    <SelectGroup key={group.role}>
+                      <SelectLabel className="text-blue-600 font-semibold">
+                        {group.role}
+                      </SelectLabel>
+                      {group.employees.map((employee: any) => (
+                        <SelectItem key={employee.id} value={employee.id.toString()}>
+                          {employee.firstName && employee.lastName 
+                            ? `${employee.firstName} ${employee.lastName}` 
+                            : employee.username}
+                          {employee.department && ` • ${employee.department}`}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <FormField
+            control={form.control}
+            name="tripTitle"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Trip Title</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g., Client Meeting in Mumbai" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="destination"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Destination Country *</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select destination country" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent className="max-h-60 overflow-y-auto">
+                    {countries.map((country) => (
+                      <SelectItem key={country.code} value={country.name}>
+                        {country.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <FormField
+          control={form.control}
+          name="purpose"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Purpose of Travel</FormLabel>
+              <FormControl>
+                <Textarea 
+                  placeholder="Describe the purpose of your business trip..." 
+                  rows={3}
+                  {...field} 
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <FormField
+            control={form.control}
+            name="fromDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>From Date</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="toDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>To Date</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Estimated Costs</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormField
+              control={form.control}
+              name="estimatedTravelCost"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Travel Cost (₹)</FormLabel>
+                  <FormControl>
+                    <Input type="number" step="0.01" placeholder="0" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="estimatedAccommodationCost"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Accommodation Cost (₹)</FormLabel>
+                  <FormControl>
+                    <Input type="number" step="0.01" placeholder="0" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="estimatedMiscCost"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Miscellaneous Cost (₹)</FormLabel>
+                  <FormControl>
+                    <Input type="number" step="0.01" placeholder="0" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          <div className="bg-gray-50 p-4 rounded-md">
+            <p className="text-sm font-medium">Total Estimated Cost: ₹{totalEstimatedCost.toFixed(2)}</p>
+          </div>
+        </div>
+
+        <FormField
+          control={form.control}
+          name="advanceRequested"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Advance Payment Requested (₹)</FormLabel>
+              <FormControl>
+                <Input type="number" step="0.01" placeholder="0" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="flex justify-end gap-4">
+          <Button type="button" variant="outline" onClick={onSuccess}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={updateTripMutation.isPending}>
+            {updateTripMutation.isPending ? 'Updating...' : 'Update Trip Request'}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+};
+
 // Trip list component
 const TripList = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [editingTrip, setEditingTrip] = useState<any>(null);
+  const [viewingTrip, setViewingTrip] = useState<any>(null);
+  
   const { data: trips, isLoading } = useQuery({
     queryKey: ['/api/trips/user'],
     queryFn: () => apiRequest('GET', '/api/trips/user'),
   });
 
+  const deleteTripMutation = useMutation({
+    mutationFn: (tripId: number) => apiRequest('DELETE', `/api/trips/${tripId}`),
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Trip request deleted successfully',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/user'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete trip request',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleEdit = (trip: any) => {
+    setEditingTrip(trip);
+  };
+
+  const handleView = (trip: any) => {
+    setViewingTrip(trip);
+  };
+
+  const handleDelete = (trip: any) => {
+    if (confirm(`Are you sure you want to delete the trip request "${trip.tripTitle}"?`)) {
+      deleteTripMutation.mutate(trip.id);
+    }
+  };
+
   if (isLoading) return <div>Loading trips...</div>;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {trips?.map((trip: any) => (
-        <Card key={trip.id}>
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold mb-2">{trip.tripTitle}</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    <span>{trip.destination}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    <span>{new Date(trip.fromDate).toLocaleDateString()} - {new Date(trip.toDate).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" />
-                    <span>₹{(parseFloat(trip.estimatedTravelCost) + parseFloat(trip.estimatedAccommodationCost) + parseFloat(trip.estimatedMiscCost)).toFixed(2)}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    <span>{new Date(trip.createdAt).toLocaleDateString()}</span>
-                  </div>
+        <Card key={trip.id} className="hover:shadow-md transition-shadow">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              {/* Trip Info - Single Line */}
+              <div className="flex items-center gap-6 flex-1">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-semibold text-base truncate">{trip.tripTitle}</h3>
                 </div>
-                <p className="mt-2 text-sm text-gray-700">{trip.purpose}</p>
-              </div>
-              <div className="ml-4">
+                
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <MapPin className="h-4 w-4" />
+                  <span className="whitespace-nowrap">{trip.destination}</span>
+                </div>
+                
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Calendar className="h-4 w-4" />
+                  <span className="whitespace-nowrap">
+                    {new Date(trip.fromDate).toLocaleDateString()} - {new Date(trip.toDate).toLocaleDateString()}
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <DollarSign className="h-4 w-4" />
+                  <span className="whitespace-nowrap">
+                    ₹{(parseFloat(trip.estimatedTravelCost) + parseFloat(trip.estimatedAccommodationCost) + parseFloat(trip.estimatedMiscCost)).toFixed(2)}
+                  </span>
+                </div>
+                
                 <StatusBadge status={trip.status} />
               </div>
+
+              {/* 3-Dot Actions Menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleView(trip)}>
+                    <Eye className="mr-2 h-4 w-4" />
+                    View
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleEdit(trip)}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => handleDelete(trip)}
+                    className="text-red-600 focus:text-red-600"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </CardContent>
         </Card>
       ))}
+
+      {/* View Trip Dialog */}
+      {viewingTrip && (
+        <Dialog open={!!viewingTrip} onOpenChange={() => setViewingTrip(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Trip Request Details</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Trip Title</Label>
+                  <p className="text-sm text-gray-700">{viewingTrip.tripTitle}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Destination</Label>
+                  <p className="text-sm text-gray-700">{viewingTrip.destination}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">From Date</Label>
+                  <p className="text-sm text-gray-700">{new Date(viewingTrip.fromDate).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">To Date</Label>
+                  <p className="text-sm text-gray-700">{new Date(viewingTrip.toDate).toLocaleDateString()}</p>
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Purpose</Label>
+                <p className="text-sm text-gray-700">{viewingTrip.purpose}</p>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Travel Cost</Label>
+                  <p className="text-sm text-gray-700">₹{parseFloat(viewingTrip.estimatedTravelCost).toFixed(2)}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Accommodation Cost</Label>
+                  <p className="text-sm text-gray-700">₹{parseFloat(viewingTrip.estimatedAccommodationCost).toFixed(2)}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Misc Cost</Label>
+                  <p className="text-sm text-gray-700">₹{parseFloat(viewingTrip.estimatedMiscCost).toFixed(2)}</p>
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Status</Label>
+                <div className="mt-1">
+                  <StatusBadge status={viewingTrip.status} />
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Edit Trip Dialog */}
+      {editingTrip && (
+        <Dialog open={!!editingTrip} onOpenChange={() => setEditingTrip(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Trip Request</DialogTitle>
+            </DialogHeader>
+            <TripEditForm 
+              trip={editingTrip} 
+              onSuccess={() => setEditingTrip(null)} 
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

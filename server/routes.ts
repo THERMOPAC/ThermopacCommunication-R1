@@ -380,6 +380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/trips/:id', ensureAuthenticated, tripManagementRoutes.getTripById);
   app.post('/api/trips', ensureAuthenticated, tripManagementRoutes.createTrip);
   app.put('/api/trips/:id', ensureAuthenticated, tripManagementRoutes.updateTrip);
+  app.delete('/api/trips/:id', ensureAuthenticated, tripManagementRoutes.deleteTrip);
   app.post('/api/trips/:id/submit', ensureAuthenticated, tripManagementRoutes.submitTrip);
   app.post('/api/trips/:id/approve', ensureAuthenticated, tripManagementRoutes.approveTrip);
   

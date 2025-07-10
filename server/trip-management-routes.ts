@@ -567,6 +567,56 @@ export const approveTrip = async (req: Request, res: Response) => {
 };
 
 /**
+ * Delete trip request
+ */
+export const deleteTrip = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
+
+    // Check if trip exists
+    const existingTrip = await db
+      .select()
+      .from(businessTrips)
+      .where(eq(businessTrips.id, parseInt(id)))
+      .limit(1);
+
+    if (!existingTrip.length) {
+      return res.status(404).json({ error: 'Trip not found' });
+    }
+
+    // Check permissions: users can only delete their own trips unless they are admin
+    const isOwner = existingTrip[0].employeeId === userId;
+    const isAdmin = userRole === 'Superuser' || userRole === 'General Manager';
+    
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied. You can only delete your own trip requests.' });
+    }
+
+    // Only allow deletion if trip is in draft or rejected status
+    if (!['draft', 'rejected'].includes(existingTrip[0].status)) {
+      return res.status(400).json({ error: 'Cannot delete trip in current status. Only draft or rejected trips can be deleted.' });
+    }
+
+    // Delete associated records first (cascade delete)
+    await db.delete(tripApprovals).where(eq(tripApprovals.tripId, parseInt(id)));
+    await db.delete(tripDocuments).where(eq(tripDocuments.tripId, parseInt(id)));
+    await db.delete(tripBookings).where(eq(tripBookings.tripId, parseInt(id)));
+    await db.delete(tripExpenses).where(eq(tripExpenses.tripId, parseInt(id)));
+    await db.delete(tripReimbursements).where(eq(tripReimbursements.tripId, parseInt(id)));
+
+    // Delete the trip request
+    await db.delete(businessTrips).where(eq(businessTrips.id, parseInt(id)));
+
+    res.json({ message: 'Trip request deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting trip:', error);
+    res.status(500).json({ error: 'Failed to delete trip request' });
+  }
+};
+
+/**
  * Get trip dashboard statistics
  */
 export const getTripDashboard = async (req: Request, res: Response) => {
@@ -907,6 +957,7 @@ export default {
   getTripById,
   createTrip,
   updateTrip,
+  deleteTrip,
   submitTrip,
   approveTrip,
   getTripDashboard,
