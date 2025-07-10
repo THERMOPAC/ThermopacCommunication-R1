@@ -50,17 +50,10 @@ router.post('/allocate-payment', async (req: Request, res: Response) => {
       });
     }
     
-    // Check if this exact allocation already exists
-    const existingAllocation = await storage.db.execute(
-      sql`SELECT id FROM payment_allocations 
-          WHERE payment_id = ${paymentId} AND invoice_id = ${invoiceId}`
-    );
-    
-    if (existingAllocation.rows.length > 0) {
-      return res.status(400).json({ 
-        error: 'Allocation between this payment and invoice already exists' 
-      });
-    }
+    // Allow multiple allocations between same payment-invoice pair
+    // Previous logic blocked additional allocations, but business requirement is to allow them
+    // as long as there are remaining amounts (which is already checked above)
+    console.log(`🔥 Allowing allocation (multiple allocations permitted for same payment-invoice pair)`);
     
     // Insert allocation record first
     console.log(`🔥 Creating allocation record...`);
