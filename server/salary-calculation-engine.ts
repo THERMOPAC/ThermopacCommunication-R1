@@ -466,7 +466,7 @@ export class SalaryCalculationEngine {
     const netPay = grossEarnings - totalDeductions;
     
     // Employer contributions
-    const gratuity = grossEarnings * 0.0481;
+    const gratuity = grossBasic * 0.0481;
     const groupInsurance = parseFloat(salaryConfig.groupInsurance || '1500');
     const totalEmployerContributions = employerPF + employerESIC + gratuity + groupInsurance;
     
