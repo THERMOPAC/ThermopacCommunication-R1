@@ -1160,8 +1160,8 @@ const TripDashboard = () => {
   });
 
   const { data: trips } = useQuery({
-    queryKey: ['/api/trips'],
-    queryFn: () => apiRequest('GET', '/api/trips'),
+    queryKey: ['/api/trips/all'],
+    queryFn: () => apiRequest('GET', '/api/trips/all'),
   });
 
   const { data: users } = useQuery({
@@ -1179,7 +1179,7 @@ const TripDashboard = () => {
         title: 'Success',
         description: 'Trip request deleted successfully',
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/trips'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/all'] });
       queryClient.invalidateQueries({ queryKey: ['/api/trips/dashboard'] });
     },
     onError: (error: Error) => {
