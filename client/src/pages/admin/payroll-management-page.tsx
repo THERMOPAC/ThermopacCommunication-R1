@@ -357,6 +357,10 @@ export default function PayrollManagementPage() {
   // Auto-update form with calculated values when inputs change
   useEffect(() => {
     if (parseFloat(basicSalary || '0') > 0) {
+      // Debug log to see what's being calculated
+      console.log('Auto-update: basicSalary =', basicSalary);
+      console.log('Auto-update: calculated gratuity =', calculatedValues.gratuityCost);
+      console.log('Auto-update: full calculated values =', calculatedValues);
 
       form.setValue('gratuityCost', calculatedValues.gratuityCost, { shouldValidate: false });
       form.setValue('employeePfContribution', calculatedValues.employeePfContribution, { shouldValidate: false });
