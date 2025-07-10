@@ -66,8 +66,8 @@ interface VisaOptions {
   visaTypes: string[];
 }
 
-// Travel Log Form Schema
-const travelLogSchema = z.object({
+// Travel Log Form Schema with enhanced validation
+const createTravelLogSchema = (visaRecords: VisaRecord[] = []) => z.object({
   employeeId: z.number().min(1, 'Please select an employee'),
   country: z.string().min(1, 'Please select a country'),
   entryDate: z.date(),
@@ -75,9 +75,69 @@ const travelLogSchema = z.object({
   purpose: z.string().min(1, 'Purpose is required'),
   notes: z.string().optional(),
   isBusinessTrip: z.boolean().default(false)
+}).refine((data) => {
+  // Validate that exit date is after entry date
+  if (data.exitDate && data.entryDate >= data.exitDate) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Exit date must be after entry date",
+  path: ["exitDate"]
+}).refine((data) => {
+  // Validate that travel dates are within visa validity period
+  const employeeVisa = visaRecords.find(visa => 
+    visa.employeeId === data.employeeId && 
+    visa.country === "Schengen Area (EU)" && 
+    visa.status === "Active"
+  );
+  
+  if (!employeeVisa) {
+    return false;
+  }
+  
+  const visaStart = new Date(employeeVisa.issueDate);
+  const visaEnd = new Date(employeeVisa.expiryDate);
+  const entryDate = data.entryDate;
+  const exitDate = data.exitDate || new Date();
+  
+  // Check if entry date is within visa validity
+  if (entryDate < visaStart || entryDate > visaEnd) {
+    return false;
+  }
+  
+  // Check if exit date is within visa validity
+  if (exitDate > visaEnd) {
+    return false;
+  }
+  
+  return true;
+}, {
+  message: "Travel dates must be within your visa validity period",
+  path: ["entryDate"]
+}).refine((data) => {
+  // Validate that entry date is not in the future
+  const today = new Date();
+  today.setHours(23, 59, 59, 999); // End of today
+  
+  if (data.entryDate > today) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Entry date cannot be in the future",
+  path: ["entryDate"]
 });
 
-type TravelLogFormData = z.infer<typeof travelLogSchema>;
+type TravelLogFormData = {
+  employeeId: number;
+  country: string;
+  entryDate: Date;
+  exitDate?: Date;
+  purpose: string;
+  notes?: string;
+  isBusinessTrip: boolean;
+};
 
 // EU 180-Day Rule Tracker Component
 function EU180DayTracker() {
@@ -96,6 +156,11 @@ function EU180DayTracker() {
   // Fetch employees with active Schengen visas for dropdown
   const { data: employees } = useQuery({
     queryKey: ['/api/schengen/employees'],
+  });
+
+  // Fetch visa records for validation
+  const { data: visaRecords } = useQuery({
+    queryKey: ['/api/visa/records'],
   });
 
   // Add travel log mutation
@@ -118,6 +183,9 @@ function EU180DayTracker() {
       });
     }
   });
+
+  // Create dynamic schema with visa records
+  const travelLogSchema = createTravelLogSchema(visaRecords);
 
   // Form for adding travel logs
   const travelForm = useForm<TravelLogFormData>({
@@ -304,9 +372,13 @@ function EU180DayTracker() {
                               type="date"
                               value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
                               onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                              max={format(new Date(), 'yyyy-MM-dd')}
                             />
                           </FormControl>
                           <FormMessage />
+                          <p className="text-sm text-muted-foreground">
+                            Entry date must be within your visa validity period
+                          </p>
                         </FormItem>
                       )}
                     />
@@ -325,6 +397,9 @@ function EU180DayTracker() {
                             />
                           </FormControl>
                           <FormMessage />
+                          <p className="text-sm text-muted-foreground">
+                            Leave blank if still traveling. Must be after entry date and within visa validity.
+                          </p>
                         </FormItem>
                       )}
                     />
