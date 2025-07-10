@@ -437,8 +437,11 @@ export const getVisaOptions = async (req: Request, res: Response) => {
     const uniqueCountries = [...new Set(countries.map(c => c.country))];
     const uniqueVisaTypes = [...new Set(countries.map(c => c.visaType))];
 
+    // Add "Schengen Area (EU)" as a special country option for EU 180-day rule tracking
+    const allCountries = ["Schengen Area (EU)", ...uniqueCountries].sort();
+
     res.json({
-      countries: uniqueCountries,
+      countries: allCountries,
       visaTypes: uniqueVisaTypes,
       quotaSettings: countries
     });
