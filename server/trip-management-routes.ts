@@ -711,6 +711,173 @@ export const getTripDashboard = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Get comprehensive trip reports and analytics
+ */
+export const getTripReports = async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
+    const { startDate, endDate, employeeId, status, destination } = req.query;
+
+    // Base query condition - employees see only their trips, admins see all
+    let baseCondition = userRole === 'Superuser' || userRole === 'General Manager' 
+      ? undefined 
+      : eq(businessTrips.employeeId, userId);
+
+    // Add date range filter if provided
+    if (startDate && endDate) {
+      const dateCondition = and(
+        sql`${businessTrips.fromDate} >= ${startDate}`,
+        sql`${businessTrips.fromDate} <= ${endDate}`
+      );
+      baseCondition = baseCondition ? and(baseCondition, dateCondition) : dateCondition;
+    }
+
+    // Add employee filter if provided (for admins)
+    if (employeeId && (userRole === 'Superuser' || userRole === 'General Manager')) {
+      const empCondition = eq(businessTrips.employeeId, parseInt(employeeId as string));
+      baseCondition = baseCondition ? and(baseCondition, empCondition) : empCondition;
+    }
+
+    // Add status filter if provided
+    if (status && status !== 'all') {
+      const statusCondition = eq(businessTrips.status, status as string);
+      baseCondition = baseCondition ? and(baseCondition, statusCondition) : statusCondition;
+    }
+
+    // Add destination filter if provided
+    if (destination && destination !== 'all') {
+      const destCondition = sql`LOWER(${businessTrips.destination}) LIKE LOWER(${`%${destination}%`})`;
+      baseCondition = baseCondition ? and(baseCondition, destCondition) : destCondition;
+    }
+
+    // 1. Trip Status Distribution
+    const statusDistribution = await db
+      .select({
+        status: businessTrips.status,
+        count: count(),
+        totalCost: sum(sql`${businessTrips.estimatedTravelCost} + ${businessTrips.estimatedAccommodationCost} + ${businessTrips.estimatedMiscCost}`),
+      })
+      .from(businessTrips)
+      .where(baseCondition)
+      .groupBy(businessTrips.status);
+
+    // 2. Monthly Trip Trends (last 12 months)
+    const monthlyTrends = await db
+      .select({
+        month: sql<string>`TO_CHAR(${businessTrips.fromDate}, 'YYYY-MM')`,
+        tripCount: count(),
+        totalCost: sum(sql`${businessTrips.estimatedTravelCost} + ${businessTrips.estimatedAccommodationCost} + ${businessTrips.estimatedMiscCost}`),
+        avgCost: sql<number>`AVG(${businessTrips.estimatedTravelCost} + ${businessTrips.estimatedAccommodationCost} + ${businessTrips.estimatedMiscCost})`,
+      })
+      .from(businessTrips)
+      .where(and(
+        baseCondition,
+        sql`${businessTrips.fromDate} >= CURRENT_DATE - INTERVAL '12 months'`
+      ))
+      .groupBy(sql`TO_CHAR(${businessTrips.fromDate}, 'YYYY-MM')`)
+      .orderBy(sql`TO_CHAR(${businessTrips.fromDate}, 'YYYY-MM')`);
+
+    // 3. Top Destinations
+    const topDestinations = await db
+      .select({
+        destination: businessTrips.destination,
+        tripCount: count(),
+        totalCost: sum(sql`${businessTrips.estimatedTravelCost} + ${businessTrips.estimatedAccommodationCost} + ${businessTrips.estimatedMiscCost}`),
+        avgCost: sql<number>`AVG(${businessTrips.estimatedTravelCost} + ${businessTrips.estimatedAccommodationCost} + ${businessTrips.estimatedMiscCost})`,
+      })
+      .from(businessTrips)
+      .where(baseCondition)
+      .groupBy(businessTrips.destination)
+      .orderBy(desc(count()))
+      .limit(10);
+
+    // 4. Employee Travel Summary (for admins)
+    let employeeSummary = [];
+    if (userRole === 'Superuser' || userRole === 'General Manager') {
+      employeeSummary = await db
+        .select({
+          employeeId: businessTrips.employeeId,
+          employeeName: sql<string>`COALESCE(${users.firstName} || ' ' || ${users.lastName}, ${users.username})`,
+          tripCount: count(),
+          totalCost: sum(sql`${businessTrips.estimatedTravelCost} + ${businessTrips.estimatedAccommodationCost} + ${businessTrips.estimatedMiscCost}`),
+          avgCost: sql<number>`AVG(${businessTrips.estimatedTravelCost} + ${businessTrips.estimatedAccommodationCost} + ${businessTrips.estimatedMiscCost})`,
+          lastTripDate: sql<string>`MAX(${businessTrips.fromDate})`,
+        })
+        .from(businessTrips)
+        .leftJoin(users, eq(businessTrips.employeeId, users.id))
+        .where(baseCondition)
+        .groupBy(businessTrips.employeeId, sql`COALESCE(${users.firstName} || ' ' || ${users.lastName}, ${users.username})`)
+        .orderBy(desc(count()))
+        .limit(20);
+    }
+
+    // 5. Cost Breakdown Analysis
+    const costBreakdown = await db
+      .select({
+        avgTravelCost: sql<number>`AVG(${businessTrips.estimatedTravelCost})`,
+        avgAccommodationCost: sql<number>`AVG(${businessTrips.estimatedAccommodationCost})`,
+        avgMiscCost: sql<number>`AVG(${businessTrips.estimatedMiscCost})`,
+        totalTravelCost: sum(businessTrips.estimatedTravelCost),
+        totalAccommodationCost: sum(businessTrips.estimatedAccommodationCost),
+        totalMiscCost: sum(businessTrips.estimatedMiscCost),
+        totalTrips: count(),
+      })
+      .from(businessTrips)
+      .where(baseCondition);
+
+    // 6. Trip Duration Analysis
+    const durationAnalysis = await db
+      .select({
+        duration: sql<number>`${businessTrips.toDate} - ${businessTrips.fromDate}`,
+        tripCount: count(),
+        avgCost: sql<number>`AVG(${businessTrips.estimatedTravelCost} + ${businessTrips.estimatedAccommodationCost} + ${businessTrips.estimatedMiscCost})`,
+      })
+      .from(businessTrips)
+      .where(baseCondition)
+      .groupBy(sql`${businessTrips.toDate} - ${businessTrips.fromDate}`)
+      .orderBy(sql`${businessTrips.toDate} - ${businessTrips.fromDate}`);
+
+    // 7. Recent Trips Summary
+    const recentTrips = await db
+      .select({
+        id: businessTrips.id,
+        tripTitle: businessTrips.tripTitle,
+        destination: businessTrips.destination,
+        fromDate: businessTrips.fromDate,
+        toDate: businessTrips.toDate,
+        status: businessTrips.status,
+        totalCost: sql<number>`${businessTrips.estimatedTravelCost} + ${businessTrips.estimatedAccommodationCost} + ${businessTrips.estimatedMiscCost}`,
+        employeeName: sql<string>`COALESCE(${users.firstName} || ' ' || ${users.lastName}, ${users.username})`,
+        createdAt: businessTrips.createdAt,
+      })
+      .from(businessTrips)
+      .leftJoin(users, eq(businessTrips.employeeId, users.id))
+      .where(baseCondition)
+      .orderBy(desc(businessTrips.createdAt))
+      .limit(50);
+
+    res.json({
+      statusDistribution,
+      monthlyTrends,
+      topDestinations,
+      employeeSummary,
+      costBreakdown: costBreakdown[0] || {},
+      durationAnalysis,
+      recentTrips,
+      summary: {
+        totalTrips: recentTrips.length,
+        dateRange: { startDate, endDate },
+        filters: { employeeId, status, destination }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching trip reports:', error);
+    res.status(500).json({ error: 'Failed to fetch trip reports' });
+  }
+};
+
 // ===================== TRIP DOCUMENT UPLOAD ENDPOINTS =====================
 
 /**
@@ -961,6 +1128,7 @@ export default {
   submitTrip,
   approveTrip,
   getTripDashboard,
+  getTripReports,
   uploadTripDocument,
   getTripDocuments,
   deleteTripDocument,

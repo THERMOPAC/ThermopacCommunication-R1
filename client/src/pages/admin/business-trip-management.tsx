@@ -19,6 +19,21 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer, 
+  PieChart, 
+  Pie, 
+  Cell, 
+  LineChart, 
+  Line 
+} from 'recharts';
+import { 
   Plus, 
   Calendar, 
   MapPin, 
@@ -46,7 +61,12 @@ import {
   X,
   ChevronDown,
   ChevronUp,
-  Search
+  Search,
+  BarChart3,
+  Filter,
+  FileDown,
+  RefreshCw,
+  Target
 } from 'lucide-react';
 
 // Form schemas
@@ -78,6 +98,420 @@ const documentUploadSchema = z.object({
 type TripFormData = z.infer<typeof tripFormSchema>;
 type ApprovalFormData = z.infer<typeof approvalFormSchema>;
 type DocumentUploadData = z.infer<typeof documentUploadSchema>;
+
+// Trip Reports Component
+const TripReports = () => {
+  const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
+  const [filters, setFilters] = useState({
+    employeeId: '',
+    status: '',
+    destination: ''
+  });
+  const { toast } = useToast();
+
+  // Fetch trip reports data
+  const { data: reportsData, isLoading: reportsLoading, refetch } = useQuery({
+    queryKey: ['/api/trips/reports', dateRange, filters],
+    queryFn: () => apiRequest('GET', `/api/trips/reports?${new URLSearchParams({
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
+      employeeId: filters.employeeId,
+      status: filters.status,
+      destination: filters.destination
+    }).toString()}`),
+    enabled: true
+  });
+
+  // Fetch employees for filter
+  const { data: employees } = useQuery({
+    queryKey: ['/api/admin/users'],
+    queryFn: () => apiRequest('GET', '/api/admin/users')
+  });
+
+  // Chart colors
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
+
+  // Export functionality
+  const exportToCSV = () => {
+    if (!reportsData?.recentTrips) return;
+    
+    const headers = ['Trip Title', 'Employee', 'Destination', 'From Date', 'To Date', 'Status', 'Total Cost'];
+    const rows = reportsData.recentTrips.map((trip: any) => [
+      trip.tripTitle,
+      trip.employeeName,
+      trip.destination,
+      trip.fromDate,
+      trip.toDate,
+      trip.status,
+      trip.totalCost
+    ]);
+    
+    const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `trip-reports-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Clear filters
+  const clearFilters = () => {
+    setFilters({ employeeId: '', status: '', destination: '' });
+    setDateRange({ startDate: '', endDate: '' });
+    toast({ description: 'Filters cleared successfully' });
+  };
+
+  if (reportsLoading) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-center h-40">
+            <RefreshCw className="h-6 w-6 animate-spin mr-2" />
+            Loading trip reports...
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header with Filters */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-6 w-6" />
+                Trip Reports & Analytics
+              </CardTitle>
+              <CardDescription>
+                Comprehensive analytics and insights for business trip management
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={refetch} variant="outline" size="sm">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+              <Button onClick={exportToCSV} variant="outline" size="sm">
+                <FileDown className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Date Range Filters */}
+            <div>
+              <Label htmlFor="startDate">Start Date</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={dateRange.startDate}
+                onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="endDate">End Date</Label>
+              <Input
+                id="endDate"
+                type="date"
+                value={dateRange.endDate}
+                onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+              />
+            </div>
+            
+            {/* Employee Filter */}
+            <div>
+              <Label>Employee</Label>
+              <Select value={filters.employeeId} onValueChange={(value) => setFilters(prev => ({ ...prev, employeeId: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Employees" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Employees</SelectItem>
+                  {employees?.map((employee: any) => (
+                    <SelectItem key={employee.id} value={employee.id.toString()}>
+                      {employee.firstName && employee.lastName ? 
+                        `${employee.firstName} ${employee.lastName}` : 
+                        employee.username}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Status Filter */}
+            <div>
+              <Label>Status</Label>
+              <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Statuses</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="submitted">Submitted</SelectItem>
+                  <SelectItem value="manager_approved">Manager Approved</SelectItem>
+                  <SelectItem value="final_approved">Final Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Clear Filters Button */}
+            <div className="flex items-end">
+              <Button onClick={clearFilters} variant="outline" className="w-full">
+                <Filter className="h-4 w-4 mr-2" />
+                Clear Filters
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Summary Statistics */}
+      {reportsData && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Plane className="h-8 w-8 text-blue-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Trips</p>
+                  <p className="text-2xl font-bold">{reportsData.summary?.totalTrips || 0}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <DollarSign className="h-8 w-8 text-green-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Cost</p>
+                  <p className="text-2xl font-bold">
+                    ₹{(reportsData.costBreakdown?.totalCost || 0).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Target className="h-8 w-8 text-purple-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Top Destination</p>
+                  <p className="text-lg font-bold">{reportsData.topDestinations?.[0]?.destination || 'N/A'}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Users className="h-8 w-8 text-orange-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Active Travelers</p>
+                  <p className="text-2xl font-bold">{reportsData.employeeSummary?.length || 0}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Charts Section */}
+      {reportsData && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Monthly Trends Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly Trip Trends</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={reportsData.monthlyTrends || []}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="tripCount" stroke="#8884d8" strokeWidth={2} />
+                  <Line type="monotone" dataKey="totalCost" stroke="#82ca9d" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Status Distribution Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Trip Status Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={reportsData.statusDistribution || []}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, value }) => `${name}: ${value}`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="count"
+                  >
+                    {(reportsData.statusDistribution || []).map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Top Destinations Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Destinations</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={reportsData.topDestinations?.slice(0, 8) || []}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="destination" angle={-45} textAnchor="end" height={100} />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="tripCount" fill="#8884d8" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Cost Breakdown Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Cost Analysis</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={[
+                  { 
+                    name: 'Travel', 
+                    amount: reportsData.costBreakdown?.totalTravelCost || 0 
+                  },
+                  { 
+                    name: 'Accommodation', 
+                    amount: reportsData.costBreakdown?.totalAccommodationCost || 0 
+                  },
+                  { 
+                    name: 'Miscellaneous', 
+                    amount: reportsData.costBreakdown?.totalMiscCost || 0 
+                  }
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="amount" fill="#82ca9d" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Employee Summary Table */}
+      {reportsData?.employeeSummary && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Employee Travel Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Employee</TableHead>
+                  <TableHead>Total Trips</TableHead>
+                  <TableHead>Total Cost</TableHead>
+                  <TableHead>Average Cost</TableHead>
+                  <TableHead>Last Trip</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {reportsData.employeeSummary.map((employee: any, index: number) => (
+                  <TableRow key={index}>
+                    <TableCell className="font-medium">{employee.employeeName}</TableCell>
+                    <TableCell>{employee.tripCount}</TableCell>
+                    <TableCell>₹{employee.totalCost?.toLocaleString()}</TableCell>
+                    <TableCell>₹{employee.avgCost?.toLocaleString()}</TableCell>
+                    <TableCell>{employee.lastTripDate ? new Date(employee.lastTripDate).toLocaleDateString() : 'N/A'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Recent Trips Table */}
+      {reportsData?.recentTrips && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Trips ({reportsData.recentTrips.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Trip Title</TableHead>
+                  <TableHead>Employee</TableHead>
+                  <TableHead>Destination</TableHead>
+                  <TableHead>From Date</TableHead>
+                  <TableHead>To Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Total Cost</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {reportsData.recentTrips.map((trip: any) => (
+                  <TableRow key={trip.id}>
+                    <TableCell className="font-medium">{trip.tripTitle}</TableCell>
+                    <TableCell>{trip.employeeName}</TableCell>
+                    <TableCell>{trip.destination}</TableCell>
+                    <TableCell>{new Date(trip.fromDate).toLocaleDateString()}</TableCell>
+                    <TableCell>{new Date(trip.toDate).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Badge variant={
+                        trip.status === 'final_approved' ? 'default' :
+                        trip.status === 'manager_approved' ? 'secondary' :
+                        trip.status === 'submitted' ? 'outline' :
+                        trip.status === 'rejected' ? 'destructive' : 'secondary'
+                      }>
+                        {trip.status.replace('_', ' ').toUpperCase()}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>₹{trip.totalCost?.toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
 
 // Document type options
 const documentTypeOptions = [
@@ -2572,14 +3006,7 @@ export default function BusinessTripManagement() {
           </TabsContent>
 
           <TabsContent value="reports">
-            <Card>
-              <CardHeader>
-                <CardTitle>Trip Reports</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">Reporting functionality coming soon...</p>
-              </CardContent>
-            </Card>
+            <TripReports />
           </TabsContent>
         </Tabs>
       </div>

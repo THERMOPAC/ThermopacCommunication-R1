@@ -377,6 +377,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/trips/user', ensureAuthenticated, tripManagementRoutes.getUserTrips);
   app.get('/api/trips/all', ensureAuthenticated, tripManagementRoutes.getAllTrips);
   app.get('/api/trips/dashboard', ensureAuthenticated, tripManagementRoutes.getTripDashboard);
+  app.get('/api/trips/reports', ensureAuthenticated, tripManagementRoutes.getTripReports);
   app.get('/api/trips/:id', ensureAuthenticated, tripManagementRoutes.getTripById);
   app.post('/api/trips', ensureAuthenticated, tripManagementRoutes.createTrip);
   app.put('/api/trips/:id', ensureAuthenticated, tripManagementRoutes.updateTrip);
