@@ -1288,9 +1288,9 @@ const TripDashboard = () => {
   const pendingApprovals = dashboard.pendingApprovals || [];
 
   // Generate unique values for filter dropdowns
-  const uniqueStatuses = ['all', ...new Set(trips?.map((trip: any) => trip.status) || [])];
-  const uniqueEmployees = ['all', ...new Set(trips?.map((trip: any) => trip.employeeName) || [])];
-  const uniqueDestinations = ['all', ...new Set(trips?.map((trip: any) => trip.destination) || [])];
+  const uniqueStatuses = ['all', ...new Set(trips?.map((trip: any) => trip.status).filter(Boolean) || [])];
+  const uniqueEmployees = ['all', ...new Set(trips?.map((trip: any) => trip.employeeName).filter(Boolean) || [])];
+  const uniqueDestinations = ['all', ...new Set(trips?.map((trip: any) => trip.destination).filter(Boolean) || [])];
 
   // Filter trips based on all criteria
   const filteredTrips = trips?.filter((trip: any) => {
