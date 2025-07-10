@@ -165,6 +165,11 @@ function Layout({ children }: LayoutProps) {
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
     { icon: Repeat, label: "Recurring Tasks", href: "/recurring-tasks" },
+    ...(hasViewPermission("Meetings & Commitments") ? [{ 
+      icon: CalendarDays, 
+      label: "Meetings & Commitments", 
+      href: "/admin/meetings-management" 
+    }] : []),
     ...(hasViewPermission("Administration") ? [{ 
       icon: Settings, 
       label: "Administration", 
@@ -180,7 +185,6 @@ function Layout({ children }: LayoutProps) {
         { icon: Plane, label: "Business Trip Management", href: "/admin/business-trips" },
         { icon: FileText, label: "Visa Management", href: "/admin/visa-management" },
         { icon: Gavel, label: "Legal Management", href: "/admin/legal-management" },
-        { icon: CalendarDays, label: "Meetings & Commitments", href: "/admin/meetings-management" },
         { icon: Calendar, label: "Workweek Policy Management", href: "/admin/workweek-policies" },
         { icon: Shield, label: "Module Permissions", href: "/module-permissions" }
       ]
@@ -410,7 +414,8 @@ function Layout({ children }: LayoutProps) {
                 {/* Show individual module items (non-submenu) */}
                 {menuItems.filter(item => 
                   !item.isSubmenu && 
-                  (item.href === '/project-commissioning' || 
+                  (item.href === '/admin/meetings-management' ||
+                   item.href === '/project-commissioning' || 
                    item.href === '/dispatch-shipping' || 
                    item.href === '/after-sales')
                 ).map((item, index) => {
