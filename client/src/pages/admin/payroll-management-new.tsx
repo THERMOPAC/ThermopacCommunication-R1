@@ -1806,7 +1806,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>House Rent Allowance</Label>
                 <div className="p-3 bg-gray-50 rounded border">
@@ -1841,6 +1841,16 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                 <Label>Special Allowance</Label>
                 <div className="p-3 bg-gray-50 rounded border">
                   ₹{calculations.special.toLocaleString('en-IN', {maximumFractionDigits: 2})}
+                  <span className="text-xs text-gray-500 ml-2">
+                    {watchedValues.salaryType === 'daily' ? '(0%)' : '(30% of Basic)'}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Supplementary Allowance</Label>
+                <div className="p-3 bg-gray-50 rounded border">
+                  ₹{calculations.supplementary.toLocaleString('en-IN', {maximumFractionDigits: 2})}
                   <span className="text-xs text-gray-500 ml-2">
                     {watchedValues.salaryType === 'daily' ? '(0%)' : '(30% of Basic)'}
                   </span>
