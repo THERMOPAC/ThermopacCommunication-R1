@@ -127,6 +127,79 @@ router.get("/dashboard", ensureAuthenticated, async (req, res) => {
   }
 });
 
+// Get travel log summary for EU tracker display (all employees with Schengen visas)
+router.get("/travel-log", ensureAuthenticated, async (req, res) => {
+  try {
+    // Get employees with active Schengen visas
+    const employees = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        department: users.department,
+      })
+      .from(users)
+      .innerJoin(visaRecords, eq(visaRecords.employeeId, users.id))
+      .where(
+        and(
+          eq(users.isActive, true),
+          eq(visaRecords.country, "Schengen Area (EU)"),
+          eq(visaRecords.status, "Active")
+        )
+      );
+
+    const employeeData = [];
+
+    for (const employee of employees) {
+      // Get travel logs for this employee
+      const travelLogs = await db
+        .select()
+        .from(schengenTravelLog)
+        .where(eq(schengenTravelLog.employeeId, employee.id))
+        .orderBy(desc(schengenTravelLog.entryDate));
+
+      // Calculate days used in last 180 days
+      const daysUsed = calculateSchengenDays(travelLogs);
+      const daysRemaining = Math.max(0, 90 - daysUsed);
+      
+      // Determine status
+      let complianceStatus = "Safe";
+      if (daysUsed >= 90) {
+        complianceStatus = "Exceeded";
+      } else if (daysUsed >= 80) {
+        complianceStatus = "Critical";
+      } else if (daysUsed >= 60) {
+        complianceStatus = "Warning";
+      }
+
+      // Calculate current period and next reset
+      const today = new Date();
+      const startDate = new Date(today);
+      startDate.setDate(today.getDate() - 180);
+      
+      const nextReset = new Date(startDate);
+      nextReset.setDate(startDate.getDate() + 180);
+
+      employeeData.push({
+        employeeId: employee.id,
+        employeeName: employee.username,
+        currentPeriod: `${startDate.toISOString().split('T')[0]} to ${today.toISOString().split('T')[0]}`,
+        daysUsed,
+        daysRemaining,
+        complianceStatus,
+        nextReset: nextReset.toISOString().split('T')[0],
+        totalTrips: travelLogs.length
+      });
+    }
+
+    res.json({ employees: employeeData });
+  } catch (error) {
+    console.error("Error fetching travel log summary:", error);
+    res.status(500).json({ error: "Failed to fetch travel log data" });
+  }
+});
+
 // Get travel logs for a specific employee
 router.get("/travel-logs/:employeeId", ensureAuthenticated, async (req, res) => {
   try {
