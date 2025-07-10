@@ -106,6 +106,12 @@ const TripRequestForm = ({ onSuccess }: { onSuccess?: () => void }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
+  // Get current user information
+  const { data: currentUser } = useQuery({
+    queryKey: ['/api/auth/user'],
+    queryFn: () => apiRequest('GET', '/api/auth/user')
+  });
+  
   const form = useForm<TripFormData>({
     resolver: zodResolver(tripFormSchema),
     defaultValues: {
@@ -154,6 +160,38 @@ const TripRequestForm = ({ onSuccess }: { onSuccess?: () => void }) => {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Requester Information */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center space-x-3">
+            <Users className="h-5 w-5 text-blue-600" />
+            <div>
+              <h3 className="font-semibold text-blue-900">Trip Requester</h3>
+              <p className="text-blue-700">
+                {currentUser ? (
+                  <>
+                    <span className="font-medium">
+                      {currentUser.firstName && currentUser.lastName 
+                        ? `${currentUser.firstName} ${currentUser.lastName}` 
+                        : currentUser.username}
+                    </span>
+                    {currentUser.role && (
+                      <span className="text-blue-600 ml-2">({currentUser.role})</span>
+                    )}
+                    {currentUser.department && (
+                      <span className="text-blue-600 ml-2">• {currentUser.department}</span>
+                    )}
+                  </>
+                ) : (
+                  'Loading user information...'
+                )}
+              </p>
+              {currentUser?.email && (
+                <p className="text-sm text-blue-600">{currentUser.email}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
             control={form.control}
