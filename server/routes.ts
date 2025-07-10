@@ -69,18 +69,7 @@ import { db } from "./db";
 import { masterItems as masterItemsTable, projectItems as projectItemsTable } from "@shared/schema";
 import { checkGcsPermissions } from "./utils/gcs-permissions-check";
 import { default as tripManagementRoutes } from "./trip-management-routes";
-import { 
-  getVisaDashboard, 
-  getVisaRecords, 
-  getVisaRecord, 
-  createVisaRecord, 
-  uploadVisaDocument, 
-  updateVisaRecord, 
-  deleteVisaRecord, 
-  getEmployeesForVisas, 
-  getVisaOptions, 
-  getPendingAlerts 
-} from "./visa-management-routes";
+import { default as visaManagementRoutes } from "./visa-management-routes";
 import { default as schengenRoutes } from "./schengen-routes";
 import { default as legalManagementRoutes } from "./legal-management-routes";
 
@@ -2727,16 +2716,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('Administration routes registered at /api/admin');
 
   // Visa Management routes
-  app.get('/api/visa/dashboard', ensureAuthenticated, getVisaDashboard);
-  app.get('/api/visa/records', ensureAuthenticated, getVisaRecords);
-  app.get('/api/visa/records/:id', ensureAuthenticated, getVisaRecord);
-  app.post('/api/visa/records', ensureAuthenticated, createVisaRecord);
-  app.post('/api/visa/upload', ensureAuthenticated, uploadVisaDocument);
-  app.put('/api/visa/records/:id', ensureAuthenticated, updateVisaRecord);
-  app.delete('/api/visa/records/:id', ensureAuthenticated, deleteVisaRecord);
-  app.get('/api/visa/employees', ensureAuthenticated, getEmployeesForVisas);
-  app.get('/api/visa/options', ensureAuthenticated, getVisaOptions);
-  app.get('/api/visa/alerts', ensureAuthenticated, getPendingAlerts);
+  app.use('/api/visa', visaManagementRoutes);
   console.log('Visa Management routes registered at /api/visa');
 
   // Schengen 180-Day Rule Tracker routes

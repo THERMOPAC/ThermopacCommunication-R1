@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import express, { Request, Response } from 'express';
 import { db } from './db';
 import { visaRecords, visaAlerts, visaQuotaSettings, users } from '@shared/schema';
 import { eq, desc, and, gte, lte, like, sql, count } from 'drizzle-orm';
@@ -6,6 +6,9 @@ import { insertVisaRecordSchema } from '@shared/schema';
 import multer from 'multer';
 import { Storage } from '@google-cloud/storage';
 import path from 'path';
+import { ensureAuthenticated } from './auth-middleware';
+
+const router = express.Router();
 
 // Configure Google Cloud Storage
 const storage = new Storage({
@@ -539,3 +542,17 @@ async function updateQuotaUsage(country: string, change: number) {
     console.error('Error updating quota usage:', error);
   }
 }
+
+// Set up router routes with authentication
+router.get('/dashboard', ensureAuthenticated, getVisaDashboard);
+router.get('/records', ensureAuthenticated, getVisaRecords);
+router.get('/records/:id', ensureAuthenticated, getVisaRecord);
+router.post('/records', ensureAuthenticated, createVisaRecord);
+router.post('/upload', ensureAuthenticated, uploadVisaDocument);
+router.put('/records/:id', ensureAuthenticated, updateVisaRecord);
+router.delete('/records/:id', ensureAuthenticated, deleteVisaRecord);
+router.get('/employees', ensureAuthenticated, getEmployeesForVisas);
+router.get('/options', ensureAuthenticated, getVisaOptions);
+router.get('/alerts', ensureAuthenticated, getPendingAlerts);
+
+export default router;
