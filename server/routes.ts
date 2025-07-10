@@ -2715,6 +2715,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/admin', adminRoutes);
   console.log('Administration routes registered at /api/admin');
 
+  // Simple visa test routes
+  const simpleVisaRoutes = await import('./simple-visa-routes');
+  app.use('/api/visa-test', simpleVisaRoutes.default);
+  console.log('Simple visa test routes registered at /api/visa-test');
+
   // Visa Management routes
   app.use('/api/visa', visaManagementRoutes);
   console.log('Visa Management routes registered at /api/visa');
