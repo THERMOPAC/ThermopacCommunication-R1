@@ -1383,6 +1383,118 @@ router.get('/leave-dashboard', ensureAuthenticated, async (req: Request, res: Re
   }
 });
 
+/**
+ * Get leave summary for employee and specific month
+ */
+router.get('/leave-summary/:employeeId/:year/:month', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const employeeId = parseInt(req.params.employeeId);
+    const year = parseInt(req.params.year);
+    const month = parseInt(req.params.month);
+
+    // Get leave balances for the employee for the specified year
+    const leaveBalanceData = await db
+      .select({
+        leaveTypeId: leaveBalances.leaveTypeId,
+        leaveTypeName: leaveTypes.name,
+        leaveTypeCode: leaveTypes.code,
+        leaveTypeColor: leaveTypes.colorCode,
+        isPaid: leaveTypes.isPaid,
+        allocatedDays: leaveBalances.allocatedDays,
+        usedDays: leaveBalances.usedDays,
+        pendingDays: leaveBalances.pendingDays,
+        carryoverDays: leaveBalances.carryoverDays,
+        remainingDays: sql`${leaveBalances.allocatedDays} + ${leaveBalances.carryoverDays} - ${leaveBalances.usedDays} - ${leaveBalances.pendingDays}`.as('remainingDays')
+      })
+      .from(leaveBalances)
+      .innerJoin(leaveTypes, eq(leaveBalances.leaveTypeId, leaveTypes.id))
+      .where(and(
+        eq(leaveBalances.userId, employeeId),
+        eq(leaveBalances.year, year)
+      ))
+      .orderBy(asc(leaveTypes.name));
+
+    // Get leave requests for the specific month
+    const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
+    const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+
+    const monthlyLeaveRequests = await db
+      .select({
+        id: leaveRequests.id,
+        leaveTypeId: leaveRequests.leaveTypeId,
+        leaveTypeName: leaveTypes.name,
+        isPaid: leaveTypes.isPaid,
+        startDate: leaveRequests.startDate,
+        endDate: leaveRequests.endDate,
+        totalDays: leaveRequests.totalDays,
+        isHalfDay: leaveRequests.isHalfDay,
+        status: leaveRequests.status
+      })
+      .from(leaveRequests)
+      .innerJoin(leaveTypes, eq(leaveRequests.leaveTypeId, leaveTypes.id))
+      .where(and(
+        eq(leaveRequests.employeeId, employeeId),
+        eq(leaveRequests.status, 'approved'), // Only approved leaves count for payroll
+        sql`${leaveRequests.startDate} <= '${endDate}' AND ${leaveRequests.endDate} >= '${startDate}'`
+      ));
+
+    // Calculate monthly usage for each leave type
+    const monthlyUsage = monthlyLeaveRequests.reduce((acc: any, request: any) => {
+      const leaveTypeId = request.leaveTypeId;
+      if (!acc[leaveTypeId]) {
+        acc[leaveTypeId] = {
+          totalDays: 0,
+          unpaidDays: 0,
+          paidDays: 0
+        };
+      }
+      
+      const days = parseFloat(request.totalDays) || 0;
+      acc[leaveTypeId].totalDays += days;
+      
+      if (request.isPaid) {
+        acc[leaveTypeId].paidDays += days;
+      } else {
+        acc[leaveTypeId].unpaidDays += days;
+      }
+      
+      return acc;
+    }, {});
+
+    // Combine balance data with monthly usage
+    const leaveSummary = leaveBalanceData.map((balance: any) => ({
+      leaveTypeId: balance.leaveTypeId,
+      leaveTypeName: balance.leaveTypeName,
+      leaveTypeCode: balance.leaveTypeCode,
+      leaveTypeColor: balance.leaveTypeColor,
+      isPaid: balance.isPaid,
+      allocatedDays: parseFloat(balance.allocatedDays) || 0,
+      usedDays: parseFloat(balance.usedDays) || 0,
+      remainingDays: parseFloat(balance.remainingDays) || 0,
+      carryoverDays: parseFloat(balance.carryoverDays) || 0,
+      monthlyUsage: monthlyUsage[balance.leaveTypeId] || {
+        totalDays: 0,
+        unpaidDays: 0,
+        paidDays: 0
+      }
+    }));
+
+    // Calculate total unpaid leave days for the month
+    const totalUnpaidDays = Object.values(monthlyUsage).reduce((total: number, usage: any) => {
+      return total + (usage.unpaidDays || 0);
+    }, 0);
+
+    res.json({
+      leaveSummary,
+      totalUnpaidDays,
+      monthlyLeaveRequests
+    });
+  } catch (error) {
+    console.error('Error fetching leave summary:', error);
+    res.status(500).json({ error: 'Failed to fetch leave summary' });
+  }
+});
+
 // ================================
 // WORKWEEK POLICY MANAGEMENT ROUTES
 // ================================

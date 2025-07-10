@@ -742,10 +742,17 @@ export default function PayrollManagementNew() {
         year
       });
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       setCalculationPreview(data);
       setIsSalaryGenerationDialogOpen(false);
       setIsConfirmationDialogOpen(true);
+      
+      // Also fetch leave summary for the selected employee and month
+      fetchLeaveSummaryMutation.mutate({
+        employeeId: variables.employeeId,
+        year: variables.year,
+        month: variables.month
+      });
     },
     onError: (error: any) => {
       toast({ 
@@ -753,6 +760,16 @@ export default function PayrollManagementNew() {
         description: error.message || 'Failed to fetch salary calculation preview',
         variant: 'destructive' 
       });
+    },
+  });
+
+  // Fetch leave summary mutation
+  const fetchLeaveSummaryMutation = useMutation({
+    mutationFn: async ({ employeeId, year, month }: { employeeId: number; year: string; month: string }) => {
+      return await apiRequest('GET', `/api/admin/leave-summary/${employeeId}/${year}/${month}`);
+    },
+    onError: (error: any) => {
+      console.error('Error fetching leave summary:', error);
     },
   });
 
@@ -1141,6 +1158,59 @@ export default function PayrollManagementNew() {
                       </p>
                     </div>
                   </div>
+                </div>
+
+                {/* Leave Summary */}
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <h3 className="font-medium text-purple-900 mb-3">Leave Summary - {selectedMonth}/{selectedYear}</h3>
+                  {fetchLeaveSummaryMutation.isPending ? (
+                    <div className="text-purple-700 text-sm">Loading leave data...</div>
+                  ) : fetchLeaveSummaryMutation.data?.leaveSummary ? (
+                    <div className="space-y-3">
+                      {fetchLeaveSummaryMutation.data.leaveSummary.length > 0 ? (
+                        <>
+                          <div className="grid grid-cols-4 gap-2 text-xs font-medium text-purple-800 border-b border-purple-200 pb-2">
+                            <div>Leave Type</div>
+                            <div>Allocated</div>
+                            <div>Used This Month</div>
+                            <div>Remaining</div>
+                          </div>
+                          {fetchLeaveSummaryMutation.data.leaveSummary.map((leave: any) => (
+                            <div 
+                              key={leave.leaveTypeId} 
+                              className={`grid grid-cols-4 gap-2 text-xs py-1 px-2 rounded ${
+                                !leave.isPaid ? 'bg-red-100 border-l-4 border-red-500' : 'bg-white'
+                              }`}
+                            >
+                              <div className={`font-medium ${!leave.isPaid ? 'text-red-800' : 'text-purple-700'}`}>
+                                {leave.leaveTypeName}
+                                {!leave.isPaid && <span className="ml-1 text-red-600">(Unpaid)</span>}
+                              </div>
+                              <div className="text-purple-700">{leave.allocatedDays}</div>
+                              <div className={`${!leave.isPaid && leave.monthlyUsage.totalDays > 0 ? 'text-red-700 font-medium' : 'text-purple-700'}`}>
+                                {leave.monthlyUsage.totalDays || 0}
+                              </div>
+                              <div className="text-purple-700">{leave.remainingDays}</div>
+                            </div>
+                          ))}
+                          {fetchLeaveSummaryMutation.data.totalUnpaidDays > 0 && (
+                            <div className="bg-red-100 border border-red-300 rounded p-2 mt-3">
+                              <div className="text-red-800 text-sm font-medium">
+                                ⚠️ Total Unpaid Leave This Month: {fetchLeaveSummaryMutation.data.totalUnpaidDays} days
+                              </div>
+                              <div className="text-red-700 text-xs mt-1">
+                                This directly impacts salary calculation and is deducted from paid days.
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="text-purple-700 text-sm">No leave records found for this period.</div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-purple-700 text-sm">Leave data not available.</div>
+                  )}
                 </div>
 
                 {/* Salary Breakdown */}
