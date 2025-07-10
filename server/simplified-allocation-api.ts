@@ -126,12 +126,12 @@ simplifiedAllocationApi.post('/allocate-single', ensureAuthenticated, async (req
     
     console.error('Error in simple allocation:', error);
     
-    // Check if it's a duplicate allocation error
-    if (error instanceof Error && error.message.includes('payment_invoice_links_payment_id_invoice_id_key')) {
+    // Check if it's a unique constraint violation on payment_allocations
+    if (error instanceof Error && error.message.includes('unique')) {
       return res.status(400).json({
         success: false,
-        message: 'This payment has already been allocated to this invoice. Please select a different payment or invoice.',
-        type: 'duplicate_allocation'
+        message: 'Unable to process allocation due to data constraints. Please verify the payment and invoice details.',
+        type: 'constraint_violation'
       });
     }
     
