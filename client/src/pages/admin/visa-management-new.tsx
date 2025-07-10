@@ -236,9 +236,9 @@ function EU180DayTracker() {
 // Main Visa Records Component
 function VisaRecordsTab() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [countryFilter, setCountryFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [visaTypeFilter, setVisaTypeFilter] = useState('');
+  const [countryFilter, setCountryFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [visaTypeFilter, setVisaTypeFilter] = useState('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<VisaRecord | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -371,12 +371,19 @@ function VisaRecordsTab() {
     }
   };
 
-  // Filter records based on search term
-  const filteredRecords = visaRecords.filter((record: VisaRecord) =>
-    record.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.visaNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.country?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter records based on search and filters
+  const filteredRecords = visaRecords.filter((record: VisaRecord) => {
+    const matchesSearch = searchTerm === '' || 
+      record.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.visaNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.country?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCountry = countryFilter === 'all' || record.country === countryFilter;
+    const matchesStatus = statusFilter === 'all' || record.status === statusFilter;
+    const matchesVisaType = visaTypeFilter === 'all' || record.visaType === visaTypeFilter;
+    
+    return matchesSearch && matchesCountry && matchesStatus && matchesVisaType;
+  });
 
   if (recordsError) {
     return (
@@ -493,7 +500,7 @@ function VisaRecordsTab() {
                 <SelectValue placeholder="All Countries" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Countries</SelectItem>
+                <SelectItem value="all">All Countries</SelectItem>
                 {visaOptions?.countries?.map((country) => (
                   <SelectItem key={country} value={country}>{country}</SelectItem>
                 ))}
@@ -504,7 +511,7 @@ function VisaRecordsTab() {
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="Active">Active</SelectItem>
                 <SelectItem value="Expired">Expired</SelectItem>
                 <SelectItem value="Cancelled">Cancelled</SelectItem>
@@ -515,7 +522,7 @@ function VisaRecordsTab() {
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 {visaOptions?.visaTypes?.map((type) => (
                   <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
