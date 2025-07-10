@@ -32,6 +32,7 @@ import {
   FileCheck,
   CalendarClock,
   Calendar,
+  CalendarDays,
   BarChart4,
   BarChart3,
   UsersRound,
@@ -179,6 +180,7 @@ function Layout({ children }: LayoutProps) {
         { icon: Plane, label: "Business Trip Management", href: "/admin/business-trips" },
         { icon: FileText, label: "Visa Management", href: "/admin/visa-management" },
         { icon: Gavel, label: "Legal Management", href: "/admin/legal-management" },
+        { icon: CalendarDays, label: "Meetings & Commitments", href: "/admin/meetings-management" },
         { icon: Calendar, label: "Workweek Policy Management", href: "/admin/workweek-policies" },
         { icon: Shield, label: "Module Permissions", href: "/module-permissions" }
       ]

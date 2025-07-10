@@ -12,6 +12,7 @@ export const modules = [
   "Finance",
   "Project Management",
   "Task Management",
+  "Meetings & Commitments",
   "Procurement Management", 
   "Production Management", 
   "Quality Management",
@@ -77,6 +78,54 @@ export const leadSources = [
 ] as const;
 
 export type LeadSource = typeof leadSources[number];
+
+// Meeting priority levels
+export const meetingPriorities = [
+  "Low",
+  "Medium", 
+  "High",
+  "Critical"
+] as const;
+
+export type MeetingPriority = typeof meetingPriorities[number];
+
+// Meeting types
+export const meetingTypes = [
+  "Team Meeting",
+  "Client Meeting",
+  "Board Meeting",
+  "Project Review",
+  "Strategy Session",
+  "Training Session",
+  "Performance Review",
+  "Planning Meeting",
+  "Status Update",
+  "Other"
+] as const;
+
+export type MeetingType = typeof meetingTypes[number];
+
+// Commitment status values
+export const commitmentStatuses = [
+  "Pending",
+  "In Progress", 
+  "Completed",
+  "Overdue",
+  "Cancelled",
+  "On Hold"
+] as const;
+
+export type CommitmentStatus = typeof commitmentStatuses[number];
+
+// Commitment priority levels
+export const commitmentPriorities = [
+  "Low",
+  "Medium",
+  "High", 
+  "Critical"
+] as const;
+
+export type CommitmentPriority = typeof commitmentPriorities[number];
 
 // Work Location Management
 export const workLocations = pgTable('work_locations', {
@@ -6114,3 +6163,443 @@ export type ExclusivityPerformance = typeof exclusivityPerformance.$inferSelect;
 export type InsertExclusivityPerformance = z.infer<typeof insertExclusivityPerformanceSchema>;
 export type AgreementAmendment = typeof agreementAmendments.$inferSelect;
 export type InsertAgreementAmendment = z.infer<typeof insertAgreementAmendmentSchema>;
+
+// =============================================================================
+// MEETINGS & COMMITMENTS MODULE
+// =============================================================================
+
+// Business Meetings table
+export const businessMeetings = pgTable('business_meetings', {
+  id: serial('id').primaryKey(),
+  title: text('title').notNull(),
+  description: text('description'),
+  meetingType: varchar('meeting_type', { length: 50 }).notNull(), // Team Meeting, Client Meeting, Board Meeting, etc.
+  priority: varchar('priority', { length: 20 }).notNull().default('Medium'), // Low, Medium, High, Critical
+  
+  // Scheduling
+  meetingDate: date('meeting_date').notNull(),
+  startTime: varchar('start_time', { length: 8 }).notNull(), // HH:MM:SS format
+  endTime: varchar('end_time', { length: 8 }).notNull(),
+  duration: integer('duration_minutes'), // Auto-calculated duration in minutes
+  timezone: varchar('timezone', { length: 50 }).notNull().default('Asia/Kolkata'),
+  
+  // Location
+  location: text('location'), // Physical location or "Virtual"
+  meetingUrl: text('meeting_url'), // Zoom, Teams, etc. URL
+  meetingRoomId: integer('meeting_room_id'), // Future: Link to meeting rooms table
+  
+  // Organizer and participants
+  organizerId: integer('organizer_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  attendeeIds: jsonb('attendee_ids').notNull().default([]), // Array of user IDs
+  externalAttendees: jsonb('external_attendees').default([]), // Array of {name, email, company} objects
+  
+  // Agenda and documentation
+  agenda: text('agenda'),
+  agendaItems: jsonb('agenda_items').default([]), // Array of {item, duration, presenter, type} objects
+  meetingNotes: text('meeting_notes'),
+  keyDecisions: text('key_decisions'),
+  nextSteps: text('next_steps'),
+  
+  // Meeting outcomes
+  status: varchar('status', { length: 20 }).notNull().default('Scheduled'), // Scheduled, In Progress, Completed, Cancelled, Postponed
+  completionPercentage: integer('completion_percentage').default(0), // 0-100
+  effectivenessRating: integer('effectiveness_rating'), // 1-5 scale
+  
+  // Document attachments
+  attachments: jsonb('attachments').default([]), // Array of {filename, fileUrl, uploadedBy, uploadedAt} objects
+  
+  // Follow-up and recurring meetings
+  isRecurring: boolean('is_recurring').default(false),
+  recurringPattern: jsonb('recurring_pattern'), // {type: 'weekly/monthly', interval: 1, endDate: 'date'}
+  parentMeetingId: integer('parent_meeting_id').references(() => businessMeetings.id), // For recurring meetings
+  
+  // KPI Integration
+  linkedKpis: jsonb('linked_kpis').default([]), // Array of KPI IDs that this meeting impacts
+  kpiWeight: decimal('kpi_weight', { precision: 5, scale: 2 }).default('0'), // Weight in KPI calculation (0-100)
+  
+  // Tracking
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  completedAt: timestamp('completed_at'),
+});
+
+// Meeting Commitments/Action Items table
+export const meetingCommitments = pgTable('meeting_commitments', {
+  id: serial('id').primaryKey(),
+  meetingId: integer('meeting_id').notNull().references(() => businessMeetings.id, { onDelete: 'cascade' }),
+  
+  // Commitment details
+  title: text('title').notNull(),
+  description: text('description'),
+  priority: varchar('priority', { length: 20 }).notNull().default('Medium'), // Low, Medium, High, Critical
+  category: varchar('category', { length: 50 }).default('Action Item'), // Action Item, Decision, Information, Follow-up
+  
+  // Assignment and responsibility
+  assignedToId: integer('assigned_to_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  assignedById: integer('assigned_by_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  collaborators: jsonb('collaborators').default([]), // Array of user IDs who are helping
+  
+  // Timeline and deadlines
+  dueDate: date('due_date').notNull(),
+  estimatedHours: decimal('estimated_hours', { precision: 5, scale: 2 }),
+  actualHours: decimal('actual_hours', { precision: 5, scale: 2 }),
+  
+  // Progress tracking
+  status: varchar('status', { length: 20 }).notNull().default('Pending'), // Pending, In Progress, Completed, Overdue, Cancelled, On Hold
+  progressPercentage: integer('progress_percentage').default(0), // 0-100
+  completionDate: date('completion_date'),
+  
+  // Updates and communication
+  statusUpdates: jsonb('status_updates').default([]), // Array of {date, update, userId, timestamp} objects
+  blockers: text('blockers'), // What's preventing completion
+  dependencies: jsonb('dependencies').default([]), // Array of commitment IDs this depends on
+  
+  // Escalation and reminders
+  reminderDays: integer('reminder_days').default(1), // Days before due date to send reminder
+  escalationDays: integer('escalation_days').default(3), // Days overdue before escalating to manager
+  lastReminderSent: timestamp('last_reminder_sent'),
+  escalationSent: boolean('escalation_sent').default(false),
+  escalatedAt: timestamp('escalated_at'),
+  escalatedToId: integer('escalated_to_id').references(() => users.id), // Manager who received escalation
+  
+  // Quality and impact
+  impactLevel: varchar('impact_level', { length: 20 }).default('Medium'), // Low, Medium, High, Critical
+  businessValue: text('business_value'), // Description of business impact
+  successCriteria: text('success_criteria'), // How to measure success
+  deliverables: jsonb('deliverables').default([]), // Array of expected outputs
+  
+  // KPI Integration
+  linkedKpis: jsonb('linked_kpis').default([]), // Array of KPI IDs this commitment affects
+  kpiWeight: decimal('kpi_weight', { precision: 5, scale: 2 }).default('0'), // Weight in KPI calculation (0-100)
+  kpiImpactPercentage: decimal('kpi_impact_percentage', { precision: 5, scale: 2 }).default('0'), // % impact on linked KPIs
+  
+  // Approval and sign-off
+  requiresApproval: boolean('requires_approval').default(false),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  approvalNotes: text('approval_notes'),
+  
+  // Tracking
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Meeting Attendance Tracking table
+export const meetingAttendance = pgTable('meeting_attendance', {
+  id: serial('id').primaryKey(),
+  meetingId: integer('meeting_id').notNull().references(() => businessMeetings.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  
+  // Attendance status
+  status: varchar('status', { length: 20 }).notNull().default('Invited'), // Invited, Accepted, Declined, Tentative, Attended, No Show
+  responseDate: timestamp('response_date'),
+  attendanceConfirmed: boolean('attendance_confirmed').default(false),
+  
+  // Participation tracking
+  joinTime: timestamp('join_time'),
+  leaveTime: timestamp('leave_time'),
+  participationMinutes: integer('participation_minutes'), // Actual time spent in meeting
+  participationScore: integer('participation_score'), // 1-5 scale for engagement level
+  
+  // Feedback and notes
+  meetingFeedback: text('meeting_feedback'),
+  actionItemsReceived: integer('action_items_received').default(0),
+  actionItemsCompleted: integer('action_items_completed').default(0),
+  
+  // Tracking
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Meeting Reminder and Escalation Log table
+export const meetingReminders = pgTable('meeting_reminders', {
+  id: serial('id').primaryKey(),
+  
+  // Reference
+  meetingId: integer('meeting_id').references(() => businessMeetings.id, { onDelete: 'cascade' }),
+  commitmentId: integer('commitment_id').references(() => meetingCommitments.id, { onDelete: 'cascade' }),
+  
+  // Reminder details
+  reminderType: varchar('reminder_type', { length: 30 }).notNull(), // meeting_reminder, commitment_due, commitment_overdue, escalation
+  recipientId: integer('recipient_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  reminderMessage: text('reminder_message').notNull(),
+  
+  // Delivery
+  deliveryMethod: varchar('delivery_method', { length: 20 }).notNull().default('email'), // email, sms, push, in_app
+  sentAt: timestamp('sent_at').notNull().defaultNow(),
+  deliveryStatus: varchar('delivery_status', { length: 20 }).notNull().default('sent'), // sent, delivered, failed, read
+  
+  // Response tracking
+  acknowledged: boolean('acknowledged').default(false),
+  acknowledgedAt: timestamp('acknowledged_at'),
+  responseAction: varchar('response_action', { length: 50 }), // status_updated, deadline_extended, task_completed, etc.
+  
+  // Tracking
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+// Meeting Analytics and Metrics table
+export const meetingAnalytics = pgTable('meeting_analytics', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  teamId: integer('team_id'), // Future: Link to teams table
+  
+  // Time period
+  periodType: varchar('period_type', { length: 20 }).notNull(), // daily, weekly, monthly, quarterly, yearly
+  periodStart: date('period_start').notNull(),
+  periodEnd: date('period_end').notNull(),
+  
+  // Meeting metrics
+  totalMeetings: integer('total_meetings').default(0),
+  meetingsOrganized: integer('meetings_organized').default(0),
+  meetingsAttended: integer('meetings_attended').default(0),
+  meetingHours: decimal('meeting_hours', { precision: 6, scale: 2 }).default('0'),
+  averageMeetingDuration: decimal('average_meeting_duration', { precision: 5, scale: 2 }).default('0'),
+  meetingEffectivenessScore: decimal('meeting_effectiveness_score', { precision: 5, scale: 2 }).default('0'),
+  
+  // Commitment metrics
+  totalCommitments: integer('total_commitments').default(0),
+  commitmentsAssigned: integer('commitments_assigned').default(0),
+  commitmentsCompleted: integer('commitments_completed').default(0),
+  commitmentsOverdue: integer('commitments_overdue').default(0),
+  averageCompletionTime: decimal('average_completion_time', { precision: 5, scale: 2 }).default('0'), // Days
+  commitmentCompletionRate: decimal('commitment_completion_rate', { precision: 5, scale: 2 }).default('0'), // Percentage
+  
+  // KPI Impact
+  kpiImpactScore: decimal('kpi_impact_score', { precision: 5, scale: 2 }).default('0'), // Weighted score from KPI-linked commitments
+  businessValueGenerated: decimal('business_value_generated', { precision: 10, scale: 2 }).default('0'),
+  
+  // Quality metrics
+  participationScore: decimal('participation_score', { precision: 5, scale: 2 }).default('0'),
+  feedbackScore: decimal('feedback_score', { precision: 5, scale: 2 }).default('0'),
+  punctualityScore: decimal('punctuality_score', { precision: 5, scale: 2 }).default('0'),
+  
+  // Tracking
+  calculatedAt: timestamp('calculated_at').notNull().defaultNow(),
+  lastUpdated: timestamp('last_updated').notNull().defaultNow(),
+});
+
+// Meeting KPI Integration table
+export const meetingKpiLinks = pgTable('meeting_kpi_links', {
+  id: serial('id').primaryKey(),
+  
+  // References
+  meetingId: integer('meeting_id').references(() => businessMeetings.id, { onDelete: 'cascade' }),
+  commitmentId: integer('commitment_id').references(() => meetingCommitments.id, { onDelete: 'cascade' }),
+  kpiId: integer('kpi_id'), // Reference to KPI system (future implementation)
+  
+  // KPI details
+  kpiName: text('kpi_name').notNull(),
+  kpiCategory: varchar('kpi_category', { length: 50 }), // Revenue, Quality, Efficiency, Customer, Employee
+  
+  // Impact tracking
+  baselineValue: decimal('baseline_value', { precision: 15, scale: 6 }),
+  targetValue: decimal('target_value', { precision: 15, scale: 6 }),
+  currentValue: decimal('current_value', { precision: 15, scale: 6 }),
+  impactWeight: decimal('impact_weight', { precision: 5, scale: 2 }).default('0'), // 0-100 percentage
+  
+  // Progress tracking
+  measurementDate: date('measurement_date'),
+  progressPercentage: decimal('progress_percentage', { precision: 5, scale: 2 }).default('0'),
+  isPositiveImpact: boolean('is_positive_impact').default(true), // Whether higher values are better
+  
+  // Tracking
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Meeting Templates table for recurring meeting patterns
+export const meetingTemplates = pgTable('meeting_templates', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  
+  // Template details
+  meetingType: varchar('meeting_type', { length: 50 }).notNull(),
+  defaultDuration: integer('default_duration_minutes').default(60),
+  defaultLocation: text('default_location'),
+  
+  // Default agenda
+  agendaTemplate: jsonb('agenda_template').default([]), // Array of agenda item templates
+  standardAttendees: jsonb('standard_attendees').default([]), // Array of user IDs or role types
+  
+  // KPI settings
+  linkedKpis: jsonb('linked_kpis').default([]),
+  defaultKpiWeight: decimal('default_kpi_weight', { precision: 5, scale: 2 }).default('0'),
+  
+  // Template settings
+  isActive: boolean('is_active').default(true),
+  isPublic: boolean('is_public').default(false), // Available to all users or just creator
+  usageCount: integer('usage_count').default(0),
+  
+  // Tracking
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Relations for Meetings & Commitments module
+export const businessMeetingsRelations = relations(businessMeetings, ({ one, many }) => ({
+  organizer: one(users, {
+    fields: [businessMeetings.organizerId],
+    references: [users.id],
+  }),
+  creator: one(users, {
+    fields: [businessMeetings.createdBy],
+    references: [users.id],
+  }),
+  parentMeeting: one(businessMeetings, {
+    fields: [businessMeetings.parentMeetingId],
+    references: [businessMeetings.id],
+  }),
+  commitments: many(meetingCommitments),
+  attendance: many(meetingAttendance),
+  reminders: many(meetingReminders),
+  kpiLinks: many(meetingKpiLinks),
+}));
+
+export const meetingCommitmentsRelations = relations(meetingCommitments, ({ one, many }) => ({
+  meeting: one(businessMeetings, {
+    fields: [meetingCommitments.meetingId],
+    references: [businessMeetings.id],
+  }),
+  assignedTo: one(users, {
+    fields: [meetingCommitments.assignedToId],
+    references: [users.id],
+  }),
+  assignedBy: one(users, {
+    fields: [meetingCommitments.assignedById],
+    references: [users.id],
+  }),
+  escalatedTo: one(users, {
+    fields: [meetingCommitments.escalatedToId],
+    references: [users.id],
+  }),
+  approver: one(users, {
+    fields: [meetingCommitments.approvedBy],
+    references: [users.id],
+  }),
+  creator: one(users, {
+    fields: [meetingCommitments.createdBy],
+    references: [users.id],
+  }),
+  reminders: many(meetingReminders),
+  kpiLinks: many(meetingKpiLinks),
+}));
+
+export const meetingAttendanceRelations = relations(meetingAttendance, ({ one }) => ({
+  meeting: one(businessMeetings, {
+    fields: [meetingAttendance.meetingId],
+    references: [businessMeetings.id],
+  }),
+  user: one(users, {
+    fields: [meetingAttendance.userId],
+    references: [users.id],
+  }),
+}));
+
+export const meetingRemindersRelations = relations(meetingReminders, ({ one }) => ({
+  meeting: one(businessMeetings, {
+    fields: [meetingReminders.meetingId],
+    references: [businessMeetings.id],
+  }),
+  commitment: one(meetingCommitments, {
+    fields: [meetingReminders.commitmentId],
+    references: [meetingCommitments.id],
+  }),
+  recipient: one(users, {
+    fields: [meetingReminders.recipientId],
+    references: [users.id],
+  }),
+}));
+
+export const meetingAnalyticsRelations = relations(meetingAnalytics, ({ one }) => ({
+  user: one(users, {
+    fields: [meetingAnalytics.userId],
+    references: [users.id],
+  }),
+}));
+
+export const meetingKpiLinksRelations = relations(meetingKpiLinks, ({ one }) => ({
+  meeting: one(businessMeetings, {
+    fields: [meetingKpiLinks.meetingId],
+    references: [businessMeetings.id],
+  }),
+  commitment: one(meetingCommitments, {
+    fields: [meetingKpiLinks.commitmentId],
+    references: [meetingCommitments.id],
+  }),
+  creator: one(users, {
+    fields: [meetingKpiLinks.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const meetingTemplatesRelations = relations(meetingTemplates, ({ one }) => ({
+  creator: one(users, {
+    fields: [meetingTemplates.createdBy],
+    references: [users.id],
+  }),
+}));
+
+// Meetings & Commitments schemas for validation
+export const insertBusinessMeetingSchema = createInsertSchema(businessMeetings)
+  .omit({ id: true, createdAt: true, updatedAt: true, completedAt: true })
+  .extend({
+    meetingDate: z.string().transform((str) => new Date(str)),
+    startTime: z.string(),
+    endTime: z.string(),
+    attendeeIds: z.array(z.number()).default([]),
+    externalAttendees: z.array(z.object({
+      name: z.string(),
+      email: z.string().email(),
+      company: z.string().optional(),
+    })).default([]),
+    agendaItems: z.array(z.object({
+      item: z.string(),
+      duration: z.number().optional(),
+      presenter: z.string().optional(),
+      type: z.string().optional(),
+    })).default([]),
+    attachments: z.array(z.object({
+      filename: z.string(),
+      fileUrl: z.string(),
+      uploadedBy: z.number(),
+      uploadedAt: z.string(),
+    })).default([]),
+    linkedKpis: z.array(z.number()).default([]),
+  });
+
+export const insertMeetingCommitmentSchema = createInsertSchema(meetingCommitments)
+  .omit({ id: true, createdAt: true, updatedAt: true, completedAt: true, escalatedAt: true, approvedAt: true })
+  .extend({
+    dueDate: z.string().transform((str) => new Date(str)),
+    collaborators: z.array(z.number()).default([]),
+    statusUpdates: z.array(z.object({
+      date: z.string(),
+      update: z.string(),
+      userId: z.number(),
+      timestamp: z.string(),
+    })).default([]),
+    dependencies: z.array(z.number()).default([]),
+    deliverables: z.array(z.string()).default([]),
+    linkedKpis: z.array(z.number()).default([]),
+  });
+
+export const insertMeetingAttendanceSchema = createInsertSchema(meetingAttendance)
+  .omit({ id: true, createdAt: true, updatedAt: true, responseDate: true, joinTime: true, leaveTime: true });
+
+// Types for Meetings & Commitments module
+export type BusinessMeeting = typeof businessMeetings.$inferSelect;
+export type InsertBusinessMeeting = z.infer<typeof insertBusinessMeetingSchema>;
+export type MeetingCommitment = typeof meetingCommitments.$inferSelect;
+export type InsertMeetingCommitment = z.infer<typeof insertMeetingCommitmentSchema>;
+export type MeetingAttendance = typeof meetingAttendance.$inferSelect;
+export type InsertMeetingAttendance = z.infer<typeof insertMeetingAttendanceSchema>;
+export type MeetingReminder = typeof meetingReminders.$inferSelect;
+export type MeetingAnalytics = typeof meetingAnalytics.$inferSelect;
+export type MeetingKpiLink = typeof meetingKpiLinks.$inferSelect;
+export type MeetingTemplate = typeof meetingTemplates.$inferSelect;

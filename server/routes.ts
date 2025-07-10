@@ -72,6 +72,22 @@ import { default as tripManagementRoutes } from "./trip-management-routes";
 import { default as visaManagementRoutes } from "./visa-management-routes";
 import { default as schengenRoutes } from "./schengen-routes";
 import { default as legalManagementRoutes } from "./legal-management-routes";
+import { 
+  getMeetings, 
+  getMeetingById, 
+  createMeeting, 
+  updateMeeting, 
+  deleteMeeting,
+  getCommitments,
+  getUserPendingCommitments,
+  createCommitment,
+  updateCommitment,
+  deleteCommitment,
+  getDashboardStats,
+  getUpcomingMeetings,
+  sendCommitmentReminder,
+  escalateCommitment
+} from "./meetings-routes";
 
 const scryptAsync = promisify(scrypt);
 
@@ -2732,6 +2748,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Legal Management routes
   app.use('/api/legal', legalManagementRoutes);
   console.log('Legal Management routes registered at /api/legal');
+
+  // =============================================================================
+  // MEETINGS & COMMITMENTS MODULE ROUTES
+  // =============================================================================
+  
+  // Business Meetings endpoints
+  app.get('/api/meetings', ensureAuthenticated, getMeetings);
+  app.get('/api/meetings/:id', ensureAuthenticated, getMeetingById);
+  app.post('/api/meetings', ensureAuthenticated, createMeeting);
+  app.put('/api/meetings/:id', ensureAuthenticated, updateMeeting);
+  app.delete('/api/meetings/:id', ensureAuthenticated, deleteMeeting);
+  
+  // Meeting Commitments endpoints
+  app.get('/api/meetings/commitments', ensureAuthenticated, getCommitments);
+  app.get('/api/meetings/commitments/pending', ensureAuthenticated, getUserPendingCommitments);
+  app.post('/api/meetings/commitments', ensureAuthenticated, createCommitment);
+  app.put('/api/meetings/commitments/:id', ensureAuthenticated, updateCommitment);
+  app.delete('/api/meetings/commitments/:id', ensureAuthenticated, deleteCommitment);
+  
+  // Dashboard and Analytics endpoints
+  app.get('/api/meetings/dashboard/stats', ensureAuthenticated, getDashboardStats);
+  app.get('/api/meetings/dashboard/upcoming', ensureAuthenticated, getUpcomingMeetings);
+  
+  // Reminder and Escalation endpoints
+  app.post('/api/meetings/commitments/:commitmentId/remind', ensureAuthenticated, sendCommitmentReminder);
+  app.post('/api/meetings/commitments/:commitmentId/escalate', ensureAuthenticated, escalateCommitment);
+  
+  console.log('Meetings & Commitments routes registered at /api/meetings');
 
   const httpServer = createServer(app);
   return httpServer;

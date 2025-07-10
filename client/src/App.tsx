@@ -59,6 +59,7 @@ import WorkweekPolicyManagementPage from "@/pages/admin/workweek-policy-manageme
 import BusinessTripManagementPage from "@/pages/admin/business-trip-management";
 import VisaManagementPageNew from "@/pages/admin/visa-management-new";
 import LegalManagementPage from "@/pages/admin/legal-management";
+import MeetingsManagementPage from "@/pages/admin/meetings-management";
 import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
 import OutstandingReportPage from "@/pages/finance/reports/outstanding-page";
 import RemittancesReportPage from "@/pages/finance/reports/remittances-page";
@@ -218,6 +219,7 @@ function Router() {
       <ProtectedRoute path="/admin/business-trip-management" component={BusinessTripManagementPage} />
       <ProtectedRoute path="/admin/visa-management" component={VisaManagementWrapper} />
       <ProtectedRoute path="/admin/legal-management" component={LegalManagementPage} />
+      <ProtectedRoute path="/admin/meetings-management" component={MeetingsManagementPage} />
       
       <ProtectedRoute path="/project-dashboard" component={ProjectDashboardPage} />
       <ProtectedRoute path="/projects" component={ProjectsPage} />
