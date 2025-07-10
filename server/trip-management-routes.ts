@@ -61,14 +61,15 @@ const upload = multer({
 
 // Helper function to generate structured GCS path
 const generateGCSPath = (employeeData: any, destination: string, fromDate: string, documentType: string, fileName: string): string => {
-  // Get current financial year (April to March)
-  const currentDate = new Date();
-  const currentYear = currentDate.getFullYear();
-  const currentMonth = currentDate.getMonth() + 1; // 0-based
+  // Get financial year based on trip start date (April to March cycle)
+  const tripDate = new Date(fromDate);
+  const tripYear = tripDate.getFullYear();
+  const tripMonth = tripDate.getMonth() + 1; // 0-based
   
-  const financialYear = currentMonth >= 4 
-    ? `FY${currentYear}-${currentYear + 1}`
-    : `FY${currentYear - 1}-${currentYear}`;
+  // Calculate financial year in FY2526 format based on trip date
+  const financialYear = tripMonth >= 4 
+    ? `FY${(tripYear % 100).toString().padStart(2, '0')}${((tripYear + 1) % 100).toString().padStart(2, '0')}`
+    : `FY${((tripYear - 1) % 100).toString().padStart(2, '0')}${(tripYear % 100).toString().padStart(2, '0')}`;
   
   // Use employee name or username
   const employeeName = employeeData.firstName && employeeData.lastName 
@@ -82,8 +83,8 @@ const generateGCSPath = (employeeData: any, destination: string, fromDate: strin
   // Format date for path
   const formattedDate = new Date(fromDate).toISOString().split('T')[0]; // YYYY-MM-DD
   
-  // Generate path: FY/{user_id_or_name}/{Destination}/{From Date}/{Document Type}/filename
-  return `${financialYear}/${employeeName}/${cleanDestination}/${formattedDate}/${cleanDocumentType}/${fileName}`;
+  // Generate path: Business_Trips/{FinancialYear}/{EmployeeName}/{Destination}/{FromDate}/{DocumentType}/filename
+  return `Business_Trips/${financialYear}/${employeeName}/${cleanDestination}/${formattedDate}/${cleanDocumentType}/${fileName}`;
 };
 
 // ===================== AUTO-LINKING HELPER FUNCTIONS =====================
