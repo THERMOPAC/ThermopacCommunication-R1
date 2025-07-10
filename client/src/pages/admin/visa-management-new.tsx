@@ -227,7 +227,9 @@ function EU180DayTracker() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Safe Employees</p>
-                <p className="text-2xl font-bold text-green-600">{schengenData?.safeEmployees || 0}</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {schengenData?.filter((emp: any) => emp.status === 'Safe').length || 0}
+                </p>
               </div>
               <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
                 <Globe className="h-4 w-4 text-green-600" />
@@ -241,7 +243,9 @@ function EU180DayTracker() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Warning</p>
-                <p className="text-2xl font-bold text-yellow-600">{schengenData?.warningEmployees || 0}</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {schengenData?.filter((emp: any) => emp.status === 'Warning').length || 0}
+                </p>
               </div>
               <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
                 <AlertTriangle className="h-4 w-4 text-yellow-600" />
@@ -255,7 +259,9 @@ function EU180DayTracker() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Critical</p>
-                <p className="text-2xl font-bold text-red-600">{schengenData?.criticalEmployees || 0}</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {schengenData?.filter((emp: any) => emp.status === 'Critical').length || 0}
+                </p>
               </div>
               <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
                 <Clock className="h-4 w-4 text-red-600" />
@@ -269,7 +275,9 @@ function EU180DayTracker() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Exceeded</p>
-                <p className="text-2xl font-bold text-purple-600">{schengenData?.exceededEmployees || 0}</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {schengenData?.filter((emp: any) => emp.status === 'Exceeded').length || 0}
+                </p>
               </div>
               <div className="h-8 w-8 bg-purple-100 rounded-full flex items-center justify-center">
                 <CreditCard className="h-4 w-4 text-purple-600" />
