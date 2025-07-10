@@ -21,6 +21,7 @@ import {
   type Task
 } from '@shared/schema';
 import { ensureAuthenticated } from './middlewares/auth';
+import { googleCalendarService } from './google-calendar-service';
 
 // =============================================================================
 // BUSINESS MEETINGS ENDPOINTS
@@ -241,6 +242,37 @@ export const createMeeting = async (req: Request, res: Response) => {
       await db.insert(meetingAttendance).values(attendanceData);
     }
 
+    // Auto-sync to Google Calendar if organizer has calendar connected and sync enabled
+    try {
+      const [organizer] = await db
+        .select({
+          googleCalendarConnected: users.googleCalendarConnected,
+          googleCalendarSyncEnabled: users.googleCalendarSyncEnabled
+        })
+        .from(users)
+        .where(eq(users.id, user.id));
+
+      if (organizer?.googleCalendarConnected && organizer?.googleCalendarSyncEnabled) {
+        const eventId = await googleCalendarService.createCalendarEvent(user.id, meeting);
+        
+        if (eventId) {
+          // Update meeting with Google event ID
+          await db
+            .update(businessMeetings)
+            .set({ 
+              googleEventId: eventId,
+              googleCalendarSynced: true 
+            })
+            .where(eq(businessMeetings.id, meeting.id));
+          
+          console.log(`Meeting ${meeting.id} automatically synced to Google Calendar with event ID: ${eventId}`);
+        }
+      }
+    } catch (syncError) {
+      console.error('Error auto-syncing meeting to Google Calendar:', syncError);
+      // Don't fail meeting creation if calendar sync fails
+    }
+
     res.status(201).json(meeting);
   } catch (error) {
     console.error('Error creating meeting:', error);
@@ -265,14 +297,53 @@ export const updateMeeting = async (req: Request, res: Response) => {
       validatedData.duration = endMinutes - startMinutes;
     }
 
+    // Get original meeting data for Google Calendar sync
+    const [originalMeeting] = await db
+      .select()
+      .from(businessMeetings)
+      .where(eq(businessMeetings.id, parseInt(id)));
+
+    if (!originalMeeting) {
+      return res.status(404).json({ error: 'Meeting not found' });
+    }
+
     const [meeting] = await db
       .update(businessMeetings)
       .set({ ...validatedData, updatedAt: new Date() })
       .where(eq(businessMeetings.id, parseInt(id)))
       .returning();
 
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
+    // Auto-sync updates to Google Calendar if meeting was previously synced
+    try {
+      if (originalMeeting.googleEventId && originalMeeting.googleCalendarSynced) {
+        const user = req.user as any;
+        
+        // Check if organizer still has calendar connected
+        const [organizer] = await db
+          .select({
+            googleCalendarConnected: users.googleCalendarConnected,
+            googleCalendarSyncEnabled: users.googleCalendarSyncEnabled
+          })
+          .from(users)
+          .where(eq(users.id, originalMeeting.organizerId));
+
+        if (organizer?.googleCalendarConnected && organizer?.googleCalendarSyncEnabled) {
+          const success = await googleCalendarService.updateCalendarEvent(
+            originalMeeting.organizerId, 
+            originalMeeting.googleEventId, 
+            meeting
+          );
+          
+          if (success) {
+            console.log(`Meeting ${meeting.id} automatically updated in Google Calendar`);
+          } else {
+            console.log(`Failed to update meeting ${meeting.id} in Google Calendar`);
+          }
+        }
+      }
+    } catch (syncError) {
+      console.error('Error auto-syncing meeting update to Google Calendar:', syncError);
+      // Don't fail meeting update if calendar sync fails
     }
 
     res.json(meeting);
@@ -289,14 +360,51 @@ export const deleteMeeting = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
+    // Get meeting data before deletion for Google Calendar sync
+    const [meetingToDelete] = await db
+      .select()
+      .from(businessMeetings)
+      .where(eq(businessMeetings.id, parseInt(id)));
+
+    if (!meetingToDelete) {
+      return res.status(404).json({ error: 'Meeting not found' });
+    }
+
+    // Delete from Google Calendar if it was synced
+    try {
+      if (meetingToDelete.googleEventId && meetingToDelete.googleCalendarSynced) {
+        // Check if organizer still has calendar connected
+        const [organizer] = await db
+          .select({
+            googleCalendarConnected: users.googleCalendarConnected,
+            googleCalendarSyncEnabled: users.googleCalendarSyncEnabled
+          })
+          .from(users)
+          .where(eq(users.id, meetingToDelete.organizerId));
+
+        if (organizer?.googleCalendarConnected) {
+          const success = await googleCalendarService.deleteCalendarEvent(
+            meetingToDelete.organizerId, 
+            meetingToDelete.googleEventId, 
+            meetingToDelete.id
+          );
+          
+          if (success) {
+            console.log(`Meeting ${meetingToDelete.id} automatically deleted from Google Calendar`);
+          } else {
+            console.log(`Failed to delete meeting ${meetingToDelete.id} from Google Calendar`);
+          }
+        }
+      }
+    } catch (syncError) {
+      console.error('Error auto-deleting meeting from Google Calendar:', syncError);
+      // Don't fail meeting deletion if calendar sync fails
+    }
+
     const [deletedMeeting] = await db
       .delete(businessMeetings)
       .where(eq(businessMeetings.id, parseInt(id)))
       .returning();
-
-    if (!deletedMeeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
 
     res.json({ message: 'Meeting deleted successfully' });
   } catch (error) {

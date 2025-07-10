@@ -60,6 +60,7 @@ import BusinessTripManagementPage from "@/pages/admin/business-trip-management";
 import VisaManagementPageNew from "@/pages/admin/visa-management-new";
 import LegalManagementPage from "@/pages/admin/legal-management";
 import MeetingsManagementPage from "@/pages/admin/meetings-management";
+import GoogleCalendarSettingsPage from "@/pages/google-calendar-settings";
 import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
 import OutstandingReportPage from "@/pages/finance/reports/outstanding-page";
 import RemittancesReportPage from "@/pages/finance/reports/remittances-page";

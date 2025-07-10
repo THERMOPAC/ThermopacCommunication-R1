@@ -72,6 +72,7 @@ import { default as tripManagementRoutes } from "./trip-management-routes";
 import { default as visaManagementRoutes } from "./visa-management-routes";
 import { default as schengenRoutes } from "./schengen-routes";
 import { default as legalManagementRoutes } from "./legal-management-routes";
+import { default as googleCalendarRoutes } from "./google-calendar-routes";
 import { 
   getMeetings, 
   getMeetingById, 
@@ -2782,6 +2783,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/meetings/commitment-tasks', ensureAuthenticated, getCommitmentTasks);
   
   console.log('Meetings & Commitments routes registered at /api/meetings');
+  
+  // Google Calendar Integration routes
+  app.use('/api', googleCalendarRoutes);
+  console.log('Google Calendar integration routes registered at /api');
 
   const httpServer = createServer(app);
   return httpServer;

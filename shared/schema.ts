@@ -732,6 +732,14 @@ const userSchema = {
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
+  
+  // Google Calendar Integration
+  googleCalendarConnected: boolean('google_calendar_connected').default(false),
+  googleAccessToken: text('google_access_token'),
+  googleRefreshToken: text('google_refresh_token'),
+  googleTokenExpiresAt: timestamp('google_token_expires_at'),
+  googleEmail: text('google_email'),
+  googleCalendarSyncEnabled: boolean('google_calendar_sync_enabled').default(true),
 };
 
 // Create the users table with self-reference after definition
@@ -739,6 +747,19 @@ export const users = pgTable('users', {
   ...userSchema,
   reportingManagerId: integer('reporting_manager_id'),
   workLocationId: integer('work_location_id').references(() => workLocations.id),
+});
+
+// Google Calendar Sync Log table
+export const googleCalendarSyncLog = pgTable('google_calendar_sync_log', {
+  id: serial('id').primaryKey(),
+  meetingId: integer('meeting_id').references(() => businessMeetings.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  action: varchar('action', { length: 50 }).notNull(), // 'create', 'update', 'delete', 'sync_error'
+  googleEventId: text('google_event_id'),
+  status: varchar('status', { length: 20 }).notNull(), // 'success', 'error', 'pending'
+  errorMessage: text('error_message'),
+  syncDetails: jsonb('sync_details'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
 // Recurring patterns table for task templates
@@ -6222,6 +6243,12 @@ export const businessMeetings = pgTable('business_meetings', {
   // KPI Integration
   linkedKpis: jsonb('linked_kpis').default([]), // Array of KPI IDs that this meeting impacts
   kpiWeight: decimal('kpi_weight', { precision: 5, scale: 2 }).default('0'), // Weight in KPI calculation (0-100)
+  
+  // Google Calendar Integration
+  googleEventId: text('google_event_id'),
+  googleCalendarSynced: boolean('google_calendar_synced').default(false),
+  googleEventLink: text('google_event_link'),
+  autoCreateCalendarEvent: boolean('auto_create_calendar_event').default(true),
   
   // Tracking
   createdBy: integer('created_by').notNull().references(() => users.id),
