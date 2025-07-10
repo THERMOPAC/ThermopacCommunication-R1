@@ -93,9 +93,9 @@ function EU180DayTracker() {
     queryKey: ['/api/schengen/travel-log'],
   });
 
-  // Fetch employees for dropdown
+  // Fetch employees with active Schengen visas for dropdown
   const { data: employees } = useQuery({
-    queryKey: ['/api/admin/users'],
+    queryKey: ['/api/schengen/employees'],
   });
 
   // Add travel log mutation
