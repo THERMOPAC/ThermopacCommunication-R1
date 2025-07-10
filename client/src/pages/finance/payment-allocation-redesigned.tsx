@@ -190,13 +190,22 @@ export default function PaymentAllocationRedesigned() {
       (link: any) => link.payment_id === selectedPayment.id && link.invoice_id === selectedInvoice.id
     );
 
+    // Allow additional allocations if there are remaining amounts
     if (existingAllocation) {
-      toast({
-        title: "Allocation Already Exists",
-        description: `This payment has already allocated $${existingAllocation.amount_applied} to this invoice. Please select a different payment or invoice.`,
-        variant: "destructive",
-      });
-      return;
+      const paymentRemaining = parseFloat(selectedPayment.unallocatedAmount);
+      const invoiceOutstanding = parseFloat(selectedInvoice.outstanding_amount || selectedInvoice.outstandingAmount || '0');
+      
+      if (paymentRemaining <= 0 || invoiceOutstanding <= 0) {
+        toast({
+          title: "No Additional Allocation Possible",
+          description: `Previous allocation exists ($${existingAllocation.amount_applied}). Payment remaining: $${paymentRemaining.toFixed(2)}, Invoice outstanding: $${invoiceOutstanding.toFixed(2)}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Show info about existing allocation but allow additional allocation
+      console.log(`Additional allocation to existing pair: Payment ${selectedPayment.id} → Invoice ${selectedInvoice.id}. Previous: $${existingAllocation.amount_applied}, New: $${allocateAmount}`);
     }
 
     // Check payment type compatibility
