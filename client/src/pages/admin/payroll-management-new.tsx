@@ -337,8 +337,8 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUser
     const employeeESIC = grossEarnings <= 21000 ? grossEarnings * 0.0075 : 0;
     const employerESIC = grossEarnings <= 21000 ? grossEarnings * 0.0325 : 0;
 
-    // Gratuity calculation
-    const gratuity = grossEarnings * 0.0481;
+    // Gratuity calculation: (Basic × 15 / 26) / 12
+    const gratuity = (basicAmount * 15 / 26) / 12;
 
     // Professional Tax calculation (PT)
     // Default ₹200, ₹300 in February, not applicable to Superuser role
