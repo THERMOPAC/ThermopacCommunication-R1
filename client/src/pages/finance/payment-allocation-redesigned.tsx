@@ -94,17 +94,8 @@ export default function PaymentAllocationRedesigned() {
   });
 
   const payments: Payment[] = (paymentsData as any)?.advances || [];
-  const allInvoices: Invoice[] = (invoicesData as any)?.invoices || [];
+  const invoices: Invoice[] = (invoicesData as any)?.invoices || [];
   const existingLinks = (linksData as any)?.links || [];
-
-  // Filter out invoices that are already linked to the selected payment
-  const invoices = selectedPayment 
-    ? allInvoices.filter(invoice => 
-        !existingLinks.some((link: any) => 
-          link.payment_id === selectedPayment.id && link.invoice_id === invoice.id
-        )
-      )
-    : allInvoices;
 
   // Auto-calculate allocation amount when both payment and invoice are selected
   useEffect(() => {
@@ -194,6 +185,20 @@ export default function PaymentAllocationRedesigned() {
       return;
     }
 
+    // Check for existing allocation from this payment to this invoice
+    const existingAllocation = existingLinks.find(
+      (link: any) => link.payment_id === selectedPayment.id && link.invoice_id === selectedInvoice.id
+    );
+
+    if (existingAllocation) {
+      toast({
+        title: "Allocation Already Exists",
+        description: `This payment has already allocated $${existingAllocation.amount_applied} to this invoice. Please select a different payment or invoice.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Check payment type compatibility
     if (selectedPayment.paymentType !== selectedInvoice.invoiceType) {
       toast({
@@ -229,25 +234,8 @@ export default function PaymentAllocationRedesigned() {
     ? payments.filter(p => p.customerId.toString() === selectedCustomerId)
     : [];
 
-  // Filter invoices to exclude those already allocated to the selected payment
-  const filteredInvoices = selectedPayment 
-    ? invoices.filter(i => {
-        // Check if this payment-invoice combination already exists
-        const existingAllocation = existingLinks.find(
-          (link: any) => link.payment_id === selectedPayment.id && link.invoice_id === i.id
-        );
-        
-        // Debug logging
-        console.log(`Checking invoice ${i.invoiceNumber} (ID: ${i.id}) for payment ${selectedPayment.id}:`, {
-          existingAllocation,
-          existingLinksCount: existingLinks.length,
-          willShow: !existingAllocation
-        });
-        
-        // Only show if no existing allocation
-        return !existingAllocation;
-      })
-    : [];
+  // Show all invoices for selected payment, but track existing allocations for display
+  const filteredInvoices = selectedPayment ? invoices : [];
 
   return (
     <Layout>
@@ -340,6 +328,10 @@ export default function PaymentAllocationRedesigned() {
                 <div className="space-y-2">
                   {filteredInvoices.map((invoice) => {
                     const isTypeCompatible = !selectedPayment || selectedPayment.paymentType === invoice.invoiceType;
+                    const existingAllocation = selectedPayment ? existingLinks.find(
+                      (link: any) => link.payment_id === selectedPayment.id && link.invoice_id === invoice.id
+                    ) : null;
+                    
                     const borderColor = selectedInvoice?.id === invoice.id 
                       ? 'border-orange-500 bg-orange-50' 
                       : isTypeCompatible 
@@ -365,6 +357,13 @@ export default function PaymentAllocationRedesigned() {
                                 </span>
                               )}
                             </p>
+                            {existingAllocation && (
+                              <p className="text-sm text-blue-600 mt-1">
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                                  ℹ️ ${existingAllocation.amount_applied} already allocated from this payment
+                                </span>
+                              </p>
+                            )}
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-red-600">
