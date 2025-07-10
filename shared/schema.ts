@@ -3049,7 +3049,7 @@ export const visaAlertsRelations = relations(visaAlerts, ({ one }) => ({
 
 // Visa Management Zod Schemas
 export const insertVisaRecordSchema = createInsertSchema(visaRecords)
-  .omit({ id: true, createdAt: true, updatedAt: true, status: true })
+  .omit({ id: true, createdAt: true, updatedAt: true, status: true, createdBy: true })
   .extend({
     employeeId: z.coerce.number().min(1, "Please select an employee"),
     visaType: z.string().min(1, "Please select a visa type"),
