@@ -302,10 +302,12 @@ function VisaRecordsTab() {
   ];
 
   // Fetch actual users from the database
-  const { data: employees = [], isLoading: isEmployeesLoading } = useQuery({
-    queryKey: ['/api/users/all'],
+  const { data: employees = [], isLoading: isEmployeesLoading, error: employeesError } = useQuery({
+    queryKey: ['/api/admin/users'],
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
+
+
 
   // Define comprehensive country list excluding individual Schengen countries
   const visaOptions: VisaOptions = {
@@ -670,12 +672,16 @@ function VisaRecordsTab() {
                         <SelectContent>
                           {isEmployeesLoading ? (
                             <div className="p-2 text-sm text-muted-foreground">Loading employees...</div>
+                          ) : employeesError ? (
+                            <div className="p-2 text-sm text-muted-foreground">Error loading employees</div>
+                          ) : !Array.isArray(employees) ? (
+                            <div className="p-2 text-sm text-muted-foreground">Invalid data format</div>
                           ) : employees.length === 0 ? (
                             <div className="p-2 text-sm text-muted-foreground">No employees found</div>
                           ) : (
-                            employees.map((employee: Employee) => (
+                            employees.map((employee: any) => (
                               <SelectItem key={employee.id} value={employee.id.toString()}>
-                                {employee.username} {employee.department ? `(${employee.department})` : ''}
+                                {employee.username || employee.firstName || 'Unknown'} {employee.department ? `(${employee.department})` : ''}
                               </SelectItem>
                             ))
                           )}
