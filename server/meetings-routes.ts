@@ -1167,6 +1167,7 @@ export const generateGoogleMeetLink = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const meetingId = parseInt(id);
+    const user = req.user as any;
     
     // Get the meeting details
     const [meeting] = await db
@@ -1186,34 +1187,36 @@ export const generateGoogleMeetLink = async (req: Request, res: Response) => {
       });
     }
     
-    // Generate Google Meet link using Google Calendar service
-    const googleMeetLink = await googleCalendarService.generateMeetLink(meeting);
+    // Generate Google Meet link using Google Calendar service with user ID
+    const googleMeetLink = await googleCalendarService.generateMeetLink(meeting, user.id);
     
     if (!googleMeetLink) {
-      return res.status(500).json({ 
-        error: 'Failed to generate Google Meet link',
-        message: 'Google Calendar service is not available or user not authenticated'
+      return res.status(400).json({ 
+        error: 'Google Calendar not connected',
+        message: 'Please connect your Google Calendar first to generate real Google Meet links',
+        requiresConnection: true,
+        settingsUrl: '/google-calendar-settings'
       });
     }
-    
-    // Update the meeting with the Google Meet link
-    const [updatedMeeting] = await db
-      .update(businessMeetings)
-      .set({ 
-        googleMeetLink: googleMeetLink,
-        updatedAt: new Date()
-      })
-      .where(eq(businessMeetings.id, meetingId))
-      .returning();
     
     res.json({
       success: true,
       googleMeetLink: googleMeetLink,
-      meeting: updatedMeeting,
-      message: 'Google Meet link generated successfully'
+      meeting: meeting,
+      message: 'Real Google Meet link generated and calendar event created successfully'
     });
   } catch (error) {
     console.error('Error generating Google Meet link:', error);
+    
+    if (error instanceof Error && error.message === 'GOOGLE_CALENDAR_NOT_CONNECTED') {
+      return res.status(400).json({ 
+        error: 'Google Calendar not connected',
+        message: 'Please connect your Google Calendar first to generate real Google Meet links',
+        requiresConnection: true,
+        settingsUrl: '/google-calendar-settings'
+      });
+    }
+    
     res.status(500).json({ 
       error: 'Failed to generate Google Meet link',
       message: error instanceof Error ? error.message : 'Unknown error'

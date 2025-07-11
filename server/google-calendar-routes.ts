@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateUser } from './middlewares/auth';
+import { ensureAuthenticated } from './auth-middleware';
 import { googleCalendarService } from './google-calendar-service';
 import { db } from './db';
 import { users, businessMeetings } from '@shared/schema';
@@ -10,7 +10,7 @@ const router = express.Router();
 /**
  * Generate Google Calendar OAuth URL
  */
-router.get('/auth/google/calendar', authenticateUser, (req, res) => {
+router.get('/auth/google/calendar', ensureAuthenticated, (req, res) => {
   try {
     const authUrl = googleCalendarService.generateAuthUrl();
     res.json({ success: true, authUrl });
@@ -26,7 +26,7 @@ router.get('/auth/google/calendar', authenticateUser, (req, res) => {
 /**
  * Handle Google OAuth callback
  */
-router.get('/auth/google/calendar/callback', authenticateUser, async (req, res) => {
+router.get('/auth/google/calendar/callback', ensureAuthenticated, async (req, res) => {
   try {
     const { code } = req.query;
     
@@ -54,7 +54,7 @@ router.get('/auth/google/calendar/callback', authenticateUser, async (req, res) 
 /**
  * Get user's Google Calendar connection status
  */
-router.get('/calendar/status', authenticateUser, async (req, res) => {
+router.get('/calendar/status', ensureAuthenticated, async (req, res) => {
   try {
     const [user] = await db
       .select({
@@ -67,9 +67,9 @@ router.get('/calendar/status', authenticateUser, async (req, res) => {
 
     res.json({
       success: true,
-      connected: user?.googleCalendarConnected || false,
+      isConnected: user?.googleCalendarConnected || false,
       syncEnabled: user?.googleCalendarSyncEnabled || false,
-      email: user?.googleEmail || null
+      googleEmail: user?.googleEmail || null
     });
   } catch (error) {
     console.error('Error getting calendar status:', error);
@@ -83,7 +83,7 @@ router.get('/calendar/status', authenticateUser, async (req, res) => {
 /**
  * Disconnect Google Calendar
  */
-router.post('/calendar/disconnect', authenticateUser, async (req, res) => {
+router.post('/calendar/disconnect', ensureAuthenticated, async (req, res) => {
   try {
     const success = await googleCalendarService.disconnectCalendar(req.user!.id);
     
@@ -110,7 +110,7 @@ router.post('/calendar/disconnect', authenticateUser, async (req, res) => {
 /**
  * Toggle Google Calendar sync for user
  */
-router.post('/calendar/sync/toggle', authenticateUser, async (req, res) => {
+router.post('/calendar/sync/toggle', ensureAuthenticated, async (req, res) => {
   try {
     const { enabled } = req.body;
     
@@ -136,7 +136,7 @@ router.post('/calendar/sync/toggle', authenticateUser, async (req, res) => {
 /**
  * Manually sync meeting to Google Calendar
  */
-router.post('/calendar/sync/:meetingId', authenticateUser, async (req, res) => {
+router.post('/calendar/sync/:meetingId', ensureAuthenticated, async (req, res) => {
   try {
     const meetingId = parseInt(req.params.meetingId);
     
@@ -215,7 +215,7 @@ router.post('/calendar/sync/:meetingId', authenticateUser, async (req, res) => {
 /**
  * Get sync history for meetings
  */
-router.get('/calendar/sync/history', authenticateUser, async (req, res) => {
+router.get('/calendar/sync/history', ensureAuthenticated, async (req, res) => {
   try {
     const syncHistory = await db.query.googleCalendarSyncLog.findMany({
       where: eq(db.query.googleCalendarSyncLog.userId, req.user!.id),

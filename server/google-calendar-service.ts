@@ -388,16 +388,54 @@ export class GoogleCalendarService {
   }
 
   /**
-   * Generate Google Meet link for a meeting by creating a temporary calendar event
+   * Generate Google Meet link for a meeting by creating a real calendar event
    */
-  async generateMeetLink(meetingData: any): Promise<string | null> {
+  async generateMeetLink(meetingData: any, userId: number): Promise<string | null> {
     try {
-      // For now, return a demo Google Meet link since the user doesn't have Google Calendar connected
-      // In a real implementation, this would create a calendar event with Google Meet
-      const demoMeetLink = `https://meet.google.com/demo-${meetingData.id}-${Date.now()}`;
+      // Check if user has Google Calendar connected
+      const [user] = await db
+        .select({
+          googleCalendarConnected: users.googleCalendarConnected,
+          googleCalendarSyncEnabled: users.googleCalendarSyncEnabled
+        })
+        .from(users)
+        .where(eq(users.id, userId));
+
+      if (!user?.googleCalendarConnected || !user?.googleCalendarSyncEnabled) {
+        console.log(`User ${userId} doesn't have Google Calendar connected. Providing connection instructions.`);
+        throw new Error('GOOGLE_CALENDAR_NOT_CONNECTED');
+      }
+
+      // Create real Google Calendar event with Meet link
+      const eventId = await this.createCalendarEvent(userId, meetingData);
       
-      console.log(`Generated demo Google Meet link for meeting ${meetingData.id}: ${demoMeetLink}`);
-      return demoMeetLink;
+      if (!eventId) {
+        throw new Error('Failed to create Google Calendar event');
+      }
+
+      // Update meeting with Google event ID and sync status
+      await db
+        .update(businessMeetings)
+        .set({ 
+          googleEventId: eventId,
+          googleCalendarSynced: true 
+        })
+        .where(eq(businessMeetings.id, meetingData.id));
+
+      // Get the meeting record to return the Meet link
+      const [updatedMeeting] = await db
+        .select({ googleMeetLink: businessMeetings.googleMeetLink })
+        .from(businessMeetings)
+        .where(eq(businessMeetings.id, meetingData.id));
+
+      const meetLink = updatedMeeting?.googleMeetLink;
+      
+      if (meetLink) {
+        console.log(`Generated real Google Meet link for meeting ${meetingData.id}: ${meetLink}`);
+        return meetLink;
+      } else {
+        throw new Error('Google Meet link not found in created event');
+      }
       
     } catch (error) {
       console.error('Error generating Google Meet link:', error);

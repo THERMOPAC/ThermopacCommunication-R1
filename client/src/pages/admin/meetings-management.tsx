@@ -283,10 +283,29 @@ export default function MeetingsManagement() {
     mutationFn: (meetingId: number) => apiRequest('POST', `/api/meetings/${meetingId}/generate-meet-link`),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
-      toast({ title: 'Google Meet link generated successfully', description: data.message });
+      toast({ 
+        title: 'Google Meet link generated successfully', 
+        description: data.message 
+      });
     },
     onError: (error: any) => {
-      toast({ title: 'Error generating Google Meet link', description: error.message, variant: 'destructive' });
+      if (error.requiresConnection) {
+        toast({ 
+          title: 'Google Calendar not connected', 
+          description: 'Please connect your Google Calendar to generate real Google Meet links. Redirecting to settings...',
+          variant: 'destructive' 
+        });
+        // Redirect to Google Calendar settings after a short delay
+        setTimeout(() => {
+          window.location.href = '/google-calendar-settings';
+        }, 2000);
+      } else {
+        toast({ 
+          title: 'Error generating Google Meet link', 
+          description: error.message, 
+          variant: 'destructive' 
+        });
+      }
     },
   });
 

@@ -24,7 +24,7 @@ export default function GoogleCalendarSettings() {
 
   // Fetch current Google Calendar connection status
   const { data: status, isLoading } = useQuery<GoogleCalendarStatus>({
-    queryKey: ['/api/google-calendar/status'],
+    queryKey: ['/api/google-calendar/calendar/status'],
   });
 
   // Connect Google Calendar mutation
@@ -32,7 +32,7 @@ export default function GoogleCalendarSettings() {
     mutationFn: () => {
       setIsConnecting(true);
       // Redirect to Google OAuth URL
-      window.location.href = '/api/google-calendar/auth';
+      window.location.href = '/api/google-calendar/auth/google/calendar';
       return Promise.resolve();
     },
     onError: () => {
@@ -47,9 +47,9 @@ export default function GoogleCalendarSettings() {
 
   // Disconnect Google Calendar mutation
   const disconnectMutation = useMutation({
-    mutationFn: () => apiRequest('POST', '/api/google-calendar/disconnect'),
+    mutationFn: () => apiRequest('POST', '/api/google-calendar/calendar/disconnect'),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/status'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/calendar/status'] });
       toast({
         title: 'Disconnected',
         description: 'Google Calendar has been disconnected successfully',
@@ -66,9 +66,9 @@ export default function GoogleCalendarSettings() {
 
   // Toggle sync enabled mutation
   const toggleSyncMutation = useMutation({
-    mutationFn: (enabled: boolean) => apiRequest('PUT', '/api/google-calendar/sync-settings', { syncEnabled: enabled }),
+    mutationFn: (enabled: boolean) => apiRequest('POST', '/api/google-calendar/calendar/sync/toggle', { enabled }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/status'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/calendar/status'] });
       toast({
         title: 'Settings Updated',
         description: 'Google Calendar sync settings updated successfully',

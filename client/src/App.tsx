@@ -221,6 +221,7 @@ function Router() {
       <ProtectedRoute path="/admin/visa-management" component={VisaManagementWrapper} />
       <ProtectedRoute path="/admin/legal-management" component={LegalManagementPage} />
       <ProtectedRoute path="/admin/meetings-management" component={MeetingsManagementPage} />
+      <ProtectedRoute path="/google-calendar-settings" component={GoogleCalendarSettingsPage} />
       
       <ProtectedRoute path="/project-dashboard" component={ProjectDashboardPage} />
       <ProtectedRoute path="/projects" component={ProjectsPage} />
