@@ -96,8 +96,16 @@ callbackRouter.get('/auth/google/callback', async (req, res) => {
     }
 
     console.log('Exchanging code for tokens for user:', userId);
+    console.log('Authorization code length:', code.length);
+    console.log('Using redirect URI:', process.env.GOOGLE_REDIRECT_URI);
+    
     // Exchange code for tokens
     const tokens = await googleCalendarService.exchangeCodeForTokens(code);
+    console.log('Received tokens:', { 
+      hasAccessToken: !!tokens.access_token, 
+      hasRefreshToken: !!tokens.refresh_token,
+      expiresAt: tokens.expiry_date 
+    });
     
     console.log('Saving tokens for user:', userId);
     // Save tokens to user account
