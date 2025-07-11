@@ -138,7 +138,7 @@ export function setupGoogleAuth(app: Express) {
     // If this is our exact expected path, let this route handle it
     if (req.path === '/auth/google/callback') {
       console.log('Processing exact callback path match');
-      handleGoogleCallback(req, res);
+      handleGoogleCallback(req, res, next);
     } else {
       // If it's a variation, redirect to the correct path
       const callbackPath = '/auth/google/callback';
@@ -150,7 +150,7 @@ export function setupGoogleAuth(app: Express) {
   });
   
   // Define a function to handle the callback logic
-  async function handleGoogleCallback(req: any, res: any) {
+  async function handleGoogleCallback(req: any, res: any, next?: any) {
     console.log('==== GOOGLE AUTH CALLBACK RECEIVED ====');
     console.log('Request query params:', req.query);
     console.log('User authenticated:', req.isAuthenticated());
@@ -159,11 +159,26 @@ export function setupGoogleAuth(app: Express) {
     
     // Check if this is a Google Calendar OAuth callback
     const { state, code } = req.query;
+    let isCalendarCallback = false;
+    
+    // Check for both old and new state formats
     if (state === 'service=calendar') {
-      console.log('Routing to Google Calendar OAuth handler');
-      // Forward to calendar OAuth handler with all query params
-      const queryString = new URLSearchParams(req.query).toString();
-      return res.redirect(`/api/auth/google/calendar/callback?${queryString}`);
+      isCalendarCallback = true;
+    } else if (state && typeof state === 'string') {
+      try {
+        const stateData = JSON.parse(decodeURIComponent(state));
+        if (stateData.service === 'calendar') {
+          isCalendarCallback = true;
+        }
+      } catch (e) {
+        // Not JSON, continue with normal processing
+      }
+    }
+    
+    if (isCalendarCallback) {
+      console.log('Calendar OAuth callback detected, passing to next handler');
+      // Let the next handler (Google Calendar routes) handle this
+      return next();
     }
     
     // Continue with Gmail OAuth handling
