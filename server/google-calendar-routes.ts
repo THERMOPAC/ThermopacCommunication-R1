@@ -13,7 +13,9 @@ const router = express.Router();
 router.get('/auth/google/calendar', ensureAuthenticated, (req, res) => {
   try {
     const authUrl = googleCalendarService.generateAuthUrl();
-    res.json({ success: true, authUrl });
+    console.log('Generated Google Calendar OAuth URL:', authUrl);
+    // Redirect directly to Google OAuth instead of returning JSON
+    res.redirect(authUrl);
   } catch (error) {
     console.error('Error generating Google Calendar auth URL:', error);
     res.status(500).json({ 

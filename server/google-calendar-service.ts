@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm';
 // Google Calendar OAuth Configuration
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/google/calendar/callback';
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/google-calendar/auth/google/calendar/callback';
 
 // Scopes required for Google Calendar and Meet access
 const CALENDAR_SCOPES = [

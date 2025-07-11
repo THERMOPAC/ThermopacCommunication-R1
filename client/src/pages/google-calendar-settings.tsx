@@ -31,7 +31,7 @@ export default function GoogleCalendarSettings() {
   const connectMutation = useMutation({
     mutationFn: () => {
       setIsConnecting(true);
-      // Redirect to Google OAuth URL
+      // Redirect to Google OAuth URL which will redirect to Google
       window.location.href = '/api/google-calendar/auth/google/calendar';
       return Promise.resolve();
     },
