@@ -661,68 +661,40 @@ export default function MeetingsManagement() {
                 </div>
               ) : (googleCalendarEvents?.events?.length || upcomingMeetings?.meetings?.length) ? (
                 <div className="space-y-4">
-                  {/* Google Calendar Events - Show ALL events first */}
+                  {/* Google Calendar Events - Clean, professional design */}
                   {googleCalendarEvents?.events?.slice(0, 8).map((event) => (
-                    <div key={`google-${event.id}`} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-blue-50 rounded-lg border border-blue-100 gap-3">
+                    <div key={`google-${event.id}`} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-white rounded-lg border border-gray-200 gap-3">
                       <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <h4 className="font-medium text-blue-900 truncate">{event.summary || 'Untitled Event'}</h4>
-                          <Badge variant="outline" className="text-blue-600 bg-blue-100 shrink-0">
-                            Google Calendar
-                          </Badge>
-                          {event.hangoutLink && (
-                            <Badge variant="outline" className="text-blue-600 bg-blue-100 shrink-0">
-                              <VideoIcon className="h-3 w-3 mr-1" />
-                              Meet
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-blue-700 mt-1">
-                          <span className="flex items-center gap-1 shrink-0">
-                            <CalendarIcon className="h-4 w-4" />
-                            {event.start.dateTime 
-                              ? format(new Date(event.start.dateTime), 'MMM dd, yyyy')
-                              : event.start.date 
-                                ? format(new Date(event.start.date), 'MMM dd, yyyy')
-                                : 'No date'
-                            }
-                          </span>
-                          {event.start.dateTime && event.end.dateTime && (
-                            <span className="flex items-center gap-1 shrink-0">
-                              <ClockIcon className="h-4 w-4" />
-                              {format(new Date(event.start.dateTime), 'HH:mm')} - {format(new Date(event.end.dateTime), 'HH:mm')}
+                        <h4 className="font-semibold text-gray-900 mb-2">{event.summary || 'Untitled Event'}</h4>
+                        <div className="text-sm text-gray-600">
+                          {event.start.dateTime && event.end.dateTime ? (
+                            <span>
+                              {format(new Date(event.start.dateTime), 'MMM dd, yyyy')} · {format(new Date(event.start.dateTime), 'h:mm')} – {format(new Date(event.end.dateTime), 'h:mm a')}
                             </span>
+                          ) : event.start.date ? (
+                            <span>
+                              {format(new Date(event.start.date), 'MMM dd, yyyy')} · All day
+                            </span>
+                          ) : (
+                            <span>No date available</span>
                           )}
                         </div>
-                        {event.description && (
-                          <p className="text-sm text-blue-600 mt-1 truncate">{event.description}</p>
-                        )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0 sm:ml-4">
                         {event.hangoutLink && (
                           <Button
                             size="sm"
-                            variant="outline"
                             onClick={() => window.open(event.hangoutLink, '_blank')}
-                            className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
                           >
-                            <VideoIcon className="h-4 w-4 mr-1" />
                             Join
                           </Button>
                         )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => window.open(event.htmlLink, '_blank')}
-                          className="text-blue-600 hover:bg-blue-50"
-                        >
-                          <LinkIcon className="h-4 w-4" />
-                        </Button>
                       </div>
                     </div>
                   ))}
                   
-                  {/* Internal Meetings - Only show those NOT in Google Calendar */}
+                  {/* Internal Meetings - Clean, professional design */}
                   {upcomingMeetings?.meetings?.filter((meeting) => {
                     // Check if this internal meeting title matches any Google Calendar event
                     const isDuplicate = googleCalendarEvents?.events?.some(event => 
@@ -731,39 +703,17 @@ export default function MeetingsManagement() {
                     );
                     return !isDuplicate;
                   }).slice(0, 3).map((meeting) => (
-                    <div key={`internal-${meeting.meeting.id}`} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-gray-50 rounded-lg border border-gray-100 gap-3">
+                    <div key={`internal-${meeting.meeting.id}`} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-white rounded-lg border border-gray-200 gap-3">
                       <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <h4 className="font-medium text-gray-900 truncate">{meeting.meeting.title}</h4>
-                          <Badge variant="outline" className="text-gray-600 bg-gray-100 shrink-0">
-                            Internal
-                          </Badge>
-                          {(meeting.meeting.googleMeetLink || meeting.meeting.meetingUrl) && (
-                            <Badge variant="outline" className="text-blue-600 bg-blue-100 shrink-0">
-                              <VideoIcon className="h-3 w-3 mr-1" />
-                              Meet
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mt-1">
-                          <span className="flex items-center gap-1 shrink-0">
-                            <CalendarIcon className="h-4 w-4" />
-                            {format(parseISO(meeting.meeting.meetingDate), 'MMM dd, yyyy')}
-                          </span>
-                          <span className="flex items-center gap-1 shrink-0">
-                            <ClockIcon className="h-4 w-4" />
-                            {meeting.meeting.startTime} - {meeting.meeting.endTime}
-                          </span>
+                        <h4 className="font-semibold text-gray-900 mb-2">{meeting.meeting.title}</h4>
+                        <div className="text-sm text-gray-600">
+                          {format(parseISO(meeting.meeting.meetingDate), 'MMM dd, yyyy')} · {meeting.meeting.startTime} – {meeting.meeting.endTime}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0 sm:ml-4">
-                        <Badge className={getPriorityColor(meeting.meeting.priority)}>
-                          {meeting.meeting.priority}
-                        </Badge>
                         {(meeting.meeting.googleMeetLink || meeting.meeting.meetingUrl) && (
                           <Button
                             size="sm"
-                            variant="outline"
                             onClick={() => {
                               if (meeting.meeting.googleMeetLink) {
                                 window.open(meeting.meeting.googleMeetLink, '_blank');
@@ -777,9 +727,8 @@ export default function MeetingsManagement() {
                                 });
                               }
                             }}
-                            className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
                           >
-                            <VideoIcon className="h-4 w-4 mr-1" />
                             Join
                           </Button>
                         )}
