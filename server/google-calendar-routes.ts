@@ -78,14 +78,14 @@ callbackRouter.get('/auth/google/callback', async (req, res) => {
         stateData = { service: 'calendar', userId: req.user?.id };
       } else {
         console.log('OAuth callback not for calendar service, ignoring');
-        return res.redirect('/meetings-management?error=invalid_state');
+        return res.redirect('/admin/meetings-management?error=invalid_state');
       }
     }
     
     // Check if this is a calendar OAuth callback
     if (stateData.service !== 'calendar') {
       console.log('OAuth callback not for calendar service, ignoring');
-      return res.redirect('/meetings-management?error=invalid_state');
+      return res.redirect('/admin/meetings-management?error=invalid_state');
     }
 
     // Get user ID from state or session
@@ -105,10 +105,10 @@ callbackRouter.get('/auth/google/callback', async (req, res) => {
 
     console.log('Google Calendar OAuth successful, redirecting...');
     // Redirect to meetings page with success message
-    res.redirect('/meetings-management?connected=true');
+    res.redirect('/admin/meetings-management?connected=true');
   } catch (error) {
     console.error('Error handling Google Calendar callback:', error);
-    res.redirect('/meetings-management?error=auth_failed');
+    res.redirect('/admin/meetings-management?error=auth_failed');
   }
 });
 
