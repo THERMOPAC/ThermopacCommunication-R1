@@ -247,6 +247,27 @@ export default function GoogleCalendarSettings() {
                     </p>
                   </div>
                   
+                  <div className="border-l-4 border-red-500 pl-4">
+                    <h4 className="font-semibold text-gray-900">🔹 4. Test OAuth URL Directly</h4>
+                    <p className="text-sm text-gray-700 mb-2">
+                      If you're still getting "refused to connect", test the OAuth URL directly:
+                    </p>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => {
+                        const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email&prompt=consent&state=service%3Dcalendar&response_type=code&client_id=${debugInfo.clientId}&redirect_uri=${encodeURIComponent(debugInfo.redirectUri)}`;
+                        window.open(oauthUrl, '_blank');
+                      }}
+                      className="mb-2"
+                    >
+                      Test OAuth URL in New Tab
+                    </Button>
+                    <p className="text-xs text-gray-600">
+                      This will open the OAuth URL in a new tab. If this also shows a blank page, the issue is with your OAuth consent screen configuration.
+                    </p>
+                  </div>
+                  
                   <div className="border-l-4 border-purple-500 pl-4">
                     <h4 className="font-semibold text-gray-900">🔹 4. Avoid Popup Blockers</h4>
                     <p className="text-sm text-gray-700">
