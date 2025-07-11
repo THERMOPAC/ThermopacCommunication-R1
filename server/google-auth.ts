@@ -157,7 +157,16 @@ export function setupGoogleAuth(app: Express) {
     console.log('User ID:', req.user?.id);
     console.log('Session data:', JSON.stringify(req.session));
     
-    const { code } = req.query;
+    // Check if this is a Google Calendar OAuth callback
+    const { state, code } = req.query;
+    if (state === 'service=calendar') {
+      console.log('Routing to Google Calendar OAuth handler');
+      // Forward to calendar OAuth handler with all query params
+      const queryString = new URLSearchParams(req.query).toString();
+      return res.redirect(`/api/auth/google/calendar/callback?${queryString}`);
+    }
+    
+    // Continue with Gmail OAuth handling
     
     if (!code || typeof code !== 'string') {
       console.error('Authentication failed: No code provided');
