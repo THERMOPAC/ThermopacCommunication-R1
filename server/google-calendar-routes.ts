@@ -5,6 +5,10 @@ import { db } from './db';
 import { users, businessMeetings } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
+// Router for OAuth callback (no auth required)
+const callbackRouter = express.Router();
+
+// Router for main Google Calendar routes (auth required)
 const router = express.Router();
 
 /**
@@ -49,8 +53,9 @@ router.get('/auth/google/calendar', ensureAuthenticated, (req, res) => {
 
 /**
  * Handle Google OAuth callback - matches GOOGLE_REDIRECT_URI
+ * This route is registered before authentication middleware to avoid session issues
  */
-router.get('/auth/google/callback', async (req, res) => {
+callbackRouter.get('/auth/google/callback', async (req, res) => {
   try {
     const { code, state } = req.query;
     
@@ -312,3 +317,4 @@ router.get('/calendar/sync/history', ensureAuthenticated, async (req, res) => {
 });
 
 export default router;
+export { callbackRouter };

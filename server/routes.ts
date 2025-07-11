@@ -116,11 +116,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register finance report routes
   app.use('/api/finance-reports', financeReportRouter);
   
-  // Register Google Calendar OAuth callback BEFORE authentication middleware
+  // Register ONLY the OAuth callback route BEFORE authentication middleware
   // This prevents the OAuth callback from going through passport session middleware
-  const googleCalendarRoutes = (await import('./google-calendar-routes')).default;
-  app.use('/api', googleCalendarRoutes);
-  console.log('Google Calendar OAuth routes registered (pre-auth)');
+  const { callbackRouter } = await import('./google-calendar-routes');
+  app.use('/api', callbackRouter);
+  console.log('Google Calendar OAuth callback registered (pre-auth)');
   
   setupAuth(app);
   
@@ -2804,6 +2804,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/meetings/:id/ai-notes', ensureAuthenticated, getAIMeetingNotes);
   
   console.log('Meetings & Commitments routes registered at /api/meetings');
+  
+  // Register main Google Calendar routes (with authentication required)
+  const googleCalendarRoutes = (await import('./google-calendar-routes')).default;
+  app.use('/api', googleCalendarRoutes);
+  console.log('Google Calendar integration routes registered at /api');
 
   const httpServer = createServer(app);
   return httpServer;
