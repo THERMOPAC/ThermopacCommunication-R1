@@ -115,6 +115,13 @@ async function comparePasswords(supplied: string, stored: string) {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register finance report routes
   app.use('/api/finance-reports', financeReportRouter);
+  
+  // Register Google Calendar OAuth callback BEFORE authentication middleware
+  // This prevents the OAuth callback from going through passport session middleware
+  const googleCalendarRoutes = (await import('./google-calendar-routes')).default;
+  app.use('/api', googleCalendarRoutes);
+  console.log('Google Calendar OAuth routes registered (pre-auth)');
+  
   setupAuth(app);
   
   // Set up Gmail integration routes
@@ -2797,10 +2804,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/meetings/:id/ai-notes', ensureAuthenticated, getAIMeetingNotes);
   
   console.log('Meetings & Commitments routes registered at /api/meetings');
-  
-  // Google Calendar Integration routes
-  app.use('/api', googleCalendarRoutes);
-  console.log('Google Calendar integration routes registered at /api');
 
   const httpServer = createServer(app);
   return httpServer;
