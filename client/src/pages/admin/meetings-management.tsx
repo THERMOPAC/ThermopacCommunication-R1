@@ -629,18 +629,48 @@ export default function MeetingsManagement() {
             </Card>
           </div>
 
-          {/* Upcoming Meetings */}
+
+
+          {/* Upcoming Google Calendar Events */}
           <Card>
             <div className="p-6 border-b">
-              <h3 className="text-lg font-semibold">Upcoming Meetings</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Upcoming Google Calendar Events</h3>
+                <Badge variant="outline" className="text-blue-600">
+                  {(googleCalendarEvents?.count || 0) + (upcomingMeetings?.meetings?.length || 0)} events
+                </Badge>
+              </div>
             </div>
             <div className="p-6">
-              {upcomingMeetings?.meetings?.length ? (
+              {(googleCalendarLoading || !upcomingMeetings) ? (
+                <p className="text-gray-500 text-center py-8">Loading calendar events...</p>
+              ) : googleCalendarError || !googleCalendarEvents?.success ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 mb-4">Unable to load Google Calendar events</p>
+                  <p className="text-sm text-gray-400">
+                    {googleCalendarEvents?.requiresConnection 
+                      ? 'Please connect your Google Calendar to view events' 
+                      : 'Check your Google Calendar connection'}
+                  </p>
+                </div>
+              ) : (googleCalendarEvents?.events?.length || upcomingMeetings?.meetings?.length) ? (
                 <div className="space-y-4">
-                  {upcomingMeetings.meetings.slice(0, 5).map((meeting) => (
-                    <div key={meeting.meeting.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  {/* Internal Meetings */}
+                  {upcomingMeetings?.meetings?.slice(0, 5).map((meeting) => (
+                    <div key={`internal-${meeting.meeting.id}`} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100">
                       <div className="flex-1">
-                        <h4 className="font-medium">{meeting.meeting.title}</h4>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium text-gray-900">{meeting.meeting.title}</h4>
+                          <Badge variant="outline" className="text-gray-600 bg-gray-100">
+                            Internal
+                          </Badge>
+                          {(meeting.meeting.googleMeetLink || meeting.meeting.meetingUrl) && (
+                            <Badge variant="outline" className="text-blue-600 bg-blue-100">
+                              <VideoIcon className="h-3 w-3 mr-1" />
+                              Meet
+                            </Badge>
+                          )}
+                        </div>
                         <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
                           <span className="flex items-center gap-1">
                             <CalendarIcon className="h-4 w-4" />
@@ -656,66 +686,41 @@ export default function MeetingsManagement() {
                         <Badge className={getPriorityColor(meeting.meeting.priority)}>
                           {meeting.meeting.priority}
                         </Badge>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            if (meeting.meeting.googleMeetLink) {
-                              window.open(meeting.meeting.googleMeetLink, '_blank');
-                            } else if (meeting.meeting.meetingUrl) {
-                              window.open(meeting.meeting.meetingUrl, '_blank');
-                            } else {
-                              toast({ 
-                                title: 'No meeting link available', 
-                                description: 'This meeting does not have a Google Meet or custom meeting link.',
-                                variant: 'destructive'
-                              });
-                            }
-                          }}
-                          className="text-blue-600 border-blue-300 hover:bg-blue-50"
-                        >
-                          <VideoIcon className="h-4 w-4 mr-1" />
-                          Join
-                        </Button>
+                        {(meeting.meeting.googleMeetLink || meeting.meeting.meetingUrl) && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              if (meeting.meeting.googleMeetLink) {
+                                window.open(meeting.meeting.googleMeetLink, '_blank');
+                              } else if (meeting.meeting.meetingUrl) {
+                                window.open(meeting.meeting.meetingUrl, '_blank');
+                              } else {
+                                toast({ 
+                                  title: 'No meeting link available', 
+                                  description: 'This meeting does not have a Google Meet or custom meeting link.',
+                                  variant: 'destructive'
+                                });
+                              }
+                            }}
+                            className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                          >
+                            <VideoIcon className="h-4 w-4 mr-1" />
+                            Join
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
-                </div>
-              ) : (
-                <p className="text-gray-500 text-center py-8">No upcoming meetings</p>
-              )}
-            </div>
-          </Card>
-
-          {/* Upcoming Google Calendar Events */}
-          <Card>
-            <div className="p-6 border-b">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Upcoming Google Calendar Events</h3>
-                <Badge variant="outline" className="text-blue-600">
-                  {googleCalendarEvents?.count || 0} events
-                </Badge>
-              </div>
-            </div>
-            <div className="p-6">
-              {googleCalendarLoading ? (
-                <p className="text-gray-500 text-center py-8">Loading calendar events...</p>
-              ) : googleCalendarError || !googleCalendarEvents?.success ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-500 mb-4">Unable to load Google Calendar events</p>
-                  <p className="text-sm text-gray-400">
-                    {googleCalendarEvents?.requiresConnection 
-                      ? 'Please connect your Google Calendar to view events' 
-                      : 'Check your Google Calendar connection'}
-                  </p>
-                </div>
-              ) : googleCalendarEvents?.events?.length ? (
-                <div className="space-y-4">
-                  {googleCalendarEvents.events.slice(0, 5).map((event) => (
-                    <div key={event.id} className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-100">
+                  {/* Google Calendar Events */}
+                  {googleCalendarEvents?.events?.slice(0, 5).map((event) => (
+                    <div key={`google-${event.id}`} className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-100">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <h4 className="font-medium text-blue-900">{event.summary || 'Untitled Event'}</h4>
+                          <Badge variant="outline" className="text-blue-600 bg-blue-100">
+                            Google Calendar
+                          </Badge>
                           {event.hangoutLink && (
                             <Badge variant="outline" className="text-blue-600 bg-blue-100">
                               <VideoIcon className="h-3 w-3 mr-1" />
@@ -769,7 +774,7 @@ export default function MeetingsManagement() {
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-center py-8">No upcoming Google Calendar events</p>
+                <p className="text-gray-500 text-center py-8">No upcoming meetings or calendar events</p>
               )}
             </div>
           </Card>
