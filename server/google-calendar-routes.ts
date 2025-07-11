@@ -14,6 +14,19 @@ router.get('/auth/google/calendar', ensureAuthenticated, (req, res) => {
   try {
     const authUrl = googleCalendarService.generateAuthUrl();
     console.log('Generated Google Calendar OAuth URL:', authUrl);
+    console.log('Client ID:', process.env.GOOGLE_CLIENT_ID?.substring(0, 15) + '...');
+    console.log('Redirect URI:', process.env.GOOGLE_REDIRECT_URI);
+    
+    // For debugging, let's also return the URL in JSON format if requested
+    if (req.query.debug === 'true') {
+      return res.json({ 
+        authUrl,
+        clientId: process.env.GOOGLE_CLIENT_ID?.substring(0, 15) + '...',
+        redirectUri: process.env.GOOGLE_REDIRECT_URI,
+        scopes: ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/userinfo.email']
+      });
+    }
+    
     // Redirect directly to Google OAuth instead of returning JSON
     res.redirect(authUrl);
   } catch (error) {
@@ -51,6 +64,28 @@ router.get('/auth/google/calendar/callback', ensureAuthenticated, async (req, re
     console.error('Error handling Google Calendar callback:', error);
     res.redirect('/meetings-management?error=auth_failed');
   }
+});
+
+/**
+ * Debug endpoint to check Google OAuth configuration
+ */
+router.get('/calendar/debug', ensureAuthenticated, (req, res) => {
+  res.json({
+    clientId: process.env.GOOGLE_CLIENT_ID?.substring(0, 15) + '...',
+    redirectUri: process.env.GOOGLE_REDIRECT_URI,
+    requiredScopes: [
+      'https://www.googleapis.com/auth/calendar',
+      'https://www.googleapis.com/auth/userinfo.email'
+    ],
+    instructions: {
+      step1: 'Go to Google Cloud Console (console.cloud.google.com)',
+      step2: 'Select your project: thermopac-communication-system',
+      step3: 'Enable Google Calendar API in APIs & Services > Library',
+      step4: 'Configure OAuth consent screen in APIs & Services > OAuth consent screen',
+      step5: 'Add authorized redirect URI in APIs & Services > Credentials',
+      step6: 'Make sure both scopes above are added to the OAuth consent screen'
+    }
+  });
 });
 
 /**

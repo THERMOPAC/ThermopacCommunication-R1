@@ -28,6 +28,11 @@ export default function GoogleCalendarSettings() {
     queryKey: ['/api/calendar/status'],
   });
 
+  // Fetch debug information
+  const { data: debugInfo } = useQuery({
+    queryKey: ['/api/calendar/debug'],
+  });
+
   // Connect Google Calendar mutation
   const connectMutation = useMutation({
     mutationFn: () => {
@@ -187,6 +192,51 @@ export default function GoogleCalendarSettings() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Debug Information Card - Only show when not connected */}
+        {!status?.isConnected && debugInfo && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-600">
+                <AlertCircle className="h-5 w-5" />
+                Google Cloud Console Setup Required
+              </CardTitle>
+              <CardDescription>
+                If you're seeing a blank page, follow these steps to configure Google Cloud Console:
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-blue-50 p-4 rounded-lg space-y-3">
+                <p className="font-medium text-blue-900">Current Configuration:</p>
+                <ul className="text-sm space-y-1 text-blue-800">
+                  <li><strong>Client ID:</strong> {debugInfo.clientId}</li>
+                  <li><strong>Redirect URI:</strong> {debugInfo.redirectUri}</li>
+                  <li><strong>Required Scopes:</strong> {debugInfo.requiredScopes?.join(', ')}</li>
+                </ul>
+              </div>
+              
+              <div className="space-y-3">
+                <p className="font-medium text-gray-900">Setup Instructions:</p>
+                <ol className="text-sm space-y-2 list-decimal list-inside text-gray-700">
+                  <li>Go to <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google Cloud Console</a></li>
+                  <li>Select project: <strong>thermopac-communication-system</strong></li>
+                  <li>Enable <strong>Google Calendar API</strong> in APIs & Services → Library</li>
+                  <li>Configure <strong>OAuth consent screen</strong> in APIs & Services → OAuth consent screen</li>
+                  <li>Add the redirect URI above to <strong>Authorized redirect URIs</strong> in APIs & Services → Credentials</li>
+                  <li>Make sure both required scopes are added to the OAuth consent screen</li>
+                </ol>
+              </div>
+              
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Common Issue:</strong> If you see "accounts.google.com refused to connect", 
+                  it usually means the Google Calendar API is not enabled or the OAuth consent screen is not properly configured.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Sync Settings Card */}
         {status?.isConnected && (
