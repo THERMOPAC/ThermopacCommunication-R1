@@ -753,7 +753,7 @@ export default function MeetingsManagement() {
                                     <SelectValue placeholder="Select attendees to invite" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {usersData?.map((user) => (
+                                    {users?.map((user) => (
                                       <SelectItem key={user.id} value={user.id.toString()}>
                                         {user.username} ({user.email})
                                       </SelectItem>
@@ -764,7 +764,7 @@ export default function MeetingsManagement() {
                               {field.value && field.value.length > 0 && (
                                 <div className="flex flex-wrap gap-2 mt-2">
                                   {field.value.map((attendeeId) => {
-                                    const user = usersData?.find(u => u.id === attendeeId);
+                                    const user = users?.find(u => u.id === attendeeId);
                                     return user ? (
                                       <Badge key={attendeeId} variant="outline" className="flex items-center gap-1">
                                         <UsersIcon className="h-3 w-3" />
