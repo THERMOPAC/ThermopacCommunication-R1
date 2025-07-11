@@ -181,9 +181,18 @@ export class GoogleCalendarService {
           
           // Secondary: check description for meeting links
           if (event.description) {
+            // Google Meet links
             const meetLinkRegex = /https:\/\/meet\.google\.com\/[a-z0-9-]+/i;
-            const teamsLinkRegex = /https:\/\/[a-z0-9-]+\.teams\.microsoft\.com\/[^\s]+/i;
-            const zoomLinkRegex = /https:\/\/[a-z0-9-]+\.zoom\.us\/j\/[0-9]+/i;
+            
+            // Teams meeting links (actual meeting URLs, not dial-in pages)
+            const teamsLinkRegex = /https:\/\/teams\.microsoft\.com\/l\/meetup-join\/[^\s<>"']+/i;
+            const teamsWebappRegex = /https:\/\/teams\.live\.com\/meet\/[^\s<>"']+/i;
+            
+            // Zoom meeting links
+            const zoomLinkRegex = /https:\/\/[a-z0-9-]+\.zoom\.us\/j\/[0-9]+(\?[^\s<>"']*)?/i;
+            
+            // WebEx meeting links
+            const webexLinkRegex = /https:\/\/[a-z0-9-]+\.webex\.com\/[^\s<>"']+/i;
             
             const meetMatch = event.description.match(meetLinkRegex);
             if (meetMatch) return meetMatch[0];
@@ -191,15 +200,23 @@ export class GoogleCalendarService {
             const teamsMatch = event.description.match(teamsLinkRegex);
             if (teamsMatch) return teamsMatch[0];
             
+            const teamsWebappMatch = event.description.match(teamsWebappRegex);
+            if (teamsWebappMatch) return teamsWebappMatch[0];
+            
             const zoomMatch = event.description.match(zoomLinkRegex);
             if (zoomMatch) return zoomMatch[0];
+            
+            const webexMatch = event.description.match(webexLinkRegex);
+            if (webexMatch) return webexMatch[0];
           }
           
           // Tertiary: check location field for meeting links
           if (event.location) {
             const meetLinkRegex = /https:\/\/meet\.google\.com\/[a-z0-9-]+/i;
-            const teamsLinkRegex = /https:\/\/[a-z0-9-]+\.teams\.microsoft\.com\/[^\s]+/i;
-            const zoomLinkRegex = /https:\/\/[a-z0-9-]+\.zoom\.us\/j\/[0-9]+/i;
+            const teamsLinkRegex = /https:\/\/teams\.microsoft\.com\/l\/meetup-join\/[^\s<>"']+/i;
+            const teamsWebappRegex = /https:\/\/teams\.live\.com\/meet\/[^\s<>"']+/i;
+            const zoomLinkRegex = /https:\/\/[a-z0-9-]+\.zoom\.us\/j\/[0-9]+(\?[^\s<>"']*)?/i;
+            const webexLinkRegex = /https:\/\/[a-z0-9-]+\.webex\.com\/[^\s<>"']+/i;
             
             const meetMatch = event.location.match(meetLinkRegex);
             if (meetMatch) return meetMatch[0];
@@ -207,14 +224,31 @@ export class GoogleCalendarService {
             const teamsMatch = event.location.match(teamsLinkRegex);
             if (teamsMatch) return teamsMatch[0];
             
+            const teamsWebappMatch = event.location.match(teamsWebappRegex);
+            if (teamsWebappMatch) return teamsWebappMatch[0];
+            
             const zoomMatch = event.location.match(zoomLinkRegex);
             if (zoomMatch) return zoomMatch[0];
+            
+            const webexMatch = event.location.match(webexLinkRegex);
+            if (webexMatch) return webexMatch[0];
           }
           
           return null;
         };
 
         const extractedMeetingLink = extractMeetingLink(event);
+        
+        // Debug logging for AVISTA meeting specifically
+        if (event.summary && event.summary.includes('AVISTA')) {
+          console.log(`\n=== DEBUG: AVISTA Thermopac Event ===`);
+          console.log(`Summary: ${event.summary}`);
+          console.log(`Description: ${event.description ? event.description.substring(0, 200) + '...' : 'No description'}`);
+          console.log(`Location: ${event.location || 'No location'}`);
+          console.log(`HangoutLink: ${event.hangoutLink || 'No hangoutLink'}`);
+          console.log(`Extracted Link: ${extractedMeetingLink || 'No link extracted'}`);
+          console.log(`=====================================\n`);
+        }
         
         return {
           id: event.id,
