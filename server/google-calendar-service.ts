@@ -169,6 +169,17 @@ export class GoogleCalendarService {
 
       const events = response.data.items || [];
       console.log(`Retrieved ${events.length} total events from Google Calendar`);
+      
+      // Debug: Log each event's available fields to understand what meeting links exist
+      events.forEach((event, index) => {
+        console.log(`Event ${index + 1}: "${event.summary}"`);
+        console.log(`  - hangoutLink: ${event.hangoutLink || 'none'}`);
+        console.log(`  - location: ${event.location || 'none'}`);
+        console.log(`  - description: ${event.description ? 'has description' : 'no description'}`);
+        if (event.description && (event.description.includes('meet.google.com') || event.description.includes('teams.microsoft.com') || event.description.includes('zoom.us'))) {
+          console.log(`  - description contains meeting link: ${event.description.substring(0, 200)}...`);
+        }
+      });
 
       // Transform ALL events to our format (not just those with Meet links)
       const transformedEvents = events.map(event => {
