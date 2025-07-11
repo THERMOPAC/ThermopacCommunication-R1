@@ -116,42 +116,55 @@ router.post('/create-simple-payment', ensureAuthenticated, async (req: Request, 
  */
 router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    console.log('Fetching unallocated payments (simple version)');
+    console.log('Fetching unallocated payments with calculated allocation amounts');
     
-    // Query payments with customer names
+    // Query payments with customer names and calculated allocated amounts from payment_invoice_links
     const payments = await pool.query(`
       SELECT 
         p.*,
-        c.bp_name as customer_name
+        c.bp_name as customer_name,
+        COALESCE(SUM(pil.amount_applied), 0) as calculated_allocated_amount
       FROM 
         payments p
       LEFT JOIN 
         customers c ON p.customer_id = c.id
-      WHERE 
-        p.unallocated_amount > 0
+      LEFT JOIN 
+        payment_invoice_links pil ON p.id = pil.payment_id
+      GROUP BY 
+        p.id, c.bp_name
+      HAVING 
+        p.amount - COALESCE(SUM(pil.amount_applied), 0) > 0
+      ORDER BY 
+        p.payment_date DESC
       LIMIT 10
     `);
     
     console.log(`Found ${payments.rowCount} unallocated payments`);
     
-    // Format the response in a consistent way
-    const formattedPayments = payments.rows.map(payment => ({
-      id: payment.id,
-      paymentReference: payment.irm_no || `PAY-${payment.id}`,
-      customerId: payment.customer_id,
-      customerName: payment.customer_name || 'Unknown Customer', // Use actual customer name
-      paymentDate: payment.payment_date,
-      amount: parseFloat(payment.amount),
-      allocatedAmount: parseFloat(payment.allocated_amount || '0'),
-      remainingAmount: parseFloat(payment.unallocated_amount || '0'),
-      currency: payment.currency || 'USD',
-      status: parseFloat(payment.unallocated_amount) === parseFloat(payment.amount) 
-        ? 'Unallocated' 
-        : parseFloat(payment.unallocated_amount) > 0 
-          ? 'Partially Allocated' 
-          : 'Fully Allocated',
-      paymentType: payment.payment_type
-    }));
+    // Format the response with calculated values
+    const formattedPayments = payments.rows.map(payment => {
+      const totalAmount = parseFloat(payment.amount);
+      const calculatedAllocated = parseFloat(payment.calculated_allocated_amount || '0');
+      const remainingAmount = totalAmount - calculatedAllocated;
+      
+      return {
+        id: payment.id,
+        paymentReference: payment.irm_no || `PAY-${payment.id}`,
+        customerId: payment.customer_id,
+        customerName: payment.customer_name || 'Unknown Customer',
+        paymentDate: payment.payment_date,
+        amount: totalAmount,
+        allocatedAmount: calculatedAllocated,
+        remainingAmount: remainingAmount,
+        currency: payment.currency || 'USD',
+        status: calculatedAllocated === 0 
+          ? 'Unallocated' 
+          : remainingAmount > 0 
+            ? 'Partially Allocated' 
+            : 'Fully Allocated',
+        paymentType: payment.payment_type
+      };
+    });
 
     // Calculate total
     const totalUnallocated = formattedPayments.reduce(
