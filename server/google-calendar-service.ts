@@ -13,8 +13,7 @@ const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost
 // Scopes required for Google Calendar and Meet access
 const CALENDAR_SCOPES = [
   'https://www.googleapis.com/auth/calendar',
-  'https://www.googleapis.com/auth/userinfo.email',
-  'https://www.googleapis.com/auth/meetings'  // For Google Meet integration
+  'https://www.googleapis.com/auth/userinfo.email'
 ];
 
 export class GoogleCalendarService {
