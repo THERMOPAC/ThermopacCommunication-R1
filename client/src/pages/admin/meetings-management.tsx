@@ -650,17 +650,34 @@ export default function MeetingsManagement() {
                             <ClockIcon className="h-4 w-4" />
                             {meeting.meeting.startTime} - {meeting.meeting.endTime}
                           </span>
-                          {meeting.meeting.location && (
-                            <span className="flex items-center gap-1">
-                              <MapPinIcon className="h-4 w-4" />
-                              {meeting.meeting.location}
-                            </span>
-                          )}
                         </div>
                       </div>
-                      <Badge className={getPriorityColor(meeting.meeting.priority)}>
-                        {meeting.meeting.priority}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge className={getPriorityColor(meeting.meeting.priority)}>
+                          {meeting.meeting.priority}
+                        </Badge>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            if (meeting.meeting.googleMeetLink) {
+                              window.open(meeting.meeting.googleMeetLink, '_blank');
+                            } else if (meeting.meeting.meetingUrl) {
+                              window.open(meeting.meeting.meetingUrl, '_blank');
+                            } else {
+                              toast({ 
+                                title: 'No meeting link available', 
+                                description: 'This meeting does not have a Google Meet or custom meeting link.',
+                                variant: 'destructive'
+                              });
+                            }
+                          }}
+                          className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                        >
+                          <VideoIcon className="h-4 w-4 mr-1" />
+                          Join
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -720,12 +737,6 @@ export default function MeetingsManagement() {
                             <span className="flex items-center gap-1">
                               <ClockIcon className="h-4 w-4" />
                               {format(new Date(event.start.dateTime), 'HH:mm')} - {format(new Date(event.end.dateTime), 'HH:mm')}
-                            </span>
-                          )}
-                          {event.location && (
-                            <span className="flex items-center gap-1">
-                              <MapPinIcon className="h-4 w-4" />
-                              {event.location}
                             </span>
                           )}
                         </div>
