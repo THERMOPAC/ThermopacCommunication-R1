@@ -13,11 +13,11 @@ const ensureAuthenticated = (req: Request, res: Response, next: any) => {
 };
 
 /**
- * Get unallocated advance payments - clean implementation
+ * Get unallocated advance payments - fixed calculation from payment_invoice_links
  */
 router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    console.log('Fetching unallocated advance payments...');
+    console.log('Fetching unallocated advance payments with calculated allocation amounts...');
     
     const result = await db.execute(sql`
       SELECT 
@@ -27,8 +27,7 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
         c.bp_name as "customerName",
         p.payment_date as "paymentDate",
         p.amount,
-        p.allocated_amount as "allocatedAmount",
-        p.unallocated_amount as "unallocatedAmount",
+        COALESCE(SUM(pil.amount_applied), 0) as "calculatedAllocatedAmount",
         p.payment_method as "paymentMethod",
         p.payment_type as "paymentType",
         p.currency,
@@ -38,16 +37,44 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
         payments p
       JOIN 
         customers c ON p.customer_id = c.id
+      LEFT JOIN 
+        payment_invoice_links pil ON p.id = pil.payment_id
       WHERE 
         p.is_advance_payment = true
-        AND p.unallocated_amount > 0.01
-        AND p.allocated_amount < p.amount
+      GROUP BY 
+        p.id, c.bp_name, p.irm_no, p.customer_id, p.payment_date, p.amount, 
+        p.payment_method, p.payment_type, p.currency, p.notes, p.is_advance_payment
+      HAVING 
+        p.amount - COALESCE(SUM(pil.amount_applied), 0) > 0.01
       ORDER BY 
         p.payment_date DESC
     `);
-    const advances = result.rows;
+    const payments = result.rows;
     
-    console.log(`Found ${advances.length} unallocated advance payments`);
+    console.log(`Found ${payments.length} unallocated advance payments`);
+    
+    // Format the response with calculated values
+    const advances = payments.map((payment: any) => {
+      const totalAmount = parseFloat(payment.amount);
+      const calculatedAllocated = parseFloat(payment.calculatedAllocatedAmount || '0');
+      const remainingAmount = totalAmount - calculatedAllocated;
+      
+      return {
+        id: payment.id,
+        paymentReference: payment.paymentReference,
+        customerId: payment.customerId,
+        customerName: payment.customerName,
+        paymentDate: payment.paymentDate,
+        amount: totalAmount.toString(),
+        allocatedAmount: calculatedAllocated.toString(),
+        unallocatedAmount: remainingAmount.toString(),
+        paymentMethod: payment.paymentMethod,
+        paymentType: payment.paymentType,
+        currency: payment.currency,
+        notes: payment.notes,
+        isAdvancePayment: payment.isAdvancePayment
+      };
+    });
     
     // Calculate total unallocated amount
     const totalUnallocated = advances.reduce((sum: number, payment: any) => {
