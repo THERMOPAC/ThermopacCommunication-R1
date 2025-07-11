@@ -33,7 +33,9 @@ import {
   BarChart3Icon,
   SearchIcon,
   FilterIcon,
-  MoreHorizontalIcon
+  MoreHorizontalIcon,
+  VideoIcon,
+  LinkIcon
 } from 'lucide-react';
 import { format, parseISO, addDays } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -248,6 +250,18 @@ export default function MeetingsManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/meetings/commitments'] });
       toast({ title: 'Commitment deleted successfully' });
+    },
+  });
+
+  // Generate Google Meet link mutation
+  const generateMeetLinkMutation = useMutation({
+    mutationFn: (meetingId: number) => apiRequest('POST', `/api/meetings/${meetingId}/generate-meet-link`),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
+      toast({ title: 'Google Meet link generated successfully', description: data.message });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error generating Google Meet link', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -792,6 +806,34 @@ export default function MeetingsManagement() {
                               Organized by {meeting.organizer.username}
                             </span>
                           </div>
+                          <div className="flex items-center gap-2 mt-3">
+                            <Badge variant={meeting.meeting.googleMeetLink ? 'default' : 'secondary'}>
+                              {meeting.meeting.googleMeetLink ? (
+                                <>
+                                  <VideoIcon className="h-3 w-3 mr-1" />
+                                  Google Meet Ready
+                                </>
+                              ) : (
+                                <>
+                                  <VideoIcon className="h-3 w-3 mr-1" />
+                                  No Meet Link
+                                </>
+                              )}
+                            </Badge>
+                            <Badge variant={meeting.meeting.aiNotesGenerated ? 'default' : 'secondary'}>
+                              {meeting.meeting.aiNotesGenerated ? (
+                                <>
+                                  <BellIcon className="h-3 w-3 mr-1" />
+                                  AI Notes Available
+                                </>
+                              ) : (
+                                <>
+                                  <BellIcon className="h-3 w-3 mr-1" />
+                                  No AI Notes
+                                </>
+                              )}
+                            </Badge>
+                          </div>
                         </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -804,6 +846,23 @@ export default function MeetingsManagement() {
                               <EditIcon className="h-4 w-4 mr-2" />
                               Edit
                             </DropdownMenuItem>
+                            {!meeting.meeting.googleMeetLink && (
+                              <DropdownMenuItem 
+                                onClick={() => generateMeetLinkMutation.mutate(meeting.meeting.id)}
+                                disabled={generateMeetLinkMutation.isPending}
+                              >
+                                <VideoIcon className="h-4 w-4 mr-2" />
+                                Generate Google Meet
+                              </DropdownMenuItem>
+                            )}
+                            {meeting.meeting.googleMeetLink && (
+                              <DropdownMenuItem 
+                                onClick={() => window.open(meeting.meeting.googleMeetLink, '_blank')}
+                              >
+                                <LinkIcon className="h-4 w-4 mr-2" />
+                                Open Google Meet
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem 
                               className="text-red-600"
                               onClick={() => deleteMeetingMutation.mutate(meeting.meeting.id)}
