@@ -5,7 +5,7 @@ import Layout from '@/components/layout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -187,6 +187,31 @@ export default function MeetingsManagement() {
   const { data: users } = useQuery<User[]>({
     queryKey: ['/api/admin/users'],
   });
+
+  // Role hierarchy for sorting
+  const roleHierarchy: Record<string, number> = {
+    'Superuser': 1,
+    'General Manager': 2,
+    'Senior Manager': 3,
+    'Manager': 4,
+    'Employee': 5,
+  };
+
+  // Group users by role for the meeting attendees dropdown
+  const groupedUsers = useMemo(() => {
+    if (!users) return {};
+    
+    const roles = [...new Set(users.map(u => u.role))];
+    return roles
+      .sort((a, b) => (roleHierarchy[a] || 999) - (roleHierarchy[b] || 999))
+      .reduce((acc: Record<string, User[]>, role: string) => {
+        const usersInRole = users.filter(u => u.role === role);
+        if (usersInRole.length > 0) {
+          acc[role] = usersInRole.sort((a, b) => a.username.localeCompare(b.username));
+        }
+        return acc;
+      }, {} as Record<string, User[]>);
+  }, [users]);
 
   // Create meeting mutation
   const createMeetingMutation = useMutation({
@@ -750,14 +775,25 @@ export default function MeetingsManagement() {
                                   }} 
                                 >
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Select attendees to invite" />
+                                    <SelectValue placeholder="Select team members to invite" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {users?.map((user) => (
-                                      <SelectItem key={user.id} value={user.id.toString()}>
-                                        {user.username} ({user.email})
-                                      </SelectItem>
-                                    ))}
+                                    {Object.entries(groupedUsers).length > 0 ? (
+                                      Object.entries(groupedUsers).map(([role, users]) => (
+                                        <SelectGroup key={role}>
+                                          <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                            {role}s
+                                          </SelectLabel>
+                                          {users.map((user) => (
+                                            <SelectItem key={user.id} value={user.id.toString()}>
+                                              {user.username}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectGroup>
+                                      ))
+                                    ) : (
+                                      <SelectItem value="loading" disabled>Loading users...</SelectItem>
+                                    )}
                                   </SelectContent>
                                 </Select>
                               </FormControl>
