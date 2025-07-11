@@ -219,8 +219,9 @@ export class GoogleCalendarService {
 
   /**
    * Create Google Calendar event from meeting data
+   * Returns both event ID and Google Meet link
    */
-  async createCalendarEvent(userId: number, meetingData: any): Promise<string | null> {
+  async createCalendarEvent(userId: number, meetingData: any): Promise<{ eventId: string; meetLink?: string } | null> {
     try {
       const calendar = await this.getCalendarClient(userId);
       if (!calendar) {
@@ -295,7 +296,12 @@ export class GoogleCalendarService {
       // Log successful creation
       await this.logSyncOperation(meetingData.id, userId, 'create', response.data.id!, 'success');
 
-      return response.data.id!;
+      console.log(`Google Calendar event created successfully. Event ID: ${response.data.id}, Meet Link: ${meetLink || 'None generated'}`);
+      
+      return {
+        eventId: response.data.id!,
+        meetLink: meetLink || undefined
+      };
     } catch (error) {
       console.error('Failed to create Google Calendar event:', error);
       
@@ -526,32 +532,31 @@ export class GoogleCalendarService {
       }
 
       // Create real Google Calendar event with Meet link
-      const eventId = await this.createCalendarEvent(userId, meetingData);
+      const result = await this.createCalendarEvent(userId, meetingData);
       
-      if (!eventId) {
+      if (!result || !result.eventId) {
         throw new Error('Failed to create Google Calendar event');
       }
 
       // Update meeting with Google event ID and sync status
+      const updateData: any = { 
+        googleEventId: result.eventId,
+        googleCalendarSynced: true 
+      };
+      
+      if (result.meetLink) {
+        updateData.googleMeetLink = result.meetLink;
+        updateData.googleMeetUrl = result.meetLink; // Store in both fields for compatibility
+      }
+      
       await db
         .update(businessMeetings)
-        .set({ 
-          googleEventId: eventId,
-          googleCalendarSynced: true 
-        })
+        .set(updateData)
         .where(eq(businessMeetings.id, meetingData.id));
 
-      // Get the meeting record to return the Meet link
-      const [updatedMeeting] = await db
-        .select({ googleMeetLink: businessMeetings.googleMeetLink })
-        .from(businessMeetings)
-        .where(eq(businessMeetings.id, meetingData.id));
-
-      const meetLink = updatedMeeting?.googleMeetLink;
-      
-      if (meetLink) {
-        console.log(`Generated real Google Meet link for meeting ${meetingData.id}: ${meetLink}`);
-        return meetLink;
+      if (result.meetLink) {
+        console.log(`Generated real Google Meet link for meeting ${meetingData.id}: ${result.meetLink}`);
+        return result.meetLink;
       } else {
         throw new Error('Google Meet link not found in created event');
       }
