@@ -2802,7 +2802,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/meetings/commitment-tasks', ensureAuthenticated, getCommitmentTasks);
   
   // Google Meet Integration endpoints
-  app.post('/api/meetings/:id/generate-meet-link', ensureAuthenticated, generateGoogleMeetLink);
+  app.post('/api/meetings/:id/generate-meet', ensureAuthenticated, generateGoogleMeetLink);
   
   // AI Meeting Notes endpoints
   app.post('/api/meetings/:id/recording/enable', ensureAuthenticated, enableMeetingRecording);

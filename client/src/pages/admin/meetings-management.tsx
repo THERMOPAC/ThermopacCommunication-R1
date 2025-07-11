@@ -349,7 +349,7 @@ export default function MeetingsManagement() {
 
   // Generate Google Meet link mutation
   const generateMeetLinkMutation = useMutation({
-    mutationFn: (meetingId: number) => apiRequest('POST', `/api/meetings/${meetingId}/generate-meet-link`),
+    mutationFn: (meetingId: number) => apiRequest('POST', `/api/meetings/${meetingId}/generate-meet`),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
       toast({ 
