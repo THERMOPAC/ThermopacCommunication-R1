@@ -191,6 +191,12 @@ export default function MeetingsManagement() {
     queryKey: ['/api/admin/users'],
   });
 
+  // Fetch Google Calendar connection status
+  const { data: googleCalendarStatus } = useQuery({
+    queryKey: ['/api/google-calendar/calendar/status'],
+    staleTime: 60000, // 1 minute
+  });
+
   // Role hierarchy for sorting
   const roleHierarchy: Record<string, number> = {
     'Superuser': 1,
@@ -942,11 +948,31 @@ export default function MeetingsManagement() {
                       {/* Google Integration Section */}
                       <div className="space-y-4">
                         <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Google Integration</h3>
-                        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className={`p-4 rounded-lg border ${googleCalendarStatus?.isConnected ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'}`}>
                           <div className="flex items-center gap-2 mb-4">
-                            <VideoIcon className="h-5 w-5 text-blue-600" />
-                            <h4 className="font-medium text-blue-900">Google Calendar & Meet Integration</h4>
+                            <VideoIcon className={`h-5 w-5 ${googleCalendarStatus?.isConnected ? 'text-green-600' : 'text-blue-600'}`} />
+                            <h4 className={`font-medium ${googleCalendarStatus?.isConnected ? 'text-green-900' : 'text-blue-900'}`}>
+                              Google Calendar & Meet Integration
+                            </h4>
+                            {googleCalendarStatus?.isConnected && (
+                              <Badge className="bg-green-100 text-green-800 border-green-300">
+                                Connected
+                              </Badge>
+                            )}
                           </div>
+
+                          {/* Connection Status */}
+                          {googleCalendarStatus?.isConnected ? (
+                            <div className="text-sm text-green-700 bg-green-100 p-2 rounded mb-4">
+                              <CheckIcon className="h-4 w-4 inline mr-1" />
+                              Google Calendar connected as {googleCalendarStatus.googleEmail}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-red-700 bg-red-100 p-2 rounded mb-4">
+                              <AlertCircleIcon className="h-4 w-4 inline mr-1" />
+                              Google Calendar not connected - Please connect to enable automatic Google Meet links
+                            </div>
+                          )}
                           
                           <FormField
                             control={meetingForm.control}
@@ -963,17 +989,32 @@ export default function MeetingsManagement() {
                                 </div>
                                 <FormControl>
                                   <Switch
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
+                                    checked={field.value && googleCalendarStatus?.isConnected}
+                                    onCheckedChange={(checked) => {
+                                      if (!googleCalendarStatus?.isConnected) {
+                                        toast({
+                                          title: 'Google Calendar Required',
+                                          description: 'Please connect your Google Calendar first to enable automatic Google Meet creation.',
+                                          variant: 'destructive'
+                                        });
+                                        return;
+                                      }
+                                      field.onChange(checked);
+                                    }}
+                                    disabled={!googleCalendarStatus?.isConnected}
                                   />
                                 </FormControl>
                               </FormItem>
                             )}
                           />
                           
-                          <div className="text-xs text-blue-700 bg-blue-100 p-2 rounded mt-4">
+                          <div className={`text-xs p-2 rounded mt-4 ${googleCalendarStatus?.isConnected ? 'text-green-700 bg-green-100' : 'text-blue-700 bg-blue-100'}`}>
                             <SettingsIcon className="h-4 w-4 inline mr-1" />
-                            Connect your Google account in <a href="/google-calendar-settings" className="underline font-medium">Google Calendar Settings</a> to enable this feature
+                            {googleCalendarStatus?.isConnected ? (
+                              <>Manage your Google Calendar settings in <a href="/google-calendar-settings" className="underline font-medium">Google Calendar Settings</a></>
+                            ) : (
+                              <>Connect your Google account in <a href="/google-calendar-settings" className="underline font-medium">Google Calendar Settings</a> to enable this feature</>
+                            )}
                           </div>
                         </div>
                       </div>
