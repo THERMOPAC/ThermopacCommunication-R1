@@ -225,6 +225,72 @@ router.post('/calendar/sync/toggle', ensureAuthenticated, async (req, res) => {
 });
 
 /**
+ * Fetch upcoming Google Calendar events with Google Meet links
+ */
+router.get('/calendar/upcoming-events', ensureAuthenticated, async (req, res) => {
+  try {
+    const maxResults = parseInt(req.query.maxResults as string) || 25;
+    const userId = req.user!.id;
+
+    console.log(`Fetching upcoming Google Calendar events for user ${userId}`);
+
+    // Check if user has Google Calendar connected
+    const [user] = await db
+      .select({
+        googleCalendarConnected: users.googleCalendarConnected,
+        googleCalendarSyncEnabled: users.googleCalendarSyncEnabled
+      })
+      .from(users)
+      .where(eq(users.id, userId));
+
+    if (!user?.googleCalendarConnected) {
+      return res.status(400).json({
+        success: false,
+        error: 'Google Calendar not connected',
+        message: 'Please connect your Google Calendar to fetch events',
+        requiresConnection: true
+      });
+    }
+
+    if (!user.googleCalendarSyncEnabled) {
+      return res.status(400).json({
+        success: false,
+        error: 'Google Calendar sync disabled',
+        message: 'Please enable Google Calendar sync to fetch events'
+      });
+    }
+
+    // Fetch upcoming events with Google Meet links
+    const events = await googleCalendarService.fetchUpcomingEvents(userId, maxResults);
+
+    res.json({
+      success: true,
+      events: events,
+      count: events.length,
+      message: `Found ${events.length} upcoming events with Google Meet links`
+    });
+
+  } catch (error) {
+    console.error('Error fetching upcoming calendar events:', error);
+    
+    if (error.message.includes('Calendar not connected')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Google Calendar not connected',
+        message: 'Please connect your Google Calendar to fetch events',
+        requiresConnection: true
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch calendar events',
+      message: error.message || 'An error occurred while fetching calendar events'
+    });
+  }
+});
+
+/**
  * Manually sync meeting to Google Calendar
  */
 router.post('/calendar/sync/:meetingId', ensureAuthenticated, async (req, res) => {

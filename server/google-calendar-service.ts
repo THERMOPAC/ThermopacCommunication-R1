@@ -66,37 +66,155 @@ export class GoogleCalendarService {
   }
 
   /**
+   * Refresh access token if expired
+   */
+  async refreshTokenIfNeeded(userId: number): Promise<boolean> {
+    try {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId));
+
+      if (!user?.googleRefreshToken) {
+        console.log(`No refresh token found for user ${userId}`);
+        return false;
+      }
+
+      // Check if token is expired (with 5 minute buffer)
+      const now = new Date();
+      const expiresAt = user.googleTokenExpiresAt;
+      const bufferTime = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+      if (expiresAt && now.getTime() > (expiresAt.getTime() - bufferTime)) {
+        console.log(`Token expired for user ${userId}, refreshing...`);
+        
+        this.oauth2Client.setCredentials({
+          refresh_token: user.googleRefreshToken
+        });
+
+        const { credentials } = await this.oauth2Client.refreshAccessToken();
+        
+        // Update tokens in database
+        await this.saveUserTokens(userId, credentials);
+        console.log(`Successfully refreshed token for user ${userId}`);
+        return true;
+      }
+
+      return true; // Token is still valid
+    } catch (error) {
+      console.error(`Error refreshing token for user ${userId}:`, error);
+      return false;
+    }
+  }
+
+  /**
    * Get authenticated calendar client for user
    */
   async getCalendarClient(userId: number): Promise<calendar_v3.Calendar | null> {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId));
-
-    if (!user?.googleAccessToken || !user.googleCalendarConnected) {
-      return null;
-    }
-
-    // Set up OAuth client with user's tokens
-    this.oauth2Client.setCredentials({
-      access_token: user.googleAccessToken,
-      refresh_token: user.googleRefreshToken
-    });
-
-    // Check if token needs refresh
-    if (user.googleTokenExpiresAt && new Date() >= user.googleTokenExpiresAt) {
-      try {
-        const { credentials } = await this.oauth2Client.refreshAccessToken();
-        await this.saveUserTokens(userId, credentials);
-        this.oauth2Client.setCredentials(credentials);
-      } catch (error) {
-        console.error('Failed to refresh Google Calendar token:', error);
+    try {
+      // Refresh token if needed
+      const tokenValid = await this.refreshTokenIfNeeded(userId);
+      if (!tokenValid) {
         return null;
       }
-    }
 
-    return google.calendar({ version: 'v3', auth: this.oauth2Client });
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId));
+
+      if (!user?.googleAccessToken || !user.googleCalendarConnected) {
+        return null;
+      }
+
+      // Set up OAuth client with user's tokens
+      this.oauth2Client.setCredentials({
+        access_token: user.googleAccessToken,
+        refresh_token: user.googleRefreshToken
+      });
+
+      return google.calendar({ version: 'v3', auth: this.oauth2Client });
+    } catch (error) {
+      console.error(`Failed to get calendar client for user ${userId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Fetch upcoming Google Calendar events with Google Meet links
+   */
+  async fetchUpcomingEvents(userId: number, maxResults: number = 25): Promise<any[]> {
+    try {
+      const calendar = await this.getCalendarClient(userId);
+      if (!calendar) {
+        throw new Error('Google Calendar not connected for user');
+      }
+
+      // Get current time and 30 days from now
+      const now = new Date();
+      const maxTime = new Date();
+      maxTime.setDate(now.getDate() + 30);
+
+      console.log(`Fetching upcoming events for user ${userId} from ${now.toISOString()} to ${maxTime.toISOString()}`);
+
+      const response = await calendar.events.list({
+        calendarId: 'primary',
+        timeMin: now.toISOString(),
+        timeMax: maxTime.toISOString(),
+        maxResults: maxResults,
+        singleEvents: true,
+        orderBy: 'startTime',
+        fields: 'items(id,summary,description,start,end,hangoutLink,creator,organizer,attendees,location,status,htmlLink)'
+      });
+
+      const events = response.data.items || [];
+      console.log(`Retrieved ${events.length} total events from Google Calendar`);
+
+      // Filter events that have Google Meet links (hangoutLink)
+      const meetEvents = events.filter(event => event.hangoutLink);
+      console.log(`Found ${meetEvents.length} events with Google Meet links`);
+
+      // Transform events to our format
+      const transformedEvents = meetEvents.map(event => ({
+        id: event.id,
+        summary: event.summary || 'Untitled Event',
+        description: event.description || '',
+        start: {
+          dateTime: event.start?.dateTime,
+          date: event.start?.date,
+          timeZone: event.start?.timeZone
+        },
+        end: {
+          dateTime: event.end?.dateTime,
+          date: event.end?.date,
+          timeZone: event.end?.timeZone
+        },
+        hangoutLink: event.hangoutLink,
+        location: event.location,
+        status: event.status,
+        htmlLink: event.htmlLink,
+        creator: {
+          email: event.creator?.email,
+          displayName: event.creator?.displayName
+        },
+        organizer: {
+          email: event.organizer?.email,
+          displayName: event.organizer?.displayName
+        },
+        attendees: event.attendees?.map(attendee => ({
+          email: attendee.email,
+          displayName: attendee.displayName,
+          responseStatus: attendee.responseStatus
+        })) || []
+      }));
+
+      console.log(`Successfully fetched and transformed ${transformedEvents.length} upcoming events with Google Meet links`);
+      return transformedEvents;
+
+    } catch (error) {
+      console.error(`Error fetching upcoming events for user ${userId}:`, error);
+      throw error;
+    }
   }
 
   /**

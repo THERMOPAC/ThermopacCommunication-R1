@@ -147,6 +147,39 @@ interface User {
   role: string;
 }
 
+interface GoogleCalendarEvent {
+  id: string;
+  summary: string;
+  description: string;
+  start: {
+    dateTime?: string;
+    date?: string;
+    timeZone?: string;
+  };
+  end: {
+    dateTime?: string;
+    date?: string;
+    timeZone?: string;
+  };
+  hangoutLink: string;
+  location?: string;
+  status: string;
+  htmlLink: string;
+  creator: {
+    email?: string;
+    displayName?: string;
+  };
+  organizer: {
+    email?: string;
+    displayName?: string;
+  };
+  attendees: Array<{
+    email: string;
+    displayName?: string;
+    responseStatus: string;
+  }>;
+}
+
 export default function MeetingsManagement() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
@@ -194,8 +227,22 @@ export default function MeetingsManagement() {
   // Fetch Google Calendar connection status
   const { data: googleCalendarStatus } = useQuery({
     queryKey: ['/api/calendar/status'],
-    staleTime: 60000, // 1 minute
   });
+
+  // Fetch upcoming Google Calendar events with Meet links
+  const { data: googleCalendarEvents, isLoading: googleCalendarLoading, error: googleCalendarError } = useQuery<{
+    success: boolean;
+    events: GoogleCalendarEvent[];
+    count: number;
+    message: string;
+    requiresConnection?: boolean;
+  }>({
+    queryKey: ['/api/calendar/upcoming-events'],
+    enabled: activeTab === 'google-calendar',
+    retry: false,
+  });
+
+
 
   // Role hierarchy for sorting
   const roleHierarchy: Record<string, number> = {
@@ -510,7 +557,7 @@ export default function MeetingsManagement() {
         </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <BarChart3Icon className="h-4 w-4" />
             Dashboard
@@ -522,6 +569,10 @@ export default function MeetingsManagement() {
           <TabsTrigger value="commitments" className="flex items-center gap-2">
             <ListChecksIcon className="h-4 w-4" />
             Commitments
+          </TabsTrigger>
+          <TabsTrigger value="google-calendar" className="flex items-center gap-2">
+            <VideoIcon className="h-4 w-4" />
+            Google Calendar
           </TabsTrigger>
           <TabsTrigger value="ai-notes" className="flex items-center gap-2">
             <BellIcon className="h-4 w-4" />
@@ -1538,6 +1589,161 @@ export default function MeetingsManagement() {
                     <p className="text-gray-500">No meetings found</p>
                   </div>
                 )}
+              </div>
+            )}
+          </Card>
+        </TabsContent>
+
+        {/* Google Calendar Tab */}
+        <TabsContent value="google-calendar" className="space-y-6">
+          <Card className="p-6">
+            <div className="flex flex-col sm:flex-row gap-4 items-start justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-semibold">Upcoming Google Calendar Events</h3>
+                <p className="text-gray-600">View upcoming calendar events with Google Meet links from your Google Calendar</p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/calendar/upcoming-events'] })}
+                disabled={googleCalendarLoading}
+              >
+                {googleCalendarLoading ? 'Refreshing...' : 'Refresh Events'}
+              </Button>
+            </div>
+
+            {/* Connection Status */}
+            {googleCalendarStatus?.isConnected ? (
+              <div className="text-sm text-green-700 bg-green-100 p-3 rounded mb-6">
+                <CheckIcon className="h-4 w-4 inline mr-2" />
+                Google Calendar connected
+                {googleCalendarStatus.syncEnabled ? (
+                  <span> and sync is enabled</span>
+                ) : (
+                  <span> but sync is disabled</span>
+                )}
+              </div>
+            ) : (
+              <div className="text-sm text-red-700 bg-red-100 p-3 rounded mb-6">
+                <AlertCircleIcon className="h-4 w-4 inline mr-2" />
+                Google Calendar not connected - Please connect to view events
+                <Button 
+                  variant="link" 
+                  size="sm" 
+                  onClick={() => window.open('/auth/google', '_blank')}
+                  className="ml-2 p-0 h-auto"
+                >
+                  Connect Now
+                </Button>
+              </div>
+            )}
+
+            {/* Events List */}
+            {googleCalendarLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-500">Loading Google Calendar events...</p>
+              </div>
+            ) : googleCalendarError ? (
+              <div className="text-center py-8">
+                <AlertCircleIcon className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                <h4 className="text-lg font-medium text-gray-900 mb-2">Unable to load events</h4>
+                <p className="text-gray-500 mb-4">
+                  {googleCalendarError.message || 'Failed to fetch Google Calendar events'}
+                </p>
+                {googleCalendarError.requiresConnection && (
+                  <Button 
+                    onClick={() => window.open('/auth/google', '_blank')}
+                    className="mt-2"
+                  >
+                    Connect Google Calendar
+                  </Button>
+                )}
+              </div>
+            ) : googleCalendarEvents?.events && googleCalendarEvents.events.length > 0 ? (
+              <div className="space-y-4">
+                <div className="text-sm text-gray-600 mb-4">
+                  Found {googleCalendarEvents.count} upcoming events with Google Meet links
+                </div>
+                {googleCalendarEvents.events.map((event) => (
+                  <Card key={event.id} className="p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900 mb-1">{event.summary}</h4>
+                        {event.description && (
+                          <p className="text-sm text-gray-600 mb-2 line-clamp-2">{event.description}</p>
+                        )}
+                        
+                        <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                          <div className="flex items-center gap-1">
+                            <CalendarIcon className="h-4 w-4" />
+                            {event.start.dateTime 
+                              ? format(parseISO(event.start.dateTime), 'MMM d, yyyy')
+                              : event.start.date
+                            }
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <ClockIcon className="h-4 w-4" />
+                            {event.start.dateTime 
+                              ? `${format(parseISO(event.start.dateTime), 'h:mm a')} - ${format(parseISO(event.end.dateTime!), 'h:mm a')}`
+                              : 'All day'
+                            }
+                          </div>
+                          {event.location && (
+                            <div className="flex items-center gap-1">
+                              <MapPinIcon className="h-4 w-4" />
+                              <span className="truncate max-w-32">{event.location}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 mb-3">
+                          <Badge variant="default" className="bg-blue-100 text-blue-800">
+                            <VideoIcon className="h-3 w-3 mr-1" />
+                            Google Meet
+                          </Badge>
+                          {event.organizer.email && (
+                            <Badge variant="outline">
+                              Organizer: {event.organizer.displayName || event.organizer.email}
+                            </Badge>
+                          )}
+                        </div>
+
+                        {event.attendees && event.attendees.length > 0 && (
+                          <div className="text-sm text-gray-600">
+                            <span className="font-medium">{event.attendees.length} attendees</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col gap-2 ml-4">
+                        <Button
+                          size="sm"
+                          onClick={() => window.open(event.hangoutLink, '_blank')}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <VideoIcon className="h-4 w-4 mr-1" />
+                          Join Meet
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(event.htmlLink, '_blank')}
+                        >
+                          <LinkIcon className="h-4 w-4 mr-1" />
+                          View in Calendar
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <CalendarDaysIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h4 className="text-lg font-medium text-gray-900 mb-2">No upcoming events</h4>
+                <p className="text-gray-500">
+                  No upcoming Google Calendar events with Google Meet links found in the next 30 days.
+                </p>
               </div>
             )}
           </Card>
