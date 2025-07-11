@@ -6621,6 +6621,7 @@ export const insertBusinessMeetingSchema = createInsertSchema(businessMeetings)
     linkedKpis: z.array(z.number()).default([]),
     googleMeetEnabled: z.boolean().default(true),
     recordingEnabled: z.boolean().default(false),
+    autoCreateGoogleMeet: z.boolean().default(true),
   });
 
 export const insertMeetingCommitmentSchema = createInsertSchema(meetingCommitments)

@@ -243,7 +243,10 @@ export const createMeeting = async (req: Request, res: Response) => {
       await db.insert(meetingAttendance).values(attendanceData);
     }
 
-    // Auto-sync to Google Calendar if organizer has calendar connected and sync enabled
+    // Auto-sync to Google Calendar and create Google Meet link if requested
+    let googleMeetLink = null;
+    let googleCalendarConnected = false;
+    
     try {
       const [organizer] = await db
         .select({
@@ -253,11 +256,17 @@ export const createMeeting = async (req: Request, res: Response) => {
         .from(users)
         .where(eq(users.id, user.id));
 
-      if (organizer?.googleCalendarConnected && organizer?.googleCalendarSyncEnabled) {
-        const eventId = await googleCalendarService.createCalendarEvent(user.id, meeting);
+      googleCalendarConnected = organizer?.googleCalendarConnected || false;
+
+      // Auto-create Google Meet if user requested it and has Google Calendar connected
+      if (validatedData.autoCreateGoogleMeet && organizer?.googleCalendarConnected && organizer?.googleCalendarSyncEnabled) {
+        const eventId = await googleCalendarService.createCalendarEvent(user.id, {
+          ...meeting,
+          googleMeetEnabled: true  // Ensure Google Meet is enabled for this event
+        });
         
         if (eventId) {
-          // Update meeting with Google event ID
+          // Update meeting with Google event ID and sync status
           await db
             .update(businessMeetings)
             .set({ 
@@ -266,7 +275,18 @@ export const createMeeting = async (req: Request, res: Response) => {
             })
             .where(eq(businessMeetings.id, meeting.id));
           
+          // Get the updated meeting with Google Meet link
+          const [updatedMeeting] = await db
+            .select()
+            .from(businessMeetings)
+            .where(eq(businessMeetings.id, meeting.id));
+          
+          googleMeetLink = updatedMeeting?.googleMeetLink;
+          
           console.log(`Meeting ${meeting.id} automatically synced to Google Calendar with event ID: ${eventId}`);
+          if (googleMeetLink) {
+            console.log(`Google Meet link automatically generated: ${googleMeetLink}`);
+          }
         }
       }
     } catch (syncError) {
@@ -274,7 +294,12 @@ export const createMeeting = async (req: Request, res: Response) => {
       // Don't fail meeting creation if calendar sync fails
     }
 
-    res.status(201).json(meeting);
+    res.status(201).json({
+      ...meeting,
+      googleMeetLink,
+      googleCalendarConnected,
+      autoCreated: !!googleMeetLink
+    });
   } catch (error) {
     console.error('Error creating meeting:', error);
     res.status(500).json({ error: 'Failed to create meeting' });

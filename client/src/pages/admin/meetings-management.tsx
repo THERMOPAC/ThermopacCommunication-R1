@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -35,7 +36,8 @@ import {
   FilterIcon,
   MoreHorizontalIcon,
   VideoIcon,
-  LinkIcon
+  LinkIcon,
+  SettingsIcon
 } from 'lucide-react';
 import { format, parseISO, addDays } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -54,6 +56,7 @@ const meetingFormSchema = z.object({
   meetingUrl: z.string().optional(),
   attendeeIds: z.array(z.number()).default([]),
   agenda: z.string().optional(),
+  autoCreateGoogleMeet: z.boolean().default(true),
 });
 
 const commitmentFormSchema = z.object({
@@ -216,11 +219,24 @@ export default function MeetingsManagement() {
   // Create meeting mutation
   const createMeetingMutation = useMutation({
     mutationFn: (data: MeetingFormData) => apiRequest('POST', '/api/meetings', data),
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/meetings/dashboard/stats'] });
       setIsCreateMeetingOpen(false);
-      toast({ title: 'Meeting created successfully' });
+      
+      if (data.googleMeetLink) {
+        toast({ 
+          title: 'Meeting created successfully', 
+          description: `Google Meet link automatically generated and added to your calendar`
+        });
+      } else if (data.googleCalendarConnected === false) {
+        toast({ 
+          title: 'Meeting created successfully', 
+          description: 'Connect your Google Calendar to automatically generate Meet links for future meetings'
+        });
+      } else {
+        toast({ title: 'Meeting created successfully' });
+      }
     },
     onError: (error: any) => {
       toast({ title: 'Error creating meeting', description: error.message, variant: 'destructive' });
@@ -366,6 +382,7 @@ export default function MeetingsManagement() {
       meetingUrl: '',
       attendeeIds: [],
       agenda: '',
+      autoCreateGoogleMeet: true,
     },
   });
 
@@ -423,7 +440,20 @@ export default function MeetingsManagement() {
   };
 
   const resetMeetingForm = () => {
-    meetingForm.reset();
+    meetingForm.reset({
+      title: '',
+      description: '',
+      meetingType: '',
+      priority: 'Medium',
+      meetingDate: '',
+      startTime: '',
+      endTime: '',
+      location: '',
+      meetingUrl: '',
+      attendeeIds: [],
+      agenda: '',
+      autoCreateGoogleMeet: true,
+    });
     setEditingMeeting(null);
     setIsCreateMeetingOpen(false);
   };
@@ -855,6 +885,42 @@ export default function MeetingsManagement() {
                             </FormItem>
                           )}
                         />
+                        
+                        {/* Google Calendar & Meet Integration */}
+                        <div className="col-span-2 space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center gap-2">
+                            <VideoIcon className="h-5 w-5 text-blue-600" />
+                            <h4 className="font-medium text-blue-900">Google Calendar & Meet Integration</h4>
+                          </div>
+                          
+                          <FormField
+                            control={meetingForm.control}
+                            name="autoCreateGoogleMeet"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center justify-between">
+                                <div className="space-y-0.5">
+                                  <FormLabel className="text-base">
+                                    Auto-create Google Meet Link
+                                  </FormLabel>
+                                  <div className="text-sm text-gray-600">
+                                    Automatically generate a Google Meet link and add this meeting to your Google Calendar
+                                  </div>
+                                </div>
+                                <FormControl>
+                                  <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <div className="text-xs text-blue-700 bg-blue-100 p-2 rounded">
+                            <SettingsIcon className="h-4 w-4 inline mr-1" />
+                            Connect your Google account in <a href="/google-calendar-settings" className="underline font-medium">Google Calendar Settings</a> to enable this feature
+                          </div>
+                        </div>
                       </div>
                       <div className="flex justify-end gap-3">
                         <Button type="button" variant="outline" onClick={resetMeetingForm}>
