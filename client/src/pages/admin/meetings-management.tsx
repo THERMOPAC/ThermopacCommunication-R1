@@ -1011,9 +1011,37 @@ export default function MeetingsManagement() {
                           <div className={`text-xs p-2 rounded mt-4 ${googleCalendarStatus?.isConnected ? 'text-green-700 bg-green-100' : 'text-blue-700 bg-blue-100'}`}>
                             <SettingsIcon className="h-4 w-4 inline mr-1" />
                             {googleCalendarStatus?.isConnected ? (
-                              <>Manage your Google Calendar settings in <a href="/google-calendar-settings" className="underline font-medium">Google Calendar Settings</a></>
+                              <>Manage your Google Calendar settings in <button 
+                                onClick={() => {
+                                  setShowMeetingDialog(false);
+                                  setTimeout(() => window.location.href = '/google-calendar-settings', 100);
+                                }} 
+                                className="underline font-medium text-green-700 hover:text-green-800"
+                              >Google Calendar Settings</button></>
                             ) : (
-                              <>Connect your Google account in <a href="/google-calendar-settings" className="underline font-medium">Google Calendar Settings</a> to enable this feature</>
+                              <div className="flex flex-col gap-2">
+                                <div>Connect your Google account to enable Google Meet links:</div>
+                                <Button 
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => {
+                                    setShowMeetingDialog(false);
+                                    setTimeout(() => window.location.href = '/api/auth/google/calendar', 100);
+                                  }}
+                                  className="bg-blue-600 hover:bg-blue-700 text-white w-fit"
+                                >
+                                  Connect Google Calendar
+                                </Button>
+                                <div className="text-xs">
+                                  Or manage settings in <button 
+                                    onClick={() => {
+                                      setShowMeetingDialog(false);
+                                      setTimeout(() => window.location.href = '/google-calendar-settings', 100);
+                                    }} 
+                                    className="underline font-medium text-blue-700 hover:text-blue-800"
+                                  >Google Calendar Settings</button>
+                                </div>
+                              </div>
                             )}
                           </div>
                         </div>
