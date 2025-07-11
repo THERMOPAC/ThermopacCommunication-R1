@@ -6254,6 +6254,7 @@ export const businessMeetings = pgTable('business_meetings', {
   googleMeetLink: text('google_meet_link'),
   googleMeetUrl: text('google_meet_url'), // Alternative field for compatibility
   googleMeetEnabled: boolean('google_meet_enabled').default(true),
+  autoCreateGoogleMeet: boolean('auto_create_google_meet').default(true),
   
   // AI Meeting Notes fields
   recordingUrl: text('recording_url'),
