@@ -239,17 +239,6 @@ export class GoogleCalendarService {
 
         const extractedMeetingLink = extractMeetingLink(event);
         
-        // Debug logging for AVISTA meeting specifically
-        if (event.summary && event.summary.includes('AVISTA')) {
-          console.log(`\n=== DEBUG: AVISTA Thermopac Event ===`);
-          console.log(`Summary: ${event.summary}`);
-          console.log(`Description: ${event.description ? event.description.substring(0, 200) + '...' : 'No description'}`);
-          console.log(`Location: ${event.location || 'No location'}`);
-          console.log(`HangoutLink: ${event.hangoutLink || 'No hangoutLink'}`);
-          console.log(`Extracted Link: ${extractedMeetingLink || 'No link extracted'}`);
-          console.log(`=====================================\n`);
-        }
-        
         return {
           id: event.id,
           summary: event.summary || 'Untitled Event',
