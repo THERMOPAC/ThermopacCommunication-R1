@@ -116,6 +116,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register finance report routes
   app.use('/api/finance-reports', financeReportRouter);
   
+  // Add direct OAuth callback route to handle Google redirects at /auth/google/callback
+  app.get('/auth/google/callback', async (req: any, res: any) => {
+    // Redirect to the API endpoint that actually handles the OAuth callback
+    const queryString = new URLSearchParams(req.query as any).toString();
+    res.redirect(`/api/auth/google/callback?${queryString}`);
+  });
+  
   // Register ONLY the OAuth callback route BEFORE authentication middleware
   // This prevents the OAuth callback from going through passport session middleware
   const { callbackRouter } = await import('./google-calendar-routes');
