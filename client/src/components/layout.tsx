@@ -65,6 +65,7 @@ function Layout({ children }: LayoutProps) {
   const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
   const [isFinanceMenuOpen, setIsFinanceMenuOpen] = useState(false);
   const [isAdministrationMenuOpen, setIsAdministrationMenuOpen] = useState(false);
+  const [isMeetingsMenuOpen, setIsMeetingsMenuOpen] = useState(false);
   const [attendanceCheckCompleted, setAttendanceCheckCompleted] = useState(false);
 
   // Get all module permissions for the current user
@@ -113,6 +114,10 @@ function Layout({ children }: LayoutProps) {
   // Check if we're on any administration-related page
   const isOnAdministrationPage = location.startsWith('/admin') ||
                                location === '/module-permissions';
+
+  // Check if we're on any meetings-related page
+  const isOnMeetingsPage = location === '/admin/meetings-management' ||
+                          location === '/google-calendar-settings';
   
   // Auto-open menus based on current page
   useEffect(() => {
@@ -143,7 +148,11 @@ function Layout({ children }: LayoutProps) {
     if (isOnAdministrationPage && !isAdministrationMenuOpen) {
       setIsAdministrationMenuOpen(true);
     }
-  }, [isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage]);
+    
+    if (isOnMeetingsPage && !isMeetingsMenuOpen) {
+      setIsMeetingsMenuOpen(true);
+    }
+  }, [isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage]);
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
@@ -168,7 +177,13 @@ function Layout({ children }: LayoutProps) {
     ...(hasViewPermission("Meetings & Commitments") ? [{ 
       icon: CalendarDays, 
       label: "Meetings & Commitments", 
-      href: "/admin/meetings-management" 
+      isSubmenu: true,
+      isOpen: isMeetingsMenuOpen,
+      toggle: () => setIsMeetingsMenuOpen(!isMeetingsMenuOpen),
+      children: [
+        { icon: CalendarDays, label: "Meetings Management", href: "/admin/meetings-management" },
+        { icon: Settings, label: "Google Calendar Settings", href: "/google-calendar-settings" }
+      ]
     }] : []),
     ...(hasViewPermission("Administration") ? [{ 
       icon: Settings, 
