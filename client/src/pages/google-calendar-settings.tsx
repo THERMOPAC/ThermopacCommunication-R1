@@ -215,16 +215,46 @@ export default function GoogleCalendarSettings() {
                 </ul>
               </div>
               
-              <div className="space-y-3">
-                <p className="font-medium text-gray-900">Setup Instructions:</p>
-                <ol className="text-sm space-y-2 list-decimal list-inside text-gray-700">
-                  <li>Go to <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google Cloud Console</a></li>
-                  <li>Select project: <strong>thermopac-communication-system</strong></li>
-                  <li>Enable <strong>Google Calendar API</strong> in APIs & Services → Library</li>
-                  <li>Configure <strong>OAuth consent screen</strong> in APIs & Services → OAuth consent screen</li>
-                  <li>Add the redirect URI above to <strong>Authorized redirect URIs</strong> in APIs & Services → Credentials</li>
-                  <li>Make sure both required scopes are added to the OAuth consent screen</li>
-                </ol>
+              <div className="space-y-4">
+                <p className="font-medium text-gray-900">✅ Checklist to Resolve "accounts.google.com refused to connect":</p>
+                
+                <div className="space-y-3">
+                  <div className="border-l-4 border-blue-500 pl-4">
+                    <h4 className="font-semibold text-gray-900">🔹 1. Enable Google Calendar API</h4>
+                    <p className="text-sm text-gray-700">
+                      Go to <a href="https://console.cloud.google.com/apis/library" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">APIs & Services → Library</a>
+                      <br />Search for "Google Calendar API" and make sure it's enabled for project <strong>thermopac-communication-system</strong>
+                    </p>
+                  </div>
+                  
+                  <div className="border-l-4 border-green-500 pl-4">
+                    <h4 className="font-semibold text-gray-900">🔹 2. OAuth Consent Screen Setup</h4>
+                    <p className="text-sm text-gray-700">
+                      Go to <a href="https://console.cloud.google.com/apis/credentials/consent" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">APIs & Services → OAuth consent screen</a>
+                      <br />• Publishing Status: <strong>In Production</strong> (not Testing)
+                      <br />• Required scopes: calendar, userinfo.email
+                      <br />• Add test users if still in Testing mode
+                    </p>
+                  </div>
+                  
+                  <div className="border-l-4 border-orange-500 pl-4">
+                    <h4 className="font-semibold text-gray-900">🔹 3. Authorized Redirect URI</h4>
+                    <p className="text-sm text-gray-700">
+                      Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">APIs & Services → Credentials</a>
+                      <br />In your OAuth 2.0 Client ID, add this exact redirect URI:
+                      <br /><code className="bg-gray-100 px-2 py-1 rounded text-xs">{debugInfo.redirectUri}</code>
+                      <br /><span className="text-red-600 text-xs">⚠️ Even a missing / or typo will break it</span>
+                    </p>
+                  </div>
+                  
+                  <div className="border-l-4 border-purple-500 pl-4">
+                    <h4 className="font-semibold text-gray-900">🔹 4. Avoid Popup Blockers</h4>
+                    <p className="text-sm text-gray-700">
+                      Make sure popups are enabled for this domain, or the OAuth flow will fail.
+                      The system uses window.location.href redirect (not iframe) for better compatibility.
+                    </p>
+                  </div>
+                </div>
               </div>
               
               <Alert>
