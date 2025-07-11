@@ -193,7 +193,7 @@ export default function MeetingsManagement() {
 
   // Fetch Google Calendar connection status
   const { data: googleCalendarStatus } = useQuery({
-    queryKey: ['/api/google-calendar/calendar/status'],
+    queryKey: ['/api/calendar/status'],
     staleTime: 60000, // 1 minute
   });
 
