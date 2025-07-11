@@ -30,12 +30,12 @@ export class GoogleCalendarService {
   /**
    * Generate Google OAuth URL for calendar authorization
    */
-  generateAuthUrl(): string {
+  generateAuthUrl(customState?: string): string {
     return this.oauth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: CALENDAR_SCOPES,
       prompt: 'consent', // Force consent to get refresh token
-      state: 'service=calendar' // Add state parameter to identify this as calendar OAuth
+      state: customState || 'service=calendar' // Add state parameter to identify this as calendar OAuth
     });
   }
 
