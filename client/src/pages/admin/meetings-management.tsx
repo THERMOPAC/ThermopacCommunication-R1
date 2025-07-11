@@ -238,7 +238,7 @@ export default function MeetingsManagement() {
     requiresConnection?: boolean;
   }>({
     queryKey: ['/api/calendar/upcoming-events'],
-    enabled: activeTab === 'google-calendar',
+    enabled: activeTab === 'dashboard' || activeTab === 'google-calendar',
     retry: false,
   });
 
@@ -666,6 +666,99 @@ export default function MeetingsManagement() {
                 </div>
               ) : (
                 <p className="text-gray-500 text-center py-8">No upcoming meetings</p>
+              )}
+            </div>
+          </Card>
+
+          {/* Upcoming Google Calendar Events */}
+          <Card>
+            <div className="p-6 border-b">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Upcoming Google Calendar Events</h3>
+                <Badge variant="outline" className="text-blue-600">
+                  {googleCalendarEvents?.count || 0} events
+                </Badge>
+              </div>
+            </div>
+            <div className="p-6">
+              {googleCalendarLoading ? (
+                <p className="text-gray-500 text-center py-8">Loading calendar events...</p>
+              ) : googleCalendarError || !googleCalendarEvents?.success ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 mb-4">Unable to load Google Calendar events</p>
+                  <p className="text-sm text-gray-400">
+                    {googleCalendarEvents?.requiresConnection 
+                      ? 'Please connect your Google Calendar to view events' 
+                      : 'Check your Google Calendar connection'}
+                  </p>
+                </div>
+              ) : googleCalendarEvents?.events?.length ? (
+                <div className="space-y-4">
+                  {googleCalendarEvents.events.slice(0, 5).map((event) => (
+                    <div key={event.id} className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-100">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium text-blue-900">{event.summary || 'Untitled Event'}</h4>
+                          {event.hangoutLink && (
+                            <Badge variant="outline" className="text-blue-600 bg-blue-100">
+                              <VideoIcon className="h-3 w-3 mr-1" />
+                              Meet
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-blue-700 mt-1">
+                          <span className="flex items-center gap-1">
+                            <CalendarIcon className="h-4 w-4" />
+                            {event.start.dateTime 
+                              ? format(new Date(event.start.dateTime), 'MMM dd, yyyy')
+                              : event.start.date 
+                                ? format(new Date(event.start.date), 'MMM dd, yyyy')
+                                : 'No date'
+                            }
+                          </span>
+                          {event.start.dateTime && event.end.dateTime && (
+                            <span className="flex items-center gap-1">
+                              <ClockIcon className="h-4 w-4" />
+                              {format(new Date(event.start.dateTime), 'HH:mm')} - {format(new Date(event.end.dateTime), 'HH:mm')}
+                            </span>
+                          )}
+                          {event.location && (
+                            <span className="flex items-center gap-1">
+                              <MapPinIcon className="h-4 w-4" />
+                              {event.location}
+                            </span>
+                          )}
+                        </div>
+                        {event.description && (
+                          <p className="text-sm text-blue-600 mt-1 truncate">{event.description}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {event.hangoutLink && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.open(event.hangoutLink, '_blank')}
+                            className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                          >
+                            <VideoIcon className="h-4 w-4 mr-1" />
+                            Join
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => window.open(event.htmlLink, '_blank')}
+                          className="text-blue-600 hover:bg-blue-50"
+                        >
+                          <LinkIcon className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-8">No upcoming Google Calendar events</p>
               )}
             </div>
           </Card>
