@@ -679,216 +679,271 @@ export default function MeetingsManagement() {
                     <DialogTitle>{editingMeeting ? 'Edit Meeting' : 'Create New Meeting'}</DialogTitle>
                   </DialogHeader>
                   <Form {...meetingForm}>
-                    <form onSubmit={meetingForm.handleSubmit(onSubmitMeeting)} className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <FormField
-                          control={meetingForm.control}
-                          name="title"
-                          render={({ field }) => (
-                            <FormItem className="col-span-2">
-                              <FormLabel>Meeting Title</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Enter meeting title" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={meetingForm.control}
-                          name="meetingType"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Meeting Type</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <form onSubmit={meetingForm.handleSubmit(onSubmitMeeting)} className="space-y-8">
+                      
+                      {/* Basic Information Section */}
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Basic Information</h3>
+                        <div className="space-y-4">
+                          <FormField
+                            control={meetingForm.control}
+                            name="title"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="flex items-center gap-1">
+                                  Meeting Title
+                                  <span className="text-red-500">*</span>
+                                </FormLabel>
                                 <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select type" />
-                                  </SelectTrigger>
+                                  <Input placeholder="Enter meeting title" {...field} />
                                 </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="Team Meeting">Team Meeting</SelectItem>
-                                  <SelectItem value="One-on-One">One-on-One</SelectItem>
-                                  <SelectItem value="Board Meeting">Board Meeting</SelectItem>
-                                  <SelectItem value="Client Meeting">Client Meeting</SelectItem>
-                                  <SelectItem value="Project Review">Project Review</SelectItem>
-                                  <SelectItem value="Training">Training</SelectItem>
-                                  <SelectItem value="Interview">Interview</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={meetingForm.control}
-                          name="priority"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Priority</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select priority" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="Low">Low</SelectItem>
-                                  <SelectItem value="Medium">Medium</SelectItem>
-                                  <SelectItem value="High">High</SelectItem>
-                                  <SelectItem value="Critical">Critical</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={meetingForm.control}
-                          name="meetingDate"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Meeting Date</FormLabel>
-                              <FormControl>
-                                <Input type="date" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={meetingForm.control}
-                          name="startTime"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Start Time</FormLabel>
-                              <FormControl>
-                                <Input type="time" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={meetingForm.control}
-                          name="endTime"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>End Time</FormLabel>
-                              <FormControl>
-                                <Input type="time" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={meetingForm.control}
-                          name="location"
-                          render={({ field }) => (
-                            <FormItem className="col-span-2">
-                              <FormLabel>Location</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Meeting location or online meeting URL" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={meetingForm.control}
-                          name="description"
-                          render={({ field }) => (
-                            <FormItem className="col-span-2">
-                              <FormLabel>Description</FormLabel>
-                              <FormControl>
-                                <Textarea placeholder="Meeting description" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={meetingForm.control}
-                          name="attendeeIds"
-                          render={({ field }) => (
-                            <FormItem className="col-span-2">
-                              <FormLabel>Participants / Attendees</FormLabel>
-                              <FormControl>
-                                <Select 
-                                  onValueChange={(value) => {
-                                    const currentValues = field.value || [];
-                                    if (!currentValues.includes(parseInt(value))) {
-                                      field.onChange([...currentValues, parseInt(value)]);
-                                    }
-                                  }} 
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select team members to invite" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {Object.entries(groupedUsers).length > 0 ? (
-                                      Object.entries(groupedUsers).map(([role, users]) => (
-                                        <SelectGroup key={role}>
-                                          <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
-                                            {role}s
-                                          </SelectLabel>
-                                          {users.map((user) => (
-                                            <SelectItem key={user.id} value={user.id.toString()}>
-                                              {user.username}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectGroup>
-                                      ))
-                                    ) : (
-                                      <SelectItem value="loading" disabled>Loading users...</SelectItem>
-                                    )}
-                                  </SelectContent>
-                                </Select>
-                              </FormControl>
-                              {field.value && field.value.length > 0 && (
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                  {field.value.map((attendeeId) => {
-                                    const user = users?.find(u => u.id === attendeeId);
-                                    return user ? (
-                                      <Badge key={attendeeId} variant="outline" className="flex items-center gap-1">
-                                        <UsersIcon className="h-3 w-3" />
-                                        {user.username}
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            field.onChange(field.value.filter(id => id !== attendeeId));
-                                          }}
-                                          className="ml-1 text-red-500 hover:text-red-700"
-                                        >
-                                          ×
-                                        </button>
-                                      </Badge>
-                                    ) : null;
-                                  })}
-                                </div>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                              control={meetingForm.control}
+                              name="meetingType"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="flex items-center gap-1">
+                                    Meeting Type
+                                    <span className="text-red-500">*</span>
+                                  </FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select type" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="Team Meeting">Team Meeting</SelectItem>
+                                      <SelectItem value="One-on-One">One-on-One</SelectItem>
+                                      <SelectItem value="Board Meeting">Board Meeting</SelectItem>
+                                      <SelectItem value="Client Meeting">Client Meeting</SelectItem>
+                                      <SelectItem value="Project Review">Project Review</SelectItem>
+                                      <SelectItem value="Training">Training</SelectItem>
+                                      <SelectItem value="Interview">Interview</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
                               )}
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={meetingForm.control}
-                          name="agenda"
-                          render={({ field }) => (
-                            <FormItem className="col-span-2">
-                              <FormLabel>Agenda</FormLabel>
-                              <FormControl>
-                                <Textarea placeholder="Meeting agenda items" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        {/* Google Calendar & Meet Integration */}
-                        <div className="col-span-2 space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                          <div className="flex items-center gap-2">
+                            />
+                            
+                            <FormField
+                              control={meetingForm.control}
+                              name="priority"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Priority</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select priority" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="Low">Low</SelectItem>
+                                      <SelectItem value="Medium">Medium</SelectItem>
+                                      <SelectItem value="High">High</SelectItem>
+                                      <SelectItem value="Critical">Critical</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Date & Time Section */}
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Date & Time</h3>
+                        <div className="grid grid-cols-3 gap-4">
+                          <FormField
+                            control={meetingForm.control}
+                            name="meetingDate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="flex items-center gap-1">
+                                  Meeting Date
+                                  <span className="text-red-500">*</span>
+                                </FormLabel>
+                                <FormControl>
+                                  <Input type="date" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={meetingForm.control}
+                            name="startTime"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="flex items-center gap-1">
+                                  Start Time
+                                  <span className="text-red-500">*</span>
+                                </FormLabel>
+                                <FormControl>
+                                  <Input type="time" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={meetingForm.control}
+                            name="endTime"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="flex items-center gap-1">
+                                  End Time
+                                  <span className="text-red-500">*</span>
+                                </FormLabel>
+                                <FormControl>
+                                  <Input type="time" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Meeting Details Section */}
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Meeting Details</h3>
+                        <div className="space-y-4">
+                          <FormField
+                            control={meetingForm.control}
+                            name="description"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Description</FormLabel>
+                                <FormControl>
+                                  <Textarea placeholder="Meeting description" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={meetingForm.control}
+                            name="agenda"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Agenda</FormLabel>
+                                <FormControl>
+                                  <Textarea placeholder="Meeting agenda items" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={meetingForm.control}
+                            name="location"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Meeting Link</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Auto-generated Meet link or custom meeting URL" {...field} />
+                                </FormControl>
+                                <div className="text-xs text-gray-500">
+                                  Will be auto-filled if Google Calendar is connected and integration is enabled
+                                </div>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Participants Section */}
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Participants</h3>
+                        <div className="space-y-4">
+                          <FormField
+                            control={meetingForm.control}
+                            name="attendeeIds"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Participants / Attendees</FormLabel>
+                                <FormControl>
+                                  <Select 
+                                    onValueChange={(value) => {
+                                      const currentValues = field.value || [];
+                                      if (!currentValues.includes(parseInt(value))) {
+                                        field.onChange([...currentValues, parseInt(value)]);
+                                      }
+                                    }} 
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select team members to invite" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {Object.entries(groupedUsers).length > 0 ? (
+                                        Object.entries(groupedUsers).map(([role, users]) => (
+                                          <SelectGroup key={role}>
+                                            <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                              {role}s
+                                            </SelectLabel>
+                                            {users.map((user) => (
+                                              <SelectItem key={user.id} value={user.id.toString()}>
+                                                {user.username}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectGroup>
+                                        ))
+                                      ) : (
+                                        <SelectItem value="loading" disabled>Loading users...</SelectItem>
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                </FormControl>
+                                {field.value && field.value.length > 0 && (
+                                  <div className="flex flex-wrap gap-2 mt-2">
+                                    {field.value.map((attendeeId) => {
+                                      const user = users?.find(u => u.id === attendeeId);
+                                      return user ? (
+                                        <Badge key={attendeeId} variant="outline" className="flex items-center gap-1">
+                                          <UsersIcon className="h-3 w-3" />
+                                          {user.username}
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              field.onChange(field.value.filter(id => id !== attendeeId));
+                                            }}
+                                            className="ml-1 text-red-500 hover:text-red-700"
+                                          >
+                                            ×
+                                          </button>
+                                        </Badge>
+                                      ) : null;
+                                    })}
+                                  </div>
+                                )}
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Google Integration Section */}
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Google Integration</h3>
+                        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center gap-2 mb-4">
                             <VideoIcon className="h-5 w-5 text-blue-600" />
                             <h4 className="font-medium text-blue-900">Google Calendar & Meet Integration</h4>
                           </div>
@@ -916,12 +971,13 @@ export default function MeetingsManagement() {
                             )}
                           />
                           
-                          <div className="text-xs text-blue-700 bg-blue-100 p-2 rounded">
+                          <div className="text-xs text-blue-700 bg-blue-100 p-2 rounded mt-4">
                             <SettingsIcon className="h-4 w-4 inline mr-1" />
                             Connect your Google account in <a href="/google-calendar-settings" className="underline font-medium">Google Calendar Settings</a> to enable this feature
                           </div>
                         </div>
                       </div>
+                      
                       <div className="flex justify-end gap-3">
                         <Button type="button" variant="outline" onClick={resetMeetingForm}>
                           Cancel
