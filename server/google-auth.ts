@@ -126,27 +126,16 @@ export function setupGoogleAuth(app: Express) {
     });
   });
 
-  // First, capture any path that ends with /auth/google/callback
-  // This helps us handle potential path prefixes or variations
-  app.get('**/auth/google/callback', (req, res, next) => {
-    console.log('==== CALLBACK HANDLER TRIGGERED ====');
+  // Only handle the exact Gmail OAuth callback path, not API routes
+  app.get('/auth/google/callback', (req, res, next) => {
+    console.log('==== GMAIL AUTH CALLBACK HANDLER TRIGGERED ====');
     console.log('Original URL:', req.originalUrl);
     console.log('Path:', req.path);
     console.log('Query:', req.query);
     console.log('Is authenticated:', req.isAuthenticated());
     
-    // If this is our exact expected path, let this route handle it
-    if (req.path === '/auth/google/callback') {
-      console.log('Processing exact callback path match');
-      handleGoogleCallback(req, res, next);
-    } else {
-      // If it's a variation, redirect to the correct path
-      const callbackPath = '/auth/google/callback';
-      const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
-      const redirectUrl = `${callbackPath}${queryString}`;
-      console.log(`Redirecting variant callback path to: ${redirectUrl}`);
-      res.redirect(redirectUrl);
-    }
+    // Process this Gmail OAuth callback
+    handleGoogleCallback(req, res, next);
   });
   
   // Define a function to handle the callback logic
