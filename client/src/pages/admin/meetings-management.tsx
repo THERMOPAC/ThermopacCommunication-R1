@@ -736,6 +736,59 @@ export default function MeetingsManagement() {
                         />
                         <FormField
                           control={meetingForm.control}
+                          name="attendeeIds"
+                          render={({ field }) => (
+                            <FormItem className="col-span-2">
+                              <FormLabel>Participants / Attendees</FormLabel>
+                              <FormControl>
+                                <Select 
+                                  onValueChange={(value) => {
+                                    const currentValues = field.value || [];
+                                    if (!currentValues.includes(parseInt(value))) {
+                                      field.onChange([...currentValues, parseInt(value)]);
+                                    }
+                                  }} 
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select attendees to invite" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {usersData?.map((user) => (
+                                      <SelectItem key={user.id} value={user.id.toString()}>
+                                        {user.username} ({user.email})
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                              {field.value && field.value.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  {field.value.map((attendeeId) => {
+                                    const user = usersData?.find(u => u.id === attendeeId);
+                                    return user ? (
+                                      <Badge key={attendeeId} variant="outline" className="flex items-center gap-1">
+                                        <UsersIcon className="h-3 w-3" />
+                                        {user.username}
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            field.onChange(field.value.filter(id => id !== attendeeId));
+                                          }}
+                                          className="ml-1 text-red-500 hover:text-red-700"
+                                        >
+                                          ×
+                                        </button>
+                                      </Badge>
+                                    ) : null;
+                                  })}
+                                </div>
+                              )}
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={meetingForm.control}
                           name="agenda"
                           render={({ field }) => (
                             <FormItem className="col-span-2">
