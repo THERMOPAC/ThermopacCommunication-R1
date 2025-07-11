@@ -171,38 +171,84 @@ export class GoogleCalendarService {
       console.log(`Retrieved ${events.length} total events from Google Calendar`);
 
       // Transform ALL events to our format (not just those with Meet links)
-      const transformedEvents = events.map(event => ({
-        id: event.id,
-        summary: event.summary || 'Untitled Event',
-        description: event.description || '',
-        start: {
-          dateTime: event.start?.dateTime,
-          date: event.start?.date,
-          timeZone: event.start?.timeZone
-        },
-        end: {
-          dateTime: event.end?.dateTime,
-          date: event.end?.date,
-          timeZone: event.end?.timeZone
-        },
-        hangoutLink: event.hangoutLink,
-        location: event.location,
-        status: event.status,
-        htmlLink: event.htmlLink,
-        creator: {
-          email: event.creator?.email,
-          displayName: event.creator?.displayName
-        },
-        organizer: {
-          email: event.organizer?.email,
-          displayName: event.organizer?.displayName
-        },
-        attendees: event.attendees?.map(attendee => ({
-          email: attendee.email,
-          displayName: attendee.displayName,
-          responseStatus: attendee.responseStatus
-        })) || []
-      }));
+      const transformedEvents = events.map(event => {
+        // Extract meeting links from various fields
+        const extractMeetingLink = (event: any): string | null => {
+          // Primary: hangoutLink (official Google Meet link)
+          if (event.hangoutLink) {
+            return event.hangoutLink;
+          }
+          
+          // Secondary: check description for meeting links
+          if (event.description) {
+            const meetLinkRegex = /https:\/\/meet\.google\.com\/[a-z0-9-]+/i;
+            const teamsLinkRegex = /https:\/\/[a-z0-9-]+\.teams\.microsoft\.com\/[^\s]+/i;
+            const zoomLinkRegex = /https:\/\/[a-z0-9-]+\.zoom\.us\/j\/[0-9]+/i;
+            
+            const meetMatch = event.description.match(meetLinkRegex);
+            if (meetMatch) return meetMatch[0];
+            
+            const teamsMatch = event.description.match(teamsLinkRegex);
+            if (teamsMatch) return teamsMatch[0];
+            
+            const zoomMatch = event.description.match(zoomLinkRegex);
+            if (zoomMatch) return zoomMatch[0];
+          }
+          
+          // Tertiary: check location field for meeting links
+          if (event.location) {
+            const meetLinkRegex = /https:\/\/meet\.google\.com\/[a-z0-9-]+/i;
+            const teamsLinkRegex = /https:\/\/[a-z0-9-]+\.teams\.microsoft\.com\/[^\s]+/i;
+            const zoomLinkRegex = /https:\/\/[a-z0-9-]+\.zoom\.us\/j\/[0-9]+/i;
+            
+            const meetMatch = event.location.match(meetLinkRegex);
+            if (meetMatch) return meetMatch[0];
+            
+            const teamsMatch = event.location.match(teamsLinkRegex);
+            if (teamsMatch) return teamsMatch[0];
+            
+            const zoomMatch = event.location.match(zoomLinkRegex);
+            if (zoomMatch) return zoomMatch[0];
+          }
+          
+          return null;
+        };
+
+        const extractedMeetingLink = extractMeetingLink(event);
+        
+        return {
+          id: event.id,
+          summary: event.summary || 'Untitled Event',
+          description: event.description || '',
+          start: {
+            dateTime: event.start?.dateTime,
+            date: event.start?.date,
+            timeZone: event.start?.timeZone
+          },
+          end: {
+            dateTime: event.end?.dateTime,
+            date: event.end?.date,
+            timeZone: event.end?.timeZone
+          },
+          hangoutLink: extractedMeetingLink || event.hangoutLink,
+          location: event.location,
+          status: event.status,
+          htmlLink: event.htmlLink,
+          creator: {
+            email: event.creator?.email,
+            displayName: event.creator?.displayName
+          },
+          organizer: {
+            email: event.organizer?.email,
+            displayName: event.organizer?.displayName
+          },
+          attendees: event.attendees?.map(attendee => ({
+            email: attendee.email,
+            displayName: attendee.displayName,
+            responseStatus: attendee.responseStatus
+          })) || []
+        };
+      });
 
       console.log(`Successfully fetched and transformed ${transformedEvents.length} upcoming events from Google Calendar`);
       return transformedEvents;
