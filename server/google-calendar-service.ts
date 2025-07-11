@@ -170,12 +170,8 @@ export class GoogleCalendarService {
       const events = response.data.items || [];
       console.log(`Retrieved ${events.length} total events from Google Calendar`);
 
-      // Filter events that have Google Meet links (hangoutLink)
-      const meetEvents = events.filter(event => event.hangoutLink);
-      console.log(`Found ${meetEvents.length} events with Google Meet links`);
-
-      // Transform events to our format
-      const transformedEvents = meetEvents.map(event => ({
+      // Transform ALL events to our format (not just those with Meet links)
+      const transformedEvents = events.map(event => ({
         id: event.id,
         summary: event.summary || 'Untitled Event',
         description: event.description || '',
@@ -208,7 +204,7 @@ export class GoogleCalendarService {
         })) || []
       }));
 
-      console.log(`Successfully fetched and transformed ${transformedEvents.length} upcoming events with Google Meet links`);
+      console.log(`Successfully fetched and transformed ${transformedEvents.length} upcoming events from Google Calendar`);
       return transformedEvents;
 
     } catch (error) {
