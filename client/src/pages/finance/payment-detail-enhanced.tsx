@@ -79,6 +79,10 @@ export default function PaymentDetailEnhanced() {
   const payment = paymentData?.payment as PaymentDetails;
   const allocations = allocationsData?.allocations || [];
   
+  // Calculate totals from actual allocations data
+  const calculatedAllocatedAmount = allocations.reduce((sum, allocation) => sum + allocation.amountApplied, 0);
+  const calculatedUnallocatedAmount = payment ? parseFloat(payment.amount) - calculatedAllocatedAmount : 0;
+  
   const handleNavigateToEdit = () => {
     setLocation(`/finance/payments/${paymentId}/edit`);
   };
@@ -180,7 +184,7 @@ export default function PaymentDetailEnhanced() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {formatCurrency(payment.allocatedAmount, payment.currency)}
+                {formatCurrency(calculatedAllocatedAmount, payment.currency)}
               </div>
               <p className="text-xs text-muted-foreground">
                 Applied to {allocations.length} invoice{allocations.length !== 1 ? 's' : ''}
@@ -195,7 +199,7 @@ export default function PaymentDetailEnhanced() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">
-                {formatCurrency(payment.unallocatedAmount, payment.currency)}
+                {formatCurrency(calculatedUnallocatedAmount, payment.currency)}
               </div>
               <p className="text-xs text-muted-foreground">
                 Available for allocation
@@ -276,21 +280,21 @@ export default function PaymentDetailEnhanced() {
                     <span className="font-medium">Total Allocations:</span> {allocations.length}
                   </div>
                   <div className="text-sm">
-                    <span className="font-medium">Total Applied:</span> {formatCurrency(payment.allocatedAmount, payment.currency)}
+                    <span className="font-medium">Total Applied:</span> {formatCurrency(calculatedAllocatedAmount, payment.currency)}
                   </div>
                   <div className="text-sm">
-                    <span className="font-medium">Remaining:</span> {formatCurrency(payment.unallocatedAmount, payment.currency)}
+                    <span className="font-medium">Remaining:</span> {formatCurrency(calculatedUnallocatedAmount, payment.currency)}
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className="bg-green-600 h-2 rounded-full" 
                       style={{ 
-                        width: `${(parseFloat(payment.allocatedAmount) / parseFloat(payment.amount)) * 100}%` 
+                        width: `${(calculatedAllocatedAmount / parseFloat(payment.amount)) * 100}%` 
                       }}
                     ></div>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {((parseFloat(payment.allocatedAmount) / parseFloat(payment.amount)) * 100).toFixed(1)}% allocated
+                    {((calculatedAllocatedAmount / parseFloat(payment.amount)) * 100).toFixed(1)}% allocated
                   </div>
                 </div>
               ) : (
