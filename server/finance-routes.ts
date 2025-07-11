@@ -2999,6 +2999,97 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
 });
 
 /**
+ * Get unallocated advance payments - direct route (fixed calculation from payment_invoice_links)
+ */
+router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    console.log('Fetching unallocated advance payments with calculated allocation amounts...');
+    
+    const query = `
+      SELECT 
+        p.id, 
+        p.irm_no as "paymentReference",
+        p.customer_id as "customerId",
+        c.bp_name as "customerName",
+        p.payment_date as "paymentDate",
+        p.amount,
+        COALESCE(SUM(pil.amount_applied), 0) as "calculatedAllocatedAmount",
+        p.payment_method as "paymentMethod",
+        p.payment_type as "paymentType",
+        p.currency,
+        p.notes,
+        p.is_advance_payment as "isAdvancePayment"
+      FROM 
+        payments p
+      JOIN 
+        customers c ON p.customer_id = c.id
+      LEFT JOIN 
+        payment_invoice_links pil ON p.id = pil.payment_id
+      WHERE 
+        p.is_advance_payment = true
+      GROUP BY 
+        p.id, c.bp_name, p.irm_no, p.customer_id, p.payment_date, p.amount, 
+        p.payment_method, p.payment_type, p.currency, p.notes, p.is_advance_payment
+      HAVING 
+        p.amount - COALESCE(SUM(pil.amount_applied), 0) > 0.01
+      ORDER BY 
+        p.payment_date DESC
+    `;
+    
+    const result = await pool.query(query);
+    const advances = result.rows;
+    
+    console.log(`Found ${advances.length} unallocated advance payments`);
+    
+    // Format the response with calculated values
+    const formattedAdvances = advances.map(payment => {
+      const totalAmount = parseFloat(payment.amount);
+      const calculatedAllocated = parseFloat(payment.calculatedAllocatedAmount || '0');
+      const remainingAmount = totalAmount - calculatedAllocated;
+      
+      return {
+        id: payment.id,
+        paymentReference: payment.paymentReference,
+        customerId: payment.customerId,
+        customerName: payment.customerName,
+        paymentDate: payment.paymentDate,
+        amount: totalAmount.toString(),
+        allocatedAmount: calculatedAllocated.toString(),
+        unallocatedAmount: remainingAmount.toString(),
+        paymentMethod: payment.paymentMethod,
+        paymentType: payment.paymentType,
+        currency: payment.currency,
+        notes: payment.notes,
+        isAdvancePayment: payment.isAdvancePayment
+      };
+    });
+    
+    console.log(`After formatting: ${formattedAdvances.length} unallocated advance payments`);
+    
+    // Calculate total unallocated amount
+    const totalUnallocated = formattedAdvances.reduce((sum, payment) => {
+      const amount = parseFloat(payment.unallocatedAmount) || 0;
+      return sum + amount;
+    }, 0);
+    
+    res.json({
+      advances: formattedAdvances,
+      totalUnallocatedAmount: totalUnallocated.toFixed(2),
+      count: formattedAdvances.length
+    });
+    
+  } catch (error) {
+    console.error('Error getting unallocated advances:', error);
+    res.status(500).json({
+      error: 'Failed to fetch unallocated advances',
+      advances: [],
+      totalUnallocatedAmount: "0.00",
+      count: 0
+    });
+  }
+});
+
+/**
  * Apply available advance payments to an existing invoice
  */
 router.post('/invoices/:id/apply-advances', ensureAuthenticated, async (req: Request, res: Response) => {
