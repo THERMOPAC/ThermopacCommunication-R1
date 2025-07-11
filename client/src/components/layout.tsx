@@ -284,7 +284,7 @@ function Layout({ children }: LayoutProps) {
     ...(user?.role === "Superuser" ? [{ icon: Factory, label: "Work Locations", href: "/work-locations" }] : []),
     { icon: CalendarClock, label: "Attendance", href: "/attendance" },
     { icon: FileText, label: "Daily Work Report", href: "/dwar" },
-    { icon: IndianRupee, label: "Payroll", href: "/payroll" },
+
     { icon: Lightbulb, label: "Recommendations", href: "/recommendations" },
     { icon: Award, label: "Leaderboard", href: "/leaderboard" },
     { icon: Mail, label: "Emails", href: "/emails" },
@@ -478,7 +478,6 @@ function Layout({ children }: LayoutProps) {
                   item.href === '/team' || 
                   item.href === '/work-locations' || 
                   item.href === '/dwar' || 
-                  item.href === '/payroll' || 
                   item.href === '/recommendations' || 
                   item.href === '/leaderboard' || 
                   item.href === '/emails'
