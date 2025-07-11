@@ -8,7 +8,7 @@ import { eq } from 'drizzle-orm';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 // Use the authorized redirect URI from environment
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/auth/google/callback';
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'https://thermopac-communication-thermopacllp.replit.app/api/auth/google/callback';
 
 // Scopes required for Google Calendar and Meet access
 const CALENDAR_SCOPES = [
