@@ -481,7 +481,9 @@ export class GoogleCalendarService {
    */
   private createDateTime(date: string, time: string, timezone: string): string {
     const dateStr = new Date(date).toISOString().split('T')[0];
-    return `${dateStr}T${time}`;
+    // Ensure time has seconds (Google Calendar API requirement)
+    const timeWithSeconds = time.includes(':') && time.split(':').length === 2 ? `${time}:00` : time;
+    return `${dateStr}T${timeWithSeconds}`;
   }
 
   /**
