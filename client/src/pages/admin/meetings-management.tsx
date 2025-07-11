@@ -1013,7 +1013,7 @@ export default function MeetingsManagement() {
                             {googleCalendarStatus?.isConnected ? (
                               <>Manage your Google Calendar settings in <button 
                                 onClick={() => {
-                                  setShowMeetingDialog(false);
+                                  setIsCreateMeetingOpen(false);
                                   setTimeout(() => window.location.href = '/google-calendar-settings', 100);
                                 }} 
                                 className="underline font-medium text-green-700 hover:text-green-800"
@@ -1025,7 +1025,7 @@ export default function MeetingsManagement() {
                                   type="button"
                                   size="sm"
                                   onClick={() => {
-                                    setShowMeetingDialog(false);
+                                    setIsCreateMeetingOpen(false);
                                     setTimeout(() => window.location.href = '/api/auth/google/calendar', 100);
                                   }}
                                   className="bg-blue-600 hover:bg-blue-700 text-white w-fit"
@@ -1035,7 +1035,7 @@ export default function MeetingsManagement() {
                                 <div className="text-xs">
                                   Or manage settings in <button 
                                     onClick={() => {
-                                      setShowMeetingDialog(false);
+                                      setIsCreateMeetingOpen(false);
                                       setTimeout(() => window.location.href = '/google-calendar-settings', 100);
                                     }} 
                                     className="underline font-medium text-blue-700 hover:text-blue-800"
