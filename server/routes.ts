@@ -93,7 +93,8 @@ import {
   enableMeetingRecording,
   processAIMeetingNotes,
   updateAIGeneratedContent,
-  getAIMeetingNotes
+  getAIMeetingNotes,
+  generateGoogleMeetLink
 } from "./meetings-routes";
 
 const scryptAsync = promisify(scrypt);
@@ -2785,6 +2786,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Task Integration endpoints
   app.get('/api/meetings/:meetingId/tasks', ensureAuthenticated, getMeetingTasks);
   app.get('/api/meetings/commitment-tasks', ensureAuthenticated, getCommitmentTasks);
+  
+  // Google Meet Integration endpoints
+  app.post('/api/meetings/:id/generate-meet-link', ensureAuthenticated, generateGoogleMeetLink);
   
   // AI Meeting Notes endpoints
   app.post('/api/meetings/:id/recording/enable', ensureAuthenticated, enableMeetingRecording);

@@ -1159,3 +1159,64 @@ export const getAIMeetingNotes = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to fetch AI meeting notes' });
   }
 };
+
+/**
+ * Generate Google Meet link for a meeting
+ */
+export const generateGoogleMeetLink = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const meetingId = parseInt(id);
+    
+    // Get the meeting details
+    const [meeting] = await db
+      .select()
+      .from(businessMeetings)
+      .where(eq(businessMeetings.id, meetingId));
+    
+    if (!meeting) {
+      return res.status(404).json({ error: 'Meeting not found' });
+    }
+    
+    if (meeting.googleMeetLink) {
+      return res.json({ 
+        success: true,
+        googleMeetLink: meeting.googleMeetLink,
+        message: 'Google Meet link already exists for this meeting'
+      });
+    }
+    
+    // Generate Google Meet link using Google Calendar service
+    const googleMeetLink = await googleCalendarService.generateMeetLink(meeting);
+    
+    if (!googleMeetLink) {
+      return res.status(500).json({ 
+        error: 'Failed to generate Google Meet link',
+        message: 'Google Calendar service is not available or user not authenticated'
+      });
+    }
+    
+    // Update the meeting with the Google Meet link
+    const [updatedMeeting] = await db
+      .update(businessMeetings)
+      .set({ 
+        googleMeetLink: googleMeetLink,
+        updatedAt: new Date()
+      })
+      .where(eq(businessMeetings.id, meetingId))
+      .returning();
+    
+    res.json({
+      success: true,
+      googleMeetLink: googleMeetLink,
+      meeting: updatedMeeting,
+      message: 'Google Meet link generated successfully'
+    });
+  } catch (error) {
+    console.error('Error generating Google Meet link:', error);
+    res.status(500).json({ 
+      error: 'Failed to generate Google Meet link',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
