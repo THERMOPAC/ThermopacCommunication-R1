@@ -89,7 +89,11 @@ import {
   sendCommitmentReminder,
   escalateCommitment,
   getMeetingTasks,
-  getCommitmentTasks
+  getCommitmentTasks,
+  enableMeetingRecording,
+  processAIMeetingNotes,
+  updateAIGeneratedContent,
+  getAIMeetingNotes
 } from "./meetings-routes";
 
 const scryptAsync = promisify(scrypt);
@@ -2781,6 +2785,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Task Integration endpoints
   app.get('/api/meetings/:meetingId/tasks', ensureAuthenticated, getMeetingTasks);
   app.get('/api/meetings/commitment-tasks', ensureAuthenticated, getCommitmentTasks);
+  
+  // AI Meeting Notes endpoints
+  app.post('/api/meetings/:id/recording/enable', ensureAuthenticated, enableMeetingRecording);
+  app.post('/api/meetings/:id/ai-notes/process', ensureAuthenticated, processAIMeetingNotes);
+  app.put('/api/meetings/:id/ai-notes/update', ensureAuthenticated, updateAIGeneratedContent);
+  app.get('/api/meetings/:id/ai-notes', ensureAuthenticated, getAIMeetingNotes);
   
   console.log('Meetings & Commitments routes registered at /api/meetings');
   

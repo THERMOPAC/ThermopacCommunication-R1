@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO, addDays } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import AIMeetingNotes from '@/components/ai-meeting-notes';
 
 // Form schemas
 const meetingFormSchema = z.object({
@@ -151,6 +152,7 @@ export default function MeetingsManagement() {
   const [isCreateCommitmentOpen, setIsCreateCommitmentOpen] = useState(false);
   const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
   const [editingCommitment, setEditingCommitment] = useState<Commitment | null>(null);
+  const [selectedMeetingForAI, setSelectedMeetingForAI] = useState<Meeting | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -170,7 +172,7 @@ export default function MeetingsManagement() {
   // Fetch all meetings
   const { data: meetingsData, isLoading: meetingsLoading } = useQuery<{ meetings: Meeting[] }>({
     queryKey: ['/api/meetings', { status: statusFilter, type: typeFilter, priority: priorityFilter }],
-    enabled: activeTab === 'meetings',
+    enabled: activeTab === 'meetings' || activeTab === 'ai-notes',
   });
 
   // Fetch commitments
@@ -414,7 +416,7 @@ export default function MeetingsManagement() {
         </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <BarChart3Icon className="h-4 w-4" />
             Dashboard
@@ -426,6 +428,10 @@ export default function MeetingsManagement() {
           <TabsTrigger value="commitments" className="flex items-center gap-2">
             <ListChecksIcon className="h-4 w-4" />
             Commitments
+          </TabsTrigger>
+          <TabsTrigger value="ai-notes" className="flex items-center gap-2">
+            <BellIcon className="h-4 w-4" />
+            AI Notes
           </TabsTrigger>
           <TabsTrigger value="analytics" className="flex items-center gap-2">
             <TrendingUpIcon className="h-4 w-4" />
@@ -1099,6 +1105,83 @@ export default function MeetingsManagement() {
                 </div>
               )}
             </div>
+          </Card>
+        </TabsContent>
+
+        {/* AI Notes Tab */}
+        <TabsContent value="ai-notes" className="space-y-6">
+          <Card className="p-6">
+            <div className="flex flex-col sm:flex-row gap-4 items-start justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-semibold">AI Meeting Notes</h3>
+                <p className="text-gray-600">Select a meeting to view AI-generated notes and recordings</p>
+              </div>
+            </div>
+            
+            {/* Meeting Selection List */}
+            {selectedMeetingForAI ? (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-md font-medium">
+                    AI Notes for: {selectedMeetingForAI.meeting.title}
+                  </h4>
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedMeetingForAI(null)}
+                  >
+                    Back to Meeting List
+                  </Button>
+                </div>
+                
+                {/* AI Meeting Notes Component */}
+                <AIMeetingNotes
+                  meetingId={selectedMeetingForAI.meeting.id}
+                  meetingData={selectedMeetingForAI.meeting}
+                  onUpdate={() => {
+                    queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
+                  }}
+                />
+              </div>
+            ) : (
+              <div>
+                {meetingsData?.meetings && meetingsData.meetings.length > 0 ? (
+                  <div className="space-y-4">
+                    {meetingsData.meetings.map((meeting) => (
+                      <Card
+                        key={meeting.meeting.id}
+                        className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                        onClick={() => setSelectedMeetingForAI(meeting)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-medium">{meeting.meeting.title}</h4>
+                            <p className="text-sm text-gray-600">
+                              {format(parseISO(meeting.meeting.meetingDate), 'MMM d, yyyy')} at {meeting.meeting.startTime}
+                            </p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Badge variant={meeting.meeting.googleMeetLink ? 'default' : 'secondary'}>
+                                {meeting.meeting.googleMeetLink ? 'Google Meet' : 'No Meet Link'}
+                              </Badge>
+                              <Badge variant={meeting.meeting.aiNotesGenerated ? 'default' : 'secondary'}>
+                                {meeting.meeting.aiNotesGenerated ? 'AI Notes Available' : 'No AI Notes'}
+                              </Badge>
+                            </div>
+                          </div>
+                          <Button variant="outline" size="sm">
+                            View AI Notes
+                          </Button>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <CalendarDaysIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">No meetings found</p>
+                  </div>
+                )}
+              </div>
+            )}
           </Card>
         </TabsContent>
 

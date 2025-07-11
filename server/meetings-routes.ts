@@ -22,6 +22,7 @@ import {
 } from '@shared/schema';
 import { ensureAuthenticated } from './middlewares/auth';
 import { googleCalendarService } from './google-calendar-service';
+import { aiMeetingNotesService } from './ai-meeting-notes-service';
 
 // =============================================================================
 // BUSINESS MEETINGS ENDPOINTS
@@ -1037,5 +1038,124 @@ export const getCommitmentTasks = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching commitment tasks:', error);
     res.status(500).json({ error: 'Failed to fetch commitment tasks' });
+  }
+};
+
+// =============================================================================
+// AI MEETING NOTES ENDPOINTS
+// =============================================================================
+
+/**
+ * Enable recording for a meeting
+ */
+export const enableMeetingRecording = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const success = await aiMeetingNotesService.enableMeetingRecording(parseInt(id));
+    
+    if (success) {
+      res.json({ 
+        success: true, 
+        message: 'Recording enabled for meeting. Google Meet will automatically record when the meeting starts.' 
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to enable recording' 
+      });
+    }
+  } catch (error) {
+    console.error('Error enabling meeting recording:', error);
+    res.status(500).json({ error: 'Failed to enable meeting recording' });
+  }
+};
+
+/**
+ * Process AI notes from Google Meet transcript
+ */
+export const processAIMeetingNotes = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { transcriptUrl, recordingUrl } = req.body;
+    
+    const success = await aiMeetingNotesService.processAINotesFromTranscript(
+      parseInt(id), 
+      transcriptUrl, 
+      recordingUrl
+    );
+    
+    if (success) {
+      res.json({ 
+        success: true, 
+        message: 'AI meeting notes processing initiated. Notes will be available once Google Meet completes processing.' 
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to process AI meeting notes' 
+      });
+    }
+  } catch (error) {
+    console.error('Error processing AI meeting notes:', error);
+    res.status(500).json({ error: 'Failed to process AI meeting notes' });
+  }
+};
+
+/**
+ * Update AI-generated content (called by Google Meet webhook or manual update)
+ */
+export const updateAIGeneratedContent = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { aiSummary, aiActionItems, aiKeyPoints } = req.body;
+    
+    const success = await aiMeetingNotesService.updateAIGeneratedContent(
+      parseInt(id),
+      aiSummary,
+      aiActionItems || [],
+      aiKeyPoints || []
+    );
+    
+    if (success) {
+      res.json({ 
+        success: true, 
+        message: 'AI-generated meeting content updated successfully' 
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to update AI-generated content' 
+      });
+    }
+  } catch (error) {
+    console.error('Error updating AI-generated content:', error);
+    res.status(500).json({ error: 'Failed to update AI-generated content' });
+  }
+};
+
+/**
+ * Get AI meeting notes for a specific meeting
+ */
+export const getAIMeetingNotes = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const aiNotes = await aiMeetingNotesService.getAIMeetingNotes(parseInt(id));
+    
+    if (aiNotes) {
+      res.json({ 
+        success: true, 
+        data: aiNotes 
+      });
+    } else {
+      res.status(404).json({ 
+        success: false, 
+        error: 'AI meeting notes not found' 
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching AI meeting notes:', error);
+    res.status(500).json({ error: 'Failed to fetch AI meeting notes' });
   }
 };

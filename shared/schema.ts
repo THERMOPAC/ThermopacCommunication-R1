@@ -6250,6 +6250,21 @@ export const businessMeetings = pgTable('business_meetings', {
   googleEventLink: text('google_event_link'),
   autoCreateCalendarEvent: boolean('auto_create_calendar_event').default(true),
   
+  // Google Meet Integration
+  googleMeetLink: text('google_meet_link'),
+  googleMeetUrl: text('google_meet_url'), // Alternative field for compatibility
+  googleMeetEnabled: boolean('google_meet_enabled').default(true),
+  
+  // AI Meeting Notes fields
+  recordingUrl: text('recording_url'),
+  transcriptUrl: text('transcript_url'),
+  aiSummary: text('ai_summary'),
+  aiActionItems: jsonb('ai_action_items').$type<any[]>().default([]),
+  aiKeyPoints: jsonb('ai_key_points').$type<any[]>().default([]),
+  recordingEnabled: boolean('recording_enabled').default(false),
+  aiNotesGenerated: boolean('ai_notes_generated').default(false),
+  aiNotesGeneratedAt: timestamp('ai_notes_generated_at'),
+  
   // Tracking
   createdBy: integer('created_by').notNull().references(() => users.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -6604,6 +6619,8 @@ export const insertBusinessMeetingSchema = createInsertSchema(businessMeetings)
       uploadedAt: z.string(),
     })).default([]),
     linkedKpis: z.array(z.number()).default([]),
+    googleMeetEnabled: z.boolean().default(true),
+    recordingEnabled: z.boolean().default(false),
   });
 
 export const insertMeetingCommitmentSchema = createInsertSchema(meetingCommitments)

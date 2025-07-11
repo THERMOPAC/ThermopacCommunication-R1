@@ -9,10 +9,11 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/google/calendar/callback';
 
-// Scopes required for Google Calendar access
+// Scopes required for Google Calendar and Meet access
 const CALENDAR_SCOPES = [
   'https://www.googleapis.com/auth/calendar',
-  'https://www.googleapis.com/auth/userinfo.email'
+  'https://www.googleapis.com/auth/userinfo.email',
+  'https://www.googleapis.com/auth/meetings'  // For Google Meet integration
 ];
 
 export class GoogleCalendarService {
@@ -135,14 +136,42 @@ export class GoogleCalendarService {
           ]
         },
         visibility: 'default',
-        transparency: 'opaque'
+        transparency: 'opaque',
+        // Auto-generate Google Meet link
+        conferenceData: meetingData.googleMeetEnabled !== false ? {
+          createRequest: {
+            requestId: `meet-${meetingData.id}-${Date.now()}`,
+            conferenceSolutionKey: {
+              type: 'hangoutsMeet'
+            }
+          }
+        } : undefined
       };
 
       const response = await calendar.events.insert({
         calendarId: 'primary',
         requestBody: event,
-        sendUpdates: 'all' // Send invitations to all attendees
+        sendUpdates: 'all', // Send invitations to all attendees
+        conferenceDataVersion: 1 // Required for conference data
       });
+
+      // Extract Google Meet link if created
+      const meetLink = response.data.conferenceData?.entryPoints?.find(
+        entry => entry.entryPointType === 'video'
+      )?.uri;
+
+      // Update meeting with Google Meet link if available
+      if (meetLink) {
+        await db
+          .update(businessMeetings)
+          .set({ 
+            googleMeetLink: meetLink,
+            googleMeetUrl: meetLink  // Store in both fields for compatibility
+          })
+          .where(eq(businessMeetings.id, meetingData.id));
+          
+        console.log(`Meeting ${meetingData.id} updated with Google Meet link: ${meetLink}`);
+      }
 
       // Log successful creation
       await this.logSyncOperation(meetingData.id, userId, 'create', response.data.id!, 'success');
@@ -198,15 +227,37 @@ export class GoogleCalendarService {
             { method: 'email', minutes: 24 * 60 },
             { method: 'popup', minutes: 10 }
           ]
-        }
+        },
+        // Preserve or add Google Meet link
+        conferenceData: meetingData.googleMeetEnabled !== false ? {
+          createRequest: {
+            requestId: `meet-${meetingData.id}-${Date.now()}`,
+            conferenceSolutionKey: {
+              type: 'hangoutsMeet'
+            }
+          }
+        } : undefined
       };
 
-      await calendar.events.update({
+      const response = await calendar.events.update({
         calendarId: 'primary',
         eventId: eventId,
         requestBody: event,
-        sendUpdates: 'all'
+        sendUpdates: 'all',
+        conferenceDataVersion: 1
       });
+
+      // Extract and update Google Meet link if available
+      const meetLink = response.data.conferenceData?.entryPoints?.find(
+        entry => entry.entryPointType === 'video'
+      )?.uri;
+
+      if (meetLink) {
+        await db
+          .update(businessMeetings)
+          .set({ googleMeetLink: meetLink })
+          .where(eq(businessMeetings.id, meetingData.id));
+      }
 
       await this.logSyncOperation(meetingData.id, userId, 'update', eventId, 'success');
       return true;
