@@ -291,6 +291,7 @@ function Router() {
       <ProtectedRoute path="/payroll" component={() => <Layout><PayrollPage /></Layout>} />
       <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
       <SuperuserRoute path="/module-permissions" component={ModulePermissionsPage} />
+      <ProtectedRoute path="/google-calendar-settings" component={() => <Layout><GoogleCalendarSettingsPage /></Layout>} />
       <SuperuserRoute path="/gcs-diagnostic" component={GcsDiagnosticPage} />
       <SuperuserRoute path="/gcs-test" component={GcsTestPage} />
       <SuperuserRoute path="/special-fixes" component={SpecialFixesPage} />
