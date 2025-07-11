@@ -39,25 +39,40 @@ router.get('/auth/google/calendar', ensureAuthenticated, (req, res) => {
 });
 
 /**
- * Handle Google OAuth callback
+ * Handle Google OAuth callback - matches GOOGLE_REDIRECT_URI
  */
-router.get('/auth/google/calendar/callback', ensureAuthenticated, async (req, res) => {
+router.get('/auth/google/callback', async (req, res) => {
   try {
-    const { code } = req.query;
+    const { code, state } = req.query;
+    
+    console.log('Google OAuth callback received:', { code: !!code, state });
+    
+    // Check if this is a calendar OAuth callback
+    if (state !== 'service=calendar') {
+      console.log('OAuth callback not for calendar service, ignoring');
+      return res.redirect('/meetings-management?error=invalid_state');
+    }
     
     if (!code || typeof code !== 'string') {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Authorization code is required' 
-      });
+      console.log('Missing authorization code in callback');
+      return res.redirect('/meetings-management?error=missing_code');
     }
 
+    // Check if user is authenticated
+    if (!req.user) {
+      console.log('User not authenticated during OAuth callback');
+      return res.redirect('/login?message=please_login_first');
+    }
+
+    console.log('Exchanging code for tokens...');
     // Exchange code for tokens
     const tokens = await googleCalendarService.exchangeCodeForTokens(code);
     
+    console.log('Saving tokens for user:', req.user.id);
     // Save tokens to user account
-    await googleCalendarService.saveUserTokens(req.user!.id, tokens);
+    await googleCalendarService.saveUserTokens(req.user.id, tokens);
 
+    console.log('Google Calendar OAuth successful, redirecting...');
     // Redirect to meetings page with success message
     res.redirect('/meetings-management?connected=true');
   } catch (error) {
