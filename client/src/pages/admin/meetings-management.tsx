@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import Layout from '@/components/layout';
@@ -241,6 +241,14 @@ export default function MeetingsManagement() {
   const { data: commitmentsData, isLoading: commitmentsLoading, error: commitmentsError } = useQuery<{ commitments: Commitment[] }>({
     queryKey: ['/api/meetings/commitments', { status: statusFilter, priority: priorityFilter }],
     enabled: activeTab === 'commitments',
+    queryFn: async () => {
+      const queryParams = new URLSearchParams({
+        status: statusFilter,
+        priority: priorityFilter,
+      });
+      return apiRequest('GET', `/api/meetings/commitments?${queryParams}`);
+    },
+    retry: false,
   });
 
   // Add debugging for commitments query
@@ -251,8 +259,17 @@ export default function MeetingsManagement() {
     loading: commitmentsLoading,
     error: commitmentsError,
     statusFilter,
-    priorityFilter
+    priorityFilter,
+    errorDetails: commitmentsError ? JSON.stringify(commitmentsError) : null
   });
+
+  // Force refetch commitments when tab becomes active
+  useEffect(() => {
+    if (activeTab === 'commitments') {
+      console.log('Commitments tab activated, forcing refetch...');
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings/commitments'] });
+    }
+  }, [activeTab, queryClient]);
 
 
 
