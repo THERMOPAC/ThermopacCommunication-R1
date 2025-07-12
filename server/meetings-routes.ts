@@ -470,6 +470,10 @@ export const getCommitments = async (req: Request, res: Response) => {
     } = req.query;
 
     console.log('getCommitments called with params:', { meetingId, assignedToId, status, priority, overdue, page, limit });
+    
+    // Log user info for debugging
+    const user = req.user as any;
+    console.log('User in getCommitments:', user ? { id: user.id, username: user.username } : 'No user found');
 
     let query = db
       .select({
