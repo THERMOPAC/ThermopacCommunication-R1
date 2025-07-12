@@ -37,11 +37,15 @@ import {
   MoreHorizontalIcon,
   VideoIcon,
   LinkIcon,
-  SettingsIcon
+  SettingsIcon,
+  BotIcon,
+  ChevronRightIcon,
+  FileTextIcon
 } from 'lucide-react';
 import { format, parseISO, addDays } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import AIMeetingNotes from '@/components/ai-meeting-notes';
+import EnhancedAIMeetingAssistant from '@/components/enhanced-ai-meeting-assistant';
 
 // Form schemas
 const meetingFormSchema = z.object({
@@ -191,6 +195,11 @@ export default function MeetingsManagement() {
   const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
   const [editingCommitment, setEditingCommitment] = useState<Commitment | null>(null);
   const [selectedMeetingForAI, setSelectedMeetingForAI] = useState<Meeting | null>(null);
+  const [selectedMeetingForEnhancedAI, setSelectedMeetingForEnhancedAI] = useState<{
+    type: 'internal' | 'google-calendar';
+    meeting?: any;
+    event?: any;
+  } | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1668,72 +1677,158 @@ export default function MeetingsManagement() {
           <Card className="p-6">
             <div className="flex flex-col sm:flex-row gap-4 items-start justify-between mb-6">
               <div>
-                <h3 className="text-lg font-semibold">AI Meeting Notes</h3>
-                <p className="text-gray-600">Select a meeting to view AI-generated notes and recordings</p>
+                <h3 className="text-lg font-semibold">Enhanced AI Meeting Assistant</h3>
+                <p className="text-gray-600">Generate AI insights from internal meetings and Google Calendar events</p>
               </div>
+              {selectedMeetingForEnhancedAI && (
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedMeetingForEnhancedAI(null)}
+                >
+                  Back to Meeting Selection
+                </Button>
+              )}
             </div>
             
-            {/* Meeting Selection List */}
-            {selectedMeetingForAI ? (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-md font-medium">
-                    AI Notes for: {selectedMeetingForAI.meeting.title}
-                  </h4>
-                  <Button
-                    variant="outline"
-                    onClick={() => setSelectedMeetingForAI(null)}
-                  >
-                    Back to Meeting List
-                  </Button>
-                </div>
-                
-                {/* AI Meeting Notes Component */}
-                <AIMeetingNotes
-                  meetingId={selectedMeetingForAI.meeting.id}
-                  meetingData={selectedMeetingForAI.meeting}
-                  onUpdate={() => {
-                    queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
-                  }}
-                />
-              </div>
+            {selectedMeetingForEnhancedAI ? (
+              <EnhancedAIMeetingAssistant
+                selectedMeeting={selectedMeetingForEnhancedAI}
+                onUpdate={() => {
+                  queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
+                  queryClient.invalidateQueries({ queryKey: ['/api/calendar/upcoming-events'] });
+                }}
+              />
             ) : (
-              <div>
-                {meetingsData?.meetings && meetingsData.meetings.length > 0 ? (
-                  <div className="space-y-4">
-                    {meetingsData.meetings.map((meeting) => (
-                      <Card
-                        key={meeting.meeting.id}
-                        className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                        onClick={() => setSelectedMeetingForAI(meeting)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-medium">{meeting.meeting.title}</h4>
-                            <p className="text-sm text-gray-600">
-                              {format(parseISO(meeting.meeting.meetingDate), 'MMM d, yyyy')} at {meeting.meeting.startTime}
-                            </p>
-                            <div className="flex items-center gap-2 mt-2">
-                              <Badge variant={meeting.meeting.googleMeetLink ? 'default' : 'secondary'}>
-                                {meeting.meeting.googleMeetLink ? 'Google Meet' : 'No Meet Link'}
-                              </Badge>
-                              <Badge variant={meeting.meeting.aiNotesGenerated ? 'default' : 'secondary'}>
-                                {meeting.meeting.aiNotesGenerated ? 'AI Notes Available' : 'No AI Notes'}
-                              </Badge>
+              <div className="space-y-6">
+                {/* Internal Meetings Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                    <h4 className="text-md font-medium text-blue-700">Internal Meetings</h4>
+                  </div>
+                  
+                  {meetingsData?.meetings && meetingsData.meetings.length > 0 ? (
+                    <div className="grid gap-3">
+                      {meetingsData.meetings.map((meeting) => (
+                        <Card
+                          key={meeting.meeting.id}
+                          className="p-4 hover:bg-blue-50 cursor-pointer transition-colors border-blue-100"
+                          onClick={() => setSelectedMeetingForEnhancedAI({
+                            type: 'internal',
+                            meeting: meeting.meeting
+                          })}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <h4 className="font-semibold">{meeting.meeting.title}</h4>
+                              <p className="text-sm text-gray-600">
+                                {format(parseISO(meeting.meeting.meetingDate), 'MMM d, yyyy')} · {meeting.meeting.startTime}
+                              </p>
+                              <div className="flex items-center gap-2 mt-2">
+                                {meeting.meeting.googleMeetLink && (
+                                  <Badge variant="default" className="bg-blue-100 text-blue-800">
+                                    <VideoIcon className="h-3 w-3 mr-1" />
+                                    Meet
+                                  </Badge>
+                                )}
+                                {meeting.meeting.aiNotesGenerated && (
+                                  <Badge variant="default" className="bg-green-100 text-green-800">
+                                    <BotIcon className="h-3 w-3 mr-1" />
+                                    AI Notes
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
+                            <ChevronRightIcon className="h-4 w-4 text-gray-400" />
                           </div>
-                          <Button variant="outline" size="sm">
-                            View AI Notes
-                          </Button>
-                        </div>
-                      </Card>
-                    ))}
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <Card className="p-6 border-dashed">
+                      <div className="text-center text-gray-500">
+                        <VideoIcon className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                        <p>No internal meetings available</p>
+                      </div>
+                    </Card>
+                  )}
+                </div>
+
+                {/* Google Calendar Events Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                    <h4 className="text-md font-medium text-green-700">Google Calendar Events</h4>
                   </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <CalendarDaysIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No meetings found</p>
-                  </div>
+                  
+                  {googleCalendarEvents?.events && googleCalendarEvents.events.length > 0 ? (
+                    <div className="grid gap-3">
+                      {googleCalendarEvents.events.map((event) => (
+                        <Card
+                          key={event.id}
+                          className="p-4 hover:bg-green-50 cursor-pointer transition-colors border-green-100"
+                          onClick={() => setSelectedMeetingForEnhancedAI({
+                            type: 'google-calendar',
+                            event: event
+                          })}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <h4 className="font-semibold">{event.summary}</h4>
+                              <p className="text-sm text-gray-600">
+                                {event.start.dateTime 
+                                  ? format(parseISO(event.start.dateTime), 'MMM d, yyyy · h:mm a')
+                                  : format(parseISO(event.start.date), 'MMM d, yyyy')
+                                }
+                              </p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                  <CalendarIcon className="h-3 w-3 mr-1" />
+                                  Google Calendar
+                                </Badge>
+                                {event.hangoutLink && (
+                                  <Badge variant="default" className="bg-blue-100 text-blue-800">
+                                    <VideoIcon className="h-3 w-3 mr-1" />
+                                    Meet
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <ChevronRightIcon className="h-4 w-4 text-gray-400" />
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <Card className="p-6 border-dashed">
+                      <div className="text-center text-gray-500">
+                        <CalendarIcon className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                        <p>No Google Calendar events available</p>
+                      </div>
+                    </Card>
+                  )}
+                </div>
+
+                {/* Empty State */}
+                {(!meetingsData?.meetings || meetingsData.meetings.length === 0) && 
+                 (!googleCalendarEvents?.events || googleCalendarEvents.events.length === 0) && (
+                  <Card className="p-8">
+                    <div className="text-center">
+                      <BotIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-gray-600 mb-2">No Meetings Available</h3>
+                      <p className="text-gray-500 mb-4">
+                        Create internal meetings or sync Google Calendar events to start using AI insights
+                      </p>
+                      <div className="flex gap-2 justify-center">
+                        <Button onClick={() => setActiveTab('meetings')} variant="outline">
+                          Create Meeting
+                        </Button>
+                        <Button onClick={() => setActiveTab('dashboard')} variant="outline">
+                          View Calendar Events
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
                 )}
               </div>
             )}

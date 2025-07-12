@@ -94,7 +94,10 @@ import {
   processAIMeetingNotes,
   updateAIGeneratedContent,
   getAIMeetingNotes,
-  generateGoogleMeetLink
+  generateGoogleMeetLink,
+  generateAINotesFromContent,
+  analyzeGoogleCalendarEvent,
+  getMeetingAnalytics
 } from "./meetings-routes";
 
 const scryptAsync = promisify(scrypt);
@@ -2809,6 +2812,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/meetings/:id/ai-notes/process', ensureAuthenticated, processAIMeetingNotes);
   app.put('/api/meetings/:id/ai-notes/update', ensureAuthenticated, updateAIGeneratedContent);
   app.get('/api/meetings/:id/ai-notes', ensureAuthenticated, getAIMeetingNotes);
+  
+  // Enhanced AI Meeting Notes endpoints
+  app.post('/api/meetings/:id/ai-notes/generate', ensureAuthenticated, generateAINotesFromContent);
+  app.post('/api/meetings/ai-notes/analyze-calendar-event', ensureAuthenticated, analyzeGoogleCalendarEvent);
+  app.get('/api/meetings/analytics', ensureAuthenticated, getMeetingAnalytics);
   
   console.log('Meetings & Commitments routes registered at /api/meetings');
   

@@ -23,6 +23,7 @@ import {
 import { ensureAuthenticated } from './middlewares/auth';
 import { googleCalendarService } from './google-calendar-service';
 import { aiMeetingNotesService } from './ai-meeting-notes-service';
+import { enhancedAIMeetingService } from './enhanced-ai-meeting-service';
 
 // =============================================================================
 // BUSINESS MEETINGS ENDPOINTS
@@ -1164,6 +1165,107 @@ export const updateAIGeneratedContent = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error updating AI-generated content:', error);
     res.status(500).json({ error: 'Failed to update AI-generated content' });
+  }
+};
+
+/**
+ * Generate AI notes from meeting content (enhanced version)
+ */
+export const generateAINotesFromContent = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { content, inputType, context } = req.body;
+
+    if (!content || !inputType) {
+      return res.status(400).json({
+        success: false,
+        error: 'Content and input type are required'
+      });
+    }
+
+    const success = await enhancedAIMeetingService.processInternalMeetingNotes(
+      parseInt(id),
+      content,
+      inputType,
+      context || {}
+    );
+
+    if (success) {
+      res.json({
+        success: true,
+        message: 'AI notes generated successfully from content'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to generate AI notes'
+      });
+    }
+  } catch (error) {
+    console.error('Error generating AI notes from content:', error);
+    res.status(500).json({ error: 'Failed to generate AI notes from content' });
+  }
+};
+
+/**
+ * Analyze Google Calendar event for AI insights
+ */
+export const analyzeGoogleCalendarEvent = async (req: Request, res: Response) => {
+  try {
+    const { eventId, title, description, attendees } = req.body;
+
+    if (!eventId || !title) {
+      return res.status(400).json({
+        success: false,
+        error: 'Event ID and title are required'
+      });
+    }
+
+    const aiNotes = await enhancedAIMeetingService.generateNotesForGoogleCalendarEvent(
+      eventId,
+      title,
+      description || '',
+      attendees || []
+    );
+
+    res.json({
+      success: true,
+      data: aiNotes
+    });
+  } catch (error) {
+    console.error('Error analyzing Google Calendar event:', error);
+    res.status(500).json({ error: 'Failed to analyze Google Calendar event' });
+  }
+};
+
+/**
+ * Get meeting analytics dashboard data
+ */
+export const getMeetingAnalytics = async (req: Request, res: Response) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    const dateRange = {
+      start: startDate ? new Date(startDate as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      end: endDate ? new Date(endDate as string) : new Date()
+    };
+
+    const analytics = await enhancedAIMeetingService.getMeetingAnalytics(dateRange);
+
+    if (analytics) {
+      res.json({
+        success: true,
+        data: analytics
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch meeting analytics'
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching meeting analytics:', error);
+    res.status(500).json({ error: 'Failed to fetch meeting analytics' });
   }
 };
 
