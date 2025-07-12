@@ -2779,23 +2779,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // MEETINGS & COMMITMENTS MODULE ROUTES
   // =============================================================================
   
-  // Business Meetings endpoints
-  app.get('/api/meetings', ensureAuthenticated, getMeetings);
-  app.get('/api/meetings/:id', ensureAuthenticated, getMeetingById);
-  app.post('/api/meetings', ensureAuthenticated, createMeeting);
-  app.put('/api/meetings/:id', ensureAuthenticated, updateMeeting);
-  app.delete('/api/meetings/:id', ensureAuthenticated, deleteMeeting);
-  
-  // Meeting Commitments endpoints
+  // Meeting Commitments endpoints (MUST come before parameterized routes)
   app.get('/api/meetings/commitments', ensureAuthenticated, getCommitments);
   app.get('/api/meetings/commitments/pending', ensureAuthenticated, getUserPendingCommitments);
   app.post('/api/meetings/commitments', ensureAuthenticated, createCommitment);
   app.put('/api/meetings/commitments/:id', ensureAuthenticated, updateCommitment);
   app.delete('/api/meetings/commitments/:id', ensureAuthenticated, deleteCommitment);
   
-  // Dashboard and Analytics endpoints
+  // Dashboard and Analytics endpoints (MUST come before parameterized routes)
   app.get('/api/meetings/dashboard/stats', ensureAuthenticated, getDashboardStats);
   app.get('/api/meetings/dashboard/upcoming', ensureAuthenticated, getUpcomingMeetings);
+  
+  // Business Meetings endpoints (parameterized routes come LAST)
+  app.get('/api/meetings', ensureAuthenticated, getMeetings);
+  app.get('/api/meetings/:id', ensureAuthenticated, getMeetingById);
+  app.post('/api/meetings', ensureAuthenticated, createMeeting);
+  app.put('/api/meetings/:id', ensureAuthenticated, updateMeeting);
+  app.delete('/api/meetings/:id', ensureAuthenticated, deleteMeeting);
   
   // Reminder and Escalation endpoints
   app.post('/api/meetings/commitments/:commitmentId/remind', ensureAuthenticated, sendCommitmentReminder);
