@@ -42,7 +42,7 @@ import {
   ChevronRightIcon,
   FileTextIcon
 } from 'lucide-react';
-import { format, parseISO, addDays, subDays, isAfter, isBefore, startOfDay } from 'date-fns';
+import { format, parseISO, addDays, subDays, isAfter, isBefore, startOfDay, isEqual } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import AIMeetingNotes from '@/components/ai-meeting-notes';
 import EnhancedAIMeetingAssistant from '@/components/enhanced-ai-meeting-assistant';
@@ -291,7 +291,8 @@ export default function MeetingsManagement() {
     // Helper function to check if a date is within the time window
     const isWithinTimeWindow = (dateString: string) => {
       const meetingDate = startOfDay(parseISO(dateString));
-      return isAfter(meetingDate, pastCutoff) && isBefore(meetingDate, futureCutoff);
+      return (isAfter(meetingDate, pastCutoff) || isEqual(meetingDate, pastCutoff)) && 
+             (isBefore(meetingDate, futureCutoff) || isEqual(meetingDate, futureCutoff));
     };
     
     // Process internal meetings with time filtering

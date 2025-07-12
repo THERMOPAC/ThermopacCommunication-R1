@@ -488,11 +488,11 @@ export const getCommitments = async (req: Request, res: Response) => {
 
     const conditions = [];
 
-    if (meetingId) {
+    if (meetingId && meetingId !== '' && !isNaN(parseInt(meetingId as string))) {
       conditions.push(eq(meetingCommitments.meetingId, parseInt(meetingId as string)));
     }
 
-    if (assignedToId) {
+    if (assignedToId && assignedToId !== '' && !isNaN(parseInt(assignedToId as string))) {
       conditions.push(eq(meetingCommitments.assignedToId, parseInt(assignedToId as string)));
     }
 
