@@ -827,6 +827,27 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       .from(businessMeetings)
       .where(gte(businessMeetings.meetingDate, startDate.toISOString().split('T')[0]));
 
+    // Get this week's meetings
+    const startOfWeek = new Date();
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()); // Sunday
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(endOfWeek.getDate() + 6); // Saturday
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    const thisWeekStats = await db
+      .select({
+        thisWeek: sql<number>`count(*)`
+      })
+      .from(businessMeetings)
+      .where(
+        and(
+          gte(businessMeetings.meetingDate, startOfWeek.toISOString().split('T')[0]),
+          lte(businessMeetings.meetingDate, endOfWeek.toISOString().split('T')[0])
+        )
+      );
+
     // Get commitment statistics
     const commitmentStats = await db
       .select({
@@ -840,7 +861,10 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       .where(eq(meetingCommitments.assignedToId, user.id));
 
     res.json({
-      meetings: meetingStats[0] || { total: 0, organized: 0, attended: 0 },
+      meetings: { 
+        ...meetingStats[0] || { total: 0, organized: 0, attended: 0 },
+        thisWeek: thisWeekStats[0]?.thisWeek || 0
+      },
       commitments: commitmentStats[0] || { total: 0, pending: 0, inProgress: 0, completed: 0, overdue: 0 }
     });
   } catch (error) {

@@ -40,7 +40,8 @@ import {
   SettingsIcon,
   BotIcon,
   ChevronRightIcon,
-  FileTextIcon
+  FileTextIcon,
+  CheckCircleIcon
 } from 'lucide-react';
 import { format, parseISO, addDays, subDays, isAfter, isBefore, startOfDay, isEqual } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -166,6 +167,7 @@ interface DashboardStats {
     total: number;
     organized: number;
     attended: number;
+    thisWeek: number;
   };
   commitments: {
     total: number;
@@ -868,13 +870,47 @@ export default function MeetingsManagement() {
 
         {/* Dashboard Tab */}
         <TabsContent value="dashboard" className="space-y-6">
-          {/* Stats Cards */}
+          {/* Quick Actions Panel */}
+          <Card className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <CalendarDaysIcon className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Quick Actions</h3>
+                  <p className="text-sm text-gray-600">Create meetings and commitments instantly</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Dialog open={isCreateMeetingOpen} onOpenChange={setIsCreateMeetingOpen}>
+                  <DialogTrigger asChild>
+                    <Button onClick={() => { resetMeetingForm(); setIsCreateMeetingOpen(true); }} className="bg-blue-600 hover:bg-blue-700">
+                      <PlusIcon className="h-4 w-4 mr-2" />
+                      New Meeting
+                    </Button>
+                  </DialogTrigger>
+                </Dialog>
+                <Dialog open={isCreateCommitmentOpen} onOpenChange={setIsCreateCommitmentOpen}>
+                  <DialogTrigger asChild>
+                    <Button onClick={() => { resetCommitmentForm(); setIsCreateCommitmentOpen(true); }} variant="outline" className="border-blue-200 text-blue-600 hover:bg-blue-50">
+                      <ListChecksIcon className="h-4 w-4 mr-2" />
+                      New Commitment
+                    </Button>
+                  </DialogTrigger>
+                </Dialog>
+              </div>
+            </div>
+          </Card>
+
+          {/* Enhanced Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Total Meetings</p>
                   <p className="text-3xl font-bold">{dashboardStats?.meetings.total || 0}</p>
+                  <p className="text-xs text-gray-500 mt-1">All time</p>
                 </div>
                 <CalendarDaysIcon className="h-8 w-8 text-blue-600" />
               </div>
@@ -883,18 +919,20 @@ export default function MeetingsManagement() {
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Organized</p>
-                  <p className="text-3xl font-bold">{dashboardStats?.meetings.organized || 0}</p>
+                  <p className="text-sm font-medium text-gray-600">This Week</p>
+                  <p className="text-3xl font-bold">{dashboardStats?.meetings.thisWeek || 0}</p>
+                  <p className="text-xs text-gray-500 mt-1">Meetings scheduled</p>
                 </div>
-                <UsersIcon className="h-8 w-8 text-green-600" />
+                <CalendarIcon className="h-8 w-8 text-green-600" />
               </div>
             </Card>
             
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Pending Commitments</p>
+                  <p className="text-sm font-medium text-gray-600">Pending Actions</p>
                   <p className="text-3xl font-bold">{dashboardStats?.commitments.pending || 0}</p>
+                  <p className="text-xs text-gray-500 mt-1">Commitments</p>
                 </div>
                 <ListChecksIcon className="h-8 w-8 text-yellow-600" />
               </div>
@@ -905,11 +943,177 @@ export default function MeetingsManagement() {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Overdue Items</p>
                   <p className="text-3xl font-bold text-red-600">{dashboardStats?.commitments.overdue || 0}</p>
+                  <p className="text-xs text-red-500 mt-1">Need attention</p>
                 </div>
                 <AlertCircleIcon className="h-8 w-8 text-red-600" />
               </div>
             </Card>
           </div>
+
+          {/* Today's Agenda */}
+          <Card>
+            <div className="p-6 border-b">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <ClockIcon className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Today's Agenda</h3>
+                    <p className="text-sm text-gray-600">Your meetings and commitments for today</p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-orange-600 border-orange-200">
+                  {format(new Date(), 'MMM dd, yyyy')}
+                </Badge>
+              </div>
+            </div>
+            <div className="p-6">
+              {/* Today's Meetings */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <CalendarDaysIcon className="h-4 w-4 text-blue-600" />
+                  <h4 className="font-medium text-gray-900">Today's Meetings</h4>
+                </div>
+                {upcomingMeetings?.meetings?.filter(meeting => 
+                  format(parseISO(meeting.meeting.meetingDate), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                ).length > 0 ? (
+                  <div className="space-y-3">
+                    {upcomingMeetings.meetings.filter(meeting => 
+                      format(parseISO(meeting.meeting.meetingDate), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                    ).map((meeting) => (
+                      <div key={meeting.meeting.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="p-1 bg-blue-100 rounded">
+                            <CalendarDaysIcon className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{meeting.meeting.title}</p>
+                            <p className="text-sm text-gray-600">{meeting.meeting.startTime} - {meeting.meeting.endTime}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className={getPriorityColor(meeting.meeting.priority)}>
+                            {meeting.meeting.priority}
+                          </Badge>
+                          {(meeting.meeting.googleMeetLink || meeting.meeting.meetingUrl) && (
+                            <Button size="sm" variant="outline" className="text-blue-600 border-blue-200">
+                              Join
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm py-4">No meetings scheduled for today</p>
+                )}
+
+                {/* Today's Due Commitments */}
+                <div className="flex items-center gap-2 mb-4 mt-6">
+                  <ListChecksIcon className="h-4 w-4 text-green-600" />
+                  <h4 className="font-medium text-gray-900">Due Today</h4>
+                </div>
+                {commitmentsData?.commitments?.filter(commitment => 
+                  format(parseISO(commitment.commitment.dueDate), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                ).length > 0 ? (
+                  <div className="space-y-3">
+                    {commitmentsData.commitments.filter(commitment => 
+                      format(parseISO(commitment.commitment.dueDate), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                    ).map((commitment) => (
+                      <div key={commitment.commitment.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="p-1 bg-green-100 rounded">
+                            <ListChecksIcon className="h-4 w-4 text-green-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{commitment.commitment.title}</p>
+                            <p className="text-sm text-gray-600">Assigned to {commitment.assignedTo?.username}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className={getPriorityColor(commitment.commitment.priority)}>
+                            {commitment.commitment.priority}
+                          </Badge>
+                          <Badge variant="outline" className={getStatusColor(commitment.commitment.status)}>
+                            {commitment.commitment.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm py-4">No commitments due today</p>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          {/* Action Items Due Soon */}
+          <Card>
+            <div className="p-6 border-b">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-yellow-100 rounded-lg">
+                    <AlertCircleIcon className="h-5 w-5 text-yellow-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Action Items Due Soon</h3>
+                    <p className="text-sm text-gray-600">Commitments due within the next 3 days</p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-yellow-600 border-yellow-200">
+                  Next 3 Days
+                </Badge>
+              </div>
+            </div>
+            <div className="p-6">
+              {commitmentsData?.commitments?.filter(commitment => {
+                const dueDate = parseISO(commitment.commitment.dueDate);
+                const today = new Date();
+                const threeDaysFromNow = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000);
+                return dueDate >= today && dueDate <= threeDaysFromNow && commitment.commitment.status !== 'Completed';
+              }).length > 0 ? (
+                <div className="space-y-4">
+                  {commitmentsData.commitments.filter(commitment => {
+                    const dueDate = parseISO(commitment.commitment.dueDate);
+                    const today = new Date();
+                    const threeDaysFromNow = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000);
+                    return dueDate >= today && dueDate <= threeDaysFromNow && commitment.commitment.status !== 'Completed';
+                  }).slice(0, 5).map((commitment) => (
+                    <div key={commitment.commitment.id} className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-yellow-100 rounded">
+                          <ListChecksIcon className="h-4 w-4 text-yellow-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{commitment.commitment.title}</p>
+                          <p className="text-sm text-gray-600">
+                            Due {format(parseISO(commitment.commitment.dueDate), 'MMM dd, yyyy')} • 
+                            Assigned to {commitment.assignedTo?.username}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge className={getPriorityColor(commitment.commitment.priority)}>
+                          {commitment.commitment.priority}
+                        </Badge>
+                        <Badge variant="outline" className={getStatusColor(commitment.commitment.status)}>
+                          {commitment.commitment.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <CheckCircleIcon className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                  <p className="text-gray-500">No urgent action items</p>
+                  <p className="text-sm text-gray-400">All commitments are on track</p>
+                </div>
+              )}
+            </div>
+          </Card>
 
 
 
