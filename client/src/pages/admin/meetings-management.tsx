@@ -64,7 +64,7 @@ const meetingFormSchema = z.object({
 });
 
 const commitmentFormSchema = z.object({
-  meetingId: z.number(),
+  meetingId: z.number().min(1, 'Related meeting is required'),
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
   priority: z.enum(['Low', 'Medium', 'High', 'Critical']),
@@ -508,11 +508,11 @@ export default function MeetingsManagement() {
   const commitmentForm = useForm<CommitmentFormData>({
     resolver: zodResolver(commitmentFormSchema),
     defaultValues: {
-      meetingId: 0,
+      meetingId: undefined,
       title: '',
       description: '',
       priority: 'Medium',
-      assignedToId: 0,
+      assignedToId: undefined,
       dueDate: '',
       estimatedHours: undefined,
       businessValue: '',
@@ -551,6 +551,9 @@ export default function MeetingsManagement() {
   };
 
   const onSubmitCommitment = (data: CommitmentFormData) => {
+    console.log('Commitment form data:', data);
+    console.log('Form validation errors:', commitmentForm.formState.errors);
+    
     if (editingCommitment) {
       updateCommitmentMutation.mutate({ id: editingCommitment.commitment.id, data });
     } else {
@@ -1436,56 +1439,29 @@ export default function MeetingsManagement() {
                               <FormLabel>Related Meeting</FormLabel>
                               <Select 
                                 onValueChange={(value) => {
-                                  // For internal meetings, store the numeric ID
-                                  // For Google Calendar events, store 0 as placeholder (commitments require internal meeting IDs)
-                                  if (value.startsWith('internal-')) {
-                                    field.onChange(parseInt(value.replace('internal-', '')));
-                                  } else {
-                                    // Google Calendar events - we'll store 0 as placeholder since backend expects internal meeting ID
-                                    field.onChange(0);
-                                  }
+                                  // Only internal meetings allowed for commitments since backend requires valid meetingId
+                                  field.onChange(parseInt(value));
                                 }} 
-                                defaultValue={field.value ? `internal-${field.value}` : undefined}
+                                value={field.value ? field.value.toString() : undefined}
                               >
                                 <FormControl>
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Select meeting or event" />
+                                    <SelectValue placeholder="Select internal meeting" />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {combinedMeetingsList.internal.length > 0 && (
-                                    <SelectGroup>
-                                      <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
-                                        Internal Meetings
-                                      </SelectLabel>
-                                      {combinedMeetingsList.internal.map((meeting) => (
-                                        <SelectItem key={meeting.id} value={meeting.id}>
-                                          {meeting.title}
-                                          <span className="ml-2 text-sm text-gray-500">
-                                            ({format(parseISO(meeting.date), 'MMM dd')} at {meeting.startTime})
-                                          </span>
-                                        </SelectItem>
-                                      ))}
-                                    </SelectGroup>
-                                  )}
-                                  {combinedMeetingsList.googleCalendar.length > 0 && (
-                                    <SelectGroup>
-                                      <SelectLabel className="font-semibold text-green-600 dark:text-green-400">
-                                        Google Calendar Events
-                                      </SelectLabel>
-                                      {combinedMeetingsList.googleCalendar.map((event) => (
-                                        <SelectItem key={event.id} value={event.id}>
-                                          {event.title}
-                                          <span className="ml-2 text-sm text-gray-500">
-                                            ({format(parseISO(event.date), 'MMM dd')} {event.startTime && `at ${event.startTime}`})
-                                          </span>
-                                        </SelectItem>
-                                      ))}
-                                    </SelectGroup>
-                                  )}
-                                  {combinedMeetingsList.internal.length === 0 && combinedMeetingsList.googleCalendar.length === 0 && (
+                                  {combinedMeetingsList.internal.length > 0 ? (
+                                    combinedMeetingsList.internal.map((meeting) => (
+                                      <SelectItem key={meeting.id} value={meeting.id.toString()}>
+                                        {meeting.title}
+                                        <span className="ml-2 text-sm text-gray-500">
+                                          ({format(parseISO(meeting.date), 'MMM dd')} at {meeting.startTime})
+                                        </span>
+                                      </SelectItem>
+                                    ))
+                                  ) : (
                                     <SelectItem value="no-meetings" disabled>
-                                      No recent or upcoming meetings available
+                                      No recent or upcoming internal meetings available
                                     </SelectItem>
                                   )}
                                 </SelectContent>
