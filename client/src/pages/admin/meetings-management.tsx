@@ -42,7 +42,7 @@ import {
   ChevronRightIcon,
   FileTextIcon
 } from 'lucide-react';
-import { format, parseISO, addDays } from 'date-fns';
+import { format, parseISO, addDays, subDays, isAfter, isBefore, startOfDay } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import AIMeetingNotes from '@/components/ai-meeting-notes';
 import EnhancedAIMeetingAssistant from '@/components/enhanced-ai-meeting-assistant';
@@ -278,24 +278,43 @@ export default function MeetingsManagement() {
       }, {} as Record<string, User[]>);
   }, [users]);
 
-  // Combined meetings list for dropdown (internal meetings + Google Calendar events with deduplication)
+  // Combined meetings list for dropdown (internal meetings + Google Calendar events with deduplication and time filtering)
   const combinedMeetingsList = useMemo(() => {
     const internalMeetings = meetingsData?.meetings || [];
     const googleEvents = googleCalendarEvents?.events || [];
     
-    // Process internal meetings
-    const internal = internalMeetings.map(meeting => ({
-      id: `internal-${meeting.meeting.id}`,
-      displayId: meeting.meeting.id,
-      title: meeting.meeting.title,
-      type: 'internal' as const,
-      date: meeting.meeting.meetingDate,
-      startTime: meeting.meeting.startTime,
-      dedupeKey: `${meeting.meeting.title}-${meeting.meeting.meetingDate}-${meeting.meeting.startTime}`
-    }));
+    // Define time window: past 10 days to next 30 days
+    const today = startOfDay(new Date());
+    const pastCutoff = subDays(today, 10);
+    const futureCutoff = addDays(today, 30);
+    
+    // Helper function to check if a date is within the time window
+    const isWithinTimeWindow = (dateString: string) => {
+      const meetingDate = startOfDay(parseISO(dateString));
+      return isAfter(meetingDate, pastCutoff) && isBefore(meetingDate, futureCutoff);
+    };
+    
+    // Process internal meetings with time filtering
+    const internal = internalMeetings
+      .filter(meeting => isWithinTimeWindow(meeting.meeting.meetingDate))
+      .map(meeting => ({
+        id: `internal-${meeting.meeting.id}`,
+        displayId: meeting.meeting.id,
+        title: meeting.meeting.title,
+        type: 'internal' as const,
+        date: meeting.meeting.meetingDate,
+        startTime: meeting.meeting.startTime,
+        dedupeKey: `${meeting.meeting.title}-${meeting.meeting.meetingDate}-${meeting.meeting.startTime}`
+      }));
 
-    // Process Google Calendar events and filter out duplicates
+    // Process Google Calendar events with time filtering and deduplication
     const googleCalendar = googleEvents
+      .filter(event => {
+        const eventDate = event.start.dateTime 
+          ? format(parseISO(event.start.dateTime), 'yyyy-MM-dd')
+          : event.start.date || '';
+        return eventDate && isWithinTimeWindow(eventDate);
+      })
       .map(event => ({
         id: `google-${event.id}`,
         displayId: event.id,
@@ -1466,7 +1485,7 @@ export default function MeetingsManagement() {
                                   )}
                                   {combinedMeetingsList.internal.length === 0 && combinedMeetingsList.googleCalendar.length === 0 && (
                                     <SelectItem value="no-meetings" disabled>
-                                      No meetings available
+                                      No recent or upcoming meetings available
                                     </SelectItem>
                                   )}
                                 </SelectContent>
