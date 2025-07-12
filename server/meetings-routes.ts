@@ -1469,3 +1469,141 @@ export const generateGoogleMeetLink = async (req: Request, res: Response) => {
     });
   }
 };
+
+// =============================================================================
+// AI MEETING NOTES INTEGRATION ENDPOINTS
+// =============================================================================
+
+/**
+ * Process and store Gemini-generated meeting notes content
+ */
+export const processGeminiMeetingNotes = async (req: Request, res: Response) => {
+  try {
+    const { meetingId, geminiContent } = req.body;
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!meetingId || !geminiContent) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: meetingId and geminiContent are required' 
+      });
+    }
+
+    // Get the meeting
+    const [meeting] = await db
+      .select()
+      .from(businessMeetings)
+      .where(eq(businessMeetings.id, meetingId));
+
+    if (!meeting) {
+      return res.status(404).json({ error: 'Meeting not found' });
+    }
+
+    // Parse the Gemini content (expecting structured format)
+    const parsedNotes = parseGeminiContent(geminiContent);
+
+    // Update meeting with AI notes
+    const [updatedMeeting] = await db
+      .update(businessMeetings)
+      .set({
+        aiSummary: parsedNotes.summary,
+        aiKeyPoints: parsedNotes.keyPoints,
+        aiActionItems: parsedNotes.actionItems,
+        aiNotesGenerated: true,
+        aiNotesGeneratedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(businessMeetings.id, meetingId))
+      .returning();
+
+    res.json({
+      success: true,
+      message: 'Gemini meeting notes processed and stored successfully',
+      meeting: updatedMeeting,
+      parsedNotes
+    });
+
+  } catch (error) {
+    console.error('Error processing Gemini meeting notes:', error);
+    res.status(500).json({ 
+      error: 'Failed to process Gemini meeting notes',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+/**
+ * Helper function to parse Gemini-generated content
+ */
+function parseGeminiContent(content: string) {
+  try {
+    // Extract structured sections from Gemini content
+    const sections = {
+      summary: '',
+      keyPoints: [] as string[],
+      actionItems: [] as any[],
+      details: '',
+      nextSteps: [] as string[]
+    };
+
+    // Split content into sections
+    const lines = content.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    let currentSection = '';
+    
+    for (const line of lines) {
+      // Detect section headers
+      if (line.toLowerCase().includes('summary')) {
+        currentSection = 'summary';
+        continue;
+      } else if (line.toLowerCase().includes('details') || line.toLowerCase().includes('meeting note authorization')) {
+        currentSection = 'details';
+        continue;
+      } else if (line.toLowerCase().includes('suggested next steps') || line.toLowerCase().includes('next steps')) {
+        currentSection = 'nextSteps';
+        continue;
+      }
+
+      // Process content based on current section
+      if (currentSection === 'summary' && !line.toLowerCase().includes('summary')) {
+        sections.summary += (sections.summary ? ' ' : '') + line;
+      } else if (currentSection === 'details' && line.startsWith('•') || line.startsWith('-')) {
+        sections.keyPoints.push(line.replace(/^[•\-]\s*/, ''));
+      } else if (currentSection === 'nextSteps' && line.startsWith('•') || line.startsWith('-')) {
+        sections.nextSteps.push(line.replace(/^[•\-]\s*/, ''));
+      } else if (currentSection === 'details') {
+        sections.details += (sections.details ? ' ' : '') + line;
+      }
+    }
+
+    // Convert next steps to action items
+    sections.actionItems = sections.nextSteps.map((step, index) => ({
+      id: index + 1,
+      task: step,
+      priority: 'medium',
+      assignee: 'TBD',
+      dueDate: null,
+      status: 'pending'
+    }));
+
+    // If no specific sections found, treat as general summary
+    if (!sections.summary && !sections.keyPoints.length) {
+      sections.summary = content.substring(0, 500) + (content.length > 500 ? '...' : '');
+      sections.keyPoints = content.split('.').slice(0, 5).filter(point => point.trim().length > 10);
+    }
+
+    return sections;
+
+  } catch (error) {
+    console.error('Error parsing Gemini content:', error);
+    return {
+      summary: content.substring(0, 500) + (content.length > 500 ? '...' : ''),
+      keyPoints: [content],
+      actionItems: [],
+      details: content,
+      nextSteps: []
+    };
+  }
+}

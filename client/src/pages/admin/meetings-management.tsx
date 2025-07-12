@@ -215,6 +215,7 @@ export default function MeetingsManagement() {
     meeting?: any;
     event?: any;
   } | null>(null);
+  const [geminiContent, setGeminiContent] = useState('');
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -234,7 +235,7 @@ export default function MeetingsManagement() {
   // Fetch all meetings
   const { data: meetingsData, isLoading: meetingsLoading } = useQuery<{ meetings: Meeting[] }>({
     queryKey: ['/api/meetings', { status: statusFilter, type: typeFilter, priority: priorityFilter }],
-    enabled: activeTab === 'meetings' || activeTab === 'ai-notes' || activeTab === 'commitments',
+    enabled: activeTab === 'meetings' || activeTab === 'ai-notes' || activeTab === 'commitments' || activeTab === 'ai-processing',
   });
 
   // Fetch commitments
@@ -544,6 +545,26 @@ export default function MeetingsManagement() {
     },
   });
 
+  // AI Processing mutation
+  const processGeminiNotesMutation = useMutation({
+    mutationFn: ({ meetingId, geminiContent }: { meetingId: number; geminiContent: string }) =>
+      apiRequest('POST', '/api/meetings/ai-notes/process-gemini', { meetingId, geminiContent }),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
+      toast({ 
+        title: 'AI notes processed successfully', 
+        description: 'Gemini-generated content has been integrated into the meeting record'
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error processing AI notes', 
+        description: error.message,
+        variant: 'destructive' 
+      });
+    },
+  });
+
   // Filter meetings based on search and filters
   const filteredMeetings = useMemo(() => {
     if (!meetingsData?.meetings) return [];
@@ -737,7 +758,7 @@ export default function MeetingsManagement() {
         </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <BarChart3Icon className="h-4 w-4" />
             Dashboard
@@ -757,6 +778,10 @@ export default function MeetingsManagement() {
           <TabsTrigger value="ai-notes" className="flex items-center gap-2">
             <BellIcon className="h-4 w-4" />
             AI Notes
+          </TabsTrigger>
+          <TabsTrigger value="ai-processing" className="flex items-center gap-2">
+            <BotIcon className="h-4 w-4" />
+            AI Processing
           </TabsTrigger>
           <TabsTrigger value="analytics" className="flex items-center gap-2">
             <TrendingUpIcon className="h-4 w-4" />
@@ -2173,6 +2198,153 @@ export default function MeetingsManagement() {
                 </p>
               </div>
             )}
+          </Card>
+        </TabsContent>
+
+        {/* AI Processing Tab */}
+        <TabsContent value="ai-processing" className="space-y-6">
+          <Card className="p-6">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-semibold">AI Meeting Notes Processing</h3>
+                  <p className="text-gray-600">Process external AI-generated meeting notes from Gemini or other sources</p>
+                </div>
+                <BotIcon className="h-8 w-8 text-blue-600" />
+              </div>
+
+              {/* Meeting Selection */}
+              <div className="border-b pb-6">
+                <h4 className="text-lg font-medium mb-4">Select Meeting</h4>
+                <Select 
+                  onValueChange={(value) => {
+                    const meeting = meetingsData?.meetings?.find(m => m.meeting.id === parseInt(value));
+                    setSelectedMeetingForAI(meeting || null);
+                  }}
+                  value={selectedMeetingForAI?.meeting.id.toString() || ''}
+                >
+                  <SelectTrigger className="w-full max-w-md">
+                    <SelectValue placeholder="Choose a meeting to process AI notes..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {meetingsData?.meetings?.map((meeting) => (
+                      <SelectItem key={meeting.meeting.id} value={meeting.meeting.id.toString()}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{meeting.meeting.title}</span>
+                          <span className="text-sm text-gray-500">
+                            {format(parseISO(meeting.meeting.meetingDate), 'MMM dd, yyyy')} at {meeting.meeting.startTime}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* AI Content Input */}
+              {selectedMeetingForAI && (
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-lg font-medium mb-2">Selected Meeting</h4>
+                    <Card className="p-4 bg-blue-50 border-blue-200">
+                      <div className="flex items-center gap-4">
+                        <CalendarIcon className="h-5 w-5 text-blue-600" />
+                        <div>
+                          <h5 className="font-medium text-blue-900">{selectedMeetingForAI.meeting.title}</h5>
+                          <p className="text-sm text-blue-700">
+                            {format(parseISO(selectedMeetingForAI.meeting.meetingDate), 'MMM dd, yyyy')} · 
+                            {selectedMeetingForAI.meeting.startTime} - {selectedMeetingForAI.meeting.endTime}
+                          </p>
+                          {selectedMeetingForAI.meeting.description && (
+                            <p className="text-sm text-blue-600 mt-1">{selectedMeetingForAI.meeting.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+
+                  <div>
+                    <h4 className="text-lg font-medium mb-2">Gemini-Generated Content</h4>
+                    <p className="text-sm text-gray-600 mb-3">
+                      Paste your AI-generated meeting notes from Gemini or other AI sources. The system will automatically parse and structure the content.
+                    </p>
+                    <Textarea
+                      placeholder={`Example format:
+
+Summary
+
+Harshad Donde authorized the note-taker and reviewed news headlines from ndtv.com, covering an Air India flight incident, a tennis court booking controversy, an NRI couple's retirement query, Bumrah's cricket performance, and Honey Singh's music battle.
+
+Details
+
+• Meeting Note Authorization and News Review Harshad Donde authorized the note-taker and took notes on their behalf. They then proceeded to read various news headlines from ndtv.com, including updates on an Air India flight incident, a tennis court booking controversy involving Raghika and DK Shivakumar, and an NRI couple's retirement query. Harshad Donde also mentioned news about Bumrah's cricket performance and Honey Singh's involvement in a music battle (00:00:00)
+
+Suggested next steps
+
+• Follow up on specific action items
+• Schedule next meeting
+• Prepare documentation`}
+                      value={geminiContent}
+                      onChange={(e) => setGeminiContent(e.target.value)}
+                      className="min-h-[300px] font-mono text-sm"
+                    />
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={() => {
+                        if (selectedMeetingForAI && geminiContent.trim()) {
+                          processGeminiNotesMutation.mutate({
+                            meetingId: selectedMeetingForAI.meeting.id,
+                            geminiContent: geminiContent
+                          });
+                        }
+                      }}
+                      disabled={!selectedMeetingForAI || !geminiContent.trim() || processGeminiNotesMutation.isPending}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {processGeminiNotesMutation.isPending ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <BotIcon className="h-4 w-4 mr-2" />
+                          Process AI Notes
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setGeminiContent('');
+                        setSelectedMeetingForAI(null);
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+
+                  {/* Help Section */}
+                  <Card className="p-4 bg-gray-50">
+                    <div className="flex items-start gap-3">
+                      <FileTextIcon className="h-5 w-5 text-gray-600 mt-0.5" />
+                      <div>
+                        <h5 className="font-medium text-gray-900 mb-2">How it works</h5>
+                        <ul className="text-sm text-gray-600 space-y-1">
+                          <li>• Select a meeting from the dropdown above</li>
+                          <li>• Paste your Gemini-generated or external AI content</li>
+                          <li>• The system will automatically parse Summary, Details, and Next Steps</li>
+                          <li>• Structured AI notes will be saved to the meeting record</li>
+                          <li>• View processed notes in the AI Notes tab</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              )}
+            </div>
           </Card>
         </TabsContent>
 
