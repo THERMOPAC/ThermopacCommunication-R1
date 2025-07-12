@@ -626,12 +626,24 @@ export default function MeetingsManagement() {
 
   // MD Meeting Plan mutations
   const generateWeeklyMDMeetingsMutation = useMutation({
-    mutationFn: () => apiRequest('POST', '/api/meetings/md/generate-weekly', {}),
+    mutationFn: () => {
+      // Calculate current week dates (Sunday to Saturday)
+      const today = new Date();
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - today.getDay()); // Previous Sunday
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6); // Following Saturday
+      
+      return apiRequest('POST', '/api/meetings/md/generate-weekly', {
+        startDate: startOfWeek.toISOString().split('T')[0],
+        endDate: endOfWeek.toISOString().split('T')[0]
+      });
+    },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
       toast({ 
         title: 'Weekly MD meetings generated successfully', 
-        description: `${data.generatedCount || 0} meetings created for this week` 
+        description: `${data.meetings?.length || 0} meetings created for this week` 
       });
     },
     onError: (error: any) => {
@@ -644,12 +656,22 @@ export default function MeetingsManagement() {
   });
 
   const generateMonthlyMDMeetingsMutation = useMutation({
-    mutationFn: () => apiRequest('POST', '/api/meetings/md/generate-monthly', {}),
+    mutationFn: () => {
+      // Get current year and month
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth() + 1; // JavaScript months are 0-indexed
+      
+      return apiRequest('POST', '/api/meetings/md/generate-monthly', {
+        year,
+        month
+      });
+    },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
       toast({ 
         title: 'Monthly MD meetings generated successfully', 
-        description: `${data.generatedCount || 0} meetings created for this month` 
+        description: `${data.meetings?.length || 0} meetings created for this month` 
       });
     },
     onError: (error: any) => {
