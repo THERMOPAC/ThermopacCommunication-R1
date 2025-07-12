@@ -238,10 +238,12 @@ export default function MeetingsManagement() {
   });
 
   // Fetch commitments
-  const { data: commitmentsData, isLoading: commitmentsLoading } = useQuery<{ commitments: Commitment[] }>({
+  const { data: commitmentsData, isLoading: commitmentsLoading, error: commitmentsError } = useQuery<{ commitments: Commitment[] }>({
     queryKey: ['/api/meetings/commitments', { status: statusFilter, priority: priorityFilter }],
     enabled: activeTab === 'commitments',
   });
+
+
 
   // Fetch users for dropdowns
   const { data: users } = useQuery<User[]>({
