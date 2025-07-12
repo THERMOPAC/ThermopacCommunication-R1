@@ -220,6 +220,7 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
               endTime: `${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}`,
               location: "Conference Room A",
               organizerId: user.id,
+              createdBy: user.id,
               attendeeIds: [], // Will be populated based on roles
               status: "Scheduled",
               agenda: template.description,
@@ -299,6 +300,7 @@ export const generateMonthlyMDMeetings = async (req: Request, res: Response) => 
             endTime: `${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}`,
             location: "Executive Conference Room",
             organizerId: user.id,
+            createdBy: user.id,
             attendeeIds: [],
             status: "Scheduled",
             agenda: template.description,
