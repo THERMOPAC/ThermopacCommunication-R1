@@ -1447,26 +1447,57 @@ export default function MeetingsManagement() {
                               >
                                 <FormControl>
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Select internal meeting" />
+                                    <SelectValue placeholder="Select meeting" />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {combinedMeetingsList.internal.length > 0 ? (
-                                    combinedMeetingsList.internal.map((meeting) => (
-                                      <SelectItem key={meeting.id} value={meeting.displayId.toString()}>
-                                        {meeting.title}
-                                        <span className="ml-2 text-sm text-gray-500">
-                                          ({format(parseISO(meeting.date), 'MMM dd')} at {meeting.startTime})
-                                        </span>
-                                      </SelectItem>
-                                    ))
-                                  ) : (
+                                  {/* Internal Meetings - Can be selected */}
+                                  {combinedMeetingsList.internal.length > 0 && (
+                                    <SelectGroup>
+                                      <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                        Internal Meetings
+                                      </SelectLabel>
+                                      {combinedMeetingsList.internal.map((meeting) => (
+                                        <SelectItem key={meeting.id} value={meeting.displayId.toString()}>
+                                          {meeting.title}
+                                          <span className="ml-2 text-sm text-gray-500">
+                                            ({format(parseISO(meeting.date), 'MMM dd')} at {meeting.startTime})
+                                          </span>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectGroup>
+                                  )}
+                                  
+                                  {/* Google Calendar Events - Display only (disabled) */}
+                                  {combinedMeetingsList.googleCalendar.length > 0 && (
+                                    <SelectGroup>
+                                      <SelectLabel className="font-semibold text-green-600 dark:text-green-400">
+                                        Google Calendar Events (View Only)
+                                      </SelectLabel>
+                                      {combinedMeetingsList.googleCalendar.map((meeting) => (
+                                        <SelectItem key={meeting.id} value={meeting.id} disabled>
+                                          {meeting.title}
+                                          <span className="ml-2 text-sm text-gray-500">
+                                            ({format(parseISO(meeting.date), 'MMM dd')} at {meeting.startTime})
+                                          </span>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectGroup>
+                                  )}
+                                  
+                                  {/* Empty state */}
+                                  {combinedMeetingsList.internal.length === 0 && combinedMeetingsList.googleCalendar.length === 0 && (
                                     <SelectItem value="no-meetings" disabled>
-                                      No recent or upcoming internal meetings available
+                                      No recent or upcoming meetings available
                                     </SelectItem>
                                   )}
                                 </SelectContent>
                               </Select>
+                              {combinedMeetingsList.googleCalendar.length > 0 && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Note: Commitments can only be linked to internal meetings
+                                </p>
+                              )}
                               <FormMessage />
                             </FormItem>
                           )}
