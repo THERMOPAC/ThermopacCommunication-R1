@@ -2220,6 +2220,12 @@ export default function MeetingsManagement() {
                   onValueChange={(value) => {
                     const meeting = meetingsData?.meetings?.find(m => m.meeting.id === parseInt(value));
                     setSelectedMeetingForAI(meeting || null);
+                    // Update Gemini content with existing AI notes if available
+                    if (meeting?.meeting.aiNotes) {
+                      setGeminiContent(meeting.meeting.aiNotes);
+                    } else {
+                      setGeminiContent('');
+                    }
                   }}
                   value={selectedMeetingForAI?.meeting.id.toString() || ''}
                 >
@@ -2264,9 +2270,22 @@ export default function MeetingsManagement() {
                   </div>
 
                   <div>
-                    <h4 className="text-lg font-medium mb-2">Gemini-Generated Content</h4>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-lg font-medium">
+                        {selectedMeetingForAI?.meeting.aiNotes ? 'Existing AI Content' : 'Gemini-Generated Content'}
+                      </h4>
+                      {selectedMeetingForAI?.meeting.aiNotes && (
+                        <div className="flex items-center text-sm text-green-600">
+                          <BotIcon className="h-4 w-4 mr-1" />
+                          AI notes available
+                        </div>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-600 mb-3">
-                      Paste your AI-generated meeting notes from Gemini or other AI sources. The system will automatically parse and structure the content.
+                      {selectedMeetingForAI?.meeting.aiNotes 
+                        ? 'This meeting already has AI-generated notes. You can edit and reprocess them below.'
+                        : 'Paste your AI-generated meeting notes from Gemini or other AI sources. The system will automatically parse and structure the content.'
+                      }
                     </p>
                     <Textarea
                       placeholder={`Example format:
@@ -2311,7 +2330,7 @@ Suggested next steps
                       ) : (
                         <>
                           <BotIcon className="h-4 w-4 mr-2" />
-                          Process AI Notes
+                          {selectedMeetingForAI?.meeting.aiNotes ? 'Update AI Notes' : 'Process AI Notes'}
                         </>
                       )}
                     </Button>
@@ -2333,11 +2352,11 @@ Suggested next steps
                       <div>
                         <h5 className="font-medium text-gray-900 mb-2">How it works</h5>
                         <ul className="text-sm text-gray-600 space-y-1">
-                          <li>• Select a meeting from the dropdown above</li>
-                          <li>• Paste your Gemini-generated or external AI content</li>
+                          <li>• Select a meeting from the dropdown - both cards will update dynamically</li>
+                          <li>• Existing AI notes will auto-load, or paste new Gemini content</li>
                           <li>• The system will automatically parse Summary, Details, and Next Steps</li>
                           <li>• Structured AI notes will be saved to the meeting record</li>
-                          <li>• View processed notes in the AI Notes tab</li>
+                          <li>• View all processed notes in the AI Notes tab</li>
                         </ul>
                       </div>
                     </div>
