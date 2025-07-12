@@ -147,6 +147,11 @@ export const getMeetingById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
+    // Validate ID parameter
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({ error: 'Invalid meeting ID' });
+    }
+
     const [meeting] = await db
       .select({
         meeting: businessMeetings,

@@ -288,41 +288,16 @@ export default function MeetingsManagement() {
     const pastCutoff = subDays(today, 10);
     const futureCutoff = addDays(today, 30);
     
-    // Debug logging
-    console.log('Time filtering debug:', {
-      today: today.toISOString(),
-      pastCutoff: pastCutoff.toISOString(),
-      futureCutoff: futureCutoff.toISOString(),
-      internalMeetingsCount: internalMeetings.length,
-      googleEventsCount: googleEvents.length
-    });
-    
     // Helper function to check if a date is within the time window
     const isWithinTimeWindow = (dateString: string) => {
       const meetingDate = startOfDay(parseISO(dateString));
-      const withinWindow = (isAfter(meetingDate, pastCutoff) || isEqual(meetingDate, pastCutoff)) && 
-                          (isBefore(meetingDate, futureCutoff) || isEqual(meetingDate, futureCutoff));
-      
-      // Debug logging for each date check
-      console.log('Date check:', {
-        dateString,
-        meetingDate: meetingDate.toISOString(),
-        withinWindow,
-        isAfterPast: isAfter(meetingDate, pastCutoff),
-        isEqualPast: isEqual(meetingDate, pastCutoff),
-        isBeforeFuture: isBefore(meetingDate, futureCutoff),
-        isEqualFuture: isEqual(meetingDate, futureCutoff)
-      });
-      
-      return withinWindow;
+      return (isAfter(meetingDate, pastCutoff) || isEqual(meetingDate, pastCutoff)) && 
+             (isBefore(meetingDate, futureCutoff) || isEqual(meetingDate, futureCutoff));
     };
     
     // Process internal meetings with time filtering
     const internal = internalMeetings
-      .filter(meeting => {
-        console.log('Processing internal meeting:', meeting.meeting.title, meeting.meeting.meetingDate);
-        return isWithinTimeWindow(meeting.meeting.meetingDate);
-      })
+      .filter(meeting => isWithinTimeWindow(meeting.meeting.meetingDate))
       .map(meeting => ({
         id: `internal-${meeting.meeting.id}`,
         displayId: meeting.meeting.id,
@@ -1478,7 +1453,7 @@ export default function MeetingsManagement() {
                                 <SelectContent>
                                   {combinedMeetingsList.internal.length > 0 ? (
                                     combinedMeetingsList.internal.map((meeting) => (
-                                      <SelectItem key={meeting.id} value={meeting.id.toString()}>
+                                      <SelectItem key={meeting.id} value={meeting.displayId.toString()}>
                                         {meeting.title}
                                         <span className="ml-2 text-sm text-gray-500">
                                           ({format(parseISO(meeting.date), 'MMM dd')} at {meeting.startTime})
