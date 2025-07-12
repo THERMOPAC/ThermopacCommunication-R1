@@ -305,10 +305,10 @@ export default function MeetingsManagement() {
         type: 'internal' as const,
         date: meeting.meeting.meetingDate,
         startTime: meeting.meeting.startTime,
-        dedupeKey: `${meeting.meeting.title}-${meeting.meeting.meetingDate}-${meeting.meeting.startTime}`
+        dedupeKey: `${meeting.meeting.title.toLowerCase().trim()}-${meeting.meeting.meetingDate}-${meeting.meeting.startTime}`
       }));
 
-    // Process Google Calendar events with time filtering and deduplication
+    // Process Google Calendar events with time filtering and enhanced deduplication
     const googleCalendar = googleEvents
       .filter(event => {
         const eventDate = event.start.dateTime 
@@ -323,11 +323,16 @@ export default function MeetingsManagement() {
         type: 'google' as const,
         date: event.start.dateTime ? format(parseISO(event.start.dateTime), 'yyyy-MM-dd') : event.start.date || '',
         startTime: event.start.dateTime ? format(parseISO(event.start.dateTime), 'HH:mm') : '',
-        dedupeKey: `${event.summary}-${event.start.dateTime ? format(parseISO(event.start.dateTime), 'yyyy-MM-dd') : event.start.date || ''}-${event.start.dateTime ? format(parseISO(event.start.dateTime), 'HH:mm') : ''}`
+        dedupeKey: `${event.summary.toLowerCase().trim()}-${event.start.dateTime ? format(parseISO(event.start.dateTime), 'yyyy-MM-dd') : event.start.date || ''}-${event.start.dateTime ? format(parseISO(event.start.dateTime), 'HH:mm') : ''}`
       }))
       .filter(googleEvent => {
-        // Only include Google Calendar events that don't already exist in internal meetings
-        return !internal.some(internalMeeting => internalMeeting.dedupeKey === googleEvent.dedupeKey);
+        // Enhanced deduplication: check both exact matches and similar titles with same date/time
+        return !internal.some(internalMeeting => 
+          internalMeeting.dedupeKey === googleEvent.dedupeKey ||
+          (internalMeeting.title.toLowerCase().trim() === googleEvent.title.toLowerCase().trim() &&
+           internalMeeting.date === googleEvent.date &&
+           internalMeeting.startTime === googleEvent.startTime)
+        );
       });
     
     return {
