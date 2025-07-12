@@ -489,7 +489,12 @@ export const getCommitments = async (req: Request, res: Response) => {
       })
       .from(meetingCommitments)
       .leftJoin(users, eq(meetingCommitments.assignedToId, users.id))
-      .leftJoin(businessMeetings, eq(meetingCommitments.meetingId, businessMeetings.id));
+      .leftJoin(businessMeetings, 
+        and(
+          eq(meetingCommitments.meetingId, businessMeetings.id),
+          eq(meetingCommitments.meetingType, 'internal')
+        )
+      );
 
     const conditions = [];
 
@@ -556,7 +561,12 @@ export const getUserPendingCommitments = async (req: Request, res: Response) => 
         }
       })
       .from(meetingCommitments)
-      .leftJoin(businessMeetings, eq(meetingCommitments.meetingId, businessMeetings.id))
+      .leftJoin(businessMeetings, 
+        and(
+          eq(meetingCommitments.meetingId, businessMeetings.id),
+          eq(meetingCommitments.meetingType, 'internal')
+        )
+      )
       .where(
         and(
           eq(meetingCommitments.assignedToId, user.id),
@@ -604,11 +614,17 @@ export const createCommitment = async (req: Request, res: Response) => {
         .values(validatedData)
         .returning();
 
-      // Get meeting details for task description
-      const [meeting] = await tx
-        .select()
-        .from(businessMeetings)
-        .where(eq(businessMeetings.id, commitment.meetingId));
+      // Get meeting details for task description based on meeting type
+      let meetingTitle = 'Unknown Meeting';
+      if (commitment.meetingType === 'internal' && commitment.meetingId) {
+        const [meeting] = await tx
+          .select()
+          .from(businessMeetings)
+          .where(eq(businessMeetings.id, commitment.meetingId));
+        meetingTitle = meeting?.title || 'Internal Meeting';
+      } else if (commitment.meetingType === 'google_calendar') {
+        meetingTitle = commitment.meetingTitle || 'Google Calendar Event';
+      }
 
       // Automatically create a linked task from the commitment
       const taskData = {
@@ -632,10 +648,10 @@ export const createCommitment = async (req: Request, res: Response) => {
         .values(taskData)
         .returning();
 
-      return { commitment, task, meeting };
+      return { commitment, task, meetingTitle };
     });
 
-    console.log(`Automatically created task ID ${result.task.id} for meeting commitment ID ${result.commitment.id} from meeting "${result.meeting?.title}"`);
+    console.log(`Automatically created task ID ${result.task.id} for meeting commitment ID ${result.commitment.id} from meeting "${result.meetingTitle}"`);
 
     res.status(201).json({
       commitment: result.commitment,

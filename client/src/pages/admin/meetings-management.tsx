@@ -64,7 +64,12 @@ const meetingFormSchema = z.object({
 });
 
 const commitmentFormSchema = z.object({
-  meetingId: z.number().min(1, 'Related meeting is required'),
+  meetingId: z.number().optional(), // Now optional for Google Calendar events
+  meetingType: z.enum(['internal', 'google_calendar']).default('internal'),
+  googleCalendarEventId: z.string().optional(),
+  meetingTitle: z.string().optional(),
+  meetingDate: z.string().optional(),
+  meetingStartTime: z.string().optional(),
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
   priority: z.enum(['Low', 'Medium', 'High', 'Critical']),
@@ -73,7 +78,17 @@ const commitmentFormSchema = z.object({
   estimatedHours: z.number().optional(),
   businessValue: z.string().optional(),
   successCriteria: z.string().optional(),
-});
+}).refine(
+  (data) => {
+    // Ensure either meetingId (internal) or googleCalendarEventId (Google Calendar) is provided
+    return (data.meetingType === 'internal' && data.meetingId) || 
+           (data.meetingType === 'google_calendar' && data.googleCalendarEventId);
+  },
+  {
+    message: "A meeting selection is required",
+    path: ["meetingId"],
+  }
+);
 
 type MeetingFormData = z.infer<typeof meetingFormSchema>;
 type CommitmentFormData = z.infer<typeof commitmentFormSchema>;
@@ -516,6 +531,11 @@ export default function MeetingsManagement() {
     resolver: zodResolver(commitmentFormSchema),
     defaultValues: {
       meetingId: undefined,
+      meetingType: 'internal',
+      googleCalendarEventId: undefined,
+      meetingTitle: undefined,
+      meetingDate: undefined,
+      meetingStartTime: undefined,
       title: '',
       description: '',
       priority: 'Medium',
@@ -588,7 +608,22 @@ export default function MeetingsManagement() {
   };
 
   const resetCommitmentForm = () => {
-    commitmentForm.reset();
+    commitmentForm.reset({
+      meetingId: undefined,
+      meetingType: 'internal',
+      googleCalendarEventId: undefined,
+      meetingTitle: undefined,
+      meetingDate: undefined,
+      meetingStartTime: undefined,
+      title: '',
+      description: '',
+      priority: 'Medium',
+      assignedToId: undefined,
+      dueDate: '',
+      estimatedHours: undefined,
+      businessValue: '',
+      successCriteria: '',
+    });
     setEditingCommitment(null);
     setIsCreateCommitmentOpen(false);
   };
@@ -1446,10 +1481,39 @@ export default function MeetingsManagement() {
                               <FormLabel>Related Meeting</FormLabel>
                               <Select 
                                 onValueChange={(value) => {
-                                  // Only internal meetings allowed for commitments since backend requires valid meetingId
-                                  field.onChange(parseInt(value));
+                                  // Handle both internal meetings and Google Calendar events
+                                  if (value.startsWith('google_calendar_')) {
+                                    // Google Calendar event selected
+                                    const eventId = value.replace('google_calendar_', '');
+                                    const selectedEvent = combinedMeetingsList.googleCalendar.find(event => event.id === eventId);
+                                    if (selectedEvent) {
+                                      // Clear meetingId and set Google Calendar data
+                                      field.onChange(undefined);
+                                      commitmentForm.setValue('meetingType', 'google_calendar');
+                                      commitmentForm.setValue('googleCalendarEventId', eventId);
+                                      commitmentForm.setValue('meetingTitle', selectedEvent.title);
+                                      commitmentForm.setValue('meetingDate', selectedEvent.date);
+                                      commitmentForm.setValue('meetingStartTime', selectedEvent.startTime);
+                                    }
+                                  } else {
+                                    // Internal meeting selected
+                                    const meetingId = parseInt(value);
+                                    const selectedMeeting = combinedMeetingsList.internal.find(meeting => meeting.displayId === meetingId);
+                                    if (selectedMeeting) {
+                                      field.onChange(meetingId);
+                                      commitmentForm.setValue('meetingType', 'internal');
+                                      commitmentForm.setValue('googleCalendarEventId', undefined);
+                                      commitmentForm.setValue('meetingTitle', selectedMeeting.title);
+                                      commitmentForm.setValue('meetingDate', selectedMeeting.date);
+                                      commitmentForm.setValue('meetingStartTime', selectedMeeting.startTime);
+                                    }
+                                  }
                                 }} 
-                                value={field.value ? field.value.toString() : undefined}
+                                value={
+                                  commitmentForm.watch('meetingType') === 'google_calendar' 
+                                    ? `google_calendar_${commitmentForm.watch('googleCalendarEventId')}`
+                                    : field.value ? field.value.toString() : undefined
+                                }
                               >
                                 <FormControl>
                                   <SelectTrigger>
@@ -1474,14 +1538,14 @@ export default function MeetingsManagement() {
                                     </SelectGroup>
                                   )}
                                   
-                                  {/* Google Calendar Events - Display only (disabled) */}
+                                  {/* Google Calendar Events - Now selectable */}
                                   {combinedMeetingsList.googleCalendar.length > 0 && (
                                     <SelectGroup>
                                       <SelectLabel className="font-semibold text-green-600 dark:text-green-400">
-                                        Google Calendar Events (View Only)
+                                        Google Calendar Events
                                       </SelectLabel>
                                       {combinedMeetingsList.googleCalendar.map((meeting) => (
-                                        <SelectItem key={meeting.id} value={meeting.id} disabled>
+                                        <SelectItem key={meeting.id} value={`google_calendar_${meeting.id}`}>
                                           {meeting.title}
                                           <span className="ml-2 text-sm text-gray-500">
                                             ({format(parseISO(meeting.date), 'MMM dd')} at {meeting.startTime})
@@ -1499,11 +1563,9 @@ export default function MeetingsManagement() {
                                   )}
                                 </SelectContent>
                               </Select>
-                              {combinedMeetingsList.googleCalendar.length > 0 && (
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Note: Commitments can only be linked to internal meetings
-                                </p>
-                              )}
+                              <p className="text-xs text-gray-500 mt-1">
+                                Commitments can be linked to both internal meetings and Google Calendar events
+                              </p>
                               <FormMessage />
                             </FormItem>
                           )}

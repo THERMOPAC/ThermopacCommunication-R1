@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
@@ -6276,7 +6276,14 @@ export const businessMeetings = pgTable('business_meetings', {
 // Meeting Commitments/Action Items table
 export const meetingCommitments = pgTable('meeting_commitments', {
   id: serial('id').primaryKey(),
-  meetingId: integer('meeting_id').notNull().references(() => businessMeetings.id, { onDelete: 'cascade' }),
+  meetingId: integer('meeting_id').references(() => businessMeetings.id, { onDelete: 'cascade' }), // Nullable for Google Calendar events
+  
+  // Meeting reference fields (supports both internal meetings and Google Calendar events)
+  meetingType: varchar('meeting_type', { length: 20 }).notNull().default('internal'), // 'internal' or 'google_calendar'
+  googleCalendarEventId: text('google_calendar_event_id'), // Google Calendar event ID when meetingType is 'google_calendar'
+  meetingTitle: text('meeting_title'), // Meeting title for display purposes
+  meetingDate: date('meeting_date'), // Meeting date for display and filtering
+  meetingStartTime: time('meeting_start_time'), // Meeting start time for display purposes
   
   // Commitment details
   title: text('title').notNull(),
@@ -6628,6 +6635,12 @@ export const insertBusinessMeetingSchema = createInsertSchema(businessMeetings)
 export const insertMeetingCommitmentSchema = createInsertSchema(meetingCommitments)
   .omit({ id: true, createdAt: true, updatedAt: true, completedAt: true, escalatedAt: true, approvedAt: true })
   .extend({
+    meetingId: z.number().optional(), // Now nullable for Google Calendar events
+    meetingType: z.enum(['internal', 'google_calendar']).default('internal'),
+    googleCalendarEventId: z.string().optional(),
+    meetingTitle: z.string().optional(),
+    meetingDate: z.string().optional(),
+    meetingStartTime: z.string().optional(),
     dueDate: z.string().transform((str) => new Date(str)),
     collaborators: z.array(z.number()).default([]),
     statusUpdates: z.array(z.object({
