@@ -469,6 +469,8 @@ export const getCommitments = async (req: Request, res: Response) => {
       limit = 20
     } = req.query;
 
+    console.log('getCommitments called with params:', { meetingId, assignedToId, status, priority, overdue, page, limit });
+
     let query = db
       .select({
         commitment: meetingCommitments,
@@ -503,11 +505,11 @@ export const getCommitments = async (req: Request, res: Response) => {
       conditions.push(eq(meetingCommitments.assignedToId, parseInt(assignedToId as string)));
     }
 
-    if (status) {
+    if (status && status !== 'all') {
       conditions.push(eq(meetingCommitments.status, status as string));
     }
 
-    if (priority) {
+    if (priority && priority !== 'all') {
       conditions.push(eq(meetingCommitments.priority, priority as string));
     }
 
