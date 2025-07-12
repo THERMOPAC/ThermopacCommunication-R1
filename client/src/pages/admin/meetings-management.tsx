@@ -278,13 +278,13 @@ export default function MeetingsManagement() {
   // Fetch all meetings
   const { data: meetingsData, isLoading: meetingsLoading } = useQuery<{ meetings: Meeting[] }>({
     queryKey: ['/api/meetings', { status: statusFilter, type: typeFilter, priority: priorityFilter }],
-    enabled: activeTab === 'meetings' || activeTab === 'ai-notes' || activeTab === 'commitments' || activeTab === 'ai-processing',
+    enabled: activeTab === 'meetings' || activeTab === 'ai-notes' || activeTab === 'commitments' || activeTab === 'ai-processing' || activeTab === 'analytics',
   });
 
   // Fetch commitments
   const { data: commitmentsData, isLoading: commitmentsLoading, error: commitmentsError } = useQuery<{ commitments: Commitment[] }>({
     queryKey: ['/api/meetings/commitments', { status: statusFilter, priority: priorityFilter }],
-    enabled: activeTab === 'commitments',
+    enabled: activeTab === 'commitments' || activeTab === 'analytics',
     queryFn: async () => {
       const queryParams = new URLSearchParams({
         status: statusFilter,
@@ -2499,8 +2499,8 @@ Suggested next steps
             <Card className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Meeting Types Distribution</h3>
               <div className="space-y-4">
-                {meetings?.meetings && (() => {
-                  const typeStats = meetings.meetings.reduce((acc: any, item: any) => {
+                {meetingsData?.meetings && (() => {
+                  const typeStats = meetingsData.meetings.reduce((acc: any, item: any) => {
                     const type = item.meeting.meetingType || 'Other';
                     acc[type] = (acc[type] || 0) + 1;
                     return acc;
@@ -2533,8 +2533,8 @@ Suggested next steps
             <Card className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Priority Distribution</h3>
               <div className="space-y-4">
-                {commitments?.commitments && (() => {
-                  const priorityStats = commitments.commitments.reduce((acc: any, item: any) => {
+                {commitmentsData?.commitments && (() => {
+                  const priorityStats = commitmentsData.commitments.reduce((acc: any, item: any) => {
                     const priority = item.commitment.priority || 'Medium';
                     acc[priority] = (acc[priority] || 0) + 1;
                     return acc;
@@ -2575,8 +2575,8 @@ Suggested next steps
             <Card className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Meeting Status</h3>
               <div className="space-y-3">
-                {meetings?.meetings && (() => {
-                  const statusStats = meetings.meetings.reduce((acc: any, item: any) => {
+                {meetingsData?.meetings && (() => {
+                  const statusStats = meetingsData.meetings.reduce((acc: any, item: any) => {
                     const status = item.meeting.status || 'Scheduled';
                     acc[status] = (acc[status] || 0) + 1;
                     return acc;
@@ -2636,8 +2636,8 @@ Suggested next steps
             <Card className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Performance</h3>
               <div className="space-y-3">
-                {commitments?.commitments && (() => {
-                  const teamStats = commitments.commitments.reduce((acc: any, item: any) => {
+                {commitmentsData?.commitments && (() => {
+                  const teamStats = commitmentsData.commitments.reduce((acc: any, item: any) => {
                     const assignee = item.assignedTo?.username || 'Unassigned';
                     if (!acc[assignee]) {
                       acc[assignee] = { total: 0, completed: 0 };
@@ -2683,7 +2683,7 @@ Suggested next steps
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-2">Recent Meetings</h4>
                 <div className="space-y-2">
-                  {meetings?.meetings?.slice(0, 3).map((item: any) => (
+                  {meetingsData?.meetings?.slice(0, 3).map((item: any) => (
                     <div key={item.meeting.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
                       <div className="flex items-center gap-3">
                         <CalendarIcon className="h-4 w-4 text-gray-500" />
@@ -2714,7 +2714,7 @@ Suggested next steps
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-2">Recent Commitments</h4>
                 <div className="space-y-2">
-                  {commitments?.commitments?.slice(0, 3).map((item: any) => (
+                  {commitmentsData?.commitments?.slice(0, 3).map((item: any) => (
                     <div key={item.commitment.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
                       <div className="flex items-center gap-3">
                         <ListChecksIcon className="h-4 w-4 text-gray-500" />
