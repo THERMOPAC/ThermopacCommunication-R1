@@ -466,6 +466,36 @@ export default function MeetingsManagement() {
     },
   });
 
+  // Sync meeting to Google Calendar mutation
+  const syncToCalendarMutation = useMutation({
+    mutationFn: (meetingId: number) => apiRequest('POST', `/api/meetings/${meetingId}/sync-to-calendar`),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
+      toast({ 
+        title: 'Meeting synced to Google Calendar successfully', 
+        description: data.message || 'Meeting now appears in your Google Calendar with Meet link'
+      });
+    },
+    onError: (error: any) => {
+      if (error.requiresConnection) {
+        toast({ 
+          title: 'Google Calendar not connected', 
+          description: 'Please connect your Google Calendar to sync meetings. Redirecting to settings...',
+          variant: 'destructive' 
+        });
+        setTimeout(() => {
+          window.location.href = '/google-calendar-settings';
+        }, 2000);
+      } else {
+        toast({ 
+          title: 'Error syncing to Google Calendar', 
+          description: error.message, 
+          variant: 'destructive' 
+        });
+      }
+    },
+  });
+
   // Send reminder mutation
   const sendReminderMutation = useMutation({
     mutationFn: (commitmentId: number) =>
@@ -1386,6 +1416,15 @@ export default function MeetingsManagement() {
                               >
                                 <VideoIcon className="h-4 w-4 mr-2" />
                                 Generate Google Meet
+                              </DropdownMenuItem>
+                            )}
+                            {meeting.meeting.autoCreateGoogleMeet && !meeting.meeting.googleCalendarSynced && (
+                              <DropdownMenuItem 
+                                onClick={() => syncToCalendarMutation.mutate(meeting.meeting.id)}
+                                disabled={syncToCalendarMutation.isPending}
+                              >
+                                <CalendarIcon className="h-4 w-4 mr-2" />
+                                Sync to Google Calendar
                               </DropdownMenuItem>
                             )}
                             {meeting.meeting.googleMeetLink && (

@@ -86,6 +86,7 @@ import {
   deleteCommitment,
   getDashboardStats,
   getUpcomingMeetings,
+  syncMeetingToGoogleCalendar,
   sendCommitmentReminder,
   escalateCommitment,
   getMeetingTasks,
@@ -2806,6 +2807,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Google Meet Integration endpoints
   app.post('/api/meetings/:id/generate-meet', ensureAuthenticated, generateGoogleMeetLink);
+  app.post('/api/meetings/:id/sync-to-calendar', ensureAuthenticated, syncMeetingToGoogleCalendar);
   
   // AI Meeting Notes endpoints
   app.post('/api/meetings/:id/recording/enable', ensureAuthenticated, enableMeetingRecording);

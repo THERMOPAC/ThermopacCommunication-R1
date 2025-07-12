@@ -881,6 +881,88 @@ export const getUpcomingMeetings = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Manually sync meeting to Google Calendar (for existing meetings)
+ */
+export const syncMeetingToGoogleCalendar = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = req.user as any;
+
+    // Get meeting details
+    const [meeting] = await db
+      .select()
+      .from(businessMeetings)
+      .where(eq(businessMeetings.id, parseInt(id)));
+
+    if (!meeting) {
+      return res.status(404).json({ error: 'Meeting not found' });
+    }
+
+    // Check if user is the organizer
+    if (meeting.organizerId !== user.id) {
+      return res.status(403).json({ error: 'Only the meeting organizer can sync to Google Calendar' });
+    }
+
+    // Get organizer's Google Calendar connection status
+    const [organizer] = await db
+      .select({
+        googleCalendarConnected: users.googleCalendarConnected,
+        googleCalendarSyncEnabled: users.googleCalendarSyncEnabled
+      })
+      .from(users)
+      .where(eq(users.id, meeting.organizerId));
+
+    if (!organizer?.googleCalendarConnected) {
+      return res.status(400).json({ error: 'Google Calendar not connected for organizer' });
+    }
+
+    // Create Google Calendar event
+    const eventResult = await googleCalendarService.createCalendarEvent(
+      meeting.organizerId,
+      meeting.title,
+      meeting.description || '',
+      meeting.meetingDate,
+      meeting.startTime,
+      meeting.endTime,
+      meeting.id
+    );
+
+    if (eventResult.success && eventResult.eventId) {
+      // Update meeting with Google Calendar details
+      const [updatedMeeting] = await db
+        .update(businessMeetings)
+        .set({
+          googleEventId: eventResult.eventId,
+          googleMeetLink: eventResult.meetLink || null,
+          googleCalendarSynced: true,
+          updatedAt: new Date()
+        })
+        .where(eq(businessMeetings.id, parseInt(id)))
+        .returning();
+
+      console.log(`Successfully synced meeting ${id} to Google Calendar. Event ID: ${eventResult.eventId}, Meet Link: ${eventResult.meetLink}`);
+
+      res.json({
+        success: true,
+        message: 'Meeting successfully synced to Google Calendar',
+        meeting: updatedMeeting,
+        googleEventId: eventResult.eventId,
+        googleMeetLink: eventResult.meetLink
+      });
+    } else {
+      console.error(`Failed to sync meeting ${id} to Google Calendar:`, eventResult.error);
+      res.status(500).json({ 
+        error: 'Failed to create Google Calendar event',
+        details: eventResult.error 
+      });
+    }
+  } catch (error) {
+    console.error('Error syncing meeting to Google Calendar:', error);
+    res.status(500).json({ error: 'Failed to sync meeting to Google Calendar' });
+  }
+};
+
 // =============================================================================
 // REMINDER & ESCALATION ENDPOINTS
 // =============================================================================
