@@ -323,7 +323,7 @@ export class GoogleCalendarService {
         visibility: 'default',
         transparency: 'opaque',
         // Auto-generate Google Meet link
-        conferenceData: meetingData.googleMeetEnabled !== false ? {
+        conferenceData: meetingData.autoCreateGoogleMeet !== false ? {
           createRequest: {
             requestId: `meet-${meetingData.id}-${Date.now()}`,
             conferenceSolutionKey: {
@@ -419,7 +419,7 @@ export class GoogleCalendarService {
           ]
         },
         // Preserve or add Google Meet link
-        conferenceData: meetingData.googleMeetEnabled !== false ? {
+        conferenceData: meetingData.autoCreateGoogleMeet !== false ? {
           createRequest: {
             requestId: `meet-${meetingData.id}-${Date.now()}`,
             conferenceSolutionKey: {

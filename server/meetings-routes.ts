@@ -268,10 +268,7 @@ export const createMeeting = async (req: Request, res: Response) => {
       if (validatedData.autoCreateGoogleMeet && organizer?.googleCalendarConnected && organizer?.googleCalendarSyncEnabled) {
         console.log(`Attempting to create Google Calendar event for meeting ${meeting.id} with Google Meet enabled`);
         
-        const result = await googleCalendarService.createCalendarEvent(user.id, {
-          ...meeting,
-          googleMeetEnabled: true  // Ensure Google Meet is enabled for this event
-        });
+        const result = await googleCalendarService.createCalendarEvent(user.id, meeting);
         
         if (result && result.eventId) {
           // Update meeting with Google event ID, sync status, and Meet link
