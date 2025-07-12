@@ -220,6 +220,49 @@ export default function MeetingsManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Load existing AI content when a meeting is selected
+  useEffect(() => {
+    if (selectedMeetingForAI?.meeting) {
+      const meeting = selectedMeetingForAI.meeting;
+      
+      if (meeting.aiNotesGenerated && meeting.aiSummary) {
+        // Format existing AI content for display
+        let formattedContent = '';
+        
+        if (meeting.aiSummary) {
+          formattedContent += `Summary\n\n${meeting.aiSummary}\n\n`;
+        }
+        
+        if (meeting.aiKeyPoints && Array.isArray(meeting.aiKeyPoints) && meeting.aiKeyPoints.length > 0) {
+          formattedContent += `Details\n\n`;
+          meeting.aiKeyPoints.forEach((point: string) => {
+            formattedContent += `• ${point}\n`;
+          });
+          formattedContent += '\n';
+        }
+        
+        if (meeting.aiActionItems && Array.isArray(meeting.aiActionItems) && meeting.aiActionItems.length > 0) {
+          formattedContent += `Suggested next steps\n\n`;
+          meeting.aiActionItems.forEach((item: any) => {
+            if (typeof item === 'string') {
+              formattedContent += `• ${item}\n`;
+            } else if (item.task) {
+              formattedContent += `• ${item.task}\n`;
+            }
+          });
+        }
+        
+        setGeminiContent(formattedContent);
+      } else {
+        // Clear content if no AI notes exist
+        setGeminiContent('');
+      }
+    } else {
+      // Clear content when no meeting is selected
+      setGeminiContent('');
+    }
+  }, [selectedMeetingForAI]);
+
   // Fetch dashboard stats
   const { data: dashboardStats } = useQuery<DashboardStats>({
     queryKey: ['/api/meetings/dashboard/stats'],
@@ -2272,9 +2315,9 @@ export default function MeetingsManagement() {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="text-lg font-medium">
-                        {selectedMeetingForAI?.meeting.aiNotes ? 'Existing AI Content' : 'Gemini-Generated Content'}
+                        {selectedMeetingForAI?.meeting.aiNotesGenerated ? 'Existing AI Content' : 'Gemini-Generated Content'}
                       </h4>
-                      {selectedMeetingForAI?.meeting.aiNotes && (
+                      {selectedMeetingForAI?.meeting.aiNotesGenerated && (
                         <div className="flex items-center text-sm text-green-600">
                           <BotIcon className="h-4 w-4 mr-1" />
                           AI notes available
@@ -2282,27 +2325,30 @@ export default function MeetingsManagement() {
                       )}
                     </div>
                     <p className="text-sm text-gray-600 mb-3">
-                      {selectedMeetingForAI?.meeting.aiNotes 
+                      {selectedMeetingForAI?.meeting.aiNotesGenerated 
                         ? 'This meeting already has AI-generated notes. You can edit and reprocess them below.'
                         : 'Paste your AI-generated meeting notes from Gemini or other AI sources. The system will automatically parse and structure the content.'
                       }
                     </p>
                     <Textarea
-                      placeholder={`Example format:
+                      placeholder={selectedMeetingForAI?.meeting.aiNotes 
+                        ? `Edit existing AI notes for "${selectedMeetingForAI.meeting.title}"...`
+                        : `Paste your AI-generated meeting notes here for "${selectedMeetingForAI?.meeting.title || 'selected meeting'}"
+
+Example format:
 
 Summary
-
-Harshad Donde authorized the note-taker and reviewed news headlines from ndtv.com, covering an Air India flight incident, a tennis court booking controversy, an NRI couple's retirement query, Bumrah's cricket performance, and Honey Singh's music battle.
+Brief overview of what was discussed in the meeting...
 
 Details
-
-• Meeting Note Authorization and News Review Harshad Donde authorized the note-taker and took notes on their behalf. They then proceeded to read various news headlines from ndtv.com, including updates on an Air India flight incident, a tennis court booking controversy involving Raghika and DK Shivakumar, and an NRI couple's retirement query. Harshad Donde also mentioned news about Bumrah's cricket performance and Honey Singh's involvement in a music battle (00:00:00)
+• Key discussion points
+• Decisions made
+• Important information shared
 
 Suggested next steps
-
-• Follow up on specific action items
-• Schedule next meeting
-• Prepare documentation`}
+• Action items to follow up on
+• Next meeting schedule
+• Documentation requirements`}
                       value={geminiContent}
                       onChange={(e) => setGeminiContent(e.target.value)}
                       className="min-h-[300px] font-mono text-sm"
@@ -2330,7 +2376,7 @@ Suggested next steps
                       ) : (
                         <>
                           <BotIcon className="h-4 w-4 mr-2" />
-                          {selectedMeetingForAI?.meeting.aiNotes ? 'Update AI Notes' : 'Process AI Notes'}
+                          {selectedMeetingForAI?.meeting.aiNotesGenerated ? 'Update AI Notes' : 'Process AI Notes'}
                         </>
                       )}
                     </Button>
