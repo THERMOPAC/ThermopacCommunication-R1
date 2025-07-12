@@ -624,6 +624,49 @@ export default function MeetingsManagement() {
     },
   });
 
+  // MD Meeting Plan mutations
+  const generateWeeklyMDMeetingsMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/meetings/md/generate-weekly', {}),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
+      toast({ 
+        title: 'Weekly MD meetings generated successfully', 
+        description: `${data.generatedCount || 0} meetings created for this week` 
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error generating weekly meetings', 
+        description: error.message, 
+        variant: 'destructive' 
+      });
+    },
+  });
+
+  const generateMonthlyMDMeetingsMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/meetings/md/generate-monthly', {}),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
+      toast({ 
+        title: 'Monthly MD meetings generated successfully', 
+        description: `${data.generatedCount || 0} meetings created for this month` 
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error generating monthly meetings', 
+        description: error.message, 
+        variant: 'destructive' 
+      });
+    },
+  });
+
+  // MD Plan Overview query
+  const { data: mdPlanOverview, isLoading: mdPlanLoading } = useQuery({
+    queryKey: ['/api/meetings/md/plan-overview'],
+    enabled: activeTab === 'md-planning',
+  });
+
   // AI Processing mutation
   const processGeminiNotesMutation = useMutation({
     mutationFn: ({ meetingId, geminiContent }: { meetingId: number; geminiContent: string }) =>
@@ -837,7 +880,7 @@ export default function MeetingsManagement() {
         </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <BarChart3Icon className="h-4 w-4" />
             Dashboard
@@ -849,6 +892,10 @@ export default function MeetingsManagement() {
           <TabsTrigger value="commitments" className="flex items-center gap-2">
             <ListChecksIcon className="h-4 w-4" />
             Commitments
+          </TabsTrigger>
+          <TabsTrigger value="md-planning" className="flex items-center gap-2">
+            <SettingsIcon className="h-4 w-4" />
+            MD Planning
           </TabsTrigger>
           <TabsTrigger value="google-calendar" className="flex items-center gap-2">
             <VideoIcon className="h-4 w-4" />
@@ -2182,6 +2229,163 @@ export default function MeetingsManagement() {
                   <p className="text-gray-500">No commitments found</p>
                 </div>
               )}
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* MD Planning Tab */}
+        <TabsContent value="md-planning" className="space-y-6">
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-semibold">Managing Director Meeting Plan</h3>
+                <p className="text-gray-600">Automated meeting generation based on approved 2025 yearly meeting plan</p>
+              </div>
+              <SettingsIcon className="h-8 w-8 text-blue-600" />
+            </div>
+
+            {/* Plan Overview */}
+            {mdPlanLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-500">Loading MD plan overview...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <Card className="p-4 bg-blue-50">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <CalendarDaysIcon className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-blue-600">Weekly Time Allocation</p>
+                      <p className="text-2xl font-bold text-blue-900">25 Hours</p>
+                      <p className="text-xs text-blue-700">Target weekly limit</p>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-4 bg-green-50">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <TrendingUpIcon className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-green-600">Marketing Leadership</p>
+                      <p className="text-2xl font-bold text-green-900">12%</p>
+                      <p className="text-xs text-green-700">Time allocation</p>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-4 bg-purple-50">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <UsersIcon className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-purple-600">Customer Projects</p>
+                      <p className="text-2xl font-bold text-purple-900">8%</p>
+                      <p className="text-xs text-purple-700">Oversight allocation</p>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {/* Quick Actions */}
+            <div className="border rounded-lg p-6">
+              <h4 className="text-lg font-semibold mb-4">Quick Actions</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button
+                  onClick={() => generateWeeklyMDMeetingsMutation.mutate()}
+                  disabled={generateWeeklyMDMeetingsMutation.isPending}
+                  className="h-16 flex-col gap-2"
+                >
+                  <CalendarDaysIcon className="h-6 w-6" />
+                  Generate This Week's Meetings
+                  <span className="text-xs opacity-75">Strategic focus + afternoon meetings</span>
+                </Button>
+
+                <Button
+                  onClick={() => generateMonthlyMDMeetingsMutation.mutate()}
+                  disabled={generateMonthlyMDMeetingsMutation.isPending}
+                  variant="outline"
+                  className="h-16 flex-col gap-2"
+                >
+                  <CalendarIcon className="h-6 w-6" />
+                  Generate Monthly Meetings
+                  <span className="text-xs opacity-75">All monthly recurring templates</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Meeting Templates Overview */}
+            <div className="border rounded-lg p-6">
+              <h4 className="text-lg font-semibold mb-4">Meeting Framework</h4>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="border rounded p-4">
+                    <h5 className="font-semibold text-blue-600 mb-2">Strategic Work (Morning)</h5>
+                    <p className="text-sm text-gray-600 mb-2">9:00 AM - 12:00 PM, Monday-Friday</p>
+                    <ul className="text-xs text-gray-500 space-y-1">
+                      <li>• Strategic planning & analysis</li>
+                      <li>• Deep work sessions</li>
+                      <li>• No meetings scheduled</li>
+                    </ul>
+                  </div>
+
+                  <div className="border rounded p-4">
+                    <h5 className="font-semibold text-green-600 mb-2">Meeting Block (Afternoon)</h5>
+                    <p className="text-sm text-gray-600 mb-2">2:00 PM - 5:00 PM, Tuesday-Thursday</p>
+                    <ul className="text-xs text-gray-500 space-y-1">
+                      <li>• Team meetings</li>
+                      <li>• Customer interactions</li>
+                      <li>• Marketing activities</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
+                  <h5 className="font-semibold mb-3">Meeting Schedule</h5>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="font-medium text-purple-600">Weekly Meetings</p>
+                      <ul className="text-gray-600 space-y-1 mt-1">
+                        <li>• Team Review (Monday 2:00 PM)</li>
+                        <li>• Sales Review (Wednesday 2:30 PM)</li>
+                        <li>• Operations Review (Thursday 2:00 PM)</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-medium text-orange-600">Monthly Meetings</p>
+                      <ul className="text-gray-600 space-y-1 mt-1">
+                        <li>• Board Meeting (1st Monday)</li>
+                        <li>• Customer Review (3rd Wednesday)</li>
+                        <li>• Strategic Planning (Last Friday)</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-medium text-teal-600">Quarterly Meetings</p>
+                      <ul className="text-gray-600 space-y-1 mt-1">
+                        <li>• All-Hands Meeting</li>
+                        <li>• Vision & Strategy Session</li>
+                        <li>• Performance Review</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Generation Log */}
+            <div className="border rounded-lg p-6">
+              <h4 className="text-lg font-semibold mb-4">Recent Activity</h4>
+              <div className="text-center py-8 text-gray-500">
+                <FileTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                <p>Meeting generation history will appear here</p>
+                <p className="text-sm">Generate meetings to see activity log</p>
+              </div>
             </div>
           </Card>
         </TabsContent>
