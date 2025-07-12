@@ -88,30 +88,55 @@
 
 ## 📆 WEEKLY FRAMEWORK (50 Weeks/Year)
 
-### **Monday: Strategic Planning Day**
+### **Monday: Strategic Planning Day** (5 hours)
 - **Executive Brief** (30 minutes): Key updates from department heads
-- **Strategic Thinking Time** (2 hours): Individual planning and analysis
+- **Strategic Thinking Time** (2.5 hours): Individual planning and analysis
 - **Priority Setting Session** (30 minutes): Week's focus areas
+- **Operations Overview** (1.5 hours): Critical operational issues review
 
-### **Tuesday: Operations Focus**
-- **Operations Review** (1 hour): Critical operational issues
+### **Tuesday: Marketing Leadership & Operations** (5 hours)
+**Morning Block (2 hours):**
+- **Strategic Thinking Time** (1 hour): Individual planning
 - **Problem-Solving Session** (1 hour): Unblocking teams, key decisions
+
+**Afternoon Block (3 hours):**
+- **Marketing Strategy Check-in** (1 hour): Weekly marketing performance and strategy alignment
+- **Customer Project Kickoffs/Reviews** (1.5 hours): Project launches, milestone reviews, escalation support
 - **Quality/Compliance Check** (30 minutes): Regulatory and quality updates
 
-### **Wednesday: People & Culture**
+### **Wednesday: People & Customer Focus** (5 hours)
+**Morning Block (2 hours):**
 - **Leadership Development** (1 hour): Team growth and development
+- **Strategic Analysis** (1 hour): Market and competitive analysis
+
+**Afternoon Block (3 hours):**
+- **HR Strategy Session** (1 hour): Talent management, policy updates
+- **Campaign Planning/Review** (1.5 hours): Marketing campaign performance analysis or new campaign development
 - **Culture Building** (30 minutes): Company culture initiatives
-- **HR Strategy Session** (30 minutes): Talent management, policy updates
 
-### **Thursday: External Relations**
-- **Client/Partner Meetings** (2-3 hours): Relationship management
+### **Thursday: External Relations & Marketing** (5 hours)
+**Morning Block (2 hours):**
+- **Strategic Thinking Time** (1 hour): Individual planning
 - **Market Research** (1 hour): Industry trends and competitive analysis
-- **Business Development** (1 hour): Growth opportunities
 
-### **Friday: Review & Planning**
-- **Week Review** (30 minutes): Accomplishments and lessons learned
-- **Next Week Planning** (30 minutes): Priority setting
+**Afternoon Block (3 hours):**
+- **Client/Partner Meetings** (1.5 hours): Relationship management
+- **External Positioning/Branding** (1 hour): Brand alignment, positioning strategy, external communications
+- **Business Development** (30 minutes): Growth opportunities review
+
+### **Friday: Review & Planning** (5 hours)
+**Morning Block (2 hours):**
+- **Week Review** (1 hour): Accomplishments and lessons learned
+- **Strategic Planning** (1 hour): Next week priority setting
+
+**Afternoon Block (3 hours):**
+- **Customer Project Escalations** (1 hour): Address project issues requiring MD attention
 - **Personal Development** (1 hour): Skills enhancement, learning
+- **Administrative/Planning** (1 hour): Email, planning, wrap-up
+
+**Total Weekly Hours: 25 hours**
+**Meeting Allocation: 15 hours (60%)**
+**Strategic/Individual Work: 10 hours (40%)**
 
 ---
 
@@ -119,14 +144,20 @@
 
 ### **Daily Rhythm (5 hours/day)**
 
-#### **Morning Block (2.5 hours) - High Energy**
-- **Strategic Thinking** (1 hour): Planning, analysis, decision-making
-- **Priority Meetings** (1.5 hours): Most important meetings of the day
+#### **Morning Block (2 hours) - High Energy Strategic Focus**
+- **Strategic Thinking** (1 hour): Deep work, planning, analysis, decision-making
+- **Leadership/Operations** (1 hour): Team coaching, problem-solving, priority meetings
 
-#### **Afternoon Block (2.5 hours) - Collaborative**
-- **Team Interactions** (1 hour): Coaching, problem-solving, alignment
-- **External Engagement** (1 hour): Client calls, partner meetings
-- **Administrative/Planning** (30 minutes): Email, planning, wrap-up
+#### **Afternoon Block (3 hours) - Collaborative & External Focus**
+- **Marketing Activities** (1-1.5 hours): Strategy check-ins, campaign planning, positioning work (Tue-Thu)
+- **Customer Projects** (1-1.5 hours): Project oversight, milestone reviews, escalation support (Tue-Thu)
+- **External Relations** (1 hour): Client meetings, partner calls, business development
+- **Administrative** (30 minutes): Planning, email, wrap-up
+
+### **Weekly Marketing Leadership Distribution:**
+- **Tuesday PM**: Marketing Strategy Check-in + Customer Project Reviews
+- **Wednesday PM**: Campaign Planning/Performance Review
+- **Thursday PM**: External Positioning/Branding Alignment
 
 ### **Daily Communication Protocols**
 - **Morning Brief** (15 minutes): Assistant provides daily priorities
@@ -145,9 +176,10 @@
 
 ### **Meeting Types Classification**
 1. **Strategic** (20%): Long-term planning and vision setting
-2. **Operational** (30%): Day-to-day business decisions
-3. **External** (30%): Client, partner, stakeholder relations
-4. **People Development** (20%): Team growth and culture building
+2. **Operational** (25%): Day-to-day business decisions
+3. **External Relations** (25%): Client, partner, stakeholder relations
+4. **Marketing Leadership** (15%): Strategy check-ins, campaign planning, positioning
+5. **Customer Projects** (15%): Project oversight, milestone reviews, escalation support
 
 ### **Delegation Framework**
 - **Operational Decisions**: Department heads authority up to $X
@@ -166,10 +198,11 @@
 - **Team Engagement**: Leadership effectiveness scores from team feedback
 
 ### **Time Allocation Tracking**
-- **Strategic Work**: 40% of total time
-- **Team Leadership**: 25% of total time
-- **External Relations**: 25% of total time
-- **Administrative**: 10% of total time
+- **Strategic Work**: 40% of total time (10 hours/week)
+- **Team Leadership**: 20% of total time (5 hours/week)
+- **External Relations**: 20% of total time (5 hours/week)
+- **Marketing Leadership**: 12% of total time (3 hours/week)
+- **Customer Projects**: 8% of total time (2 hours/week)
 
 ---
 
