@@ -2415,11 +2415,334 @@ Suggested next steps
 
         {/* Analytics Tab */}
         <TabsContent value="analytics" className="space-y-6">
+          {/* Analytics Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h2>
+              <p className="text-gray-600">Comprehensive insights into meetings and commitments performance</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                <TrendingUpIcon className="h-3 w-3 mr-1" />
+                Live Data
+              </Badge>
+            </div>
+          </div>
+
+          {/* Key Metrics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Total Meetings */}
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Meetings</p>
+                  <p className="text-3xl font-bold text-gray-900">{dashboardStats?.meetings?.total || 0}</p>
+                </div>
+                <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <CalendarIcon className="h-6 w-6 text-blue-600" />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">All time meetings organized</p>
+            </Card>
+
+            {/* Active Commitments */}
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Active Commitments</p>
+                  <p className="text-3xl font-bold text-gray-900">
+                    {(dashboardStats?.commitments?.pending || 0) + (dashboardStats?.commitments?.inProgress || 0)}
+                  </p>
+                </div>
+                <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <ListChecksIcon className="h-6 w-6 text-green-600" />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Pending & in progress</p>
+            </Card>
+
+            {/* Completion Rate */}
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Completion Rate</p>
+                  <p className="text-3xl font-bold text-gray-900">
+                    {dashboardStats?.commitments?.total ? 
+                      Math.round((dashboardStats.commitments.completed / dashboardStats.commitments.total) * 100) : 0}%
+                  </p>
+                </div>
+                <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <CheckIcon className="h-6 w-6 text-purple-600" />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Commitments completed</p>
+            </Card>
+
+            {/* Overdue Items */}
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Overdue Items</p>
+                  <p className="text-3xl font-bold text-red-600">{dashboardStats?.commitments?.overdue || 0}</p>
+                </div>
+                <div className="h-12 w-12 bg-red-100 rounded-lg flex items-center justify-center">
+                  <AlertCircleIcon className="h-6 w-6 text-red-600" />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Require immediate attention</p>
+            </Card>
+          </div>
+
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Meeting Types Distribution */}
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Meeting Types Distribution</h3>
+              <div className="space-y-4">
+                {meetings?.meetings && (() => {
+                  const typeStats = meetings.meetings.reduce((acc: any, item: any) => {
+                    const type = item.meeting.meetingType || 'Other';
+                    acc[type] = (acc[type] || 0) + 1;
+                    return acc;
+                  }, {});
+                  
+                  const total = Object.values(typeStats).reduce((a: any, b: any) => a + b, 0);
+                  
+                  return Object.entries(typeStats).map(([type, count]: [string, any]) => (
+                    <div key={type} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                        <span className="text-sm font-medium">{type}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600">{count}</span>
+                        <div className="w-20 bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-500 h-2 rounded-full" 
+                            style={{ width: `${(count / total) * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </Card>
+
+            {/* Priority Distribution */}
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Priority Distribution</h3>
+              <div className="space-y-4">
+                {commitments?.commitments && (() => {
+                  const priorityStats = commitments.commitments.reduce((acc: any, item: any) => {
+                    const priority = item.commitment.priority || 'Medium';
+                    acc[priority] = (acc[priority] || 0) + 1;
+                    return acc;
+                  }, {});
+                  
+                  const total = Object.values(priorityStats).reduce((a: any, b: any) => a + b, 0);
+                  const priorityColors: any = {
+                    'High': 'bg-red-500',
+                    'Medium': 'bg-yellow-500',
+                    'Low': 'bg-green-500'
+                  };
+                  
+                  return Object.entries(priorityStats).map(([priority, count]: [string, any]) => (
+                    <div key={priority} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3 h-3 rounded-full ${priorityColors[priority] || 'bg-gray-500'}`}></div>
+                        <span className="text-sm font-medium">{priority}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600">{count}</span>
+                        <div className="w-20 bg-gray-200 rounded-full h-2">
+                          <div 
+                            className={`h-2 rounded-full ${priorityColors[priority] || 'bg-gray-500'}`}
+                            style={{ width: `${(count / total) * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </Card>
+          </div>
+
+          {/* Status Overview */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Meeting Status */}
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Meeting Status</h3>
+              <div className="space-y-3">
+                {meetings?.meetings && (() => {
+                  const statusStats = meetings.meetings.reduce((acc: any, item: any) => {
+                    const status = item.meeting.status || 'Scheduled';
+                    acc[status] = (acc[status] || 0) + 1;
+                    return acc;
+                  }, {});
+                  
+                  const statusColors: any = {
+                    'Scheduled': 'text-blue-600 bg-blue-100',
+                    'Completed': 'text-green-600 bg-green-100',
+                    'Cancelled': 'text-red-600 bg-red-100',
+                    'In Progress': 'text-yellow-600 bg-yellow-100'
+                  };
+                  
+                  return Object.entries(statusStats).map(([status, count]: [string, any]) => (
+                    <div key={status} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                      <span className="text-sm font-medium">{status}</span>
+                      <Badge className={statusColors[status] || 'text-gray-600 bg-gray-100'}>
+                        {count}
+                      </Badge>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </Card>
+
+            {/* Commitment Status */}
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Commitment Status</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                  <span className="text-sm font-medium">Pending</span>
+                  <Badge className="text-yellow-600 bg-yellow-100">
+                    {dashboardStats?.commitments?.pending || 0}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                  <span className="text-sm font-medium">In Progress</span>
+                  <Badge className="text-blue-600 bg-blue-100">
+                    {dashboardStats?.commitments?.inProgress || 0}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                  <span className="text-sm font-medium">Completed</span>
+                  <Badge className="text-green-600 bg-green-100">
+                    {dashboardStats?.commitments?.completed || 0}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                  <span className="text-sm font-medium">Overdue</span>
+                  <Badge className="text-red-600 bg-red-100">
+                    {dashboardStats?.commitments?.overdue || 0}
+                  </Badge>
+                </div>
+              </div>
+            </Card>
+
+            {/* Team Performance */}
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Performance</h3>
+              <div className="space-y-3">
+                {commitments?.commitments && (() => {
+                  const teamStats = commitments.commitments.reduce((acc: any, item: any) => {
+                    const assignee = item.assignedTo?.username || 'Unassigned';
+                    if (!acc[assignee]) {
+                      acc[assignee] = { total: 0, completed: 0 };
+                    }
+                    acc[assignee].total++;
+                    if (item.commitment.status === 'Completed') {
+                      acc[assignee].completed++;
+                    }
+                    return acc;
+                  }, {});
+                  
+                  return Object.entries(teamStats).slice(0, 5).map(([assignee, stats]: [string, any]) => (
+                    <div key={assignee} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                      <div>
+                        <span className="text-sm font-medium">{assignee}</span>
+                        <div className="text-xs text-gray-500">
+                          {stats.completed}/{stats.total} completed
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium">
+                          {stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}%
+                        </div>
+                        <div className="w-16 bg-gray-200 rounded-full h-1.5 mt-1">
+                          <div 
+                            className="bg-green-500 h-1.5 rounded-full" 
+                            style={{ width: `${stats.total > 0 ? (stats.completed / stats.total) * 100 : 0}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </Card>
+          </div>
+
+          {/* Recent Activity */}
           <Card className="p-6">
-            <div className="text-center py-12">
-              <TrendingUpIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-600 mb-2">Analytics Dashboard</h3>
-              <p className="text-gray-500">Advanced analytics and reporting features coming soon</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
+            <div className="space-y-4">
+              {/* Recent Meetings */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Recent Meetings</h4>
+                <div className="space-y-2">
+                  {meetings?.meetings?.slice(0, 3).map((item: any) => (
+                    <div key={item.meeting.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        <CalendarIcon className="h-4 w-4 text-gray-500" />
+                        <div>
+                          <span className="text-sm font-medium">{item.meeting.title}</span>
+                          <div className="text-xs text-gray-500">
+                            {new Date(item.meeting.meetingDate).toLocaleDateString()} at {item.meeting.startTime}
+                          </div>
+                        </div>
+                      </div>
+                      <Badge 
+                        className={
+                          item.meeting.status === 'Completed' ? 'text-green-600 bg-green-100' :
+                          item.meeting.status === 'Cancelled' ? 'text-red-600 bg-red-100' :
+                          'text-blue-600 bg-blue-100'
+                        }
+                      >
+                        {item.meeting.status || 'Scheduled'}
+                      </Badge>
+                    </div>
+                  )) || (
+                    <div className="text-sm text-gray-500 text-center py-4">No recent meetings</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Recent Commitments */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Recent Commitments</h4>
+                <div className="space-y-2">
+                  {commitments?.commitments?.slice(0, 3).map((item: any) => (
+                    <div key={item.commitment.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        <ListChecksIcon className="h-4 w-4 text-gray-500" />
+                        <div>
+                          <span className="text-sm font-medium">{item.commitment.title}</span>
+                          <div className="text-xs text-gray-500">
+                            Due: {new Date(item.commitment.dueDate).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          className={
+                            item.commitment.status === 'Completed' ? 'text-green-600 bg-green-100' :
+                            item.commitment.status === 'In Progress' ? 'text-blue-600 bg-blue-100' :
+                            new Date(item.commitment.dueDate) < new Date() ? 'text-red-600 bg-red-100' :
+                            'text-yellow-600 bg-yellow-100'
+                          }
+                        >
+                          {item.commitment.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  )) || (
+                    <div className="text-sm text-gray-500 text-center py-4">No recent commitments</div>
+                  )}
+                </div>
+              </div>
             </div>
           </Card>
         </TabsContent>
