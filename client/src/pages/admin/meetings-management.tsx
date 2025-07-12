@@ -246,7 +246,16 @@ export default function MeetingsManagement() {
         status: statusFilter,
         priority: priorityFilter,
       });
-      return apiRequest('GET', `/api/meetings/commitments?${queryParams}`);
+      const url = `/api/meetings/commitments?${queryParams}`;
+      console.log('Making commitments API request to:', url);
+      try {
+        const result = await apiRequest('GET', url);
+        console.log('Commitments API success:', result);
+        return result;
+      } catch (error) {
+        console.error('API request failed:', error);
+        throw error;
+      }
     },
     retry: false,
   });
