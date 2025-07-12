@@ -61,7 +61,25 @@ const meetingFormSchema = z.object({
   attendeeIds: z.array(z.number()).default([]),
   agenda: z.string().optional(),
   autoCreateGoogleMeet: z.boolean().default(true),
-});
+}).refine(
+  (data) => {
+    // Ensure End Time is not earlier than Start Time
+    if (data.startTime && data.endTime) {
+      const [startHour, startMinute] = data.startTime.split(':').map(Number);
+      const [endHour, endMinute] = data.endTime.split(':').map(Number);
+      
+      const startMinutes = startHour * 60 + startMinute;
+      const endMinutes = endHour * 60 + endMinute;
+      
+      return endMinutes > startMinutes;
+    }
+    return true;
+  },
+  {
+    message: "End time must be after start time",
+    path: ["endTime"],
+  }
+);
 
 const commitmentFormSchema = z.object({
   meetingId: z.number().optional(), // Now optional for Google Calendar events
@@ -199,6 +217,19 @@ interface GoogleCalendarEvent {
   }>;
 }
 
+// Helper function to generate time options in 15-minute intervals
+const generateTimeOptions = () => {
+  const times = [];
+  for (let hour = 0; hour < 24; hour++) {
+    for (let minute = 0; minute < 60; minute += 15) {
+      const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+      const displayTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+      times.push({ value: timeString, label: displayTime });
+    }
+  }
+  return times;
+};
+
 export default function MeetingsManagement() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
@@ -219,6 +250,9 @@ export default function MeetingsManagement() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Generate time options for dropdowns
+  const timeOptions = useMemo(() => generateTimeOptions(), []);
 
   // Load existing AI content when a meeting is selected
   useEffect(() => {
@@ -1167,9 +1201,20 @@ export default function MeetingsManagement() {
                                   Start Time
                                   <span className="text-red-500">*</span>
                                 </FormLabel>
-                                <FormControl>
-                                  <Input type="time" {...field} />
-                                </FormControl>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select start time" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent className="max-h-60">
+                                    {timeOptions.map((time) => (
+                                      <SelectItem key={time.value} value={time.value}>
+                                        {time.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -1184,9 +1229,20 @@ export default function MeetingsManagement() {
                                   End Time
                                   <span className="text-red-500">*</span>
                                 </FormLabel>
-                                <FormControl>
-                                  <Input type="time" {...field} />
-                                </FormControl>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select end time" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent className="max-h-60">
+                                    {timeOptions.map((time) => (
+                                      <SelectItem key={time.value} value={time.value}>
+                                        {time.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                                 <FormMessage />
                               </FormItem>
                             )}
