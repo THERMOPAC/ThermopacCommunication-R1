@@ -238,7 +238,7 @@ export default function MeetingsManagement() {
     requiresConnection?: boolean;
   }>({
     queryKey: ['/api/calendar/upcoming-events'],
-    enabled: activeTab === 'dashboard' || activeTab === 'google-calendar',
+    enabled: activeTab === 'dashboard' || activeTab === 'google-calendar' || activeTab === 'commitments',
     retry: false,
   });
 
@@ -268,6 +268,31 @@ export default function MeetingsManagement() {
         return acc;
       }, {} as Record<string, User[]>);
   }, [users]);
+
+  // Combined meetings list for dropdown (internal meetings + Google Calendar events)
+  const combinedMeetingsList = useMemo(() => {
+    const internalMeetings = meetingsData?.meetings || [];
+    const googleEvents = googleCalendarEvents?.events || [];
+    
+    return {
+      internal: internalMeetings.map(meeting => ({
+        id: `internal-${meeting.meeting.id}`,
+        displayId: meeting.meeting.id,
+        title: meeting.meeting.title,
+        type: 'internal' as const,
+        date: meeting.meeting.meetingDate,
+        startTime: meeting.meeting.startTime
+      })),
+      googleCalendar: googleEvents.map(event => ({
+        id: `google-${event.id}`,
+        displayId: event.id,
+        title: event.summary,
+        type: 'google' as const,
+        date: event.start.dateTime ? format(parseISO(event.start.dateTime), 'yyyy-MM-dd') : event.start.date || '',
+        startTime: event.start.dateTime ? format(parseISO(event.start.dateTime), 'HH:mm') : ''
+      }))
+    };
+  }, [meetingsData, googleCalendarEvents]);
 
   // Create meeting mutation
   const createMeetingMutation = useMutation({
@@ -1368,18 +1393,60 @@ export default function MeetingsManagement() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Related Meeting</FormLabel>
-                              <Select onValueChange={(value) => field.onChange(parseInt(value))} defaultValue={field.value?.toString()}>
+                              <Select 
+                                onValueChange={(value) => {
+                                  // For internal meetings, store the numeric ID
+                                  // For Google Calendar events, store 0 as placeholder (commitments require internal meeting IDs)
+                                  if (value.startsWith('internal-')) {
+                                    field.onChange(parseInt(value.replace('internal-', '')));
+                                  } else {
+                                    // Google Calendar events - we'll store 0 as placeholder since backend expects internal meeting ID
+                                    field.onChange(0);
+                                  }
+                                }} 
+                                defaultValue={field.value ? `internal-${field.value}` : undefined}
+                              >
                                 <FormControl>
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Select meeting" />
+                                    <SelectValue placeholder="Select meeting or event" />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {meetingsData?.meetings.map((meeting) => (
-                                    <SelectItem key={meeting.meeting.id} value={meeting.meeting.id.toString()}>
-                                      {meeting.meeting.title}
+                                  {combinedMeetingsList.internal.length > 0 && (
+                                    <SelectGroup>
+                                      <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                        Internal Meetings
+                                      </SelectLabel>
+                                      {combinedMeetingsList.internal.map((meeting) => (
+                                        <SelectItem key={meeting.id} value={meeting.id}>
+                                          {meeting.title}
+                                          <span className="ml-2 text-sm text-gray-500">
+                                            ({format(parseISO(meeting.date), 'MMM dd')} at {meeting.startTime})
+                                          </span>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectGroup>
+                                  )}
+                                  {combinedMeetingsList.googleCalendar.length > 0 && (
+                                    <SelectGroup>
+                                      <SelectLabel className="font-semibold text-green-600 dark:text-green-400">
+                                        Google Calendar Events
+                                      </SelectLabel>
+                                      {combinedMeetingsList.googleCalendar.map((event) => (
+                                        <SelectItem key={event.id} value={event.id}>
+                                          {event.title}
+                                          <span className="ml-2 text-sm text-gray-500">
+                                            ({format(parseISO(event.date), 'MMM dd')} {event.startTime && `at ${event.startTime}`})
+                                          </span>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectGroup>
+                                  )}
+                                  {combinedMeetingsList.internal.length === 0 && combinedMeetingsList.googleCalendar.length === 0 && (
+                                    <SelectItem value="no-meetings" disabled>
+                                      No meetings available
                                     </SelectItem>
-                                  ))}
+                                  )}
                                 </SelectContent>
                               </Select>
                               <FormMessage />
