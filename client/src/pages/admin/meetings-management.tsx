@@ -219,7 +219,7 @@ export default function MeetingsManagement() {
   // Fetch all meetings
   const { data: meetingsData, isLoading: meetingsLoading } = useQuery<{ meetings: Meeting[] }>({
     queryKey: ['/api/meetings', { status: statusFilter, type: typeFilter, priority: priorityFilter }],
-    enabled: activeTab === 'meetings' || activeTab === 'ai-notes',
+    enabled: activeTab === 'meetings' || activeTab === 'ai-notes' || activeTab === 'commitments',
   });
 
   // Fetch commitments
@@ -288,16 +288,41 @@ export default function MeetingsManagement() {
     const pastCutoff = subDays(today, 10);
     const futureCutoff = addDays(today, 30);
     
+    // Debug logging
+    console.log('Time filtering debug:', {
+      today: today.toISOString(),
+      pastCutoff: pastCutoff.toISOString(),
+      futureCutoff: futureCutoff.toISOString(),
+      internalMeetingsCount: internalMeetings.length,
+      googleEventsCount: googleEvents.length
+    });
+    
     // Helper function to check if a date is within the time window
     const isWithinTimeWindow = (dateString: string) => {
       const meetingDate = startOfDay(parseISO(dateString));
-      return (isAfter(meetingDate, pastCutoff) || isEqual(meetingDate, pastCutoff)) && 
-             (isBefore(meetingDate, futureCutoff) || isEqual(meetingDate, futureCutoff));
+      const withinWindow = (isAfter(meetingDate, pastCutoff) || isEqual(meetingDate, pastCutoff)) && 
+                          (isBefore(meetingDate, futureCutoff) || isEqual(meetingDate, futureCutoff));
+      
+      // Debug logging for each date check
+      console.log('Date check:', {
+        dateString,
+        meetingDate: meetingDate.toISOString(),
+        withinWindow,
+        isAfterPast: isAfter(meetingDate, pastCutoff),
+        isEqualPast: isEqual(meetingDate, pastCutoff),
+        isBeforeFuture: isBefore(meetingDate, futureCutoff),
+        isEqualFuture: isEqual(meetingDate, futureCutoff)
+      });
+      
+      return withinWindow;
     };
     
     // Process internal meetings with time filtering
     const internal = internalMeetings
-      .filter(meeting => isWithinTimeWindow(meeting.meeting.meetingDate))
+      .filter(meeting => {
+        console.log('Processing internal meeting:', meeting.meeting.title, meeting.meeting.meetingDate);
+        return isWithinTimeWindow(meeting.meeting.meetingDate);
+      })
       .map(meeting => ({
         id: `internal-${meeting.meeting.id}`,
         displayId: meeting.meeting.id,
