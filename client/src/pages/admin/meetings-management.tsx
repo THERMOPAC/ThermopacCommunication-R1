@@ -1395,14 +1395,21 @@ export default function MeetingsManagement() {
                               <Select onValueChange={(value) => field.onChange(parseInt(value))} defaultValue={field.value?.toString()}>
                                 <FormControl>
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Select assignee" />
+                                    <SelectValue placeholder="Select team member" />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {users?.map((user) => (
-                                    <SelectItem key={user.id} value={user.id.toString()}>
-                                      {user.username} ({user.role})
-                                    </SelectItem>
+                                  {Object.entries(groupedUsers).map(([role, roleUsers]) => (
+                                    <SelectGroup key={role}>
+                                      <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                        {role}s
+                                      </SelectLabel>
+                                      {roleUsers.map((user) => (
+                                        <SelectItem key={user.id} value={user.id.toString()}>
+                                          {user.username}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectGroup>
                                   ))}
                                 </SelectContent>
                               </Select>
