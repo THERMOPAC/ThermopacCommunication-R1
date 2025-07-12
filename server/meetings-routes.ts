@@ -501,8 +501,13 @@ export const getCommitments = async (req: Request, res: Response) => {
 
     const conditions = [];
 
-    if (meetingId && meetingId !== '' && !isNaN(parseInt(meetingId as string))) {
+    // Only filter by meetingId if it's provided and valid
+    if (meetingId && meetingId !== '' && meetingId !== 'undefined' && !isNaN(parseInt(meetingId as string))) {
+      console.log('Adding meeting ID filter:', meetingId);
       conditions.push(eq(meetingCommitments.meetingId, parseInt(meetingId as string)));
+    } else if (meetingId && meetingId !== '' && meetingId !== 'undefined') {
+      console.log('Invalid meeting ID provided:', meetingId);
+      return res.status(400).json({ error: 'Invalid meeting ID' });
     }
 
     if (assignedToId && assignedToId !== '' && !isNaN(parseInt(assignedToId as string))) {

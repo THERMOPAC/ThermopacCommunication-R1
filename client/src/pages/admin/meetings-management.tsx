@@ -243,6 +243,17 @@ export default function MeetingsManagement() {
     enabled: activeTab === 'commitments',
   });
 
+  // Add debugging for commitments query
+  console.log('Commitments Query Debug:', {
+    activeTab,
+    enabled: activeTab === 'commitments',
+    data: commitmentsData,
+    loading: commitmentsLoading,
+    error: commitmentsError,
+    statusFilter,
+    priorityFilter
+  });
+
 
 
   // Fetch users for dropdowns
