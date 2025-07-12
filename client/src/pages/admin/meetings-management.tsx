@@ -308,7 +308,12 @@ export default function MeetingsManagement() {
         dedupeKey: `${meeting.meeting.title.toLowerCase().trim()}-${meeting.meeting.meetingDate}-${meeting.meeting.startTime}`
       }));
 
-    // Process Google Calendar events with time filtering and enhanced deduplication
+    // Create set of internal meeting titles for quick lookup
+    const internalMeetingTitles = new Set(
+      internal.map(meeting => meeting.title.toLowerCase().trim())
+    );
+
+    // Process Google Calendar events with enhanced deduplication
     const googleCalendar = googleEvents
       .filter(event => {
         const eventDate = event.start.dateTime 
@@ -326,13 +331,9 @@ export default function MeetingsManagement() {
         dedupeKey: `${event.summary.toLowerCase().trim()}-${event.start.dateTime ? format(parseISO(event.start.dateTime), 'yyyy-MM-dd') : event.start.date || ''}-${event.start.dateTime ? format(parseISO(event.start.dateTime), 'HH:mm') : ''}`
       }))
       .filter(googleEvent => {
-        // Enhanced deduplication: check both exact matches and similar titles with same date/time
-        return !internal.some(internalMeeting => 
-          internalMeeting.dedupeKey === googleEvent.dedupeKey ||
-          (internalMeeting.title.toLowerCase().trim() === googleEvent.title.toLowerCase().trim() &&
-           internalMeeting.date === googleEvent.date &&
-           internalMeeting.startTime === googleEvent.startTime)
-        );
+        // Remove Google Calendar events that have the same title as internal meetings
+        const eventTitle = googleEvent.title.toLowerCase().trim();
+        return !internalMeetingTitles.has(eventTitle);
       });
     
     return {
