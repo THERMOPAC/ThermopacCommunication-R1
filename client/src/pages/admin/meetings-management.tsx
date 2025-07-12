@@ -278,28 +278,41 @@ export default function MeetingsManagement() {
       }, {} as Record<string, User[]>);
   }, [users]);
 
-  // Combined meetings list for dropdown (internal meetings + Google Calendar events)
+  // Combined meetings list for dropdown (internal meetings + Google Calendar events with deduplication)
   const combinedMeetingsList = useMemo(() => {
     const internalMeetings = meetingsData?.meetings || [];
     const googleEvents = googleCalendarEvents?.events || [];
     
-    return {
-      internal: internalMeetings.map(meeting => ({
-        id: `internal-${meeting.meeting.id}`,
-        displayId: meeting.meeting.id,
-        title: meeting.meeting.title,
-        type: 'internal' as const,
-        date: meeting.meeting.meetingDate,
-        startTime: meeting.meeting.startTime
-      })),
-      googleCalendar: googleEvents.map(event => ({
+    // Process internal meetings
+    const internal = internalMeetings.map(meeting => ({
+      id: `internal-${meeting.meeting.id}`,
+      displayId: meeting.meeting.id,
+      title: meeting.meeting.title,
+      type: 'internal' as const,
+      date: meeting.meeting.meetingDate,
+      startTime: meeting.meeting.startTime,
+      dedupeKey: `${meeting.meeting.title}-${meeting.meeting.meetingDate}-${meeting.meeting.startTime}`
+    }));
+
+    // Process Google Calendar events and filter out duplicates
+    const googleCalendar = googleEvents
+      .map(event => ({
         id: `google-${event.id}`,
         displayId: event.id,
         title: event.summary,
         type: 'google' as const,
         date: event.start.dateTime ? format(parseISO(event.start.dateTime), 'yyyy-MM-dd') : event.start.date || '',
-        startTime: event.start.dateTime ? format(parseISO(event.start.dateTime), 'HH:mm') : ''
+        startTime: event.start.dateTime ? format(parseISO(event.start.dateTime), 'HH:mm') : '',
+        dedupeKey: `${event.summary}-${event.start.dateTime ? format(parseISO(event.start.dateTime), 'yyyy-MM-dd') : event.start.date || ''}-${event.start.dateTime ? format(parseISO(event.start.dateTime), 'HH:mm') : ''}`
       }))
+      .filter(googleEvent => {
+        // Only include Google Calendar events that don't already exist in internal meetings
+        return !internal.some(internalMeeting => internalMeeting.dedupeKey === googleEvent.dedupeKey);
+      });
+    
+    return {
+      internal: internal.map(({ dedupeKey, ...rest }) => rest), // Remove dedupeKey from final result
+      googleCalendar: googleCalendar.map(({ dedupeKey, ...rest }) => rest) // Remove dedupeKey from final result
     };
   }, [meetingsData, googleCalendarEvents]);
 
