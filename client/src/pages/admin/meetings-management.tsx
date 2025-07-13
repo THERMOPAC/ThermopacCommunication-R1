@@ -758,6 +758,9 @@ export default function MeetingsManagement() {
       const endDateStr = formatDate(endOfWeek);
       
       console.log(`Week selection logic: Today is ${today.toDateString()} (day ${day}), generating for ${startOfWeek.toDateString()} - ${endOfWeek.toDateString()}`);
+      console.log(`Frontend timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}`);
+      console.log(`Frontend raw date: ${today}`);
+      console.log(`Is Sunday check: day === 0 ? ${day === 0}`);
       
       return apiRequest('POST', '/api/meetings/md/preview-weekly', {
         startDate: startDateStr,
