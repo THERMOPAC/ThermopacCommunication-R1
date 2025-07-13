@@ -447,9 +447,12 @@ export default function CreateQAPPage() {
       try {
         console.log("Attempting to parse QAP items from content...");
         
-        // Create a temporary div to parse HTML content
+        // Create a temporary div to parse HTML content safely
         const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = existingQap.content;
+        // Use DOMParser for safe HTML parsing instead of innerHTML
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(existingQap.content, 'text/html');
+        tempDiv.appendChild(doc.body);
         
         // First try: Look for rows in the QAP table
         const rows = tempDiv.querySelectorAll('.qap-table tbody tr');
