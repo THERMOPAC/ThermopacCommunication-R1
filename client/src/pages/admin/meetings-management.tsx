@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
+import { useAuth } from '@/hooks/use-auth';
 import Layout from '@/components/layout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -254,6 +255,7 @@ export default function MeetingsManagement() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   // Generate time options for dropdowns
   const timeOptions = useMemo(() => generateTimeOptions(), []);
@@ -722,7 +724,7 @@ export default function MeetingsManagement() {
   // MD Plan Overview query
   const { data: mdPlanOverview, isLoading: mdPlanLoading } = useQuery({
     queryKey: ['/api/meetings/md/plan-overview'],
-    enabled: activeTab === 'md-planning',
+    enabled: activeTab === 'md-planning' && user?.role === 'Superuser',
   });
 
   // Preview modal state
@@ -1095,7 +1097,7 @@ export default function MeetingsManagement() {
         </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-8">
+        <TabsList className={`grid w-full ${user?.role === 'Superuser' ? 'grid-cols-8' : 'grid-cols-7'}`}>
           <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <BarChart3Icon className="h-4 w-4" />
             Dashboard
@@ -1108,10 +1110,12 @@ export default function MeetingsManagement() {
             <ListChecksIcon className="h-4 w-4" />
             Commitments
           </TabsTrigger>
-          <TabsTrigger value="md-planning" className="flex items-center gap-2">
-            <SettingsIcon className="h-4 w-4" />
-            MD Planning
-          </TabsTrigger>
+          {user?.role === 'Superuser' && (
+            <TabsTrigger value="md-planning" className="flex items-center gap-2">
+              <SettingsIcon className="h-4 w-4" />
+              MD Planning
+            </TabsTrigger>
+          )}
           <TabsTrigger value="google-calendar" className="flex items-center gap-2">
             <VideoIcon className="h-4 w-4" />
             Google Calendar
@@ -2452,8 +2456,9 @@ export default function MeetingsManagement() {
         </TabsContent>
 
         {/* MD Planning Tab */}
-        <TabsContent value="md-planning" className="space-y-6">
-          <Card className="p-6">
+        {user?.role === 'Superuser' && (
+          <TabsContent value="md-planning" className="space-y-6">
+            <Card className="p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="text-xl font-semibold">Managing Director Meeting Plan</h3>
@@ -2606,7 +2611,8 @@ export default function MeetingsManagement() {
               </div>
             </div>
           </Card>
-        </TabsContent>
+          </TabsContent>
+        )}
 
         {/* AI Notes Tab */}
         <TabsContent value="ai-notes" className="space-y-6">
