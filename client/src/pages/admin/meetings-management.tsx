@@ -3535,53 +3535,76 @@ Suggested next steps
                 />
               </div>
 
-              <div>
-                <label className="text-sm font-medium">Participants / Attendees</label>
-                <Select
-                  value={editingPreviewMeeting.attendeeIds?.length > 0 ? "selected" : ""}
-                  onValueChange={() => {}} // Will be handled by checkbox logic
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={
-                      editingPreviewMeeting.attendeeIds?.length > 0 
-                        ? `${editingPreviewMeeting.attendeeIds.length} participant(s) selected`
-                        : "Select participants..."
-                    } />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(groupedUsers).map(([role, roleUsers]) => (
-                      <div key={role}>
-                        <div className="px-2 py-1.5 text-sm font-medium text-blue-600 bg-blue-50">
-                          {role}
-                        </div>
-                        {roleUsers.map((user) => (
-                          <div key={user.id} className="flex items-center space-x-2 px-2 py-1">
-                            <input
-                              type="checkbox"
-                              checked={editingPreviewMeeting.attendeeIds?.includes(user.id) || false}
-                              onChange={(e) => {
-                                const currentAttendees = editingPreviewMeeting.attendeeIds || [];
-                                const newAttendees = e.target.checked
-                                  ? [...currentAttendees, user.id]
-                                  : currentAttendees.filter(id => id !== user.id);
-                                setEditingPreviewMeeting({
-                                  ...editingPreviewMeeting,
-                                  attendeeIds: newAttendees
-                                });
-                              }}
-                              className="rounded border-gray-300"
-                            />
-                            <span className="text-sm">
+              {/* Participants Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Participants</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium">Participants / Attendees</label>
+                    <Select
+                      onValueChange={(value) => {
+                        const currentValues = editingPreviewMeeting.attendeeIds || [];
+                        if (!currentValues.includes(parseInt(value))) {
+                          setEditingPreviewMeeting({
+                            ...editingPreviewMeeting,
+                            attendeeIds: [...currentValues, parseInt(value)]
+                          });
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select team members to invite" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(groupedUsers).length > 0 ? (
+                          Object.entries(groupedUsers).map(([role, roleUsers]) => (
+                            <SelectGroup key={role}>
+                              <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                {role}s
+                              </SelectLabel>
+                              {roleUsers.map((user) => (
+                                <SelectItem key={user.id} value={user.id.toString()}>
+                                  {user.firstName && user.lastName 
+                                    ? `${user.firstName} ${user.lastName}` 
+                                    : user.username}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          ))
+                        ) : (
+                          <SelectItem value="loading" disabled>Loading users...</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {editingPreviewMeeting.attendeeIds && editingPreviewMeeting.attendeeIds.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {editingPreviewMeeting.attendeeIds.map((attendeeId) => {
+                          const user = users?.find(u => u.id === attendeeId);
+                          return user ? (
+                            <Badge key={attendeeId} variant="outline" className="flex items-center gap-1">
+                              <UsersIcon className="h-3 w-3" />
                               {user.firstName && user.lastName 
                                 ? `${user.firstName} ${user.lastName}` 
                                 : user.username}
-                            </span>
-                          </div>
-                        ))}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingPreviewMeeting({
+                                    ...editingPreviewMeeting,
+                                    attendeeIds: editingPreviewMeeting.attendeeIds?.filter(id => id !== attendeeId) || []
+                                  });
+                                }}
+                                className="ml-1 text-red-500 hover:text-red-700"
+                              >
+                                ×
+                              </button>
+                            </Badge>
+                          ) : null;
+                        })}
                       </div>
-                    ))}
-                  </SelectContent>
-                </Select>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
