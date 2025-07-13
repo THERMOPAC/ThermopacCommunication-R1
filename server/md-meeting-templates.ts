@@ -14,7 +14,7 @@ export const mdMeetingTemplates = {
       priority: "High",
       duration: 30,
       dayOfWeek: 0, // Monday (0-based for Monday-start week)
-      timeSlot: "09:00",
+      timeSlot: "10:00", // Updated: No meetings before 10:00 AM
       attendeeRoles: ["General Manager", "Senior Manager", "Manager"]
     },
     strategicThinking: {
@@ -24,7 +24,7 @@ export const mdMeetingTemplates = {
       priority: "Critical",
       duration: 120,
       dayOfWeek: 0, // Monday (0-based for Monday-start week)
-      timeSlot: "09:30",
+      timeSlot: "10:30", // Updated: No meetings before 10:00 AM
       attendeeRoles: [] // Individual time
     },
     marketingStrategyCheckin: {
@@ -74,7 +74,7 @@ export const mdMeetingTemplates = {
       priority: "Medium",
       duration: 60,
       dayOfWeek: 2, // Wednesday (0-based for Monday-start week)
-      timeSlot: "09:00",
+      timeSlot: "10:00", // Updated: No meetings before 10:00 AM
       attendeeRoles: ["HR Manager", "General Manager"]
     }
   },
@@ -88,7 +88,7 @@ export const mdMeetingTemplates = {
       priority: "Critical",
       duration: 120,
       monthlySchedule: "first-monday",
-      timeSlot: "09:00",
+      timeSlot: "10:00", // Updated: No meetings before 10:00 AM
       attendeeRoles: ["General Manager", "Senior Manager"]
     },
     departmentHeadCouncil: {
@@ -136,7 +136,7 @@ export const mdMeetingTemplates = {
       priority: "Critical",
       duration: 480, // 2 days
       month: 1, // January
-      timeSlot: "09:00",
+      timeSlot: "10:00", // Updated: No meetings before 10:00 AM
       attendeeRoles: ["General Manager", "Senior Manager", "Manager"]
     },
     midYearStrategicReview: {
@@ -146,7 +146,7 @@ export const mdMeetingTemplates = {
       priority: "Critical",
       duration: 240, // 1 day
       month: 7, // July
-      timeSlot: "09:00",
+      timeSlot: "10:00", // Updated: No meetings before 10:00 AM
       attendeeRoles: ["General Manager", "Senior Manager", "Manager"]
     },
     annualBoardMeeting: {
@@ -161,6 +161,65 @@ export const mdMeetingTemplates = {
     }
   }
 };
+
+/**
+ * Apply MD scheduling constraints to meeting times
+ * - No meetings before 10:00 AM
+ * - No meetings during 13:00-14:00 (1-2 PM lunch block)
+ */
+function applyMDSchedulingConstraints(timeSlot: string, duration: number): { startTime: string; endTime: string } {
+  let [hours, minutes] = timeSlot.split(':').map(Number);
+  
+  // Rule 1: No meetings before 10:00 AM
+  if (hours < 10) {
+    hours = 10;
+    minutes = 0;
+  }
+  
+  // Calculate end time
+  const startTimeMinutes = hours * 60 + minutes;
+  const endTimeMinutes = startTimeMinutes + duration;
+  const endHours = Math.floor(endTimeMinutes / 60);
+  const endMins = endTimeMinutes % 60;
+  
+  // Rule 2: Check lunch block overlap (13:00-14:00)
+  const lunchStart = 13 * 60; // 13:00 in minutes
+  const lunchEnd = 14 * 60;   // 14:00 in minutes
+  
+  // If meeting overlaps lunch block, adjust
+  if (startTimeMinutes < lunchEnd && endTimeMinutes > lunchStart) {
+    if (startTimeMinutes < lunchStart) {
+      // Meeting starts before lunch, end it at lunch start
+      const adjustedEndMinutes = lunchStart;
+      const adjustedEndHours = Math.floor(adjustedEndMinutes / 60);
+      const adjustedEndMins = adjustedEndMinutes % 60;
+      
+      return {
+        startTime: `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`,
+        endTime: `${String(adjustedEndHours).padStart(2, '0')}:${String(adjustedEndMins).padStart(2, '0')}`
+      };
+    } else {
+      // Meeting starts during or after lunch start, move it to after lunch
+      hours = 14;
+      minutes = 0;
+      const newStartTimeMinutes = hours * 60 + minutes;
+      const newEndTimeMinutes = newStartTimeMinutes + duration;
+      const newEndHours = Math.floor(newEndTimeMinutes / 60);
+      const newEndMins = newEndTimeMinutes % 60;
+      
+      return {
+        startTime: `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`,
+        endTime: `${String(newEndHours).padStart(2, '0')}:${String(newEndMins).padStart(2, '0')}`
+      };
+    }
+  }
+  
+  // No conflicts, return original times
+  return {
+    startTime: `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`,
+    endTime: `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`
+  };
+}
 
 /**
  * Preview weekly meetings for MD
@@ -240,9 +299,12 @@ export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
           )
         );
         
-      const [endHour, endMinute] = template.timeSlot.split(':').map(Number);
-      const endTime = new Date(meetingDate);
-      endTime.setHours(endHour, endMinute + template.duration);
+      // Apply MD scheduling constraints
+      const adjustedTimes = applyMDSchedulingConstraints(template.timeSlot, template.duration);
+      
+      console.log(`📋 TIME CONSTRAINT CHECK - ${templateKey}:`);
+      console.log(`  Original: ${template.timeSlot} (${template.duration} min)`);
+      console.log(`  Adjusted: ${adjustedTimes.startTime} - ${adjustedTimes.endTime}`);
       
       previewMeetings.push({
         title: template.title,
@@ -250,15 +312,17 @@ export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
         meetingType: template.meetingType,
         priority: template.priority,
         meetingDate: meetingDate.toISOString().split('T')[0],
-        startTime: template.timeSlot,
-        endTime: `${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}`,
+        startTime: adjustedTimes.startTime,
+        endTime: adjustedTimes.endTime,
         duration: template.duration,
         timeAllocation: template.timeAllocation,
         status: existingMeeting.length > 0 ? 'Already exists' : 'Will be created',
         dayOfWeek: template.dayOfWeek === 0 ? 'Monday' : 
                    template.dayOfWeek === 1 ? 'Tuesday' : 
                    template.dayOfWeek === 2 ? 'Wednesday' : 
-                   template.dayOfWeek === 3 ? 'Thursday' : 'Unknown'
+                   template.dayOfWeek === 3 ? 'Thursday' : 'Unknown',
+        originalTimeSlot: template.timeSlot, // Track original for debugging
+        wasAdjusted: template.timeSlot !== adjustedTimes.startTime
       });
     }
     
@@ -324,9 +388,8 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
           );
           
         if (existingMeeting.length === 0) {
-          const [endHour, endMinute] = template.timeSlot.split(':').map(Number);
-          const endTime = new Date(meetingDate);
-          endTime.setHours(endHour, endMinute + template.duration);
+          // Apply MD scheduling constraints
+          const adjustedTimes = applyMDSchedulingConstraints(template.timeSlot, template.duration);
           
           const newMeeting = await db
             .insert(businessMeetings)
@@ -336,8 +399,8 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
               meetingType: template.meetingType,
               priority: template.priority,
               meetingDate: meetingDate.toISOString().split('T')[0],
-              startTime: template.timeSlot,
-              endTime: `${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}`,
+              startTime: adjustedTimes.startTime,
+              endTime: adjustedTimes.endTime,
               location: "Conference Room A",
               organizerId: user.id,
               createdBy: user.id,

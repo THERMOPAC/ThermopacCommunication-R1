@@ -704,23 +704,25 @@ export default function MeetingsManagement() {
   // MD Meeting Preview mutations
   const previewWeeklyMDMeetingsMutation = useMutation({
     mutationFn: () => {
-      // Calculate current week dates (Monday to Sunday)
+      // Calculate current week dates (Monday to Sunday) with timezone-safe approach
       const today = new Date();
       const day = today.getDay();
       const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Monday start
-      const startOfWeek = new Date(today);
-      startOfWeek.setDate(diff);
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6); // Following Sunday
       
-      const startDateStr = startOfWeek.toISOString().split('T')[0];
-      const endDateStr = endOfWeek.toISOString().split('T')[0];
+      // Use timezone-safe date calculation
+      const startOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - day + (day === 0 ? -6 : 1));
+      const endOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - day + (day === 0 ? -6 : 1) + 6);
       
-      console.log('🔍 FRONTEND DEBUG - Week Calculation:');
-      console.log('Today:', today.toDateString());
-      console.log('Today day of week:', day);
-      console.log('Calculated start:', startOfWeek.toDateString(), '→', startDateStr);
-      console.log('Calculated end:', endOfWeek.toDateString(), '→', endDateStr);
+      // Format dates safely to avoid timezone issues
+      const formatDate = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
+      const startDateStr = formatDate(startOfWeek);
+      const endDateStr = formatDate(endOfWeek);
       
       return apiRequest('POST', '/api/meetings/md/preview-weekly', {
         startDate: startDateStr,
