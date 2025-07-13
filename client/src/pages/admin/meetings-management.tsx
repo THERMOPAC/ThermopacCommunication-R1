@@ -2678,7 +2678,7 @@ export default function MeetingsManagement() {
                           key={event.id}
                           className="p-4 hover:bg-green-50 transition-colors border-green-100"
                         >
-                          <div className="flex items-start justify-between">
+                          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                             <div className="flex-1">
                               <h4 className="font-semibold">{event.summary}</h4>
                               <p className="text-sm text-gray-600">
@@ -2703,7 +2703,7 @@ export default function MeetingsManagement() {
                                 )}
                               </div>
                             </div>
-                            <div className="flex flex-col gap-2 ml-4 shrink-0 min-w-[140px]">
+                            <div className="flex flex-row lg:flex-col gap-2 shrink-0">
                               {event.hangoutLink && (
                                 <Button
                                   size="sm"
