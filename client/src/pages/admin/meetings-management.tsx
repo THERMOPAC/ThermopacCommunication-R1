@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -41,7 +41,9 @@ import {
   BotIcon,
   ChevronRightIcon,
   FileTextIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  EyeIcon,
+  TimerIcon
 } from 'lucide-react';
 import { format, parseISO, addDays, subDays, isAfter, isBefore, startOfDay, isEqual } from 'date-fns';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -689,6 +691,68 @@ export default function MeetingsManagement() {
   const { data: mdPlanOverview, isLoading: mdPlanLoading } = useQuery({
     queryKey: ['/api/meetings/md/plan-overview'],
     enabled: activeTab === 'md-planning',
+  });
+
+  // Preview modal state
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [previewType, setPreviewType] = useState<'weekly' | 'monthly'>('weekly');
+
+  // MD Meeting Preview mutations
+  const previewWeeklyMDMeetingsMutation = useMutation({
+    mutationFn: () => {
+      // Calculate current week dates (Monday to Sunday)
+      const today = new Date();
+      const day = today.getDay();
+      const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(diff);
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6); // Following Sunday
+      
+      return apiRequest('POST', '/api/meetings/md/preview-weekly', {
+        startDate: startOfWeek.toISOString().split('T')[0],
+        endDate: endOfWeek.toISOString().split('T')[0]
+      });
+    },
+    onSuccess: (data: any) => {
+      setPreviewData(data);
+      setPreviewType('weekly');
+      setShowPreviewModal(true);
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error previewing weekly meetings', 
+        description: error.message, 
+        variant: 'destructive' 
+      });
+    },
+  });
+
+  const previewMonthlyMDMeetingsMutation = useMutation({
+    mutationFn: () => {
+      // Get current year and month
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth() + 1; // JavaScript months are 0-indexed
+      
+      return apiRequest('POST', '/api/meetings/md/preview-monthly', {
+        year,
+        month
+      });
+    },
+    onSuccess: (data: any) => {
+      setPreviewData(data);
+      setPreviewType('monthly');
+      setShowPreviewModal(true);
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error previewing monthly meetings', 
+        description: error.message, 
+        variant: 'destructive' 
+      });
+    },
   });
 
   // AI Processing mutation
@@ -2322,23 +2386,23 @@ export default function MeetingsManagement() {
               <h4 className="text-lg font-semibold mb-4">Quick Actions</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Button
-                  onClick={() => generateWeeklyMDMeetingsMutation.mutate()}
-                  disabled={generateWeeklyMDMeetingsMutation.isPending}
+                  onClick={() => previewWeeklyMDMeetingsMutation.mutate()}
+                  disabled={previewWeeklyMDMeetingsMutation.isPending}
                   className="h-16 flex-col gap-2"
                 >
                   <CalendarDaysIcon className="h-6 w-6" />
-                  Generate This Week's Meetings
+                  Preview & Generate This Week's Meetings
                   <span className="text-xs opacity-75">Strategic focus + afternoon meetings</span>
                 </Button>
 
                 <Button
-                  onClick={() => generateMonthlyMDMeetingsMutation.mutate()}
-                  disabled={generateMonthlyMDMeetingsMutation.isPending}
+                  onClick={() => previewMonthlyMDMeetingsMutation.mutate()}
+                  disabled={previewMonthlyMDMeetingsMutation.isPending}
                   variant="outline"
                   className="h-16 flex-col gap-2"
                 >
                   <CalendarIcon className="h-6 w-6" />
-                  Generate Monthly Meetings
+                  Preview & Generate Monthly Meetings
                   <span className="text-xs opacity-75">All monthly recurring templates</span>
                 </Button>
               </div>
@@ -3235,6 +3299,148 @@ Suggested next steps
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* MD Meetings Preview Modal */}
+      <Dialog open={showPreviewModal} onOpenChange={setShowPreviewModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <EyeIcon className="h-5 w-5" />
+              {previewType === 'weekly' ? 'Weekly' : 'Monthly'} MD Meetings Preview
+            </DialogTitle>
+            <DialogDescription>
+              Review the meetings that will be generated and confirm creation.
+            </DialogDescription>
+          </DialogHeader>
+
+          {previewData && (
+            <div className="space-y-6">
+              {/* Summary */}
+              <div className="bg-blue-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-blue-900">
+                      {previewType === 'weekly' 
+                        ? `Week of ${previewData.weekOf}` 
+                        : `${previewData.monthYear}`
+                      }
+                    </h4>
+                    <p className="text-sm text-blue-700 mt-1">
+                      {previewData.totalNewMeetings} new meetings will be created
+                      {previewData.totalExisting > 0 && 
+                        `, ${previewData.totalExisting} already exist`
+                      }
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="bg-white">
+                      {previewData.totalNewMeetings} New
+                    </Badge>
+                    {previewData.totalExisting > 0 && (
+                      <Badge variant="secondary">
+                        {previewData.totalExisting} Existing
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Meetings List */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-gray-900">Meeting Details</h4>
+                {previewData.meetings.map((meeting: any, index: number) => (
+                  <div 
+                    key={index} 
+                    className={`p-4 rounded-lg border ${
+                      meeting.status === 'Will be created' 
+                        ? 'bg-green-50 border-green-200' 
+                        : 'bg-gray-50 border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h5 className="font-medium">{meeting.title}</h5>
+                          <Badge 
+                            variant={meeting.status === 'Will be created' ? 'default' : 'secondary'}
+                            className={
+                              meeting.status === 'Will be created' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-gray-100 text-gray-600'
+                            }
+                          >
+                            {meeting.status}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2">{meeting.description}</p>
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <CalendarIcon className="h-4 w-4" />
+                            {format(parseISO(meeting.meetingDate), 'MMM dd, yyyy')}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <ClockIcon className="h-4 w-4" />
+                            {meeting.startTime} - {meeting.endTime}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <TimerIcon className="h-4 w-4" />
+                            {meeting.duration} min
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge className={getPriorityColor(meeting.priority)}>
+                          {meeting.priority}
+                        </Badge>
+                        <Badge variant="outline">
+                          {meeting.meetingType}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-between pt-4 border-t">
+                <div className="text-sm text-gray-500">
+                  {previewData.totalNewMeetings === 0 
+                    ? 'No new meetings to create'
+                    : `${previewData.totalNewMeetings} meeting(s) will be added to your calendar`
+                  }
+                </div>
+                <div className="flex gap-3">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowPreviewModal(false)}
+                  >
+                    Cancel
+                  </Button>
+                  {previewData.totalNewMeetings > 0 && (
+                    <Button 
+                      onClick={() => {
+                        if (previewType === 'weekly') {
+                          generateWeeklyMDMeetingsMutation.mutate();
+                        } else {
+                          generateMonthlyMDMeetingsMutation.mutate();
+                        }
+                        setShowPreviewModal(false);
+                      }}
+                      disabled={generateWeeklyMDMeetingsMutation.isPending || generateMonthlyMDMeetingsMutation.isPending}
+                    >
+                      {generateWeeklyMDMeetingsMutation.isPending || generateMonthlyMDMeetingsMutation.isPending 
+                        ? 'Creating...' 
+                        : `Create ${previewData.totalNewMeetings} Meeting(s)`
+                      }
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       </div>
     </Layout>
   );

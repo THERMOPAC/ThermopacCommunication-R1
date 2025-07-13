@@ -163,6 +163,84 @@ export const mdMeetingTemplates = {
 };
 
 /**
+ * Preview weekly meetings for MD
+ */
+export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const { startDate, endDate } = req.body;
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'Start date and end date are required' });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const previewMeetings = [];
+    
+    for (const [templateKey, template] of Object.entries(mdMeetingTemplates.weekly)) {
+      // Calculate meeting date for the current week
+      const weekStart = new Date(start);
+      const day = weekStart.getDay();
+      const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+      weekStart.setDate(diff);
+      
+      const meetingDate = new Date(weekStart);
+      meetingDate.setDate(meetingDate.getDate() + template.dayOfWeek);
+      
+      // Skip if meeting date is outside our range
+      if (meetingDate < start || meetingDate > end) continue;
+      
+      // Check if meeting already exists
+      const existingMeeting = await db
+        .select()
+        .from(businessMeetings)
+        .where(
+          and(
+            eq(businessMeetings.title, template.title),
+            eq(businessMeetings.meetingDate, meetingDate.toISOString().split('T')[0]),
+            eq(businessMeetings.startTime, template.timeSlot),
+            eq(businessMeetings.organizerId, user.id)
+          )
+        );
+        
+      const [endHour, endMinute] = template.timeSlot.split(':').map(Number);
+      const endTime = new Date(meetingDate);
+      endTime.setHours(endHour, endMinute + template.duration);
+      
+      previewMeetings.push({
+        title: template.title,
+        description: template.description,
+        meetingType: template.meetingType,
+        priority: template.priority,
+        meetingDate: meetingDate.toISOString().split('T')[0],
+        startTime: template.timeSlot,
+        endTime: `${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}`,
+        duration: template.duration,
+        timeAllocation: template.timeAllocation,
+        status: existingMeeting.length > 0 ? 'Already exists' : 'Will be created',
+        dayOfWeek: template.dayOfWeek === 0 ? 'Monday' : 
+                   template.dayOfWeek === 1 ? 'Tuesday' : 
+                   template.dayOfWeek === 2 ? 'Wednesday' : 
+                   template.dayOfWeek === 3 ? 'Thursday' : 'Unknown'
+      });
+    }
+    
+    res.json({
+      success: true,
+      meetings: previewMeetings,
+      weekRange: `${start.toDateString()} - ${end.toDateString()}`,
+      totalNewMeetings: previewMeetings.filter(m => m.status === 'Will be created').length,
+      totalExisting: previewMeetings.filter(m => m.status === 'Already exists').length
+    });
+    
+  } catch (error) {
+    console.error('Error previewing weekly MD meetings:', error);
+    res.status(500).json({ error: 'Failed to preview weekly MD meetings' });
+  }
+};
+
+/**
  * Generate weekly meetings for MD based on templates
  */
 export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
@@ -245,6 +323,77 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error generating weekly MD meetings:', error);
     res.status(500).json({ error: 'Failed to generate weekly MD meetings' });
+  }
+};
+
+/**
+ * Preview monthly meetings for MD
+ */
+export const previewMonthlyMDMeetings = async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const { year, month } = req.body;
+    
+    if (!year || !month) {
+      return res.status(400).json({ error: 'Year and month are required' });
+    }
+
+    const previewMeetings = [];
+    
+    for (const [templateKey, template] of Object.entries(mdMeetingTemplates.monthly)) {
+      let meetingDate: Date;
+      
+      // Calculate meeting date based on monthly schedule
+      if (template.monthlySchedule === "first-monday") {
+        meetingDate = getFirstMondayOfMonth(year, month - 1);
+      } else if (template.monthlySchedule === "third-wednesday") {
+        meetingDate = getThirdWednesdayOfMonth(year, month - 1);
+      } else {
+        continue;
+      }
+      
+      // Check if meeting already exists
+      const existingMeeting = await db
+        .select()
+        .from(businessMeetings)
+        .where(
+          and(
+            eq(businessMeetings.title, template.title),
+            eq(businessMeetings.meetingDate, meetingDate.toISOString().split('T')[0]),
+            eq(businessMeetings.startTime, template.timeSlot),
+            eq(businessMeetings.organizerId, user.id)
+          )
+        );
+        
+      const [endHour, endMinute] = template.timeSlot.split(':').map(Number);
+      const endTime = new Date(meetingDate);
+      endTime.setHours(endHour, endMinute + template.duration);
+      
+      previewMeetings.push({
+        title: template.title,
+        description: template.description,
+        meetingType: template.meetingType,
+        priority: template.priority,
+        meetingDate: meetingDate.toISOString().split('T')[0],
+        startTime: template.timeSlot,
+        endTime: `${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}`,
+        duration: template.duration,
+        monthlySchedule: template.monthlySchedule,
+        status: existingMeeting.length > 0 ? 'Already exists' : 'Will be created'
+      });
+    }
+    
+    res.json({
+      success: true,
+      meetings: previewMeetings,
+      monthYear: `${getMonthName(month)} ${year}`,
+      totalNewMeetings: previewMeetings.filter(m => m.status === 'Will be created').length,
+      totalExisting: previewMeetings.filter(m => m.status === 'Already exists').length
+    });
+    
+  } catch (error) {
+    console.error('Error previewing monthly MD meetings:', error);
+    res.status(500).json({ error: 'Failed to preview monthly MD meetings' });
   }
 };
 
@@ -410,4 +559,10 @@ function calculateMeetingHours(meetings: any[]): number {
     const endMinutes = endHour * 60 + endMinute;
     return total + (endMinutes - startMinutes) / 60;
   }, 0);
+}
+
+function getMonthName(month: number): string {
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                  'July', 'August', 'September', 'October', 'November', 'December'];
+  return months[month - 1] || 'Unknown';
 }

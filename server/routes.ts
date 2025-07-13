@@ -2831,9 +2831,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { 
     generateWeeklyMDMeetings, 
     generateMonthlyMDMeetings, 
-    getMDMeetingPlanOverview 
+    getMDMeetingPlanOverview,
+    previewWeeklyMDMeetings,
+    previewMonthlyMDMeetings
   } = await import('./md-meeting-templates');
   
+  app.post('/api/meetings/md/preview-weekly', ensureAuthenticated, previewWeeklyMDMeetings);
+  app.post('/api/meetings/md/preview-monthly', ensureAuthenticated, previewMonthlyMDMeetings);
   app.post('/api/meetings/md/generate-weekly', ensureAuthenticated, generateWeeklyMDMeetings);
   app.post('/api/meetings/md/generate-monthly', ensureAuthenticated, generateMonthlyMDMeetings);
   app.get('/api/meetings/md/plan-overview', ensureAuthenticated, getMDMeetingPlanOverview);
