@@ -248,47 +248,50 @@ export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
     console.log(`Parsed start: ${start.toISOString()}, end: ${end.toISOString()}`);
     console.log(`Templates: ${Object.keys(mdMeetingTemplates.weekly).join(', ')}`);
     
+    // Use same approach as generation for consistency
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0=Sunday, 1=Monday, etc.
+    
+    let monday: Date;
+    
+    if (dayOfWeek === 0) {
+      // If today is Sunday, use next Monday's week (startDate from frontend)
+      monday = new Date(startDate);
+    } else {
+      // Use this week's Monday (startDate from frontend)
+      monday = new Date(startDate);
+    }
+    
+    monday.setHours(0, 0, 0, 0);
+    
+    console.log(`Today: ${today.toDateString()} (day ${dayOfWeek})`);
+    console.log(`Selected Monday: ${monday.toDateString()}`);
+    
+    if (dayOfWeek === 0) {
+      console.log(`🔄 SUNDAY DETECTED: Previewing for NEXT week (${monday.toDateString()})`);
+    } else {
+      console.log(`📅 WEEKDAY DETECTED: Previewing for THIS week (${monday.toDateString()})`);
+    }
+    
+    // Create explicit dates for each day of the week
+    const weekDays = {
+      0: new Date(monday), // Monday
+      1: new Date(monday.getTime() + 24 * 60 * 60 * 1000), // Tuesday  
+      2: new Date(monday.getTime() + 2 * 24 * 60 * 60 * 1000), // Wednesday
+      3: new Date(monday.getTime() + 3 * 24 * 60 * 60 * 1000)  // Thursday
+    };
+
     for (const [templateKey, template] of Object.entries(mdMeetingTemplates.weekly)) {
       console.log(`\n--- Processing Template: ${templateKey} ---`);
       console.log(`Template dayOfWeek: ${template.dayOfWeek}, title: "${template.title}"`);
       
-      // Calculate meeting date within the current week range
-      // Find Monday of the current week range
-      const startDay = start.getDay(); // 0=Sunday, 1=Monday, etc.
-      const daysFromMonday = startDay === 0 ? 6 : startDay - 1; // Days from Monday
-      
-      const mondayOfWeek = new Date(start);
-      mondayOfWeek.setDate(mondayOfWeek.getDate() - daysFromMonday);
-      
-      // Add template day offset to Monday
-      const meetingDate = new Date(mondayOfWeek);
-      meetingDate.setDate(meetingDate.getDate() + template.dayOfWeek);
-      
-      // If the calculated date is before our start range, move to next week
-      if (meetingDate < start) {
-        meetingDate.setDate(meetingDate.getDate() + 7);
-      }
-      
-      // If still outside range (happens with Monday meetings), try end of week
-      if (meetingDate < start && template.dayOfWeek === 0) {
-        // For Monday meetings, try the Monday at the end of the range
-        const mondayAtEnd = new Date(end);
-        if (mondayAtEnd.getDay() === 1) { // If end is Monday, use it
-          meetingDate.setTime(mondayAtEnd.getTime());
-        }
-      }
-      
-      console.log(`Start date: ${start.toDateString()}`);
-      console.log(`Template dayOfWeek offset: ${template.dayOfWeek}`);
-      console.log(`Calculated meetingDate: ${meetingDate.toDateString()}`);
-      console.log(`Within range check: ${meetingDate.toDateString()} between ${start.toDateString()} and ${end.toDateString()}`);
-      
-      // Skip if meeting date is outside our range
-      if (meetingDate < start || meetingDate > end) {
-        console.log(`❌ SKIPPED - ${templateKey}: Outside date range`);
+      const meetingDate = weekDays[template.dayOfWeek];
+      if (!meetingDate) {
+        console.log(`❌ SKIPPED - Invalid dayOfWeek: ${template.dayOfWeek}`);
         continue;
       }
-      console.log(`✅ INCLUDED - ${templateKey}: Within date range`);
+      
+      console.log(`Meeting will be on: ${meetingDate.toISOString().split('T')[0]} (${meetingDate.toDateString()})`);
       
       // Check if meeting already exists
       const existingMeeting = await db
@@ -364,14 +367,30 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
     console.log(`\n🔥 MD WEEKLY GENERATION STARTED (SIMPLE APPROACH)`);
     console.log(`Date range: ${start.toISOString().split('T')[0]} to ${end.toISOString().split('T')[0]}`);
     
-    // Calculate Monday of the given week
+    // Calculate appropriate week based on current day - aligns with frontend logic
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0=Sunday, 1=Monday, etc.
-    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust for Monday start
-    const monday = new Date(today.setDate(diff));
+    
+    let monday: Date;
+    
+    if (dayOfWeek === 0) {
+      // If today is Sunday, use next Monday's week (startDate from frontend)
+      monday = new Date(startDate);
+    } else {
+      // Use this week's Monday (startDate from frontend)
+      monday = new Date(startDate);
+    }
+    
     monday.setHours(0, 0, 0, 0);
     
-    console.log(`This week's Monday: ${monday.toDateString()}`);
+    console.log(`Today: ${today.toDateString()} (day ${dayOfWeek})`);
+    console.log(`Selected Monday: ${monday.toDateString()}`);
+    
+    if (dayOfWeek === 0) {
+      console.log(`🔄 SUNDAY DETECTED: Generating for NEXT week (${monday.toDateString()})`);
+    } else {
+      console.log(`📅 WEEKDAY DETECTED: Generating for THIS week (${monday.toDateString()})`);
+    }
     
     // Create explicit dates for each day of the week
     const weekDays = {

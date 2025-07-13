@@ -629,18 +629,41 @@ export default function MeetingsManagement() {
   // MD Meeting Plan mutations
   const generateWeeklyMDMeetingsMutation = useMutation({
     mutationFn: () => {
-      // Calculate current week dates (Monday to Sunday)
+      // Calculate appropriate week dates based on current day
       const today = new Date();
-      const day = today.getDay();
-      const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Monday start
-      const startOfWeek = new Date(today);
-      startOfWeek.setDate(diff);
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6); // Following Sunday
+      const day = today.getDay(); // 0=Sunday, 1=Monday, etc.
+      
+      let startOfWeek: Date;
+      
+      if (day === 0) {
+        // If today is Sunday, generate for next Monday's week
+        const nextMonday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+        startOfWeek = nextMonday;
+      } else {
+        // Generate for this week (from this Monday)
+        const diff = today.getDate() - day + 1; // Calculate Monday of current week
+        startOfWeek = new Date(today.getFullYear(), today.getMonth(), diff);
+      }
+      
+      // End of week is always the following Sunday
+      const endOfWeek = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + 6);
+      
+      // Format dates safely to avoid timezone issues
+      const formatDate = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
+      const startDateStr = formatDate(startOfWeek);
+      const endDateStr = formatDate(endOfWeek);
+      
+      console.log(`Generation logic: Today is ${today.toDateString()} (day ${day}), generating for ${startOfWeek.toDateString()} - ${endOfWeek.toDateString()}`);
       
       return apiRequest('POST', '/api/meetings/md/generate-weekly', {
-        startDate: startOfWeek.toISOString().split('T')[0],
-        endDate: endOfWeek.toISOString().split('T')[0]
+        startDate: startDateStr,
+        endDate: endDateStr
       });
     },
     onSuccess: (data: any) => {
@@ -704,14 +727,24 @@ export default function MeetingsManagement() {
   // MD Meeting Preview mutations
   const previewWeeklyMDMeetingsMutation = useMutation({
     mutationFn: () => {
-      // Calculate current week dates (Monday to Sunday) with timezone-safe approach
+      // Calculate appropriate week dates based on current day
       const today = new Date();
-      const day = today.getDay();
-      const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+      const day = today.getDay(); // 0=Sunday, 1=Monday, etc.
       
-      // Use timezone-safe date calculation
-      const startOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - day + (day === 0 ? -6 : 1));
-      const endOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - day + (day === 0 ? -6 : 1) + 6);
+      let startOfWeek: Date;
+      
+      if (day === 0) {
+        // If today is Sunday, generate for next Monday's week
+        const nextMonday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+        startOfWeek = nextMonday;
+      } else {
+        // Generate for this week (from this Monday)
+        const diff = today.getDate() - day + 1; // Calculate Monday of current week
+        startOfWeek = new Date(today.getFullYear(), today.getMonth(), diff);
+      }
+      
+      // End of week is always the following Sunday
+      const endOfWeek = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + 6);
       
       // Format dates safely to avoid timezone issues
       const formatDate = (date: Date) => {
@@ -723,6 +756,8 @@ export default function MeetingsManagement() {
       
       const startDateStr = formatDate(startOfWeek);
       const endDateStr = formatDate(endOfWeek);
+      
+      console.log(`Week selection logic: Today is ${today.toDateString()} (day ${day}), generating for ${startOfWeek.toDateString()} - ${endOfWeek.toDateString()}`);
       
       return apiRequest('POST', '/api/meetings/md/preview-weekly', {
         startDate: startDateStr,
