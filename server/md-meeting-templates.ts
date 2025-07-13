@@ -302,9 +302,7 @@ export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
       // Apply MD scheduling constraints
       const adjustedTimes = applyMDSchedulingConstraints(template.timeSlot, template.duration);
       
-      console.log(`📋 TIME CONSTRAINT CHECK - ${templateKey}:`);
-      console.log(`  Original: ${template.timeSlot} (${template.duration} min)`);
-      console.log(`  Adjusted: ${adjustedTimes.startTime} - ${adjustedTimes.endTime}`);
+      // Time constraints applied automatically
       
       previewMeetings.push({
         title: template.title,
