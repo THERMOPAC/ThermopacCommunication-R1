@@ -436,6 +436,10 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
       if (existingMeeting.length === 0) {
         console.log(`✅ CREATING: ${template.title}`);
         
+        // Auto-add MD (Superuser) as participant to all weekly meetings
+        const attendeeIds = [user.id]; // MD is always a participant in their own strategic meetings
+        console.log(`👤 Auto-adding MD (User ID: ${user.id}) as participant to "${template.title}"`);
+        
         const newMeeting = await db
           .insert(businessMeetings)
           .values({
@@ -449,7 +453,7 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
             location: "Conference Room A",
             organizerId: user.id,
             createdBy: user.id,
-            attendeeIds: [],
+            attendeeIds: attendeeIds,
             status: "Scheduled",
             agenda: template.description,
             autoCreateGoogleMeet: true
@@ -636,6 +640,10 @@ export const generateMonthlyMDMeetings = async (req: Request, res: Response) => 
         const endTime = new Date(meetingDate);
         endTime.setHours(endHour, endMinute + template.duration);
         
+        // Auto-add MD (Superuser) as participant to all monthly meetings
+        const attendeeIds = [user.id]; // MD is always a participant in their own strategic meetings
+        console.log(`👤 Auto-adding MD (User ID: ${user.id}) as participant to monthly "${template.title}"`);
+        
         const newMeeting = await db
           .insert(businessMeetings)
           .values({
@@ -649,7 +657,7 @@ export const generateMonthlyMDMeetings = async (req: Request, res: Response) => 
             location: "Executive Conference Room",
             organizerId: user.id,
             createdBy: user.id,
-            attendeeIds: [],
+            attendeeIds: attendeeIds,
             status: "Scheduled",
             agenda: template.description,
             autoCreateGoogleMeet: true
