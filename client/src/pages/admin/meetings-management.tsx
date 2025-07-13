@@ -1043,7 +1043,10 @@ export default function MeetingsManagement() {
       startTime: meeting.meeting.startTime,
       endTime: meeting.meeting.endTime,
       location: meeting.meeting.location || '',
+      meetingUrl: meeting.meeting.meetingUrl || meeting.meeting.googleMeetLink || '',
       attendeeIds: meeting.meeting.attendeeIds || [],
+      agenda: meeting.meeting.agenda || '',
+      autoCreateGoogleMeet: !!meeting.meeting.googleMeetLink,
     });
     setIsCreateMeetingOpen(true);
   };
@@ -3668,6 +3671,22 @@ Suggested next steps
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+
+              {/* Meeting Link Section */}
+              <div>
+                <label className="text-sm font-medium">Meeting Link</label>
+                <Input
+                  value={editingPreviewMeeting.meetingUrl || editingPreviewMeeting.googleMeetLink || ''}
+                  onChange={(e) => setEditingPreviewMeeting({
+                    ...editingPreviewMeeting,
+                    meetingUrl: e.target.value
+                  })}
+                  placeholder="Google Meet link or custom meeting URL"
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  Will be auto-generated when Google Calendar integration is enabled
                 </div>
               </div>
 

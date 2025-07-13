@@ -524,7 +524,7 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
             meetingDate: dateStr,
             startTime: adjustedTimes.startTime,
             endTime: adjustedTimes.endTime,
-            location: "Conference Room A",
+            location: "",
             organizerId: user.id,
             createdBy: user.id,
             attendeeIds: attendeeIds,
@@ -561,6 +561,7 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
               if (result.meetLink) {
                 updateData.googleMeetLink = result.meetLink;
                 updateData.googleMeetUrl = result.meetLink;
+                updateData.location = result.meetLink; // Set location to Google Meet link
                 console.log(`🎥 Google Meet link generated: ${result.meetLink}`);
               }
               
@@ -741,7 +742,7 @@ export const generateMonthlyMDMeetings = async (req: Request, res: Response) => 
             meetingDate: meetingDate.toISOString().split('T')[0],
             startTime: template.timeSlot,
             endTime: `${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}`,
-            location: "Executive Conference Room",
+            location: "",
             organizerId: user.id,
             createdBy: user.id,
             attendeeIds: attendeeIds,
@@ -778,6 +779,7 @@ export const generateMonthlyMDMeetings = async (req: Request, res: Response) => 
               if (result.meetLink) {
                 updateData.googleMeetLink = result.meetLink;
                 updateData.googleMeetUrl = result.meetLink;
+                updateData.location = result.meetLink; // Set location to Google Meet link
                 console.log(`🎥 Google Meet link generated: ${result.meetLink}`);
               }
               
