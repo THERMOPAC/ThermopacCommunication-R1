@@ -2,6 +2,10 @@ import { Request, Response } from 'express';
 import { db } from './db';
 import { businessMeetings, meetingTemplates, users } from '@shared/schema';
 import { eq, and, gte, lte } from 'drizzle-orm';
+import { GoogleCalendarService } from './google-calendar-service';
+
+// Initialize Google Calendar service
+const googleCalendarService = new GoogleCalendarService();
 
 // MD Meeting Template Definitions based on MD_Yearly_Meeting_Plan_2025.md
 export const mdMeetingTemplates = {
@@ -372,7 +376,10 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
         // Skip if meeting date is outside our range
         if (meetingDate < start || meetingDate > end) continue;
         
-        // Check if meeting already exists with stronger duplicate check
+        // Apply MD scheduling constraints first
+        const adjustedTimes = applyMDSchedulingConstraints(template.timeSlot, template.duration);
+        
+        // Check if meeting already exists with adjusted time
         const existingMeeting = await db
           .select()
           .from(businessMeetings)
@@ -380,14 +387,13 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
             and(
               eq(businessMeetings.title, template.title),
               eq(businessMeetings.meetingDate, meetingDate.toISOString().split('T')[0]),
-              eq(businessMeetings.startTime, template.timeSlot),
+              eq(businessMeetings.startTime, adjustedTimes.startTime),
               eq(businessMeetings.organizerId, user.id)
             )
           );
           
         if (existingMeeting.length === 0) {
-          // Apply MD scheduling constraints
-          const adjustedTimes = applyMDSchedulingConstraints(template.timeSlot, template.duration);
+          console.log(`🔥 Creating meeting: ${template.title} on ${meetingDate.toISOString().split('T')[0]} at ${adjustedTimes.startTime}`);
           
           const newMeeting = await db
             .insert(businessMeetings)
@@ -410,6 +416,53 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
             .returning();
             
           generatedMeetings.push(newMeeting[0]);
+          console.log(`✅ Successfully created meeting ID: ${newMeeting[0].id}`);
+          
+          // Auto-create Google Meet if user has Google Calendar connected
+          try {
+            const [organizer] = await db
+              .select({
+                googleCalendarConnected: users.googleCalendarConnected,
+                googleCalendarSyncEnabled: users.googleCalendarSyncEnabled
+              })
+              .from(users)
+              .where(eq(users.id, user.id));
+              
+            if (organizer?.googleCalendarConnected && organizer?.googleCalendarSyncEnabled) {
+              console.log(`🔗 Creating Google Calendar event for MD meeting ${newMeeting[0].id}`);
+              
+              const result = await googleCalendarService.createCalendarEvent(user.id, newMeeting[0]);
+              
+              if (result && result.eventId) {
+                const updateData: any = { 
+                  googleEventId: result.eventId,
+                  googleCalendarSynced: true 
+                };
+                
+                if (result.meetLink) {
+                  updateData.googleMeetLink = result.meetLink;
+                  updateData.googleMeetUrl = result.meetLink;
+                  console.log(`🎥 Google Meet link generated: ${result.meetLink}`);
+                }
+                
+                await db
+                  .update(businessMeetings)
+                  .set(updateData)
+                  .where(eq(businessMeetings.id, newMeeting[0].id));
+                  
+                console.log(`📅 MD meeting synced to Google Calendar with event ID: ${result.eventId}`);
+              } else {
+                console.log(`⚠️ Failed to create Google Calendar event for MD meeting ${newMeeting[0].id}`);
+              }
+            } else {
+              console.log(`⏭️ Google Calendar integration skipped - not connected or enabled`);
+            }
+          } catch (syncError) {
+            console.error('❌ Error syncing MD meeting to Google Calendar:', syncError);
+            // Don't fail meeting creation if calendar sync fails
+          }
+        } else {
+          console.log(`⏭️ Skipping duplicate: ${template.title} on ${meetingDate.toISOString().split('T')[0]} at ${adjustedTimes.startTime}`);
         }
       }
     }
@@ -562,6 +615,51 @@ export const generateMonthlyMDMeetings = async (req: Request, res: Response) => 
           .returning();
           
         generatedMeetings.push(newMeeting[0]);
+        console.log(`✅ Successfully created monthly meeting ID: ${newMeeting[0].id}`);
+        
+        // Auto-create Google Meet if user has Google Calendar connected
+        try {
+          const [organizer] = await db
+            .select({
+              googleCalendarConnected: users.googleCalendarConnected,
+              googleCalendarSyncEnabled: users.googleCalendarSyncEnabled
+            })
+            .from(users)
+            .where(eq(users.id, user.id));
+            
+          if (organizer?.googleCalendarConnected && organizer?.googleCalendarSyncEnabled) {
+            console.log(`🔗 Creating Google Calendar event for monthly MD meeting ${newMeeting[0].id}`);
+            
+            const result = await googleCalendarService.createCalendarEvent(user.id, newMeeting[0]);
+            
+            if (result && result.eventId) {
+              const updateData: any = { 
+                googleEventId: result.eventId,
+                googleCalendarSynced: true 
+              };
+              
+              if (result.meetLink) {
+                updateData.googleMeetLink = result.meetLink;
+                updateData.googleMeetUrl = result.meetLink;
+                console.log(`🎥 Google Meet link generated: ${result.meetLink}`);
+              }
+              
+              await db
+                .update(businessMeetings)
+                .set(updateData)
+                .where(eq(businessMeetings.id, newMeeting[0].id));
+                
+              console.log(`📅 Monthly MD meeting synced to Google Calendar with event ID: ${result.eventId}`);
+            } else {
+              console.log(`⚠️ Failed to create Google Calendar event for monthly MD meeting ${newMeeting[0].id}`);
+            }
+          } else {
+            console.log(`⏭️ Google Calendar integration skipped - not connected or enabled`);
+          }
+        } catch (syncError) {
+          console.error('❌ Error syncing monthly MD meeting to Google Calendar:', syncError);
+          // Don't fail meeting creation if calendar sync fails
+        }
       }
     }
     
