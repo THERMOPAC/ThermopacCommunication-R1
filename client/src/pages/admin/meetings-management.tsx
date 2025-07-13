@@ -627,12 +627,14 @@ export default function MeetingsManagement() {
   // MD Meeting Plan mutations
   const generateWeeklyMDMeetingsMutation = useMutation({
     mutationFn: () => {
-      // Calculate current week dates (Sunday to Saturday)
+      // Calculate current week dates (Monday to Sunday)
       const today = new Date();
+      const day = today.getDay();
+      const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Monday start
       const startOfWeek = new Date(today);
-      startOfWeek.setDate(today.getDate() - today.getDay()); // Previous Sunday
+      startOfWeek.setDate(diff);
       const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6); // Following Saturday
+      endOfWeek.setDate(startOfWeek.getDate() + 6); // Following Sunday
       
       return apiRequest('POST', '/api/meetings/md/generate-weekly', {
         startDate: startOfWeek.toISOString().split('T')[0],

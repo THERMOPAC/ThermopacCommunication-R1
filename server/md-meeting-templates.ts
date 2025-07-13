@@ -13,7 +13,7 @@ export const mdMeetingTemplates = {
       meetingType: "Executive",
       priority: "High",
       duration: 30,
-      dayOfWeek: 1, // Monday
+      dayOfWeek: 0, // Monday (0-based for Monday-start week)
       timeSlot: "09:00",
       attendeeRoles: ["General Manager", "Senior Manager", "Manager"]
     },
@@ -23,7 +23,7 @@ export const mdMeetingTemplates = {
       meetingType: "Strategic",
       priority: "Critical",
       duration: 120,
-      dayOfWeek: 1, // Monday
+      dayOfWeek: 0, // Monday (0-based for Monday-start week)
       timeSlot: "09:30",
       attendeeRoles: [] // Individual time
     },
@@ -33,7 +33,7 @@ export const mdMeetingTemplates = {
       meetingType: "Marketing",
       priority: "High",
       duration: 60,
-      dayOfWeek: 2, // Tuesday
+      dayOfWeek: 1, // Tuesday (0-based for Monday-start week)
       timeSlot: "14:00",
       attendeeRoles: ["Marketing Manager", "Sales Manager"]
     },
@@ -43,7 +43,7 @@ export const mdMeetingTemplates = {
       meetingType: "Customer Projects",
       priority: "High",
       duration: 90,
-      dayOfWeek: 2, // Tuesday
+      dayOfWeek: 1, // Tuesday (0-based for Monday-start week)
       timeSlot: "15:00",
       attendeeRoles: ["Project Manager", "Senior Manager"]
     },
@@ -53,7 +53,7 @@ export const mdMeetingTemplates = {
       meetingType: "Marketing",
       priority: "Medium",
       duration: 90,
-      dayOfWeek: 3, // Wednesday
+      dayOfWeek: 2, // Wednesday (0-based for Monday-start week)
       timeSlot: "14:30",
       attendeeRoles: ["Marketing Manager", "Creative Manager"]
     },
@@ -63,7 +63,7 @@ export const mdMeetingTemplates = {
       meetingType: "Brand Strategy",
       priority: "Medium",
       duration: 60,
-      dayOfWeek: 4, // Thursday
+      dayOfWeek: 3, // Thursday (0-based for Monday-start week)
       timeSlot: "15:00",
       attendeeRoles: ["Marketing Manager", "Communications Manager"]
     },
@@ -73,7 +73,7 @@ export const mdMeetingTemplates = {
       meetingType: "People Development",
       priority: "Medium",
       duration: 60,
-      dayOfWeek: 3, // Wednesday
+      dayOfWeek: 2, // Wednesday (0-based for Monday-start week)
       timeSlot: "09:00",
       attendeeRoles: ["HR Manager", "General Manager"]
     }
@@ -181,7 +181,9 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
     // Generate meetings for each week in the date range
     for (let currentWeek = new Date(start); currentWeek <= end; currentWeek.setDate(currentWeek.getDate() + 7)) {
       const weekStart = new Date(currentWeek);
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of week (Sunday)
+      const day = weekStart.getDay();
+      const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+      weekStart.setDate(diff);
       
       // Generate each weekly meeting
       for (const [templateKey, template] of Object.entries(mdMeetingTemplates.weekly)) {
