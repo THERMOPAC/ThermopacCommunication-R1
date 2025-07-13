@@ -1147,8 +1147,10 @@ export default function MeetingsManagement() {
               <div className="flex items-center gap-3">
                 <Button 
                   onClick={() => { 
+                    console.log('Quick Actions: New Meeting clicked');
                     resetMeetingForm(); 
                     setIsCreateMeetingOpen(true); 
+                    console.log('Quick Actions: Meeting dialog state set to true');
                   }} 
                   className="bg-blue-600 hover:bg-blue-700"
                 >
@@ -1157,8 +1159,10 @@ export default function MeetingsManagement() {
                 </Button>
                 <Button 
                   onClick={() => { 
+                    console.log('Quick Actions: New Commitment clicked');
                     resetCommitmentForm(); 
                     setIsCreateCommitmentOpen(true); 
+                    console.log('Quick Actions: Commitment dialog state set to true');
                   }} 
                   variant="outline" 
                   className="border-blue-200 text-blue-600 hover:bg-blue-50"
