@@ -3562,8 +3562,21 @@ Suggested next steps
                             <Button
                               size="sm"
                               variant="outline"
+                              onClick={() => {
+                                // Create a detailed view of the meeting
+                                alert(`Meeting Details:\n\nTitle: ${meeting.title}\nDescription: ${meeting.description}\nDate: ${format(parseISO(meeting.meetingDate), 'MMM dd, yyyy')}\nTime: ${meeting.startTime} - ${meeting.endTime}\nDuration: ${meeting.duration} min\nPriority: ${meeting.priority}\nType: ${meeting.meetingType}\nParticipants: ${meeting.participantCount || 0} attendees`);
+                              }}
+                              className="h-7 px-2"
+                              title="View Meeting Details"
+                            >
+                              <EyeIcon className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
                               onClick={() => handleEditPreviewMeeting(meeting, index)}
                               className="h-7 px-2"
+                              title="Edit Meeting"
                             >
                               <EditIcon className="h-3 w-3" />
                             </Button>
@@ -3572,6 +3585,7 @@ Suggested next steps
                               variant="outline"
                               onClick={() => handleDeletePreviewMeeting(index)}
                               className="h-7 px-2 text-red-600 hover:text-red-700"
+                              title="Delete Meeting"
                             >
                               <TrashIcon className="h-3 w-3" />
                             </Button>
