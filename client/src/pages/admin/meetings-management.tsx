@@ -1145,22 +1145,27 @@ export default function MeetingsManagement() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <Dialog open={isCreateMeetingOpen} onOpenChange={setIsCreateMeetingOpen}>
-                  <DialogTrigger asChild>
-                    <Button onClick={() => { resetMeetingForm(); setIsCreateMeetingOpen(true); }} className="bg-blue-600 hover:bg-blue-700">
-                      <PlusIcon className="h-4 w-4 mr-2" />
-                      New Meeting
-                    </Button>
-                  </DialogTrigger>
-                </Dialog>
-                <Dialog open={isCreateCommitmentOpen} onOpenChange={setIsCreateCommitmentOpen}>
-                  <DialogTrigger asChild>
-                    <Button onClick={() => { resetCommitmentForm(); setIsCreateCommitmentOpen(true); }} variant="outline" className="border-blue-200 text-blue-600 hover:bg-blue-50">
-                      <ListChecksIcon className="h-4 w-4 mr-2" />
-                      New Commitment
-                    </Button>
-                  </DialogTrigger>
-                </Dialog>
+                <Button 
+                  onClick={() => { 
+                    resetMeetingForm(); 
+                    setIsCreateMeetingOpen(true); 
+                  }} 
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  New Meeting
+                </Button>
+                <Button 
+                  onClick={() => { 
+                    resetCommitmentForm(); 
+                    setIsCreateCommitmentOpen(true); 
+                  }} 
+                  variant="outline" 
+                  className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                >
+                  <ListChecksIcon className="h-4 w-4 mr-2" />
+                  New Commitment
+                </Button>
               </div>
             </div>
           </Card>
