@@ -1451,6 +1451,19 @@ export default function MeetingsManagement() {
                           <LinkIcon className="h-3 w-3 mr-1" />
                           View
                         </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => concludeEventMutation.mutate({ 
+                            googleEventId: event.id, 
+                            eventTitle: event.summary 
+                          })}
+                          disabled={concludeEventMutation.isPending}
+                          className="bg-red-600 hover:bg-red-700 whitespace-nowrap"
+                        >
+                          <CheckCircleIcon className="h-4 w-4 mr-1" />
+                          Concluded
+                        </Button>
                       </div>
                     </div>
                   ))}
