@@ -1147,10 +1147,8 @@ export default function MeetingsManagement() {
               <div className="flex items-center gap-3">
                 <Button 
                   onClick={() => { 
-                    console.log('Quick Actions: New Meeting clicked');
                     resetMeetingForm(); 
                     setIsCreateMeetingOpen(true); 
-                    console.log('Quick Actions: Meeting dialog state set to true');
                   }} 
                   className="bg-blue-600 hover:bg-blue-700"
                 >
@@ -1159,10 +1157,8 @@ export default function MeetingsManagement() {
                 </Button>
                 <Button 
                   onClick={() => { 
-                    console.log('Quick Actions: New Commitment clicked');
                     resetCommitmentForm(); 
                     setIsCreateCommitmentOpen(true); 
-                    console.log('Quick Actions: Commitment dialog state set to true');
                   }} 
                   variant="outline" 
                   className="border-blue-200 text-blue-600 hover:bg-blue-50"
@@ -1488,6 +1484,227 @@ export default function MeetingsManagement() {
               )}
             </div>
           </Card>
+
+          {/* Dialog Components for Quick Actions */}
+          <Dialog open={isCreateMeetingOpen} onOpenChange={setIsCreateMeetingOpen}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingMeeting ? 'Edit Meeting' : 'Create New Meeting'}</DialogTitle>
+              </DialogHeader>
+              <Form {...meetingForm}>
+                <form onSubmit={meetingForm.handleSubmit(onSubmitMeeting)} className="space-y-8">
+                  
+                  {/* Basic Information Section */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Basic Information</h3>
+                    <div className="space-y-4">
+                      <FormField
+                        control={meetingForm.control}
+                        name="title"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-1">
+                              Meeting Title
+                              <span className="text-red-500">*</span>
+                            </FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter meeting title" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={meetingForm.control}
+                          name="meetingType"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="flex items-center gap-1">
+                                Meeting Type
+                                <span className="text-red-500">*</span>
+                              </FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select type" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="Team Meeting">Team Meeting</SelectItem>
+                                  <SelectItem value="One-on-One">One-on-One</SelectItem>
+                                  <SelectItem value="Board Meeting">Board Meeting</SelectItem>
+                                  <SelectItem value="Client Meeting">Client Meeting</SelectItem>
+                                  <SelectItem value="Project Review">Project Review</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={meetingForm.control}
+                          name="priority"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="flex items-center gap-1">
+                                Priority
+                                <span className="text-red-500">*</span>
+                              </FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select priority" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="Low">Low</SelectItem>
+                                  <SelectItem value="Medium">Medium</SelectItem>
+                                  <SelectItem value="High">High</SelectItem>
+                                  <SelectItem value="Critical">Critical</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3">
+                    <Button type="button" variant="outline" onClick={resetMeetingForm}>
+                      Reset
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      disabled={createMeetingMutation.isPending}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {createMeetingMutation.isPending ? "Creating..." : editingMeeting ? "Update Meeting" : "Create Meeting"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isCreateCommitmentOpen} onOpenChange={setIsCreateCommitmentOpen}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{editingCommitment ? 'Edit Commitment' : 'Create New Commitment'}</DialogTitle>
+              </DialogHeader>
+              <Form {...commitmentForm}>
+                <form onSubmit={commitmentForm.handleSubmit(onSubmitCommitment)} className="space-y-6">
+                  <FormField
+                    control={commitmentForm.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Title</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter commitment title" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={commitmentForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Describe the commitment" rows={3} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={commitmentForm.control}
+                      name="priority"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Priority</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select priority" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Low">Low</SelectItem>
+                              <SelectItem value="Medium">Medium</SelectItem>
+                              <SelectItem value="High">High</SelectItem>
+                              <SelectItem value="Critical">Critical</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={commitmentForm.control}
+                      name="dueDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Due Date</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant={"outline"}
+                                  className={`w-full pl-3 text-left font-normal ${!field.value && "text-muted-foreground"}`}
+                                >
+                                  {field.value ? (
+                                    format(new Date(field.value), "PPP")
+                                  ) : (
+                                    <span>Pick a date</span>
+                                  )}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={field.value ? new Date(field.value) : undefined}
+                                onSelect={(date) => field.onChange(date?.toISOString().split('T')[0])}
+                                disabled={(date) => date < new Date("1900-01-01")}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-3">
+                    <Button type="button" variant="outline" onClick={resetCommitmentForm}>
+                      Reset
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      disabled={createCommitmentMutation.isPending}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {createCommitmentMutation.isPending ? "Creating..." : editingCommitment ? "Update Commitment" : "Create Commitment"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* Meetings Tab */}
