@@ -189,9 +189,22 @@ export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
       console.log(`\n--- Processing Template: ${templateKey} ---`);
       console.log(`Template dayOfWeek: ${template.dayOfWeek}, title: "${template.title}"`);
       
-      // Calculate meeting date - use the Monday within the date range
-      const meetingDate = new Date(start);
-      meetingDate.setDate(meetingDate.getDate() + template.dayOfWeek + 7); // Add 7 days to ensure we get next week's meeting
+      // Calculate meeting date within the current week range
+      // Find Monday of the current week range
+      const startDay = start.getDay(); // 0=Sunday, 1=Monday, etc.
+      const daysFromMonday = startDay === 0 ? 6 : startDay - 1; // Days from Monday
+      
+      const mondayOfWeek = new Date(start);
+      mondayOfWeek.setDate(mondayOfWeek.getDate() - daysFromMonday);
+      
+      // Add template day offset to Monday
+      const meetingDate = new Date(mondayOfWeek);
+      meetingDate.setDate(meetingDate.getDate() + template.dayOfWeek);
+      
+      // If the calculated date is before our start range, try next Monday
+      if (meetingDate < start) {
+        meetingDate.setDate(meetingDate.getDate() + 7);
+      }
       
       console.log(`Start date: ${start.toDateString()}`);
       console.log(`Template dayOfWeek offset: ${template.dayOfWeek}`);
