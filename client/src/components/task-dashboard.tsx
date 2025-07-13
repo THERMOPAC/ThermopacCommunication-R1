@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Task, User } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,7 +21,8 @@ import {
   Filter,
   ChevronDown,
   SortAsc,
-  SortDesc
+  SortDesc,
+  RefreshCw
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -37,26 +38,47 @@ import {
 
 export default function TaskDashboard() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("my");
   const [urlParams, setUrlParams] = useState<URLSearchParams | null>(null);
 
-  // Parse URL parameters on component mount
+  // Parse URL parameters on component mount and force refresh
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setUrlParams(params);
+    
+    // Force a fresh fetch of tasks when component mounts
+    handleRefreshTasks();
   }, []);
   // Removed due date filter as per requirement
   const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [sortBy, setSortBy] = useState<"dueDate" | "priority" | "title">("dueDate");
 
-  const { data: tasks = [] } = useQuery<Task[]>({
+  const { data: tasks = [], refetch: refetchTasks, isLoading: isLoadingTasks } = useQuery<Task[]>({
     queryKey: ["/api/tasks"],
   });
 
   const { data: subordinates = [] } = useQuery<User[]>({
     queryKey: ["/api/subordinates"],
   });
+
+  // Function to manually refresh tasks
+  const handleRefreshTasks = async () => {
+    console.log("Manually refreshing tasks...");
+    await queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+    await refetchTasks();
+  };
+
+  // Debug logging to understand the data flow
+  useEffect(() => {
+    console.log("=== Task Dashboard Debug Info ===");
+    console.log("Current user:", user);
+    console.log("Total tasks loaded:", tasks.length);
+    console.log("My tasks (assigned to me):", tasks.filter(task => task.assignedTo === user?.id));
+    console.log("Looking for task 1395:", tasks.find(task => task.id === 1395));
+    console.log("All tasks:", tasks.map(t => ({ id: t.id, title: t.title, assignedTo: t.assignedTo, createdBy: t.createdBy })));
+  }, [tasks, user]);
 
   // Filter tasks based on selected filters
   const filterTasks = (tasks: Task[]) => {
@@ -176,6 +198,18 @@ export default function TaskDashboard() {
         <h1 className="text-2xl font-bold">Task Management</h1>
         
         <div className="flex items-center gap-2">
+          {/* Refresh button */}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRefreshTasks}
+            disabled={isLoadingTasks}
+            className="flex items-center gap-1"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoadingTasks ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          
           {/* Sort dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
