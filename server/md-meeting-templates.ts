@@ -361,59 +361,61 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
     
-    console.log(`\n🔥 MD WEEKLY GENERATION STARTED`);
-    console.log(`Processing ${Object.keys(mdMeetingTemplates.weekly).length} templates`);
+    console.log(`\n🔥 MD WEEKLY GENERATION STARTED (SIMPLE APPROACH)`);
     console.log(`Date range: ${start.toISOString().split('T')[0]} to ${end.toISOString().split('T')[0]}`);
     
-    // Generate each weekly meeting (simplified logic matching preview function)
-    for (const [templateKey, template] of Object.entries(mdMeetingTemplates.weekly)) {
-      console.log(`\n--- Processing Template: ${templateKey} ---`);
-      console.log(`Template dayOfWeek: ${template.dayOfWeek}, title: "${template.title}"`);
+    // Calculate Monday of the given week
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0=Sunday, 1=Monday, etc.
+    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust for Monday start
+    const monday = new Date(today.setDate(diff));
+    monday.setHours(0, 0, 0, 0);
+    
+    console.log(`This week's Monday: ${monday.toDateString()}`);
+    
+    // Create explicit dates for each day of the week
+    const weekDays = {
+      0: new Date(monday), // Monday
+      1: new Date(monday.getTime() + 24 * 60 * 60 * 1000), // Tuesday  
+      2: new Date(monday.getTime() + 2 * 24 * 60 * 60 * 1000), // Wednesday
+      3: new Date(monday.getTime() + 3 * 24 * 60 * 60 * 1000)  // Thursday
+    };
+    
+    // Process each template with explicit date mapping
+    const templates = mdMeetingTemplates.weekly;
+    
+    for (const [templateKey, template] of Object.entries(templates)) {
+      console.log(`\n--- Processing ${templateKey} ---`);
+      console.log(`Template: dayOfWeek=${template.dayOfWeek}, title="${template.title}"`);
       
-      // Calculate meeting date within the current week range
-      // Find Monday of the current week range
-      const startDay = start.getDay(); // 0=Sunday, 1=Monday, etc.
-      const daysFromMonday = startDay === 0 ? 6 : startDay - 1; // Days from Monday
-      
-      const mondayOfWeek = new Date(start);
-      mondayOfWeek.setDate(mondayOfWeek.getDate() - daysFromMonday);
-      
-      // Add template day offset to Monday
-      const meetingDate = new Date(mondayOfWeek);
-      meetingDate.setDate(meetingDate.getDate() + template.dayOfWeek);
-      
-      console.log(`Start date: ${start.toDateString()}`);
-      console.log(`Template dayOfWeek offset: ${template.dayOfWeek}`);
-      console.log(`Calculated meetingDate: ${meetingDate.toDateString()}`);
-      console.log(`Within range check: ${meetingDate.toDateString()} between ${start.toDateString()} and ${end.toDateString()}`);
-      
-      // Skip if meeting date is outside our range
-      if (meetingDate < start || meetingDate > end) {
-        console.log(`❌ SKIPPED - ${templateKey}: Outside date range`);
+      const meetingDate = weekDays[template.dayOfWeek];
+      if (!meetingDate) {
+        console.log(`❌ SKIPPED - Invalid dayOfWeek: ${template.dayOfWeek}`);
         continue;
       }
-      console.log(`✅ INCLUDED - ${templateKey}: Within date range`);
       
-      // Apply MD scheduling constraints first
+      const dateStr = meetingDate.toISOString().split('T')[0];
+      console.log(`Meeting will be on: ${dateStr} (${meetingDate.toDateString()})`);
+      
+      // Apply MD scheduling constraints
       const adjustedTimes = applyMDSchedulingConstraints(template.timeSlot, template.duration);
-      console.log(`Adjusted times: ${adjustedTimes.startTime} - ${adjustedTimes.endTime}`);
+      console.log(`Time: ${adjustedTimes.startTime} - ${adjustedTimes.endTime}`);
       
-      // Check if meeting already exists with adjusted time
+      // Check for existing meeting
       const existingMeeting = await db
         .select()
         .from(businessMeetings)
         .where(
           and(
             eq(businessMeetings.title, template.title),
-            eq(businessMeetings.meetingDate, meetingDate.toISOString().split('T')[0]),
+            eq(businessMeetings.meetingDate, dateStr),
             eq(businessMeetings.startTime, adjustedTimes.startTime),
             eq(businessMeetings.organizerId, user.id)
           )
         );
         
       if (existingMeeting.length === 0) {
-        console.log(`✅ CREATING: No duplicate found, proceeding with creation`);
-        console.log(`🔥 Creating meeting: ${template.title} on ${meetingDate.toISOString().split('T')[0]} at ${adjustedTimes.startTime}`);
+        console.log(`✅ CREATING: ${template.title}`);
         
         const newMeeting = await db
           .insert(businessMeetings)
@@ -422,13 +424,13 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
             description: template.description,
             meetingType: template.meetingType,
             priority: template.priority,
-            meetingDate: meetingDate.toISOString().split('T')[0],
+            meetingDate: dateStr,
             startTime: adjustedTimes.startTime,
             endTime: adjustedTimes.endTime,
             location: "Conference Room A",
             organizerId: user.id,
             createdBy: user.id,
-            attendeeIds: [], // Will be populated based on roles
+            attendeeIds: [],
             status: "Scheduled",
             agenda: template.description,
             autoCreateGoogleMeet: true
@@ -436,55 +438,13 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
           .returning();
           
         generatedMeetings.push(newMeeting[0]);
-        console.log(`✅ Successfully created meeting ID: ${newMeeting[0].id}`);
-        
-        // Auto-create Google Meet if user has Google Calendar connected
-        try {
-          const [organizer] = await db
-            .select({
-              googleCalendarConnected: users.googleCalendarConnected,
-              googleCalendarSyncEnabled: users.googleCalendarSyncEnabled
-            })
-            .from(users)
-            .where(eq(users.id, user.id));
-            
-          if (organizer?.googleCalendarConnected && organizer?.googleCalendarSyncEnabled) {
-            console.log(`🔗 Creating Google Calendar event for MD meeting ${newMeeting[0].id}`);
-            
-            const result = await googleCalendarService.createCalendarEvent(user.id, newMeeting[0]);
-            
-            if (result && result.eventId) {
-              const updateData: any = { 
-                googleEventId: result.eventId,
-                googleCalendarSynced: true 
-              };
-              
-              if (result.meetLink) {
-                updateData.googleMeetLink = result.meetLink;
-                updateData.googleMeetUrl = result.meetLink;
-                console.log(`🎥 Google Meet link generated: ${result.meetLink}`);
-              }
-              
-              await db
-                .update(businessMeetings)
-                .set(updateData)
-                .where(eq(businessMeetings.id, newMeeting[0].id));
-                
-              console.log(`📅 MD meeting synced to Google Calendar with event ID: ${result.eventId}`);
-            } else {
-              console.log(`⚠️ Failed to create Google Calendar event for MD meeting ${newMeeting[0].id}`);
-            }
-          } else {
-            console.log(`⏭️ Google Calendar integration skipped - not connected or enabled`);
-          }
-        } catch (syncError) {
-          console.error('❌ Error syncing MD meeting to Google Calendar:', syncError);
-          // Don't fail meeting creation if calendar sync fails
-        }
+        console.log(`✅ Created meeting ID: ${newMeeting[0].id}`);
       } else {
-        console.log(`⏭️ Skipping duplicate: ${template.title} on ${meetingDate.toISOString().split('T')[0]} at ${adjustedTimes.startTime}`);
+        console.log(`⏭️ SKIPPING: Meeting already exists`);
       }
     }
+    
+    console.log(`\n🎉 GENERATION COMPLETE: ${generatedMeetings.length} meetings created`);
     
     res.json({
       success: true,
