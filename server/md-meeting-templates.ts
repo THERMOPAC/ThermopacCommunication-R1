@@ -373,11 +373,22 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
         const meetingDate = new Date(weekStart);
         meetingDate.setDate(meetingDate.getDate() + template.dayOfWeek);
         
+        console.log(`\n=== Processing ${templateKey} (${template.title}) ===`);
+        console.log(`Template dayOfWeek: ${template.dayOfWeek}`);
+        console.log(`Week start: ${weekStart.toISOString().split('T')[0]}`);
+        console.log(`Meeting date: ${meetingDate.toISOString().split('T')[0]}`);
+        console.log(`Range: ${start.toISOString().split('T')[0]} to ${end.toISOString().split('T')[0]}`);
+        console.log(`Original timeSlot: ${template.timeSlot}, duration: ${template.duration}`);
+        
         // Skip if meeting date is outside our range
-        if (meetingDate < start || meetingDate > end) continue;
+        if (meetingDate < start || meetingDate > end) {
+          console.log(`❌ SKIPPED: Meeting date outside range`);
+          continue;
+        }
         
         // Apply MD scheduling constraints first
         const adjustedTimes = applyMDSchedulingConstraints(template.timeSlot, template.duration);
+        console.log(`Adjusted times: ${adjustedTimes.startTime} - ${adjustedTimes.endTime}`);
         
         // Check if meeting already exists with adjusted time
         const existingMeeting = await db
@@ -393,6 +404,7 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
           );
           
         if (existingMeeting.length === 0) {
+          console.log(`✅ CREATING: No duplicate found, proceeding with creation`);
           console.log(`🔥 Creating meeting: ${template.title} on ${meetingDate.toISOString().split('T')[0]} at ${adjustedTimes.startTime}`);
           
           const newMeeting = await db
