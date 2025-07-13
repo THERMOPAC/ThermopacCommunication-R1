@@ -712,7 +712,7 @@ router.get('/report', ensureAuthenticated, async (req: Request, res: Response) =
       const dueWithinDays = parseInt(dueWithin as string);
       // Validate that dueWithin is a valid positive integer
       if (!isNaN(dueWithinDays) && dueWithinDays > 0 && dueWithinDays <= 3650) { // Max 10 years
-        queryConditions.push(`ci.next_calibration_date <= (CURRENT_DATE + INTERVAL '$${paramIndex} days')`);
+        queryConditions.push(`ci.next_calibration_date <= (CURRENT_DATE + $${paramIndex}::integer * INTERVAL '1 day')`);
         queryParams.push(dueWithinDays);
         paramIndex++;
       }
