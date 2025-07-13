@@ -27,9 +27,13 @@ const redirectUri = process.env.GOOGLE_REDIRECT_URI || "https://thermopac-commun
 console.log(`Google Auth using OAuth redirect URI: ${redirectUri}`);
 console.log(`Using OAuth redirect URI: ${redirectUri}`);
 
-// Temporary hardcoded fallback values (will be replaced with proper environment variables)
-const clientId = process.env.GOOGLE_CLIENT_ID || "1078980534389-n5207fth1m2oo2iqgnsqpp530qdalb73.apps.googleusercontent.com";
-const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "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";
+// Require environment variables - no fallback values for security
+const clientId = process.env.GOOGLE_CLIENT_ID;
+const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+if (!clientId || !clientSecret) {
+  throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables are required');
+}
 
 // Log the credentials we're using (partially masked for security)
 console.log(`Google Auth using credential configuration:`);

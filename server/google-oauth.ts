@@ -37,10 +37,13 @@ if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
   console.log(`- Client Secret Length: ${process.env.GOOGLE_CLIENT_SECRET?.length || 0}`);
 }
 
-// Temporary hardcoded fallback values (will be replaced with proper environment variables)
-// Using only one set of credentials - the environment variables if available, or hardcoded if not
-const clientId = process.env.GOOGLE_CLIENT_ID || "1078980534389-n5207fth1m2oo2iqgnsqpp530qdalb73.apps.googleusercontent.com";
-const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "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";
+// Require environment variables - no fallback values for security
+const clientId = process.env.GOOGLE_CLIENT_ID;
+const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+if (!clientId || !clientSecret) {
+  throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables are required');
+}
 
 // Log the credentials we're using (partially masked for security)
 console.log(`Using credential configuration:`);
