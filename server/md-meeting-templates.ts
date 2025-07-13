@@ -193,7 +193,7 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
         // Skip if meeting date is outside our range
         if (meetingDate < start || meetingDate > end) continue;
         
-        // Check if meeting already exists
+        // Check if meeting already exists with stronger duplicate check
         const existingMeeting = await db
           .select()
           .from(businessMeetings)
@@ -201,6 +201,7 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
             and(
               eq(businessMeetings.title, template.title),
               eq(businessMeetings.meetingDate, meetingDate.toISOString().split('T')[0]),
+              eq(businessMeetings.startTime, template.timeSlot),
               eq(businessMeetings.organizerId, user.id)
             )
           );
@@ -273,7 +274,7 @@ export const generateMonthlyMDMeetings = async (req: Request, res: Response) => 
         continue;
       }
       
-      // Check if meeting already exists
+      // Check if meeting already exists with stronger duplicate check
       const existingMeeting = await db
         .select()
         .from(businessMeetings)
@@ -281,6 +282,7 @@ export const generateMonthlyMDMeetings = async (req: Request, res: Response) => 
           and(
             eq(businessMeetings.title, template.title),
             eq(businessMeetings.meetingDate, meetingDate.toISOString().split('T')[0]),
+            eq(businessMeetings.startTime, template.timeSlot),
             eq(businessMeetings.organizerId, user.id)
           )
         );
