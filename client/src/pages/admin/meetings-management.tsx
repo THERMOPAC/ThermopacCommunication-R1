@@ -697,6 +697,9 @@ export default function MeetingsManagement() {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const [previewType, setPreviewType] = useState<'weekly' | 'monthly'>('weekly');
+  const [editingPreviewMeeting, setEditingPreviewMeeting] = useState<any>(null);
+  const [modifiedMeetings, setModifiedMeetings] = useState<any[]>([]);
+  const [deletedMeetingIds, setDeletedMeetingIds] = useState<number[]>([]);
 
   // MD Meeting Preview mutations
   const previewWeeklyMDMeetingsMutation = useMutation({
@@ -774,6 +777,39 @@ export default function MeetingsManagement() {
       });
     },
   });
+
+  // Preview modal helper functions
+  const handleEditPreviewMeeting = (meeting: any, index: number) => {
+    setEditingPreviewMeeting({ ...meeting, index });
+  };
+
+  const handleDeletePreviewMeeting = (index: number) => {
+    if (previewData) {
+      const updatedMeetings = previewData.meetings.filter((_: any, i: number) => i !== index);
+      const updatedData = {
+        ...previewData,
+        meetings: updatedMeetings,
+        totalNewMeetings: updatedMeetings.filter((m: any) => m.status === 'Will be created').length,
+        totalExisting: updatedMeetings.filter((m: any) => m.status === 'Already exists').length
+      };
+      setPreviewData(updatedData);
+    }
+  };
+
+  const handleSavePreviewMeetingEdit = (editedMeeting: any) => {
+    if (previewData && editingPreviewMeeting) {
+      const updatedMeetings = [...previewData.meetings];
+      updatedMeetings[editingPreviewMeeting.index] = editedMeeting;
+      const updatedData = {
+        ...previewData,
+        meetings: updatedMeetings
+      };
+      setPreviewData(updatedData);
+      setEditingPreviewMeeting(null);
+    }
+  };
+
+
 
   // Filter meetings based on search and filters
   const filteredMeetings = useMemo(() => {
@@ -3395,6 +3431,26 @@ Suggested next steps
                         <Badge variant="outline">
                           {meeting.meetingType}
                         </Badge>
+                        {meeting.status === 'Will be created' && (
+                          <div className="flex gap-1 ml-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditPreviewMeeting(meeting, index)}
+                              className="h-7 px-2"
+                            >
+                              <EditIcon className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeletePreviewMeeting(index)}
+                              className="h-7 px-2 text-red-600 hover:text-red-700"
+                            >
+                              <TrashIcon className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -3435,6 +3491,125 @@ Suggested next steps
                     </Button>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Preview Meeting Dialog */}
+      <Dialog open={!!editingPreviewMeeting} onOpenChange={() => setEditingPreviewMeeting(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Meeting</DialogTitle>
+            <DialogDescription>
+              Modify the meeting details before finalizing creation.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingPreviewMeeting && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Title</label>
+                <Input
+                  value={editingPreviewMeeting.title}
+                  onChange={(e) => setEditingPreviewMeeting({
+                    ...editingPreviewMeeting,
+                    title: e.target.value
+                  })}
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium">Description</label>
+                <Textarea
+                  value={editingPreviewMeeting.description || ''}
+                  onChange={(e) => setEditingPreviewMeeting({
+                    ...editingPreviewMeeting,
+                    description: e.target.value
+                  })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Start Time</label>
+                  <Select
+                    value={editingPreviewMeeting.startTime}
+                    onValueChange={(value) => setEditingPreviewMeeting({
+                      ...editingPreviewMeeting,
+                      startTime: value
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {timeOptions.map((time) => (
+                        <SelectItem key={time.value} value={time.value}>
+                          {time.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium">End Time</label>
+                  <Select
+                    value={editingPreviewMeeting.endTime}
+                    onValueChange={(value) => setEditingPreviewMeeting({
+                      ...editingPreviewMeeting,
+                      endTime: value
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {timeOptions.map((time) => (
+                        <SelectItem key={time.value} value={time.value}>
+                          {time.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Priority</label>
+                <Select
+                  value={editingPreviewMeeting.priority}
+                  onValueChange={(value) => setEditingPreviewMeeting({
+                    ...editingPreviewMeeting,
+                    priority: value
+                  })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Low">Low</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="High">High</SelectItem>
+                    <SelectItem value="Critical">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setEditingPreviewMeeting(null)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => handleSavePreviewMeetingEdit(editingPreviewMeeting)}
+                >
+                  Save Changes
+                </Button>
               </div>
             </div>
           )}
