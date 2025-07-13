@@ -845,9 +845,9 @@ export default function MeetingsManagement() {
   // Conclude Google Calendar event mutation
   const concludeEventMutation = useMutation({
     mutationFn: ({ googleEventId, eventTitle }: { googleEventId: string; eventTitle: string }) =>
-      apiRequest('POST', '/api/google-calendar/conclude-event', { googleEventId, eventTitle }),
+      apiRequest('POST', '/api/calendar/conclude-event', { googleEventId, eventTitle }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/upcoming-events'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/calendar/upcoming-events'] });
       toast({ 
         title: 'Meeting concluded', 
         description: 'Event has been marked as concluded and removed from your list'
@@ -2676,13 +2676,9 @@ export default function MeetingsManagement() {
                       {googleCalendarEvents.events.map((event) => (
                         <Card
                           key={event.id}
-                          className="p-4 hover:bg-green-50 cursor-pointer transition-colors border-green-100"
-                          onClick={() => setSelectedMeetingForEnhancedAI({
-                            type: 'google-calendar',
-                            event: event
-                          })}
+                          className="p-4 hover:bg-green-50 transition-colors border-green-100"
                         >
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <h4 className="font-semibold">{event.summary}</h4>
                               <p className="text-sm text-gray-600">
@@ -2691,6 +2687,9 @@ export default function MeetingsManagement() {
                                   : format(parseISO(event.start.date), 'MMM d, yyyy')
                                 }
                               </p>
+                              {event.description && (
+                                <p className="text-sm text-gray-500 mt-1 line-clamp-2">{event.description}</p>
+                              )}
                               <div className="flex items-center gap-2 mt-2">
                                 <Badge variant="secondary" className="bg-green-100 text-green-800">
                                   <CalendarIcon className="h-3 w-3 mr-1" />
@@ -2704,7 +2703,39 @@ export default function MeetingsManagement() {
                                 )}
                               </div>
                             </div>
-                            <ChevronRightIcon className="h-4 w-4 text-gray-400" />
+                            <div className="flex flex-col gap-2 ml-4 shrink-0">
+                              {event.hangoutLink && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => window.open(event.hangoutLink, '_blank')}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  <VideoIcon className="h-4 w-4 mr-1" />
+                                  Join
+                                </Button>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => window.open(event.htmlLink, '_blank')}
+                              >
+                                <LinkIcon className="h-4 w-4 mr-1" />
+                                View
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => concludeEventMutation.mutate({ 
+                                  googleEventId: event.id, 
+                                  eventTitle: event.summary 
+                                })}
+                                disabled={concludeEventMutation.isPending}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                <CheckCircleIcon className="h-4 w-4 mr-1" />
+                                Meeting Concluded
+                              </Button>
+                            </div>
                           </div>
                         </Card>
                       ))}
