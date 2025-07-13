@@ -439,6 +439,50 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
           
         generatedMeetings.push(newMeeting[0]);
         console.log(`✅ Created meeting ID: ${newMeeting[0].id}`);
+        
+        // Auto-create Google Meet if user has Google Calendar connected
+        try {
+          const [organizer] = await db
+            .select({
+              googleCalendarConnected: users.googleCalendarConnected,
+              googleCalendarSyncEnabled: users.googleCalendarSyncEnabled
+            })
+            .from(users)
+            .where(eq(users.id, user.id));
+            
+          if (organizer?.googleCalendarConnected && organizer?.googleCalendarSyncEnabled) {
+            console.log(`🔗 Creating Google Calendar event for MD meeting ${newMeeting[0].id}`);
+            
+            const result = await googleCalendarService.createCalendarEvent(user.id, newMeeting[0]);
+            
+            if (result && result.eventId) {
+              const updateData: any = { 
+                googleEventId: result.eventId,
+                googleCalendarSynced: true 
+              };
+              
+              if (result.meetLink) {
+                updateData.googleMeetLink = result.meetLink;
+                updateData.googleMeetUrl = result.meetLink;
+                console.log(`🎥 Google Meet link generated: ${result.meetLink}`);
+              }
+              
+              await db
+                .update(businessMeetings)
+                .set(updateData)
+                .where(eq(businessMeetings.id, newMeeting[0].id));
+                
+              console.log(`📅 MD meeting synced to Google Calendar with event ID: ${result.eventId}`);
+            } else {
+              console.log(`⚠️ Failed to create Google Calendar event for MD meeting ${newMeeting[0].id}`);
+            }
+          } else {
+            console.log(`⏭️ Google Calendar integration skipped - not connected or enabled`);
+          }
+        } catch (syncError) {
+          console.error('❌ Error syncing MD meeting to Google Calendar:', syncError);
+          // Don't fail meeting creation if calendar sync fails
+        }
       } else {
         console.log(`⏭️ SKIPPING: Meeting already exists`);
       }
