@@ -2,8 +2,9 @@ import express from 'express';
 import { ensureAuthenticated } from './auth-middleware';
 import { googleCalendarService } from './google-calendar-service';
 import { db } from './db';
-import { users, businessMeetings } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { users, businessMeetings, concludedCalendarEvents, insertConcludedCalendarEventSchema } from '@shared/schema';
+import { eq, and } from 'drizzle-orm';
+import { z } from 'zod';
 
 // Router for OAuth callback (no auth required)
 const callbackRouter = express.Router();
@@ -260,14 +261,27 @@ router.get('/calendar/upcoming-events', ensureAuthenticated, async (req, res) =>
       });
     }
 
+    // Get concluded events for this user
+    const concludedEvents = await db
+      .select({
+        googleEventId: concludedCalendarEvents.googleEventId
+      })
+      .from(concludedCalendarEvents)
+      .where(eq(concludedCalendarEvents.userId, userId));
+
+    const concludedEventIds = new Set(concludedEvents.map(event => event.googleEventId));
+
     // Fetch upcoming events with Google Meet links
-    const events = await googleCalendarService.fetchUpcomingEvents(userId, maxResults);
+    const allEvents = await googleCalendarService.fetchUpcomingEvents(userId, maxResults);
+    
+    // Filter out concluded events
+    const events = allEvents.filter(event => !concludedEventIds.has(event.id));
 
     res.json({
       success: true,
       events: events,
       count: events.length,
-      message: `Found ${events.length} upcoming events with Google Meet links`
+      message: `Found ${events.length} upcoming events`
     });
 
   } catch (error) {
@@ -386,6 +400,67 @@ router.get('/calendar/sync/history', ensureAuthenticated, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to get sync history' 
+    });
+  }
+});
+
+/**
+ * Mark a Google Calendar event as concluded
+ */
+router.post('/calendar/conclude-event', ensureAuthenticated, async (req, res) => {
+  try {
+    const { googleEventId, eventTitle } = req.body;
+    const userId = req.user!.id;
+
+    // Validate input
+    if (!googleEventId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Google event ID is required'
+      });
+    }
+
+    console.log(`Marking event ${googleEventId} as concluded for user ${userId}`);
+
+    // Check if event is already concluded
+    const existingConcluded = await db
+      .select()
+      .from(concludedCalendarEvents)
+      .where(
+        and(
+          eq(concludedCalendarEvents.googleEventId, googleEventId),
+          eq(concludedCalendarEvents.userId, userId)
+        )
+      );
+
+    if (existingConcluded.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Event is already marked as concluded'
+      });
+    }
+
+    // Insert concluded event record
+    await db
+      .insert(concludedCalendarEvents)
+      .values({
+        googleEventId,
+        userId,
+        eventTitle: eventTitle || null
+      });
+
+    console.log(`Successfully marked event ${googleEventId} as concluded`);
+
+    res.json({
+      success: true,
+      message: 'Event marked as concluded successfully'
+    });
+
+  } catch (error) {
+    console.error('Error concluding calendar event:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to mark event as concluded'
     });
   }
 });

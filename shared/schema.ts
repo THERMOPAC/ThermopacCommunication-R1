@@ -5148,6 +5148,39 @@ export type InsertEmployeeWorkweekAssignment = z.infer<typeof insertEmployeeWork
 export type WorkweekCalendarOverride = typeof workweekCalendarOverrides.$inferSelect;
 export type InsertWorkweekCalendarOverride = z.infer<typeof insertWorkweekCalendarOverrideSchema>;
 
+//==============================================================================
+// CONCLUDED CALENDAR EVENTS
+//==============================================================================
+
+// Table to track concluded Google Calendar events
+export const concludedCalendarEvents = pgTable('concluded_calendar_events', {
+  id: serial('id').primaryKey(),
+  googleEventId: varchar('google_event_id', { length: 255 }).notNull().unique(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  eventTitle: varchar('event_title', { length: 500 }),
+  concludedAt: timestamp('concluded_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+// Relations for concluded calendar events
+export const concludedCalendarEventsRelations = relations(concludedCalendarEvents, ({ one }) => ({
+  user: one(users, {
+    fields: [concludedCalendarEvents.userId],
+    references: [users.id],
+  }),
+}));
+
+// Insert schema for concluded calendar events
+export const insertConcludedCalendarEventSchema = createInsertSchema(concludedCalendarEvents)
+  .omit({ id: true, concludedAt: true, createdAt: true })
+  .extend({
+    eventTitle: z.string().optional(),
+  });
+
+// Export types
+export type ConcludedCalendarEvent = typeof concludedCalendarEvents.$inferSelect;
+export type InsertConcludedCalendarEvent = z.infer<typeof insertConcludedCalendarEventSchema>;
+
 // Form schemas for UI validation
 export const workweekPolicyFormSchema = insertWorkweekPolicySchema
   .extend({

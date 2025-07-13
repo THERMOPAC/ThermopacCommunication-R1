@@ -842,6 +842,26 @@ export default function MeetingsManagement() {
     },
   });
 
+  // Conclude Google Calendar event mutation
+  const concludeEventMutation = useMutation({
+    mutationFn: ({ googleEventId, eventTitle }: { googleEventId: string; eventTitle: string }) =>
+      apiRequest('POST', '/api/google-calendar/conclude-event', { googleEventId, eventTitle }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/google-calendar/upcoming-events'] });
+      toast({ 
+        title: 'Meeting concluded', 
+        description: 'Event has been marked as concluded and removed from your list'
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error concluding event', 
+        description: error.message,
+        variant: 'destructive' 
+      });
+    },
+  });
+
   // Preview modal helper functions
   const handleEditPreviewMeeting = (meeting: any, index: number) => {
     setEditingPreviewMeeting({ 
@@ -2862,6 +2882,19 @@ export default function MeetingsManagement() {
                         >
                           <LinkIcon className="h-4 w-4 mr-1" />
                           View in Calendar
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => concludeEventMutation.mutate({ 
+                            googleEventId: event.id, 
+                            eventTitle: event.summary 
+                          })}
+                          disabled={concludeEventMutation.isPending}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          <CheckCircleIcon className="h-4 w-4 mr-1" />
+                          Meeting Concluded
                         </Button>
                       </div>
                     </div>
