@@ -221,140 +221,139 @@ export default function HomeDashboard() {
   const totalUsers = subordinates.length + 1; // Including the current user
 
   return (
-    <div className="container py-6">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back, {user?.username}! Here's what's happening today.</p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground">Welcome back, {user?.username}! Here's what's happening today.</p>
+      </div>
+      
+      {/* Date and notifications row */}
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-5 w-5 text-muted-foreground" />
+          <span className="text-muted-foreground">{formatDate(new Date())}</span>
         </div>
         
-        {/* Date and notifications row */}
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-muted-foreground" />
-            <span className="text-muted-foreground">{formatDate(new Date())}</span>
-          </div>
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" className="flex items-center gap-1" asChild>
+            <Link href="/messages">
+              <Bell className="h-4 w-4" />
+              <Badge className="h-5 w-5 flex items-center justify-center rounded-full text-xs p-0 bg-primary text-white">
+                {recommendations.length}
+              </Badge>
+            </Link>
+          </Button>
           
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" className="flex items-center gap-1" asChild>
-              <Link href="/messages">
-                <Bell className="h-4 w-4" />
-                <Badge className="h-5 w-5 flex items-center justify-center rounded-full text-xs p-0 bg-primary text-white">
-                  {recommendations.length}
-                </Badge>
-              </Link>
-            </Button>
-            
-            <Button variant="ghost" size="sm" className="flex items-center gap-1" asChild>
-              <Link href="/emails">
-                <Mail className="h-4 w-4" />
-                <Badge className="h-5 w-5 flex items-center justify-center rounded-full text-xs p-0 bg-primary text-white">
-                  {unreadEmailCount}
-                </Badge>
-              </Link>
-            </Button>
-          </div>
+          <Button variant="ghost" size="sm" className="flex items-center gap-1" asChild>
+            <Link href="/emails">
+              <Mail className="h-4 w-4" />
+              <Badge className="h-5 w-5 flex items-center justify-center rounded-full text-xs p-0 bg-primary text-white">
+                {unreadEmailCount}
+              </Badge>
+            </Link>
+          </Button>
         </div>
+      </div>
+      
+      {/* Task summary cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-card shadow-sm">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-3 rounded-full bg-primary/10">
+              <Clock className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Pending Tasks</p>
+              <p className="text-2xl font-bold">{pendingTasks.length}</p>
+            </div>
+          </CardContent>
+        </Card>
         
-        {/* Task summary cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="bg-card shadow-sm">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-3 rounded-full bg-primary/10">
-                <Clock className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Pending Tasks</p>
-                <p className="text-2xl font-bold">{pendingTasks.length}</p>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-card shadow-sm">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-3 rounded-full bg-amber-100">
-                <AlertCircle className="h-6 w-6 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Due Today</p>
-                <p className="text-2xl font-bold">{tasksDueToday.length}</p>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-card shadow-sm">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-3 rounded-full bg-red-100">
-                <AlertCircle className="h-6 w-6 text-red-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Overdue</p>
-                <p className="text-2xl font-bold">{overdueTasks.length}</p>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-card shadow-sm">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-3 rounded-full bg-green-100">
-                <CheckCircle className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Completed</p>
-                <p className="text-2xl font-bold">{completedTasks.length}</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <Card className="bg-card shadow-sm">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-3 rounded-full bg-amber-100">
+              <AlertCircle className="h-6 w-6 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Due Today</p>
+              <p className="text-2xl font-bold">{tasksDueToday.length}</p>
+            </div>
+          </CardContent>
+        </Card>
         
-        {/* Main content grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left column */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Progress Overview */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-primary" />
-                  Progress Overview
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <p className="text-sm font-medium">Task Completion Rate</p>
-                      <p className="text-sm font-medium">{completionRate}%</p>
-                    </div>
-                    <Progress value={completionRate} className="h-2" />
+        <Card className="bg-card shadow-sm">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-3 rounded-full bg-red-100">
+              <AlertCircle className="h-6 w-6 text-red-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Overdue</p>
+              <p className="text-2xl font-bold">{overdueTasks.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-card shadow-sm">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-3 rounded-full bg-green-100">
+              <CheckCircle className="h-6 w-6 text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Completed</p>
+              <p className="text-2xl font-bold">{completedTasks.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Main content grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left column */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Progress Overview */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Activity className="h-5 w-5 text-primary" />
+                Progress Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <p className="text-sm font-medium">Task Completion Rate</p>
+                    <p className="text-sm font-medium">{completionRate}%</p>
                   </div>
-                  
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <p className="text-sm font-medium">Weekly Tasks Progress</p>
-                      <p className="text-sm font-medium">
-                        {tasksDueThisWeek.filter(t => t.status === "completed").length}/{tasksDueThisWeek.length}
-                      </p>
-                    </div>
-                    <Progress 
-                      value={tasksDueThisWeek.length > 0 
-                        ? (tasksDueThisWeek.filter(t => t.status === "completed").length / tasksDueThisWeek.length) * 100 
-                        : 0
-                      } 
-                      className="h-2" 
-                    />
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <p className="text-sm font-medium">Monthly Productivity</p>
-                      <p className="text-sm font-medium">{productivityScore}%</p>
-                    </div>
-                    <Progress value={productivityScore} className="h-2" />
-                  </div>
+                  <Progress value={completionRate} className="h-2" />
                 </div>
-              </CardContent>
-            </Card>
+                
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <p className="text-sm font-medium">Weekly Tasks Progress</p>
+                    <p className="text-sm font-medium">
+                      {tasksDueThisWeek.filter(t => t.status === "completed").length}/{tasksDueThisWeek.length}
+                    </p>
+                  </div>
+                  <Progress 
+                    value={tasksDueThisWeek.length > 0 
+                      ? (tasksDueThisWeek.filter(t => t.status === "completed").length / tasksDueThisWeek.length) * 100 
+                      : 0
+                    } 
+                    className="h-2" 
+                  />
+                </div>
+                
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <p className="text-sm font-medium">Monthly Productivity</p>
+                    <p className="text-sm font-medium">{productivityScore}%</p>
+                  </div>
+                  <Progress value={productivityScore} className="h-2" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           
           {/* Upcoming Tasks */}
           <Card>
@@ -644,7 +643,6 @@ export default function HomeDashboard() {
           </Card>
         </div>
       </div>
-    </div>
     </div>
   );
 }
