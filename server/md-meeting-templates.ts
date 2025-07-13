@@ -1,11 +1,74 @@
 import { Request, Response } from 'express';
 import { db } from './db';
 import { businessMeetings, meetingTemplates, users } from '@shared/schema';
-import { eq, and, gte, lte } from 'drizzle-orm';
+import { eq, and, gte, lte, inArray } from 'drizzle-orm';
 import { GoogleCalendarService } from './google-calendar-service';
 
 // Initialize Google Calendar service
 const googleCalendarService = new GoogleCalendarService();
+
+/**
+ * Meeting title to user role mapping for auto-assignment
+ */
+const MEETING_ROLE_MAPPING = {
+  "Executive Brief": ["Superuser", "General Manager", "Senior Manager", "Manager"],
+  "Strategic Thinking Session": ["Superuser", "General Manager", "Senior Manager"], 
+  "Marketing Strategy Check-in": ["Superuser", "General Manager"],
+  "Customer Project Reviews": ["Superuser", "General Manager", "Senior Manager"],
+  "Campaign Planning/Performance Review": ["Superuser", "General Manager"],
+  "External Positioning & Branding": ["Superuser", "General Manager"], 
+  "Leadership Development": ["Superuser", "General Manager", "Senior Manager", "Manager"],
+  // Monthly meetings
+  "Monthly Strategy Review": ["Superuser", "General Manager", "Senior Manager"],
+  "Monthly Performance Review": ["Superuser", "General Manager", "Senior Manager", "Manager"]
+};
+
+/**
+ * Auto-assign participants based on meeting title and user roles
+ */
+async function getAutoAssignedParticipants(meetingTitle: string): Promise<number[]> {
+  try {
+    const requiredRoles = MEETING_ROLE_MAPPING[meetingTitle];
+    
+    if (!requiredRoles || requiredRoles.length === 0) {
+      console.log(`⚠️ No role mapping found for meeting: "${meetingTitle}"`);
+      return [];
+    }
+    
+    console.log(`👥 Auto-assigning participants for "${meetingTitle}" with roles: ${requiredRoles.join(', ')}`);
+    
+    // Fetch all active users with the required roles
+    const eligibleUsers = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        role: users.role,
+        firstName: users.firstName,
+        lastName: users.lastName
+      })
+      .from(users)
+      .where(
+        and(
+          inArray(users.role, requiredRoles),
+          eq(users.isActive, true)
+        )
+      );
+    
+    const userIds = eligibleUsers.map(user => user.id);
+    
+    console.log(`✅ Found ${eligibleUsers.length} eligible participants:`);
+    eligibleUsers.forEach(user => {
+      const name = user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.username;
+      console.log(`   - ${name} (${user.role}) [ID: ${user.id}]`);
+    });
+    
+    return userIds;
+    
+  } catch (error) {
+    console.error('❌ Error auto-assigning participants:', error);
+    return [];
+  }
+}
 
 // MD Meeting Template Definitions based on MD_Yearly_Meeting_Plan_2025.md
 export const mdMeetingTemplates = {
@@ -309,7 +372,11 @@ export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
       // Apply MD scheduling constraints
       const adjustedTimes = applyMDSchedulingConstraints(template.timeSlot, template.duration);
       
-      // Time constraints applied automatically
+      // Get auto-assigned participants for preview
+      const autoAssignedIds = await getAutoAssignedParticipants(template.title);
+      const attendeeIds = Array.from(new Set([user.id, ...autoAssignedIds]));
+      
+      console.log(`Preview: "${template.title}" will have ${attendeeIds.length} participants: [${attendeeIds.join(', ')}]`);
       
       previewMeetings.push({
         title: template.title,
@@ -327,7 +394,9 @@ export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
                    template.dayOfWeek === 2 ? 'Wednesday' : 
                    template.dayOfWeek === 3 ? 'Thursday' : 'Unknown',
         originalTimeSlot: template.timeSlot, // Track original for debugging
-        wasAdjusted: template.timeSlot !== adjustedTimes.startTime
+        wasAdjusted: template.timeSlot !== adjustedTimes.startTime,
+        attendeeIds: attendeeIds, // Include auto-assigned participants for edit dialog
+        participantCount: attendeeIds.length
       });
     }
     
@@ -436,9 +505,14 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
       if (existingMeeting.length === 0) {
         console.log(`✅ CREATING: ${template.title}`);
         
-        // Auto-add MD (Superuser) as participant to all weekly meetings
-        const attendeeIds = [user.id]; // MD is always a participant in their own strategic meetings
-        console.log(`👤 Auto-adding MD (User ID: ${user.id}) as participant to "${template.title}"`);
+        // Auto-assign participants based on meeting title and user roles
+        console.log(`🎯 Auto-assigning participants for "${template.title}"`);
+        const autoAssignedIds = await getAutoAssignedParticipants(template.title);
+        
+        // Ensure MD is always included (avoid duplicates)
+        const attendeeIds = Array.from(new Set([user.id, ...autoAssignedIds]));
+        
+        console.log(`👤 Final participant list for "${template.title}": ${attendeeIds.length} participants [${attendeeIds.join(', ')}]`);
         
         const newMeeting = await db
           .insert(businessMeetings)
@@ -568,6 +642,12 @@ export const previewMonthlyMDMeetings = async (req: Request, res: Response) => {
       const endTime = new Date(meetingDate);
       endTime.setHours(endHour, endMinute + template.duration);
       
+      // Get auto-assigned participants for monthly preview
+      const autoAssignedIds = await getAutoAssignedParticipants(template.title);
+      const attendeeIds = Array.from(new Set([user.id, ...autoAssignedIds]));
+      
+      console.log(`Monthly Preview: "${template.title}" will have ${attendeeIds.length} participants: [${attendeeIds.join(', ')}]`);
+      
       previewMeetings.push({
         title: template.title,
         description: template.description,
@@ -578,7 +658,9 @@ export const previewMonthlyMDMeetings = async (req: Request, res: Response) => {
         endTime: `${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}`,
         duration: template.duration,
         monthlySchedule: template.monthlySchedule,
-        status: existingMeeting.length > 0 ? 'Already exists' : 'Will be created'
+        status: existingMeeting.length > 0 ? 'Already exists' : 'Will be created',
+        attendeeIds: attendeeIds, // Include auto-assigned participants for edit dialog
+        participantCount: attendeeIds.length
       });
     }
     
@@ -640,9 +722,14 @@ export const generateMonthlyMDMeetings = async (req: Request, res: Response) => 
         const endTime = new Date(meetingDate);
         endTime.setHours(endHour, endMinute + template.duration);
         
-        // Auto-add MD (Superuser) as participant to all monthly meetings
-        const attendeeIds = [user.id]; // MD is always a participant in their own strategic meetings
-        console.log(`👤 Auto-adding MD (User ID: ${user.id}) as participant to monthly "${template.title}"`);
+        // Auto-assign participants based on meeting title and user roles  
+        console.log(`🎯 Auto-assigning participants for monthly "${template.title}"`);
+        const autoAssignedIds = await getAutoAssignedParticipants(template.title);
+        
+        // Ensure MD is always included (avoid duplicates)
+        const attendeeIds = Array.from(new Set([user.id, ...autoAssignedIds]));
+        
+        console.log(`👤 Final participant list for monthly "${template.title}": ${attendeeIds.length} participants [${attendeeIds.join(', ')}]`);
         
         const newMeeting = await db
           .insert(businessMeetings)
