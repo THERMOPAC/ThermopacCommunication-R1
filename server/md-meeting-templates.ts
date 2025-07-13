@@ -361,121 +361,128 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
     
-    // Generate meetings for each week in the date range
-    for (let currentWeek = new Date(start); currentWeek <= end; currentWeek.setDate(currentWeek.getDate() + 7)) {
-      const weekStart = new Date(currentWeek);
-      const day = weekStart.getDay();
-      const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1); // Monday start
-      weekStart.setDate(diff);
+    console.log(`\n🔥 MD WEEKLY GENERATION STARTED`);
+    console.log(`Processing ${Object.keys(mdMeetingTemplates.weekly).length} templates`);
+    console.log(`Date range: ${start.toISOString().split('T')[0]} to ${end.toISOString().split('T')[0]}`);
+    
+    // Generate each weekly meeting (simplified logic matching preview function)
+    for (const [templateKey, template] of Object.entries(mdMeetingTemplates.weekly)) {
+      console.log(`\n--- Processing Template: ${templateKey} ---`);
+      console.log(`Template dayOfWeek: ${template.dayOfWeek}, title: "${template.title}"`);
       
-      // Generate each weekly meeting
-      for (const [templateKey, template] of Object.entries(mdMeetingTemplates.weekly)) {
-        const meetingDate = new Date(weekStart);
-        meetingDate.setDate(meetingDate.getDate() + template.dayOfWeek);
+      // Calculate meeting date within the current week range
+      // Find Monday of the current week range
+      const startDay = start.getDay(); // 0=Sunday, 1=Monday, etc.
+      const daysFromMonday = startDay === 0 ? 6 : startDay - 1; // Days from Monday
+      
+      const mondayOfWeek = new Date(start);
+      mondayOfWeek.setDate(mondayOfWeek.getDate() - daysFromMonday);
+      
+      // Add template day offset to Monday
+      const meetingDate = new Date(mondayOfWeek);
+      meetingDate.setDate(meetingDate.getDate() + template.dayOfWeek);
+      
+      console.log(`Start date: ${start.toDateString()}`);
+      console.log(`Template dayOfWeek offset: ${template.dayOfWeek}`);
+      console.log(`Calculated meetingDate: ${meetingDate.toDateString()}`);
+      console.log(`Within range check: ${meetingDate.toDateString()} between ${start.toDateString()} and ${end.toDateString()}`);
+      
+      // Skip if meeting date is outside our range
+      if (meetingDate < start || meetingDate > end) {
+        console.log(`❌ SKIPPED - ${templateKey}: Outside date range`);
+        continue;
+      }
+      console.log(`✅ INCLUDED - ${templateKey}: Within date range`);
+      
+      // Apply MD scheduling constraints first
+      const adjustedTimes = applyMDSchedulingConstraints(template.timeSlot, template.duration);
+      console.log(`Adjusted times: ${adjustedTimes.startTime} - ${adjustedTimes.endTime}`);
+      
+      // Check if meeting already exists with adjusted time
+      const existingMeeting = await db
+        .select()
+        .from(businessMeetings)
+        .where(
+          and(
+            eq(businessMeetings.title, template.title),
+            eq(businessMeetings.meetingDate, meetingDate.toISOString().split('T')[0]),
+            eq(businessMeetings.startTime, adjustedTimes.startTime),
+            eq(businessMeetings.organizerId, user.id)
+          )
+        );
         
-        console.log(`\n=== Processing ${templateKey} (${template.title}) ===`);
-        console.log(`Template dayOfWeek: ${template.dayOfWeek}`);
-        console.log(`Week start: ${weekStart.toISOString().split('T')[0]}`);
-        console.log(`Meeting date: ${meetingDate.toISOString().split('T')[0]}`);
-        console.log(`Range: ${start.toISOString().split('T')[0]} to ${end.toISOString().split('T')[0]}`);
-        console.log(`Original timeSlot: ${template.timeSlot}, duration: ${template.duration}`);
+      if (existingMeeting.length === 0) {
+        console.log(`✅ CREATING: No duplicate found, proceeding with creation`);
+        console.log(`🔥 Creating meeting: ${template.title} on ${meetingDate.toISOString().split('T')[0]} at ${adjustedTimes.startTime}`);
         
-        // Skip if meeting date is outside our range
-        if (meetingDate < start || meetingDate > end) {
-          console.log(`❌ SKIPPED: Meeting date outside range`);
-          continue;
-        }
-        
-        // Apply MD scheduling constraints first
-        const adjustedTimes = applyMDSchedulingConstraints(template.timeSlot, template.duration);
-        console.log(`Adjusted times: ${adjustedTimes.startTime} - ${adjustedTimes.endTime}`);
-        
-        // Check if meeting already exists with adjusted time
-        const existingMeeting = await db
-          .select()
-          .from(businessMeetings)
-          .where(
-            and(
-              eq(businessMeetings.title, template.title),
-              eq(businessMeetings.meetingDate, meetingDate.toISOString().split('T')[0]),
-              eq(businessMeetings.startTime, adjustedTimes.startTime),
-              eq(businessMeetings.organizerId, user.id)
-            )
-          );
+        const newMeeting = await db
+          .insert(businessMeetings)
+          .values({
+            title: template.title,
+            description: template.description,
+            meetingType: template.meetingType,
+            priority: template.priority,
+            meetingDate: meetingDate.toISOString().split('T')[0],
+            startTime: adjustedTimes.startTime,
+            endTime: adjustedTimes.endTime,
+            location: "Conference Room A",
+            organizerId: user.id,
+            createdBy: user.id,
+            attendeeIds: [], // Will be populated based on roles
+            status: "Scheduled",
+            agenda: template.description,
+            autoCreateGoogleMeet: true
+          })
+          .returning();
           
-        if (existingMeeting.length === 0) {
-          console.log(`✅ CREATING: No duplicate found, proceeding with creation`);
-          console.log(`🔥 Creating meeting: ${template.title} on ${meetingDate.toISOString().split('T')[0]} at ${adjustedTimes.startTime}`);
-          
-          const newMeeting = await db
-            .insert(businessMeetings)
-            .values({
-              title: template.title,
-              description: template.description,
-              meetingType: template.meetingType,
-              priority: template.priority,
-              meetingDate: meetingDate.toISOString().split('T')[0],
-              startTime: adjustedTimes.startTime,
-              endTime: adjustedTimes.endTime,
-              location: "Conference Room A",
-              organizerId: user.id,
-              createdBy: user.id,
-              attendeeIds: [], // Will be populated based on roles
-              status: "Scheduled",
-              agenda: template.description,
-              autoCreateGoogleMeet: true
+        generatedMeetings.push(newMeeting[0]);
+        console.log(`✅ Successfully created meeting ID: ${newMeeting[0].id}`);
+        
+        // Auto-create Google Meet if user has Google Calendar connected
+        try {
+          const [organizer] = await db
+            .select({
+              googleCalendarConnected: users.googleCalendarConnected,
+              googleCalendarSyncEnabled: users.googleCalendarSyncEnabled
             })
-            .returning();
+            .from(users)
+            .where(eq(users.id, user.id));
             
-          generatedMeetings.push(newMeeting[0]);
-          console.log(`✅ Successfully created meeting ID: ${newMeeting[0].id}`);
-          
-          // Auto-create Google Meet if user has Google Calendar connected
-          try {
-            const [organizer] = await db
-              .select({
-                googleCalendarConnected: users.googleCalendarConnected,
-                googleCalendarSyncEnabled: users.googleCalendarSyncEnabled
-              })
-              .from(users)
-              .where(eq(users.id, user.id));
+          if (organizer?.googleCalendarConnected && organizer?.googleCalendarSyncEnabled) {
+            console.log(`🔗 Creating Google Calendar event for MD meeting ${newMeeting[0].id}`);
+            
+            const result = await googleCalendarService.createCalendarEvent(user.id, newMeeting[0]);
+            
+            if (result && result.eventId) {
+              const updateData: any = { 
+                googleEventId: result.eventId,
+                googleCalendarSynced: true 
+              };
               
-            if (organizer?.googleCalendarConnected && organizer?.googleCalendarSyncEnabled) {
-              console.log(`🔗 Creating Google Calendar event for MD meeting ${newMeeting[0].id}`);
-              
-              const result = await googleCalendarService.createCalendarEvent(user.id, newMeeting[0]);
-              
-              if (result && result.eventId) {
-                const updateData: any = { 
-                  googleEventId: result.eventId,
-                  googleCalendarSynced: true 
-                };
-                
-                if (result.meetLink) {
-                  updateData.googleMeetLink = result.meetLink;
-                  updateData.googleMeetUrl = result.meetLink;
-                  console.log(`🎥 Google Meet link generated: ${result.meetLink}`);
-                }
-                
-                await db
-                  .update(businessMeetings)
-                  .set(updateData)
-                  .where(eq(businessMeetings.id, newMeeting[0].id));
-                  
-                console.log(`📅 MD meeting synced to Google Calendar with event ID: ${result.eventId}`);
-              } else {
-                console.log(`⚠️ Failed to create Google Calendar event for MD meeting ${newMeeting[0].id}`);
+              if (result.meetLink) {
+                updateData.googleMeetLink = result.meetLink;
+                updateData.googleMeetUrl = result.meetLink;
+                console.log(`🎥 Google Meet link generated: ${result.meetLink}`);
               }
+              
+              await db
+                .update(businessMeetings)
+                .set(updateData)
+                .where(eq(businessMeetings.id, newMeeting[0].id));
+                
+              console.log(`📅 MD meeting synced to Google Calendar with event ID: ${result.eventId}`);
             } else {
-              console.log(`⏭️ Google Calendar integration skipped - not connected or enabled`);
+              console.log(`⚠️ Failed to create Google Calendar event for MD meeting ${newMeeting[0].id}`);
             }
-          } catch (syncError) {
-            console.error('❌ Error syncing MD meeting to Google Calendar:', syncError);
-            // Don't fail meeting creation if calendar sync fails
+          } else {
+            console.log(`⏭️ Google Calendar integration skipped - not connected or enabled`);
           }
-        } else {
-          console.log(`⏭️ Skipping duplicate: ${template.title} on ${meetingDate.toISOString().split('T')[0]} at ${adjustedTimes.startTime}`);
+        } catch (syncError) {
+          console.error('❌ Error syncing MD meeting to Google Calendar:', syncError);
+          // Don't fail meeting creation if calendar sync fails
         }
+      } else {
+        console.log(`⏭️ Skipping duplicate: ${template.title} on ${meetingDate.toISOString().split('T')[0]} at ${adjustedTimes.startTime}`);
       }
     }
     
