@@ -178,6 +178,9 @@ export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
     const end = new Date(endDate);
     const previewMeetings = [];
     
+    console.log(`Preview Weekly MD Meetings - Processing ${Object.keys(mdMeetingTemplates.weekly).length} templates`);
+    console.log(`Date range: ${start.toISOString()} to ${end.toISOString()}`);
+    
     for (const [templateKey, template] of Object.entries(mdMeetingTemplates.weekly)) {
       // Calculate meeting date for the current week
       const weekStart = new Date(start);
@@ -188,8 +191,13 @@ export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
       const meetingDate = new Date(weekStart);
       meetingDate.setDate(meetingDate.getDate() + template.dayOfWeek);
       
+      console.log(`Template: ${templateKey}, dayOfWeek: ${template.dayOfWeek}, meetingDate: ${meetingDate.toISOString()}, title: ${template.title}`);
+      
       // Skip if meeting date is outside our range
-      if (meetingDate < start || meetingDate > end) continue;
+      if (meetingDate < start || meetingDate > end) {
+        console.log(`SKIPPED - ${templateKey}: meetingDate ${meetingDate.toISOString()} is outside range ${start.toISOString()} to ${end.toISOString()}`);
+        continue;
+      }
       
       // Check if meeting already exists
       const existingMeeting = await db
