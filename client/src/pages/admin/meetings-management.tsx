@@ -713,9 +713,18 @@ export default function MeetingsManagement() {
       const endOfWeek = new Date(startOfWeek);
       endOfWeek.setDate(startOfWeek.getDate() + 6); // Following Sunday
       
+      const startDateStr = startOfWeek.toISOString().split('T')[0];
+      const endDateStr = endOfWeek.toISOString().split('T')[0];
+      
+      console.log('🔍 FRONTEND DEBUG - Week Calculation:');
+      console.log('Today:', today.toDateString());
+      console.log('Today day of week:', day);
+      console.log('Calculated start:', startOfWeek.toDateString(), '→', startDateStr);
+      console.log('Calculated end:', endOfWeek.toDateString(), '→', endDateStr);
+      
       return apiRequest('POST', '/api/meetings/md/preview-weekly', {
-        startDate: startOfWeek.toISOString().split('T')[0],
-        endDate: endOfWeek.toISOString().split('T')[0]
+        startDate: startDateStr,
+        endDate: endDateStr
       });
     },
     onSuccess: (data: any) => {
