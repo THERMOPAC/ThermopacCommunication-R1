@@ -222,13 +222,13 @@ export default function HomeDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="pl-6">
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground">Welcome back, {user?.username}! Here's what's happening today.</p>
       </div>
       
       {/* Date and notifications row */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center pl-6">
         <div className="flex items-center gap-2">
           <Calendar className="h-5 w-5 text-muted-foreground" />
           <span className="text-muted-foreground">{formatDate(new Date())}</span>
