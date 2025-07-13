@@ -1365,18 +1365,12 @@ export default function MeetingsManagement() {
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">Upcoming Google Calendar Events</h3>
                 <Badge variant="outline" className="text-blue-600">
-                  {(googleCalendarEvents?.count || 0) + (upcomingMeetings?.meetings?.filter((meeting) => {
-                    const isDuplicate = googleCalendarEvents?.events?.some(event => 
-                      event.summary?.toLowerCase().includes(meeting.meeting.title.toLowerCase()) ||
-                      meeting.meeting.title.toLowerCase().includes(event.summary?.toLowerCase() || '')
-                    );
-                    return !isDuplicate;
-                  }).length || 0)} events
+                  {googleCalendarEvents?.count || 0} events
                 </Badge>
               </div>
             </div>
             <div className="p-6">
-              {(googleCalendarLoading || !upcomingMeetings) ? (
+              {googleCalendarLoading ? (
                 <p className="text-gray-500 text-center py-8">Loading calendar events...</p>
               ) : googleCalendarError || !googleCalendarEvents?.success ? (
                 <div className="text-center py-8">
@@ -1387,13 +1381,18 @@ export default function MeetingsManagement() {
                       : 'Check your Google Calendar connection'}
                   </p>
                 </div>
-              ) : (googleCalendarEvents?.events?.length || upcomingMeetings?.meetings?.length) ? (
-                <div className="space-y-4">
-                  {/* Google Calendar Events - Clean, professional design */}
-                  {googleCalendarEvents?.events?.slice(0, 8).map((event) => (
+              ) : googleCalendarEvents?.events?.length ? (
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {/* All Google Calendar Events (Internal & External) */}
+                  {googleCalendarEvents.events.map((event) => (
                     <div key={`google-${event.id}`} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-white rounded-lg border border-gray-200 gap-3">
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-gray-900 mb-2">{event.summary || 'Untitled Event'}</h4>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="outline" className="bg-green-50 text-green-600 border-green-300">
+                            Google Calendar
+                          </Badge>
+                          <h4 className="font-semibold text-gray-900">{event.summary || 'Untitled Event'}</h4>
+                        </div>
                         <div className="text-sm text-gray-600">
                           {event.start.dateTime && event.end.dateTime ? (
                             <span>
@@ -1407,6 +1406,11 @@ export default function MeetingsManagement() {
                             <span>No date available</span>
                           )}
                         </div>
+                        {event.description && (
+                          <div className="text-xs text-gray-500 mt-1 truncate">
+                            {event.description.substring(0, 100)}...
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0 sm:ml-4">
                         {event.hangoutLink && (
@@ -1415,57 +1419,30 @@ export default function MeetingsManagement() {
                             onClick={() => window.open(event.hangoutLink, '_blank')}
                             className="bg-blue-600 hover:bg-blue-700 text-white"
                           >
+                            <VideoIcon className="h-3 w-3 mr-1" />
                             Join
                           </Button>
                         )}
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {/* Internal Meetings - Clean, professional design */}
-                  {upcomingMeetings?.meetings?.filter((meeting) => {
-                    // Check if this internal meeting title matches any Google Calendar event
-                    const isDuplicate = googleCalendarEvents?.events?.some(event => 
-                      event.summary?.toLowerCase().includes(meeting.meeting.title.toLowerCase()) ||
-                      meeting.meeting.title.toLowerCase().includes(event.summary?.toLowerCase() || '')
-                    );
-                    return !isDuplicate;
-                  }).slice(0, 3).map((meeting) => (
-                    <div key={`internal-${meeting.meeting.id}`} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-white rounded-lg border border-gray-200 gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-gray-900 mb-2">{meeting.meeting.title}</h4>
-                        <div className="text-sm text-gray-600">
-                          {format(parseISO(meeting.meeting.meetingDate), 'MMM dd, yyyy')} · {meeting.meeting.startTime} – {meeting.meeting.endTime}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0 sm:ml-4">
-                        {(meeting.meeting.googleMeetLink || meeting.meeting.meetingUrl) && (
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              if (meeting.meeting.googleMeetLink) {
-                                window.open(meeting.meeting.googleMeetLink, '_blank');
-                              } else if (meeting.meeting.meetingUrl) {
-                                window.open(meeting.meeting.meetingUrl, '_blank');
-                              } else {
-                                toast({ 
-                                  title: 'No meeting link available', 
-                                  description: 'This meeting does not have a Google Meet or custom meeting link.',
-                                  variant: 'destructive'
-                                });
-                              }
-                            }}
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                          >
-                            Join
-                          </Button>
-                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(event.htmlLink, '_blank')}
+                        >
+                          <LinkIcon className="h-3 w-3 mr-1" />
+                          View
+                        </Button>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-center py-8">No upcoming meetings or calendar events</p>
+                <div className="text-center py-8">
+                  <CalendarDaysIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h4 className="text-lg font-medium text-gray-900 mb-2">No upcoming events</h4>
+                  <p className="text-gray-500">
+                    No upcoming Google Calendar events found.
+                  </p>
+                </div>
               )}
             </div>
           </Card>
