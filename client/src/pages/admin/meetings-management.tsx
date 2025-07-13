@@ -780,7 +780,11 @@ export default function MeetingsManagement() {
 
   // Preview modal helper functions
   const handleEditPreviewMeeting = (meeting: any, index: number) => {
-    setEditingPreviewMeeting({ ...meeting, index });
+    setEditingPreviewMeeting({ 
+      ...meeting, 
+      index,
+      attendeeIds: meeting.attendeeIds || [] // Ensure attendeeIds is always an array
+    });
   };
 
   const handleDeletePreviewMeeting = (index: number) => {
@@ -3529,6 +3533,55 @@ Suggested next steps
                     description: e.target.value
                   })}
                 />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Participants / Attendees</label>
+                <Select
+                  value={editingPreviewMeeting.attendeeIds?.length > 0 ? "selected" : ""}
+                  onValueChange={() => {}} // Will be handled by checkbox logic
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={
+                      editingPreviewMeeting.attendeeIds?.length > 0 
+                        ? `${editingPreviewMeeting.attendeeIds.length} participant(s) selected`
+                        : "Select participants..."
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(groupedUsers).map(([role, roleUsers]) => (
+                      <div key={role}>
+                        <div className="px-2 py-1.5 text-sm font-medium text-blue-600 bg-blue-50">
+                          {role}
+                        </div>
+                        {roleUsers.map((user) => (
+                          <div key={user.id} className="flex items-center space-x-2 px-2 py-1">
+                            <input
+                              type="checkbox"
+                              checked={editingPreviewMeeting.attendeeIds?.includes(user.id) || false}
+                              onChange={(e) => {
+                                const currentAttendees = editingPreviewMeeting.attendeeIds || [];
+                                const newAttendees = e.target.checked
+                                  ? [...currentAttendees, user.id]
+                                  : currentAttendees.filter(id => id !== user.id);
+                                setEditingPreviewMeeting({
+                                  ...editingPreviewMeeting,
+                                  attendeeIds: newAttendees
+                                });
+                              }}
+                              className="rounded border-gray-300"
+                            />
+                            <span className="text-sm">
+                              {user.firstName && user.lastName 
+                                ? `${user.firstName} ${user.lastName}` 
+                                : user.username}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
