@@ -709,7 +709,13 @@ router.get('/report', ensureAuthenticated, async (req: Request, res: Response) =
     
     // Filter for instruments due within a certain timeframe (in days)
     if (dueWithin) {
-      queryConditions.push(`ci.next_calibration_date <= (CURRENT_DATE + INTERVAL '${parseInt(dueWithin as string)} days')`);
+      const dueWithinDays = parseInt(dueWithin as string);
+      // Validate that dueWithin is a valid positive integer
+      if (!isNaN(dueWithinDays) && dueWithinDays > 0 && dueWithinDays <= 3650) { // Max 10 years
+        queryConditions.push(`ci.next_calibration_date <= (CURRENT_DATE + INTERVAL '$${paramIndex} days')`);
+        queryParams.push(dueWithinDays);
+        paramIndex++;
+      }
     }
     
     // Add conditions to query
