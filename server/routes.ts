@@ -73,6 +73,7 @@ import { default as visaManagementRoutes } from "./visa-management-routes";
 import { default as schengenRoutes } from "./schengen-routes";
 import { default as legalManagementRoutes } from "./legal-management-routes";
 import { default as googleCalendarRoutes } from "./google-calendar-routes";
+import { detectTimezoneFromIP, getTimezoneOffset } from "./timezone-detection-service";
 import { 
   getMeetings, 
   getMeetingById, 
@@ -404,6 +405,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up Salary Calculation Engine routes
   app.use('/api/salary-calculation', salaryCalculationRoutes);
   console.log('Salary calculation routes registered at /api/salary-calculation');
+
+  // Timezone Detection API
+  app.get('/api/timezone/detect', ensureAuthenticated, async (req: any, res: any) => {
+    try {
+      console.log('🌍 Timezone detection endpoint hit');
+      const timezoneInfo = detectTimezoneFromIP(req);
+      const offset = getTimezoneOffset(timezoneInfo.timezone);
+      
+      console.log('🌍 Detected timezone info:', timezoneInfo);
+      
+      res.json({
+        success: true,
+        timezone: timezoneInfo,
+        offset,
+        serverTime: new Date().toISOString(),
+        userLocalTime: new Date().toLocaleString('en-US', { timeZone: timezoneInfo.timezone })
+      });
+    } catch (error: any) {
+      console.error('🌍 Error detecting timezone:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to detect timezone',
+        message: error.message
+      });
+    }
+  });
+  console.log('Timezone detection endpoint registered at /api/timezone/detect');
 
   // Set up Business Trip Management routes
   app.get('/api/trips/user', ensureAuthenticated, tripManagementRoutes.getUserTrips);

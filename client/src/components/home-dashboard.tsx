@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import WorkflowRecommendations from "@/components/workflow-recommendations";
+import TimezoneDetector from "@/components/timezone-detector";
 
 import { Link } from "wouter";
 import { 
@@ -602,6 +603,9 @@ export default function HomeDashboard() {
               )}
             </CardContent>
           </Card>
+          
+          {/* Timezone Detection */}
+          <TimezoneDetector />
           
           {/* Quick Links */}
           <Card>
