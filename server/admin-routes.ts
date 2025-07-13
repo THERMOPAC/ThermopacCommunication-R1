@@ -25,7 +25,7 @@ import {
   insertEmployeeWorkweekAssignmentSchema,
   insertWorkweekCalendarOverrideSchema
 } from '../shared/schema';
-import { eq, and, desc, asc, gte, lte, sql, count } from 'drizzle-orm';
+import { eq, and, desc, asc, gte, lte, sql, count, isNotNull, ne } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { ensureAuthenticated } from './auth-middleware';
 import { salaryCalculationEngine } from './salary-calculation-engine';
@@ -962,16 +962,19 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
 // Get list of departments for filter
 router.get('/departments', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const departments = await db.execute(`
-      SELECT DISTINCT department
-      FROM users
-      WHERE department IS NOT NULL 
-      AND department != ''
-      AND is_active = true
-      ORDER BY department
-    `);
+    const departments = await db
+      .selectDistinct({ department: users.department })
+      .from(users)
+      .where(
+        and(
+          isNotNull(users.department),
+          ne(users.department, ''),
+          eq(users.isActive, true)
+        )
+      )
+      .orderBy(asc(users.department));
 
-    const departmentList = Array.isArray(departments) ? departments.map((d: any) => d.department).filter(Boolean) : [];
+    const departmentList = departments.map(d => d.department).filter(Boolean);
     res.json(departmentList);
   } catch (error) {
     console.error('Error fetching departments:', error);
