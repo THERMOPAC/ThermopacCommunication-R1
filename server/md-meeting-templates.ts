@@ -166,6 +166,7 @@ export const mdMeetingTemplates = {
  * Preview weekly meetings for MD
  */
 export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
+  console.log('\n🔥 PREVIEW WEEKLY MD MEETINGS - ENDPOINT HIT!');
   try {
     const user = req.user as any;
     const { startDate, endDate } = req.body;
@@ -188,19 +189,22 @@ export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
       console.log(`\n--- Processing Template: ${templateKey} ---`);
       console.log(`Template dayOfWeek: ${template.dayOfWeek}, title: "${template.title}"`);
       
-      // Calculate meeting date for the current week
-      const weekStart = new Date(start);
-      const day = weekStart.getDay();
-      const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1); // Monday start
-      weekStart.setDate(diff);
+      // SIMPLIFIED: Calculate meeting date by adding dayOfWeek to the start date directly
+      const meetingDate = new Date(start);
       
-      const meetingDate = new Date(weekStart);
+      // Find the Monday of the given week
+      const dayOfWeek = meetingDate.getDay();
+      const daysFromMonday = dayOfWeek === 0 ? -6 : (1 - dayOfWeek); // How many days to get to Monday
+      meetingDate.setDate(meetingDate.getDate() + daysFromMonday);
+      
+      // Now add the template's day offset (0=Monday, 1=Tuesday, etc.)
       meetingDate.setDate(meetingDate.getDate() + template.dayOfWeek);
       
-      console.log(`Calculated weekStart: ${weekStart.toISOString()}`);
-      console.log(`Final meetingDate: ${meetingDate.toISOString()}`);
-      console.log(`Date comparison: ${meetingDate.toISOString()} >= ${start.toISOString()} && ${meetingDate.toISOString()} <= ${end.toISOString()}`);
-      console.log(`Within range: ${meetingDate >= start && meetingDate <= end}`);
+      console.log(`Start date: ${start.toDateString()}`);
+      console.log(`Days from Monday: ${daysFromMonday}`);
+      console.log(`Template dayOfWeek offset: ${template.dayOfWeek}`);
+      console.log(`Final meetingDate: ${meetingDate.toDateString()}`);
+      console.log(`Within range check: ${meetingDate.toDateString()} between ${start.toDateString()} and ${end.toDateString()}`);
       
       // Skip if meeting date is outside our range
       if (meetingDate < start || meetingDate > end) {
