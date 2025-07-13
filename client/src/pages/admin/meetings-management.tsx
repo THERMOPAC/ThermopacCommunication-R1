@@ -2703,12 +2703,12 @@ export default function MeetingsManagement() {
                                 )}
                               </div>
                             </div>
-                            <div className="flex flex-col gap-2 ml-4 shrink-0">
+                            <div className="flex flex-col gap-2 ml-4 shrink-0 min-w-[140px]">
                               {event.hangoutLink && (
                                 <Button
                                   size="sm"
                                   onClick={() => window.open(event.hangoutLink, '_blank')}
-                                  className="bg-green-600 hover:bg-green-700"
+                                  className="bg-green-600 hover:bg-green-700 whitespace-nowrap"
                                 >
                                   <VideoIcon className="h-4 w-4 mr-1" />
                                   Join
@@ -2718,6 +2718,7 @@ export default function MeetingsManagement() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => window.open(event.htmlLink, '_blank')}
+                                className="whitespace-nowrap"
                               >
                                 <LinkIcon className="h-4 w-4 mr-1" />
                                 View
@@ -2730,10 +2731,10 @@ export default function MeetingsManagement() {
                                   eventTitle: event.summary 
                                 })}
                                 disabled={concludeEventMutation.isPending}
-                                className="bg-red-600 hover:bg-red-700"
+                                className="bg-red-600 hover:bg-red-700 whitespace-nowrap"
                               >
                                 <CheckCircleIcon className="h-4 w-4 mr-1" />
-                                Meeting Concluded
+                                Concluded
                               </Button>
                             </div>
                           </div>
