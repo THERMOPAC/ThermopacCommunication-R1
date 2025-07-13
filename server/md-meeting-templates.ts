@@ -201,9 +201,18 @@ export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
       const meetingDate = new Date(mondayOfWeek);
       meetingDate.setDate(meetingDate.getDate() + template.dayOfWeek);
       
-      // If the calculated date is before our start range, try next Monday
+      // If the calculated date is before our start range, move to next week
       if (meetingDate < start) {
         meetingDate.setDate(meetingDate.getDate() + 7);
+      }
+      
+      // If still outside range (happens with Monday meetings), try end of week
+      if (meetingDate < start && template.dayOfWeek === 0) {
+        // For Monday meetings, try the Monday at the end of the range
+        const mondayAtEnd = new Date(end);
+        if (mondayAtEnd.getDay() === 1) { // If end is Monday, use it
+          meetingDate.setTime(mondayAtEnd.getTime());
+        }
       }
       
       console.log(`Start date: ${start.toDateString()}`);
