@@ -11,13 +11,13 @@ export class FinanceReportService {
    */
   async generateReconciliationReport(startDate?: string, endDate?: string) {
     try {
-      const dateFilter = this.buildDateFilter(startDate, endDate);
+      const { conditions, params } = this.buildDateFilterConditions(startDate, endDate);
       
       // Get the different components of the report
-      const outstandingInvoices = await this.getOutstandingInvoicesSummary(dateFilter);
+      const outstandingInvoices = await this.getOutstandingInvoicesSummary(conditions, params);
       const advancePayments = await this.getAdvancePaymentAvailability();
       const recentAllocations = await this.getRecentPaymentAllocations();
-      const writeOffs = await this.getWriteOffAnalysis(dateFilter);
+      const writeOffs = await this.getWriteOffAnalysis(conditions, params);
       const healthIndicators = await this.calculateFinancialHealthIndicators();
       const recommendations = await this.generateRecommendations();
 
@@ -42,25 +42,37 @@ export class FinanceReportService {
   }
 
   /**
-   * Build SQL date filter clause based on provided date range
+   * Build secure date filter conditions using parameterized queries
    */
-  private buildDateFilter(startDate?: string, endDate?: string): string {
-    let dateFilter = '';
+  private buildDateFilterConditions(startDate?: string, endDate?: string) {
+    const conditions = [];
+    const params = [];
+    
     if (startDate && endDate) {
-      dateFilter = `AND date BETWEEN '${startDate}' AND '${endDate}'`;
+      conditions.push('date BETWEEN $1 AND $2');
+      params.push(startDate, endDate);
     } else if (startDate) {
-      dateFilter = `AND date >= '${startDate}'`;
+      conditions.push('date >= $1');
+      params.push(startDate);
     } else if (endDate) {
-      dateFilter = `AND date <= '${endDate}'`;
+      conditions.push('date <= $1');
+      params.push(endDate);
     }
-    return dateFilter;
+    
+    return { conditions, params };
   }
 
   /**
    * Get summary of outstanding invoices grouped by type
    */
-  private async getOutstandingInvoicesSummary(dateFilter: string) {
+  private async getOutstandingInvoicesSummary(dateConditions: string[], params: any[]) {
     try {
+      // Build the WHERE clause with parameterized conditions
+      let whereClause = '(total_amount - COALESCE(allocated_amount, 0)) > 0';
+      if (dateConditions.length > 0) {
+        whereClause += ` AND ${dateConditions.join(' AND ')}`;
+      }
+      
       // Get total outstanding invoices by type
       const result = await db.execute(`
         SELECT
@@ -71,11 +83,10 @@ export class FinanceReportService {
         FROM
           invoices
         WHERE
-          (total_amount - COALESCE(allocated_amount, 0)) > 0
-          ${dateFilter}
+          ${whereClause}
         GROUP BY
           invoice_type
-      `);
+      `, params);
 
       // Get aging analysis
       const agingResult = await db.execute(`
@@ -91,8 +102,7 @@ export class FinanceReportService {
         FROM
           invoices
         WHERE
-          (total_amount - COALESCE(allocated_amount, 0)) > 0
-          ${dateFilter}
+          ${whereClause}
         GROUP BY
           aging_period
         ORDER BY
@@ -102,9 +112,16 @@ export class FinanceReportService {
             WHEN aging_period = '61-90 days' THEN 3
             ELSE 4
           END
-      `);
+      `, params);
 
-      // Get customer distribution
+      // Get customer distribution with updated table alias for WHERE clause
+      let customerWhereClause = '(i.total_amount - COALESCE(i.allocated_amount, 0)) > 0';
+      if (dateConditions.length > 0) {
+        // Update the date conditions to use the 'i' alias for the invoices table
+        const aliasedConditions = dateConditions.map(condition => condition.replace(/^date/, 'i.date'));
+        customerWhereClause += ` AND ${aliasedConditions.join(' AND ')}`;
+      }
+      
       const customerResult = await db.execute(`
         SELECT
           c.name as customer_name,
@@ -115,14 +132,13 @@ export class FinanceReportService {
         JOIN
           customers c ON i.customer_id = c.id
         WHERE
-          (i.total_amount - COALESCE(i.allocated_amount, 0)) > 0
-          ${dateFilter}
+          ${customerWhereClause}
         GROUP BY
           c.name
         ORDER BY
           outstanding_amount DESC
         LIMIT 5
-      `);
+      `, params);
 
       return {
         summary: result.rows || [],
@@ -216,8 +232,16 @@ export class FinanceReportService {
   /**
    * Get write-off analysis
    */
-  private async getWriteOffAnalysis(dateFilter: string) {
+  private async getWriteOffAnalysis(dateConditions: string[], params: any[]) {
     try {
+      // Build WHERE clause for write-offs
+      let whereClause = '1=1';
+      if (dateConditions.length > 0) {
+        // Update date conditions to use the 'w' alias for the writeoffs table
+        const aliasedConditions = dateConditions.map(condition => condition.replace(/^date/, 'w.created_at'));
+        whereClause += ` AND ${aliasedConditions.join(' AND ')}`;
+      }
+      
       const result = await db.execute(`
         SELECT
           w.id,
@@ -233,14 +257,19 @@ export class FinanceReportService {
         JOIN
           customers c ON i.customer_id = c.id
         WHERE
-          1=1
-          ${dateFilter}
+          ${whereClause}
         ORDER BY
           w.created_at DESC
         LIMIT 10
-      `);
+      `, params);
 
-      // Get summary by reason
+      // Get summary by reason - for this table, use DATE() function for date-only comparison
+      let summaryWhereClause = '1=1';
+      if (dateConditions.length > 0) {
+        const summaryConditions = dateConditions.map(condition => condition.replace(/^date/, 'DATE(created_at)'));
+        summaryWhereClause += ` AND ${summaryConditions.join(' AND ')}`;
+      }
+      
       const reasonResult = await db.execute(`
         SELECT
           reason,
@@ -249,13 +278,12 @@ export class FinanceReportService {
         FROM
           financial_writeoffs
         WHERE
-          1=1
-          ${dateFilter}
+          ${summaryWhereClause}
         GROUP BY
           reason
         ORDER BY
           total_amount DESC
-      `);
+      `, params);
 
       return {
         recentWriteOffs: result.rows || [],
