@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
+import { UserEditDialog } from "@/components/user-edit-dialog";
 import {
   Card,
   CardContent,
@@ -822,18 +823,12 @@ export default function UserManagementPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Edit User Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Edit User</DialogTitle>
-              <DialogDescription>
-                Update user account details
-              </DialogDescription>
-            </DialogHeader>
-            <UserForm />
-          </DialogContent>
-        </Dialog>
+        {/* New Edit User Dialog */}
+        <UserEditDialog 
+          open={isEditDialogOpen} 
+          onOpenChange={setIsEditDialogOpen}
+          user={selectedUser}
+        />
       </div>
     </Layout>
   );
