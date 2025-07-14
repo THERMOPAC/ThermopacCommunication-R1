@@ -244,7 +244,7 @@ export default function VisaManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/visa/records'] });
       toast({ title: 'Success', description: 'Visa record updated successfully' });
       setShowEditDialog(false);
-      setEditingRecord(null);
+      resetForm();
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message || 'Failed to update visa record', variant: 'destructive' });
@@ -332,7 +332,10 @@ export default function VisaManagement() {
   };
 
   const handleEdit = (record: VisaRecord) => {
+    console.log('Editing record:', record);
     setEditingRecord(record);
+    
+    // Reset form with record data
     form.reset({
       employeeId: record.employeeId,
       visaType: record.visaType,
@@ -343,6 +346,14 @@ export default function VisaManagement() {
       quotaReference: record.quotaReference || '',
       notes: record.notes || '',
     });
+    
+    // Clear file selection for editing
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    
+    console.log('Opening edit dialog');
     setShowEditDialog(true);
   };
 
@@ -849,7 +860,15 @@ export default function VisaManagement() {
             </Card>
 
             {/* Edit Dialog */}
-            <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+            <Dialog 
+              open={showEditDialog} 
+              onOpenChange={(open) => {
+                setShowEditDialog(open);
+                if (!open) {
+                  resetForm();
+                }
+              }}
+            >
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>Edit Visa Record</DialogTitle>
@@ -1006,7 +1025,14 @@ export default function VisaManagement() {
                       )}
                     />
                     <div className="flex justify-end space-x-2">
-                      <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => {
+                          setShowEditDialog(false);
+                          resetForm();
+                        }}
+                      >
                         Cancel
                       </Button>
                       <Button type="submit" disabled={updateMutation.isPending}>
