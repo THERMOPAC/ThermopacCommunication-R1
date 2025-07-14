@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -535,6 +535,8 @@ function VisaRecordsTab() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<VisaRecord | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<VisaRecord | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const { toast } = useToast();
@@ -720,6 +722,61 @@ function VisaRecordsTab() {
     },
   });
 
+  // Edit visa record mutation
+  const editMutation = useMutation({
+    mutationFn: async (data: { id: number; values: VisaFormValues; file?: File | null }) => {
+      if (data.file) {
+        // Create FormData for file upload
+        const formData = new FormData();
+        
+        // Format dates
+        const formattedValues = {
+          ...data.values,
+          issueDate: data.values.issueDate instanceof Date ? format(data.values.issueDate, 'yyyy-MM-dd') : data.values.issueDate,
+          expiryDate: data.values.expiryDate instanceof Date ? format(data.values.expiryDate, 'yyyy-MM-dd') : data.values.expiryDate,
+        };
+        
+        // Append all form fields except file
+        Object.entries(formattedValues).forEach(([key, value]) => {
+          if (key !== 'file' && value !== undefined && value !== null) {
+            formData.append(key, value.toString());
+          }
+        });
+        
+        // Append file
+        formData.append('document', data.file);
+        
+        return apiRequest('PUT', `/api/visa/records/${data.id}`, formData);
+      } else {
+        // Regular JSON request without file
+        const formattedValues = {
+          ...data.values,
+          issueDate: data.values.issueDate instanceof Date ? format(data.values.issueDate, 'yyyy-MM-dd') : data.values.issueDate,
+          expiryDate: data.values.expiryDate instanceof Date ? format(data.values.expiryDate, 'yyyy-MM-dd') : data.values.expiryDate,
+        };
+        return apiRequest('PUT', `/api/visa/records/${data.id}`, formattedValues);
+      }
+    },
+    onSuccess: () => {
+      setIsEditDialogOpen(false);
+      editForm.reset();
+      setEditingRecord(null);
+      setSelectedFile(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/visa/records'] });
+      toast({
+        title: "Success",
+        description: "Visa record updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update visa record",
+        variant: "destructive",
+      });
+    },
+  });
+
   const form = useForm<VisaFormValues>({
     resolver: zodResolver(visaFormSchema),
     defaultValues: {
@@ -735,6 +792,41 @@ function VisaRecordsTab() {
   const onSubmit = (values: VisaFormValues) => {
     createMutation.mutate({ ...values, file: selectedFile });
   };
+
+  // Edit form
+  const editForm = useForm<VisaFormValues>({
+    resolver: zodResolver(visaFormSchema),
+    defaultValues: {
+      employeeId: 0,
+      visaType: '',
+      country: '',
+      visaNumber: '',
+      quotaReference: '',
+      notes: ''
+    },
+  });
+
+  const onEditSubmit = (values: VisaFormValues) => {
+    if (editingRecord) {
+      editMutation.mutate({ id: editingRecord.id, values, file: selectedFile });
+    }
+  };
+
+  // Set edit form values when editing record is selected
+  React.useEffect(() => {
+    if (editingRecord && isEditDialogOpen) {
+      editForm.reset({
+        employeeId: editingRecord.employeeId,
+        visaType: editingRecord.visaType,
+        country: editingRecord.country,
+        visaNumber: editingRecord.visaNumber,
+        issueDate: new Date(editingRecord.issueDate),
+        expiryDate: new Date(editingRecord.expiryDate),
+        quotaReference: editingRecord.quotaReference || '',
+        notes: editingRecord.notes || ''
+      });
+    }
+  }, [editingRecord, isEditDialogOpen, editForm]);
 
   const getStatusBadge = (status: string, daysToExpiry: number) => {
     if (daysToExpiry < 0) {
@@ -976,11 +1068,24 @@ function VisaRecordsTab() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="sm">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => {
+                                setEditingRecord(record);
+                                setIsEditDialogOpen(true);
+                              }}
+                            >
                               <Edit className="h-4 w-4" />
                             </Button>
                             {record.fileUrl && (
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => {
+                                  window.open(record.fileUrl, '_blank');
+                                }}
+                              >
                                 <Download className="h-4 w-4" />
                               </Button>
                             )}
@@ -1390,6 +1495,291 @@ function VisaRecordsTab() {
                 )}
               </div>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Visa Record Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Visa Record</DialogTitle>
+            <DialogDescription>
+              Update the visa record details and optionally replace the document.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editingRecord && (
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-6">
+                {/* File Upload Section at Top */}
+                <Card className="bg-blue-50 border-blue-200">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-blue-800 flex items-center gap-2">
+                      <Upload className="h-5 w-5" />
+                      Replace Document (Optional)
+                    </CardTitle>
+                    <CardDescription className="text-blue-600">
+                      Upload a new document to replace the existing one. Only PDF, JPG, and PNG files are allowed (max 10MB).
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid w-full items-center gap-1.5">
+                      <Input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          if (file && file.size > 10 * 1024 * 1024) {
+                            toast({
+                              title: "File too large",
+                              description: "Please select a file smaller than 10MB",
+                              variant: "destructive",
+                            });
+                            e.target.value = '';
+                            return;
+                          }
+                          setSelectedFile(file);
+                        }}
+                        className="cursor-pointer"
+                      />
+                      {selectedFile && (
+                        <div className="flex items-center gap-2 mt-2 p-2 bg-blue-100 rounded border border-blue-200">
+                          <FileText className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm text-blue-800">{selectedFile.name}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedFile(null)}
+                            className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                      {editingRecord.fileUrl && !selectedFile && (
+                        <div className="mt-2 p-2 bg-gray-100 rounded border">
+                          <span className="text-sm text-gray-600">Current document will be kept</span>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Form Fields */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="employeeId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Employee *</FormLabel>
+                        <Select 
+                          onValueChange={(value) => field.onChange(parseInt(value))}
+                          value={field.value?.toString()}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select employee" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectGroup>
+                              <SelectLabel className="text-blue-600">Superusers</SelectLabel>
+                              {employeesData?.filter(emp => emp.role === 'Superuser').map((employee) => (
+                                <SelectItem key={employee.id} value={employee.id.toString()}>
+                                  {employee.username} - {employee.department || 'N/A'}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                            <SelectGroup>
+                              <SelectLabel className="text-blue-600">General Managers</SelectLabel>
+                              {employeesData?.filter(emp => emp.role === 'General Manager').map((employee) => (
+                                <SelectItem key={employee.id} value={employee.id.toString()}>
+                                  {employee.username} - {employee.department || 'N/A'}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                            <SelectGroup>
+                              <SelectLabel className="text-blue-600">Senior Managers</SelectLabel>
+                              {employeesData?.filter(emp => emp.role === 'Senior Manager').map((employee) => (
+                                <SelectItem key={employee.id} value={employee.id.toString()}>
+                                  {employee.username} - {employee.department || 'N/A'}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                            <SelectGroup>
+                              <SelectLabel className="text-blue-600">Managers</SelectLabel>
+                              {employeesData?.filter(emp => emp.role === 'Manager').map((employee) => (
+                                <SelectItem key={employee.id} value={employee.id.toString()}>
+                                  {employee.username} - {employee.department || 'N/A'}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                            <SelectGroup>
+                              <SelectLabel className="text-blue-600">Employees</SelectLabel>
+                              {employeesData?.filter(emp => emp.role === 'Employee').map((employee) => (
+                                <SelectItem key={employee.id} value={employee.id.toString()}>
+                                  {employee.username} - {employee.department || 'N/A'}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="visaType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Visa Type *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select visa type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {visaOptions.visaTypes.map((type) => (
+                              <SelectItem key={type} value={type}>{type}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="country"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Country *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select country" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {visaOptions.countries.map((country) => (
+                              <SelectItem key={country} value={country}>{country}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="visaNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Visa Number *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter visa number" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="issueDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Issue Date *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="date"
+                            value={field.value instanceof Date ? format(field.value, 'yyyy-MM-dd') : field.value}
+                            onChange={(e) => field.onChange(new Date(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="expiryDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Expiry Date *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="date"
+                            value={field.value instanceof Date ? format(field.value, 'yyyy-MM-dd') : field.value}
+                            onChange={(e) => field.onChange(new Date(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={editForm.control}
+                  name="quotaReference"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Quota Reference</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter quota reference (optional)" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Notes</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Add any additional notes or comments"
+                          rows={3}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex justify-end gap-3">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => {
+                      setIsEditDialogOpen(false);
+                      setEditingRecord(null);
+                      setSelectedFile(null);
+                      editForm.reset();
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={editMutation.isPending}>
+                    {editMutation.isPending ? 'Updating...' : 'Update Visa Record'}
+                  </Button>
+                </div>
+              </form>
+            </Form>
           )}
         </DialogContent>
       </Dialog>

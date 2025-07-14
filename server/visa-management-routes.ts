@@ -576,13 +576,24 @@ export const updateVisaRecord = async (req: Request, res: Response) => {
     const { id } = req.params;
     const userId = (req as any).user?.id;
     
+    console.log('Update visa record - User ID:', userId);
+    console.log('Update visa record - Request body:', req.body);
+    console.log('Update visa record - File:', req.file);
+    
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Get current record for quota calculation
+    // Get current record for quota calculation and employee info
     const currentRecord = await db
-      .select()
+      .select({
+        id: visaRecords.id,
+        country: visaRecords.country,
+        visaNumber: visaRecords.visaNumber,
+        employeeId: visaRecords.employeeId,
+        filePath: visaRecords.filePath,
+        fileUrl: visaRecords.fileUrl
+      })
       .from(visaRecords)
       .where(eq(visaRecords.id, parseInt(id)))
       .limit(1);
@@ -593,14 +604,55 @@ export const updateVisaRecord = async (req: Request, res: Response) => {
 
     const validatedData = insertVisaRecordSchema.parse(req.body);
     
+    // Get employee name for GCS path if file is being uploaded
+    let fileData: { filePath?: string; fileUrl?: string } = {};
+    
+    if (req.file) {
+      try {
+        const employee = await db
+          .select({ username: users.username })
+          .from(users)
+          .where(eq(users.id, validatedData.employeeId))
+          .limit(1);
+
+        if (employee.length === 0) {
+          return res.status(400).json({ error: 'Employee not found' });
+        }
+
+        const gcsPath = generateVisaGCSPath(
+          employee[0].username,
+          validatedData.country,
+          validatedData.visaNumber,
+          req.file.originalname
+        );
+        
+        console.log('Uploading updated visa document to GCS path:', gcsPath);
+        fileData = await uploadVisaDocument(req.file, gcsPath);
+        console.log('Visa document updated successfully:', fileData);
+      } catch (uploadError) {
+        console.error('Error uploading updated visa document:', uploadError);
+        return res.status(500).json({ 
+          error: 'Failed to upload visa document', 
+          message: 'The visa record cannot be updated due to file upload failure.' 
+        });
+      }
+    }
+    
+    const updateData = {
+      ...validatedData,
+      updatedAt: new Date(),
+      ...(Object.keys(fileData).length > 0 ? fileData : {})
+    };
+    
+    console.log('Update visa record - Update data:', updateData);
+    
     const [updatedRecord] = await db
       .update(visaRecords)
-      .set({
-        ...validatedData,
-        updatedAt: new Date()
-      })
+      .set(updateData)
       .where(eq(visaRecords.id, parseInt(id)))
       .returning();
+
+    console.log('Update visa record - Updated record:', updatedRecord);
 
     // Update quota if country changed
     if (currentRecord[0].country !== validatedData.country) {
@@ -611,6 +663,8 @@ export const updateVisaRecord = async (req: Request, res: Response) => {
     res.json(updatedRecord);
   } catch (error) {
     console.error('Error updating visa record:', error);
+    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
     res.status(500).json({ error: 'Failed to update visa record' });
   }
 };
@@ -807,7 +861,7 @@ router.get('/records/:id', ensureAuthenticated, getVisaRecord);
 router.get('/check-validity', ensureAuthenticated, checkVisaValidity);
 router.post('/records', ensureAuthenticated, upload.single('document'), createVisaRecord);
 router.post('/upload', ensureAuthenticated, uploadVisaDocumentLegacy);
-router.put('/records/:id', ensureAuthenticated, updateVisaRecord);
+router.put('/records/:id', ensureAuthenticated, upload.single('document'), updateVisaRecord);
 router.delete('/records/:id', ensureAuthenticated, deleteVisaRecord);
 router.get('/employees', ensureAuthenticated, getEmployeesForVisas);
 router.get('/options', ensureAuthenticated, getVisaOptions);
