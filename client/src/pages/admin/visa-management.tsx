@@ -332,29 +332,49 @@ export default function VisaManagement() {
   };
 
   const handleEdit = (record: VisaRecord) => {
+    console.log('=== HANDLE EDIT FUNCTION START ===');
     console.log('Editing record:', record);
-    setEditingRecord(record);
+    console.log('Current showEditDialog before:', showEditDialog);
+    console.log('Current editingRecord before:', editingRecord);
     
-    // Reset form with record data
-    form.reset({
-      employeeId: record.employeeId,
-      visaType: record.visaType,
-      country: record.country,
-      visaNumber: record.visaNumber,
-      issueDate: record.issueDate,
-      expiryDate: record.expiryDate,
-      quotaReference: record.quotaReference || '',
-      notes: record.notes || '',
-    });
-    
-    // Clear file selection for editing
-    setSelectedFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    try {
+      setEditingRecord(record);
+      console.log('Set editing record successfully');
+      
+      // Reset form with record data
+      form.reset({
+        employeeId: record.employeeId,
+        visaType: record.visaType,
+        country: record.country,
+        visaNumber: record.visaNumber,
+        issueDate: record.issueDate,
+        expiryDate: record.expiryDate,
+        quotaReference: record.quotaReference || '',
+        notes: record.notes || '',
+      });
+      console.log('Form reset successfully');
+      
+      // Clear file selection for editing
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      console.log('File selection cleared');
+      
+      console.log('About to set showEditDialog to true...');
+      setShowEditDialog(true);
+      console.log('setShowEditDialog(true) called');
+      
+      // Add a timeout to check state after React update
+      setTimeout(() => {
+        console.log('After timeout - showEditDialog should be:', true);
+      }, 100);
+      
+    } catch (error) {
+      console.error('Error in handleEdit function:', error);
     }
     
-    console.log('Opening edit dialog');
-    setShowEditDialog(true);
+    console.log('=== HANDLE EDIT FUNCTION END ===');
   };
 
   const handleDelete = (id: number) => {
@@ -821,8 +841,16 @@ export default function VisaManagement() {
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    console.log('Edit button clicked for record:', record);
-                                    handleEdit(record);
+                                    console.log('=== EDIT BUTTON CLICKED ===');
+                                    console.log('Record:', record);
+                                    console.log('Current showEditDialog state:', showEditDialog);
+                                    console.log('Current editingRecord state:', editingRecord);
+                                    try {
+                                      handleEdit(record);
+                                      console.log('handleEdit called successfully');
+                                    } catch (error) {
+                                      console.error('Error in handleEdit:', error);
+                                    }
                                   }}
                                 >
                                   <Edit className="h-3 w-3 text-blue-600" />
