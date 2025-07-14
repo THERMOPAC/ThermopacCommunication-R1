@@ -1587,7 +1587,7 @@ function VisaRecordsTab() {
                           <SelectContent>
                             <SelectGroup>
                               <SelectLabel className="text-blue-600">Superusers</SelectLabel>
-                              {employeesData?.filter(emp => emp.role === 'Superuser').map((employee) => (
+                              {employees?.filter(emp => emp.role === 'Superuser').map((employee) => (
                                 <SelectItem key={employee.id} value={employee.id.toString()}>
                                   {employee.username} - {employee.department || 'N/A'}
                                 </SelectItem>
@@ -1595,7 +1595,7 @@ function VisaRecordsTab() {
                             </SelectGroup>
                             <SelectGroup>
                               <SelectLabel className="text-blue-600">General Managers</SelectLabel>
-                              {employeesData?.filter(emp => emp.role === 'General Manager').map((employee) => (
+                              {employees?.filter(emp => emp.role === 'General Manager').map((employee) => (
                                 <SelectItem key={employee.id} value={employee.id.toString()}>
                                   {employee.username} - {employee.department || 'N/A'}
                                 </SelectItem>
@@ -1603,7 +1603,7 @@ function VisaRecordsTab() {
                             </SelectGroup>
                             <SelectGroup>
                               <SelectLabel className="text-blue-600">Senior Managers</SelectLabel>
-                              {employeesData?.filter(emp => emp.role === 'Senior Manager').map((employee) => (
+                              {employees?.filter(emp => emp.role === 'Senior Manager').map((employee) => (
                                 <SelectItem key={employee.id} value={employee.id.toString()}>
                                   {employee.username} - {employee.department || 'N/A'}
                                 </SelectItem>
@@ -1611,7 +1611,7 @@ function VisaRecordsTab() {
                             </SelectGroup>
                             <SelectGroup>
                               <SelectLabel className="text-blue-600">Managers</SelectLabel>
-                              {employeesData?.filter(emp => emp.role === 'Manager').map((employee) => (
+                              {employees?.filter(emp => emp.role === 'Manager').map((employee) => (
                                 <SelectItem key={employee.id} value={employee.id.toString()}>
                                   {employee.username} - {employee.department || 'N/A'}
                                 </SelectItem>
@@ -1619,7 +1619,7 @@ function VisaRecordsTab() {
                             </SelectGroup>
                             <SelectGroup>
                               <SelectLabel className="text-blue-600">Employees</SelectLabel>
-                              {employeesData?.filter(emp => emp.role === 'Employee').map((employee) => (
+                              {employees?.filter(emp => emp.role === 'Employee').map((employee) => (
                                 <SelectItem key={employee.id} value={employee.id.toString()}>
                                   {employee.username} - {employee.department || 'N/A'}
                                 </SelectItem>
