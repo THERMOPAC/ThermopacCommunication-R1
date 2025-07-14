@@ -175,8 +175,19 @@ export default function UserManagementPage() {
   const updateUserMutation = useMutation({
     mutationFn: async (userData: UserFormValues & { id: number }) => {
       const { id, ...data } = userData;
+      console.log('=== FRONTEND UPDATE REQUEST ===');
       console.log('Updating user:', id, 'with data:', data);
-      return apiRequest('PUT', `/api/admin/users/${id}`, data);
+      console.log('Data type check:', typeof data, data);
+      console.log('Stringified data:', JSON.stringify(data));
+      console.log('==================================');
+      try {
+        const result = await apiRequest('PUT', `/api/admin/users/${id}`, data);
+        console.log('Update successful, result:', result);
+        return result;
+      } catch (error) {
+        console.error('Update failed with error:', error);
+        throw error;
+      }
     },
     onSuccess: (result) => {
       console.log('Update successful:', result);
