@@ -864,6 +864,27 @@ export default function MeetingsManagement() {
     },
   });
 
+  // Conclude internal meeting mutation
+  const concludeMeetingMutation = useMutation({
+    mutationFn: ({ meetingId, meetingTitle }: { meetingId: number; meetingTitle: string }) =>
+      apiRequest('POST', `/api/meetings/${meetingId}/conclude`, { meetingTitle }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings/dashboard/stats'] });
+      toast({ 
+        title: 'Meeting concluded', 
+        description: 'Meeting has been marked as completed'
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error concluding meeting', 
+        description: error.message,
+        variant: 'destructive' 
+      });
+    },
+  });
+
   // Preview modal helper functions
   const handleEditPreviewMeeting = (meeting: any, index: number) => {
     setEditingPreviewMeeting({ 
@@ -1274,10 +1295,29 @@ export default function MeetingsManagement() {
                             {meeting.meeting.priority}
                           </Badge>
                           {(meeting.meeting.googleMeetLink || meeting.meeting.meetingUrl) && (
-                            <Button size="sm" variant="outline" className="text-blue-600 border-blue-200">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="text-blue-600 border-blue-200"
+                              onClick={() => window.open(meeting.meeting.googleMeetLink || meeting.meeting.meetingUrl, '_blank')}
+                            >
+                              <VideoIcon className="h-3 w-3 mr-1" />
                               Join
                             </Button>
                           )}
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => concludeMeetingMutation.mutate({ 
+                              meetingId: meeting.meeting.id, 
+                              meetingTitle: meeting.meeting.title 
+                            })}
+                            disabled={concludeMeetingMutation.isPending}
+                            className="bg-red-600 hover:bg-red-700 whitespace-nowrap"
+                          >
+                            <CheckCircleIcon className="h-3 w-3 mr-1" />
+                            Concluded
+                          </Button>
                         </div>
                       </div>
                     ))}

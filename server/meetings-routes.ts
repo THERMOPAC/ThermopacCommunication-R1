@@ -1064,6 +1064,57 @@ export const syncMeetingToGoogleCalendar = async (req: Request, res: Response) =
   }
 };
 
+/**
+ * Conclude internal meeting (mark as completed)
+ */
+export const concludeMeeting = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { meetingTitle } = req.body;
+    const user = req.user as any;
+
+    // Check if meeting exists
+    const [meeting] = await db
+      .select()
+      .from(businessMeetings)
+      .where(eq(businessMeetings.id, parseInt(id)));
+
+    if (!meeting) {
+      return res.status(404).json({ error: 'Meeting not found' });
+    }
+
+    // Check if user is authorized to conclude the meeting
+    // User must be the organizer or an attendee
+    const isAuthorized = meeting.organizerId === user.id || 
+                        (Array.isArray(meeting.attendeeIds) && meeting.attendeeIds.includes(user.id));
+
+    if (!isAuthorized) {
+      return res.status(403).json({ error: 'You are not authorized to conclude this meeting' });
+    }
+
+    // Update meeting status to Completed
+    const [updatedMeeting] = await db
+      .update(businessMeetings)
+      .set({
+        status: 'Completed',
+        updatedAt: new Date()
+      })
+      .where(eq(businessMeetings.id, parseInt(id)))
+      .returning();
+
+    console.log(`Meeting "${meetingTitle}" (ID: ${id}) concluded by user ${user.username} (ID: ${user.id})`);
+
+    res.json({
+      success: true,
+      message: 'Meeting concluded successfully',
+      meeting: updatedMeeting
+    });
+  } catch (error) {
+    console.error('Error concluding meeting:', error);
+    res.status(500).json({ error: 'Failed to conclude meeting' });
+  }
+};
+
 // =============================================================================
 // REMINDER & ESCALATION ENDPOINTS
 // =============================================================================

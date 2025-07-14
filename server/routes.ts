@@ -80,6 +80,7 @@ import {
   createMeeting, 
   updateMeeting, 
   deleteMeeting,
+  concludeMeeting,
   getCommitments,
   getUserPendingCommitments,
   createCommitment,
@@ -2827,6 +2828,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/meetings', ensureAuthenticated, createMeeting);
   app.put('/api/meetings/:id', ensureAuthenticated, updateMeeting);
   app.delete('/api/meetings/:id', ensureAuthenticated, deleteMeeting);
+  app.post('/api/meetings/:id/conclude', ensureAuthenticated, concludeMeeting);
   
   // Reminder and Escalation endpoints
   app.post('/api/meetings/commitments/:commitmentId/remind', ensureAuthenticated, sendCommitmentReminder);
