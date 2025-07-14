@@ -6,9 +6,13 @@ import { insertVisaRecordSchema } from '@shared/schema';
 import multer from 'multer';
 import { Storage } from '@google-cloud/storage';
 import path from 'path';
+import crypto from 'crypto';
 import { ensureAuthenticated } from './auth-middleware';
 
 const router = express.Router();
+
+// In-memory store for download tokens (in production, use Redis or database)
+const downloadTokens = new Map<string, { userId: number; visaRecordId: number; expires: number }>();
 
 // Configure Google Cloud Storage
 const storage = new Storage({
@@ -325,15 +329,72 @@ export const getVisaRecord = async (req: Request, res: Response) => {
 };
 
 /**
- * Download visa document securely
+ * Generate download token for visa document
  */
-export const downloadVisaDocument = async (req: Request, res: Response) => {
+export const generateDownloadToken = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = (req as any).user?.id;
     
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Verify visa record exists and user has access
+    const record = await db
+      .select({ id: visaRecords.id, filePath: visaRecords.filePath })
+      .from(visaRecords)
+      .where(eq(visaRecords.id, parseInt(id)))
+      .limit(1);
+
+    if (record.length === 0) {
+      return res.status(404).json({ error: 'Visa record not found' });
+    }
+
+    if (!record[0].filePath) {
+      return res.status(404).json({ error: 'No document found for this visa record' });
+    }
+
+    // Generate download token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+    downloadTokens.set(token, {
+      userId,
+      visaRecordId: parseInt(id),
+      expires
+    });
+
+    // Clean up expired tokens (simple cleanup)
+    for (const [key, value] of downloadTokens.entries()) {
+      if (value.expires < Date.now()) {
+        downloadTokens.delete(key);
+      }
+    }
+
+    res.json({ downloadToken: token });
+  } catch (error) {
+    console.error('Error generating download token:', error);
+    res.status(500).json({ error: 'Failed to generate download token' });
+  }
+};
+
+/**
+ * Download visa document using token
+ */
+export const downloadVisaDocumentWithToken = async (req: Request, res: Response) => {
+  try {
+    const { token } = req.params;
+    
+    // Verify token
+    const tokenData = downloadTokens.get(token);
+    if (!tokenData) {
+      return res.status(401).json({ error: 'Invalid or expired download token' });
+    }
+
+    if (tokenData.expires < Date.now()) {
+      downloadTokens.delete(token);
+      return res.status(401).json({ error: 'Download token expired' });
     }
 
     // Get visa record
@@ -347,18 +408,22 @@ export const downloadVisaDocument = async (req: Request, res: Response) => {
       })
       .from(visaRecords)
       .leftJoin(users, eq(visaRecords.employeeId, users.id))
-      .where(eq(visaRecords.id, parseInt(id)))
+      .where(eq(visaRecords.id, tokenData.visaRecordId))
       .limit(1);
 
     if (record.length === 0) {
+      downloadTokens.delete(token);
       return res.status(404).json({ error: 'Visa record not found' });
     }
 
     const visaRecord = record[0];
     
     if (!visaRecord.filePath) {
+      downloadTokens.delete(token);
       return res.status(404).json({ error: 'No document found for this visa record' });
     }
+
+    console.log('Downloading with token:', token, 'for record:', visaRecord.id);
 
     try {
       // Stream the file directly through our server for security
@@ -367,6 +432,7 @@ export const downloadVisaDocument = async (req: Request, res: Response) => {
       // Check if file exists
       const [exists] = await file.exists();
       if (!exists) {
+        downloadTokens.delete(token);
         return res.status(404).json({ error: 'Document file not found in storage' });
       }
 
@@ -389,6 +455,115 @@ export const downloadVisaDocument = async (req: Request, res: Response) => {
         if (!res.headersSent) {
           res.status(500).json({ error: 'Error downloading file' });
         }
+      });
+      
+      stream.on('end', () => {
+        console.log('File download completed successfully');
+        // Delete token after use
+        downloadTokens.delete(token);
+      });
+      
+      stream.pipe(res);
+
+    } catch (gcsError) {
+      console.error('Error accessing GCS file:', gcsError);
+      downloadTokens.delete(token);
+      res.status(500).json({ error: 'Failed to access document' });
+    }
+
+  } catch (error) {
+    console.error('Error downloading visa document with token:', error);
+    res.status(500).json({ error: 'Failed to download document' });
+  }
+};
+
+/**
+ * Download visa document securely (deprecated - use token-based download)
+ */
+export const downloadVisaDocument = async (req: Request, res: Response) => {
+  try {
+    console.log('Download request started for visa record ID:', req.params.id);
+    const { id } = req.params;
+    const userId = (req as any).user?.id;
+    
+    if (!userId) {
+      console.log('Unauthorized download attempt - no user ID');
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    console.log('Fetching visa record for ID:', id, 'by user:', userId);
+
+    // Get visa record
+    const record = await db
+      .select({
+        id: visaRecords.id,
+        filePath: visaRecords.filePath,
+        employeeName: users.username,
+        visaNumber: visaRecords.visaNumber,
+        country: visaRecords.country
+      })
+      .from(visaRecords)
+      .leftJoin(users, eq(visaRecords.employeeId, users.id))
+      .where(eq(visaRecords.id, parseInt(id)))
+      .limit(1);
+
+    console.log('Database query result:', record);
+
+    if (record.length === 0) {
+      console.log('Visa record not found for ID:', id);
+      return res.status(404).json({ error: 'Visa record not found' });
+    }
+
+    const visaRecord = record[0];
+    
+    if (!visaRecord.filePath) {
+      console.log('No file path found for visa record:', visaRecord);
+      return res.status(404).json({ error: 'No document found for this visa record' });
+    }
+
+    console.log('Found visa record with file path:', visaRecord.filePath);
+
+    try {
+      console.log('Attempting to access GCS file:', visaRecord.filePath);
+      // Stream the file directly through our server for security
+      const file = bucket.file(visaRecord.filePath);
+      
+      // Check if file exists
+      console.log('Checking if file exists...');
+      const [exists] = await file.exists();
+      console.log('File exists:', exists);
+      if (!exists) {
+        console.log('File not found in GCS:', visaRecord.filePath);
+        return res.status(404).json({ error: 'Document file not found in storage' });
+      }
+
+      // Get file metadata for proper filename and content type
+      console.log('Getting file metadata...');
+      const [metadata] = await file.getMetadata();
+      console.log('File metadata:', metadata.name, metadata.size, metadata.contentType);
+      const originalFileName = path.basename(visaRecord.filePath);
+      const downloadFileName = `${visaRecord.employeeName}_${visaRecord.country}_${visaRecord.visaNumber}_${originalFileName}`;
+      
+      console.log('Setting response headers for download...');
+      // Set headers for download
+      res.setHeader('Content-Disposition', `attachment; filename="${downloadFileName}"`);
+      res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
+      res.setHeader('Content-Length', metadata.size || 0);
+      res.setHeader('Cache-Control', 'no-cache');
+      
+      console.log('Starting file stream...');
+      // Stream the file directly to the response
+      const stream = file.createReadStream();
+      
+      stream.on('error', (streamError) => {
+        console.error('Error streaming file:', streamError);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Error downloading file' });
+        }
+      });
+      
+      stream.on('end', () => {
+        console.log('File stream completed successfully');
       });
       
       stream.pipe(res);
@@ -964,6 +1139,8 @@ async function updateQuotaUsage(country: string, change: number) {
 router.get('/dashboard', ensureAuthenticated, getVisaDashboard);
 router.get('/records', ensureAuthenticated, getVisaRecords);
 router.get('/records/:id', ensureAuthenticated, getVisaRecord);
+router.get('/records/:id/download-token', ensureAuthenticated, generateDownloadToken);
+router.get('/download/:token', downloadVisaDocumentWithToken);
 router.get('/records/:id/download', ensureAuthenticated, downloadVisaDocument);
 router.get('/check-validity', ensureAuthenticated, checkVisaValidity);
 router.post('/records', ensureAuthenticated, upload.single('document'), createVisaRecord);

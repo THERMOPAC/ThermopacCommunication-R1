@@ -1082,9 +1082,22 @@ function VisaRecordsTab() {
                               <Button 
                                 variant="ghost" 
                                 size="sm"
-                                onClick={() => {
-                                  // Direct navigation to download endpoint
-                                  window.location.href = `/api/visa/records/${record.id}/download`;
+                                onClick={async () => {
+                                  try {
+                                    // First get download token
+                                    const tokenResponse = await apiRequest('GET', `/api/visa/records/${record.id}/download-token`);
+                                    if (tokenResponse.downloadToken) {
+                                      // Use token for download
+                                      window.location.href = `/api/visa/download/${tokenResponse.downloadToken}`;
+                                    }
+                                  } catch (error) {
+                                    console.error('Download failed:', error);
+                                    toast({
+                                      title: "Download failed",
+                                      description: "Unable to download the document. Please try again.",
+                                      variant: "destructive",
+                                    });
+                                  }
                                 }}
                               >
                                 <Download className="h-4 w-4" />
@@ -1490,9 +1503,22 @@ function VisaRecordsTab() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => {
-                          // Direct navigation to download endpoint
-                          window.location.href = `/api/visa/records/${selectedRecord.id}/download`;
+                        onClick={async () => {
+                          try {
+                            // First get download token
+                            const tokenResponse = await apiRequest('GET', `/api/visa/records/${selectedRecord.id}/download-token`);
+                            if (tokenResponse.downloadToken) {
+                              // Use token for download
+                              window.location.href = `/api/visa/download/${tokenResponse.downloadToken}`;
+                            }
+                          } catch (error) {
+                            console.error('Download failed:', error);
+                            toast({
+                              title: "Download failed",
+                              description: "Unable to download the document. Please try again.",
+                              variant: "destructive",
+                            });
+                          }
                         }}
                       >
                         <Download className="h-4 w-4 mr-2" />
