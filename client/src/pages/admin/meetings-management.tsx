@@ -433,9 +433,13 @@ export default function MeetingsManagement() {
              (isBefore(meetingDate, futureCutoff) || isEqual(meetingDate, futureCutoff));
     };
     
-    // Process internal meetings with time filtering
+    // Process internal meetings with time filtering and exclude concluded meetings
     const internal = internalMeetings
-      .filter(meeting => isWithinTimeWindow(meeting.meeting.meetingDate))
+      .filter(meeting => 
+        isWithinTimeWindow(meeting.meeting.meetingDate) && 
+        meeting.meeting.status !== 'Completed' && 
+        meeting.meeting.status !== 'Cancelled'
+      )
       .map(meeting => ({
         id: `internal-${meeting.meeting.id}`,
         displayId: meeting.meeting.id,
