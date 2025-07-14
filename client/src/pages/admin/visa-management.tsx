@@ -630,36 +630,7 @@ export default function VisaManagement() {
                           />
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <FormField
-                            control={form.control}
-                            name="issueDate"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Issue Date *</FormLabel>
-                                <FormControl>
-                                  <Input type="date" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name="expiryDate"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Expiry Date *</FormLabel>
-                                <FormControl>
-                                  <Input type="date" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        {/* File Upload Section - Enhanced Design */}
+                        {/* File Upload Section - Enhanced Design - Moved to prominent position */}
                         <div className="border border-blue-300 rounded-lg p-6 bg-gradient-to-r from-blue-50 to-indigo-50">
                           <div className="flex items-center gap-3 mb-4">
                             <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
@@ -719,6 +690,35 @@ export default function VisaManagement() {
                               </p>
                             </div>
                           </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="issueDate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Issue Date *</FormLabel>
+                                <FormControl>
+                                  <Input type="date" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="expiryDate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Expiry Date *</FormLabel>
+                                <FormControl>
+                                  <Input type="date" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         </div>
 
                         {/* Additional Fields */}
