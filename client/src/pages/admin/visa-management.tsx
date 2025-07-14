@@ -548,37 +548,43 @@ export default function VisaManagement() {
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto">
+                    {/* CRITICAL DEBUG: Test if ANY content can render */}
+                    <div style={{ 
+                      backgroundColor: 'red', 
+                      color: 'white', 
+                      padding: '30px', 
+                      margin: '10px',
+                      fontSize: '24px',
+                      fontWeight: 'bold',
+                      border: '5px solid black',
+                      textAlign: 'center' as const
+                    }}>
+                      🔴 CRITICAL TEST: If you can see this red box, the dialog content IS rendering!
+                      <br />
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={handleFileChange}
+                        ref={fileInputRef}
+                        style={{ 
+                          width: '100%', 
+                          padding: '15px', 
+                          margin: '10px 0',
+                          fontSize: '16px',
+                          border: '3px solid yellow',
+                          backgroundColor: 'white',
+                          color: 'black'
+                        }}
+                      />
+                      📁 TEST FILE UPLOAD ABOVE
+                    </div>
+                    
                     <DialogHeader>
                       <DialogTitle className="text-xl font-semibold">Create New Visa Record</DialogTitle>
                       <DialogDescription>
                         Add a new visa record for an employee with all required details.
                       </DialogDescription>
                     </DialogHeader>
-                    
-                    {/* DEBUG: Simple test div to verify rendering */}
-                    <div style={{ backgroundColor: '#f0f9ff', padding: '20px', marginBottom: '20px', border: '2px solid #0284c7' }}>
-                      <h3 style={{ color: '#0369a1', fontSize: '18px', fontWeight: 'bold', marginBottom: '15px' }}>
-                        📎 File Upload Section - Test
-                      </h3>
-                      <p style={{ color: '#1f2937', marginBottom: '10px' }}>
-                        This is a test section to verify dialog content is rendering properly.
-                      </p>
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={handleFileChange}
-                        ref={fileInputRef}
-                        style={{ width: '100%', padding: '10px', border: '1px solid #d1d5db', borderRadius: '4px', marginBottom: '10px' }}
-                      />
-                      {selectedFile && (
-                        <div style={{ color: '#16a34a', marginTop: '10px' }}>
-                          ✓ Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                        </div>
-                      )}
-                      <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '10px' }}>
-                        Test file upload with basic styling • Supports: PDF, JPG, PNG • Max: 10MB
-                      </p>
-                    </div>
 
                     <Form {...form}>
                       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
