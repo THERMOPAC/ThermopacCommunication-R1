@@ -531,24 +531,66 @@ export default function VisaManagement() {
                     
                     <Form {...form}>
                       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                        {/* SIMPLIFIED FILE UPLOAD - NO FANCY STYLING */}
-                        <div className="bg-blue-50 border border-blue-200 p-4 rounded">
-                          <h3 className="text-lg font-semibold text-blue-800 mb-3">📎 Document Upload</h3>
-                          <input
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={handleFileChange}
-                            ref={fileInputRef}
-                            className="w-full p-2 border border-gray-300 rounded"
-                          />
-                          {selectedFile && (
-                            <div className="mt-2 text-sm text-green-600">
-                              Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                        {/* Professional File Upload Section */}
+                        <div className="border-2 border-blue-300 rounded-lg p-6 bg-gradient-to-r from-blue-50 to-indigo-50">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full">
+                              <Upload className="h-6 w-6 text-blue-600" />
                             </div>
-                          )}
-                          <p className="text-xs text-gray-600 mt-2">
-                            Accepted: PDF, JPG, PNG • Max: 10MB • Path: Business_Visa/{'{Employee}'}/{'{Country}'}/{'{Visa Number}'}
-                          </p>
+                            <div>
+                              <h3 className="text-xl font-bold text-blue-800">📎 Visa Document Upload</h3>
+                              <p className="text-sm text-blue-600">Upload visa copy to Google Cloud Storage (Optional)</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="flex items-center space-x-3">
+                              <Input
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={handleFileChange}
+                                className="flex-1 border-blue-200 focus:border-blue-400 focus:ring-blue-200"
+                                ref={fileInputRef}
+                              />
+                              {selectedFile && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedFile(null);
+                                    if (fileInputRef.current) {
+                                      fileInputRef.current.value = '';
+                                    }
+                                  }}
+                                  className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                                >
+                                  Clear
+                                </Button>
+                              )}
+                            </div>
+
+                            {selectedFile && (
+                              <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                                <p className="text-sm text-green-700 font-medium">
+                                  ✓ File selected: {selectedFile.name}
+                                </p>
+                                <p className="text-xs text-green-600">
+                                  Size: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                                </p>
+                              </div>
+                            )}
+
+                            <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                              <p className="text-sm text-blue-700 font-medium mb-1">Storage Path:</p>
+                              <code className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                                thermopac_storage/Business_Visa/{'{Employee}'}/{'{Country}'}/{'{Visa Number}'}/{'{filename}'}
+                              </code>
+                              <p className="text-xs text-blue-600 mt-2">
+                                Accepted formats: PDF, JPG, PNG • Maximum size: 10MB
+                              </p>
+                            </div>
+                          </div>
                         </div>
 
                           <div className="space-y-4">
