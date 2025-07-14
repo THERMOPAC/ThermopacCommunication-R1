@@ -127,8 +127,8 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
       epfNo: '',
       esicNo: '',
       stdCode: '',
-      reportingManagerId: '',
-      workLocationId: '',
+      reportingManagerId: 'none',
+      workLocationId: 'none',
       password: '',
     },
   });
@@ -154,8 +154,8 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         epfNo: user.epfNo || '',
         esicNo: user.esicNo || '',
         stdCode: user.stdCode || '',
-        reportingManagerId: user.reportingManagerId ? user.reportingManagerId.toString() : '',
-        workLocationId: user.workLocationId ? user.workLocationId.toString() : '',
+        reportingManagerId: user.reportingManagerId ? user.reportingManagerId.toString() : 'none',
+        workLocationId: user.workLocationId ? user.workLocationId.toString() : 'none',
         password: '',
       });
     }
@@ -184,11 +184,11 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         epfNo: data.epfNo?.trim() || null,
         esicNo: data.esicNo?.trim() || null,
         stdCode: data.stdCode?.trim() || null,
-        // Convert string IDs to numbers, handle empty strings properly
-        reportingManagerId: data.reportingManagerId && data.reportingManagerId !== '' 
+        // Convert string IDs to numbers, handle empty strings and "none" values properly
+        reportingManagerId: data.reportingManagerId && data.reportingManagerId !== '' && data.reportingManagerId !== 'none'
           ? parseInt(data.reportingManagerId) 
           : null,
-        workLocationId: data.workLocationId && data.workLocationId !== '' 
+        workLocationId: data.workLocationId && data.workLocationId !== '' && data.workLocationId !== 'none'
           ? parseInt(data.workLocationId) 
           : null,
       };
@@ -379,7 +379,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">No Manager</SelectItem>
+                        <SelectItem value="none">No Manager</SelectItem>
                         {allUsers
                           ?.filter(u => u.id !== user.id)
                           .map((u) => (
@@ -410,7 +410,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">No Location</SelectItem>
+                        <SelectItem value="none">No Location</SelectItem>
                         {workLocations?.map((location: any) => (
                           <SelectItem key={location.id} value={location.id.toString()}>
                             {location.name}
