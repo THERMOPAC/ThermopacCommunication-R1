@@ -520,7 +520,7 @@ export default function VisaManagement() {
                       Add New Visa Record
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                  <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Add New Visa Record</DialogTitle>
                       <DialogDescription>
@@ -667,23 +667,12 @@ export default function VisaManagement() {
                             </FormItem>
                           )}
                         />
-                        <FormField
-                          control={form.control}
-                          name="notes"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Notes (Optional)</FormLabel>
-                              <FormControl>
-                                <Textarea placeholder="Enter any additional notes" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        {/* File Upload Section */}
-                        <div className="space-y-2">
-                          <FormLabel>Visa Copy (Optional)</FormLabel>
+                        {/* File Upload Section - Moved higher for visibility */}
+                        <div className="space-y-2 border rounded-lg p-4 bg-blue-50">
+                          <FormLabel className="text-blue-700 font-medium flex items-center gap-2">
+                            <Upload className="h-4 w-4" />
+                            Visa Copy (Optional) - Upload to Google Cloud Storage
+                          </FormLabel>
                           <div className="flex items-center space-x-2">
                             <Input
                               type="file"
@@ -712,10 +701,24 @@ export default function VisaManagement() {
                               Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
                             </p>
                           )}
-                          <p className="text-xs text-gray-500">
-                            Upload PDF, JPG, or PNG files up to 10MB
+                          <p className="text-xs text-gray-600">
+                            Upload PDF, JPG, or PNG files up to 10MB. Files stored at: thermopac_storage/Business_Visa/{Employee}/{Country}/{Visa Number}
                           </p>
                         </div>
+
+                        <FormField
+                          control={form.control}
+                          name="notes"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Notes (Optional)</FormLabel>
+                              <FormControl>
+                                <Textarea placeholder="Enter any additional notes" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                         
                         <div className="flex justify-end space-x-2">
                           <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
