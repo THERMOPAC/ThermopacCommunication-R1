@@ -246,9 +246,15 @@ export default function UserManagementPage() {
   });
 
   const onSubmit = (values: UserFormValues) => {
+    console.log('Form submitted with values:', values);
+    console.log('Selected user:', selectedUser);
+    console.log('Form errors:', form.formState.errors);
+    
     if (selectedUser) {
+      console.log('Updating user with ID:', selectedUser.id);
       updateUserMutation.mutate({ ...values, id: selectedUser.id });
     } else {
+      console.log('Creating new user');
       addUserMutation.mutate(values);
     }
   };
