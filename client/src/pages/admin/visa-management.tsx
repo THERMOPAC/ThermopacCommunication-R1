@@ -521,7 +521,7 @@ export default function VisaManagement() {
                       Add New Visa Record
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-4xl">
+                  <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle className="text-xl font-semibold">Add New Visa Record</DialogTitle>
                       <DialogDescription>
@@ -529,9 +529,31 @@ export default function VisaManagement() {
                       </DialogDescription>
                     </DialogHeader>
                     
+                    {/* CRITICAL: File Upload Section - MUST BE VISIBLE */}
+                    <div 
+                      className="border-4 border-red-500 bg-red-100 p-6 mb-4 rounded-lg"
+                      style={{ backgroundColor: '#fecaca', border: '4px solid #dc2626', minHeight: '120px' }}
+                    >
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="flex items-center justify-center w-16 h-16 bg-red-200 rounded-full">
+                          <Upload className="h-8 w-8 text-red-700" />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-black text-red-800">🔴 FILE UPLOAD SECTION</h2>
+                          <p className="text-lg font-bold text-red-700">This should be visible immediately!</p>
+                        </div>
+                      </div>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        className="w-full p-3 border-2 border-red-400 rounded text-lg"
+                        style={{ backgroundColor: '#ffffff', border: '2px solid #dc2626' }}
+                      />
+                    </div>
+                    
                     <Form {...form}>
                       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                        {/* File Upload Section - First Position for Maximum Visibility */}
+                        {/* Original File Upload Section */}
                         <div className="border-2 border-blue-400 rounded-lg p-6 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg">
                           <div className="flex items-center gap-3 mb-4">
                             <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full">
