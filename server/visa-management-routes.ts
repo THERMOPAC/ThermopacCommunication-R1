@@ -325,7 +325,73 @@ export const getVisaRecord = async (req: Request, res: Response) => {
 };
 
 /**
- * Create new visa record
+ * Generate structured GCS path for visa documents
+ */
+const generateVisaGCSPath = (employeeName: string, country: string, visaNumber: string, fileName: string): string => {
+  // Clean employee name (replace spaces with underscores, remove special chars)
+  const cleanEmployeeName = employeeName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+  
+  // Clean country name (replace spaces with underscores, remove special chars)
+  const cleanCountry = country.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+  
+  // Clean visa number (replace spaces with underscores, remove special chars)
+  const cleanVisaNumber = visaNumber.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+  
+  // Add timestamp to filename to avoid conflicts
+  const timestamp = Date.now();
+  const fileExtension = path.extname(fileName);
+  const baseFileName = path.basename(fileName, fileExtension);
+  const uniqueFileName = `${baseFileName}_${timestamp}${fileExtension}`;
+  
+  return `Business_Visa/${cleanEmployeeName}/${cleanCountry}/${cleanVisaNumber}/${uniqueFileName}`;
+};
+
+/**
+ * Upload visa document to GCS
+ */
+const uploadVisaDocument = async (file: Express.Multer.File, gcsPath: string): Promise<{ filePath: string; fileUrl: string }> => {
+  try {
+    const blob = bucket.file(gcsPath);
+    const blobStream = blob.createWriteStream({
+      metadata: {
+        contentType: file.mimetype,
+      },
+    });
+
+    return new Promise((resolve, reject) => {
+      blobStream.on('error', (error) => {
+        console.error('Error uploading visa document to GCS:', error);
+        reject(error);
+      });
+
+      blobStream.on('finish', async () => {
+        try {
+          // Make the file publicly accessible
+          await blob.makePublic();
+          
+          // Generate public URL
+          const publicUrl = `https://storage.googleapis.com/${bucket.name}/${gcsPath}`;
+          
+          resolve({
+            filePath: gcsPath,
+            fileUrl: publicUrl
+          });
+        } catch (error) {
+          console.error('Error making visa document public:', error);
+          reject(error);
+        }
+      });
+
+      blobStream.end(file.buffer);
+    });
+  } catch (error) {
+    console.error('Error in uploadVisaDocument:', error);
+    throw error;
+  }
+};
+
+/**
+ * Create new visa record with optional file upload
  */
 export const createVisaRecord = async (req: Request, res: Response) => {
   try {
@@ -333,6 +399,7 @@ export const createVisaRecord = async (req: Request, res: Response) => {
     console.log('Create visa record - User object:', (req as any).user);
     console.log('Create visa record - User ID:', userId);
     console.log('Create visa record - Request body:', req.body);
+    console.log('Create visa record - File:', req.file);
     
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -355,9 +422,45 @@ export const createVisaRecord = async (req: Request, res: Response) => {
         message: `A visa record with number "${validatedData.visaNumber}" already exists. Please use a different visa number.` 
       });
     }
+
+    // Get employee name for GCS path
+    const employee = await db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, validatedData.employeeId))
+      .limit(1);
+
+    if (employee.length === 0) {
+      return res.status(400).json({ error: 'Employee not found' });
+    }
+
+    let fileData: { filePath?: string; fileUrl?: string } = {};
+    
+    // Handle file upload if present
+    if (req.file) {
+      try {
+        const gcsPath = generateVisaGCSPath(
+          employee[0].username,
+          validatedData.country,
+          validatedData.visaNumber,
+          req.file.originalname
+        );
+        
+        console.log('Uploading visa document to GCS path:', gcsPath);
+        fileData = await uploadVisaDocument(req.file, gcsPath);
+        console.log('Visa document uploaded successfully:', fileData);
+      } catch (uploadError) {
+        console.error('Error uploading visa document:', uploadError);
+        return res.status(500).json({ 
+          error: 'Failed to upload visa document', 
+          message: 'The visa record cannot be created due to file upload failure.' 
+        });
+      }
+    }
     
     const insertData = {
       ...validatedData,
+      ...fileData,
       createdBy: userId,
       status: 'Active' as const
     };
@@ -393,9 +496,9 @@ export const createVisaRecord = async (req: Request, res: Response) => {
 };
 
 /**
- * Upload visa document
+ * Upload visa document (legacy endpoint)
  */
-export const uploadVisaDocument = [
+export const uploadVisaDocumentLegacy = [
   upload.single('document'),
   async (req: Request, res: Response) => {
     try {
@@ -703,8 +806,8 @@ router.get('/dashboard', ensureAuthenticated, getVisaDashboard);
 router.get('/records', ensureAuthenticated, getVisaRecords);
 router.get('/records/:id', ensureAuthenticated, getVisaRecord);
 router.get('/check-validity', ensureAuthenticated, checkVisaValidity);
-router.post('/records', ensureAuthenticated, createVisaRecord);
-router.post('/upload', ensureAuthenticated, uploadVisaDocument);
+router.post('/records', ensureAuthenticated, upload.single('document'), createVisaRecord);
+router.post('/upload', ensureAuthenticated, uploadVisaDocumentLegacy);
 router.put('/records/:id', ensureAuthenticated, updateVisaRecord);
 router.delete('/records/:id', ensureAuthenticated, deleteVisaRecord);
 router.get('/employees', ensureAuthenticated, getEmployeesForVisas);

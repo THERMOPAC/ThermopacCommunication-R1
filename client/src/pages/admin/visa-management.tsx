@@ -162,6 +162,9 @@ export default function VisaManagement() {
     return orderedGroups;
   }, [employees]);
 
+  // State for file upload
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
   // Form
   const form = useForm<InsertVisaRecord>({
     resolver: zodResolver(insertVisaRecordSchema),
@@ -180,17 +183,36 @@ export default function VisaManagement() {
 
   // Mutations
   const createMutation = useMutation({
-    mutationFn: (data: InsertVisaRecord) => {
+    mutationFn: (data: InsertVisaRecord & { file?: File }) => {
       console.log('Sending API request with data:', data);
-      return apiRequest('POST', '/api/visa/records', data);
+      
+      // Create FormData for file upload
+      const formData = new FormData();
+      
+      // Append all form fields
+      Object.entries(data).forEach(([key, value]) => {
+        if (key !== 'file' && value !== undefined && value !== null) {
+          formData.append(key, value.toString());
+        }
+      });
+      
+      // Append file if present
+      if (data.file) {
+        formData.append('document', data.file);
+      }
+      
+      return apiRequest('POST', '/api/visa/records', formData);
     },
     onSuccess: (response) => {
       console.log('Create mutation success:', response);
       queryClient.invalidateQueries({ queryKey: ['/api/visa/dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['/api/visa/records'] });
-      toast({ title: 'Success', description: 'Visa record created successfully' });
+      toast({ 
+        title: 'Success', 
+        description: selectedFile ? 'Visa record and document uploaded successfully' : 'Visa record created successfully' 
+      });
       setShowAddDialog(false);
-      form.reset();
+      resetForm();
     },
     onError: (error: any) => {
       console.error('Create mutation error:', error);
@@ -260,6 +282,7 @@ export default function VisaManagement() {
   // Event handlers
   const onSubmit = (data: InsertVisaRecord) => {
     console.log('Form submitted with data:', data);
+    console.log('Selected file:', selectedFile);
     console.log('Editing record:', editingRecord);
     
     if (editingRecord) {
@@ -267,7 +290,44 @@ export default function VisaManagement() {
       updateMutation.mutate({ id: editingRecord.id, data });
     } else {
       console.log('Creating new record');
-      createMutation.mutate(data);
+      createMutation.mutate({ ...data, file: selectedFile || undefined });
+    }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: 'Invalid File Type',
+          description: 'Please select a PDF, JPG, or PNG file.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // Validate file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: 'File Too Large',
+          description: 'Please select a file smaller than 10MB.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      setSelectedFile(file);
+    }
+  };
+
+  const resetForm = () => {
+    form.reset();
+    setSelectedFile(null);
+    setEditingRecord(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -633,6 +693,43 @@ export default function VisaManagement() {
                             </FormItem>
                           )}
                         />
+                        
+                        {/* File Upload Section */}
+                        <div className="space-y-2">
+                          <FormLabel>Visa Copy (Optional)</FormLabel>
+                          <div className="flex items-center space-x-2">
+                            <Input
+                              type="file"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              onChange={handleFileChange}
+                              className="flex-1"
+                            />
+                            {selectedFile && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedFile(null);
+                                  // Clear the file input
+                                  const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                                  if (fileInput) fileInput.value = '';
+                                }}
+                              >
+                                Clear
+                              </Button>
+                            )}
+                          </div>
+                          {selectedFile && (
+                            <p className="text-sm text-green-600">
+                              Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-500">
+                            Upload PDF, JPG, or PNG files up to 10MB
+                          </p>
+                        </div>
+                        
                         <div className="flex justify-end space-x-2">
                           <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
                             Cancel
