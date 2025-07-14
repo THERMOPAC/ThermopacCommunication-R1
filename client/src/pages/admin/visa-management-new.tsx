@@ -1087,8 +1087,14 @@ function VisaRecordsTab() {
                                     // First get download token
                                     const tokenResponse = await apiRequest('GET', `/api/visa/records/${record.id}/download-token`);
                                     if (tokenResponse.downloadToken) {
-                                      // Use token for download
-                                      window.location.href = `/api/visa/download/${tokenResponse.downloadToken}`;
+                                      // Create a temporary link element to trigger download
+                                      const link = document.createElement('a');
+                                      link.href = `/api/visa/download/${tokenResponse.downloadToken}`;
+                                      link.target = '_blank';
+                                      link.rel = 'noopener noreferrer';
+                                      document.body.appendChild(link);
+                                      link.click();
+                                      document.body.removeChild(link);
                                     }
                                   } catch (error) {
                                     console.error('Download failed:', error);
@@ -1508,8 +1514,14 @@ function VisaRecordsTab() {
                             // First get download token
                             const tokenResponse = await apiRequest('GET', `/api/visa/records/${selectedRecord.id}/download-token`);
                             if (tokenResponse.downloadToken) {
-                              // Use token for download
-                              window.location.href = `/api/visa/download/${tokenResponse.downloadToken}`;
+                              // Create a temporary link element to trigger download
+                              const link = document.createElement('a');
+                              link.href = `/api/visa/download/${tokenResponse.downloadToken}`;
+                              link.target = '_blank';
+                              link.rel = 'noopener noreferrer';
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
                             }
                           } catch (error) {
                             console.error('Download failed:', error);
