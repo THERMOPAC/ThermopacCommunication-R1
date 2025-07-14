@@ -815,7 +815,10 @@ export default function VisaManagement() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => handleEdit(record)}
+                                  onClick={() => {
+                                    console.log('Edit button clicked for record:', record);
+                                    handleEdit(record);
+                                  }}
                                 >
                                   <Edit className="h-3 w-3" />
                                 </Button>
@@ -895,10 +898,15 @@ export default function VisaManagement() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {employees.map((emp) => (
-                                  <SelectItem key={emp.id} value={emp.id.toString()}>
-                                    {emp.username} {emp.department && `(${emp.department})`}
-                                  </SelectItem>
+                                {Object.entries(groupedEmployees).map(([role, roleEmployees]) => (
+                                  <SelectGroup key={role}>
+                                    <SelectLabel className="text-blue-600">{role}s</SelectLabel>
+                                    {roleEmployees.map((emp) => (
+                                      <SelectItem key={emp.id} value={emp.id.toString()}>
+                                        {emp.username} {emp.department && `(${emp.department})`}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
                                 ))}
                               </SelectContent>
                             </Select>
