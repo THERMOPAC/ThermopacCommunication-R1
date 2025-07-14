@@ -541,10 +541,10 @@ export default function VisaManagement() {
                   </p>
                 </div>
                 {showAddDialog && (
-                  <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-lg max-w-5xl w-full max-h-[95vh] overflow-y-auto">
+                  <div className="fixed inset-0 z-[9999] bg-black bg-opacity-80">
+                    <div className="fixed inset-4 bg-white rounded-lg overflow-hidden">
                       {/* Header */}
-                      <div className="flex items-center justify-between p-6 border-b">
+                      <div className="flex items-center justify-between p-6 border-b bg-gray-50">
                         <div>
                           <h2 className="text-xl font-semibold">Create New Visa Record</h2>
                           <p className="text-sm text-gray-600 mt-1">
@@ -561,12 +561,50 @@ export default function VisaManagement() {
                         </Button>
                       </div>
 
-                      {/* TEST SECTION - Highly visible test */}
-                      <div className="p-8 bg-red-500 text-white text-center border-4 border-yellow-400">
-                        <h1 className="text-3xl font-bold">🚨 TEST SECTION 🚨</h1>
-                        <p className="text-xl mt-2">Can you see this red section?</p>
-                        <p className="text-lg mt-1">If yes, the modal is working but forms below are hidden</p>
-                      </div>
+                      {/* Content Area */}
+                      <div className="h-full overflow-y-auto pb-20">
+                        {/* File Upload Section */}
+                        <div className="p-6 bg-blue-50 border-b-2 border-blue-200">
+                          <h3 className="text-blue-700 font-semibold text-lg mb-3 flex items-center">
+                            <Upload className="h-5 w-5 mr-2" />
+                            Visa Document Upload
+                          </h3>
+                          <input
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={handleFileChange}
+                            ref={fileInputRef}
+                            className="w-full p-3 border-2 border-blue-300 rounded-md mb-3 bg-white"
+                          />
+                          {selectedFile && (
+                            <div className="mt-2 p-3 bg-green-100 border-2 border-green-300 rounded-md">
+                              <p className="text-sm text-green-700">
+                                ✓ Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                              </p>
+                            </div>
+                          )}
+                          {selectedFile && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedFile(null);
+                                if (fileInputRef.current) {
+                                  fileInputRef.current.value = '';
+                                }
+                              }}
+                              className="mt-2"
+                            >
+                              Clear
+                            </Button>
+                          )}
+                          <p className="text-xs text-gray-600 mt-2">
+                            Upload visa copy to Google Cloud Storage (Optional) • Supports: PDF, JPG, PNG • Max: 10MB
+                            <br />
+                            <span className="font-medium">Storage path:</span> thermopac_storage/Business_Visa/{"{Employee}"}/{"{Country}"}/{"{Visa Number}"}/{"{filename}"}
+                          </p>
+                        </div>
 
                       {/* File Upload Section */}
                       <div className="p-6 bg-blue-50 border-b">
