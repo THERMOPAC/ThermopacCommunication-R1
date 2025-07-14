@@ -18,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
+import { PasswordChangeMenuItem } from "@/components/password-change-menu-item";
 
 type UserProfileProps = {
   user: User;
@@ -124,6 +125,11 @@ export default function UserProfile({ user }: UserProfileProps) {
           )}
         </div>
       )}
+
+      {/* Password Change Option */}
+      <PasswordChangeMenuItem className="w-full justify-start" />
+
+      <Separator />
 
       {/* Logout button with confirmation dialog */}
       <AlertDialog open={isLogoutDialogOpen} onOpenChange={setIsLogoutDialogOpen}>

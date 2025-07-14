@@ -5,7 +5,78 @@ import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
-import { User as SelectUser } from "@shared/schema";
+import { User as SelectUser, passwordChangeSchema } from "@shared/schema";
+import { 
+  validatePassword,
+  validatePasswordHistory,
+  updatePasswordHistory,
+  hashPassword as secureHashPassword,
+  comparePassword as secureVerifyPassword,
+  sendPasswordUpdateNotification as sendPasswordNotification
+} from "./utils/password-security";
+
+// Email notification service
+async function sendPasswordUpdateNotification(email: string, username: string): Promise<void> {
+  try {
+    // Check if we have SendGrid configuration
+    if (!process.env.SENDGRID_API_KEY) {
+      console.log('SendGrid not configured, skipping password update email');
+      return;
+    }
+
+    const sgMail = require('@sendgrid/mail');
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+    const msg = {
+      to: email,
+      from: process.env.SENDGRID_FROM_EMAIL || 'noreply@thermopac.com',
+      subject: 'Password Updated Successfully - THERMOPAC Security Alert',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: #1e40af; color: white; padding: 20px; text-align: center;">
+            <h1 style="margin: 0;">THERMOPAC</h1>
+            <p style="margin: 5px 0 0 0;">Enterprise Resource Planning System</p>
+          </div>
+          
+          <div style="padding: 30px 20px;">
+            <h2 style="color: #1e40af; margin-bottom: 20px;">Password Successfully Updated</h2>
+            
+            <p>Hello <strong>${username}</strong>,</p>
+            
+            <p>Your password has been successfully updated on <strong>${new Date().toLocaleString()}</strong>.</p>
+            
+            <div style="background: #f0f9ff; border-left: 4px solid #1e40af; padding: 15px; margin: 20px 0;">
+              <h3 style="margin: 0 0 10px 0; color: #1e40af;">Security Notice</h3>
+              <p style="margin: 0;">If you did not make this change, please contact your system administrator immediately.</p>
+            </div>
+            
+            <p>Your new password meets our enhanced security requirements:</p>
+            <ul>
+              <li>Minimum 12 characters</li>
+              <li>Contains uppercase and lowercase letters</li>
+              <li>Contains numbers and special characters</li>
+              <li>Different from your previous 5 passwords</li>
+            </ul>
+            
+            <p>Thank you for helping keep our systems secure.</p>
+            
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+            <p style="font-size: 12px; color: #6b7280;">
+              This is an automated security notification from THERMOPAC ERP System.<br>
+              Please do not reply to this email.
+            </p>
+          </div>
+        </div>
+      `
+    };
+
+    await sgMail.send(msg);
+    console.log(`Password update notification sent to ${email}`);
+  } catch (error) {
+    console.error('Failed to send password update email:', error);
+    throw error;
+  }
+}
 
 declare global {
   namespace Express {
@@ -165,9 +236,103 @@ export function setupAuth(app: Express) {
           return next(err);
         }
         console.log('Login successful:', user.username);
+        
+        // Check if user needs to update password
+        if (user.passwordNeedsUpdate) {
+          console.log(`User ${user.username} requires password update`);
+          return res.status(200).json({ 
+            ...user, 
+            requiresPasswordUpdate: true,
+            message: "Due to a security update, you must change your password to continue" 
+          });
+        }
+        
         res.status(200).json(user);
       });
     })(req, res, next);
+  });
+
+  // Password change endpoint with enhanced security
+  app.post("/api/change-password", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const { currentPassword, newPassword, confirmPassword } = req.body;
+      
+      // Validate input using Zod schema
+      const validation = passwordChangeSchema.safeParse({
+        currentPassword,
+        newPassword,
+        confirmPassword
+      });
+
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Validation failed",
+          errors: validation.error.errors.map(e => e.message)
+        });
+      }
+
+      const user = req.user as SelectUser;
+      
+      // If current password is provided, verify it (for normal password changes)
+      if (currentPassword) {
+        const isCurrentPasswordValid = await comparePasswords(currentPassword, user.password);
+        if (!isCurrentPasswordValid) {
+          return res.status(400).json({ message: "Current password is incorrect" });
+        }
+      }
+
+      // Validate new password against security requirements
+      const passwordValidation = validatePassword(newPassword);
+      if (!passwordValidation.isValid) {
+        return res.status(400).json({
+          message: "Password validation failed",
+          errors: passwordValidation.errors
+        });
+      }
+
+      // Check password history to prevent reuse
+      const isPasswordUnique = validatePasswordHistory(newPassword, user.passwordHistory || []);
+      if (!isPasswordUnique) {
+        return res.status(400).json({
+          message: "Password validation failed",
+          errors: ["Cannot reuse any of your last 5 passwords"]
+        });
+      }
+
+      // Hash new password and update history
+      const hashedPassword = await secureHashPassword(newPassword);
+      const updatedHistory = updatePasswordHistory(user.password, user.passwordHistory || []);
+
+      // Update user password in database
+      await storage.updateUserPassword(user.id, {
+        password: hashedPassword,
+        passwordHistory: updatedHistory,
+        passwordNeedsUpdate: false,
+        lastPasswordChange: new Date()
+      });
+
+      console.log(`Password updated successfully for user: ${user.username}`);
+
+      // Send email notification
+      try {
+        await sendPasswordNotification(user.email, user.username);
+      } catch (emailError) {
+        console.error('Failed to send password update email:', emailError);
+        // Don't fail the password update if email fails
+      }
+
+      res.status(200).json({ 
+        message: "Password updated successfully",
+        requiresPasswordUpdate: false
+      });
+    } catch (error) {
+      console.error('Password change error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
   });
 
   app.post("/api/logout", (req, res, next) => {

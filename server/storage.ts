@@ -199,6 +199,37 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async updateUserPassword(id: number, passwordUpdateData: {
+    password: string;
+    passwordHistory: string[];
+    lastPasswordChange: Date;
+    passwordNeedsUpdate: boolean;
+  }): Promise<User> {
+    console.log(`Updating password for user ${id}`);
+
+    try {
+      const result = await db
+        .update(users)
+        .set({
+          password: passwordUpdateData.password,
+          passwordHistory: passwordUpdateData.passwordHistory,
+          lastPasswordChange: passwordUpdateData.lastPasswordChange,
+          passwordNeedsUpdate: passwordUpdateData.passwordNeedsUpdate,
+        })
+        .where(eq(users.id, id))
+        .returning();
+      
+      const user = result[0] as User;
+      if (!user) throw new Error("User not found");
+      
+      console.log(`Password updated successfully for user ${id}`);
+      return user;
+    } catch (error) {
+      console.error(`Error updating password for user ${id}:`, error);
+      throw error;
+    }
+  }
+
   async deleteUser(id: number): Promise<void> {
     console.log(`Deleting user ${id}`);
     await db.delete(users).where(eq(users.id, id));

@@ -4,42 +4,78 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useLocation } from "wouter";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Shield, AlertTriangle } from "lucide-react";
+import { PasswordChangeDialog } from "@/components/password-change-dialog";
 
 export default function AuthPage() {
   const { user, loginMutation } = useAuth();
   const [, setLocation] = useLocation();
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [userNeedsPasswordUpdate, setUserNeedsPasswordUpdate] = useState(false);
 
   // Use useEffect to handle redirection after render
   useEffect(() => {
     if (user) {
-      setLocation("/");
+      // Check if user needs password update
+      if (user.requiresPasswordUpdate || user.passwordNeedsUpdate) {
+        setUserNeedsPasswordUpdate(true);
+        setShowPasswordDialog(true);
+      } else {
+        setLocation("/");
+      }
     }
   }, [user, setLocation]);
   
-  // If user is already logged in, show a loading state
-  if (user) {
+  // If user is already logged in but doesn't need password update, show a loading state
+  if (user && !userNeedsPasswordUpdate) {
     return <div className="flex items-center justify-center h-screen">Redirecting...</div>;
   }
+
+  const handlePasswordUpdateSuccess = () => {
+    setShowPasswordDialog(false);
+    setUserNeedsPasswordUpdate(false);
+    setLocation("/");
+  };
 
   return (
     <div className="min-h-screen bg-background flex">
       <div className="flex-1 flex items-center justify-center p-8">
-        <Card className="w-full max-w-md">
-          <CardHeader className="flex flex-col items-center">
-            <img 
-              src="/images/thermopac-logo.jpg" 
-              alt="Thermopac Logo" 
-              className="h-24 mb-4"
-            />
-            <CardTitle>Enterprise Resource Planning</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <LoginForm loginMutation={loginMutation} />
-          </CardContent>
-        </Card>
+        <div className="w-full max-w-md space-y-4">
+          {/* Security Update Banner */}
+          <Alert className="border-blue-200 bg-blue-50">
+            <Shield className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800">
+              <strong>Security Enhancement:</strong> We've implemented stronger password requirements 
+              to better protect your account. All users must update their passwords.
+            </AlertDescription>
+          </Alert>
+
+          <Card>
+            <CardHeader className="flex flex-col items-center">
+              <img 
+                src="/images/thermopac-logo.jpg" 
+                alt="Thermopac Logo" 
+                className="h-24 mb-4"
+              />
+              <CardTitle>Enterprise Resource Planning</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <LoginForm loginMutation={loginMutation} />
+            </CardContent>
+          </Card>
+        </div>
       </div>
+
+      {/* Password Change Dialog */}
+      {showPasswordDialog && userNeedsPasswordUpdate && (
+        <PasswordChangeDialog
+          isRequired={true}
+          onSuccess={handlePasswordUpdateSuccess}
+        />
+      )}
 
       <div className="hidden lg:flex flex-1 bg-white items-center justify-center p-12 relative overflow-hidden">
         <div className="max-w-lg relative z-10 flex flex-col items-center">

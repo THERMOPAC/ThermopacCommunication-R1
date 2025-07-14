@@ -740,6 +740,11 @@ const userSchema = {
   googleTokenExpiresAt: timestamp('google_token_expires_at'),
   googleEmail: text('google_email'),
   googleCalendarSyncEnabled: boolean('google_calendar_sync_enabled').default(true),
+  
+  // Password Security Enhancement
+  passwordNeedsUpdate: boolean('password_needs_update').default(false),
+  passwordHistory: jsonb('password_history').default([]),
+  lastPasswordChange: timestamp('last_password_change'),
 };
 
 // Create the users table with self-reference after definition
@@ -936,14 +941,35 @@ export const tankPrices = pgTable('tank_prices', {
   updatedBy: integer('updated_by').references(() => users.id),
 });
 
+// Password validation schema with enhanced security rules
+export const passwordValidationSchema = z.string()
+  .min(12, "Password must be at least 12 characters long")
+  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+  .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+  .regex(/\d/, "Password must contain at least one number")
+  .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, "Password must contain at least one special character");
+
 export const insertUserSchema = createInsertSchema(users).extend({
   role: z.enum(roles),
   reportingManagerId: z.number().optional(),
-  password: z.string().min(6),
+  password: passwordValidationSchema,
   email: z.string().email(),
   mobileNumber: z.string().min(10),
   countryCode: z.string(),
 });
+
+// Schema for password change
+export const passwordChangeSchema = z.object({
+  currentPassword: z.string().optional(), // Optional for forced password resets
+  newPassword: passwordValidationSchema,
+  confirmPassword: z.string()
+}).refine(
+  (data) => data.newPassword === data.confirmPassword,
+  {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  }
+);
 
 // Plant Costs Schema
 export const insertPlantCostSchema = createInsertSchema(plantCosts).omit({ 

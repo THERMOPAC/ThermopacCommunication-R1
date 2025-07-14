@@ -31,6 +31,15 @@ export function ProtectedRoute({
     );
   }
 
+  // If user needs to update password, redirect to auth page for forced password change
+  if (user.passwordNeedsUpdate || user.requiresPasswordUpdate) {
+    return (
+      <Route path={path}>
+        {() => <Redirect to="/auth" />}
+      </Route>
+    );
+  }
+
   return (
     <Route path={path}>
       {(params) => <Component params={params} />}
