@@ -33,6 +33,25 @@ import { SalarySlipGenerator, numberToWords } from './salary-slip-generator';
 
 const router = express.Router();
 
+// Add debug test route to verify auth
+router.get('/test-auth', ensureAuthenticated, async (req: Request, res: Response) => {
+  res.json({ 
+    message: 'Authentication working',
+    user: req.user?.username,
+    userId: req.user?.id 
+  });
+});
+
+// Add a test PUT route to debug session issues
+router.put('/test-update', ensureAuthenticated, async (req: Request, res: Response) => {
+  res.json({ 
+    message: 'PUT request working',
+    user: req.user?.username,
+    userId: req.user?.id,
+    body: req.body
+  });
+});
+
 // Helper function to calculate work hours between two timestamps
 function calculateWorkHours(timeIn: string, timeOut: string | null): number | null {
   if (!timeOut) return null;

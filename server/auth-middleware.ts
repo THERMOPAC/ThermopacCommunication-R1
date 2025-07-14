@@ -7,7 +7,17 @@ export function ensureAuthenticated(req: Request, res: Response, next: NextFunct
     return res.status(401).json({ error: 'Authentication not initialized' });
   }
   
-  console.log('Auth check for:', req.path, 'Authenticated:', req.isAuthenticated(), 'User:', req.user?.username);
+  // Enhanced debugging
+  console.log('=== AUTH DEBUG START ===');
+  console.log('Path:', req.path);
+  console.log('Method:', req.method);
+  console.log('Session ID:', req.sessionID);
+  console.log('Session passport:', req.session?.passport);
+  console.log('Request cookies:', req.headers.cookie);
+  console.log('User object:', req.user);
+  console.log('isAuthenticated():', req.isAuthenticated());
+  console.log('=== AUTH DEBUG END ===');
+  
   if (req.isAuthenticated()) {
     return next();
   }
