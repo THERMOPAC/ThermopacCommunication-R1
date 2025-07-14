@@ -668,10 +668,10 @@ export default function VisaManagement() {
                           )}
                         />
                         {/* File Upload Section - Moved higher for visibility */}
-                        <div className="space-y-2 border rounded-lg p-4 bg-blue-50">
-                          <FormLabel className="text-blue-700 font-medium flex items-center gap-2">
+                        <div className="space-y-2 border border-blue-200 rounded-lg p-4 bg-blue-50">
+                          <FormLabel className="text-blue-700 font-semibold flex items-center gap-2">
                             <Upload className="h-4 w-4" />
-                            Visa Copy (Optional) - Upload to Google Cloud Storage
+                            📎 Visa Copy (Optional) - Upload to Google Cloud Storage
                           </FormLabel>
                           <div className="flex items-center space-x-2">
                             <Input
