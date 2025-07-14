@@ -529,38 +529,50 @@ export default function VisaManagement() {
                       </DialogDescription>
                     </DialogHeader>
                     
-                    {/* CRITICAL: File Upload Section - MUST BE VISIBLE */}
-                    <div 
-                      className="border-4 border-red-500 bg-red-100 p-6 mb-4 rounded-lg"
-                      style={{ backgroundColor: '#fecaca', border: '4px solid #dc2626', minHeight: '120px' }}
-                    >
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="flex items-center justify-center w-16 h-16 bg-red-200 rounded-full">
-                          <Upload className="h-8 w-8 text-red-700" />
-                        </div>
-                        <div>
-                          <h2 className="text-2xl font-black text-red-800">🔴 FILE UPLOAD SECTION</h2>
-                          <p className="text-lg font-bold text-red-700">This should be visible immediately!</p>
-                        </div>
-                      </div>
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        className="w-full p-3 border-2 border-red-400 rounded text-lg"
-                        style={{ backgroundColor: '#ffffff', border: '2px solid #dc2626' }}
-                      />
-                    </div>
-                    
                     <Form {...form}>
                       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                        {/* Original File Upload Section */}
+                        {/* CRITICAL: File Upload Section - FIRST FIELD IN FORM */}
+                        <div 
+                          className="border-4 border-red-500 bg-red-100 p-6 rounded-lg"
+                          style={{ backgroundColor: '#fecaca', border: '4px solid #dc2626', minHeight: '120px' }}
+                        >
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="flex items-center justify-center w-16 h-16 bg-red-200 rounded-full">
+                              <Upload className="h-8 w-8 text-red-700" />
+                            </div>
+                            <div>
+                              <h2 className="text-2xl font-black text-red-800">🔴 FILE UPLOAD SECTION</h2>
+                              <p className="text-lg font-bold text-red-700">Upload your visa document here!</p>
+                            </div>
+                          </div>
+                          <input
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={handleFileChange}
+                            ref={fileInputRef}
+                            className="w-full p-3 border-2 border-red-400 rounded text-lg"
+                            style={{ backgroundColor: '#ffffff', border: '2px solid #dc2626' }}
+                          />
+                          {selectedFile && (
+                            <div className="mt-3 bg-green-50 border border-green-200 rounded-md p-3">
+                              <p className="text-sm text-green-700 font-medium">
+                                ✓ File selected: {selectedFile.name}
+                              </p>
+                              <p className="text-xs text-green-600">
+                                Size: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Blue File Upload Section - SECOND VERSION */}
                         <div className="border-2 border-blue-400 rounded-lg p-6 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg">
                           <div className="flex items-center gap-3 mb-4">
                             <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full">
                               <Upload className="h-6 w-6 text-blue-600" />
                             </div>
                             <div>
-                              <h3 className="text-xl font-bold text-blue-800">📎 Visa Document Upload</h3>
+                              <h3 className="text-xl font-bold text-blue-800">📎 Visa Document Upload (Blue Version)</h3>
                               <p className="text-sm text-blue-600">Upload visa copy to Google Cloud Storage (Optional)</p>
                             </div>
                           </div>
