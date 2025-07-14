@@ -33,24 +33,7 @@ import { SalarySlipGenerator, numberToWords } from './salary-slip-generator';
 
 const router = express.Router();
 
-// Add debug test route to verify auth
-router.get('/test-auth', ensureAuthenticated, async (req: Request, res: Response) => {
-  res.json({ 
-    message: 'Authentication working',
-    user: req.user?.username,
-    userId: req.user?.id 
-  });
-});
 
-// Add a test PUT route to debug session issues
-router.put('/test-update', ensureAuthenticated, async (req: Request, res: Response) => {
-  res.json({ 
-    message: 'PUT request working',
-    user: req.user?.username,
-    userId: req.user?.id,
-    body: req.body
-  });
-});
 
 // Helper function to calculate work hours between two timestamps
 function calculateWorkHours(timeIn: string, timeOut: string | null): number | null {
@@ -230,8 +213,13 @@ router.put('/users/:id', ensureAuthenticated, async (req: Request, res: Response
     const userId = parseInt(req.params.id);
     const updateData = req.body;
     
+    console.log('=== USER UPDATE REQUEST ===');
     console.log('PUT /users/:id - User ID:', userId);
     console.log('PUT /users/:id - Update data received:', updateData);
+    console.log('Session ID:', req.sessionID);
+    console.log('User making request:', req.user?.username);
+    console.log('Request headers cookie:', req.headers.cookie);
+    console.log('============================');
 
     // Validate user ID
     if (isNaN(userId)) {
