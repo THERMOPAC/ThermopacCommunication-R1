@@ -602,8 +602,10 @@ export default function VisaManagement() {
                         </p>
                       </div>
 
-                    <Form {...form}>
-                      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                      {/* Form Content */}
+                      <div className="p-6">
+                        <Form {...form}>
+                          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
                         {/* Basic Information */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -796,10 +798,10 @@ export default function VisaManagement() {
                               'Create Visa Record'
                             )}
                           </Button>
-                        </div>
-                      </form>
-                    </Form>
-                    
+                            </div>
+                          </form>
+                        </Form>
+                      </div>
                     </div>
                   </div>
                 )}
