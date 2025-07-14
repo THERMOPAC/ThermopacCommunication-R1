@@ -210,15 +210,26 @@ router.put('/users/:id', ensureAuthenticated, async (req: Request, res: Response
   try {
     const userId = parseInt(req.params.id);
     const updateData = req.body;
+    
+    console.log('PUT /users/:id - User ID:', userId);
+    console.log('PUT /users/:id - Update data received:', updateData);
+
+    // Validate user ID
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
 
     // If password is being updated, hash it; if empty, remove it from update
     if (updateData.password && updateData.password.trim() !== '') {
+      console.log('Hashing password for user update');
       updateData.password = await bcrypt.hash(updateData.password, 10);
-    } else if (updateData.password === '') {
+    } else if (updateData.password === '' || updateData.password === undefined) {
+      console.log('Removing password from update data');
       delete updateData.password;
     }
 
     updateData.updatedAt = new Date();
+    console.log('Final update data:', { ...updateData, password: updateData.password ? '[HIDDEN]' : undefined });
 
     const [updatedUser] = await db
       .update(users)
@@ -227,15 +238,18 @@ router.put('/users/:id', ensureAuthenticated, async (req: Request, res: Response
       .returning();
 
     if (!updatedUser) {
+      console.log('No user found with ID:', userId);
       return res.status(404).json({ error: 'User not found' });
     }
 
+    console.log('User updated successfully:', updatedUser.id);
+    
     // Remove password from response
     const { password, ...userWithoutPassword } = updatedUser;
     res.json(userWithoutPassword);
   } catch (error) {
     console.error('Error updating user:', error);
-    res.status(500).json({ error: 'Failed to update user' });
+    res.status(500).json({ error: 'Failed to update user', details: error.message });
   }
 });
 

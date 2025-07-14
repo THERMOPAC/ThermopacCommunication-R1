@@ -175,21 +175,28 @@ export default function UserManagementPage() {
   const updateUserMutation = useMutation({
     mutationFn: async (userData: UserFormValues & { id: number }) => {
       const { id, ...data } = userData;
+      console.log('Updating user:', id, 'with data:', data);
       return apiRequest('PUT', `/api/admin/users/${id}`, data);
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      console.log('Update successful:', result);
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
       setIsEditDialogOpen(false);
       setSelectedUser(null);
+      form.reset({
+        countryCode: "+91",
+        role: "Employee",
+      });
       toast({
         title: "User Updated",
         description: "User details have been successfully updated.",
       });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Update error:', error);
       toast({
         title: "Error",
-        description: "Failed to update user. Please try again.",
+        description: `Failed to update user: ${error.message || 'Please try again.'}`,
         variant: "destructive",
       });
     },
