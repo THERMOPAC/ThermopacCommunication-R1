@@ -77,7 +77,7 @@ import { roles } from "@shared/roles";
 const userFormSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters").optional(),
+  password: z.string().optional(),
   firstName: z.string().optional(),
   middleName: z.string().optional(),
   lastName: z.string().optional(),
@@ -250,10 +250,25 @@ export default function UserManagementPage() {
     console.log('Selected user:', selectedUser);
     console.log('Form errors:', form.formState.errors);
     
+    // Custom validation for password in edit mode
     if (selectedUser) {
+      // For updates, password is optional
+      if (values.password && values.password.trim() !== '' && values.password.length < 6) {
+        form.setError('password', { message: 'Password must be at least 6 characters if provided' });
+        return;
+      }
       console.log('Updating user with ID:', selectedUser.id);
       updateUserMutation.mutate({ ...values, id: selectedUser.id });
     } else {
+      // For new users, password is required
+      if (!values.password || values.password.trim() === '') {
+        form.setError('password', { message: 'Password is required for new users' });
+        return;
+      }
+      if (values.password.length < 6) {
+        form.setError('password', { message: 'Password must be at least 6 characters' });
+        return;
+      }
       console.log('Creating new user');
       addUserMutation.mutate(values);
     }
