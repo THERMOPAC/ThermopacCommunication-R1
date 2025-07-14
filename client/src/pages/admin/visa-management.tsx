@@ -548,7 +548,7 @@ export default function VisaManagement() {
                         <div>
                           <h2 className="text-xl font-semibold">Create New Visa Record</h2>
                           <p className="text-sm text-gray-600 mt-1">
-                            Add a new visa record for an employee with all required details.
+                            Test
                           </p>
                         </div>
                         <Button
