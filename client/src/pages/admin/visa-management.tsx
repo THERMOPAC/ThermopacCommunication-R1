@@ -520,11 +520,11 @@ export default function VisaManagement() {
                       Add New Visa Record
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
+                  <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Add New Visa Record</DialogTitle>
                       <DialogDescription>
-                        Create a new visa record for an employee
+                        Create a new visa record for an employee with optional document upload
                       </DialogDescription>
                     </DialogHeader>
                     <Form {...form}>
