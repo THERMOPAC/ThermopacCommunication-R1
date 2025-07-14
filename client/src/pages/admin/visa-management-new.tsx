@@ -1082,8 +1082,31 @@ function VisaRecordsTab() {
                               <Button 
                                 variant="ghost" 
                                 size="sm"
-                                onClick={() => {
-                                  window.open(record.fileUrl, '_blank');
+                                onClick={async () => {
+                                  try {
+                                    const response = await fetch(`/api/visa/records/${record.id}/download`, {
+                                      credentials: 'include'
+                                    });
+                                    
+                                    if (response.ok) {
+                                      const downloadInfo = await response.json();
+                                      // Create a temporary anchor element to trigger download
+                                      const link = document.createElement('a');
+                                      link.href = downloadInfo.downloadUrl;
+                                      link.download = downloadInfo.fileName;
+                                      document.body.appendChild(link);
+                                      link.click();
+                                      document.body.removeChild(link);
+                                    } else {
+                                      throw new Error('Download failed');
+                                    }
+                                  } catch (error) {
+                                    toast({
+                                      title: "Download Failed",
+                                      description: "Could not download the document. Please try again.",
+                                      variant: "destructive"
+                                    });
+                                  }
                                 }}
                               >
                                 <Download className="h-4 w-4" />
@@ -1486,7 +1509,36 @@ function VisaRecordsTab() {
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Document</label>
                     <div className="mt-1">
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(`/api/visa/records/${selectedRecord.id}/download`, {
+                              credentials: 'include'
+                            });
+                            
+                            if (response.ok) {
+                              const downloadInfo = await response.json();
+                              // Create a temporary anchor element to trigger download
+                              const link = document.createElement('a');
+                              link.href = downloadInfo.downloadUrl;
+                              link.download = downloadInfo.fileName;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            } else {
+                              throw new Error('Download failed');
+                            }
+                          } catch (error) {
+                            toast({
+                              title: "Download Failed",
+                              description: "Could not download the document. Please try again.",
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                      >
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </Button>

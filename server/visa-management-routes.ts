@@ -325,6 +325,109 @@ export const getVisaRecord = async (req: Request, res: Response) => {
 };
 
 /**
+ * Download visa document securely
+ */
+export const downloadVisaDocument = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Get visa record
+    const record = await db
+      .select({
+        id: visaRecords.id,
+        filePath: visaRecords.filePath,
+        employeeName: users.username,
+        visaNumber: visaRecords.visaNumber,
+        country: visaRecords.country
+      })
+      .from(visaRecords)
+      .leftJoin(users, eq(visaRecords.employeeId, users.id))
+      .where(eq(visaRecords.id, parseInt(id)))
+      .limit(1);
+
+    if (record.length === 0) {
+      return res.status(404).json({ error: 'Visa record not found' });
+    }
+
+    const visaRecord = record[0];
+    
+    if (!visaRecord.filePath) {
+      return res.status(404).json({ error: 'No document found for this visa record' });
+    }
+
+    try {
+      // Generate a signed URL for secure download
+      const file = bucket.file(visaRecord.filePath);
+      
+      // Check if file exists
+      const [exists] = await file.exists();
+      if (!exists) {
+        return res.status(404).json({ error: 'Document file not found in storage' });
+      }
+
+      // Generate signed URL valid for 15 minutes
+      const [signedUrl] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 15 * 60 * 1000, // 15 minutes from now
+      });
+
+      // Get file metadata for proper filename
+      const [metadata] = await file.getMetadata();
+      const originalFileName = path.basename(visaRecord.filePath);
+      const downloadFileName = `${visaRecord.employeeName}_${visaRecord.country}_${visaRecord.visaNumber}_${originalFileName}`;
+
+      // Return the signed URL and download info
+      res.json({
+        downloadUrl: signedUrl,
+        fileName: downloadFileName,
+        contentType: metadata.contentType || 'application/octet-stream',
+        size: metadata.size,
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString()
+      });
+
+    } catch (gcsError) {
+      console.error('Error accessing GCS file:', gcsError);
+      
+      // If signed URL generation fails, try direct streaming
+      try {
+        const file = bucket.file(visaRecord.filePath);
+        const originalFileName = path.basename(visaRecord.filePath);
+        const downloadFileName = `${visaRecord.employeeName}_${visaRecord.country}_${visaRecord.visaNumber}_${originalFileName}`;
+        
+        // Set headers for download
+        res.setHeader('Content-Disposition', `attachment; filename="${downloadFileName}"`);
+        res.setHeader('Content-Type', 'application/octet-stream');
+        
+        // Stream file directly
+        const stream = file.createReadStream();
+        
+        stream.on('error', (streamError) => {
+          console.error('Error streaming file:', streamError);
+          if (!res.headersSent) {
+            res.status(500).json({ error: 'Failed to download document' });
+          }
+        });
+        
+        stream.pipe(res);
+        
+      } catch (streamError) {
+        console.error('Error setting up file stream:', streamError);
+        return res.status(500).json({ error: 'Failed to access document' });
+      }
+    }
+
+  } catch (error) {
+    console.error('Error downloading visa document:', error);
+    res.status(500).json({ error: 'Failed to download document' });
+  }
+};
+
+/**
  * Generate structured GCS path for visa documents
  */
 const generateVisaGCSPath = (employeeName: string, country: string, visaNumber: string, fileName: string): string => {
@@ -858,6 +961,7 @@ async function updateQuotaUsage(country: string, change: number) {
 router.get('/dashboard', ensureAuthenticated, getVisaDashboard);
 router.get('/records', ensureAuthenticated, getVisaRecords);
 router.get('/records/:id', ensureAuthenticated, getVisaRecord);
+router.get('/records/:id/download', ensureAuthenticated, downloadVisaDocument);
 router.get('/check-validity', ensureAuthenticated, checkVisaValidity);
 router.post('/records', ensureAuthenticated, upload.single('document'), createVisaRecord);
 router.post('/upload', ensureAuthenticated, uploadVisaDocumentLegacy);
