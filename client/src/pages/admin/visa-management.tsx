@@ -561,6 +561,13 @@ export default function VisaManagement() {
                         </Button>
                       </div>
 
+                      {/* TEST SECTION - Highly visible test */}
+                      <div className="p-8 bg-red-500 text-white text-center border-4 border-yellow-400">
+                        <h1 className="text-3xl font-bold">🚨 TEST SECTION 🚨</h1>
+                        <p className="text-xl mt-2">Can you see this red section?</p>
+                        <p className="text-lg mt-1">If yes, the modal is working but forms below are hidden</p>
+                      </div>
+
                       {/* File Upload Section */}
                       <div className="p-6 bg-blue-50 border-b">
                         <h3 className="text-blue-700 font-semibold text-lg mb-3 flex items-center">
