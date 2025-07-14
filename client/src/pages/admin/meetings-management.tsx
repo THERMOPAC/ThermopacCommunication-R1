@@ -871,9 +871,11 @@ export default function MeetingsManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/meetings/dashboard/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings/dashboard/upcoming'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/calendar/upcoming-events'] });
       toast({ 
         title: 'Meeting concluded', 
-        description: 'Meeting has been marked as completed'
+        description: 'Meeting has been marked as completed and removed from upcoming meetings'
       });
     },
     onError: (error: any) => {
