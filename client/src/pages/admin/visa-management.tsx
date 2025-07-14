@@ -541,10 +541,10 @@ export default function VisaManagement() {
                   </p>
                 </div>
                 {showAddDialog && (
-                  <div className="fixed inset-0 z-[9999] bg-black bg-opacity-80">
-                    <div className="fixed inset-4 bg-white rounded-lg overflow-hidden">
+                  <div className="fixed inset-0 z-[9999] bg-black bg-opacity-80 flex items-start justify-center pt-8 pb-8">
+                    <div className="bg-white rounded-lg w-full max-w-4xl max-h-full flex flex-col mx-4">
                       {/* Header */}
-                      <div className="flex items-center justify-between p-6 border-b bg-gray-50">
+                      <div className="flex items-center justify-between p-6 border-b bg-gray-50 flex-shrink-0">
                         <div>
                           <h2 className="text-xl font-semibold">Create New Visa Record</h2>
                           <p className="text-sm text-gray-600 mt-1">
@@ -561,49 +561,53 @@ export default function VisaManagement() {
                         </Button>
                       </div>
 
-                      {/* Content Area */}
-                      <div className="h-full overflow-y-auto pb-20">
-                        {/* File Upload Section */}
-                        <div className="p-6 bg-blue-50 border-b-2 border-blue-200">
-                          <h3 className="text-blue-700 font-semibold text-lg mb-3 flex items-center">
-                            <Upload className="h-5 w-5 mr-2" />
-                            Visa Document Upload
-                          </h3>
-                          <input
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={handleFileChange}
-                            ref={fileInputRef}
-                            className="w-full p-3 border-2 border-blue-300 rounded-md mb-3 bg-white"
-                          />
+                      {/* Scrollable Content */}
+                      <div className="flex-1 overflow-y-auto">
+                        {/* File Upload Section - PROMINENT BLUE SECTION */}
+                        <div className="p-8 bg-blue-100 border-4 border-blue-400 m-4 rounded-lg">
+                          <div className="flex items-center mb-4">
+                            <Upload className="h-6 w-6 text-blue-700 mr-3" />
+                            <h3 className="text-blue-800 font-bold text-xl">📁 VISA DOCUMENT UPLOAD</h3>
+                          </div>
+                          <div className="bg-white p-4 rounded-lg border-2 border-blue-300">
+                            <input
+                              type="file"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              onChange={handleFileChange}
+                              ref={fileInputRef}
+                              className="w-full p-4 border-2 border-blue-400 rounded-lg text-lg bg-blue-50"
+                            />
+                          </div>
                           {selectedFile && (
-                            <div className="mt-2 p-3 bg-green-100 border-2 border-green-300 rounded-md">
-                              <p className="text-sm text-green-700">
-                                ✓ Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                            <div className="mt-4 p-4 bg-green-100 border-2 border-green-400 rounded-lg">
+                              <p className="text-green-800 font-semibold">
+                                ✅ Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
                               </p>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedFile(null);
+                                  if (fileInputRef.current) {
+                                    fileInputRef.current.value = '';
+                                  }
+                                }}
+                                className="mt-2"
+                              >
+                                Clear File
+                              </Button>
                             </div>
                           )}
-                          {selectedFile && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedFile(null);
-                                if (fileInputRef.current) {
-                                  fileInputRef.current.value = '';
-                                }
-                              }}
-                              className="mt-2"
-                            >
-                              Clear
-                            </Button>
-                          )}
-                          <p className="text-xs text-gray-600 mt-2">
-                            Upload visa copy to Google Cloud Storage (Optional) • Supports: PDF, JPG, PNG • Max: 10MB
-                            <br />
-                            <span className="font-medium">Storage path:</span> thermopac_storage/Business_Visa/{"{Employee}"}/{"{Country}"}/{"{Visa Number}"}/{"{filename}"}
-                          </p>
+                          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-300 rounded">
+                            <p className="text-sm text-gray-700">
+                              <strong>File Storage:</strong> Documents uploaded to Google Cloud Storage
+                              <br />
+                              <strong>Supported:</strong> PDF, JPG, PNG files up to 10MB
+                              <br />
+                              <strong>Path:</strong> thermopac_storage/Business_Visa/{"{Employee}"}/{"{Country}"}/{"{Visa Number}"}
+                            </p>
+                          </div>
                         </div>
 
                       {/* File Upload Section */}
