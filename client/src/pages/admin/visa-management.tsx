@@ -529,29 +529,15 @@ export default function VisaManagement() {
                       </DialogDescription>
                     </DialogHeader>
                     
+                    {/* MOVE FILE UPLOAD OUTSIDE FORM TO TEST */}
+                    <div style={{backgroundColor: 'red', color: 'white', padding: '20px', margin: '10px 0', fontSize: '16px', fontWeight: 'bold'}}>
+                      🔴 FILE UPLOAD TEST SECTION - THIS SHOULD BE VISIBLE
+                      <br />
+                      <input type="file" style={{marginTop: '10px', fontSize: '14px'}} />
+                    </div>
+
                     <Form {...form}>
                       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                        {/* SIMPLE FILE UPLOAD - NO COMPLEX STYLING */}
-                        <div style={{backgroundColor: '#f0f9ff', border: '2px solid #0284c7', padding: '20px', borderRadius: '8px', marginBottom: '20px'}}>
-                          <h3 style={{color: '#0369a1', marginBottom: '15px', fontSize: '18px', fontWeight: 'bold'}}>
-                            📎 Document Upload
-                          </h3>
-                          <input
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={handleFileChange}
-                            ref={fileInputRef}
-                            style={{width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px'}}
-                          />
-                          {selectedFile && (
-                            <div style={{color: '#16a34a', marginTop: '10px'}}>
-                              ✓ Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                            </div>
-                          )}
-                          <p style={{fontSize: '12px', color: '#6b7280', marginTop: '10px'}}>
-                            Supports: PDF, JPG, PNG • Max: 10MB
-                          </p>
-                        </div>
 
                         {/* Basic Information */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
