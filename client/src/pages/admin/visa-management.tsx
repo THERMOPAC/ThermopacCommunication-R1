@@ -815,12 +815,17 @@ export default function VisaManagement() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => {
+                                  className="cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                                  disabled={false}
+                                  title="Edit visa record"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
                                     console.log('Edit button clicked for record:', record);
                                     handleEdit(record);
                                   }}
                                 >
-                                  <Edit className="h-3 w-3" />
+                                  <Edit className="h-3 w-3 text-blue-600" />
                                 </Button>
                                 <Button
                                   size="sm"
