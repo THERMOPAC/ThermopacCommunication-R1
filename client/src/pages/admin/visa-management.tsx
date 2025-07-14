@@ -540,51 +540,67 @@ export default function VisaManagement() {
                     Showing {filteredRecords.length} of {visaRecords.length} visa records
                   </p>
                 </div>
-                <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add New Visa Record
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto">
-                    {/* CRITICAL DEBUG: Test if ANY content can render */}
-                    <div style={{ 
-                      backgroundColor: 'red', 
-                      color: 'white', 
-                      padding: '30px', 
-                      margin: '10px',
-                      fontSize: '24px',
-                      fontWeight: 'bold',
-                      border: '5px solid black',
-                      textAlign: 'center' as const
-                    }}>
-                      🔴 CRITICAL TEST: If you can see this red box, the dialog content IS rendering!
-                      <br />
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={handleFileChange}
-                        ref={fileInputRef}
-                        style={{ 
-                          width: '100%', 
-                          padding: '15px', 
-                          margin: '10px 0',
-                          fontSize: '16px',
-                          border: '3px solid yellow',
-                          backgroundColor: 'white',
-                          color: 'black'
-                        }}
-                      />
-                      📁 TEST FILE UPLOAD ABOVE
-                    </div>
-                    
-                    <DialogHeader>
-                      <DialogTitle className="text-xl font-semibold">Create New Visa Record</DialogTitle>
-                      <DialogDescription>
-                        Add a new visa record for an employee with all required details.
-                      </DialogDescription>
-                    </DialogHeader>
+                {showAddDialog && (
+                  <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-lg max-w-5xl w-full max-h-[95vh] overflow-y-auto">
+                      {/* Header */}
+                      <div className="flex items-center justify-between p-6 border-b">
+                        <div>
+                          <h2 className="text-xl font-semibold">Create New Visa Record</h2>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Add a new visa record for an employee with all required details.
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowAddDialog(false)}
+                          className="h-8 w-8 p-0"
+                        >
+                          ×
+                        </Button>
+                      </div>
+
+                      {/* File Upload Section */}
+                      <div className="p-6 bg-blue-50 border-b">
+                        <h3 className="text-blue-700 font-semibold text-lg mb-3 flex items-center">
+                          <Upload className="h-5 w-5 mr-2" />
+                          Visa Document Upload
+                        </h3>
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={handleFileChange}
+                          ref={fileInputRef}
+                          className="w-full p-3 border border-gray-300 rounded-md mb-3"
+                        />
+                        {selectedFile && (
+                          <div className="text-green-600 mt-2">
+                            ✓ Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                          </div>
+                        )}
+                        {selectedFile && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedFile(null);
+                              if (fileInputRef.current) {
+                                fileInputRef.current.value = '';
+                              }
+                            }}
+                            className="mt-2"
+                          >
+                            Clear
+                          </Button>
+                        )}
+                        <p className="text-xs text-gray-500 mt-2">
+                          Upload visa copy to Google Cloud Storage (Optional) • Supports: PDF, JPG, PNG • Max: 10MB
+                          <br />
+                          <span className="font-medium">Storage path:</span> thermopac_storage/Business_Visa/{"{Employee}"}/{"{Country}"}/{"{Visa Number}"}/{"{filename}"}
+                        </p>
+                      </div>
 
                     <Form {...form}>
                       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -783,8 +799,15 @@ export default function VisaManagement() {
                         </div>
                       </form>
                     </Form>
-                  </DialogContent>
-                </Dialog>
+                    
+                    </div>
+                  </div>
+                )}
+                
+                <Button onClick={() => setShowAddDialog(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add New Visa Record
+                </Button>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
