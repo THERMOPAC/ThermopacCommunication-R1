@@ -14,7 +14,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { apiRequest } from '@/lib/queryClient';
-import { Plus, Download, FileText, Eye, Edit, Trash2, Search, Filter, Globe, CreditCard, Clock, AlertTriangle } from 'lucide-react';
+import { Plus, Download, FileText, Eye, Edit, Trash2, Search, Filter, Globe, CreditCard, Clock, AlertTriangle, Upload, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import Layout from '@/components/layout';
@@ -535,9 +535,43 @@ function VisaRecordsTab() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<VisaRecord | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // File upload handler
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: 'File too large',
+          description: 'Please select a file smaller than 10MB',
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      // Validate file type
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: 'Invalid file type',
+          description: 'Please select a PDF, JPG, or PNG file',
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      setSelectedFile(file);
+    }
+  };
+
+  const removeFile = () => {
+    setSelectedFile(null);
+  };
 
   // Fetch visa records from API
   const { data: visaRecords = [], isLoading: isRecordsLoading, error: recordsError } = useQuery({
@@ -634,17 +668,43 @@ function VisaRecordsTab() {
 
   // Create visa record mutation
   const createMutation = useMutation({
-    mutationFn: async (data: VisaFormValues) => {
-      const formattedData = {
-        ...data,
-        issueDate: data.issueDate instanceof Date ? format(data.issueDate, 'yyyy-MM-dd') : data.issueDate,
-        expiryDate: data.expiryDate instanceof Date ? format(data.expiryDate, 'yyyy-MM-dd') : data.expiryDate,
-      };
-      return apiRequest('POST', '/api/visa/records', formattedData);
+    mutationFn: async (data: VisaFormValues & { file?: File | null }) => {
+      if (data.file) {
+        // Create FormData for file upload
+        const formData = new FormData();
+        
+        // Format dates
+        const formattedData = {
+          ...data,
+          issueDate: data.issueDate instanceof Date ? format(data.issueDate, 'yyyy-MM-dd') : data.issueDate,
+          expiryDate: data.expiryDate instanceof Date ? format(data.expiryDate, 'yyyy-MM-dd') : data.expiryDate,
+        };
+        
+        // Append all form fields except file
+        Object.entries(formattedData).forEach(([key, value]) => {
+          if (key !== 'file' && value !== undefined && value !== null) {
+            formData.append(key, value.toString());
+          }
+        });
+        
+        // Append file
+        formData.append('document', data.file);
+        
+        return apiRequest('POST', '/api/visa/records', formData);
+      } else {
+        // Regular JSON request without file
+        const formattedData = {
+          ...data,
+          issueDate: data.issueDate instanceof Date ? format(data.issueDate, 'yyyy-MM-dd') : data.issueDate,
+          expiryDate: data.expiryDate instanceof Date ? format(data.expiryDate, 'yyyy-MM-dd') : data.expiryDate,
+        };
+        return apiRequest('POST', '/api/visa/records', formattedData);
+      }
     },
     onSuccess: () => {
       setIsCreateDialogOpen(false);
       form.reset();
+      setSelectedFile(null);
       queryClient.invalidateQueries({ queryKey: ['/api/visa/records'] });
       toast({
         title: "Success",
@@ -673,7 +733,7 @@ function VisaRecordsTab() {
   });
 
   const onSubmit = (values: VisaFormValues) => {
-    createMutation.mutate(values);
+    createMutation.mutate({ ...values, file: selectedFile });
   };
 
   const getStatusBadge = (status: string, daysToExpiry: number) => {
@@ -952,9 +1012,80 @@ function VisaRecordsTab() {
           <DialogHeader>
             <DialogTitle>Create New Visa Record</DialogTitle>
             <DialogDescription>
-              Test
+              Add a new visa record for an employee with all required details.
             </DialogDescription>
           </DialogHeader>
+
+          {/* File Upload Section */}
+          <div className="border-2 border-dashed border-blue-200 rounded-lg p-6 bg-blue-50/50">
+            <div className="text-center space-y-4">
+              <div className="flex flex-col items-center gap-2">
+                <Upload className="h-8 w-8 text-blue-600" />
+                <h3 className="text-lg font-semibold text-blue-900">Upload Visa Document</h3>
+                <p className="text-sm text-blue-700">Upload a PDF, JPG, or PNG file (max 10MB)</p>
+              </div>
+
+              {!selectedFile ? (
+                <div className="space-y-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = '.pdf,.jpg,.jpeg,.png';
+                      input.onchange = handleFileChange;
+                      input.click();
+                    }}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Select File
+                  </Button>
+                  <p className="text-xs text-blue-600">
+                    Supported formats: PDF, JPG, PNG
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center gap-3 p-3 bg-white rounded-lg border border-blue-200">
+                    <FileText className="h-5 w-5 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-900 flex-1">
+                      {selectedFile.name}
+                    </span>
+                    <span className="text-xs text-blue-600">
+                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={removeFile}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = '.pdf,.jpg,.jpeg,.png';
+                      input.onchange = handleFileChange;
+                      input.click();
+                    }}
+                  >
+                    Change File
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
