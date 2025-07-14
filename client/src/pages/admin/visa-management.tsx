@@ -101,6 +101,7 @@ export default function VisaManagement() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingRecord, setEditingRecord] = useState<VisaRecord | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filters, setFilters] = useState({
     country: 'all',
     visaType: 'all',
@@ -162,9 +163,34 @@ export default function VisaManagement() {
     return orderedGroups;
   }, [employees]);
 
-  // State for file upload
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // File upload handler
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: 'File too large',
+          description: 'Please select a file smaller than 10MB',
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      // Validate file type
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: 'Invalid file type',
+          description: 'Please select a PDF, JPG, or PNG file',
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      setSelectedFile(file);
+    }
+  };
 
   // Form
   const form = useForm<InsertVisaRecord>({
