@@ -523,17 +523,31 @@ export default function VisaManagement() {
                   </DialogTrigger>
                   <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle className="text-xl font-semibold">Add New Visa Record</DialogTitle>
+                      <DialogTitle className="text-xl font-semibold">Create New Visa Record</DialogTitle>
                       <DialogDescription>
-                        Create a new visa record for an employee with optional document upload to Google Cloud Storage
+                        Add a new visa record for an employee with all required details.
                       </DialogDescription>
                     </DialogHeader>
                     
-                    {/* MOVE FILE UPLOAD OUTSIDE FORM TO TEST */}
-                    <div style={{backgroundColor: 'red', color: 'white', padding: '20px', margin: '10px 0', fontSize: '16px', fontWeight: 'bold'}}>
-                      🔴 FILE UPLOAD TEST SECTION - THIS SHOULD BE VISIBLE
-                      <br />
-                      <input type="file" style={{marginTop: '10px', fontSize: '14px'}} />
+                    <div style={{backgroundColor: '#f0f9ff', border: '2px solid #0284c7', padding: '20px', borderRadius: '8px', marginBottom: '20px'}}>
+                      <h3 style={{color: '#0369a1', marginBottom: '15px', fontSize: '18px', fontWeight: 'bold'}}>
+                        📎 Visa Document Upload
+                      </h3>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={handleFileChange}
+                        ref={fileInputRef}
+                        style={{width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px'}}
+                      />
+                      {selectedFile && (
+                        <div style={{color: '#16a34a', marginTop: '10px'}}>
+                          ✓ Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                        </div>
+                      )}
+                      <p style={{fontSize: '12px', color: '#6b7280', marginTop: '10px'}}>
+                        Upload visa copy to Google Cloud Storage (Optional) • Supports: PDF, JPG, PNG • Max: 10MB
+                      </p>
                     </div>
 
                     <Form {...form}>
