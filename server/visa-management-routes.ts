@@ -361,7 +361,7 @@ export const downloadVisaDocument = async (req: Request, res: Response) => {
     }
 
     try {
-      // Generate a signed URL for secure download
+      // Stream the file directly through our server for security
       const file = bucket.file(visaRecord.filePath);
       
       // Check if file exists
@@ -370,30 +370,33 @@ export const downloadVisaDocument = async (req: Request, res: Response) => {
         return res.status(404).json({ error: 'Document file not found in storage' });
       }
 
-      // Generate signed URL valid for 15 minutes
-      const [signedUrl] = await file.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 15 * 60 * 1000, // 15 minutes from now
-      });
-
-      // Get file metadata for proper filename
+      // Get file metadata for proper filename and content type
       const [metadata] = await file.getMetadata();
       const originalFileName = path.basename(visaRecord.filePath);
       const downloadFileName = `${visaRecord.employeeName}_${visaRecord.country}_${visaRecord.visaNumber}_${originalFileName}`;
-
-      // Return the signed URL and download info
-      res.json({
-        downloadUrl: signedUrl,
-        fileName: downloadFileName,
-        contentType: metadata.contentType || 'application/octet-stream',
-        size: metadata.size,
-        expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString()
+      
+      // Set headers for download
+      res.setHeader('Content-Disposition', `attachment; filename="${downloadFileName}"`);
+      res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
+      res.setHeader('Content-Length', metadata.size || 0);
+      res.setHeader('Cache-Control', 'no-cache');
+      
+      // Stream the file directly to the response
+      const stream = file.createReadStream();
+      
+      stream.on('error', (streamError) => {
+        console.error('Error streaming file:', streamError);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Error downloading file' });
+        }
       });
+      
+      stream.pipe(res);
 
     } catch (gcsError) {
       console.error('Error accessing GCS file:', gcsError);
       
-      // If signed URL generation fails, try direct streaming
+      // Fallback: try basic streaming
       try {
         const file = bucket.file(visaRecord.filePath);
         const originalFileName = path.basename(visaRecord.filePath);
