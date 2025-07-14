@@ -654,20 +654,7 @@ export default function VisaManagement() {
                             )}
                           />
                         </div>
-                        <FormField
-                          control={form.control}
-                          name="quotaReference"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Quota Reference (Optional)</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Enter quota reference" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        {/* File Upload Section - Moved higher for visibility */}
+                        {/* File Upload Section - Moved to prominent position */}
                         <div className="space-y-2 border border-blue-200 rounded-lg p-4 bg-blue-50">
                           <FormLabel className="text-blue-700 font-semibold flex items-center gap-2">
                             <Upload className="h-4 w-4" />
@@ -706,6 +693,19 @@ export default function VisaManagement() {
                           </p>
                         </div>
 
+                        <FormField
+                          control={form.control}
+                          name="quotaReference"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Quota Reference (Optional)</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Enter quota reference" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                         <FormField
                           control={form.control}
                           name="notes"
