@@ -366,10 +366,9 @@ const uploadVisaDocument = async (file: Express.Multer.File, gcsPath: string): P
 
       blobStream.on('finish', async () => {
         try {
-          // Make the file publicly accessible
-          await blob.makePublic();
-          
           // Generate public URL
+          // Note: With uniform bucket-level access enabled, files are automatically public
+          // if the bucket has public access configured via IAM
           const publicUrl = `https://storage.googleapis.com/${bucket.name}/${gcsPath}`;
           
           resolve({
@@ -377,7 +376,7 @@ const uploadVisaDocument = async (file: Express.Multer.File, gcsPath: string): P
             fileUrl: publicUrl
           });
         } catch (error) {
-          console.error('Error making visa document public:', error);
+          console.error('Error processing visa document upload:', error);
           reject(error);
         }
       });
