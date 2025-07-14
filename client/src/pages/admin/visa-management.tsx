@@ -529,24 +529,44 @@ export default function VisaManagement() {
                       </DialogDescription>
                     </DialogHeader>
                     
-                    <div style={{backgroundColor: '#f0f9ff', border: '2px solid #0284c7', padding: '20px', borderRadius: '8px', marginBottom: '20px'}}>
-                      <h3 style={{color: '#0369a1', marginBottom: '15px', fontSize: '18px', fontWeight: 'bold'}}>
-                        📎 Visa Document Upload
+                    {/* File Upload Section */}
+                    <div className="bg-blue-50 border-2 border-blue-200 p-5 rounded-lg mb-6">
+                      <h3 className="text-blue-700 font-semibold text-lg mb-3 flex items-center">
+                        <Upload className="h-5 w-5 mr-2" />
+                        Visa Document Upload
                       </h3>
                       <input
                         type="file"
                         accept=".pdf,.jpg,.jpeg,.png"
                         onChange={handleFileChange}
                         ref={fileInputRef}
-                        style={{width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px'}}
+                        className="w-full p-3 border border-gray-300 rounded-md mb-3"
                       />
                       {selectedFile && (
-                        <div style={{color: '#16a34a', marginTop: '10px'}}>
+                        <div className="text-green-600 mt-2">
                           ✓ Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
                         </div>
                       )}
-                      <p style={{fontSize: '12px', color: '#6b7280', marginTop: '10px'}}>
+                      {selectedFile && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedFile(null);
+                            if (fileInputRef.current) {
+                              fileInputRef.current.value = '';
+                            }
+                          }}
+                          className="mt-2"
+                        >
+                          Clear
+                        </Button>
+                      )}
+                      <p className="text-xs text-gray-500 mt-2">
                         Upload visa copy to Google Cloud Storage (Optional) • Supports: PDF, JPG, PNG • Max: 10MB
+                        <br />
+                        <span className="font-medium">Storage path:</span> thermopac_storage/Business_Visa/{"{Employee}"}/{"{Country}"}/{"{Visa Number}"}/{"{filename}"}
                       </p>
                     </div>
 
