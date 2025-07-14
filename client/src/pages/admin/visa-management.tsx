@@ -521,27 +521,34 @@ export default function VisaManagement() {
                       Add New Visa Record
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+                  <DialogContent className="max-w-4xl">
                     <DialogHeader>
                       <DialogTitle className="text-xl font-semibold">Add New Visa Record</DialogTitle>
                       <DialogDescription>
                         Create a new visa record for an employee with optional document upload to Google Cloud Storage
                       </DialogDescription>
                     </DialogHeader>
+                    
+                    {/* IMMEDIATE TEST: Simple visible content */}
+                    <div className="bg-red-500 text-white p-8 text-center">
+                      <h2 className="text-3xl font-bold mb-4">🔴 CAN YOU SEE THIS RED BOX?</h2>
+                      <p className="text-xl">If you can see this, the dialog is working!</p>
+                    </div>
+                    
                     <Form {...form}>
                       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                         {/* File Upload Section - CRITICAL: First Position for Maximum Visibility */}
                         <div 
-                          className="border-4 border-red-500 rounded-lg p-8 bg-gradient-to-r from-yellow-100 to-orange-100 shadow-2xl"
-                          style={{ backgroundColor: '#fef3c7', border: '4px solid #ef4444' }}
+                          className="border-4 border-blue-500 rounded-lg p-8 bg-blue-100 shadow-2xl"
+                          style={{ backgroundColor: '#dbeafe', border: '4px solid #3b82f6' }}
                         >
                           <div className="flex items-center gap-3 mb-4">
-                            <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full">
-                              <Upload className="h-8 w-8 text-red-600" />
+                            <div className="flex items-center justify-center w-16 h-16 bg-blue-200 rounded-full">
+                              <Upload className="h-8 w-8 text-blue-600" />
                             </div>
                             <div>
-                              <h3 className="text-2xl font-black text-red-800">🔴 FILE UPLOAD SECTION - TESTING VISIBILITY</h3>
-                              <p className="text-lg text-red-700 font-bold">Upload visa copy to Google Cloud Storage (Optional)</p>
+                              <h3 className="text-2xl font-black text-blue-800">📎 FILE UPLOAD SECTION - WORKING!</h3>
+                              <p className="text-lg text-blue-700 font-bold">Upload visa copy to Google Cloud Storage (Optional)</p>
                             </div>
                           </div>
 
