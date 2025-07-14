@@ -24,6 +24,7 @@ import { ensureAuthenticated } from './middlewares/auth';
 import { googleCalendarService } from './google-calendar-service';
 import { aiMeetingNotesService } from './ai-meeting-notes-service';
 import { enhancedAIMeetingService } from './enhanced-ai-meeting-service';
+import { CalendarConflictService } from './calendar-conflict-service';
 
 // =============================================================================
 // BUSINESS MEETINGS ENDPOINTS
@@ -218,6 +219,8 @@ export const getMeetingById = async (req: Request, res: Response) => {
 export const createMeeting = async (req: Request, res: Response) => {
   try {
     const user = req.user as any;
+    const { ignoreConflicts = false } = req.body;
+    
     const validatedData = insertBusinessMeetingSchema.parse({
       ...req.body,
       organizerId: user.id,
@@ -231,6 +234,31 @@ export const createMeeting = async (req: Request, res: Response) => {
       const startMinutes = startHour * 60 + startMin;
       const endMinutes = endHour * 60 + endMin;
       validatedData.duration = endMinutes - startMinutes;
+    }
+
+    // Check for calendar conflicts before creating the meeting
+    if (!ignoreConflicts) {
+      const conflictCheck = await CalendarConflictService.checkNewMeetingConflicts(
+        validatedData.attendeeIds || [],
+        validatedData.meetingDate.toISOString().split('T')[0],
+        validatedData.startTime,
+        validatedData.endTime,
+        user.id
+      );
+
+      if (conflictCheck.hasConflicts) {
+        return res.status(409).json({
+          error: 'Calendar conflicts detected',
+          conflicts: conflictCheck.conflicts,
+          warnings: conflictCheck.warnings,
+          suggestions: await CalendarConflictService.getSuggestedTimeSlots(
+            validatedData.attendeeIds || [],
+            validatedData.meetingDate.toISOString().split('T')[0],
+            validatedData.duration || 60,
+            user.id
+          )
+        });
+      }
     }
 
     const [meeting] = await db
@@ -323,6 +351,9 @@ export const createMeeting = async (req: Request, res: Response) => {
 export const updateMeeting = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const user = req.user as any;
+    const { ignoreConflicts = false } = req.body;
+    
     const validatedData = insertBusinessMeetingSchema.partial().parse(req.body);
 
     // Calculate duration if start and end times provided
@@ -334,7 +365,7 @@ export const updateMeeting = async (req: Request, res: Response) => {
       validatedData.duration = endMinutes - startMinutes;
     }
 
-    // Get original meeting data for Google Calendar sync
+    // Get original meeting data
     const [originalMeeting] = await db
       .select()
       .from(businessMeetings)
@@ -342,6 +373,44 @@ export const updateMeeting = async (req: Request, res: Response) => {
 
     if (!originalMeeting) {
       return res.status(404).json({ error: 'Meeting not found' });
+    }
+
+    // Check for calendar conflicts if time/date/attendees are being changed
+    const hasTimeChanges = validatedData.meetingDate || validatedData.startTime || validatedData.endTime;
+    const hasAttendeeChanges = validatedData.attendeeIds;
+    
+    if (!ignoreConflicts && (hasTimeChanges || hasAttendeeChanges)) {
+      const meetingDate = validatedData.meetingDate 
+        ? validatedData.meetingDate.toISOString().split('T')[0]
+        : originalMeeting.meetingDate;
+      const startTime = validatedData.startTime || originalMeeting.startTime;
+      const endTime = validatedData.endTime || originalMeeting.endTime;
+      const attendeeIds = validatedData.attendeeIds || originalMeeting.attendeeIds || [];
+      const organizerId = originalMeeting.organizerId;
+
+      const conflictCheck = await CalendarConflictService.checkUpdateMeetingConflicts(
+        parseInt(id),
+        attendeeIds,
+        meetingDate,
+        startTime,
+        endTime,
+        organizerId
+      );
+
+      if (conflictCheck.hasConflicts) {
+        return res.status(409).json({
+          error: 'Calendar conflicts detected',
+          conflicts: conflictCheck.conflicts,
+          warnings: conflictCheck.warnings,
+          suggestions: await CalendarConflictService.getSuggestedTimeSlots(
+            attendeeIds,
+            meetingDate,
+            validatedData.duration || originalMeeting.duration || 60,
+            organizerId,
+            parseInt(id)
+          )
+        });
+      }
     }
 
     const [meeting] = await db
@@ -1631,3 +1700,110 @@ function parseGeminiContent(content: string) {
     };
   }
 }
+
+// =============================================================================
+// CALENDAR CONFLICT DETECTION ENDPOINTS  
+// =============================================================================
+
+/**
+ * Check for calendar conflicts for a new meeting
+ */
+export const checkNewMeetingConflicts = async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const { attendeeIds, meetingDate, startTime, endTime } = req.body;
+
+    if (!meetingDate || !startTime || !endTime) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: meetingDate, startTime, and endTime are required' 
+      });
+    }
+
+    const conflictCheck = await CalendarConflictService.checkNewMeetingConflicts(
+      attendeeIds || [],
+      meetingDate,
+      startTime,
+      endTime,
+      user.id
+    );
+
+    // Calculate duration for suggestions
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    const duration = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+
+    const suggestions = conflictCheck.hasConflicts 
+      ? await CalendarConflictService.getSuggestedTimeSlots(
+          attendeeIds || [],
+          meetingDate,
+          duration,
+          user.id
+        )
+      : [];
+
+    res.json({
+      success: true,
+      hasConflicts: conflictCheck.hasConflicts,
+      conflicts: conflictCheck.conflicts,
+      warnings: conflictCheck.warnings,
+      suggestions
+    });
+
+  } catch (error) {
+    console.error('Error checking new meeting conflicts:', error);
+    res.status(500).json({ error: 'Failed to check calendar conflicts' });
+  }
+};
+
+/**
+ * Check for calendar conflicts for updating an existing meeting
+ */
+export const checkUpdateMeetingConflicts = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = req.user as any;
+    const { attendeeIds, meetingDate, startTime, endTime } = req.body;
+
+    if (!meetingDate || !startTime || !endTime) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: meetingDate, startTime, and endTime are required' 
+      });
+    }
+
+    const conflictCheck = await CalendarConflictService.checkUpdateMeetingConflicts(
+      parseInt(id),
+      attendeeIds || [],
+      meetingDate,
+      startTime,
+      endTime,
+      user.id
+    );
+
+    // Calculate duration for suggestions
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    const duration = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+
+    const suggestions = conflictCheck.hasConflicts 
+      ? await CalendarConflictService.getSuggestedTimeSlots(
+          attendeeIds || [],
+          meetingDate,
+          duration,
+          user.id,
+          parseInt(id)
+        )
+      : [];
+
+    res.json({
+      success: true,
+      hasConflicts: conflictCheck.hasConflicts,
+      conflicts: conflictCheck.conflicts,
+      warnings: conflictCheck.warnings,
+      suggestions
+    });
+
+  } catch (error) {
+    console.error('Error checking update meeting conflicts:', error);
+    res.status(500).json({ error: 'Failed to check calendar conflicts' });
+  }
+};

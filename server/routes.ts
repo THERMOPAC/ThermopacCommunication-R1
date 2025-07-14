@@ -100,7 +100,9 @@ import {
   generateAINotesFromContent,
   analyzeGoogleCalendarEvent,
   getMeetingAnalytics,
-  processGeminiMeetingNotes
+  processGeminiMeetingNotes,
+  checkNewMeetingConflicts,
+  checkUpdateMeetingConflicts
 } from "./meetings-routes";
 
 const scryptAsync = promisify(scrypt);
@@ -2849,6 +2851,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/meetings/ai-notes/analyze-calendar-event', ensureAuthenticated, analyzeGoogleCalendarEvent);
   app.post('/api/meetings/ai-notes/process-gemini', ensureAuthenticated, processGeminiMeetingNotes);
   app.get('/api/meetings/analytics', ensureAuthenticated, getMeetingAnalytics);
+  
+  // Calendar Conflict Detection endpoints (MUST come before parameterized routes)
+  app.post('/api/meetings/check-conflicts', ensureAuthenticated, checkNewMeetingConflicts);
+  app.post('/api/meetings/:id/check-update-conflicts', ensureAuthenticated, checkUpdateMeetingConflicts);
   
   console.log('Meetings & Commitments routes registered at /api/meetings');
   
