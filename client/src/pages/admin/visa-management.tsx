@@ -531,66 +531,26 @@ export default function VisaManagement() {
                     
                     <Form {...form}>
                       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                        {/* Professional File Upload Section */}
-                        <div className="border-2 border-blue-300 rounded-lg p-6 bg-gradient-to-r from-blue-50 to-indigo-50">
-                          <div className="flex items-center gap-3 mb-4">
-                            <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full">
-                              <Upload className="h-6 w-6 text-blue-600" />
+                        {/* SIMPLE FILE UPLOAD - NO COMPLEX STYLING */}
+                        <div style={{backgroundColor: '#f0f9ff', border: '2px solid #0284c7', padding: '20px', borderRadius: '8px', marginBottom: '20px'}}>
+                          <h3 style={{color: '#0369a1', marginBottom: '15px', fontSize: '18px', fontWeight: 'bold'}}>
+                            📎 Document Upload
+                          </h3>
+                          <input
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={handleFileChange}
+                            ref={fileInputRef}
+                            style={{width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '10px'}}
+                          />
+                          {selectedFile && (
+                            <div style={{color: '#16a34a', marginTop: '10px'}}>
+                              ✓ Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
                             </div>
-                            <div>
-                              <h3 className="text-xl font-bold text-blue-800">📎 Visa Document Upload</h3>
-                              <p className="text-sm text-blue-600">Upload visa copy to Google Cloud Storage (Optional)</p>
-                            </div>
-                          </div>
-
-                          <div className="space-y-4">
-                            <div className="flex items-center space-x-3">
-                              <Input
-                                type="file"
-                                accept=".pdf,.jpg,.jpeg,.png"
-                                onChange={handleFileChange}
-                                className="flex-1 border-blue-200 focus:border-blue-400 focus:ring-blue-200"
-                                ref={fileInputRef}
-                              />
-                              {selectedFile && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedFile(null);
-                                    if (fileInputRef.current) {
-                                      fileInputRef.current.value = '';
-                                    }
-                                  }}
-                                  className="border-blue-200 text-blue-600 hover:bg-blue-50"
-                                >
-                                  Clear
-                                </Button>
-                              )}
-                            </div>
-
-                            {selectedFile && (
-                              <div className="bg-green-50 border border-green-200 rounded-md p-3">
-                                <p className="text-sm text-green-700 font-medium">
-                                  ✓ File selected: {selectedFile.name}
-                                </p>
-                                <p className="text-xs text-green-600">
-                                  Size: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                                </p>
-                              </div>
-                            )}
-
-                            <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                              <p className="text-sm text-blue-700 font-medium mb-1">Storage Path:</p>
-                              <code className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                                thermopac_storage/Business_Visa/{'{Employee}'}/{'{Country}'}/{'{Visa Number}'}/{'{filename}'}
-                              </code>
-                              <p className="text-xs text-blue-600 mt-2">
-                                Accepted formats: PDF, JPG, PNG • Maximum size: 10MB
-                              </p>
-                            </div>
-                          </div>
+                          )}
+                          <p style={{fontSize: '12px', color: '#6b7280', marginTop: '10px'}}>
+                            Supports: PDF, JPG, PNG • Max: 10MB
+                          </p>
                         </div>
 
                         {/* Basic Information */}
