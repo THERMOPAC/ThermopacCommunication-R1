@@ -164,6 +164,7 @@ export default function VisaManagement() {
 
   // State for file upload
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form
   const form = useForm<InsertVisaRecord>({
@@ -522,20 +523,21 @@ export default function VisaManagement() {
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle>Add New Visa Record</DialogTitle>
+                      <DialogTitle className="text-xl font-semibold">Add New Visa Record</DialogTitle>
                       <DialogDescription>
-                        Create a new visa record for an employee with optional document upload
+                        Create a new visa record for an employee with optional document upload to Google Cloud Storage
                       </DialogDescription>
                     </DialogHeader>
                     <Form {...form}>
-                      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                        {/* Basic Information */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <FormField
                             control={form.control}
                             name="employeeId"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Employee</FormLabel>
+                                <FormLabel>Employee *</FormLabel>
                                 <Select 
                                   value={field.value?.toString()} 
                                   onValueChange={(value) => field.onChange(parseInt(value))}
@@ -567,7 +569,7 @@ export default function VisaManagement() {
                             name="country"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Country</FormLabel>
+                                <FormLabel>Country *</FormLabel>
                                 <Select value={field.value} onValueChange={field.onChange}>
                                   <FormControl>
                                     <SelectTrigger>
@@ -587,13 +589,14 @@ export default function VisaManagement() {
                             )}
                           />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <FormField
                             control={form.control}
                             name="visaType"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Visa Type</FormLabel>
+                                <FormLabel>Visa Type *</FormLabel>
                                 <Select value={field.value} onValueChange={field.onChange}>
                                   <FormControl>
                                     <SelectTrigger>
@@ -617,7 +620,7 @@ export default function VisaManagement() {
                             name="visaNumber"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Visa Number</FormLabel>
+                                <FormLabel>Visa Number *</FormLabel>
                                 <FormControl>
                                   <Input placeholder="Enter visa number" {...field} />
                                 </FormControl>
@@ -626,13 +629,14 @@ export default function VisaManagement() {
                             )}
                           />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <FormField
                             control={form.control}
                             name="issueDate"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Issue Date</FormLabel>
+                                <FormLabel>Issue Date *</FormLabel>
                                 <FormControl>
                                   <Input type="date" {...field} />
                                 </FormControl>
@@ -645,7 +649,7 @@ export default function VisaManagement() {
                             name="expiryDate"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Expiry Date</FormLabel>
+                                <FormLabel>Expiry Date *</FormLabel>
                                 <FormControl>
                                   <Input type="date" {...field} />
                                 </FormControl>
@@ -654,85 +658,128 @@ export default function VisaManagement() {
                             )}
                           />
                         </div>
-                        {/* File Upload Section - Fixed structure */}
-                        <div className="space-y-2 border border-blue-200 rounded-lg p-4 bg-blue-50">
-                          <label className="text-blue-700 font-semibold flex items-center gap-2 text-sm">
-                            <Upload className="h-4 w-4" />
-                            📎 Visa Copy (Optional) - Upload to Google Cloud Storage
-                          </label>
-                          <div className="flex items-center space-x-2">
-                            <Input
-                              type="file"
-                              accept=".pdf,.jpg,.jpeg,.png"
-                              onChange={handleFileChange}
-                              className="flex-1"
-                            />
-                            {selectedFile && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedFile(null);
-                                  // Clear the file input
-                                  const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-                                  if (fileInput) fileInput.value = '';
-                                }}
-                              >
-                                Clear
-                              </Button>
-                            )}
+
+                        {/* File Upload Section - Enhanced Design */}
+                        <div className="border border-blue-300 rounded-lg p-6 bg-gradient-to-r from-blue-50 to-indigo-50">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
+                              <Upload className="h-5 w-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-semibold text-blue-800">📎 Visa Document Upload</h3>
+                              <p className="text-sm text-blue-600">Upload visa copy to Google Cloud Storage (Optional)</p>
+                            </div>
                           </div>
-                          {selectedFile && (
-                            <p className="text-sm text-green-600">
-                              Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                            </p>
-                          )}
-                          <p className="text-xs text-gray-600">
-                            Upload PDF, JPG, or PNG files up to 10MB. Files stored at: thermopac_storage/Business_Visa/{Employee}/{Country}/{Visa Number}
-                          </p>
+
+                          <div className="space-y-4">
+                            <div className="flex items-center space-x-3">
+                              <Input
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={handleFileChange}
+                                className="flex-1 border-blue-200 focus:border-blue-400 focus:ring-blue-200"
+                                ref={fileInputRef}
+                              />
+                              {selectedFile && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedFile(null);
+                                    if (fileInputRef.current) {
+                                      fileInputRef.current.value = '';
+                                    }
+                                  }}
+                                  className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                                >
+                                  Clear
+                                </Button>
+                              )}
+                            </div>
+
+                            {selectedFile && (
+                              <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                                <p className="text-sm text-green-700 font-medium">
+                                  ✓ File selected: {selectedFile.name}
+                                </p>
+                                <p className="text-xs text-green-600">
+                                  Size: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                                </p>
+                              </div>
+                            )}
+
+                            <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                              <p className="text-sm text-blue-700 font-medium mb-1">Storage Path:</p>
+                              <code className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                                thermopac_storage/Business_Visa/{'{Employee}'}/{'{Country}'}/{'{Visa Number}'}/{'{filename}'}
+                              </code>
+                              <p className="text-xs text-blue-600 mt-2">
+                                Accepted formats: PDF, JPG, PNG • Maximum size: 10MB
+                              </p>
+                            </div>
+                          </div>
                         </div>
 
-                        <FormField
-                          control={form.control}
-                          name="quotaReference"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Quota Reference (Optional)</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Enter quota reference" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="notes"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Notes (Optional)</FormLabel>
-                              <FormControl>
-                                <Textarea placeholder="Enter any additional notes" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        {/* Additional Fields */}
+                        <div className="grid grid-cols-1 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="quotaReference"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Quota Reference (Optional)</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Enter quota reference" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="notes"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Notes (Optional)</FormLabel>
+                                <FormControl>
+                                  <Textarea 
+                                    placeholder="Enter any additional notes about this visa record" 
+                                    {...field} 
+                                    rows={3}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                         
-                        <div className="flex justify-end space-x-2">
-                          <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
+                        {/* Action Buttons */}
+                        <div className="flex justify-end space-x-3 pt-4 border-t">
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            onClick={() => {
+                              setShowAddDialog(false);
+                              resetForm();
+                            }}
+                          >
                             Cancel
                           </Button>
                           <Button 
                             type="submit" 
                             disabled={createMutation.isPending}
-                            onClick={() => {
-                              console.log('Form errors:', form.formState.errors);
-                              console.log('Form values:', form.getValues());
-                            }}
+                            className="bg-blue-600 hover:bg-blue-700"
                           >
-                            {createMutation.isPending ? 'Creating...' : 'Create Record'}
+                            {createMutation.isPending ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                Creating...
+                              </>
+                            ) : (
+                              'Create Visa Record'
+                            )}
                           </Button>
                         </div>
                       </form>
