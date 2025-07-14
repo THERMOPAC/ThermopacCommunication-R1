@@ -174,7 +174,30 @@ export default function UserManagementPage() {
   // Update user mutation
   const updateUserMutation = useMutation({
     mutationFn: async (userData: UserFormValues & { id: number }) => {
-      const { id, ...data } = userData;
+      const { id, ...rawData } = userData;
+      
+      // Convert string IDs to numbers or null for proper validation
+      const data = {
+        ...rawData,
+        reportingManagerId: rawData.reportingManagerId ? Number(rawData.reportingManagerId) : undefined,
+        workLocationId: rawData.workLocationId ? Number(rawData.workLocationId) : undefined,
+        // Remove empty strings to avoid validation issues
+        firstName: rawData.firstName?.trim() || undefined,
+        middleName: rawData.middleName?.trim() || undefined,
+        lastName: rawData.lastName?.trim() || undefined,
+        jobTitle: rawData.jobTitle?.trim() || undefined,
+        department: rawData.department?.trim() || undefined,
+        branch: rawData.branch?.trim() || undefined,
+        employeeCode: rawData.employeeCode?.trim() || undefined,
+        phone: rawData.phone?.trim() || undefined,
+        fax: rawData.fax?.trim() || undefined,
+        linkedVendor: rawData.linkedVendor?.trim() || undefined,
+        epfNo: rawData.epfNo?.trim() || undefined,
+        esicNo: rawData.esicNo?.trim() || undefined,
+        stdCode: rawData.stdCode?.trim() || undefined,
+        password: rawData.password?.trim() || undefined,
+      };
+      
       console.log('=== FRONTEND UPDATE REQUEST ===');
       console.log('Updating user:', id, 'with data:', data);
       console.log('Data type check:', typeof data, data);
