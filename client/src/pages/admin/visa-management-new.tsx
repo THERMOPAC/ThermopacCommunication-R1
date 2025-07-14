@@ -952,7 +952,7 @@ function VisaRecordsTab() {
           <DialogHeader>
             <DialogTitle>Create New Visa Record</DialogTitle>
             <DialogDescription>
-              Add a new visa record for an employee with all required details.
+              Test
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
