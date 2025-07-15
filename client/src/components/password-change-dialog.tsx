@@ -26,6 +26,8 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { queryClient } from "@/lib/queryClient";
+import { useLocation } from "wouter";
 
 interface PasswordChangeDialogProps {
   isRequired?: boolean;
@@ -54,6 +56,7 @@ export function PasswordChangeDialog({
   
   const { toast } = useToast();
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
 
   const passwordRequirements: PasswordRequirement[] = [
     {
@@ -88,7 +91,7 @@ export function PasswordChangeDialog({
       const response = await apiRequest('POST', '/api/change-password', data);
       return response;
     },
-    onSuccess: () => {
+    onSuccess: async (response) => {
       toast({
         title: "Password Updated",
         description: "Your password has been successfully updated. You will receive an email confirmation.",
@@ -100,8 +103,36 @@ export function PasswordChangeDialog({
       setConfirmPassword('');
       setError(null);
       
-      if (onSuccess) {
-        onSuccess();
+      // If this was a required password update, update the user's auth state
+      if (isRequired && user) {
+        try {
+          // Refetch user data to get updated passwordNeedsUpdate status
+          await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+          
+          // Wait a moment for the query to update
+          setTimeout(() => {
+            // Call onSuccess callback if provided
+            if (onSuccess) {
+              onSuccess();
+            } else {
+              // Default behavior: redirect to dashboard for required updates
+              setLocation("/");
+            }
+          }, 500);
+        } catch (error) {
+          console.error('Error updating auth state:', error);
+          // Fallback: still redirect even if auth update fails
+          if (onSuccess) {
+            onSuccess();
+          } else {
+            setLocation("/");
+          }
+        }
+      } else {
+        // For non-required password changes, just call onSuccess
+        if (onSuccess) {
+          onSuccess();
+        }
       }
     },
     onError: (error: any) => {
