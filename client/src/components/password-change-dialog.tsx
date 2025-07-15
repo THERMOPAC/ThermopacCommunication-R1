@@ -106,19 +106,17 @@ export function PasswordChangeDialog({
       // If this was a required password update, update the user's auth state
       if (isRequired && user) {
         try {
-          // Refetch user data to get updated passwordNeedsUpdate status
+          // Invalidate user queries to refresh authentication state
           await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
           
-          // Wait a moment for the query to update
-          setTimeout(() => {
-            // Call onSuccess callback if provided
-            if (onSuccess) {
-              onSuccess();
-            } else {
-              // Default behavior: redirect to dashboard for required updates
-              setLocation("/");
-            }
-          }, 500);
+          // The backend now updates the session, so we can redirect immediately
+          // Call onSuccess callback if provided
+          if (onSuccess) {
+            onSuccess();
+          } else {
+            // Default behavior: redirect to dashboard for required updates
+            setLocation("/");
+          }
         } catch (error) {
           console.error('Error updating auth state:', error);
           // Fallback: still redirect even if auth update fails

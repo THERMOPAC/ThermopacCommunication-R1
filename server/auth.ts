@@ -334,6 +334,18 @@ export function setupAuth(app: Express) {
 
       console.log(`Password updated successfully for user: ${user.username}`);
 
+      // Update the session with the new user data to reflect passwordNeedsUpdate: false
+      const updatedUser = await storage.getUser(user.id);
+      if (updatedUser) {
+        req.login(updatedUser, (err) => {
+          if (err) {
+            console.error('Session update error after password change:', err);
+          } else {
+            console.log('Session updated successfully after password change');
+          }
+        });
+      }
+
       // Send email notification
       try {
         await sendPasswordUpdateNotification(user.email, user.username);
@@ -344,7 +356,8 @@ export function setupAuth(app: Express) {
 
       res.status(200).json({ 
         message: "Password updated successfully",
-        requiresPasswordUpdate: false
+        requiresPasswordUpdate: false,
+        user: updatedUser
       });
     } catch (error) {
       console.error('Password change error:', error);
