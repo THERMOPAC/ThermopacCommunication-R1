@@ -480,26 +480,26 @@ function Layout({ children }: LayoutProps) {
                         </ul>
                       )}
                       
-                      {/* Show SAP B1 Purchase right after Project Management */}
-                      {item.label === 'Project Management' && (
-                        <li key="sap-b1-purchase" className="mt-1">
-                          <Link href="/sap-b1/purchase">
-                            <button
-                              className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#3B82F6] transition-all
-                                ${location === '/sap-b1/purchase'
-                                  ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold'
-                                  : 'hover:bg-[#F3F4F6] rounded-md'
-                                }`}
-                            >
-                              <Database className={`h-5 w-5 ${location === '/sap-b1/purchase' ? 'text-[#3B82F6]' : 'text-[#3B82F6]'}`} />
-                              <span>SAP B1 Purchase</span>
-                            </button>
-                          </Link>
-                        </li>
-                      )}
+
                     </li>
                   );
                 })}
+                
+                {/* Show SAP B1 Purchase right after Project Management */}
+                <li key="sap-b1-purchase" className="mt-1">
+                  <Link href="/sap-b1/purchase">
+                    <button
+                      className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#3B82F6] transition-all
+                        ${location === '/sap-b1/purchase'
+                          ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold'
+                          : 'hover:bg-[#F3F4F6] rounded-md'
+                        }`}
+                    >
+                      <Database className={`h-5 w-5 ${location === '/sap-b1/purchase' ? 'text-[#3B82F6]' : 'text-[#3B82F6]'}`} />
+                      <span>SAP B1 Purchase</span>
+                    </button>
+                  </Link>
+                </li>
                 
                 {/* Show individual module items (non-submenu) */}
                 {menuItems.filter(item => 

@@ -56,16 +56,20 @@ export default function PurchaseModule() {
   const [statusFilter, setStatusFilter] = useState('all');
 
   // Fetch dashboard statistics
-  const { data: stats, isLoading: statsLoading } = useQuery<PurchaseStats>({
+  const { data: statsResponse, isLoading: statsLoading } = useQuery<{ success: boolean, data: PurchaseStats }>({
     queryKey: ['/api/sap/purchase/dashboard-stats'],
     enabled: activeTab === 'dashboard'
   });
+  
+  const stats = statsResponse?.data;
 
   // Fetch purchase orders
-  const { data: purchaseOrders, isLoading: ordersLoading } = useQuery<PurchaseOrder[]>({
+  const { data: purchaseOrdersResponse, isLoading: ordersLoading } = useQuery<{ success: boolean, data: PurchaseOrder[] }>({
     queryKey: ['/api/sap/purchase/purchase-orders'],
     enabled: activeTab === 'purchase-orders' || activeTab === 'dashboard'
   });
+  
+  const purchaseOrders = purchaseOrdersResponse?.data || [];
 
   // Fetch purchase requisitions
   const { data: requisitions, isLoading: requisitionsLoading } = useQuery({
@@ -251,7 +255,7 @@ export default function PurchaseModule() {
                   <div className="text-center py-8">Loading statistics...</div>
                 ) : (
                   <div className="space-y-4">
-                    {(purchaseOrders || []).slice(0, 5).map((order) => (
+                    {purchaseOrders.slice(0, 5).map((order) => (
                       <div key={order.docEntry} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                         <div>
                           <p className="font-medium">{order.docNum}</p>
