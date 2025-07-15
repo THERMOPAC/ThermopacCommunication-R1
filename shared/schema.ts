@@ -1346,6 +1346,28 @@ export const customers = pgTable('customers', {
   countryName: text('country_name'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  
+  // SAP B1 Integration fields
+  sapCardCode: text('sap_card_code').unique(),
+  sapCardName: text('sap_card_name'),
+  sapCardType: text('sap_card_type'),
+  sapPhone1: text('sap_phone1'),
+  sapPhone2: text('sap_phone2'),
+  sapFax: text('sap_fax'),
+  sapEmail: text('sap_email'),
+  sapMailAddress: text('sap_mail_address'),
+  sapMailCity: text('sap_mail_city'),
+  sapMailCountry: text('sap_mail_country'),
+  sapMailZipCode: text('sap_mail_zip_code'),
+  sapCurrency: text('sap_currency'),
+  sapCreditLine: decimal('sap_credit_line', { precision: 15, scale: 2 }),
+  sapBalance: decimal('sap_balance', { precision: 15, scale: 2 }),
+  sapGroupCode: integer('sap_group_code'),
+  sapLicenseNumber: text('sap_license_number'),
+  sapVatRegNumber: text('sap_vat_reg_number'),
+  sapSyncedAt: timestamp('sap_synced_at'),
+  sapLastModified: timestamp('sap_last_modified'),
+  sapSyncStatus: text('sap_sync_status').default('pending') // pending, synced, error
 });
 
 // Projects table

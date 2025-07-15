@@ -2903,6 +2903,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api', googleCalendarRoutes);
   console.log('Google Calendar integration routes registered at /api');
 
+  // =============================================================================
+  // SAP B1 INTEGRATION ROUTES
+  // =============================================================================
+  
+  const sapB1Routes = (await import('./sap-b1-integration/sap-routes')).default;
+  app.use('/api/sap', sapB1Routes);
+  console.log('SAP B1 integration routes registered at /api/sap');
+
   const httpServer = createServer(app);
   return httpServer;
 }

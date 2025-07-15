@@ -1,0 +1,522 @@
+import sql from 'mssql';
+import { db } from '../db';
+import { customers, masterItems, invoices, payments } from '@shared/schema';
+import { eq, and, or, desc, asc, isNull, isNotNull } from 'drizzle-orm';
+
+/**
+ * SAP Business One Database Connector
+ * Handles direct database integration with SAP B1 SQL Server
+ */
+export class SAPB1Connector {
+  private pool: sql.ConnectionPool | null = null;
+  private isConnected = false;
+
+  constructor() {
+    this.initializeConnection();
+  }
+
+  /**
+   * Initialize connection to SAP B1 database
+   */
+  private async initializeConnection(): Promise<void> {
+    try {
+      const config: sql.config = {
+        server: process.env.SAP_SERVER || 'localhost',
+        database: process.env.SAP_DATABASE || 'SBODemoUS',
+        user: process.env.SAP_USERNAME || 'sa',
+        password: process.env.SAP_PASSWORD || '',
+        options: {
+          encrypt: true,
+          trustServerCertificate: true,
+          enableArithAbort: true,
+          instanceName: process.env.SAP_INSTANCE || 'SQLEXPRESS'
+        },
+        pool: {
+          max: 10,
+          min: 0,
+          idleTimeoutMillis: 30000
+        }
+      };
+
+      this.pool = new sql.ConnectionPool(config);
+      await this.pool.connect();
+      this.isConnected = true;
+      console.log('✅ Connected to SAP B1 database successfully');
+    } catch (error) {
+      console.error('❌ Failed to connect to SAP B1 database:', error);
+      this.isConnected = false;
+    }
+  }
+
+  /**
+   * Ensure connection is active
+   */
+  private async ensureConnection(): Promise<void> {
+    if (!this.isConnected || !this.pool) {
+      await this.initializeConnection();
+    }
+  }
+
+  /**
+   * Get all customers from SAP B1
+   */
+  async getCustomers(): Promise<any[]> {
+    await this.ensureConnection();
+    
+    if (!this.pool) {
+      throw new Error('SAP B1 connection not available');
+    }
+
+    try {
+      const request = this.pool.request();
+      const result = await request.query(`
+        SELECT 
+          CardCode,
+          CardName,
+          CardType,
+          Phone1,
+          Phone2,
+          Fax,
+          E_Mail,
+          MailAddres,
+          MailCity,
+          MailCountr,
+          MailZipCod,
+          ShipToDef,
+          BillToDef,
+          Currency,
+          CreditLine,
+          DebtLine,
+          Balance,
+          ChecksBal,
+          DNotesBal,
+          OrdersBal,
+          GroupCode,
+          LicTradNum,
+          VATRegNum,
+          validFor,
+          validFrom,
+          validTo,
+          CreateDate,
+          UpdateDate,
+          UserSign,
+          UserSign2
+        FROM OCRD 
+        WHERE CardType = 'C' AND validFor = 'Y'
+        ORDER BY CardName
+      `);
+
+      return result.recordset;
+    } catch (error) {
+      console.error('Error fetching customers from SAP B1:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get customer by CardCode
+   */
+  async getCustomerByCode(cardCode: string): Promise<any> {
+    await this.ensureConnection();
+    
+    if (!this.pool) {
+      throw new Error('SAP B1 connection not available');
+    }
+
+    try {
+      const request = this.pool.request();
+      request.input('CardCode', sql.VarChar, cardCode);
+      
+      const result = await request.query(`
+        SELECT 
+          CardCode,
+          CardName,
+          CardType,
+          Phone1,
+          E_Mail,
+          MailAddres,
+          MailCity,
+          Currency,
+          Balance,
+          CreateDate,
+          UpdateDate
+        FROM OCRD 
+        WHERE CardCode = @CardCode AND CardType = 'C' AND validFor = 'Y'
+      `);
+
+      return result.recordset[0] || null;
+    } catch (error) {
+      console.error('Error fetching customer by code from SAP B1:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all items from SAP B1
+   */
+  async getItems(): Promise<any[]> {
+    await this.ensureConnection();
+    
+    if (!this.pool) {
+      throw new Error('SAP B1 connection not available');
+    }
+
+    try {
+      const request = this.pool.request();
+      const result = await request.query(`
+        SELECT 
+          ItemCode,
+          ItemName,
+          FrgnName,
+          ItmsGrpCod,
+          CstGrpCode,
+          VatGourpSa,
+          VatGroupPu,
+          SalUnitMsr,
+          PurUnitMsr,
+          SalPackMsr,
+          PurPackMsr,
+          SHeight1,
+          SHght1Unit,
+          SWidth1,
+          SWdth1Unit,
+          SLength1,
+          SLen1Unit,
+          SVolume,
+          SVolUnit,
+          SWeight1,
+          SWght1Unit,
+          BHeight1,
+          BHght1Unit,
+          BWidth1,
+          BWdth1Unit,
+          BLength1,
+          BLen1Unit,
+          BVolume,
+          BVolUnit,
+          BWeight1,
+          BWght1Unit,
+          CreateDate,
+          UpdateDate,
+          validFor,
+          validFrom,
+          validTo,
+          UserSign
+        FROM OITM 
+        WHERE validFor = 'Y' AND SellItem = 'Y'
+        ORDER BY ItemName
+      `);
+
+      return result.recordset;
+    } catch (error) {
+      console.error('Error fetching items from SAP B1:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get invoices from SAP B1
+   */
+  async getInvoices(fromDate?: Date, toDate?: Date): Promise<any[]> {
+    await this.ensureConnection();
+    
+    if (!this.pool) {
+      throw new Error('SAP B1 connection not available');
+    }
+
+    try {
+      const request = this.pool.request();
+      
+      let whereClause = "WHERE INV.CANCELED = 'N'";
+      if (fromDate) {
+        request.input('FromDate', sql.DateTime, fromDate);
+        whereClause += " AND INV.DocDate >= @FromDate";
+      }
+      if (toDate) {
+        request.input('ToDate', sql.DateTime, toDate);
+        whereClause += " AND INV.DocDate <= @ToDate";
+      }
+
+      const result = await request.query(`
+        SELECT 
+          INV.DocEntry,
+          INV.DocNum,
+          INV.DocDate,
+          INV.DocDueDate,
+          INV.CardCode,
+          INV.CardName,
+          INV.DocCur,
+          INV.DocRate,
+          INV.DocTotal,
+          INV.DocTotalFC,
+          INV.VatSum,
+          INV.VatSumFC,
+          INV.DiscSum,
+          INV.DiscSumFC,
+          INV.PaidToDate,
+          INV.PaidFC,
+          INV.GrosProfit,
+          INV.JrnlMemo,
+          INV.Comments,
+          INV.CreateDate,
+          INV.UpdateDate,
+          INV.UserSign,
+          -- Customer details
+          CRD.Phone1,
+          CRD.E_Mail,
+          CRD.MailAddres,
+          CRD.MailCity
+        FROM OINV INV
+        LEFT JOIN OCRD CRD ON INV.CardCode = CRD.CardCode
+        ${whereClause}
+        ORDER BY INV.DocDate DESC, INV.DocNum DESC
+      `);
+
+      return result.recordset;
+    } catch (error) {
+      console.error('Error fetching invoices from SAP B1:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get invoice line items
+   */
+  async getInvoiceItems(docEntry: number): Promise<any[]> {
+    await this.ensureConnection();
+    
+    if (!this.pool) {
+      throw new Error('SAP B1 connection not available');
+    }
+
+    try {
+      const request = this.pool.request();
+      request.input('DocEntry', sql.Int, docEntry);
+      
+      const result = await request.query(`
+        SELECT 
+          INV1.DocEntry,
+          INV1.LineNum,
+          INV1.ItemCode,
+          INV1.Dscription,
+          INV1.Quantity,
+          INV1.Price,
+          INV1.Currency,
+          INV1.Rate,
+          INV1.DiscPrcnt,
+          INV1.LineTotal,
+          INV1.TotalFrgn,
+          INV1.OpenQty,
+          INV1.VatPrcnt,
+          INV1.VatSum,
+          INV1.VatSumFrgn,
+          INV1.unitMsr,
+          INV1.NumPerMsr,
+          INV1.WhsCode,
+          INV1.SlpCode,
+          INV1.Commission,
+          INV1.TreeType,
+          INV1.AcctCode,
+          INV1.TaxCode,
+          INV1.TaxType,
+          INV1.TaxLiable,
+          INV1.PickStatus,
+          INV1.PickOty,
+          INV1.PickIdNo,
+          INV1.OrigItem,
+          INV1.BackOrdr,
+          INV1.FreeText,
+          INV1.ShipDate,
+          INV1.ItemDetails,
+          INV1.LineStatus,
+          INV1.PackQty,
+          INV1.Text,
+          INV1.LineVendor,
+          INV1.GTotal,
+          INV1.GTotalFC,
+          INV1.DistribSum,
+          INV1.DistribSumFC,
+          INV1.DiscountPercent,
+          INV1.DeductibleTax,
+          INV1.DeductibleTaxFC,
+          INV1.TotalSumSy,
+          INV1.GTotalSy,
+          INV1.DistribSumSy,
+          INV1.DeductibleTaxSy,
+          -- Item details
+          ITM.ItemName,
+          ITM.FrgnName,
+          ITM.ItmsGrpCod,
+          ITM.CstGrpCode
+        FROM INV1 
+        LEFT JOIN OITM ITM ON INV1.ItemCode = ITM.ItemCode
+        WHERE INV1.DocEntry = @DocEntry
+        ORDER BY INV1.LineNum
+      `);
+
+      return result.recordset;
+    } catch (error) {
+      console.error('Error fetching invoice items from SAP B1:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get payments from SAP B1
+   */
+  async getPayments(fromDate?: Date, toDate?: Date): Promise<any[]> {
+    await this.ensureConnection();
+    
+    if (!this.pool) {
+      throw new Error('SAP B1 connection not available');
+    }
+
+    try {
+      const request = this.pool.request();
+      
+      let whereClause = "WHERE RCT.Canceled = 'N'";
+      if (fromDate) {
+        request.input('FromDate', sql.DateTime, fromDate);
+        whereClause += " AND RCT.DocDate >= @FromDate";
+      }
+      if (toDate) {
+        request.input('ToDate', sql.DateTime, toDate);
+        whereClause += " AND RCT.DocDate <= @ToDate";
+      }
+
+      const result = await request.query(`
+        SELECT 
+          RCT.DocEntry,
+          RCT.DocNum,
+          RCT.DocDate,
+          RCT.DocDueDate,
+          RCT.CardCode,
+          RCT.CardName,
+          RCT.DocCur,
+          RCT.DocRate,
+          RCT.DocTotal,
+          RCT.DocTotalFC,
+          RCT.CashSum,
+          RCT.CheckSum,
+          RCT.TrsfrSum,
+          RCT.TrsfrSumFC,
+          RCT.CashSumFC,
+          RCT.CheckSumFC,
+          RCT.DocType,
+          RCT.HandWritten,
+          RCT.Printed,
+          RCT.JrnlMemo,
+          RCT.Comments,
+          RCT.CreateDate,
+          RCT.UpdateDate,
+          RCT.UserSign,
+          -- Customer details
+          CRD.Phone1,
+          CRD.E_Mail
+        FROM ORCT RCT
+        LEFT JOIN OCRD CRD ON RCT.CardCode = CRD.CardCode
+        ${whereClause}
+        ORDER BY RCT.DocDate DESC, RCT.DocNum DESC
+      `);
+
+      return result.recordset;
+    } catch (error) {
+      console.error('Error fetching payments from SAP B1:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get payment allocations
+   */
+  async getPaymentAllocations(docEntry: number): Promise<any[]> {
+    await this.ensureConnection();
+    
+    if (!this.pool) {
+      throw new Error('SAP B1 connection not available');
+    }
+
+    try {
+      const request = this.pool.request();
+      request.input('DocEntry', sql.Int, docEntry);
+      
+      const result = await request.query(`
+        SELECT 
+          RCT2.DocNum,
+          RCT2.DocEntry,
+          RCT2.InvType,
+          RCT2.DocEntry as PaymentDocEntry,
+          RCT2.InstlmntID,
+          RCT2.SumApplied,
+          RCT2.AppliedFC,
+          RCT2.AppliedSys,
+          RCT2.DocRate,
+          RCT2.DocLine,
+          RCT2.InvEntry,
+          RCT2.LineNum,
+          RCT2.ObjType,
+          RCT2.CardCode,
+          RCT2.CardName,
+          RCT2.DocDate,
+          RCT2.DocDueDate,
+          RCT2.CashDiscFC,
+          RCT2.CashDiscSC,
+          RCT2.CashDisc,
+          RCT2.WtAmnt,
+          RCT2.WtAmntFC,
+          RCT2.WtAmntSC,
+          RCT2.BalDueDeb,
+          RCT2.BalDueCredt,
+          RCT2.BalDueFc,
+          RCT2.BalDueSys,
+          RCT2.TotalDisc,
+          RCT2.TotalDiscFC,
+          RCT2.TotalDiscSC
+        FROM RCT2 
+        WHERE RCT2.DocEntry = @DocEntry
+        ORDER BY RCT2.LineNum
+      `);
+
+      return result.recordset;
+    } catch (error) {
+      console.error('Error fetching payment allocations from SAP B1:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Close connection
+   */
+  async disconnect(): Promise<void> {
+    if (this.pool) {
+      await this.pool.close();
+      this.isConnected = false;
+      console.log('✅ Disconnected from SAP B1 database');
+    }
+  }
+
+  /**
+   * Test connection
+   */
+  async testConnection(): Promise<boolean> {
+    try {
+      await this.ensureConnection();
+      
+      if (!this.pool) {
+        return false;
+      }
+
+      const request = this.pool.request();
+      const result = await request.query('SELECT @@VERSION as Version');
+      
+      console.log('SAP B1 Database Version:', result.recordset[0]?.Version);
+      return true;
+    } catch (error) {
+      console.error('Connection test failed:', error);
+      return false;
+    }
+  }
+}
+
+// Export singleton instance
+export const sapB1Connector = new SAPB1Connector();
