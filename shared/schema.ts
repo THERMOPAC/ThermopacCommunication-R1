@@ -3649,7 +3649,7 @@ export const sapPurchaseOrders = pgTable('sap_purchase_orders', {
   updatedBy: integer('updated_by'),
 });
 
-// SAP Purchase Order Items table
+// SAP Purchase Order Items table with Enhanced GST Tracking
 export const sapPurchaseOrderItems = pgTable('sap_purchase_order_items', {
   id: serial('id').primaryKey(),
   docEntry: integer('doc_entry').notNull(),
@@ -3666,10 +3666,48 @@ export const sapPurchaseOrderItems = pgTable('sap_purchase_order_items', {
   priceAfterVat: decimal('price_after_vat', { precision: 15, scale: 4 }).default('0'),
   lineTotal: decimal('line_total', { precision: 15, scale: 2 }).default('0'),
   
-  // Tax Information
+  // Tax Information (Legacy)
   taxCode: varchar('tax_code', { length: 20 }),
   taxRate: decimal('tax_rate', { precision: 5, scale: 2 }).default('0'),
   taxSum: decimal('tax_sum', { precision: 15, scale: 2 }).default('0'),
+  
+  // Enhanced GST Tracking Fields
+  gstType: varchar('gst_type', { length: 20 }).default('IGST'), // 'IGST' or 'CGST+SGST'
+  gstTreatment: varchar('gst_treatment', { length: 30 }).default('taxable'), // 'taxable', 'exempt', 'nil_rated', 'non_gst'
+  placeOfSupply: varchar('place_of_supply', { length: 50 }),
+  vendorState: varchar('vendor_state', { length: 50 }),
+  buyerState: varchar('buyer_state', { length: 50 }),
+  
+  // CGST (Central GST) fields
+  cgstRate: decimal('cgst_rate', { precision: 5, scale: 2 }).default('0'),
+  cgstAmount: decimal('cgst_amount', { precision: 15, scale: 2 }).default('0'),
+  
+  // SGST (State GST) fields
+  sgstRate: decimal('sgst_rate', { precision: 5, scale: 2 }).default('0'),
+  sgstAmount: decimal('sgst_amount', { precision: 15, scale: 2 }).default('0'),
+  
+  // IGST (Integrated GST) fields
+  igstRate: decimal('igst_rate', { precision: 5, scale: 2 }).default('0'),
+  igstAmount: decimal('igst_amount', { precision: 15, scale: 2 }).default('0'),
+  
+  // Total GST amount (sum of all GST components)
+  totalGstAmount: decimal('total_gst_amount', { precision: 15, scale: 2 }).default('0'),
+  
+  // Input Tax Credit eligibility
+  itcEligible: boolean('itc_eligible').default(true),
+  itcClaimAmount: decimal('itc_claim_amount', { precision: 15, scale: 2 }).default('0'),
+  
+  // CapEx/OpEx classification (for GST segregation from asset/operational calculations)
+  expenditureType: varchar('expenditure_type', { length: 20 }).default('OpEx'), // 'CapEx' or 'OpEx'
+  lineTotalBeforeGst: decimal('line_total_before_gst', { precision: 15, scale: 2 }).default('0'),
+  lineTotalAfterGst: decimal('line_total_after_gst', { precision: 15, scale: 2 }).default('0'),
+  
+  // HSN/SAC Code for GST compliance
+  hsnSacCode: varchar('hsn_sac_code', { length: 20 }),
+  commodityDescription: varchar('commodity_description', { length: 255 }),
+  
+  // Financial Year tracking for annual GST reporting
+  financialYear: varchar('financial_year', { length: 20 }),
   
   // Warehouse Information
   warehouseCode: varchar('warehouse_code', { length: 20 }),
@@ -3905,6 +3943,36 @@ export const insertSapPurchaseOrderItemSchema = createInsertSchema(sapPurchaseOr
     deliveryDate: z.string().optional().transform(dateStringToDate),
     sapSyncedAt: z.date().optional(),
     sapLastModified: z.date().optional(),
+    
+    // Enhanced GST Tracking Fields
+    gstType: z.enum(['IGST', 'CGST+SGST']).optional(),
+    gstTreatment: z.enum(['taxable', 'exempt', 'nil_rated', 'non_gst']).optional(),
+    placeOfSupply: z.string().optional(),
+    vendorState: z.string().optional(),
+    buyerState: z.string().optional(),
+    
+    // GST Component Rates and Amounts
+    cgstRate: z.number().optional(),
+    cgstAmount: z.number().optional(),
+    sgstRate: z.number().optional(),
+    sgstAmount: z.number().optional(),
+    igstRate: z.number().optional(),
+    igstAmount: z.number().optional(),
+    totalGstAmount: z.number().optional(),
+    
+    // ITC Eligibility
+    itcEligible: z.boolean().optional(),
+    itcClaimAmount: z.number().optional(),
+    
+    // CapEx/OpEx Classification
+    expenditureType: z.enum(['CapEx', 'OpEx']).optional(),
+    lineTotalBeforeGst: z.number().optional(),
+    lineTotalAfterGst: z.number().optional(),
+    
+    // HSN/SAC and Financial Year
+    hsnSacCode: z.string().optional(),
+    commodityDescription: z.string().optional(),
+    financialYear: z.string().optional(),
   });
 
 export const insertSapPurchaseRequisitionSchema = createInsertSchema(sapPurchaseRequisitions)
