@@ -344,27 +344,27 @@ export default function PurchaseModule() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  <Package className="h-5 w-5 mr-2" />
-                  Quick Actions
+                  <Eye className="h-5 w-5 mr-2" />
+                  Monitoring Actions
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <Button className="w-full justify-start">
+                  <Button className="w-full justify-start" onClick={() => setActiveTab('purchase-orders')}>
                     <FileText className="h-4 w-4 mr-2" />
-                    Create Purchase Order
+                    View Purchase Orders
                   </Button>
-                  <Button className="w-full justify-start" variant="outline">
+                  <Button className="w-full justify-start" variant="outline" onClick={() => setActiveTab('requisitions')}>
                     <Receipt className="h-4 w-4 mr-2" />
-                    Create Purchase Requisition
+                    Track Purchase Requisitions
                   </Button>
-                  <Button className="w-full justify-start" variant="outline">
+                  <Button className="w-full justify-start" variant="outline" onClick={() => setActiveTab('goods-receipt')}>
                     <Package className="h-4 w-4 mr-2" />
-                    Record Goods Receipt
+                    Monitor Goods Receipt
                   </Button>
-                  <Button className="w-full justify-start" variant="outline">
+                  <Button className="w-full justify-start" variant="outline" onClick={() => setActiveTab('vendors')}>
                     <Users className="h-4 w-4 mr-2" />
-                    Manage Vendors
+                    View Vendor Performance
                   </Button>
                 </div>
               </CardContent>
