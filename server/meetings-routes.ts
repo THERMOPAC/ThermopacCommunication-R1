@@ -237,8 +237,9 @@ export const createMeeting = async (req: Request, res: Response) => {
     }
 
     // Check for calendar conflicts before creating the meeting
+    let conflictCheck = null;
     if (!ignoreConflicts) {
-      const conflictCheck = await CalendarConflictService.checkNewMeetingConflicts(
+      conflictCheck = await CalendarConflictService.checkNewMeetingConflicts(
         validatedData.attendeeIds || [],
         validatedData.meetingDate.toISOString().split('T')[0],
         validatedData.startTime,
@@ -246,6 +247,7 @@ export const createMeeting = async (req: Request, res: Response) => {
         user.id
       );
 
+      // Only block meeting creation for hard conflicts (overlapping meetings)
       if (conflictCheck.hasConflicts) {
         return res.status(409).json({
           error: 'Calendar conflicts detected',
@@ -337,7 +339,8 @@ export const createMeeting = async (req: Request, res: Response) => {
       ...meeting,
       googleMeetLink,
       googleCalendarConnected,
-      autoCreated: !!googleMeetLink
+      autoCreated: !!googleMeetLink,
+      warnings: conflictCheck?.warnings || []
     });
   } catch (error) {
     console.error('Error creating meeting:', error);
@@ -378,6 +381,7 @@ export const updateMeeting = async (req: Request, res: Response) => {
     // Check for calendar conflicts if time/date/attendees are being changed
     const hasTimeChanges = validatedData.meetingDate || validatedData.startTime || validatedData.endTime;
     const hasAttendeeChanges = validatedData.attendeeIds;
+    let conflictCheck = null;
     
     if (!ignoreConflicts && (hasTimeChanges || hasAttendeeChanges)) {
       const meetingDate = validatedData.meetingDate 
@@ -388,7 +392,7 @@ export const updateMeeting = async (req: Request, res: Response) => {
       const attendeeIds = validatedData.attendeeIds || originalMeeting.attendeeIds || [];
       const organizerId = originalMeeting.organizerId;
 
-      const conflictCheck = await CalendarConflictService.checkUpdateMeetingConflicts(
+      conflictCheck = await CalendarConflictService.checkUpdateMeetingConflicts(
         parseInt(id),
         attendeeIds,
         meetingDate,
@@ -397,6 +401,7 @@ export const updateMeeting = async (req: Request, res: Response) => {
         organizerId
       );
 
+      // Only block for hard conflicts (overlapping meetings)
       if (conflictCheck.hasConflicts) {
         return res.status(409).json({
           error: 'Calendar conflicts detected',
@@ -452,7 +457,10 @@ export const updateMeeting = async (req: Request, res: Response) => {
       // Don't fail meeting update if calendar sync fails
     }
 
-    res.json(meeting);
+    res.json({
+      ...meeting,
+      warnings: conflictCheck?.warnings || []
+    });
   } catch (error) {
     console.error('Error updating meeting:', error);
     res.status(500).json({ error: 'Failed to update meeting' });

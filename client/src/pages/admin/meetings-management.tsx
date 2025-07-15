@@ -492,18 +492,29 @@ export default function MeetingsManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/meetings/dashboard/stats'] });
       setIsCreateMeetingOpen(false);
       
+      let toastMessage = '';
       if (data.googleMeetLink) {
-        toast({ 
-          title: 'Meeting created successfully', 
-          description: `Google Meet link automatically generated and added to your calendar`
-        });
+        toastMessage = 'Google Meet link automatically generated and added to your calendar';
       } else if (data.googleCalendarConnected === false) {
+        toastMessage = 'Connect your Google Calendar to automatically generate Meet links for future meetings';
+      }
+      
+      // Display warnings if any exist
+      if (data.warnings && data.warnings.length > 0) {
+        const warningMessage = data.warnings.map((warning: any) => 
+          `${warning.userName} has adjacent meetings (within 15 minutes)`
+        ).join(', ');
+        
         toast({ 
           title: 'Meeting created successfully', 
-          description: 'Connect your Google Calendar to automatically generate Meet links for future meetings'
+          description: `${toastMessage}${toastMessage ? '. ' : ''}Warning: ${warningMessage}`,
+          variant: 'default'
         });
       } else {
-        toast({ title: 'Meeting created successfully' });
+        toast({ 
+          title: 'Meeting created successfully',
+          description: toastMessage || undefined
+        });
       }
     },
     onError: (error: any) => {
@@ -515,10 +526,24 @@ export default function MeetingsManagement() {
   const updateMeetingMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<MeetingFormData> }) =>
       apiRequest('PUT', `/api/meetings/${id}`, data),
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
       setEditingMeeting(null);
-      toast({ title: 'Meeting updated successfully' });
+      
+      // Display warnings if any exist
+      if (data.warnings && data.warnings.length > 0) {
+        const warningMessage = data.warnings.map((warning: any) => 
+          `${warning.userName} has adjacent meetings (within 15 minutes)`
+        ).join(', ');
+        
+        toast({ 
+          title: 'Meeting updated successfully', 
+          description: `Warning: ${warningMessage}`,
+          variant: 'default'
+        });
+      } else {
+        toast({ title: 'Meeting updated successfully' });
+      }
     },
   });
 
