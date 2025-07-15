@@ -3692,7 +3692,7 @@ Suggested next steps
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                    <span className="text-sm text-gray-700">Time: 9:30 AM - 10:00 AM</span>
+                    <span className="text-sm text-gray-700">Time: 10:30 AM - 11:00 AM</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
@@ -3730,17 +3730,21 @@ Suggested next steps
             </div>
           </Card>
 
-          {/* Conflict Resolution Notice */}
-          <Card className="p-6 bg-green-50 border-green-200">
-            <h3 className="font-semibold text-green-800 mb-3">✅ Conflict Resolution Status</h3>
+          {/* Conflict Warning Notice */}
+          <Card className="p-6 bg-red-50 border-red-200">
+            <h3 className="font-semibold text-red-800 mb-3">⚠️ SCHEDULING CONFLICT DETECTED</h3>
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <span className="text-sm text-green-700">Previous conflict: Employee Planning at 11:00 AM overlapped with MD Strategic Thinking (10:30 AM - 12:30 PM)</span>
+                <span className="text-sm text-red-700">Employee Planning: 10:30 AM - 11:00 AM (All weekdays)</span>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-green-700">✅ RESOLVED: Employee Planning moved to 9:30 AM - 10:00 AM to eliminate conflicts</span>
+                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                <span className="text-sm text-red-700">MD Strategic Thinking: 10:30 AM - 12:30 PM (Mondays)</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                <span className="text-sm text-red-700 font-medium">⚠️ CONFLICT: 30-minute overlap every Monday</span>
               </div>
             </div>
           </Card>

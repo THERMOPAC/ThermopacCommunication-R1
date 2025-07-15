@@ -17,7 +17,7 @@ export const employeePlanningTemplate = {
   meetingType: "Personal Planning",
   priority: "Medium",
   duration: 30, // 30 minutes as requested
-  timeSlot: "09:30", // Changed from 11:00 AM to 9:30 AM to avoid MD conflicts
+  timeSlot: "10:30", // Changed from 11:00 AM to 9:30 AM to avoid MD conflicts
   agenda: "Daily task review, priority setting, and goal alignment"
 };
 
@@ -80,8 +80,8 @@ async function checkMDConflicts(userId: number, startDate: Date, endDate: Date):
   for (const mdMeeting of mdMeetings) {
     const mdStartTime = mdMeeting.startTime;
     const mdEndTime = mdMeeting.endTime;
-    const employeeStartTime = "09:30";
-    const employeeEndTime = "10:00";
+    const employeeStartTime = "10:30";
+    const employeeEndTime = "11:00";
     
     // Check for time overlaps
     if (mdStartTime < employeeEndTime && mdEndTime > employeeStartTime) {
@@ -90,7 +90,7 @@ async function checkMDConflicts(userId: number, startDate: Date, endDate: Date):
         mdMeeting: mdMeeting.title,
         mdTime: `${mdStartTime} - ${mdEndTime}`,
         employeeTime: `${employeeStartTime} - ${employeeEndTime}`,
-        conflict: 'RESOLVED: Employee Planning moved to 9:30 AM to avoid MD Strategic Thinking conflicts'
+        conflict: 'ACTIVE CONFLICT: Employee Planning (10:30-11:00 AM) overlaps with MD Strategic Thinking (10:30 AM-12:30 PM)'
       });
     }
   }
@@ -156,7 +156,7 @@ export const generateWeeklyEmployeeMeetings = async (req: Request, res: Response
         description: employeePlanningTemplate.description,
         meetingDate: dateStr,
         startTime: employeePlanningTemplate.timeSlot,
-        endTime: "10:00", // 30-minute duration from 9:30 AM
+        endTime: "11:00", // 30-minute duration from 10:30 AM
         meetingType: employeePlanningTemplate.meetingType,
         priority: employeePlanningTemplate.priority,
         agenda: employeePlanningTemplate.agenda,
