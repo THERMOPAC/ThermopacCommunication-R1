@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -27,8 +27,14 @@ import {
   Filter,
   Eye,
   Edit,
-  Download
+  Download,
+  Database,
+  Wifi,
+  WifiOff,
+  RefreshCw
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 
 // Types for Purchase module data
 interface PurchaseOrder {
@@ -54,6 +60,10 @@ export default function PurchaseModule() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown');
+  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Fetch dashboard statistics
   const { data: statsResponse, isLoading: statsLoading } = useQuery<{ success: boolean, data: PurchaseStats }>({
@@ -93,6 +103,63 @@ export default function PurchaseModule() {
   const { data: vendors, isLoading: vendorsLoading } = useQuery({
     queryKey: ['/api/sap/purchase/vendors'],
     enabled: activeTab === 'vendors'
+  });
+
+  // SAP B1 Connection Test Mutation
+  const testConnectionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('GET', '/api/sap/test-connection');
+      return response;
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        setConnectionStatus('connected');
+        toast({
+          title: "SAP B1 Connection Successful",
+          description: "Connected to SAP B1 database successfully",
+          variant: "default"
+        });
+      } else {
+        setConnectionStatus('disconnected');
+        toast({
+          title: "SAP B1 Connection Failed",
+          description: data.message || "Failed to connect to SAP B1 database",
+          variant: "destructive"
+        });
+      }
+    },
+    onError: (error: any) => {
+      setConnectionStatus('disconnected');
+      toast({
+        title: "SAP B1 Connection Error",
+        description: error.message || "Connection test failed",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Sync SAP B1 Data Mutation
+  const syncDataMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/sap/sync-data');
+      return response;
+    },
+    onSuccess: (data) => {
+      // Invalidate all purchase-related queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/sap/purchase'] });
+      toast({
+        title: "SAP B1 Data Sync Successful",
+        description: "Purchase data synchronized from SAP B1",
+        variant: "default"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "SAP B1 Data Sync Failed",
+        description: error.message || "Failed to sync data from SAP B1",
+        variant: "destructive"
+      });
+    }
   });
 
   // Dashboard Statistics Cards
@@ -298,6 +365,71 @@ export default function PurchaseModule() {
                   <Button className="w-full justify-start" variant="outline">
                     <Users className="h-4 w-4 mr-2" />
                     Manage Vendors
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Database className="h-5 w-5 mr-2" />
+                  SAP B1 Integration
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Connection Status:</span>
+                    <div className="flex items-center">
+                      {connectionStatus === 'connected' && (
+                        <>
+                          <Wifi className="h-4 w-4 text-green-500 mr-1" />
+                          <Badge variant="default" className="bg-green-100 text-green-800">
+                            Connected
+                          </Badge>
+                        </>
+                      )}
+                      {connectionStatus === 'disconnected' && (
+                        <>
+                          <WifiOff className="h-4 w-4 text-red-500 mr-1" />
+                          <Badge variant="destructive">Disconnected</Badge>
+                        </>
+                      )}
+                      {connectionStatus === 'unknown' && (
+                        <>
+                          <Database className="h-4 w-4 text-gray-500 mr-1" />
+                          <Badge variant="secondary">Unknown</Badge>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <Button 
+                    className="w-full justify-start"
+                    onClick={() => testConnectionMutation.mutate()}
+                    disabled={testConnectionMutation.isPending}
+                  >
+                    {testConnectionMutation.isPending ? (
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Database className="h-4 w-4 mr-2" />
+                    )}
+                    Test SAP B1 Connection
+                  </Button>
+
+                  <Button 
+                    className="w-full justify-start" 
+                    variant="outline"
+                    onClick={() => syncDataMutation.mutate()}
+                    disabled={syncDataMutation.isPending || connectionStatus !== 'connected'}
+                  >
+                    {syncDataMutation.isPending ? (
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    Sync SAP B1 Data
                   </Button>
                 </div>
               </CardContent>
