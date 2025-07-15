@@ -9,6 +9,7 @@ const googleCalendarService = new GoogleCalendarService();
 
 /**
  * Employee Planning Template - Simple daily planning pattern
+ * Note: Scheduled at 9:30 AM to avoid conflict with MD Strategic Thinking (10:30 AM - 12:30 PM on Mondays)
  */
 export const employeePlanningTemplate = {
   title: "Daily Planning Session",
@@ -16,7 +17,7 @@ export const employeePlanningTemplate = {
   meetingType: "Personal Planning",
   priority: "Medium",
   duration: 30, // 30 minutes as requested
-  timeSlot: "11:00", // Fixed at 11:00 AM
+  timeSlot: "09:30", // Changed from 11:00 AM to 9:30 AM to avoid MD conflicts
   agenda: "Daily task review, priority setting, and goal alignment"
 };
 
@@ -57,6 +58,44 @@ async function checkExistingMeetings(userId: number, startDate: Date, endDate: D
     );
   
   return existingMeetings.map(meeting => meeting.meetingDate);
+}
+
+/**
+ * Check for potential MD meeting conflicts
+ */
+async function checkMDConflicts(userId: number, startDate: Date, endDate: Date): Promise<any[]> {
+  const mdMeetings = await db
+    .select()
+    .from(businessMeetings)
+    .where(
+      and(
+        eq(businessMeetings.meetingType, 'Strategic'),
+        gte(businessMeetings.meetingDate, startDate.toISOString().split('T')[0]),
+        lte(businessMeetings.meetingDate, endDate.toISOString().split('T')[0])
+      )
+    );
+  
+  const conflicts = [];
+  
+  for (const mdMeeting of mdMeetings) {
+    const mdStartTime = mdMeeting.startTime;
+    const mdEndTime = mdMeeting.endTime;
+    const employeeStartTime = "09:30";
+    const employeeEndTime = "10:00";
+    
+    // Check for time overlaps
+    if (mdStartTime < employeeEndTime && mdEndTime > employeeStartTime) {
+      conflicts.push({
+        date: mdMeeting.meetingDate,
+        mdMeeting: mdMeeting.title,
+        mdTime: `${mdStartTime} - ${mdEndTime}`,
+        employeeTime: `${employeeStartTime} - ${employeeEndTime}`,
+        conflict: 'RESOLVED: Employee Planning moved to 9:30 AM to avoid MD Strategic Thinking conflicts'
+      });
+    }
+  }
+  
+  return conflicts;
 }
 
 /**
@@ -117,7 +156,7 @@ export const generateWeeklyEmployeeMeetings = async (req: Request, res: Response
         description: employeePlanningTemplate.description,
         meetingDate: dateStr,
         startTime: employeePlanningTemplate.timeSlot,
-        endTime: "11:30", // 30-minute duration
+        endTime: "10:00", // 30-minute duration from 9:30 AM
         meetingType: employeePlanningTemplate.meetingType,
         priority: employeePlanningTemplate.priority,
         agenda: employeePlanningTemplate.agenda,
