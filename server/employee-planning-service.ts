@@ -8,8 +8,8 @@ import { GoogleCalendarService } from './google-calendar-service';
 const googleCalendarService = new GoogleCalendarService();
 
 /**
- * Employee Planning Template - Simple daily planning pattern
- * Note: Scheduled at 9:30 AM to avoid conflict with MD Strategic Thinking (10:30 AM - 12:30 PM on Mondays)
+ * Employee Planning Template - Daily planning pattern with fixed participants
+ * Note: Scheduled at 10:30 AM with 7 fixed participants as requested
  */
 export const employeePlanningTemplate = {
   title: "Daily Planning Session",
@@ -17,9 +17,15 @@ export const employeePlanningTemplate = {
   meetingType: "Personal Planning",
   priority: "Medium",
   duration: 30, // 30 minutes as requested
-  timeSlot: "10:30", // Changed from 11:00 AM to 9:30 AM to avoid MD conflicts
+  timeSlot: "10:30", // 10:30 AM - 11:00 AM
   agenda: "Daily task review, priority setting, and goal alignment"
 };
+
+/**
+ * Fixed participants for all Employee Planning meetings
+ * IDs: Pallab(4), Jawahar(8), Abhay(9), Akash(10), Bhushan(11), Sitaram(19), Rohan(15)
+ */
+export const EMPLOYEE_PLANNING_PARTICIPANTS = [4, 8, 9, 10, 11, 19, 15];
 
 /**
  * Calculate Monday-based week boundaries
@@ -150,7 +156,7 @@ export const generateWeeklyEmployeeMeetings = async (req: Request, res: Response
         continue;
       }
       
-      // Create meeting object
+      // Create meeting object with fixed participants
       const meeting = {
         title: employeePlanningTemplate.title,
         description: employeePlanningTemplate.description,
@@ -161,7 +167,7 @@ export const generateWeeklyEmployeeMeetings = async (req: Request, res: Response
         priority: employeePlanningTemplate.priority,
         agenda: employeePlanningTemplate.agenda,
         organizerId: user.id,
-        attendeeIds: [user.id], // Only the employee themselves
+        attendeeIds: EMPLOYEE_PLANNING_PARTICIPANTS, // Fixed 7 participants: Pallab, Jawahar, Abhay, Akash, Bhushan, Sitaram, Rohan
         location: null,
         meetingUrl: null,
         googleMeetLink: null,
@@ -327,7 +333,7 @@ export const previewWeeklyEmployeeMeetings = async (req: Request, res: Response)
     for (const weekday of weekdays) {
       const dateStr = weekday.toISOString().split('T')[0];
       
-      // Create preview meeting object
+      // Create preview meeting object with fixed participants
       const meeting = {
         id: `preview-${dateStr}`,
         title: employeePlanningTemplate.title,
@@ -339,7 +345,7 @@ export const previewWeeklyEmployeeMeetings = async (req: Request, res: Response)
         priority: employeePlanningTemplate.priority,
         agenda: employeePlanningTemplate.agenda,
         organizerId: user.id,
-        attendeeIds: [user.id],
+        attendeeIds: EMPLOYEE_PLANNING_PARTICIPANTS, // Fixed 7 participants: Pallab, Jawahar, Abhay, Akash, Bhushan, Sitaram, Rohan
         location: null,
         meetingUrl: null,
         googleMeetLink: null,
