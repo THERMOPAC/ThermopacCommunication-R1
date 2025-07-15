@@ -24,18 +24,26 @@ import {
 // Email notification service
 async function sendPasswordUpdateNotification(email: string, username: string): Promise<void> {
   try {
-    // Check if we have SendGrid configuration
-    if (!process.env.SENDGRID_API_KEY) {
-      console.log('SendGrid not configured, skipping password update email');
+    // Check if we have Gmail SMTP configuration
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+      console.log('Gmail SMTP not configured, skipping password update email');
       return;
     }
 
-    const sgMail = require('@sendgrid/mail');
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+    const nodemailer = require('nodemailer');
+    
+    // Create Gmail SMTP transporter
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD
+      }
+    });
 
     const msg = {
       to: email,
-      from: process.env.SENDGRID_FROM_EMAIL || 'noreply@thermopac.com',
+      from: process.env.GMAIL_USER,
       subject: 'Password Updated Successfully - THERMOPAC Security Alert',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -76,8 +84,8 @@ async function sendPasswordUpdateNotification(email: string, username: string): 
       `
     };
 
-    await sgMail.send(msg);
-    console.log(`Password update notification sent to ${email}`);
+    await transporter.sendMail(msg);
+    console.log(`Password update notification sent to ${email} via Gmail SMTP`);
   } catch (error) {
     console.error('Failed to send password update email:', error);
     throw error;
@@ -547,5 +555,32 @@ export function setupAuth(app: Express) {
   app.get("/api/users", async (req, res) => {
     const users = await storage.getAllUsers();
     res.json(users);
+  });
+
+  // Test endpoint for Gmail SMTP functionality
+  app.post("/api/test-gmail-smtp", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const user = req.user as SelectUser;
+      
+      // Test Gmail SMTP by sending a password update notification
+      await sendPasswordUpdateNotification(user.email, user.username);
+      
+      console.log(`Test Gmail SMTP email sent to ${user.email}`);
+      
+      res.status(200).json({ 
+        message: "Test email sent successfully via Gmail SMTP",
+        email: user.email
+      });
+    } catch (error) {
+      console.error('Gmail SMTP test error:', error);
+      res.status(500).json({ 
+        message: "Failed to send test email", 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
   });
 }
