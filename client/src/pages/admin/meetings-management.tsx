@@ -21,6 +21,7 @@ import {
   CalendarIcon,
   ClockIcon,
   UsersIcon,
+  UserIcon,
   MapPinIcon,
   PlusIcon,
   EditIcon,
@@ -823,6 +824,34 @@ export default function MeetingsManagement() {
     enabled: activeTab === 'md-planning' && user?.role === 'Superuser',
   });
 
+  // Employee Planning mutations
+  const generateWeeklyEmployeeMeetingsMutation = useMutation({
+    mutationFn: (params: { startDate: string; endDate: string }) => {
+      return apiRequest('POST', '/api/meetings/employee/generate-weekly', params);
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings/employee/plan-overview'] });
+      toast({ 
+        title: 'Weekly planning sessions generated successfully', 
+        description: `${data.meetings?.length || 0} planning sessions created for this week` 
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error generating weekly planning sessions', 
+        description: error.message, 
+        variant: 'destructive' 
+      });
+    },
+  });
+
+  // Employee Plan Overview query
+  const { data: employeePlanOverview, isLoading: employeePlanLoading } = useQuery({
+    queryKey: ['/api/meetings/employee/plan-overview'],
+    enabled: activeTab === 'employee-planning',
+  });
+
   // Preview modal state
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
@@ -1216,7 +1245,7 @@ export default function MeetingsManagement() {
         </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className={`grid w-full ${user?.role === 'Superuser' ? 'grid-cols-8' : 'grid-cols-7'}`}>
+        <TabsList className={`grid w-full ${user?.role === 'Superuser' ? 'grid-cols-9' : 'grid-cols-8'}`}>
           <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <BarChart3Icon className="h-4 w-4" />
             Dashboard
@@ -1235,6 +1264,10 @@ export default function MeetingsManagement() {
               MD Planning
             </TabsTrigger>
           )}
+          <TabsTrigger value="employee-planning" className="flex items-center gap-2">
+            <UserIcon className="h-4 w-4" />
+            Employee Planning
+          </TabsTrigger>
           <TabsTrigger value="google-calendar" className="flex items-center gap-2">
             <VideoIcon className="h-4 w-4" />
             Google Calendar
@@ -3627,6 +3660,175 @@ Suggested next steps
                 </div>
               </div>
             </div>
+          </Card>
+        </TabsContent>
+
+        {/* Employee Planning Tab */}
+        <TabsContent value="employee-planning" className="space-y-6">
+          {/* Employee Planning Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Employee Planning</h2>
+              <p className="text-gray-600">Automated daily planning sessions for personal productivity</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                <UserIcon className="h-3 w-3 mr-1" />
+                For All Employees
+              </Badge>
+            </div>
+          </div>
+
+          {/* Employee Planning Framework */}
+          <Card className="p-6 bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Daily Planning Template */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Daily Planning Template</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span className="text-sm text-gray-700">Meeting: Daily Planning Session</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    <span className="text-sm text-gray-700">Time: 11:00 AM - 11:30 AM</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                    <span className="text-sm text-gray-700">Duration: 30 minutes</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                    <span className="text-sm text-gray-700">Schedule: Monday to Friday</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Time Allocation */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Weekly Time Allocation</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Weekly Sessions</span>
+                    <span className="font-medium">5 meetings</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Total Time</span>
+                    <span className="font-medium">2.5 hours</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Daily Focus</span>
+                    <span className="font-medium">Personal productivity</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Meeting Type</span>
+                    <span className="font-medium">Personal Planning</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Employee Planning Actions */}
+          <Card className="p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-green-100 rounded-lg">
+                  <UserIcon className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Weekly Planning Generation</h3>
+                  <p className="text-sm text-gray-600">Generate your personal planning sessions for the week</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button 
+                  onClick={() => {
+                    const todayUTC = new Date();
+                    const utcDay = todayUTC.getUTCDay();
+                    
+                    let startOfWeek: Date;
+                    if (utcDay === 0) {
+                      // If Sunday, generate for next week
+                      const diff = todayUTC.getUTCDate() - utcDay + 1;
+                      startOfWeek = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), diff));
+                    } else {
+                      // Generate for this week
+                      const diff = todayUTC.getUTCDate() - utcDay + 1;
+                      startOfWeek = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), diff));
+                    }
+                    
+                    const endOfWeek = new Date(startOfWeek);
+                    endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
+                    
+                    generateWeeklyEmployeeMeetingsMutation.mutate({
+                      startDate: startOfWeek.toISOString().split('T')[0],
+                      endDate: endOfWeek.toISOString().split('T')[0]
+                    });
+                  }} 
+                  disabled={generateWeeklyEmployeeMeetingsMutation.isPending}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {generateWeeklyEmployeeMeetingsMutation.isPending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <PlusIcon className="h-4 w-4 mr-2" />
+                      Generate This Week's Planning
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </Card>
+
+          {/* Employee Planning Overview */}
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Your Planning Schedule</h3>
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                <TimerIcon className="h-3 w-3 mr-1" />
+                {user?.username}'s Sessions
+              </Badge>
+            </div>
+            
+            {employeePlanOverview?.data?.meetings?.length > 0 ? (
+              <div className="space-y-3">
+                {employeePlanOverview.data.meetings.map((meeting: any) => (
+                  <div key={meeting.id} className="flex items-center justify-between p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                        <UserIcon className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900">{meeting.title}</div>
+                        <div className="text-sm text-gray-500">
+                          {format(parseISO(meeting.meetingDate), 'MMM dd, yyyy')} • {meeting.startTime} - {meeting.endTime}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-green-100 text-green-700 border-green-200">
+                        {meeting.status}
+                      </Badge>
+                      <Badge variant="outline" className="text-gray-600">
+                        30 min
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <UserIcon className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <p className="text-lg font-medium mb-2">No Planning Sessions Scheduled</p>
+                <p className="text-sm">Generate your weekly planning sessions to get started</p>
+              </div>
+            )}
           </Card>
         </TabsContent>
       </Tabs>

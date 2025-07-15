@@ -2880,6 +2880,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   console.log('MD Meeting Plan automation routes registered at /api/meetings/md');
   
+  // =============================================================================
+  // EMPLOYEE PLANNING AUTOMATION
+  // =============================================================================
+  
+  const { 
+    generateWeeklyEmployeeMeetings, 
+    getEmployeePlanOverview,
+    getEmployeeTimeAllocation
+  } = await import('./employee-planning-service');
+  
+  app.post('/api/meetings/employee/generate-weekly', ensureAuthenticated, generateWeeklyEmployeeMeetings);
+  app.get('/api/meetings/employee/plan-overview', ensureAuthenticated, getEmployeePlanOverview);
+  app.get('/api/meetings/employee/time-allocation', ensureAuthenticated, getEmployeeTimeAllocation);
+  
+  console.log('Employee Planning automation routes registered at /api/meetings/employee');
+  
   // Register main Google Calendar routes (with authentication required)
   const googleCalendarRoutes = (await import('./google-calendar-routes')).default;
   app.use('/api', googleCalendarRoutes);
