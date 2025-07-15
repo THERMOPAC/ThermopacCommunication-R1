@@ -496,6 +496,252 @@ export class SAPB1Connector {
   }
 
   /**
+   * Get Purchase Orders from SAP B1
+   */
+  async getPurchaseOrders(filters: {
+    vendorCode?: string;
+    status?: string;
+    fromDate?: Date;
+    toDate?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<any[]> {
+    await this.ensureConnection();
+    
+    if (!this.pool) {
+      throw new Error('SAP B1 connection not available');
+    }
+
+    try {
+      const request = this.pool.request();
+      
+      let whereClause = "WHERE PO.CANCELED = 'N'";
+      
+      if (filters.vendorCode) {
+        request.input('VendorCode', sql.VarChar, filters.vendorCode);
+        whereClause += " AND PO.CardCode = @VendorCode";
+      }
+      
+      if (filters.status) {
+        request.input('Status', sql.VarChar, filters.status);
+        whereClause += " AND PO.DocStatus = @Status";
+      }
+      
+      if (filters.fromDate) {
+        request.input('FromDate', sql.DateTime, filters.fromDate);
+        whereClause += " AND PO.DocDate >= @FromDate";
+      }
+      
+      if (filters.toDate) {
+        request.input('ToDate', sql.DateTime, filters.toDate);
+        whereClause += " AND PO.DocDate <= @ToDate";
+      }
+
+      const result = await request.query(`
+        SELECT TOP ${filters.limit || 50}
+          PO.DocEntry,
+          PO.DocNum,
+          PO.DocDate,
+          PO.DocDueDate,
+          PO.CardCode,
+          PO.CardName,
+          PO.DocCur,
+          PO.DocRate,
+          PO.DocTotal,
+          PO.DocTotalFC,
+          PO.VatSum,
+          PO.VatSumFC,
+          PO.DiscSum,
+          PO.DiscSumFC,
+          PO.DocStatus,
+          PO.Comments,
+          PO.JrnlMemo,
+          PO.CreateDate,
+          PO.UpdateDate,
+          PO.UserSign,
+          -- Vendor details
+          VEN.Phone1,
+          VEN.E_Mail,
+          VEN.MailAddres,
+          VEN.MailCity
+        FROM OPOR PO
+        LEFT JOIN OCRD VEN ON PO.CardCode = VEN.CardCode
+        ${whereClause}
+        ORDER BY PO.DocDate DESC, PO.DocNum DESC
+      `);
+
+      return result.recordset;
+    } catch (error) {
+      console.error('Error fetching purchase orders from SAP B1:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get Purchase Order Items
+   */
+  async getPurchaseOrderItems(docEntry: number): Promise<any[]> {
+    await this.ensureConnection();
+    
+    if (!this.pool) {
+      throw new Error('SAP B1 connection not available');
+    }
+
+    try {
+      const request = this.pool.request();
+      request.input('DocEntry', sql.Int, docEntry);
+      
+      const result = await request.query(`
+        SELECT 
+          PO1.DocEntry,
+          PO1.LineNum,
+          PO1.ItemCode,
+          PO1.Dscription,
+          PO1.Quantity,
+          PO1.OpenQty,
+          PO1.Price,
+          PO1.Currency,
+          PO1.Rate,
+          PO1.DiscPrcnt,
+          PO1.LineTotal,
+          PO1.TotalFrgn,
+          PO1.VatPrcnt,
+          PO1.VatSum,
+          PO1.VatSumFrgn,
+          PO1.unitMsr,
+          PO1.NumPerMsr,
+          PO1.WhsCode,
+          PO1.ShipDate,
+          PO1.LineStatus,
+          PO1.Text,
+          -- Item details
+          ITM.ItemName,
+          ITM.FrgnName,
+          ITM.ItmsGrpCod
+        FROM POR1 PO1
+        LEFT JOIN OITM ITM ON PO1.ItemCode = ITM.ItemCode
+        WHERE PO1.DocEntry = @DocEntry
+        ORDER BY PO1.LineNum
+      `);
+
+      return result.recordset;
+    } catch (error) {
+      console.error('Error fetching purchase order items from SAP B1:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get Vendors from SAP B1
+   */
+  async getVendors(): Promise<any[]> {
+    await this.ensureConnection();
+    
+    if (!this.pool) {
+      throw new Error('SAP B1 connection not available');
+    }
+
+    try {
+      const request = this.pool.request();
+      const result = await request.query(`
+        SELECT 
+          CardCode,
+          CardName,
+          CardType,
+          Phone1,
+          Phone2,
+          Fax,
+          E_Mail,
+          MailAddres,
+          MailCity,
+          MailCountr,
+          MailZipCod,
+          Currency,
+          CreditLine,
+          Balance,
+          GroupCode,
+          LicTradNum,
+          VATRegNum,
+          validFor,
+          CreateDate,
+          UpdateDate,
+          UserSign
+        FROM OCRD 
+        WHERE CardType = 'S' AND validFor = 'Y'
+        ORDER BY CardName
+      `);
+
+      return result.recordset;
+    } catch (error) {
+      console.error('Error fetching vendors from SAP B1:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get Purchase Requisitions from SAP B1
+   */
+  async getPurchaseRequisitions(filters: {
+    status?: string;
+    fromDate?: Date;
+    toDate?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<any[]> {
+    await this.ensureConnection();
+    
+    if (!this.pool) {
+      throw new Error('SAP B1 connection not available');
+    }
+
+    try {
+      const request = this.pool.request();
+      
+      let whereClause = "WHERE PR.CANCELED = 'N'";
+      
+      if (filters.status) {
+        request.input('Status', sql.VarChar, filters.status);
+        whereClause += " AND PR.DocStatus = @Status";
+      }
+      
+      if (filters.fromDate) {
+        request.input('FromDate', sql.DateTime, filters.fromDate);
+        whereClause += " AND PR.DocDate >= @FromDate";
+      }
+      
+      if (filters.toDate) {
+        request.input('ToDate', sql.DateTime, filters.toDate);
+        whereClause += " AND PR.DocDate <= @ToDate";
+      }
+
+      const result = await request.query(`
+        SELECT TOP ${filters.limit || 50}
+          PR.DocEntry,
+          PR.DocNum,
+          PR.DocDate,
+          PR.DocDueDate,
+          PR.Comments,
+          PR.JrnlMemo,
+          PR.DocTotal,
+          PR.DocStatus,
+          PR.CreateDate,
+          PR.UpdateDate,
+          PR.UserSign,
+          USR.USER_CODE as CreatedBy
+        FROM OPRQ PR
+        LEFT JOIN OUSR USR ON PR.UserSign = USR.USERID
+        ${whereClause}
+        ORDER BY PR.DocDate DESC, PR.DocNum DESC
+      `);
+
+      return result.recordset;
+    } catch (error) {
+      console.error('Error fetching purchase requisitions from SAP B1:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Test connection
    */
   async testConnection(): Promise<boolean> {
