@@ -135,8 +135,8 @@ export class CalendarConflictService {
           sql`${businessMeetings.status} NOT IN ('Cancelled', 'Completed')`,
           // Check if any participant is involved
           or(
-            eq(businessMeetings.organizerId, sql`ANY(${participantIds})`),
-            sql`${businessMeetings.attendeeIds} && ${JSON.stringify(participantIds)}`
+            sql`${businessMeetings.organizerId} = ANY(${JSON.stringify(participantIds)}::int[])`,
+            sql`${businessMeetings.attendeeIds} && ${JSON.stringify(participantIds)}::int[]`
           )
         )
       );
@@ -148,8 +148,8 @@ export class CalendarConflictService {
           eq(businessMeetings.meetingDate, meetingDate),
           sql`${businessMeetings.status} NOT IN ('Cancelled', 'Completed')`,
           or(
-            eq(businessMeetings.organizerId, sql`ANY(${participantIds})`),
-            sql`${businessMeetings.attendeeIds} && ${JSON.stringify(participantIds)}`
+            sql`${businessMeetings.organizerId} = ANY(${JSON.stringify(participantIds)}::int[])`,
+            sql`${businessMeetings.attendeeIds} && ${JSON.stringify(participantIds)}::int[]`
           ),
           sql`${businessMeetings.id} != ${excludeMeetingId}`
         )
