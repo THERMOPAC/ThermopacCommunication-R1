@@ -122,7 +122,7 @@ router.post('/reject-writeoff/:id', ensureAuthenticated, async (req: Request, re
   }
 });
 
-// Add customers with outstanding invoices endpoint
+// Add customers with outstanding invoices OR unallocated payments endpoint
 router.get('/customers-with-outstanding', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     console.log('=== CUSTOMERS WITH OUTSTANDING ENDPOINT HIT ===');
@@ -132,19 +132,34 @@ router.get('/customers-with-outstanding', ensureAuthenticated, async (req: Reque
         c.id,
         c.bp_name as name
       FROM customers c
-      INNER JOIN invoices i ON c.id = i.customer_id
-      WHERE i.outstanding_amount > 0
+      WHERE c.id IN (
+        -- Customers with outstanding invoices
+        SELECT DISTINCT i.customer_id
+        FROM invoices i
+        WHERE i.outstanding_amount > 0
+        
+        UNION
+        
+        -- Customers with unallocated advance payments
+        SELECT DISTINCT p.customer_id
+        FROM payments p
+        LEFT JOIN payment_invoice_links pil ON p.id = pil.payment_id
+        WHERE p.is_advance_payment = true
+        GROUP BY p.id, p.customer_id, p.amount
+        HAVING p.amount - COALESCE(SUM(pil.amount_applied), 0) > 0.01
+      )
       ORDER BY c.bp_name ASC
     `;
     
     const result = await pool.query(query);
-    console.log('Found customers with outstanding invoices:', result.rows);
+    console.log('Found customers with outstanding invoices OR unallocated payments:', result.rows);
+    console.log('Customer names found:', result.rows.map(r => r.name));
     
     res.json({
       customers: result.rows
     });
   } catch (error) {
-    console.error('Error fetching customers with outstanding invoices:', error);
+    console.error('Error fetching customers with outstanding invoices or payments:', error);
     res.status(500).json({ error: 'Failed to fetch customers' });
   }
 });
