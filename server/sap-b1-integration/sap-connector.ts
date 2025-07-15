@@ -503,6 +503,7 @@ export class SAPB1Connector {
     status?: string;
     fromDate?: Date;
     toDate?: Date;
+    projectCode?: string;
     limit?: number;
     offset?: number;
   }): Promise<any[]> {
@@ -537,6 +538,11 @@ export class SAPB1Connector {
         whereClause += " AND PO.DocDate <= @ToDate";
       }
 
+      if (filters.projectCode) {
+        request.input('ProjectCode', sql.VarChar, filters.projectCode);
+        whereClause += " AND PO.Project = @ProjectCode";
+      }
+
       const result = await request.query(`
         SELECT TOP ${filters.limit || 50}
           PO.DocEntry,
@@ -559,13 +565,39 @@ export class SAPB1Connector {
           PO.CreateDate,
           PO.UpdateDate,
           PO.UserSign,
+          PO.Project as ProjectCode,
+          PO.Confirmed,
+          PO.Printed,
+          PO.TotalExpns,
+          PO.OwnerCode,
+          PO.Rounding,
           -- Vendor details
-          VEN.Phone1,
-          VEN.E_Mail,
-          VEN.MailAddres,
-          VEN.MailCity
+          VEN.Phone1 as VendorPhone,
+          VEN.Fax as VendorFax,
+          VEN.E_Mail as VendorEmail,
+          VEN.MailAddres as VendorAddress,
+          VEN.MailCity as VendorCity,
+          VEN.MailCountr as VendorCountry,
+          VEN.MailZipCod as VendorZipCode,
+          VEN.GroupCode as VendorGroupCode,
+          VEN.Currency as VendorCurrency,
+          VEN.CreditLine as VendorCreditLine,
+          VEN.Balance as VendorBalance,
+          VEN.SlpCode as VendorSalesPersonCode,
+          -- Project details
+          PRJ.PrjName as ProjectName,
+          PRJ.Active as ProjectActive,
+          PRJ.ValidFrom as ProjectValidFrom,
+          PRJ.ValidTo as ProjectValidTo,
+          PRJ.PrjType as ProjectType,
+          PRJ.Industry as ProjectIndustry,
+          PRJ.Reason as ProjectReason,
+          PRJ.StartDate as ProjectStartDate,
+          PRJ.FinishedPrc as ProjectFinishedPercent,
+          PRJ.DocNum as ProjectDocNum
         FROM OPOR PO
         LEFT JOIN OCRD VEN ON PO.CardCode = VEN.CardCode
+        LEFT JOIN OPRJ PRJ ON PO.Project = PRJ.PrjCode
         ${whereClause}
         ORDER BY PO.DocDate DESC, PO.DocNum DESC
       `);
@@ -596,30 +628,70 @@ export class SAPB1Connector {
           PO1.DocEntry,
           PO1.LineNum,
           PO1.ItemCode,
-          PO1.Dscription,
+          PO1.Dscription as ItemDescription,
           PO1.Quantity,
           PO1.OpenQty,
+          PO1.DelivrdQty as DeliveredQty,
+          PO1.OrderedQty,
           PO1.Price,
           PO1.Currency,
-          PO1.Rate,
-          PO1.DiscPrcnt,
+          PO1.Rate as ExchangeRate,
+          PO1.DiscPrcnt as DiscountPercent,
           PO1.LineTotal,
-          PO1.TotalFrgn,
-          PO1.VatPrcnt,
+          PO1.TotalFrgn as LineTotalFC,
+          PO1.VatPrcnt as VATPercent,
           PO1.VatSum,
-          PO1.VatSumFrgn,
-          PO1.unitMsr,
-          PO1.NumPerMsr,
-          PO1.WhsCode,
+          PO1.VatSumFrgn as VATSumFC,
+          PO1.unitMsr as UnitOfMeasure,
+          PO1.NumPerMsr as UnitsPerMeasure,
+          PO1.WhsCode as WarehouseCode,
           PO1.ShipDate,
           PO1.LineStatus,
-          PO1.Text,
-          -- Item details
+          PO1.Text as LineText,
+          PO1.AcctCode as AccountCode,
+          PO1.TaxCode,
+          PO1.SlpCode as SalesPersonCode,
+          PO1.Commission,
+          PO1.TreeType,
+          PO1.CogsOcrCod as CostCenterCode,
+          PO1.Project as LineProjectCode,
+          PO1.PickIdNo as PickListID,
+          PO1.BaseCard as BaseCardCode,
+          PO1.BaseType as BaseDocumentType,
+          PO1.BaseEntry as BaseDocumentEntry,
+          PO1.BaseLine as BaseDocumentLine,
+          -- Item master data details
           ITM.ItemName,
-          ITM.FrgnName,
-          ITM.ItmsGrpCod
+          ITM.FrgnName as ItemForeignName,
+          ITM.ItmsGrpCod as ItemGroupCode,
+          ITM.ItemType,
+          ITM.CodeBars as Barcode,
+          ITM.VATGourpSa as VATGroupSales,
+          ITM.VatGroupPu as VATGroupPurchase,
+          ITM.InvntItem as InventoryItem,
+          ITM.SellItem as SalesItem,
+          ITM.PrchseItem as PurchaseItem,
+          ITM.validFor as ItemValid,
+          ITM.validFrom as ItemValidFrom,
+          ITM.validTo as ItemValidTo,
+          ITM.CardCode as PreferredVendor,
+          ITM.SalUnitMsr as SalesUOM,
+          ITM.PurUnitMsr as PurchaseUOM,
+          ITM.UserText as ItemUserText,
+          ITM.CreateDate as ItemCreateDate,
+          ITM.UpdateDate as ItemUpdateDate,
+          ITM.UserSign as ItemUserSign,
+          -- Item group details
+          OITG.ItmsGrpNam as ItemGroupName,
+          -- Warehouse details
+          OWHS.WhsName as WarehouseName,
+          OWHS.Street as WarehouseStreet,
+          OWHS.City as WarehouseCity,
+          OWHS.Country as WarehouseCountry
         FROM POR1 PO1
         LEFT JOIN OITM ITM ON PO1.ItemCode = ITM.ItemCode
+        LEFT JOIN OITG ON ITM.ItmsGrpCod = OITG.ItmsGrpCod
+        LEFT JOIN OWHS ON PO1.WhsCode = OWHS.WhsCode
         WHERE PO1.DocEntry = @DocEntry
         ORDER BY PO1.LineNum
       `);
