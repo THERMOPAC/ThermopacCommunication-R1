@@ -1091,7 +1091,7 @@ export default function MeetingsManagement() {
       meetingDate: meeting.meeting.meetingDate,
       startTime: meeting.meeting.startTime,
       endTime: meeting.meeting.endTime,
-      location: meeting.meeting.location || '',
+      location: meeting.meeting.googleMeetLink || meeting.meeting.meetingUrl || meeting.meeting.location || '',
       meetingUrl: meeting.meeting.meetingUrl || meeting.meeting.googleMeetLink || '',
       attendeeIds: meeting.meeting.attendeeIds || [],
       agenda: meeting.meeting.agenda || '',
