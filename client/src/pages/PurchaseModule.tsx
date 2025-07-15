@@ -47,11 +47,19 @@ interface PurchaseOrder {
   docCurrency: string;
   docStatus: string;
   comments: string;
-  orderType: 'Item' | 'Service' | 'Mixed'; // New field to differentiate PO types
+  orderType: 'Item' | 'Service' | 'Mixed'; // Item/Service classification
   hasItems: boolean;     // If PO contains physical items
   hasServices: boolean;  // If PO contains services
   itemCount: number;     // Number of item lines
   serviceCount: number;  // Number of service lines
+  // CapEx/OpEx Classification
+  expenditureType: 'CapEx' | 'OpEx' | 'Mixed'; // Capital vs Operational expenditure
+  capExLineCount: number;  // Number of CapEx lines
+  opExLineCount: number;   // Number of OpEx lines
+  capExAmount: number;     // Total CapEx amount
+  opExAmount: number;      // Total OpEx amount
+  capExPercentage: number; // CapEx percentage of total
+  opExPercentage: number;  // OpEx percentage of total
 }
 
 interface PurchaseStats {
@@ -61,13 +69,25 @@ interface PurchaseStats {
   activeVendors: number;
   // Enhanced classification statistics
   classification: {
+    // Item/Service Classification
     itemOrders: number;
     serviceOrders: number;
     mixedOrders: number;
+    // CapEx/OpEx Classification
+    capExOrders: number;
+    opExOrders: number;
+    mixedExpenditureOrders: number;
+    // Financial amounts
+    totalCapExAmount: number;
+    totalOpExAmount: number;
+    totalPurchaseAmount: number;
     percentages: {
       itemPercent: number;
       servicePercent: number;
       mixedPercent: number;
+      capExPercent: number;
+      opExPercent: number;
+      mixedExpenditurePercent: number;
     };
   };
   // Monthly and status statistics
@@ -329,6 +349,7 @@ export default function PurchaseModule() {
                   <TableHead>Date</TableHead>
                   <TableHead>Vendor</TableHead>
                   <TableHead>Order Type</TableHead>
+                  <TableHead>Expenditure Type</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
@@ -350,6 +371,18 @@ export default function PurchaseModule() {
                         }
                       >
                         {order.orderType}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant="outline" 
+                        className={
+                          order.expenditureType === 'CapEx' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                          order.expenditureType === 'OpEx' ? 'bg-teal-50 text-teal-700 border-teal-200' :
+                          'bg-orange-50 text-orange-700 border-orange-200'
+                        }
+                      >
+                        {order.expenditureType}
                       </Badge>
                     </TableCell>
                     <TableCell>{order.docCurrency} {order.docTotal.toLocaleString()}</TableCell>
@@ -445,7 +478,7 @@ export default function PurchaseModule() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Package className="h-5 w-5 mr-2" />
-                  Purchase Order Classification
+                  Purchase Order Classification - Item/Service
                 </CardTitle>
                 <p className="text-sm text-gray-600">
                   Analysis of purchase orders by item and service types
@@ -483,6 +516,74 @@ export default function PurchaseModule() {
                 </div>
                 <div className="mt-4 text-xs text-gray-500 text-center">
                   Classification based on line item analysis: Items (InvntItem='Y') vs Services (InvntItem='N')
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* CapEx/OpEx Classification Overview */}
+          {stats?.classification && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <DollarSign className="h-5 w-5 mr-2" />
+                  Expenditure Classification - CapEx/OpEx
+                </CardTitle>
+                <p className="text-sm text-gray-600">
+                  Financial compliance analysis by capital vs operational expenditure
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div className="text-center p-4 bg-amber-50 rounded-lg border border-amber-200">
+                    <div className="text-2xl font-bold text-amber-700">
+                      {stats.classification.capExOrders}
+                    </div>
+                    <div className="text-sm text-amber-600 font-medium">CapEx Orders</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {stats.classification.percentages.capExPercent}% of total
+                    </div>
+                  </div>
+                  <div className="text-center p-4 bg-teal-50 rounded-lg border border-teal-200">
+                    <div className="text-2xl font-bold text-teal-700">
+                      {stats.classification.opExOrders}
+                    </div>
+                    <div className="text-sm text-teal-600 font-medium">OpEx Orders</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {stats.classification.percentages.opExPercent}% of total
+                    </div>
+                  </div>
+                  <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+                    <div className="text-2xl font-bold text-orange-700">
+                      {stats.classification.mixedExpenditureOrders}
+                    </div>
+                    <div className="text-sm text-orange-600 font-medium">Mixed Expenditure</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {stats.classification.percentages.mixedExpenditurePercent}% of total
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Financial Amount Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-amber-25 rounded-lg border border-amber-100">
+                    <div className="text-lg font-semibold text-amber-800">
+                      {formatCurrency(stats.classification.totalCapExAmount)}
+                    </div>
+                    <div className="text-sm text-amber-600">Total CapEx Amount</div>
+                    <div className="text-xs text-gray-500 mt-1">Capital expenditure for assets</div>
+                  </div>
+                  <div className="p-4 bg-teal-25 rounded-lg border border-teal-100">
+                    <div className="text-lg font-semibold text-teal-800">
+                      {formatCurrency(stats.classification.totalOpExAmount)}
+                    </div>
+                    <div className="text-sm text-teal-600">Total OpEx Amount</div>
+                    <div className="text-xs text-gray-500 mt-1">Operational expenditure</div>
+                  </div>
+                </div>
+                
+                <div className="mt-4 text-xs text-gray-500 text-center">
+                  Classification based on account codes: CapEx (1%, 2%, 16%, 17%) vs OpEx (4%, 5%, 6%, 7%) with 70% threshold
                 </div>
               </CardContent>
             </Card>

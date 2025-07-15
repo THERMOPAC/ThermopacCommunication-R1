@@ -50,6 +50,10 @@ router.get('/purchase-orders', async (req, res) => {
       const itemCount = parseInt(po.ItemCount || 0);
       const serviceCount = parseInt(po.ServiceCount || 0);
       const totalLines = parseInt(po.TotalLines || 0);
+      const capExLineCount = parseInt(po.CapExLineCount || 0);
+      const opExLineCount = parseInt(po.OpExLineCount || 0);
+      const capExAmount = parseFloat(po.CapExAmount || 0);
+      const opExAmount = parseFloat(po.OpExAmount || 0);
 
       // Determine order type based on item/service distribution
       let orderType: 'Item' | 'Service' | 'Mixed';
@@ -67,6 +71,31 @@ router.get('/purchase-orders', async (req, res) => {
         orderType = 'Item';
       }
 
+      // Determine expenditure type based on account codes and amounts
+      let expenditureType: 'CapEx' | 'OpEx' | 'Mixed';
+      const totalAmount = capExAmount + opExAmount;
+      
+      if (totalAmount > 0) {
+        const capExPercentage = (capExAmount / totalAmount) * 100;
+        
+        if (capExPercentage >= 70) {
+          expenditureType = 'CapEx';
+        } else if (capExPercentage <= 30) {
+          expenditureType = 'OpEx';
+        } else {
+          expenditureType = 'Mixed';
+        }
+      } else {
+        // Default based on line count if amounts not available
+        if (capExLineCount > opExLineCount) {
+          expenditureType = 'CapEx';
+        } else if (opExLineCount > capExLineCount) {
+          expenditureType = 'OpEx';
+        } else {
+          expenditureType = 'OpEx'; // Default to OpEx for safety
+        }
+      }
+
       return {
         docEntry: po.DocEntry,
         docNum: po.DocNum,
@@ -82,6 +111,14 @@ router.get('/purchase-orders', async (req, res) => {
         hasServices,
         itemCount,
         serviceCount,
+        // CapEx/OpEx Classification
+        expenditureType,
+        capExLineCount,
+        opExLineCount,
+        capExAmount,
+        opExAmount,
+        capExPercentage: totalAmount > 0 ? Math.round((capExAmount / totalAmount) * 100) : 0,
+        opExPercentage: totalAmount > 0 ? Math.round((opExAmount / totalAmount) * 100) : 0,
         // Additional SAP B1 data
         projectCode: po.ProjectCode,
         projectName: po.ProjectName,
@@ -104,9 +141,27 @@ router.get('/purchase-orders', async (req, res) => {
       },
       classification: {
         totalOrders: processedPurchaseOrders.length,
+        // Item/Service Classification
         itemOrders: processedPurchaseOrders.filter(po => po.orderType === 'Item').length,
         serviceOrders: processedPurchaseOrders.filter(po => po.orderType === 'Service').length,
-        mixedOrders: processedPurchaseOrders.filter(po => po.orderType === 'Mixed').length
+        mixedOrders: processedPurchaseOrders.filter(po => po.orderType === 'Mixed').length,
+        // CapEx/OpEx Classification
+        capExOrders: processedPurchaseOrders.filter(po => po.expenditureType === 'CapEx').length,
+        opExOrders: processedPurchaseOrders.filter(po => po.expenditureType === 'OpEx').length,
+        mixedExpenditureOrders: processedPurchaseOrders.filter(po => po.expenditureType === 'Mixed').length,
+        // Financial amounts
+        totalCapExAmount: processedPurchaseOrders.reduce((sum, po) => sum + (po.capExAmount || 0), 0),
+        totalOpExAmount: processedPurchaseOrders.reduce((sum, po) => sum + (po.opExAmount || 0), 0),
+        totalPurchaseAmount: processedPurchaseOrders.reduce((sum, po) => sum + (po.docTotal || 0), 0),
+        // Percentages calculation
+        percentages: {
+          itemPercent: processedPurchaseOrders.length > 0 ? Math.round((processedPurchaseOrders.filter(po => po.orderType === 'Item').length / processedPurchaseOrders.length) * 100) : 0,
+          servicePercent: processedPurchaseOrders.length > 0 ? Math.round((processedPurchaseOrders.filter(po => po.orderType === 'Service').length / processedPurchaseOrders.length) * 100) : 0,
+          mixedPercent: processedPurchaseOrders.length > 0 ? Math.round((processedPurchaseOrders.filter(po => po.orderType === 'Mixed').length / processedPurchaseOrders.length) * 100) : 0,
+          capExPercent: processedPurchaseOrders.length > 0 ? Math.round((processedPurchaseOrders.filter(po => po.expenditureType === 'CapEx').length / processedPurchaseOrders.length) * 100) : 0,
+          opExPercent: processedPurchaseOrders.length > 0 ? Math.round((processedPurchaseOrders.filter(po => po.expenditureType === 'OpEx').length / processedPurchaseOrders.length) * 100) : 0,
+          mixedExpenditurePercent: processedPurchaseOrders.length > 0 ? Math.round((processedPurchaseOrders.filter(po => po.expenditureType === 'Mixed').length / processedPurchaseOrders.length) * 100) : 0
+        }
       }
     });
   } catch (error) {

@@ -625,7 +625,24 @@ export class SAPB1Connector {
            INNER JOIN OITM ITM ON POI.ItemCode = ITM.ItemCode 
            WHERE POI.DocEntry = PO.DocEntry AND ITM.InvntItem = 'N'
           ) as ServiceCount,
-          (SELECT COUNT(*) FROM POR1 WHERE DocEntry = PO.DocEntry) as TotalLines
+          (SELECT COUNT(*) FROM POR1 WHERE DocEntry = PO.DocEntry) as TotalLines,
+          -- CapEx/OpEx Classification based on Account Codes and Item Groups
+          (SELECT COUNT(*) FROM POR1 POI 
+           WHERE POI.DocEntry = PO.DocEntry 
+           AND (POI.AcctCode LIKE '1%' OR POI.AcctCode LIKE '2%' OR POI.AcctCode LIKE '16%' OR POI.AcctCode LIKE '17%')
+          ) as CapExLineCount,
+          (SELECT COUNT(*) FROM POR1 POI 
+           WHERE POI.DocEntry = PO.DocEntry 
+           AND (POI.AcctCode LIKE '4%' OR POI.AcctCode LIKE '5%' OR POI.AcctCode LIKE '6%' OR POI.AcctCode LIKE '7%')
+          ) as OpExLineCount,
+          (SELECT SUM(POI.LineTotal) FROM POR1 POI 
+           WHERE POI.DocEntry = PO.DocEntry 
+           AND (POI.AcctCode LIKE '1%' OR POI.AcctCode LIKE '2%' OR POI.AcctCode LIKE '16%' OR POI.AcctCode LIKE '17%')
+          ) as CapExAmount,
+          (SELECT SUM(POI.LineTotal) FROM POR1 POI 
+           WHERE POI.DocEntry = PO.DocEntry 
+           AND (POI.AcctCode LIKE '4%' OR POI.AcctCode LIKE '5%' OR POI.AcctCode LIKE '6%' OR POI.AcctCode LIKE '7%')
+          ) as OpExAmount
         FROM OPOR PO
         LEFT JOIN OCRD VEN ON PO.CardCode = VEN.CardCode
         LEFT JOIN OPRJ PRJ ON PO.Project = PRJ.PrjCode
