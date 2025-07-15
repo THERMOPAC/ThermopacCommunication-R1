@@ -545,18 +545,8 @@ function CreditNoteDialog({
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const { toast } = useToast();
 
-  const form = useForm<CreditNoteFormData>({
-    resolver: zodResolver(creditNoteSchema),
-    defaultValues: {
-      creditNoteNumber: '',
-      creditNoteDate: new Date().toISOString().split('T')[0],
-      creditNoteAmount: '',
-      creditNoteReason: '',
-    }
-  });
-
   // Enhanced validation schema with dynamic invoice amount checking
-  const enhancedCreditNoteSchema = useMemo(() => {
+  const currentSchema = useMemo(() => {
     if (!creditNoteDetails?.invoice?.totalAmount) return creditNoteSchema;
     
     return creditNoteSchema.extend({
@@ -588,19 +578,15 @@ function CreditNoteDialog({
     });
   }, [creditNoteDetails]);
 
-  // Update form resolver when enhanced schema changes
-  useEffect(() => {
-    if (creditNoteDetails) {
-      const newForm = useForm<CreditNoteFormData>({
-        resolver: zodResolver(enhancedCreditNoteSchema),
-        defaultValues: form.getValues()
-      });
-      Object.keys(form.getValues()).forEach(key => {
-        newForm.setValue(key as keyof CreditNoteFormData, form.getValues(key as keyof CreditNoteFormData));
-      });
-      form.reset(newForm.getValues());
+  const form = useForm<CreditNoteFormData>({
+    resolver: zodResolver(currentSchema),
+    defaultValues: {
+      creditNoteNumber: '',
+      creditNoteDate: new Date().toISOString().split('T')[0],
+      creditNoteAmount: '',
+      creditNoteReason: '',
     }
-  }, [enhancedCreditNoteSchema]);
+  });
 
   // Fetch credit note details when dialog opens
   useEffect(() => {
