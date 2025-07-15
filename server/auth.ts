@@ -30,7 +30,7 @@ async function sendPasswordUpdateNotification(email: string, username: string): 
       return;
     }
 
-    const nodemailer = require('nodemailer');
+    const nodemailer = await import('nodemailer');
     
     // Create Gmail SMTP transporter
     const transporter = nodemailer.createTransport({
