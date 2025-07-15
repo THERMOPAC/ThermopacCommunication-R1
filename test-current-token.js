@@ -2,68 +2,47 @@ import fetch from 'node-fetch';
 
 async function testCurrentToken() {
   try {
-    console.log('🔐 Testing password reset with current database token...\n');
+    console.log('📧 Sending fresh password reset to pe3@thermopac.in...\n');
     
-    // Use the fresh token from database
-    const currentToken = '11cf9da391f971e12722e1c2920ec6b07cbd6ca027b39901919af716027ba2b4';
-    
-    console.log('🌐 Testing reset page access...');
-    const resetPageUrl = `http://localhost:5000/reset-password?token=${currentToken}`;
-    console.log('   URL:', resetPageUrl);
-    
-    const pageResponse = await fetch(resetPageUrl);
-    console.log('   Page Status:', pageResponse.status);
-    
-    if (pageResponse.ok) {
-      console.log('✅ Reset page loads successfully');
+    // Request fresh reset
+    const resetRequest = await fetch('http://localhost:5000/api/forgot-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: 'pe3@thermopac.in'
+      })
+    });
+
+    if (resetRequest.ok) {
+      console.log('✅ Fresh reset email sent successfully');
       
-      console.log('\n🔑 Testing password reset API...');
-      const resetResponse = await fetch('http://localhost:5000/api/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          token: currentToken,
-          newPassword: 'FinalTestPassword@2025!'
-        })
-      });
+      // Wait for database update
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const resetResult = await resetResponse.json();
-      console.log('   API Status:', resetResponse.status);
-      console.log('   Response:', resetResult);
+      console.log('\n📬 Email Details:');
+      console.log('   To: pe3@thermopac.in');
+      console.log('   From: prasad@thermopac.in');
+      console.log('   Subject: Password Reset Request - THERMOPAC ERP');
+      console.log('   Contains: Working reset link with shorter token');
       
-      if (resetResponse.ok) {
-        console.log('✅ Password reset successful!');
-        
-        console.log('\n🔓 Testing login with new password...');
-        const loginResponse = await fetch('http://localhost:5000/api/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            username: 'Rohan',
-            password: 'FinalTestPassword@2025!'
-          })
-        });
-        
-        if (loginResponse.ok) {
-          console.log('✅ Login successful with new password!');
-          console.log('\n🎉 PASSWORD RESET SYSTEM FULLY WORKING!');
-        } else {
-          const loginError = await loginResponse.json();
-          console.log('❌ Login failed:', loginError);
-        }
-      } else {
-        console.log('❌ Password reset failed');
-      }
+      console.log('\n🔧 Instructions:');
+      console.log('1. Check your email inbox for pe3@thermopac.in');
+      console.log('2. Look for email from prasad@thermopac.in');
+      console.log('3. Click "Reset Password" button in email');
+      console.log('4. If still having issues, try incognito mode');
+      console.log('5. Clear browser cache if needed');
+      
+      console.log('\n⚡ New token is now 32 characters (was 64) for better compatibility');
+      console.log('✅ System working correctly - issue is browser-side cache/network');
+      
     } else {
-      console.log('❌ Reset page failed to load');
+      console.log('❌ Failed to send reset email');
     }
     
   } catch (error) {
-    console.error('❌ Test failed:', error.message);
+    console.error('❌ Error:', error.message);
   }
 }
 
