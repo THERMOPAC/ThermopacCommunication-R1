@@ -1228,12 +1228,6 @@ export default function MeetingsManagement() {
   };
 
   const startEditMeeting = (meeting: Meeting) => {
-    console.log('DEBUG: Edit meeting data:', meeting);
-    console.log('DEBUG: Meeting object:', meeting.meeting);
-    console.log('DEBUG: Start time:', meeting.meeting.startTime);
-    console.log('DEBUG: End time:', meeting.meeting.endTime);
-    console.log('DEBUG: Meeting date:', meeting.meeting.meetingDate);
-    
     setEditingMeeting(meeting);
     meetingForm.reset({
       title: meeting.meeting.title,
@@ -1883,7 +1877,7 @@ export default function MeetingsManagement() {
                                     // Clear end time when start time changes
                                     meetingForm.setValue('endTime', '');
                                   }} 
-                                  defaultValue={field.value}
+                                  value={field.value}
                                 >
                                   <FormControl>
                                     <SelectTrigger>
@@ -1914,7 +1908,7 @@ export default function MeetingsManagement() {
                                 </FormLabel>
                                 <Select 
                                   onValueChange={field.onChange} 
-                                  defaultValue={field.value}
+                                  value={field.value}
                                   disabled={!selectedStartTime}
                                 >
                                   <FormControl>
