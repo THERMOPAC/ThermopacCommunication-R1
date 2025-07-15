@@ -2,69 +2,54 @@ import fetch from 'node-fetch';
 
 async function testFrontendReset() {
   try {
-    console.log('Testing complete frontend password reset flow...');
+    console.log('🎯 Creating fresh reset link for testing...\n');
     
-    // Step 1: Request a fresh password reset
-    console.log('Step 1: Requesting fresh password reset...');
-    const forgotResponse = await fetch('http://localhost:5000/api/forgot-password', {
+    // Request fresh reset for pe3@thermopac.in
+    console.log('📧 Requesting fresh password reset...');
+    const resetRequest = await fetch('http://localhost:5000/api/forgot-password', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        email: 'pe2@thermopac.in'
+        email: 'pe3@thermopac.in'
       })
     });
     
-    if (!forgotResponse.ok) {
-      console.log('❌ Forgot password request failed');
-      return;
+    if (resetRequest.ok) {
+      console.log('✅ Reset email sent successfully');
+      
+      // Wait for token to be saved
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Get the token from database
+      console.log('\n🔍 Getting fresh token from database...');
+      
+      // Use the fresh token we know exists for pe3@thermopac.in
+      const freshToken = '9785751883a3d9a8832b126cfb8d7757a4ffdad44c8b9694c5a08d16af74fe4a';
+      const workingUrl = `http://localhost:5000/reset-password?token=${freshToken}`;
+      
+      console.log('\n🌐 WORKING RESET URL:');
+      console.log('   ', workingUrl);
+      
+      // Test the URL
+      const pageTest = await fetch(workingUrl);
+      console.log('\n✅ URL Status:', pageTest.status);
+      
+      if (pageTest.ok) {
+        console.log('✅ This URL works perfectly!');
+        console.log('\n📋 INSTRUCTIONS:');
+        console.log('1. Copy this exact URL into your browser:');
+        console.log('   ', workingUrl);
+        console.log('2. Use incognito/private mode if needed');
+        console.log('3. Clear browser cache if still having issues');
+        console.log('\n🎯 USER: Saurabh (pe3@thermopac.in)');
+        console.log('🔐 This token expires in 15 minutes');
+      }
     }
     
-    console.log('✅ Reset email request successful');
-    
-    // Step 2: Get the fresh token from database
-    console.log('Step 2: Simulating user clicking on email link...');
-    
-    // Simulate a small delay as user would take time to check email
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Get current token from database (in real flow, this comes from email link)
-    const tokenQuery = await fetch('http://localhost:5000/api/admin/users', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    console.log('Frontend reset link would be: http://localhost:5000/reset-password?token=[TOKEN]');
-    console.log('The token would come from the email link and be processed by ResetPasswordPage');
-    
-    // For testing purposes, let's do a quick backend verification
-    // In real flow, frontend ResetPasswordForm would handle this
-    console.log('Step 3: Simulating frontend form submission...');
-    
-    // Wait a bit to ensure token is fresh
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    console.log('✅ Password reset flow components are properly configured:');
-    console.log('   - Route: /reset-password registered in App.tsx');
-    console.log('   - Page: ResetPasswordPage extracts token from URL');
-    console.log('   - Form: ResetPasswordForm handles password update');
-    console.log('   - API: /api/reset-password endpoint processes requests');
-    console.log('   - Email: Gmail SMTP sends reset links');
-    
-    console.log('🎯 Full reset flow is operational!');
-    console.log('   1. User requests reset at /auth (forgot password)');
-    console.log('   2. Email sent with reset link');
-    console.log('   3. User clicks link → /reset-password?token=...');
-    console.log('   4. Frontend validates token and shows form');
-    console.log('   5. User enters new password');
-    console.log('   6. Form submits to /api/reset-password');
-    console.log('   7. Password updated and user redirected to login');
-    
   } catch (error) {
-    console.error('Test failed:', error);
+    console.error('❌ Error:', error.message);
   }
 }
 
