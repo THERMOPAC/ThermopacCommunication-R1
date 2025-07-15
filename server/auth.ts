@@ -365,6 +365,48 @@ export function setupAuth(app: Express) {
     }
   });
 
+  // Skip mandatory password update (for users with already secure passwords)
+  app.post("/api/skip-password-update", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const user = req.user as SelectUser;
+      
+      // Update the passwordNeedsUpdate flag to false
+      await storage.updateUserPassword(user.id, {
+        password: user.password, // Keep current password
+        passwordHistory: user.passwordHistory || [],
+        passwordNeedsUpdate: false, // Mark as no longer needing update
+        lastPasswordChange: user.lastPasswordChange || new Date()
+      });
+
+      console.log(`User ${user.username} skipped mandatory password update`);
+
+      // Update the session with the new user data
+      const updatedUser = await storage.getUser(user.id);
+      if (updatedUser) {
+        req.login(updatedUser, (err) => {
+          if (err) {
+            console.error('Session update error after skip:', err);
+          } else {
+            console.log('Session updated successfully after skip');
+          }
+        });
+      }
+
+      res.status(200).json({ 
+        message: "Password update skipped successfully",
+        requiresPasswordUpdate: false,
+        user: updatedUser
+      });
+    } catch (error) {
+      console.error('Skip password update error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Request password reset
   app.post("/api/forgot-password", async (req, res) => {
     try {

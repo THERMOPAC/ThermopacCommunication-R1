@@ -146,6 +146,37 @@ export function PasswordChangeDialog({
     }
   });
 
+  const skipPasswordUpdateMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/skip-password-update', {});
+      return response;
+    },
+    onSuccess: async (response) => {
+      toast({
+        title: "Password Update Skipped",
+        description: "You can continue using your current secure password.",
+      });
+      
+      // Update authentication state
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      
+      // Close dialog and redirect
+      if (onCancel) {
+        onCancel();
+      } else {
+        setLocation("/");
+      }
+    },
+    onError: (error: any) => {
+      console.error('Skip password update error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to skip password update. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -363,17 +394,13 @@ export function PasswordChangeDialog({
                 type="button" 
                 variant="outline" 
                 onClick={() => {
-                  // Allow user to skip mandatory update if they already have a secure password
-                  if (onCancel) {
-                    onCancel();
-                  } else {
-                    setLocation("/");
-                  }
+                  // Call the skip mutation to properly update the database
+                  skipPasswordUpdateMutation.mutate();
                 }}
-                disabled={passwordChangeModal.isPending}
+                disabled={passwordChangeModal.isPending || skipPasswordUpdateMutation.isPending}
                 className="text-gray-600 hover:text-gray-800"
               >
-                Skip for Now
+                {skipPasswordUpdateMutation.isPending ? 'Skipping...' : 'Skip for Now'}
               </Button>
             )}
             <Button 
