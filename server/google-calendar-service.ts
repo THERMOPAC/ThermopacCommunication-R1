@@ -637,6 +637,148 @@ export class GoogleCalendarService {
   }
 
   /**
+   * Update Google Calendar event as concluded for all meeting participants
+   */
+  async updateEventAsCompleted(
+    meetingId: number, 
+    googleEventId: string,
+    attendeeIds: number[],
+    concludedBy: string, 
+    concludedAt: Date
+  ): Promise<{ success: number; failed: number; errors: string[] }> {
+    const results = { success: 0, failed: 0, errors: [] as string[] };
+    
+    console.log(`Updating Google Calendar event ${googleEventId} as concluded for ${attendeeIds.length} participants`);
+    
+    // Get meeting details for context
+    const [meeting] = await db
+      .select()
+      .from(businessMeetings)
+      .where(eq(businessMeetings.id, meetingId));
+    
+    if (!meeting) {
+      results.failed = attendeeIds.length;
+      results.errors.push('Meeting not found');
+      return results;
+    }
+    
+    // Get participant details for connected users only
+    const participantUsers = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        googleCalendarConnected: users.googleCalendarConnected,
+        googleCalendarSyncEnabled: users.googleCalendarSyncEnabled
+      })
+      .from(users)
+      .where(eq(users.id, attendeeIds[0])); // Start with first attendee, we'll handle multiple in a loop
+    
+    // Get all participants with Google Calendar connected
+    const connectedParticipants = [];
+    for (const attendeeId of attendeeIds) {
+      const [user] = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          googleCalendarConnected: users.googleCalendarConnected,
+          googleCalendarSyncEnabled: users.googleCalendarSyncEnabled
+        })
+        .from(users)
+        .where(eq(users.id, attendeeId));
+      
+      if (user?.googleCalendarConnected && user?.googleCalendarSyncEnabled) {
+        connectedParticipants.push(user);
+      }
+    }
+    
+    console.log(`Found ${connectedParticipants.length} participants with Google Calendar connected`);
+    
+    // Update event for each connected participant
+    for (const participant of connectedParticipants) {
+      try {
+        const calendar = await this.getCalendarClient(participant.id);
+        if (!calendar) {
+          results.failed++;
+          results.errors.push(`Failed to get calendar client for ${participant.username}`);
+          continue;
+        }
+        
+        // Get current event
+        const currentEvent = await calendar.events.get({
+          calendarId: 'primary',
+          eventId: googleEventId
+        });
+        
+        if (!currentEvent.data) {
+          results.failed++;
+          results.errors.push(`Event not found in ${participant.username}'s calendar`);
+          continue;
+        }
+        
+        // Format conclusion timestamp
+        const conclusionTimestamp = concludedAt.toLocaleString('en-IN', {
+          timeZone: 'Asia/Kolkata',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+        
+        // Create updated description with conclusion marker
+        const originalDescription = currentEvent.data.description || '';
+        const conclusionMarker = `\n\n✅ MEETING CONCLUDED\nConcluded: ${conclusionTimestamp} IST\nConcluded by: ${concludedBy}`;
+        
+        // Check if already concluded (prevent duplicate markers)
+        const updatedDescription = originalDescription.includes('✅ MEETING CONCLUDED') 
+          ? originalDescription 
+          : originalDescription + conclusionMarker;
+        
+        // Update the event
+        await calendar.events.update({
+          calendarId: 'primary',
+          eventId: googleEventId,
+          requestBody: {
+            ...currentEvent.data,
+            description: updatedDescription,
+            status: 'confirmed' // Ensure event is confirmed
+          },
+          sendUpdates: 'all' // Send notifications to all attendees
+        });
+        
+        // Log successful update
+        await this.logSyncOperation(meetingId, participant.id, 'conclude', googleEventId, 'success');
+        results.success++;
+        
+        console.log(`Successfully updated calendar event for ${participant.username} (${participant.email})`);
+        
+      } catch (error) {
+        results.failed++;
+        const errorMsg = `Failed to update calendar for ${participant.username}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        results.errors.push(errorMsg);
+        
+        // Log failed update
+        await this.logSyncOperation(
+          meetingId, 
+          participant.id, 
+          'conclude', 
+          googleEventId, 
+          'error', 
+          errorMsg
+        );
+        
+        console.error(errorMsg);
+      }
+    }
+    
+    console.log(`Google Calendar conclusion sync completed: ${results.success} success, ${results.failed} failed`);
+    return results;
+  }
+
+  /**
    * Log sync operation to database
    */
   private async logSyncOperation(

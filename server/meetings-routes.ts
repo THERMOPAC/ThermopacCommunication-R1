@@ -1080,6 +1080,7 @@ export const concludeMeeting = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { meetingTitle } = req.body;
     const user = req.user as any;
+    const concludedAt = new Date();
 
     // Check if meeting exists
     const [meeting] = await db
@@ -1105,17 +1106,62 @@ export const concludeMeeting = async (req: Request, res: Response) => {
       .update(businessMeetings)
       .set({
         status: 'Completed',
-        updatedAt: new Date()
+        updatedAt: concludedAt
       })
       .where(eq(businessMeetings.id, parseInt(id)))
       .returning();
 
     console.log(`Meeting "${meetingTitle}" (ID: ${id}) concluded by user ${user.username} (ID: ${user.id})`);
 
+    // Google Calendar sync for internal meetings with Google Event ID
+    let googleCalendarSyncResult = null;
+    if (meeting.googleEventId && meeting.attendeeIds && meeting.attendeeIds.length > 0) {
+      try {
+        console.log(`Initiating Google Calendar sync for meeting ${id} with event ID ${meeting.googleEventId}`);
+        
+        // Sync conclusion status to Google Calendar for all participants
+        googleCalendarSyncResult = await googleCalendarService.updateEventAsCompleted(
+          parseInt(id),
+          meeting.googleEventId,
+          meeting.attendeeIds,
+          `${user.username} (${user.role || 'User'})`,
+          concludedAt
+        );
+
+        console.log(`Google Calendar sync completed: ${googleCalendarSyncResult.success} successful, ${googleCalendarSyncResult.failed} failed`);
+        
+        if (googleCalendarSyncResult.errors.length > 0) {
+          console.log('Google Calendar sync errors:', googleCalendarSyncResult.errors);
+        }
+      } catch (syncError) {
+        console.error('Google Calendar sync failed:', syncError);
+        // Don't fail the meeting conclusion if Google Calendar sync fails
+        googleCalendarSyncResult = { 
+          success: 0, 
+          failed: meeting.attendeeIds.length, 
+          errors: [`Sync failed: ${syncError instanceof Error ? syncError.message : 'Unknown error'}`] 
+        };
+      }
+    } else {
+      console.log(`Skipping Google Calendar sync for meeting ${id}: ${!meeting.googleEventId ? 'No Google Event ID' : 'No attendees'}`);
+    }
+
+    // Build response message
+    let responseMessage = 'Meeting concluded successfully';
+    if (googleCalendarSyncResult) {
+      if (googleCalendarSyncResult.success > 0) {
+        responseMessage += `. Google Calendar updated for ${googleCalendarSyncResult.success} participant(s)`;
+      }
+      if (googleCalendarSyncResult.failed > 0) {
+        responseMessage += `. ${googleCalendarSyncResult.failed} participant(s) calendar sync failed`;
+      }
+    }
+
     res.json({
       success: true,
-      message: 'Meeting concluded successfully',
-      meeting: updatedMeeting
+      message: responseMessage,
+      meeting: updatedMeeting,
+      googleCalendarSync: googleCalendarSyncResult
     });
   } catch (error) {
     console.error('Error concluding meeting:', error);
