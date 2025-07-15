@@ -15,20 +15,43 @@ export default function ResetPasswordPage() {
   }>({ type: 'loading', message: '' });
 
   useEffect(() => {
-    // Extract token from URL query parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const tokenParam = urlParams.get('token');
-    
-    if (!tokenParam) {
+    try {
+      // Extract token from URL query parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenParam = urlParams.get('token');
+      
+      console.log('Reset password page loaded');
+      console.log('Current URL:', window.location.href);
+      console.log('Token parameter:', tokenParam);
+      
+      if (!tokenParam) {
+        console.log('No token found in URL parameters');
+        setStatus({
+          type: 'error',
+          message: 'Invalid reset link. Please request a new password reset.'
+        });
+        return;
+      }
+
+      if (tokenParam.length < 10) {
+        console.log('Token too short:', tokenParam.length);
+        setStatus({
+          type: 'error',
+          message: 'Invalid reset token format. Please request a new password reset.'
+        });
+        return;
+      }
+
+      console.log('Valid token found, showing form');
+      setToken(tokenParam);
+      setStatus({ type: 'form', message: '' });
+    } catch (error) {
+      console.error('Error parsing reset URL:', error);
       setStatus({
         type: 'error',
-        message: 'Invalid reset link. Please request a new password reset.'
+        message: 'Error loading reset page. Please try again or request a new reset link.'
       });
-      return;
     }
-
-    setToken(tokenParam);
-    setStatus({ type: 'form', message: '' });
   }, []);
 
   const handleSuccess = () => {

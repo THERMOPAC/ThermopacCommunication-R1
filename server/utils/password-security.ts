@@ -5,7 +5,7 @@ import * as nodemailer from 'nodemailer';
 // Password validation constants
 const MIN_PASSWORD_LENGTH = 12;
 const BCRYPT_SALT_ROUNDS = 12;
-const RESET_TOKEN_LENGTH = 32;
+const RESET_TOKEN_LENGTH = 16; // Reduced to 32 characters for better browser compatibility
 const RESET_TOKEN_EXPIRY_MINUTES = 15;
 
 // Create Gmail SMTP transporter
