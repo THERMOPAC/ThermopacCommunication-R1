@@ -222,8 +222,52 @@ interface GoogleCalendarEvent {
   }>;
 }
 
-// Helper function to generate time options in 15-minute intervals
-const generateTimeOptions = () => {
+// Helper function to generate start time options (9:00 AM to 8:00 PM in 30-minute intervals)
+const generateStartTimeOptions = () => {
+  const times = [];
+  for (let hour = 9; hour <= 20; hour++) {
+    for (let minute = 0; minute < 60; minute += 30) {
+      const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+      const displayTime = hour < 12 
+        ? `${hour}:${minute.toString().padStart(2, '0')} AM`
+        : hour === 12 
+        ? `${hour}:${minute.toString().padStart(2, '0')} PM`
+        : `${hour - 12}:${minute.toString().padStart(2, '0')} PM`;
+      times.push({ value: timeString, label: displayTime });
+    }
+  }
+  return times;
+};
+
+// Helper function to generate end time options based on selected start time
+const generateEndTimeOptions = (startTime: string) => {
+  if (!startTime) return [];
+  
+  const times = [];
+  const [startHour, startMinute] = startTime.split(':').map(Number);
+  const startTimeInMinutes = startHour * 60 + startMinute;
+  
+  for (let hour = 9; hour <= 20; hour++) {
+    for (let minute = 0; minute < 60; minute += 30) {
+      const currentTimeInMinutes = hour * 60 + minute;
+      
+      // Only include times after the selected start time
+      if (currentTimeInMinutes > startTimeInMinutes) {
+        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        const displayTime = hour < 12 
+          ? `${hour}:${minute.toString().padStart(2, '0')} AM`
+          : hour === 12 
+          ? `${hour}:${minute.toString().padStart(2, '0')} PM`
+          : `${hour - 12}:${minute.toString().padStart(2, '0')} PM`;
+        times.push({ value: timeString, label: displayTime });
+      }
+    }
+  }
+  return times;
+};
+
+// Helper function to generate all time options for MD Planning (still uses 15-minute intervals)
+const generateAllTimeOptions = () => {
   const times = [];
   for (let hour = 0; hour < 24; hour++) {
     for (let minute = 0; minute < 60; minute += 15) {
@@ -257,8 +301,15 @@ export default function MeetingsManagement() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  // Generate time options for dropdowns
-  const timeOptions = useMemo(() => generateTimeOptions(), []);
+  // Generate start time options for dropdowns
+  const startTimeOptions = useMemo(() => generateStartTimeOptions(), []);
+  
+  // Watch for start time changes to update end time options
+  const [selectedStartTime, setSelectedStartTime] = useState<string>('');
+  const endTimeOptions = useMemo(() => generateEndTimeOptions(selectedStartTime), [selectedStartTime]);
+  
+  // Generate all time options for MD Planning (still uses 15-minute intervals)
+  const allTimeOptions = useMemo(() => generateAllTimeOptions(), []);
 
   // Load existing AI content when a meeting is selected
   useEffect(() => {
@@ -1761,14 +1812,22 @@ export default function MeetingsManagement() {
                                   Start Time
                                   <span className="text-red-500">*</span>
                                 </FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select 
+                                  onValueChange={(value) => {
+                                    field.onChange(value);
+                                    setSelectedStartTime(value);
+                                    // Clear end time when start time changes
+                                    meetingForm.setValue('endTime', '');
+                                  }} 
+                                  defaultValue={field.value}
+                                >
                                   <FormControl>
                                     <SelectTrigger>
                                       <SelectValue placeholder="Select start time" />
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent className="max-h-60">
-                                    {timeOptions.map((time) => (
+                                    {startTimeOptions.map((time) => (
                                       <SelectItem key={time.value} value={time.value}>
                                         {time.label}
                                       </SelectItem>
@@ -1789,14 +1848,18 @@ export default function MeetingsManagement() {
                                   End Time
                                   <span className="text-red-500">*</span>
                                 </FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select 
+                                  onValueChange={field.onChange} 
+                                  defaultValue={field.value}
+                                  disabled={!selectedStartTime}
+                                >
                                   <FormControl>
                                     <SelectTrigger>
-                                      <SelectValue placeholder="Select end time" />
+                                      <SelectValue placeholder={selectedStartTime ? "Select end time" : "Select start time first"} />
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent className="max-h-60">
-                                    {timeOptions.map((time) => (
+                                    {endTimeOptions.map((time) => (
                                       <SelectItem key={time.value} value={time.value}>
                                         {time.label}
                                       </SelectItem>
@@ -3879,7 +3942,7 @@ Suggested next steps
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {timeOptions.map((time) => (
+                      {allTimeOptions.map((time) => (
                         <SelectItem key={time.value} value={time.value}>
                           {time.label}
                         </SelectItem>
@@ -3901,7 +3964,7 @@ Suggested next steps
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {timeOptions.map((time) => (
+                      {allTimeOptions.map((time) => (
                         <SelectItem key={time.value} value={time.value}>
                           {time.label}
                         </SelectItem>
