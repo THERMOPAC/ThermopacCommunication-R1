@@ -103,6 +103,9 @@ import WorkLocationsPage from "@/pages/work-locations-page";
 import AttendancePage from "@/pages/attendance-page";
 import DwarPage from "@/pages/dwar-page";
 
+// SAP B1 Integration pages
+import PurchaseModule from "@/pages/PurchaseModule";
+
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
 import { Loader2 } from "lucide-react";
@@ -295,6 +298,10 @@ function Router() {
       <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
       <SuperuserRoute path="/module-permissions" component={ModulePermissionsPage} />
       <ProtectedRoute path="/google-calendar-settings" component={() => <Layout><GoogleCalendarSettingsPage /></Layout>} />
+      
+      {/* SAP B1 Integration Routes */}
+      <ProtectedRoute path="/sap-b1/purchase" component={() => <Layout><PurchaseModule /></Layout>} />
+      
       <SuperuserRoute path="/gcs-diagnostic" component={GcsDiagnosticPage} />
       <SuperuserRoute path="/gcs-test" component={GcsTestPage} />
       <SuperuserRoute path="/special-fixes" component={SpecialFixesPage} />

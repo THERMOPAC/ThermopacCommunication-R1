@@ -45,7 +45,8 @@ import {
   Palette,
   FileText,
   Plane,
-  Gavel
+  Gavel,
+  Database
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -291,6 +292,8 @@ function Layout({ children }: LayoutProps) {
         { icon: LayoutTemplate, label: "Template Management", href: "/template-management" }
       ]
     }] : []),
+    // SAP B1 Integration Module (available to all users for now)
+    { icon: Database, label: "SAP B1 Purchase", href: "/sap-b1/purchase" },
     ...(hasViewPermission("Project Commissioning") ? [{ icon: Briefcase, label: "Project Commissioning", href: "/project-commissioning" }] : []),
     ...(hasViewPermission("Dispatch & Shipping") ? [{ icon: Truck, label: "Dispatch & Shipping", href: "/dispatch-shipping" }] : []),
     ...(hasViewPermission("After-Sales") ? [{ icon: HeartPulse, label: "After-Sales", href: "/after-sales" }] : []),
@@ -458,7 +461,8 @@ function Layout({ children }: LayoutProps) {
                   !item.isSubmenu && 
                   (item.href === '/project-commissioning' || 
                    item.href === '/dispatch-shipping' || 
-                   item.href === '/after-sales')
+                   item.href === '/after-sales' ||
+                   item.href === '/sap-b1/purchase')
                 ).map((item, index) => {
                   const Icon = item.icon;
                   const isActive = item.href ? location === item.href : false;
