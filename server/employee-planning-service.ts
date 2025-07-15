@@ -166,7 +166,8 @@ export const generateWeeklyEmployeeMeetings = async (req: Request, res: Response
         meetingUrl: null,
         googleMeetLink: null,
         autoCreateGoogleMeet: false,
-        status: 'Scheduled'
+        status: 'Scheduled',
+        createdBy: user.id // Fix: Add createdBy field
       };
       
       meetingsToCreate.push(meeting);
@@ -288,6 +289,91 @@ export const getEmployeeTimeAllocation = async (req: Request, res: Response) => 
     console.error('❌ Error getting employee time allocation:', error);
     res.status(500).json({ 
       error: 'Failed to get employee time allocation',
+      details: error.message 
+    });
+  }
+};
+
+/**
+ * Preview employee planning meetings for the week
+ */
+export const previewWeeklyEmployeeMeetings = async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!user) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { startDate, endDate } = req.query;
+    
+    console.log(`📅 Previewing weekly employee planning meetings for user: ${user.username} (ID: ${user.id})`);
+    
+    // Calculate week boundaries
+    const weekStart = startDate ? new Date(startDate as string) : new Date();
+    const weekEnd = endDate ? new Date(endDate as string) : new Date();
+    
+    const { startDate: calculatedStart, endDate: calculatedEnd } = calculateWeekBoundaries(weekStart);
+    
+    console.log(`📅 Week range: ${calculatedStart.toDateString()} to ${calculatedEnd.toDateString()}`);
+    
+    // Check for existing meetings
+    const existingDates = await checkExistingMeetings(user.id, calculatedStart, calculatedEnd);
+    console.log(`📅 Existing meetings found for dates: ${existingDates.join(', ')}`);
+    
+    // Generate weekday dates
+    const weekdays = generateWeekdayDates(calculatedStart);
+    const previewMeetings = [];
+    
+    for (const weekday of weekdays) {
+      const dateStr = weekday.toISOString().split('T')[0];
+      
+      // Create preview meeting object
+      const meeting = {
+        id: `preview-${dateStr}`,
+        title: employeePlanningTemplate.title,
+        description: employeePlanningTemplate.description,
+        meetingDate: dateStr,
+        startTime: employeePlanningTemplate.timeSlot,
+        endTime: "11:00",
+        meetingType: employeePlanningTemplate.meetingType,
+        priority: employeePlanningTemplate.priority,
+        agenda: employeePlanningTemplate.agenda,
+        organizerId: user.id,
+        attendeeIds: [user.id],
+        location: null,
+        meetingUrl: null,
+        googleMeetLink: null,
+        autoCreateGoogleMeet: false,
+        status: existingDates.includes(dateStr) ? 'Existing' : 'Scheduled',
+        createdBy: user.id,
+        organizer: {
+          id: user.id,
+          username: user.username,
+          firstName: user.firstName,
+          lastName: user.lastName
+        }
+      };
+      
+      previewMeetings.push(meeting);
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        meetings: previewMeetings,
+        weekRange: {
+          start: calculatedStart.toISOString().split('T')[0],
+          end: calculatedEnd.toISOString().split('T')[0]
+        },
+        existing: existingDates.length,
+        new: previewMeetings.filter(m => m.status === 'Scheduled').length
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error previewing employee planning meetings:', error);
+    res.status(500).json({ 
+      error: 'Failed to preview employee planning meetings',
       details: error.message 
     });
   }

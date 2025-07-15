@@ -2887,9 +2887,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { 
     generateWeeklyEmployeeMeetings, 
     getEmployeePlanOverview,
-    getEmployeeTimeAllocation
+    getEmployeeTimeAllocation,
+    previewWeeklyEmployeeMeetings
   } = await import('./employee-planning-service');
   
+  app.post('/api/meetings/employee/preview-weekly', ensureAuthenticated, previewWeeklyEmployeeMeetings);
   app.post('/api/meetings/employee/generate-weekly', ensureAuthenticated, generateWeeklyEmployeeMeetings);
   app.get('/api/meetings/employee/plan-overview', ensureAuthenticated, getEmployeePlanOverview);
   app.get('/api/meetings/employee/time-allocation', ensureAuthenticated, getEmployeeTimeAllocation);

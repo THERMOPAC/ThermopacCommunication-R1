@@ -846,6 +846,30 @@ export default function MeetingsManagement() {
     },
   });
 
+  // Employee Planning Preview mutation
+  const previewWeeklyEmployeeMeetingsMutation = useMutation({
+    mutationFn: (params: { startDate: string; endDate: string }) => {
+      return apiRequest('POST', '/api/meetings/employee/preview-weekly', params);
+    },
+    onSuccess: (data: any) => {
+      setPreviewData({
+        meetings: data.data.meetings,
+        weekOf: `${data.data.weekRange.start} to ${data.data.weekRange.end}`,
+        totalNewMeetings: data.data.new,
+        totalExisting: data.data.existing
+      });
+      setPreviewType('weekly');
+      setShowEmployeePreviewModal(true);
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error previewing weekly planning sessions', 
+        description: error.message, 
+        variant: 'destructive' 
+      });
+    },
+  });
+
   // Employee Plan Overview query
   const { data: employeePlanOverview, isLoading: employeePlanLoading } = useQuery({
     queryKey: ['/api/meetings/employee/plan-overview'],
@@ -854,6 +878,7 @@ export default function MeetingsManagement() {
 
   // Preview modal state
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showEmployeePreviewModal, setShowEmployeePreviewModal] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const [previewType, setPreviewType] = useState<'weekly' | 'monthly'>('weekly');
   const [editingPreviewMeeting, setEditingPreviewMeeting] = useState<any>(null);
@@ -3767,6 +3792,46 @@ Suggested next steps
               </div>
               <div className="flex items-center gap-3">
                 <Button 
+                  variant="outline"
+                  onClick={() => {
+                    const todayUTC = new Date();
+                    const utcDay = todayUTC.getUTCDay();
+                    
+                    let startOfWeek: Date;
+                    if (utcDay === 0) {
+                      // If Sunday, generate for next week
+                      const diff = todayUTC.getUTCDate() - utcDay + 1;
+                      startOfWeek = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), diff));
+                    } else {
+                      // Generate for this week
+                      const diff = todayUTC.getUTCDate() - utcDay + 1;
+                      startOfWeek = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), diff));
+                    }
+                    
+                    const endOfWeek = new Date(startOfWeek);
+                    endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
+                    
+                    previewWeeklyEmployeeMeetingsMutation.mutate({
+                      startDate: startOfWeek.toISOString().split('T')[0],
+                      endDate: endOfWeek.toISOString().split('T')[0]
+                    });
+                  }} 
+                  disabled={previewWeeklyEmployeeMeetingsMutation.isPending}
+                  className="border-green-600 text-green-600 hover:bg-green-50"
+                >
+                  {previewWeeklyEmployeeMeetingsMutation.isPending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin mr-2" />
+                      Previewing...
+                    </>
+                  ) : (
+                    <>
+                      <EyeIcon className="h-4 w-4 mr-2" />
+                      Preview This Week's Planning
+                    </>
+                  )}
+                </Button>
+                <Button 
                   onClick={() => {
                     const todayUTC = new Date();
                     const utcDay = todayUTC.getUTCDay();
@@ -4231,6 +4296,160 @@ Suggested next steps
                   onClick={() => handleSavePreviewMeetingEdit(editingPreviewMeeting)}
                 >
                   Save Changes
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Employee Planning Preview Modal */}
+      <Dialog open={showEmployeePreviewModal} onOpenChange={setShowEmployeePreviewModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserIcon className="h-5 w-5" />
+              Employee Planning Preview
+            </DialogTitle>
+            <DialogDescription>
+              Review your planning sessions that will be generated and confirm creation.
+            </DialogDescription>
+          </DialogHeader>
+
+          {previewData && (
+            <div className="space-y-6">
+              {/* Summary */}
+              <div className="bg-green-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-green-900">
+                      Week of {previewData.weekOf}
+                    </h4>
+                    <p className="text-sm text-green-700 mt-1">
+                      {previewData.totalNewMeetings} new planning sessions will be created
+                      {previewData.totalExisting > 0 && 
+                        `, ${previewData.totalExisting} already exist`
+                      }
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="bg-white">
+                      {previewData.totalNewMeetings} New
+                    </Badge>
+                    {previewData.totalExisting > 0 && (
+                      <Badge variant="secondary">
+                        {previewData.totalExisting} Existing
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Planning Sessions List */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-gray-900">Planning Session Details</h4>
+                {previewData.meetings.map((meeting: any, index: number) => (
+                  <div 
+                    key={index} 
+                    className={`p-4 rounded-lg border ${
+                      meeting.status === 'Scheduled' 
+                        ? 'bg-green-50 border-green-200' 
+                        : 'bg-gray-50 border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h5 className="font-medium">{meeting.title}</h5>
+                          <Badge 
+                            variant={meeting.status === 'Scheduled' ? 'default' : 'secondary'}
+                            className={
+                              meeting.status === 'Scheduled' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-gray-100 text-gray-600'
+                            }
+                          >
+                            {meeting.status === 'Scheduled' ? 'Will be created' : 'Already exists'}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-gray-600 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <CalendarIcon className="h-4 w-4" />
+                            <span>{format(parseISO(meeting.meetingDate), 'MMM dd, yyyy')}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <ClockIcon className="h-4 w-4" />
+                            <span>{meeting.startTime} - {meeting.endTime}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <UserIcon className="h-4 w-4" />
+                            <span>{meeting.organizer.username}</span>
+                          </div>
+                        </div>
+                        {meeting.description && (
+                          <p className="text-sm text-gray-500 mt-2">{meeting.description}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-green-100 text-green-700">
+                          {meeting.priority}
+                        </Badge>
+                        <Badge variant="outline" className="text-gray-600">
+                          30 min
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowEmployeePreviewModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    // Calculate same dates for generation
+                    const todayUTC = new Date();
+                    const utcDay = todayUTC.getUTCDay();
+                    
+                    let startOfWeek: Date;
+                    if (utcDay === 0) {
+                      const diff = todayUTC.getUTCDate() - utcDay + 1;
+                      startOfWeek = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), diff));
+                    } else {
+                      const diff = todayUTC.getUTCDate() - utcDay + 1;
+                      startOfWeek = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), diff));
+                    }
+                    
+                    const endOfWeek = new Date(startOfWeek);
+                    endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
+                    
+                    generateWeeklyEmployeeMeetingsMutation.mutate({
+                      startDate: startOfWeek.toISOString().split('T')[0],
+                      endDate: endOfWeek.toISOString().split('T')[0]
+                    });
+                    
+                    setShowEmployeePreviewModal(false);
+                  }}
+                  disabled={generateWeeklyEmployeeMeetingsMutation.isPending}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {generateWeeklyEmployeeMeetingsMutation.isPending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <CheckIcon className="h-4 w-4 mr-2" />
+                      Generate Planning Sessions
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
