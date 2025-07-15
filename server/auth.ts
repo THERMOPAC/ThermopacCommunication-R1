@@ -7,12 +7,18 @@ import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser, passwordChangeSchema } from "@shared/schema";
 import { 
-  validatePassword,
-  validatePasswordHistory,
+  validatePasswordStrength,
+  isPasswordRecentlyUsed,
   updatePasswordHistory,
   hashPassword as secureHashPassword,
   comparePassword as secureVerifyPassword,
-  sendPasswordUpdateNotification as sendPasswordNotification
+  sendPasswordChangeConfirmationEmail,
+  generateResetToken,
+  getResetTokenExpiry,
+  isResetTokenValid,
+  sendPasswordResetEmail,
+  validatePasswordHistory,
+  validatePassword
 } from "./utils/password-security";
 
 // Email notification service
@@ -286,17 +292,16 @@ export function setupAuth(app: Express) {
       }
 
       // Validate new password against security requirements
-      const passwordValidation = validatePassword(newPassword);
-      if (!passwordValidation.isValid) {
+      const passwordValidationErrors = validatePasswordStrength(newPassword);
+      if (passwordValidationErrors.length > 0) {
         return res.status(400).json({
           message: "Password validation failed",
-          errors: passwordValidation.errors
+          errors: passwordValidationErrors
         });
       }
 
       // Check password history to prevent reuse
-      const isPasswordUnique = validatePasswordHistory(newPassword, user.passwordHistory || []);
-      if (!isPasswordUnique) {
+      if (await isPasswordRecentlyUsed(newPassword, user.passwordHistory || [])) {
         return res.status(400).json({
           message: "Password validation failed",
           errors: ["Cannot reuse any of your last 5 passwords"]
@@ -319,7 +324,7 @@ export function setupAuth(app: Express) {
 
       // Send email notification
       try {
-        await sendPasswordNotification(user.email, user.username);
+        await sendPasswordUpdateNotification(user.email, user.username);
       } catch (emailError) {
         console.error('Failed to send password update email:', emailError);
         // Don't fail the password update if email fails
@@ -331,6 +336,120 @@ export function setupAuth(app: Express) {
       });
     } catch (error) {
       console.error('Password change error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Request password reset
+  app.post("/api/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      console.log(`Password reset request for email: ${email}`);
+      
+      // Find user by email
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        // Don't reveal if email exists or not for security
+        return res.status(200).json({ 
+          message: "If an account with this email exists, you will receive a password reset link shortly." 
+        });
+      }
+
+      // Generate reset token
+      const resetToken = generateResetToken();
+      const expiresAt = getResetTokenExpiry();
+
+      // Store reset token in database
+      await storage.updateUserResetToken(user.id, resetToken, expiresAt);
+
+      // Send reset email
+      await sendPasswordResetEmail(user.email, user.username, resetToken);
+
+      console.log(`Password reset email sent to ${email}`);
+      
+      res.status(200).json({ 
+        message: "If an account with this email exists, you will receive a password reset link shortly." 
+      });
+    } catch (error) {
+      console.error('Password reset request error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Reset password with token
+  app.post("/api/reset-password", async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+      
+      if (!token || !newPassword) {
+        return res.status(400).json({ message: "Token and new password are required" });
+      }
+
+      console.log(`Password reset attempt with token: ${token.substring(0, 8)}...`);
+      
+      // Find user by reset token
+      const user = await storage.getUserByResetToken(token);
+      if (!user) {
+        return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+
+      // Check token expiration
+      if (!isResetTokenValid(user.resetTokenExpiresAt)) {
+        return res.status(400).json({ message: "Reset token has expired" });
+      }
+
+      // Validate new password
+      const passwordValidationErrors = validatePasswordStrength(newPassword);
+      if (passwordValidationErrors.length > 0) {
+        return res.status(400).json({
+          message: "Password validation failed",
+          errors: passwordValidationErrors
+        });
+      }
+
+      // Check password history
+      if (await isPasswordRecentlyUsed(newPassword, user.passwordHistory || [])) {
+        return res.status(400).json({
+          message: "Password validation failed",
+          errors: ["Cannot reuse any of your last 5 passwords"]
+        });
+      }
+
+      // Hash new password and update history
+      const hashedPassword = await secureHashPassword(newPassword);
+      const updatedHistory = updatePasswordHistory(user.password, user.passwordHistory || []);
+
+      // Update user password and clear reset token
+      await storage.updateUserPassword(user.id, {
+        password: hashedPassword,
+        passwordHistory: updatedHistory,
+        passwordNeedsUpdate: false,
+        lastPasswordChange: new Date()
+      });
+
+      // Clear reset token
+      await storage.clearUserResetToken(user.id);
+
+      console.log(`Password reset successful for user: ${user.username}`);
+
+      // Send email notification
+      try {
+        await sendPasswordUpdateNotification(user.email, user.username);
+      } catch (emailError) {
+        console.error('Failed to send password update email:', emailError);
+        // Don't fail the password reset if email fails
+      }
+
+      res.status(200).json({ 
+        message: "Password reset successful. You can now login with your new password." 
+      });
+    } catch (error) {
+      console.error('Password reset error:', error);
       res.status(500).json({ message: "Internal server error" });
     }
   });

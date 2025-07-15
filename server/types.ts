@@ -41,8 +41,18 @@ export interface IStorage {
   // User management
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByResetToken(resetToken: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, updateData: UserUpdate): Promise<User>;
+  updateUserPassword(id: number, passwordUpdateData: {
+    password: string;
+    passwordHistory: string[];
+    lastPasswordChange: Date;
+    passwordNeedsUpdate: boolean;
+  }): Promise<User>;
+  updateUserResetToken(id: number, resetToken: string, expiresAt: Date): Promise<void>;
+  clearUserResetToken(id: number): Promise<void>;
   deleteUser(id: number): Promise<void>;
   getAllUsers(): Promise<User[]>;
   getSubordinates(managerId: number): Promise<User[]>;

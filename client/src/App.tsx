@@ -6,6 +6,7 @@ import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "./lib/protected-route";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
+import ResetPasswordPage from "@/pages/reset-password-page";
 import Dashboard from "@/pages/dashboard";
 import ProfilePage from "@/pages/profile-page";
 import LeaderboardPage from "@/pages/leaderboard-page";
@@ -151,6 +152,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
       <ProtectedRoute path="/" component={() => <Redirect to="/dashboard" />} />
       <ProtectedRoute path="/dashboard" component={Dashboard} />
       <ProtectedRoute path="/tasks" component={Dashboard} />

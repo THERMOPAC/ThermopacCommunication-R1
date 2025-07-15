@@ -9,12 +9,14 @@ import { useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import { Shield, AlertTriangle } from "lucide-react";
 import { PasswordChangeDialog } from "@/components/password-change-dialog";
+import { ForgotPasswordForm } from "@/components/forgot-password-form";
 
 export default function AuthPage() {
   const { user, loginMutation } = useAuth();
   const [, setLocation] = useLocation();
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [userNeedsPasswordUpdate, setUserNeedsPasswordUpdate] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   // Use useEffect to handle redirection after render
   useEffect(() => {
@@ -63,7 +65,14 @@ export default function AuthPage() {
               <CardTitle>Enterprise Resource Planning</CardTitle>
             </CardHeader>
             <CardContent>
-              <LoginForm loginMutation={loginMutation} />
+              {showForgotPassword ? (
+                <ForgotPasswordForm onBackToLogin={() => setShowForgotPassword(false)} />
+              ) : (
+                <LoginForm 
+                  loginMutation={loginMutation} 
+                  onForgotPassword={() => setShowForgotPassword(true)}
+                />
+              )}
             </CardContent>
           </Card>
         </div>
@@ -96,7 +105,7 @@ export default function AuthPage() {
 }
 
 // The LoginForm is now a component that receives the loginMutation as a prop
-function LoginForm({ loginMutation }: { loginMutation: any }) {
+function LoginForm({ loginMutation, onForgotPassword }: { loginMutation: any; onForgotPassword: () => void }) {
   const form = useForm({
     defaultValues: {
       username: "",
@@ -140,6 +149,17 @@ function LoginForm({ loginMutation }: { loginMutation: any }) {
         >
           Login
         </Button>
+        
+        <div className="text-center">
+          <Button 
+            type="button"
+            variant="link"
+            onClick={onForgotPassword}
+            className="text-blue-600 hover:text-blue-700 text-sm"
+          >
+            Forgot your password?
+          </Button>
+        </div>
       </form>
     </Form>
   );

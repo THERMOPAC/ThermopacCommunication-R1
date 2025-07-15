@@ -230,6 +230,61 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Reset token methods
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    console.log(`Looking for user with email: ${email}`);
+    const result = await db.select().from(users).where(eq(users.email, email));
+    const user = result[0] as User | undefined;
+    console.log(`Found user:`, user);
+    return user;
+  }
+
+  async getUserByResetToken(resetToken: string): Promise<User | undefined> {
+    console.log(`Looking for user with reset token: ${resetToken.substring(0, 8)}...`);
+    const result = await db.select().from(users).where(eq(users.resetToken, resetToken));
+    const user = result[0] as User | undefined;
+    console.log(`Found user:`, user ? user.username : 'None');
+    return user;
+  }
+
+  async updateUserResetToken(id: number, resetToken: string, expiresAt: Date): Promise<void> {
+    console.log(`Updating reset token for user ${id}`);
+    
+    try {
+      await db
+        .update(users)
+        .set({
+          resetToken: resetToken,
+          resetTokenExpiresAt: expiresAt
+        })
+        .where(eq(users.id, id));
+      
+      console.log(`Reset token updated successfully for user ${id}`);
+    } catch (error) {
+      console.error(`Error updating reset token for user ${id}:`, error);
+      throw error;
+    }
+  }
+
+  async clearUserResetToken(id: number): Promise<void> {
+    console.log(`Clearing reset token for user ${id}`);
+    
+    try {
+      await db
+        .update(users)
+        .set({
+          resetToken: null,
+          resetTokenExpiresAt: null
+        })
+        .where(eq(users.id, id));
+      
+      console.log(`Reset token cleared successfully for user ${id}`);
+    } catch (error) {
+      console.error(`Error clearing reset token for user ${id}:`, error);
+      throw error;
+    }
+  }
+
   async deleteUser(id: number): Promise<void> {
     console.log(`Deleting user ${id}`);
     await db.delete(users).where(eq(users.id, id));

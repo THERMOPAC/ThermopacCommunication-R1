@@ -745,6 +745,10 @@ const userSchema = {
   passwordNeedsUpdate: boolean('password_needs_update').default(false),
   passwordHistory: jsonb('password_history').default([]),
   lastPasswordChange: timestamp('last_password_change'),
+  
+  // Password Reset Functionality
+  resetToken: varchar('reset_token', { length: 255 }),
+  resetTokenExpiresAt: timestamp('reset_token_expires_at'),
 };
 
 // Create the users table with self-reference after definition
