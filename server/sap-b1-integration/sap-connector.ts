@@ -504,6 +504,7 @@ export class SAPB1Connector {
     fromDate?: Date;
     toDate?: Date;
     projectCode?: string;
+    financialYear?: string; // Format: "FY2024-25" for Indian Financial Year
     limit?: number;
     offset?: number;
   }): Promise<any[]> {
@@ -543,6 +544,21 @@ export class SAPB1Connector {
         whereClause += " AND PO.Project = @ProjectCode";
       }
 
+      // Indian Financial Year filtering (April to March)
+      if (filters.financialYear) {
+        const fyMatch = filters.financialYear.match(/^FY(\d{4})-(\d{2})$/);
+        if (fyMatch) {
+          const startYear = parseInt(fyMatch[1]);
+          const endYear = parseInt(`20${fyMatch[2]}`);
+          const fyStartDate = new Date(startYear, 3, 1); // April 1st of start year
+          const fyEndDate = new Date(endYear, 2, 31); // March 31st of end year
+          
+          request.input('FYStartDate', sql.DateTime, fyStartDate);
+          request.input('FYEndDate', sql.DateTime, fyEndDate);
+          whereClause += " AND PO.DocDate >= @FYStartDate AND PO.DocDate <= @FYEndDate";
+        }
+      }
+
       const result = await request.query(`
         SELECT TOP ${filters.limit || 50}
           PO.DocEntry,
@@ -571,6 +587,11 @@ export class SAPB1Connector {
           PO.TotalExpns,
           PO.OwnerCode,
           PO.Rounding,
+          -- Financial Year calculation for Indian FY (April to March)
+          CASE 
+            WHEN MONTH(PO.DocDate) >= 4 THEN 'FY' + CAST(YEAR(PO.DocDate) AS VARCHAR) + '-' + RIGHT('0' + CAST(YEAR(PO.DocDate) + 1 - 2000 AS VARCHAR), 2)
+            ELSE 'FY' + CAST(YEAR(PO.DocDate) - 1 AS VARCHAR) + '-' + RIGHT('0' + CAST(YEAR(PO.DocDate) - 2000 AS VARCHAR), 2)
+          END as FinancialYear,
           -- Vendor details
           VEN.Phone1 as VendorPhone,
           VEN.Fax as VendorFax,
@@ -837,4 +858,54 @@ export class SAPB1Connector {
 }
 
 // Export singleton instance
+/**
+ * Utility function to get current Indian Financial Year
+ * Returns format: "FY2024-25"
+ */
+export function getCurrentIndianFY(): string {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // JavaScript months are 0-indexed
+  
+  if (currentMonth >= 4) {
+    // April onwards - current FY
+    return `FY${currentYear}-${String(currentYear + 1).slice(-2)}`;
+  } else {
+    // January to March - previous FY
+    return `FY${currentYear - 1}-${String(currentYear).slice(-2)}`;
+  }
+}
+
+/**
+ * Utility function to get Financial Year from a date
+ * Returns format: "FY2024-25"
+ */
+export function getIndianFYFromDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  
+  if (month >= 4) {
+    return `FY${year}-${String(year + 1).slice(-2)}`;
+  } else {
+    return `FY${year - 1}-${String(year).slice(-2)}`;
+  }
+}
+
+/**
+ * Utility function to get Financial Year date range
+ * Returns { startDate, endDate } for given FY
+ */
+export function getIndianFYDateRange(financialYear: string): { startDate: Date; endDate: Date } | null {
+  const fyMatch = financialYear.match(/^FY(\d{4})-(\d{2})$/);
+  if (!fyMatch) return null;
+  
+  const startYear = parseInt(fyMatch[1]);
+  const endYear = parseInt(`20${fyMatch[2]}`);
+  
+  return {
+    startDate: new Date(startYear, 3, 1), // April 1st
+    endDate: new Date(endYear, 2, 31)     // March 31st
+  };
+}
+
 export const sapB1Connector = new SAPB1Connector();

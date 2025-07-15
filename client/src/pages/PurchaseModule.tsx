@@ -56,10 +56,63 @@ interface PurchaseStats {
   activeVendors: number;
 }
 
+// Utility functions for Indian Financial Year (April to March)
+const getCurrentIndianFY = (): string => {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // JavaScript months are 0-indexed
+  
+  if (currentMonth >= 4) {
+    // April onwards - current FY
+    return `FY${currentYear}-${String(currentYear + 1).slice(-2)}`;
+  } else {
+    // January to March - previous FY
+    return `FY${currentYear - 1}-${String(currentYear).slice(-2)}`;
+  }
+};
+
+const getIndianFYFromDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  
+  if (month >= 4) {
+    return `FY${year}-${String(year + 1).slice(-2)}`;
+  } else {
+    return `FY${year - 1}-${String(year).slice(-2)}`;
+  }
+};
+
+const getIndianFYDateRange = (financialYear: string): { startDate: Date; endDate: Date } | null => {
+  const fyMatch = financialYear.match(/^FY(\d{4})-(\d{2})$/);
+  if (!fyMatch) return null;
+  
+  const startYear = parseInt(fyMatch[1]);
+  const endYear = parseInt(`20${fyMatch[2]}`);
+  
+  return {
+    startDate: new Date(startYear, 3, 1), // April 1st
+    endDate: new Date(endYear, 2, 31)     // March 31st
+  };
+};
+
+// Helper function to format currency in Indian format
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR'
+  }).format(amount);
+};
+
+// Helper function to format date for display
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('en-IN');
+};
+
 export default function PurchaseModule() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [financialYearFilter, setFinancialYearFilter] = useState(getCurrentIndianFY()); // Default to current FY
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown');
   
   const { toast } = useToast();
@@ -176,8 +229,38 @@ export default function PurchaseModule() {
   );
 
   // Purchase Orders Table
-  const PurchaseOrdersTable = () => (
-    <div className="space-y-4">
+  const PurchaseOrdersTable = ({ searchTerm, statusFilter, financialYear }: { 
+    searchTerm: string, 
+    statusFilter: string, 
+    financialYear: string 
+  }) => {
+    // Filter purchase orders based on Financial Year, search term, and status
+    const filteredOrders = purchaseOrders.filter((order) => {
+      // Financial Year filtering
+      const orderDate = new Date(order.docDate);
+      const orderFY = getIndianFYFromDate(orderDate);
+      if (orderFY !== financialYear) return false;
+      
+      // Search term filtering
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase();
+        if (!order.docNum.toLowerCase().includes(search) &&
+            !order.vendorName.toLowerCase().includes(search) &&
+            !order.comments?.toLowerCase().includes(search)) {
+          return false;
+        }
+      }
+      
+      // Status filtering
+      if (statusFilter !== 'all' && order.docStatus !== statusFilter) {
+        return false;
+      }
+      
+      return true;
+    });
+
+    return (
+      <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div className="flex space-x-2">
           <div className="relative">
@@ -225,7 +308,7 @@ export default function PurchaseModule() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {purchaseOrders?.map((order) => (
+                {filteredOrders?.map((order) => (
                   <TableRow key={order.docEntry}>
                     <TableCell className="font-medium">{order.docNum}</TableCell>
                     <TableCell>{new Date(order.docDate).toLocaleDateString()}</TableCell>
@@ -257,7 +340,15 @@ export default function PurchaseModule() {
         </CardContent>
       </Card>
     </div>
-  );
+    );
+  };
+
+  // Remove the old search controls from the PurchaseOrdersTable since we moved them to the parent
+  const filteredOrdersOnDashboard = purchaseOrders.filter((order) => {
+    const orderDate = new Date(order.docDate);
+    const orderFY = getIndianFYFromDate(orderDate);
+    return orderFY === financialYearFilter;
+  });
 
   return (
     <div className="container mx-auto p-6">
@@ -312,9 +403,14 @@ export default function PurchaseModule() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center">
-                  <TrendingUp className="h-5 w-5 mr-2" />
-                  Recent Purchase Orders
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <TrendingUp className="h-5 w-5 mr-2" />
+                    Purchase Orders - {financialYearFilter}
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    Indian FY (Apr-Mar)
+                  </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -322,7 +418,7 @@ export default function PurchaseModule() {
                   <div className="text-center py-8">Loading statistics...</div>
                 ) : (
                   <div className="space-y-4">
-                    {purchaseOrders.slice(0, 5).map((order) => (
+                    {filteredOrdersOnDashboard.slice(0, 5).map((order) => (
                       <div key={order.docEntry} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                         <div>
                           <p className="font-medium">{order.docNum}</p>
@@ -365,6 +461,52 @@ export default function PurchaseModule() {
                   <Button className="w-full justify-start" variant="outline" onClick={() => setActiveTab('vendors')}>
                     <Users className="h-4 w-4 mr-2" />
                     View Vendor Performance
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Calendar className="h-5 w-5 mr-2" />
+                    Financial Year Overview
+                  </div>
+                  <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
+                    {financialYearFilter}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <p className="text-sm text-gray-600">FY Orders</p>
+                      <p className="text-lg font-bold text-blue-700">
+                        {filteredOrdersOnDashboard.length}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <p className="text-sm text-gray-600">FY Value</p>
+                      <p className="text-lg font-bold text-green-700">
+                        {formatCurrency(filteredOrdersOnDashboard.reduce((sum, order) => sum + order.docTotal, 0))}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Period:</span>
+                    <span className="font-medium">
+                      {financialYearFilter.replace('FY', '').replace('-', ' Apr - 20')} Mar
+                    </span>
+                  </div>
+                  <Button 
+                    className="w-full"
+                    variant="outline"
+                    onClick={() => setActiveTab('purchase-orders')}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    View {financialYearFilter} Orders
                   </Button>
                 </div>
               </CardContent>
@@ -438,7 +580,57 @@ export default function PurchaseModule() {
         </TabsContent>
 
         <TabsContent value="purchase-orders">
-          <PurchaseOrdersTable />
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle className="flex items-center">
+                  <Package className="h-5 w-5 mr-2" />
+                  Purchase Orders - {financialYearFilter}
+                </CardTitle>
+                <div className="flex items-center space-x-2">
+                  <Badge variant="outline" className="text-xs">
+                    Indian Financial Year (Apr-Mar)
+                  </Badge>
+                  <Input
+                    placeholder="Search orders..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-64"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center space-x-2 mt-2">
+                <Label htmlFor="fy-filter" className="text-sm font-medium">Financial Year:</Label>
+                <select
+                  id="fy-filter"
+                  value={financialYearFilter}
+                  onChange={(e) => setFinancialYearFilter(e.target.value)}
+                  className="border rounded px-2 py-1 text-sm bg-white"
+                >
+                  <option value="FY2024-25">FY2024-25 (Apr 2024 - Mar 2025)</option>
+                  <option value="FY2023-24">FY2023-24 (Apr 2023 - Mar 2024)</option>
+                  <option value="FY2022-23">FY2022-23 (Apr 2022 - Mar 2023)</option>
+                  <option value="FY2021-22">FY2021-22 (Apr 2021 - Mar 2022)</option>
+                  <option value="FY2020-21">FY2020-21 (Apr 2020 - Mar 2021)</option>
+                  <option value="FY2019-20">FY2019-20 (Apr 2019 - Mar 2020)</option>
+                </select>
+                <Label htmlFor="status-filter" className="text-sm font-medium ml-4">Status:</Label>
+                <select
+                  id="status-filter"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="border rounded px-2 py-1 text-sm"
+                >
+                  <option value="all">All Status</option>
+                  <option value="O">Open</option>
+                  <option value="C">Closed</option>
+                </select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <PurchaseOrdersTable searchTerm={searchTerm} statusFilter={statusFilter} financialYear={financialYearFilter} />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="requisitions">
