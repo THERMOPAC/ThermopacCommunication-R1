@@ -4411,4 +4411,79 @@ router.get('/brc/:id/document', ensureAuthenticated, async (req: Request, res: R
   }
 });
 
+/**
+ * Issue a credit note for an invoice
+ */
+router.post('/invoices/:id/credit-note', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const invoiceId = parseInt(req.params.id);
+    const { creditNoteNumber, creditNoteDate, creditNoteAmount, creditNoteReason } = req.body;
+    const userId = req.user?.id;
+
+    // Validate input
+    if (!creditNoteNumber || !creditNoteDate || !creditNoteAmount || !creditNoteReason) {
+      return res.status(400).json({ error: 'Credit note number, date, amount, and reason are required' });
+    }
+
+    // Validate that the invoice exists
+    const invoiceQuery = `
+      SELECT id, invoice_number, total_amount, status 
+      FROM invoices 
+      WHERE id = $1
+    `;
+    
+    const invoiceResult = await pool.query(invoiceQuery, [invoiceId]);
+    
+    if (invoiceResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    const invoice = invoiceResult.rows[0];
+
+    // Check if credit note already exists for this invoice
+    if (invoice.credit_note_number) {
+      return res.status(400).json({ error: 'Credit note already exists for this invoice' });
+    }
+
+    // Update the invoice with credit note details and change status to 'Credited'
+    const updateQuery = `
+      UPDATE invoices 
+      SET 
+        credit_note_number = $1,
+        credit_note_date = $2,
+        credit_note_amount = $3,
+        credit_note_reason = $4,
+        credited_by = $5,
+        credited_at = NOW(),
+        status = 'Credited',
+        updated_at = NOW()
+      WHERE id = $6
+      RETURNING *
+    `;
+
+    const updateResult = await pool.query(updateQuery, [
+      creditNoteNumber,
+      creditNoteDate,
+      creditNoteAmount,
+      creditNoteReason,
+      userId,
+      invoiceId
+    ]);
+
+    const updatedInvoice = updateResult.rows[0];
+
+    console.log(`Credit note ${creditNoteNumber} issued for invoice ${invoice.invoice_number} by user ${userId}`);
+
+    res.json({
+      success: true,
+      message: 'Credit note issued successfully',
+      invoice: updatedInvoice
+    });
+
+  } catch (error) {
+    console.error('Error issuing credit note:', error);
+    res.status(500).json({ error: 'Failed to issue credit note' });
+  }
+});
+
 export default router;

@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
 import {
@@ -9,7 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Loader2, AlertCircle, Download, Eye, Filter, Plus, Search, Edit, MoreHorizontal, FileText, Trash2 } from "lucide-react";
+import { Loader2, AlertCircle, Download, Eye, Filter, Plus, Search, Edit, MoreHorizontal, FileText, Trash2, CreditCard } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +52,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
+
+// Credit note validation schema
+const creditNoteSchema = z.object({
+  creditNoteNumber: z.string().min(1, "Credit note number is required"),
+  creditNoteDate: z.string().min(1, "Credit note date is required"),
+  creditNoteAmount: z.string().min(1, "Credit note amount is required"),
+  creditNoteReason: z.string().min(1, "Credit note reason is required"),
+});
+
+type CreditNoteFormData = z.infer<typeof creditNoteSchema>;
 
 // Status badge component
 const StatusBadge = ({ status }: { status: string }) => {
@@ -62,6 +86,8 @@ const StatusBadge = ({ status }: { status: string }) => {
         return 'bg-red-100 text-red-800';
       case 'cancelled':
         return 'bg-gray-100 text-gray-800';
+      case 'credited':
+        return 'bg-purple-100 text-purple-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -80,6 +106,35 @@ export default function InvoicesPage() {
   const [customerFilter, setCustomerFilter] = useState('all');
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [selectedInvoiceForCredit, setSelectedInvoiceForCredit] = useState<any>(null);
+  const [showCreditNoteDialog, setShowCreditNoteDialog] = useState(false);
+  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Credit note mutation
+  const createCreditNoteMutation = useMutation({
+    mutationFn: async (data: CreditNoteFormData) => {
+      if (!selectedInvoiceForCredit) throw new Error('No invoice selected');
+      return apiRequest('POST', `/api/finance/invoices/${selectedInvoiceForCredit.id}/credit-note`, data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Credit Note Created",
+        description: "The credit note has been successfully created and the invoice has been marked as credited.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/simple-finance/invoices-list'] });
+      setShowCreditNoteDialog(false);
+      setSelectedInvoiceForCredit(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error Creating Credit Note",
+        description: error.message || "Failed to create credit note. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
 
   // Query for invoices using direct database connection with proper cache invalidation
   const { data, isLoading, error } = useQuery({
@@ -424,6 +479,18 @@ export default function InvoicesPage() {
                             </Link>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => {
+                              setSelectedInvoiceForCredit(invoice);
+                              setShowCreditNoteDialog(true);
+                            }}
+                            className="text-purple-600 focus:text-purple-600"
+                          >
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            Create Credit Note
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-red-600 focus:text-red-600">
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
@@ -444,6 +511,184 @@ export default function InvoicesPage() {
           </table>
         </div>
       </div>
+
+      {/* Credit Note Dialog */}
+      <CreditNoteDialog 
+        open={showCreditNoteDialog}
+        onOpenChange={setShowCreditNoteDialog}
+        invoice={selectedInvoiceForCredit}
+        onSubmit={createCreditNoteMutation.mutate}
+        isLoading={createCreditNoteMutation.isPending}
+      />
     </Layout>
+  );
+}
+
+// Credit Note Dialog Component
+function CreditNoteDialog({ 
+  open, 
+  onOpenChange, 
+  invoice, 
+  onSubmit, 
+  isLoading 
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  invoice: any;
+  onSubmit: (data: CreditNoteFormData) => void;
+  isLoading: boolean;
+}) {
+  const form = useForm<CreditNoteFormData>({
+    resolver: zodResolver(creditNoteSchema),
+    defaultValues: {
+      creditNoteNumber: '',
+      creditNoteDate: new Date().toISOString().split('T')[0],
+      creditNoteAmount: '',
+      creditNoteReason: '',
+    }
+  });
+
+  const handleSubmit = (data: CreditNoteFormData) => {
+    onSubmit(data);
+  };
+
+  if (!invoice) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Create Credit Note</DialogTitle>
+          <DialogDescription>
+            Create a credit note for Invoice #{invoice.invoiceNumber}
+          </DialogDescription>
+        </DialogHeader>
+        
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            {/* Invoice Information */}
+            <div className="rounded-lg border p-4 bg-muted/50">
+              <h3 className="font-medium mb-2">Invoice Information</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Invoice #:</span>
+                  <p className="font-medium">{invoice.invoiceNumber}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Customer:</span>
+                  <p className="font-medium">{invoice.customerName}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Amount:</span>
+                  <p className="font-medium">{formatCurrency(invoice.totalAmount, invoice.currency)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Status:</span>
+                  <div className="mt-1">
+                    <StatusBadge status={invoice.status} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Credit Note Form */}
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="creditNoteNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Credit Note Number *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter credit note number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="creditNoteDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Credit Note Date *</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="creditNoteAmount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Credit Note Amount *</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        step="0.01" 
+                        placeholder="Enter amount" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="creditNoteReason"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Reason for Credit Note *</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Enter reason for credit note"
+                        className="min-h-[80px]"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Create Credit Note
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
   );
 }

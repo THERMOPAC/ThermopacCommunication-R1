@@ -40,7 +40,8 @@ export const invoiceStatuses = [
   "Paid",
   "Partially Paid",
   "Overdue",
-  "Cancelled"
+  "Cancelled",
+  "Credited"
 ] as const;
 
 export type InvoiceStatus = typeof invoiceStatuses[number];
@@ -4344,6 +4345,13 @@ export const invoices = pgTable('invoices', {
   shippingBillDate: date('shipping_bill_date'),
   brcRequired: boolean('brc_required').default(false),
   brcReceived: boolean('brc_received').default(false),
+  // Credit note fields
+  creditNoteNumber: varchar('credit_note_number', { length: 50 }),
+  creditNoteDate: date('credit_note_date'),
+  creditNoteAmount: decimal('credit_note_amount', { precision: 15, scale: 2 }),
+  creditNoteReason: text('credit_note_reason'),
+  creditedBy: integer('credited_by'),
+  creditedAt: timestamp('credited_at'),
   createdBy: integer('created_by').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow()
