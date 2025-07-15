@@ -2021,4 +2021,59 @@ router.post('/invoices/:id/credit-note', ensureAuthenticated, async (req: Reques
   }
 });
 
+/**
+ * Get all credit notes with customer details
+ */
+router.get('/credit-notes', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const creditNotesQuery = `
+      SELECT 
+        i.id,
+        i.credit_note_number,
+        i.invoice_number,
+        i.credit_note_amount,
+        i.credit_note_date,
+        i.credit_note_reason,
+        i.created_at,
+        i.currency,
+        c.bp_name as customer_name,
+        c.id as customer_id
+      FROM invoices i
+      LEFT JOIN customers c ON i.customer_id = c.id
+      WHERE i.credit_note_number IS NOT NULL 
+        AND i.credit_note_number != ''
+      ORDER BY i.credit_note_date DESC, i.created_at DESC
+    `;
+    
+    const result = await pool.query(creditNotesQuery);
+    
+    const creditNotes = result.rows.map(row => ({
+      id: row.id,
+      creditNoteNumber: row.credit_note_number,
+      invoiceNumber: row.invoice_number,
+      customerName: row.customer_name || 'Unknown Customer',
+      customerId: row.customer_id,
+      creditNoteAmount: row.credit_note_amount,
+      creditNoteDate: row.credit_note_date,
+      creditNoteReason: row.credit_note_reason,
+      currency: row.currency,
+      createdAt: row.created_at
+    }));
+
+    console.log(`Found ${creditNotes.length} credit notes`);
+    res.json({
+      success: true,
+      creditNotes,
+      count: creditNotes.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching credit notes:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fetch credit notes' 
+    });
+  }
+});
+
 export default router;

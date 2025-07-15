@@ -14,7 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Loader2, AlertCircle, Download, Eye, Filter, Plus, Search, Edit, MoreHorizontal, FileText, Trash2, CreditCard } from "lucide-react";
+import { Loader2, AlertCircle, Download, Eye, Filter, Plus, Search, Edit, MoreHorizontal, FileText, Trash2, CreditCard, Printer } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -111,6 +111,11 @@ export default function InvoicesPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedInvoiceForCredit, setSelectedInvoiceForCredit] = useState<any>(null);
   const [showCreditNoteDialog, setShowCreditNoteDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState('all');
+  
+  // Credit Notes specific filters
+  const [creditNoteSearchTerm, setCreditNoteSearchTerm] = useState('');
+  const [creditNoteCustomerFilter, setCreditNoteCustomerFilter] = useState('all');
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -147,10 +152,21 @@ export default function InvoicesPage() {
     refetchOnWindowFocus: false // Prevent automatic refetching on focus
   });
 
+  // Query for credit notes
+  const { data: creditNotesData, isLoading: creditNotesLoading, error: creditNotesError } = useQuery({
+    queryKey: ['/api/finance/credit-notes'],
+    retry: 2,
+    staleTime: 30000,
+    refetchOnWindowFocus: false
+  });
+
 
   
   // Extract invoices from the response or use empty array if no data
   const invoices = Array.isArray(data) ? data : [];
+  
+  // Extract credit notes from the response
+  const creditNotes = creditNotesData?.creditNotes || [];
   
   // Filter the invoices based on search term, status, and customer
   const filteredInvoices = invoices.filter((invoice: any) => {
@@ -400,119 +416,138 @@ export default function InvoicesPage() {
 
         <Tabs defaultValue="all" className="mb-6" onValueChange={(value) => {
           console.log("Tab changed to:", value);
-          setStatusFilter(value);
-        }} value={statusFilter}>
+          setActiveTab(value);
+          if (value !== 'credit-notes') {
+            setStatusFilter(value);
+          }
+        }} value={activeTab}>
           <TabsList>
             <TabsTrigger value="all">All Invoices</TabsTrigger>
             <TabsTrigger value="pending">Pending</TabsTrigger>
             <TabsTrigger value="overdue">Overdue</TabsTrigger>
             <TabsTrigger value="paid">Paid</TabsTrigger>
+            <TabsTrigger value="credit-notes">Credit Notes</TabsTrigger>
           </TabsList>
         </Tabs>
-        
-        <div className="overflow-hidden rounded-lg border">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-muted/50">
-                <th className="px-4 py-3 text-left text-sm font-medium">Invoice #</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">SAP Invoice No</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">Shipping Bill No</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">Client</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">Issue Date</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">Due Date</th>
-                <th className="px-4 py-3 text-right text-sm font-medium">Amount</th>
-                <th className="px-4 py-3 text-right text-sm font-medium">Paid</th>
-                <th className="px-4 py-3 text-right text-sm font-medium">Outstanding</th>
-                <th className="px-4 py-3 text-center text-sm font-medium">Status</th>
-                <th className="px-4 py-3 text-center text-sm font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedInvoices.length > 0 ? (
-                sortedInvoices.map((invoice: any) => (
-                  <tr key={invoice.id} className="border-t hover:bg-muted/50">
-                    <td className="px-4 py-3 text-left text-sm">
-                      <Link href={`/finance/invoices/view/${invoice.id}`} className="text-primary hover:underline">
-                        {invoice.invoiceNumber}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-left text-sm">{invoice.sapInvoiceNo || '-'}</td>
-                    <td className="px-4 py-3 text-left text-sm">{invoice.shippingBillNumber || '-'}</td>
-                    <td className="px-4 py-3 text-left text-sm">{invoice.customerName}</td>
-                    <td className="px-4 py-3 text-left text-sm">{formatDate(invoice.issueDate)}</td>
-                    <td className="px-4 py-3 text-left text-sm">{formatDate(invoice.dueDate)}</td>
-                    <td className="px-4 py-3 text-right text-sm font-medium">{formatCurrency(invoice.totalAmount, invoice.currency)}</td>
-                    <td className="px-4 py-3 text-right text-sm font-medium text-green-600">{formatCurrency(invoice.paidAmount || 0, invoice.currency)}</td>
-                    <td className="px-4 py-3 text-right text-sm font-medium text-orange-600">{formatCurrency(invoice.outstandingAmount !== undefined ? invoice.outstandingAmount : (invoice.totalAmount - (invoice.paidAmount || 0)), invoice.currency)}</td>
-                    <td className="px-4 py-3 text-center">
-                      <StatusBadge status={invoice.status} />
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem asChild>
-                            <Link href={`/finance/invoices/view/${invoice.id}`}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Details
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href={`/finance/invoices/${invoice.id}/edit`}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit Invoice
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem asChild>
-                            <Link href={`/finance/invoices/${invoice.id}/download`}>
-                              <Download className="h-4 w-4 mr-2" />
-                              Download PDF
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href={`/finance/invoices/${invoice.id}/print`}>
-                              <FileText className="h-4 w-4 mr-2" />
-                              Print Invoice
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            onClick={() => {
-                              setSelectedInvoiceForCredit(invoice);
-                              setShowCreditNoteDialog(true);
-                            }}
-                            className="text-purple-600 focus:text-purple-600"
-                          >
-                            <CreditCard className="h-4 w-4 mr-2" />
-                            Create Credit Note
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-600 focus:text-red-600">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+
+        {/* Render invoice table for non-credit-note tabs */}
+        {activeTab !== 'credit-notes' && (
+          <div className="overflow-hidden rounded-lg border">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-muted/50">
+                  <th className="px-4 py-3 text-left text-sm font-medium">Invoice #</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">SAP Invoice No</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">Shipping Bill No</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">Client</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">Issue Date</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">Due Date</th>
+                  <th className="px-4 py-3 text-right text-sm font-medium">Amount</th>
+                  <th className="px-4 py-3 text-right text-sm font-medium">Paid</th>
+                  <th className="px-4 py-3 text-right text-sm font-medium">Outstanding</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium">Status</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedInvoices.length > 0 ? (
+                  sortedInvoices.map((invoice: any) => (
+                    <tr key={invoice.id} className="border-t hover:bg-muted/50">
+                      <td className="px-4 py-3 text-left text-sm">
+                        <Link href={`/finance/invoices/view/${invoice.id}`} className="text-primary hover:underline">
+                          {invoice.invoiceNumber}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3 text-left text-sm">{invoice.sapInvoiceNo || '-'}</td>
+                      <td className="px-4 py-3 text-left text-sm">{invoice.shippingBillNumber || '-'}</td>
+                      <td className="px-4 py-3 text-left text-sm">{invoice.customerName}</td>
+                      <td className="px-4 py-3 text-left text-sm">{formatDate(invoice.issueDate)}</td>
+                      <td className="px-4 py-3 text-left text-sm">{formatDate(invoice.dueDate)}</td>
+                      <td className="px-4 py-3 text-right text-sm font-medium">{formatCurrency(invoice.totalAmount, invoice.currency)}</td>
+                      <td className="px-4 py-3 text-right text-sm font-medium text-green-600">{formatCurrency(invoice.paidAmount || 0, invoice.currency)}</td>
+                      <td className="px-4 py-3 text-right text-sm font-medium text-orange-600">{formatCurrency(invoice.outstandingAmount !== undefined ? invoice.outstandingAmount : (invoice.totalAmount - (invoice.paidAmount || 0)), invoice.currency)}</td>
+                      <td className="px-4 py-3 text-center">
+                        <StatusBadge status={invoice.status} />
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem asChild>
+                              <Link href={`/finance/invoices/view/${invoice.id}`}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Details
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link href={`/finance/invoices/${invoice.id}/edit`}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit Invoice
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem asChild>
+                              <Link href={`/finance/invoices/${invoice.id}/download`}>
+                                <Download className="h-4 w-4 mr-2" />
+                                Download PDF
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link href={`/finance/invoices/${invoice.id}/print`}>
+                                <FileText className="h-4 w-4 mr-2" />
+                                Print Invoice
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                setSelectedInvoiceForCredit(invoice);
+                                setShowCreditNoteDialog(true);
+                              }}
+                              className="text-purple-600 focus:text-purple-600"
+                            >
+                              <CreditCard className="h-4 w-4 mr-2" />
+                              Create Credit Note
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-red-600 focus:text-red-600">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={11} className="px-4 py-8 text-center text-muted-foreground">
+                      No invoices found. Create your first invoice to get started.
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={11} className="px-4 py-8 text-center text-muted-foreground">
-                    No invoices found. Create your first invoice to get started.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Render credit notes table */}
+        {activeTab === 'credit-notes' && (
+          <CreditNotesSection 
+            creditNotes={creditNotes}
+            searchTerm={creditNoteSearchTerm}
+            setSearchTerm={setCreditNoteSearchTerm}
+            customerFilter={creditNoteCustomerFilter}
+            setCustomerFilter={setCreditNoteCustomerFilter}
+            isLoading={creditNotesLoading}
+            error={creditNotesError}
+          />
+        )}
       </div>
 
       {/* Credit Note Dialog */}
@@ -803,5 +838,210 @@ function CreditNoteDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Credit Notes Section Component
+function CreditNotesSection({ 
+  creditNotes, 
+  searchTerm, 
+  setSearchTerm, 
+  customerFilter, 
+  setCustomerFilter, 
+  isLoading, 
+  error 
+}: {
+  creditNotes: any[];
+  searchTerm: string;
+  setSearchTerm: (term: string) => void;
+  customerFilter: string;
+  setCustomerFilter: (filter: string) => void;
+  isLoading: boolean;
+  error: any;
+}) {
+  // Filter credit notes based on search term and customer filter
+  const filteredCreditNotes = useMemo(() => {
+    return creditNotes.filter((creditNote) => {
+      const matchesSearch = !searchTerm || 
+        creditNote.creditNoteNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        creditNote.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        creditNote.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        creditNote.creditNoteReason.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesCustomer = customerFilter === 'all' || 
+        creditNote.customerName.toLowerCase().includes(customerFilter.toLowerCase());
+      
+      return matchesSearch && matchesCustomer;
+    });
+  }, [creditNotes, searchTerm, customerFilter]);
+
+  // Sort credit notes by date (newest first)
+  const sortedCreditNotes = useMemo(() => {
+    return [...filteredCreditNotes].sort((a, b) => 
+      new Date(b.creditNoteDate).getTime() - new Date(a.creditNoteDate).getTime()
+    );
+  }, [filteredCreditNotes]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+          <p className="text-muted-foreground">Loading credit notes...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-red-200 bg-red-50 p-6">
+        <div className="flex items-center">
+          <div className="flex-shrink-0">
+            <AlertCircle className="h-5 w-5 text-red-400" />
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-red-800">Error loading credit notes</h3>
+            <p className="text-sm text-red-700 mt-1">
+              There was a problem loading the credit notes. Please try refreshing the page.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Credit Notes Search and Filter */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1">
+          <Input
+            placeholder="Search credit notes..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full"
+          />
+        </div>
+        <div className="w-full sm:w-auto">
+          <Select value={customerFilter} onValueChange={setCustomerFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Filter by customer" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Customers</SelectItem>
+              {/* Get unique customers for filter */}
+              {Array.from(new Set(creditNotes.map(cn => cn.customerName))).map((customer) => (
+                <SelectItem key={customer} value={customer}>
+                  {customer}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Credit Notes Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-primary">{creditNotes.length}</div>
+            <p className="text-sm text-muted-foreground">Total Credit Notes</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-green-600">
+              {formatCurrency(creditNotes.reduce((sum, cn) => sum + (cn.creditNoteAmount || 0), 0), 'USD')}
+            </div>
+            <p className="text-sm text-muted-foreground">Total Credit Amount</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-blue-600">{filteredCreditNotes.length}</div>
+            <p className="text-sm text-muted-foreground">Filtered Results</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Credit Notes Table */}
+      <div className="overflow-hidden rounded-lg border">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-muted/50">
+              <th className="px-4 py-3 text-left text-sm font-medium">Credit Note Number</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">Linked Invoice Number</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">Customer Name</th>
+              <th className="px-4 py-3 text-right text-sm font-medium">Credit Note Amount</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">Credit Note Date</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">Reason</th>
+              <th className="px-4 py-3 text-center text-sm font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedCreditNotes.length > 0 ? (
+              sortedCreditNotes.map((creditNote) => (
+                <tr key={creditNote.id} className="border-t hover:bg-muted/50">
+                  <td className="px-4 py-3 text-left text-sm font-medium text-purple-600">
+                    {creditNote.creditNoteNumber}
+                  </td>
+                  <td className="px-4 py-3 text-left text-sm">
+                    <Link 
+                      href={`/finance/invoices/view/${creditNote.id}`} 
+                      className="text-primary hover:underline"
+                    >
+                      {creditNote.invoiceNumber}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-left text-sm">{creditNote.customerName}</td>
+                  <td className="px-4 py-3 text-right text-sm font-medium text-green-600">
+                    {formatCurrency(creditNote.creditNoteAmount, creditNote.currency)}
+                  </td>
+                  <td className="px-4 py-3 text-left text-sm">{formatDate(creditNote.creditNoteDate)}</td>
+                  <td className="px-4 py-3 text-left text-sm max-w-xs truncate" title={creditNote.creditNoteReason}>
+                    {creditNote.creditNoteReason}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem asChild>
+                          <Link href={`/finance/invoices/view/${creditNote.id}`}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Invoice
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <FileText className="h-4 w-4 mr-2" />
+                          Download Credit Note
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Printer className="h-4 w-4 mr-2" />
+                          Print Credit Note
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                  {searchTerm || customerFilter !== 'all' 
+                    ? "No credit notes match your search criteria." 
+                    : "No credit notes found. Create your first credit note from an invoice."}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
