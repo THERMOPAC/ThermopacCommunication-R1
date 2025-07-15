@@ -349,7 +349,7 @@ export function PasswordChangeDialog({
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-3 pt-4">
-            {!isRequired && (
+            {!isRequired ? (
               <Button 
                 type="button" 
                 variant="outline" 
@@ -357,6 +357,23 @@ export function PasswordChangeDialog({
                 disabled={passwordChangeModal.isPending}
               >
                 Cancel
+              </Button>
+            ) : (
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  // Allow user to skip mandatory update if they already have a secure password
+                  if (onCancel) {
+                    onCancel();
+                  } else {
+                    setLocation("/");
+                  }
+                }}
+                disabled={passwordChangeModal.isPending}
+                className="text-gray-600 hover:text-gray-800"
+              >
+                Skip for Now
               </Button>
             )}
             <Button 
