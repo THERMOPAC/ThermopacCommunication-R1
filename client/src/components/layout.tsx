@@ -428,12 +428,12 @@ function Layout({ children }: LayoutProps) {
                   });
                   
                   return orderedItems;
-                })().map((item, index) => {
+                })().flatMap((item, index) => {
                   const Icon = item.icon;
                   // Check if any child is active
                   const isChildActive = item.children?.some(child => location.startsWith(child.href?.split('?')[0] || ''));
                   
-                  return (
+                  const submenuItem = (
                     <li key={`submenu-${index}`} className="space-y-1">
                       <button
                         onClick={item.toggle}
@@ -479,27 +479,32 @@ function Layout({ children }: LayoutProps) {
                           })}
                         </ul>
                       )}
-                      
-
                     </li>
                   );
+                  
+                  // If this is Project Management, add SAP B1 Purchase right after it
+                  if (item.label === 'Project Management') {
+                    const sapB1Item = (
+                      <li key="sap-b1-purchase" className="mt-1">
+                        <Link href="/sap-b1/purchase">
+                          <button
+                            className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#3B82F6] transition-all
+                              ${location === '/sap-b1/purchase'
+                                ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold'
+                                : 'hover:bg-[#F3F4F6] rounded-md'
+                              }`}
+                          >
+                            <Database className={`h-5 w-5 ${location === '/sap-b1/purchase' ? 'text-[#3B82F6]' : 'text-[#3B82F6]'}`} />
+                            <span>SAP B1 Purchase</span>
+                          </button>
+                        </Link>
+                      </li>
+                    );
+                    return [submenuItem, sapB1Item];
+                  }
+                  
+                  return [submenuItem];
                 })}
-                
-                {/* Show SAP B1 Purchase right after Project Management */}
-                <li key="sap-b1-purchase" className="mt-1">
-                  <Link href="/sap-b1/purchase">
-                    <button
-                      className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#3B82F6] transition-all
-                        ${location === '/sap-b1/purchase'
-                          ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold'
-                          : 'hover:bg-[#F3F4F6] rounded-md'
-                        }`}
-                    >
-                      <Database className={`h-5 w-5 ${location === '/sap-b1/purchase' ? 'text-[#3B82F6]' : 'text-[#3B82F6]'}`} />
-                      <span>SAP B1 Purchase</span>
-                    </button>
-                  </Link>
-                </li>
                 
                 {/* Show individual module items (non-submenu) */}
                 {menuItems.filter(item => 
