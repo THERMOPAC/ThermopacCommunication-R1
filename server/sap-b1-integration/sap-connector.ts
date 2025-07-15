@@ -642,7 +642,35 @@ export class SAPB1Connector {
           (SELECT SUM(POI.LineTotal) FROM POR1 POI 
            WHERE POI.DocEntry = PO.DocEntry 
            AND (POI.AcctCode LIKE '4%' OR POI.AcctCode LIKE '5%' OR POI.AcctCode LIKE '6%' OR POI.AcctCode LIKE '7%')
-          ) as OpExAmount
+          ) as OpExAmount,
+          -- GST Tracking for Input Tax Credit (ITC) Claims
+          PO.VatSum as TotalGSTAmount,
+          PO.VatSumFC as TotalGSTAmountFC,
+          (SELECT SUM(POI.VatSum) FROM POR1 POI 
+           WHERE POI.DocEntry = PO.DocEntry 
+           AND POI.TaxCode IS NOT NULL AND POI.TaxCode != ''
+          ) as LineItemGSTTotal,
+          (SELECT COUNT(DISTINCT POI.TaxCode) FROM POR1 POI 
+           WHERE POI.DocEntry = PO.DocEntry 
+           AND POI.TaxCode IS NOT NULL AND POI.TaxCode != ''
+          ) as GSTTaxCodeCount,
+          -- GST breakdown by major tax codes (adjust based on your SAP B1 setup)
+          (SELECT SUM(POI.VatSum) FROM POR1 POI 
+           WHERE POI.DocEntry = PO.DocEntry 
+           AND POI.TaxCode LIKE '%18%'
+          ) as GST18Amount,
+          (SELECT SUM(POI.VatSum) FROM POR1 POI 
+           WHERE POI.DocEntry = PO.DocEntry 
+           AND POI.TaxCode LIKE '%12%'
+          ) as GST12Amount,
+          (SELECT SUM(POI.VatSum) FROM POR1 POI 
+           WHERE POI.DocEntry = PO.DocEntry 
+           AND POI.TaxCode LIKE '%5%'
+          ) as GST5Amount,
+          (SELECT SUM(POI.VatSum) FROM POR1 POI 
+           WHERE POI.DocEntry = PO.DocEntry 
+           AND POI.TaxCode LIKE '%0%'
+          ) as GST0Amount
         FROM OPOR PO
         LEFT JOIN OCRD VEN ON PO.CardCode = VEN.CardCode
         LEFT JOIN OPRJ PRJ ON PO.Project = PRJ.PrjCode

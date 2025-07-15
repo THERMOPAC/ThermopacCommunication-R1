@@ -31,7 +31,8 @@ import {
   Database,
   Wifi,
   WifiOff,
-  RefreshCw
+  RefreshCw,
+  Calculator
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
@@ -60,6 +61,10 @@ interface PurchaseOrder {
   opExAmount: number;      // Total OpEx amount
   capExPercentage: number; // CapEx percentage of total
   opExPercentage: number;  // OpEx percentage of total
+  // GST Classification
+  gstAmount: number;       // Total GST amount
+  gstPercentage: number;   // GST percentage
+  isITCEligible: boolean;  // Input Tax Credit eligibility
 }
 
 interface PurchaseStats {
@@ -81,6 +86,9 @@ interface PurchaseStats {
     totalCapExAmount: number;
     totalOpExAmount: number;
     totalPurchaseAmount: number;
+    // GST amounts
+    totalGSTAmount: number;
+    totalITCEligibleAmount: number;
     percentages: {
       itemPercent: number;
       servicePercent: number;
@@ -88,6 +96,8 @@ interface PurchaseStats {
       capExPercent: number;
       opExPercent: number;
       mixedExpenditurePercent: number;
+      gstPercent: number;
+      itcPercent: number;
     };
   };
   // Monthly and status statistics
@@ -351,6 +361,7 @@ export default function PurchaseModule() {
                   <TableHead>Order Type</TableHead>
                   <TableHead>Expenditure Type</TableHead>
                   <TableHead>Total</TableHead>
+                  <TableHead>GST Amount</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -386,6 +397,9 @@ export default function PurchaseModule() {
                       </Badge>
                     </TableCell>
                     <TableCell>{order.docCurrency} {order.docTotal.toLocaleString()}</TableCell>
+                    <TableCell>
+                      {order.gstAmount ? `${order.docCurrency} ${order.gstAmount.toLocaleString()}` : 'N/A'}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={order.docStatus === 'O' ? 'default' : 'secondary'}>
                         {order.docStatus === 'O' ? 'Open' : 'Closed'}
@@ -584,6 +598,65 @@ export default function PurchaseModule() {
                 
                 <div className="mt-4 text-xs text-gray-500 text-center">
                   Classification based on account codes: CapEx (1%, 2%, 16%, 17%) vs OpEx (4%, 5%, 6%, 7%) with 70% threshold
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* GST Tracking for ITC Claims */}
+          {stats?.classification && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Calculator className="h-5 w-5 mr-2" />
+                  GST Tracking - Input Tax Credit (ITC) Claims
+                </CardTitle>
+                <p className="text-sm text-gray-600">
+                  Comprehensive GST tracking for input tax credit claims and annual financial year reporting
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="text-center p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <div className="text-2xl font-bold text-emerald-700">
+                      {formatCurrency(stats.classification.totalGSTAmount || 0)}
+                    </div>
+                    <div className="text-sm text-emerald-600 font-medium">Total GST Amount</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Input Tax Credit eligible
+                    </div>
+                  </div>
+                  <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="text-2xl font-bold text-blue-700">
+                      {formatCurrency(stats.classification.totalITCEligibleAmount || 0)}
+                    </div>
+                    <div className="text-sm text-blue-600 font-medium">ITC Eligible Amount</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Can be claimed as input credit
+                    </div>
+                  </div>
+                </div>
+                
+                {/* GST Summary Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div className="text-lg font-semibold text-green-800">
+                      {stats.classification.percentages.gstPercent}%
+                    </div>
+                    <div className="text-sm text-green-600">GST Percentage</div>
+                    <div className="text-xs text-gray-500 mt-1">Of total purchase value</div>
+                  </div>
+                  <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <div className="text-lg font-semibold text-yellow-800">
+                      {getCurrentIndianFY()}
+                    </div>
+                    <div className="text-sm text-yellow-600">Current Financial Year</div>
+                    <div className="text-xs text-gray-500 mt-1">April to March period</div>
+                  </div>
+                </div>
+                
+                <div className="mt-4 text-xs text-gray-500 text-center">
+                  GST tracking enables accurate ITC claims and supports annual GST reporting by Indian Financial Year
                 </div>
               </CardContent>
             </Card>
