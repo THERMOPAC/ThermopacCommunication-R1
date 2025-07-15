@@ -2,8 +2,12 @@ import express from 'express';
 import { sapB1Connector } from './sap-connector';
 import { sapSyncService } from './sync-service';
 import { ensureAuthenticated } from '../auth-middleware';
+import purchaseRoutes from './purchase-routes';
 
 const router = express.Router();
+
+// Register Purchase module routes
+router.use('/purchase', purchaseRoutes);
 
 /**
  * SAP B1 Integration API Routes

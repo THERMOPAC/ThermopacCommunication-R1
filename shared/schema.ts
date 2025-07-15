@@ -3602,6 +3602,376 @@ export const insertTripDocumentSchema = createInsertSchema(tripDocuments)
 export type TripDocument = typeof tripDocuments.$inferSelect;
 export type InsertTripDocument = z.infer<typeof insertTripDocumentSchema>;
 
+// ==================== SAP B1 PURCHASE MODULE ====================
+
+// SAP Purchase Orders table
+export const sapPurchaseOrders = pgTable('sap_purchase_orders', {
+  id: serial('id').primaryKey(),
+  docEntry: integer('doc_entry').unique().notNull(),
+  docNum: varchar('doc_num', { length: 50 }).notNull(),
+  docType: varchar('doc_type', { length: 10 }).default('PO'),
+  series: integer('series'),
+  docDate: date('doc_date').notNull(),
+  docDueDate: date('doc_due_date'),
+  taxDate: date('tax_date'),
+  
+  // Vendor Information
+  vendorCode: varchar('vendor_code', { length: 50 }).notNull(),
+  vendorName: varchar('vendor_name', { length: 255 }),
+  contactPerson: varchar('contact_person', { length: 100 }),
+  
+  // Financial Information
+  docTotal: decimal('doc_total', { precision: 15, scale: 2 }).default('0'),
+  vatSum: decimal('vat_sum', { precision: 15, scale: 2 }).default('0'),
+  docTotalFc: decimal('doc_total_fc', { precision: 15, scale: 2 }).default('0'),
+  docCurrency: varchar('doc_currency', { length: 10 }).default('INR'),
+  docRate: decimal('doc_rate', { precision: 10, scale: 4 }).default('1'),
+  
+  // Status Information
+  docStatus: varchar('doc_status', { length: 10 }).default('O'),
+  cancelled: varchar('cancelled', { length: 1 }).default('N'),
+  
+  // Additional Information
+  comments: text('comments'),
+  reference1: varchar('reference_1', { length: 100 }),
+  reference2: varchar('reference_2', { length: 100 }),
+  projectCode: varchar('project_code', { length: 50 }),
+  
+  // Sync Information
+  sapSyncedAt: timestamp('sap_synced_at'),
+  sapLastModified: timestamp('sap_last_modified'),
+  sapSyncStatus: varchar('sap_sync_status', { length: 20 }).default('pending'),
+  
+  // Audit Information
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+  createdBy: integer('created_by'),
+  updatedBy: integer('updated_by'),
+});
+
+// SAP Purchase Order Items table
+export const sapPurchaseOrderItems = pgTable('sap_purchase_order_items', {
+  id: serial('id').primaryKey(),
+  docEntry: integer('doc_entry').notNull(),
+  lineNum: integer('line_num').notNull(),
+  
+  // Item Information
+  itemCode: varchar('item_code', { length: 50 }).notNull(),
+  itemDescription: varchar('item_description', { length: 255 }),
+  
+  // Quantity and Pricing
+  quantity: decimal('quantity', { precision: 15, scale: 4 }).default('0'),
+  openQty: decimal('open_qty', { precision: 15, scale: 4 }).default('0'),
+  unitPrice: decimal('unit_price', { precision: 15, scale: 4 }).default('0'),
+  priceAfterVat: decimal('price_after_vat', { precision: 15, scale: 4 }).default('0'),
+  lineTotal: decimal('line_total', { precision: 15, scale: 2 }).default('0'),
+  
+  // Tax Information
+  taxCode: varchar('tax_code', { length: 20 }),
+  taxRate: decimal('tax_rate', { precision: 5, scale: 2 }).default('0'),
+  taxSum: decimal('tax_sum', { precision: 15, scale: 2 }).default('0'),
+  
+  // Warehouse Information
+  warehouseCode: varchar('warehouse_code', { length: 20 }),
+  
+  // Additional Information
+  uom: varchar('uom', { length: 20 }),
+  uomCode: varchar('uom_code', { length: 20 }),
+  costCenter: varchar('cost_center', { length: 50 }),
+  projectCode: varchar('project_code', { length: 50 }),
+  
+  // Delivery Information
+  shipDate: date('ship_date'),
+  deliveryDate: date('delivery_date'),
+  
+  // Sync Information
+  sapSyncedAt: timestamp('sap_synced_at'),
+  sapLastModified: timestamp('sap_last_modified'),
+  sapSyncStatus: varchar('sap_sync_status', { length: 20 }).default('pending'),
+  
+  // Audit Information
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// SAP Purchase Requisitions table
+export const sapPurchaseRequisitions = pgTable('sap_purchase_requisitions', {
+  id: serial('id').primaryKey(),
+  docEntry: integer('doc_entry').unique().notNull(),
+  docNum: varchar('doc_num', { length: 50 }).notNull(),
+  docType: varchar('doc_type', { length: 10 }).default('PR'),
+  series: integer('series'),
+  docDate: date('doc_date').notNull(),
+  dueDate: date('due_date'),
+  
+  // Requester Information
+  requesterCode: varchar('requester_code', { length: 50 }),
+  requesterName: varchar('requester_name', { length: 255 }),
+  
+  // Status Information
+  docStatus: varchar('doc_status', { length: 10 }).default('O'),
+  priority: varchar('priority', { length: 10 }).default('Normal'),
+  
+  // Additional Information
+  comments: text('comments'),
+  reference1: varchar('reference_1', { length: 100 }),
+  department: varchar('department', { length: 50 }),
+  
+  // Sync Information
+  sapSyncedAt: timestamp('sap_synced_at'),
+  sapLastModified: timestamp('sap_last_modified'),
+  sapSyncStatus: varchar('sap_sync_status', { length: 20 }).default('pending'),
+  
+  // Audit Information
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+  createdBy: integer('created_by'),
+  updatedBy: integer('updated_by'),
+});
+
+// SAP Goods Receipt PO table
+export const sapGoodsReceiptPo = pgTable('sap_goods_receipt_po', {
+  id: serial('id').primaryKey(),
+  docEntry: integer('doc_entry').unique().notNull(),
+  docNum: varchar('doc_num', { length: 50 }).notNull(),
+  docType: varchar('doc_type', { length: 10 }).default('GR'),
+  series: integer('series'),
+  docDate: date('doc_date').notNull(),
+  postingDate: date('posting_date'),
+  
+  // Vendor Information
+  vendorCode: varchar('vendor_code', { length: 50 }).notNull(),
+  vendorName: varchar('vendor_name', { length: 255 }),
+  
+  // Reference Information
+  baseDocType: varchar('base_doc_type', { length: 10 }),
+  baseDocEntry: integer('base_doc_entry'),
+  baseDocNum: varchar('base_doc_num', { length: 50 }),
+  
+  // Financial Information
+  docTotal: decimal('doc_total', { precision: 15, scale: 2 }).default('0'),
+  vatSum: decimal('vat_sum', { precision: 15, scale: 2 }).default('0'),
+  docCurrency: varchar('doc_currency', { length: 10 }).default('INR'),
+  
+  // Status Information
+  docStatus: varchar('doc_status', { length: 10 }).default('O'),
+  cancelled: varchar('cancelled', { length: 1 }).default('N'),
+  
+  // Additional Information
+  comments: text('comments'),
+  reference1: varchar('reference_1', { length: 100 }),
+  
+  // Sync Information
+  sapSyncedAt: timestamp('sap_synced_at'),
+  sapLastModified: timestamp('sap_last_modified'),
+  sapSyncStatus: varchar('sap_sync_status', { length: 20 }).default('pending'),
+  
+  // Audit Information
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+  createdBy: integer('created_by'),
+  updatedBy: integer('updated_by'),
+});
+
+// SAP Purchase Invoices table
+export const sapPurchaseInvoices = pgTable('sap_purchase_invoices', {
+  id: serial('id').primaryKey(),
+  docEntry: integer('doc_entry').unique().notNull(),
+  docNum: varchar('doc_num', { length: 50 }).notNull(),
+  docType: varchar('doc_type', { length: 10 }).default('PI'),
+  series: integer('series'),
+  docDate: date('doc_date').notNull(),
+  docDueDate: date('doc_due_date'),
+  taxDate: date('tax_date'),
+  
+  // Vendor Information
+  vendorCode: varchar('vendor_code', { length: 50 }).notNull(),
+  vendorName: varchar('vendor_name', { length: 255 }),
+  
+  // Reference Information
+  baseDocType: varchar('base_doc_type', { length: 10 }),
+  baseDocEntry: integer('base_doc_entry'),
+  baseDocNum: varchar('base_doc_num', { length: 50 }),
+  
+  // Financial Information
+  docTotal: decimal('doc_total', { precision: 15, scale: 2 }).default('0'),
+  vatSum: decimal('vat_sum', { precision: 15, scale: 2 }).default('0'),
+  paidSum: decimal('paid_sum', { precision: 15, scale: 2 }).default('0'),
+  docTotalFc: decimal('doc_total_fc', { precision: 15, scale: 2 }).default('0'),
+  docCurrency: varchar('doc_currency', { length: 10 }).default('INR'),
+  docRate: decimal('doc_rate', { precision: 10, scale: 4 }).default('1'),
+  
+  // Status Information
+  docStatus: varchar('doc_status', { length: 10 }).default('O'),
+  cancelled: varchar('cancelled', { length: 1 }).default('N'),
+  
+  // Additional Information
+  comments: text('comments'),
+  reference1: varchar('reference_1', { length: 100 }),
+  reference2: varchar('reference_2', { length: 100 }),
+  
+  // Sync Information
+  sapSyncedAt: timestamp('sap_synced_at'),
+  sapLastModified: timestamp('sap_last_modified'),
+  sapSyncStatus: varchar('sap_sync_status', { length: 20 }).default('pending'),
+  
+  // Audit Information
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+  createdBy: integer('created_by'),
+  updatedBy: integer('updated_by'),
+});
+
+// SAP Purchase Relations
+export const sapPurchaseOrdersRelations = relations(sapPurchaseOrders, ({ one, many }) => ({
+  items: many(sapPurchaseOrderItems),
+  createdByUser: one(users, {
+    fields: [sapPurchaseOrders.createdBy],
+    references: [users.id],
+  }),
+  updatedByUser: one(users, {
+    fields: [sapPurchaseOrders.updatedBy],
+    references: [users.id],
+  }),
+}));
+
+export const sapPurchaseOrderItemsRelations = relations(sapPurchaseOrderItems, ({ one }) => ({
+  purchaseOrder: one(sapPurchaseOrders, {
+    fields: [sapPurchaseOrderItems.docEntry],
+    references: [sapPurchaseOrders.docEntry],
+  }),
+}));
+
+export const sapPurchaseRequisitionsRelations = relations(sapPurchaseRequisitions, ({ one }) => ({
+  createdByUser: one(users, {
+    fields: [sapPurchaseRequisitions.createdBy],
+    references: [users.id],
+  }),
+  updatedByUser: one(users, {
+    fields: [sapPurchaseRequisitions.updatedBy],
+    references: [users.id],
+  }),
+}));
+
+export const sapGoodsReceiptPoRelations = relations(sapGoodsReceiptPo, ({ one }) => ({
+  createdByUser: one(users, {
+    fields: [sapGoodsReceiptPo.createdBy],
+    references: [users.id],
+  }),
+  updatedByUser: one(users, {
+    fields: [sapGoodsReceiptPo.updatedBy],
+    references: [users.id],
+  }),
+}));
+
+export const sapPurchaseInvoicesRelations = relations(sapPurchaseInvoices, ({ one }) => ({
+  createdByUser: one(users, {
+    fields: [sapPurchaseInvoices.createdBy],
+    references: [users.id],
+  }),
+  updatedByUser: one(users, {
+    fields: [sapPurchaseInvoices.updatedBy],
+    references: [users.id],
+  }),
+}));
+
+// SAP Purchase Zod Schemas
+export const insertSapPurchaseOrderSchema = createInsertSchema(sapPurchaseOrders)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    docDueDate: z.string().optional().transform(dateStringToDate),
+    taxDate: z.string().optional().transform(dateStringToDate),
+    comments: z.string().optional(),
+    reference1: z.string().optional(),
+    reference2: z.string().optional(),
+    projectCode: z.string().optional(),
+    sapSyncedAt: z.date().optional(),
+    sapLastModified: z.date().optional(),
+    createdBy: z.number().optional(),
+    updatedBy: z.number().optional(),
+  });
+
+export const insertSapPurchaseOrderItemSchema = createInsertSchema(sapPurchaseOrderItems)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    itemDescription: z.string().optional(),
+    taxCode: z.string().optional(),
+    warehouseCode: z.string().optional(),
+    uom: z.string().optional(),
+    uomCode: z.string().optional(),
+    costCenter: z.string().optional(),
+    projectCode: z.string().optional(),
+    shipDate: z.string().optional().transform(dateStringToDate),
+    deliveryDate: z.string().optional().transform(dateStringToDate),
+    sapSyncedAt: z.date().optional(),
+    sapLastModified: z.date().optional(),
+  });
+
+export const insertSapPurchaseRequisitionSchema = createInsertSchema(sapPurchaseRequisitions)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    dueDate: z.string().optional().transform(dateStringToDate),
+    requesterCode: z.string().optional(),
+    requesterName: z.string().optional(),
+    comments: z.string().optional(),
+    reference1: z.string().optional(),
+    department: z.string().optional(),
+    sapSyncedAt: z.date().optional(),
+    sapLastModified: z.date().optional(),
+    createdBy: z.number().optional(),
+    updatedBy: z.number().optional(),
+  });
+
+export const insertSapGoodsReceiptPoSchema = createInsertSchema(sapGoodsReceiptPo)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    postingDate: z.string().optional().transform(dateStringToDate),
+    vendorName: z.string().optional(),
+    baseDocType: z.string().optional(),
+    baseDocEntry: z.number().optional(),
+    baseDocNum: z.string().optional(),
+    comments: z.string().optional(),
+    reference1: z.string().optional(),
+    sapSyncedAt: z.date().optional(),
+    sapLastModified: z.date().optional(),
+    createdBy: z.number().optional(),
+    updatedBy: z.number().optional(),
+  });
+
+export const insertSapPurchaseInvoiceSchema = createInsertSchema(sapPurchaseInvoices)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    docDueDate: z.string().optional().transform(dateStringToDate),
+    taxDate: z.string().optional().transform(dateStringToDate),
+    vendorName: z.string().optional(),
+    baseDocType: z.string().optional(),
+    baseDocEntry: z.number().optional(),
+    baseDocNum: z.string().optional(),
+    comments: z.string().optional(),
+    reference1: z.string().optional(),
+    reference2: z.string().optional(),
+    sapSyncedAt: z.date().optional(),
+    sapLastModified: z.date().optional(),
+    createdBy: z.number().optional(),
+    updatedBy: z.number().optional(),
+  });
+
+// SAP Purchase Types
+export type SapPurchaseOrder = typeof sapPurchaseOrders.$inferSelect;
+export type InsertSapPurchaseOrder = z.infer<typeof insertSapPurchaseOrderSchema>;
+
+export type SapPurchaseOrderItem = typeof sapPurchaseOrderItems.$inferSelect;
+export type InsertSapPurchaseOrderItem = z.infer<typeof insertSapPurchaseOrderItemSchema>;
+
+export type SapPurchaseRequisition = typeof sapPurchaseRequisitions.$inferSelect;
+export type InsertSapPurchaseRequisition = z.infer<typeof insertSapPurchaseRequisitionSchema>;
+
+export type SapGoodsReceiptPo = typeof sapGoodsReceiptPo.$inferSelect;
+export type InsertSapGoodsReceiptPo = z.infer<typeof insertSapGoodsReceiptPoSchema>;
+
+export type SapPurchaseInvoice = typeof sapPurchaseInvoices.$inferSelect;
+export type InsertSapPurchaseInvoice = z.infer<typeof insertSapPurchaseInvoiceSchema>;
+
 export type Itp = typeof itps.$inferSelect;
 export type InsertItp = z.infer<typeof insertItpSchema>;
 
