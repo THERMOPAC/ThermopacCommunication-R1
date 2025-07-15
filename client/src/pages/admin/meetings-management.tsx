@@ -421,16 +421,32 @@ export default function MeetingsManagement() {
     const internalMeetings = meetingsData?.meetings || [];
     const googleEvents = googleCalendarEvents?.events || [];
     
-    // Define time window: past 10 days to next 30 days
-    const today = startOfDay(new Date());
+    // Debug logging for troubleshooting
+    console.log('Combined Meetings Debug:', {
+      activeTab,
+      internalMeetingsCount: internalMeetings.length,
+      googleEventsCount: googleEvents.length,
+      googleEvents: googleEvents.map(e => ({
+        id: e.id,
+        summary: e.summary,
+        startDateTime: e.start.dateTime,
+        startDate: e.start.date
+      }))
+    });
+    
+    // Define time window: past 10 days to next 30 days (include all meetings from today)
+    const now = new Date();
+    const today = startOfDay(now);
     const pastCutoff = subDays(today, 10);
     const futureCutoff = addDays(today, 30);
     
     // Helper function to check if a date is within the time window
     const isWithinTimeWindow = (dateString: string) => {
       const meetingDate = startOfDay(parseISO(dateString));
-      return (isAfter(meetingDate, pastCutoff) || isEqual(meetingDate, pastCutoff)) && 
-             (isBefore(meetingDate, futureCutoff) || isEqual(meetingDate, futureCutoff));
+      // Include all meetings from today regardless of time, plus meetings within the time window
+      return isEqual(meetingDate, today) || 
+             ((isAfter(meetingDate, pastCutoff) || isEqual(meetingDate, pastCutoff)) && 
+              (isBefore(meetingDate, futureCutoff) || isEqual(meetingDate, futureCutoff)));
     };
     
     // Process internal meetings with time filtering and exclude concluded meetings

@@ -150,16 +150,18 @@ export class GoogleCalendarService {
         throw new Error('Google Calendar not connected for user');
       }
 
-      // Get current time and 30 days from now
+      // Get start of today and 30 days from now to include events from earlier today
       const now = new Date();
+      const startOfToday = new Date(now);
+      startOfToday.setHours(0, 0, 0, 0);
       const maxTime = new Date();
       maxTime.setDate(now.getDate() + 30);
 
-      console.log(`Fetching upcoming events for user ${userId} from ${now.toISOString()} to ${maxTime.toISOString()}`);
+      console.log(`Fetching events for user ${userId} from start of today ${startOfToday.toISOString()} to ${maxTime.toISOString()}`);
 
       const response = await calendar.events.list({
         calendarId: 'primary',
-        timeMin: now.toISOString(),
+        timeMin: startOfToday.toISOString(),
         timeMax: maxTime.toISOString(),
         maxResults: maxResults,
         singleEvents: true,
