@@ -1,75 +1,50 @@
 import fetch from 'node-fetch';
 
 async function testDirectReset() {
+  console.log('🔧 Testing Direct Production URL Reset\n');
+  
   try {
-    console.log('🔍 Testing with latest tokens from database...\n');
+    // Get current token
+    const currentToken = '487be96f395a9aa1651d7cd326809dd7';
     
-    // Test with latest token for ao4@thermopac.in (Vishal)
-    const testToken = '20885e2cd16ba58b8312837cdc772be2966cb4f03247f4821f792a2108a2905a';
-    const testUrl = `http://localhost:5000/reset-password?token=${testToken}`;
+    console.log('1️⃣ Testing production reset URL directly...');
+    const productionUrl = `https://thermopac-communication-thermopacllp.replit.app/reset-password?token=${currentToken}`;
+    console.log(`   URL: ${productionUrl}`);
     
-    console.log('🌐 Testing reset page access:');
-    console.log('   URL:', testUrl);
-    
-    const pageResponse = await fetch(testUrl);
-    console.log('   Status:', pageResponse.status);
-    console.log('   Headers:', Object.fromEntries(pageResponse.headers.entries()));
-    
-    if (pageResponse.ok) {
-      console.log('✅ Page loads successfully');
-      const htmlContent = await pageResponse.text();
-      console.log('   Content length:', htmlContent.length);
-      console.log('   Contains React root:', htmlContent.includes('id="root"'));
+    console.log('\n2️⃣ Sending fresh reset email with hardcoded production URL...');
+    const resetRequest = await fetch('http://localhost:5000/api/forgot-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: 'ao4@thermopac.in'
+      })
+    });
+
+    if (resetRequest.ok) {
+      console.log('✅ Fresh reset email sent with hardcoded production URL');
       
-      // Test the actual password reset
-      console.log('\n🔐 Testing password reset API:');
-      const resetResponse = await fetch('http://localhost:5000/api/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          token: testToken,
-          newPassword: 'DirectTestPassword@2025!'
-        })
-      });
+      console.log('\n📧 Email should now contain:');
+      console.log('   https://thermopac-communication-thermopacllp.replit.app/reset-password?token=...');
+      console.log('   (No more localhost:5000 URLs)');
       
-      const resetResult = await resetResponse.json();
-      console.log('   API Status:', resetResponse.status);
-      console.log('   Response:', resetResult);
+      console.log('\n🎯 Next Steps:');
+      console.log('1. Check email ao4@thermopac.in');
+      console.log('2. Click the Reset Password button');
+      console.log('3. URL should open the reset form correctly');
+      console.log('4. Enter new password and submit');
       
-      if (resetResponse.ok) {
-        console.log('✅ Reset API working perfectly');
-        
-        // Test login
-        console.log('\n🔑 Testing login with new password:');
-        const loginResponse = await fetch('http://localhost:5000/api/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            username: 'Vishal',
-            password: 'DirectTestPassword@2025!'
-          })
-        });
-        
-        if (loginResponse.ok) {
-          console.log('✅ Login successful!');
-          console.log('\n🎉 COMPLETE SYSTEM WORKING - Issue is with specific token/URL');
-        } else {
-          const loginError = await loginResponse.json();
-          console.log('❌ Login failed:', loginError);
-        }
-      }
+      console.log('\n🔒 Token Info:');
+      console.log('   Valid for 15 minutes from email generation');
+      console.log('   Use latest email for most recent token');
+      
     } else {
-      console.log('❌ Page failed to load');
-      const errorText = await pageResponse.text();
-      console.log('   Error content:', errorText.substring(0, 200));
+      console.log('❌ Failed to send reset email');
     }
     
   } catch (error) {
-    console.error('❌ Test failed:', error.message);
+    console.error('❌ Error:', error.message);
   }
 }
 

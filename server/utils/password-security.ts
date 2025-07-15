@@ -104,10 +104,8 @@ export async function sendPasswordResetEmail(
     return;
   }
 
-  // Use the correct production URL for reset links
-  const baseUrl = process.env.REPLIT_URL || 
-                  (process.env.NODE_ENV === 'production' ? 'https://thermopac-communication-thermopacllp.replit.app' : 'http://localhost:5000');
-  const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
+  // Always use production URL for reset links to avoid localhost issues
+  const resetUrl = `https://thermopac-communication-thermopacllp.replit.app/reset-password?token=${resetToken}`;
   
   const emailContent = {
     from: process.env.GMAIL_USER,
