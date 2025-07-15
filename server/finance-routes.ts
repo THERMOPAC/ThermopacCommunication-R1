@@ -4412,22 +4412,20 @@ router.get('/brc/:id/document', ensureAuthenticated, async (req: Request, res: R
 });
 
 /**
- * Issue a credit note for an invoice
+ * Get credit note details for an invoice (auto-generate number and get invoice details)
  */
-router.post('/invoices/:id/credit-note', ensureAuthenticated, async (req: Request, res: Response) => {
+router.get('/invoices/:id/credit-note-details', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const invoiceId = parseInt(req.params.id);
-    const { creditNoteNumber, creditNoteDate, creditNoteAmount, creditNoteReason } = req.body;
-    const userId = req.user?.id;
-
-    // Validate input
-    if (!creditNoteNumber || !creditNoteDate || !creditNoteAmount || !creditNoteReason) {
-      return res.status(400).json({ error: 'Credit note number, date, amount, and reason are required' });
+    
+    if (isNaN(invoiceId)) {
+      return res.status(400).json({ error: 'Invalid invoice ID' });
     }
 
-    // Validate that the invoice exists
+    // Get invoice details including issue date for fiscal year calculation
     const invoiceQuery = `
-      SELECT id, invoice_number, total_amount, status 
+      SELECT id, invoice_number, total_amount, status, issue_date, currency, due_date,
+             credit_note_number, credit_note_date, credit_note_amount, credit_note_reason
       FROM invoices 
       WHERE id = $1
     `;
@@ -4443,6 +4441,120 @@ router.post('/invoices/:id/credit-note', ensureAuthenticated, async (req: Reques
     // Check if credit note already exists for this invoice
     if (invoice.credit_note_number) {
       return res.status(400).json({ error: 'Credit note already exists for this invoice' });
+    }
+
+    // Extract fiscal year from invoice issue date
+    const issueDate = new Date(invoice.issue_date);
+    const issueYear = issueDate.getFullYear();
+    const issueMonth = issueDate.getMonth() + 1; // getMonth() is 0-based
+    
+    // Calculate fiscal year (April to March)
+    let fiscalYear;
+    if (issueMonth >= 4) {
+      // April to December - current year to next year
+      fiscalYear = `${issueYear.toString().slice(-2)}${(issueYear + 1).toString().slice(-2)}`;
+    } else {
+      // January to March - previous year to current year
+      fiscalYear = `${(issueYear - 1).toString().slice(-2)}${issueYear.toString().slice(-2)}`;
+    }
+
+    // Get next credit note number for this fiscal year
+    const creditNoteCountQuery = `
+      SELECT COUNT(*) as count
+      FROM invoices 
+      WHERE credit_note_number LIKE $1
+    `;
+    
+    const creditNoteCountResult = await pool.query(creditNoteCountQuery, [`CRN-${fiscalYear}-%`]);
+    const nextNumber = parseInt(creditNoteCountResult.rows[0].count) + 1;
+    const creditNoteNumber = `CRN-${fiscalYear}-${nextNumber.toString().padStart(3, '0')}`;
+
+    res.json({
+      success: true,
+      invoice: {
+        id: invoice.id,
+        invoiceNumber: invoice.invoice_number,
+        totalAmount: invoice.total_amount,
+        currency: invoice.currency,
+        status: invoice.status,
+        issueDate: invoice.issue_date,
+        dueDate: invoice.due_date
+      },
+      creditNoteNumber,
+      fiscalYear,
+      minDate: invoice.issue_date // Credit note date must be >= invoice date
+    });
+
+  } catch (error) {
+    console.error('Error getting credit note details:', error);
+    res.status(500).json({ error: 'Failed to get credit note details' });
+  }
+});
+
+/**
+ * Issue a credit note for an invoice
+ */
+router.post('/invoices/:id/credit-note', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const invoiceId = parseInt(req.params.id);
+    const { creditNoteNumber, creditNoteDate, creditNoteAmount, creditNoteReason } = req.body;
+    const userId = req.user?.id;
+
+    // Validate input
+    if (!creditNoteNumber || !creditNoteDate || !creditNoteAmount || !creditNoteReason) {
+      return res.status(400).json({ error: 'Credit note number, date, amount, and reason are required' });
+    }
+
+    // Validate that the invoice exists and get full details
+    const invoiceQuery = `
+      SELECT id, invoice_number, total_amount, status, issue_date
+      FROM invoices 
+      WHERE id = $1
+    `;
+    
+    const invoiceResult = await pool.query(invoiceQuery, [invoiceId]);
+    
+    if (invoiceResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    const invoice = invoiceResult.rows[0];
+
+    // Check if credit note already exists for this invoice
+    if (invoice.credit_note_number) {
+      return res.status(400).json({ error: 'Credit note already exists for this invoice' });
+    }
+
+    // Validate credit note amount doesn't exceed invoice total
+    const creditAmount = parseFloat(creditNoteAmount);
+    const invoiceAmount = parseFloat(invoice.total_amount);
+    
+    if (creditAmount > invoiceAmount) {
+      return res.status(400).json({ 
+        error: `Credit note amount (${creditAmount}) cannot exceed invoice amount (${invoiceAmount})` 
+      });
+    }
+
+    // Validate credit note date is not before invoice date
+    const creditDate = new Date(creditNoteDate);
+    const invoiceDate = new Date(invoice.issue_date);
+    
+    if (creditDate < invoiceDate) {
+      return res.status(400).json({ 
+        error: 'Credit note date cannot be before invoice date' 
+      });
+    }
+
+    // Check if credit note number already exists
+    const duplicateCheckQuery = `
+      SELECT id FROM invoices WHERE credit_note_number = $1 AND id != $2
+    `;
+    const duplicateResult = await pool.query(duplicateCheckQuery, [creditNoteNumber, invoiceId]);
+    
+    if (duplicateResult.rows.length > 0) {
+      return res.status(400).json({ 
+        error: 'Credit note number already exists. Please refresh and try again.' 
+      });
     }
 
     // Update the invoice with credit note details and change status to 'Credited'

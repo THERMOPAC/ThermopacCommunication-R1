@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
@@ -62,11 +62,14 @@ import {
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 
-// Credit note validation schema
+// Credit note validation schema with enhanced validation
 const creditNoteSchema = z.object({
   creditNoteNumber: z.string().min(1, "Credit note number is required"),
   creditNoteDate: z.string().min(1, "Credit note date is required"),
-  creditNoteAmount: z.string().min(1, "Credit note amount is required"),
+  creditNoteAmount: z.string().min(1, "Credit note amount is required").refine(
+    (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+    { message: "Credit note amount must be a valid positive number" }
+  ),
   creditNoteReason: z.string().min(1, "Credit note reason is required"),
 });
 
@@ -538,6 +541,10 @@ function CreditNoteDialog({
   onSubmit: (data: CreditNoteFormData) => void;
   isLoading: boolean;
 }) {
+  const [creditNoteDetails, setCreditNoteDetails] = useState<any>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const { toast } = useToast();
+
   const form = useForm<CreditNoteFormData>({
     resolver: zodResolver(creditNoteSchema),
     defaultValues: {
@@ -547,6 +554,87 @@ function CreditNoteDialog({
       creditNoteReason: '',
     }
   });
+
+  // Enhanced validation schema with dynamic invoice amount checking
+  const enhancedCreditNoteSchema = useMemo(() => {
+    if (!creditNoteDetails?.invoice?.totalAmount) return creditNoteSchema;
+    
+    return creditNoteSchema.extend({
+      creditNoteAmount: z.string()
+        .min(1, "Credit note amount is required")
+        .refine(
+          (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+          { message: "Credit note amount must be a valid positive number" }
+        )
+        .refine(
+          (val) => parseFloat(val) <= parseFloat(creditNoteDetails.invoice.totalAmount),
+          { 
+            message: `Credit note amount cannot exceed invoice amount (${formatCurrency(creditNoteDetails.invoice.totalAmount, creditNoteDetails.invoice.currency)})` 
+          }
+        ),
+      creditNoteDate: z.string()
+        .min(1, "Credit note date is required")
+        .refine(
+          (val) => {
+            if (!creditNoteDetails?.minDate) return true;
+            const creditDate = new Date(val);
+            const minDate = new Date(creditNoteDetails.minDate);
+            return creditDate >= minDate;
+          },
+          { 
+            message: `Credit note date cannot be before invoice date (${creditNoteDetails?.minDate ? new Date(creditNoteDetails.minDate).toLocaleDateString() : ''})` 
+          }
+        )
+    });
+  }, [creditNoteDetails]);
+
+  // Update form resolver when enhanced schema changes
+  useEffect(() => {
+    if (creditNoteDetails) {
+      const newForm = useForm<CreditNoteFormData>({
+        resolver: zodResolver(enhancedCreditNoteSchema),
+        defaultValues: form.getValues()
+      });
+      Object.keys(form.getValues()).forEach(key => {
+        newForm.setValue(key as keyof CreditNoteFormData, form.getValues(key as keyof CreditNoteFormData));
+      });
+      form.reset(newForm.getValues());
+    }
+  }, [enhancedCreditNoteSchema]);
+
+  // Fetch credit note details when dialog opens
+  useEffect(() => {
+    if (open && invoice?.id) {
+      setIsLoadingDetails(true);
+      apiRequest('GET', `/api/finance/invoices/${invoice.id}/credit-note-details`)
+        .then((response) => {
+          setCreditNoteDetails(response);
+          // Auto-fill form with generated data
+          form.setValue('creditNoteNumber', response.creditNoteNumber);
+          form.setValue('creditNoteAmount', response.invoice.totalAmount.toString());
+          form.setValue('creditNoteDate', new Date().toISOString().split('T')[0]);
+        })
+        .catch((error) => {
+          toast({
+            title: "Error Loading Credit Note Details",
+            description: error.message || "Failed to load credit note details",
+            variant: "destructive"
+          });
+          onOpenChange(false);
+        })
+        .finally(() => {
+          setIsLoadingDetails(false);
+        });
+    }
+  }, [open, invoice?.id]);
+
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!open) {
+      form.reset();
+      setCreditNoteDetails(null);
+    }
+  }, [open]);
 
   const handleSubmit = (data: CreditNoteFormData) => {
     onSubmit(data);
@@ -564,77 +652,115 @@ function CreditNoteDialog({
           </DialogDescription>
         </DialogHeader>
         
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            {/* Invoice Information */}
-            <div className="rounded-lg border p-4 bg-muted/50">
-              <h3 className="font-medium mb-2">Invoice Information</h3>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Invoice #:</span>
-                  <p className="font-medium">{invoice.invoiceNumber}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Customer:</span>
-                  <p className="font-medium">{invoice.customerName}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Amount:</span>
-                  <p className="font-medium">{formatCurrency(invoice.totalAmount, invoice.currency)}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Status:</span>
-                  <div className="mt-1">
-                    <StatusBadge status={invoice.status} />
+        {isLoadingDetails ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span className="ml-2">Loading credit note details...</span>
+          </div>
+        ) : (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+              {/* Invoice Information */}
+              <div className="rounded-lg border p-4 bg-muted/50">
+                <h3 className="font-medium mb-2">Invoice Information</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Invoice #:</span>
+                    <p className="font-medium">{invoice.invoiceNumber}</p>
                   </div>
+                  <div>
+                    <span className="text-muted-foreground">Customer:</span>
+                    <p className="font-medium">{invoice.customerName}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Amount:</span>
+                    <p className="font-medium">{formatCurrency(invoice.totalAmount, invoice.currency)}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Status:</span>
+                    <div className="mt-1">
+                      <StatusBadge status={invoice.status} />
+                    </div>
+                  </div>
+                  {creditNoteDetails && (
+                    <div className="col-span-2 mt-2 pt-2 border-t">
+                      <span className="text-muted-foreground">Issue Date:</span>
+                      <p className="font-medium">{new Date(creditNoteDetails.invoice.issueDate).toLocaleDateString()}</p>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
 
-            {/* Credit Note Form */}
-            <div className="space-y-4">
-              <FormField
-                control={form.control}
-                name="creditNoteNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Credit Note Number *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter credit note number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Credit Note Form */}
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="creditNoteNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Credit Note Number *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Auto-generated credit note number" 
+                          readOnly
+                          className="bg-muted/50"
+                          {...field} 
+                        />
+                      </FormControl>
+                      {creditNoteDetails && (
+                        <p className="text-xs text-muted-foreground">
+                          Auto-generated for fiscal year {creditNoteDetails.fiscalYear}
+                        </p>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="creditNoteDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Credit Note Date *</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="creditNoteDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Credit Note Date *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="date" 
+                          min={creditNoteDetails?.minDate}
+                          {...field} 
+                        />
+                      </FormControl>
+                      {creditNoteDetails?.minDate && (
+                        <p className="text-xs text-muted-foreground">
+                          Cannot be before invoice date: {new Date(creditNoteDetails.minDate).toLocaleDateString()}
+                        </p>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="creditNoteAmount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Credit Note Amount *</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        step="0.01" 
-                        placeholder="Enter amount" 
-                        {...field} 
-                      />
-                    </FormControl>
+                <FormField
+                  control={form.control}
+                  name="creditNoteAmount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Credit Note Amount *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.01" 
+                          placeholder="Enter amount" 
+                          max={creditNoteDetails?.invoice?.totalAmount}
+                          {...field} 
+                        />
+                      </FormControl>
+                      {creditNoteDetails?.invoice && (
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Pre-filled with full invoice amount</span>
+                          <span>Max: {formatCurrency(creditNoteDetails.invoice.totalAmount, creditNoteDetails.invoice.currency)}</span>
+                        </div>
+                      )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -687,7 +813,8 @@ function CreditNoteDialog({
               </Button>
             </div>
           </form>
-        </Form>
+          </Form>
+        )}
       </DialogContent>
     </Dialog>
   );
