@@ -615,7 +615,17 @@ export class SAPB1Connector {
           PRJ.Reason as ProjectReason,
           PRJ.StartDate as ProjectStartDate,
           PRJ.FinishedPrc as ProjectFinishedPercent,
-          PRJ.DocNum as ProjectDocNum
+          PRJ.DocNum as ProjectDocNum,
+          -- Item/Service Classification
+          (SELECT COUNT(*) FROM POR1 POI 
+           INNER JOIN OITM ITM ON POI.ItemCode = ITM.ItemCode 
+           WHERE POI.DocEntry = PO.DocEntry AND ITM.InvntItem = 'Y'
+          ) as ItemCount,
+          (SELECT COUNT(*) FROM POR1 POI 
+           INNER JOIN OITM ITM ON POI.ItemCode = ITM.ItemCode 
+           WHERE POI.DocEntry = PO.DocEntry AND ITM.InvntItem = 'N'
+          ) as ServiceCount,
+          (SELECT COUNT(*) FROM POR1 WHERE DocEntry = PO.DocEntry) as TotalLines
         FROM OPOR PO
         LEFT JOIN OCRD VEN ON PO.CardCode = VEN.CardCode
         LEFT JOIN OPRJ PRJ ON PO.Project = PRJ.PrjCode

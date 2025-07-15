@@ -1,6 +1,7 @@
 import express from 'express';
 import { db } from '../db';
 import { ensureAuthenticated } from '../auth-middleware';
+import { sapB1Connector } from './sap-connector';
 import { 
   sapPurchaseOrders, 
   sapPurchaseOrderItems, 
@@ -15,7 +16,7 @@ const router = express.Router();
 // Apply authentication middleware to all routes
 router.use(ensureAuthenticated);
 
-// Purchase Orders Endpoints
+// Purchase Orders Endpoints - Live SAP B1 Integration
 router.get('/purchase-orders', async (req, res) => {
   try {
     const { 
@@ -23,52 +24,98 @@ router.get('/purchase-orders', async (req, res) => {
       status, 
       dateFrom, 
       dateTo, 
+      projectCode,
+      financialYear,
       limit = 50, 
       offset = 0 
     } = req.query;
 
-    let query = db.select().from(sapPurchaseOrders);
-    
-    // Apply filters
-    const conditions: any[] = [];
-    
-    if (vendorCode) {
-      conditions.push(eq(sapPurchaseOrders.vendorCode, vendorCode as string));
-    }
-    
-    if (status) {
-      conditions.push(eq(sapPurchaseOrders.docStatus, status as string));
-    }
-    
-    if (dateFrom) {
-      conditions.push(gte(sapPurchaseOrders.docDate, new Date(dateFrom as string)));
-    }
-    
-    if (dateTo) {
-      conditions.push(lte(sapPurchaseOrders.docDate, new Date(dateTo as string)));
-    }
-    
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
-    
-    const purchaseOrders = await query
-      .orderBy(desc(sapPurchaseOrders.docDate))
-      .limit(Number(limit))
-      .offset(Number(offset));
+    // Prepare filters for SAP connector
+    const filters = {
+      vendorCode: vendorCode as string,
+      status: status as string,
+      fromDate: dateFrom ? new Date(dateFrom as string) : undefined,
+      toDate: dateTo ? new Date(dateTo as string) : undefined,
+      projectCode: projectCode as string,
+      financialYear: financialYear as string,
+      limit: Number(limit),
+      offset: Number(offset)
+    };
+
+    // Get purchase orders from SAP B1 with Item/Service classification data
+    const rawPurchaseOrders = await sapB1Connector.getPurchaseOrders(filters);
+
+    // Process and classify each purchase order
+    const processedPurchaseOrders = rawPurchaseOrders.map((po: any) => {
+      const itemCount = parseInt(po.ItemCount || 0);
+      const serviceCount = parseInt(po.ServiceCount || 0);
+      const totalLines = parseInt(po.TotalLines || 0);
+
+      // Determine order type based on item/service distribution
+      let orderType: 'Item' | 'Service' | 'Mixed';
+      const hasItems = itemCount > 0;
+      const hasServices = serviceCount > 0;
+
+      if (hasItems && hasServices) {
+        orderType = 'Mixed';
+      } else if (hasItems && !hasServices) {
+        orderType = 'Item';
+      } else if (!hasItems && hasServices) {
+        orderType = 'Service';
+      } else {
+        // Default case - shouldn't happen but handles edge cases
+        orderType = 'Item';
+      }
+
+      return {
+        docEntry: po.DocEntry,
+        docNum: po.DocNum,
+        docDate: po.DocDate,
+        vendorCode: po.CardCode,
+        vendorName: po.CardName,
+        docTotal: po.DocTotal,
+        docCurrency: po.DocCur,
+        docStatus: po.DocStatus,
+        comments: po.Comments || '',
+        orderType,
+        hasItems,
+        hasServices,
+        itemCount,
+        serviceCount,
+        // Additional SAP B1 data
+        projectCode: po.ProjectCode,
+        projectName: po.ProjectName,
+        financialYear: po.FinancialYear,
+        vendorPhone: po.VendorPhone,
+        vendorEmail: po.VendorEmail,
+        vendorAddress: po.VendorAddress,
+        vendorCity: po.VendorCity,
+        vendorCountry: po.VendorCountry
+      };
+    });
 
     res.json({
       success: true,
-      data: purchaseOrders,
+      data: processedPurchaseOrders,
       pagination: {
         limit: Number(limit),
         offset: Number(offset),
-        hasMore: purchaseOrders.length === Number(limit)
+        hasMore: processedPurchaseOrders.length === Number(limit)
+      },
+      classification: {
+        totalOrders: processedPurchaseOrders.length,
+        itemOrders: processedPurchaseOrders.filter(po => po.orderType === 'Item').length,
+        serviceOrders: processedPurchaseOrders.filter(po => po.orderType === 'Service').length,
+        mixedOrders: processedPurchaseOrders.filter(po => po.orderType === 'Mixed').length
       }
     });
   } catch (error) {
-    console.error('Error fetching purchase orders:', error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    console.error('Error fetching purchase orders from SAP B1:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch purchase orders from SAP B1',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -398,53 +445,90 @@ router.get('/purchase-invoices', async (req, res) => {
   }
 });
 
-// Dashboard Statistics Endpoint
+// Dashboard Statistics Endpoint - Enhanced with Live SAP B1 Data & Item/Service Classification
 router.get('/dashboard-stats', async (req, res) => {
   try {
-    // Get purchase orders statistics
-    const openPurchaseOrders = await db
-      .select()
-      .from(sapPurchaseOrders)
-      .where(eq(sapPurchaseOrders.docStatus, 'O'));
+    // Get live purchase orders from SAP B1 with classification data
+    const allPurchaseOrders = await sapB1Connector.getPurchaseOrders({
+      limit: 1000 // Get more data for comprehensive statistics
+    });
 
-    const totalPurchaseOrders = await db
-      .select()
-      .from(sapPurchaseOrders);
+    // Process orders to get classification statistics
+    let totalOrders = 0;
+    let openOrders = 0;
+    let closedOrders = 0;
+    let itemOrders = 0;
+    let serviceOrders = 0;
+    let mixedOrders = 0;
+    let totalValue = 0;
 
-    // Get purchase requisitions statistics
-    const openRequisitions = await db
-      .select()
-      .from(sapPurchaseRequisitions)
-      .where(eq(sapPurchaseRequisitions.docStatus, 'O'));
+    allPurchaseOrders.forEach((po: any) => {
+      totalOrders++;
+      totalValue += po.DocTotal || 0;
+      
+      // Count by status
+      if (po.DocStatus === 'O') {
+        openOrders++;
+      } else {
+        closedOrders++;
+      }
 
-    // Get this month's purchase invoices
+      // Classify by item/service type
+      const itemCount = parseInt(po.ItemCount || 0);
+      const serviceCount = parseInt(po.ServiceCount || 0);
+      const hasItems = itemCount > 0;
+      const hasServices = serviceCount > 0;
+
+      if (hasItems && hasServices) {
+        mixedOrders++;
+      } else if (hasItems && !hasServices) {
+        itemOrders++;
+      } else if (!hasItems && hasServices) {
+        serviceOrders++;
+      }
+    });
+
+    // Get current month statistics
     const currentMonth = new Date();
-    currentMonth.setDate(1);
-    const thisMonthInvoices = await db
-      .select()
-      .from(sapPurchaseInvoices)
-      .where(gte(sapPurchaseInvoices.docDate, currentMonth));
+    const thisMonthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const thisMonthOrders = allPurchaseOrders.filter((po: any) => {
+      const docDate = new Date(po.DocDate);
+      return docDate >= thisMonthStart;
+    });
 
-    // Calculate total amounts
-    const totalPurchaseValue = totalPurchaseOrders.reduce((sum, po) => sum + (po.docTotal || 0), 0);
-    const thisMonthInvoiceValue = thisMonthInvoices.reduce((sum, inv) => sum + (inv.docTotal || 0), 0);
+    const thisMonthValue = thisMonthOrders.reduce((sum: number, po: any) => sum + (po.DocTotal || 0), 0);
+
+    // Get unique vendors count
+    const uniqueVendors = new Set(allPurchaseOrders.map((po: any) => po.CardCode));
 
     res.json({
       success: true,
       data: {
-        purchaseOrders: {
-          total: totalPurchaseOrders.length,
-          open: openPurchaseOrders.length,
-          closed: totalPurchaseOrders.length - openPurchaseOrders.length,
-          totalValue: totalPurchaseValue
+        totalOrders,
+        pendingOrders: openOrders,
+        totalValue: Math.round(totalValue),
+        activeVendors: uniqueVendors.size,
+        // Enhanced classification statistics
+        classification: {
+          itemOrders,
+          serviceOrders,
+          mixedOrders,
+          percentages: {
+            itemPercent: totalOrders > 0 ? Math.round((itemOrders / totalOrders) * 100) : 0,
+            servicePercent: totalOrders > 0 ? Math.round((serviceOrders / totalOrders) * 100) : 0,
+            mixedPercent: totalOrders > 0 ? Math.round((mixedOrders / totalOrders) * 100) : 0
+          }
         },
-        requisitions: {
-          total: openRequisitions.length,
-          open: openRequisitions.length
+        // Monthly statistics
+        thisMonth: {
+          orders: thisMonthOrders.length,
+          value: Math.round(thisMonthValue)
         },
-        invoices: {
-          thisMonth: thisMonthInvoices.length,
-          thisMonthValue: thisMonthInvoiceValue
+        // Status breakdown
+        status: {
+          open: openOrders,
+          closed: closedOrders,
+          openPercent: totalOrders > 0 ? Math.round((openOrders / totalOrders) * 100) : 0
         }
       }
     });

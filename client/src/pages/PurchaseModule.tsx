@@ -47,6 +47,11 @@ interface PurchaseOrder {
   docCurrency: string;
   docStatus: string;
   comments: string;
+  orderType: 'Item' | 'Service' | 'Mixed'; // New field to differentiate PO types
+  hasItems: boolean;     // If PO contains physical items
+  hasServices: boolean;  // If PO contains services
+  itemCount: number;     // Number of item lines
+  serviceCount: number;  // Number of service lines
 }
 
 interface PurchaseStats {
@@ -54,6 +59,27 @@ interface PurchaseStats {
   pendingOrders: number;
   totalValue: number;
   activeVendors: number;
+  // Enhanced classification statistics
+  classification: {
+    itemOrders: number;
+    serviceOrders: number;
+    mixedOrders: number;
+    percentages: {
+      itemPercent: number;
+      servicePercent: number;
+      mixedPercent: number;
+    };
+  };
+  // Monthly and status statistics
+  thisMonth: {
+    orders: number;
+    value: number;
+  };
+  status: {
+    open: number;
+    closed: number;
+    openPercent: number;
+  };
 }
 
 // Utility functions for Indian Financial Year (April to March)
@@ -302,6 +328,7 @@ export default function PurchaseModule() {
                   <TableHead>PO Number</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Vendor</TableHead>
+                  <TableHead>Order Type</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
@@ -313,6 +340,18 @@ export default function PurchaseModule() {
                     <TableCell className="font-medium">{order.docNum}</TableCell>
                     <TableCell>{new Date(order.docDate).toLocaleDateString()}</TableCell>
                     <TableCell>{order.vendorName}</TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant="outline" 
+                        className={
+                          order.orderType === 'Item' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                          order.orderType === 'Service' ? 'bg-green-50 text-green-700 border-green-200' :
+                          'bg-purple-50 text-purple-700 border-purple-200'
+                        }
+                      >
+                        {order.orderType}
+                      </Badge>
+                    </TableCell>
                     <TableCell>{order.docCurrency} {order.docTotal.toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge variant={order.docStatus === 'O' ? 'default' : 'secondary'}>
@@ -399,6 +438,55 @@ export default function PurchaseModule() {
               color="purple"
             />
           </div>
+
+          {/* Item/Service Classification Overview */}
+          {stats?.classification && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Package className="h-5 w-5 mr-2" />
+                  Purchase Order Classification
+                </CardTitle>
+                <p className="text-sm text-gray-600">
+                  Analysis of purchase orders by item and service types
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="text-2xl font-bold text-blue-700">
+                      {stats.classification.itemOrders}
+                    </div>
+                    <div className="text-sm text-blue-600 font-medium">Item-based POs</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {stats.classification.percentages.itemPercent}% of total
+                    </div>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div className="text-2xl font-bold text-green-700">
+                      {stats.classification.serviceOrders}
+                    </div>
+                    <div className="text-sm text-green-600 font-medium">Service-based POs</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {stats.classification.percentages.servicePercent}% of total
+                    </div>
+                  </div>
+                  <div className="text-center p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="text-2xl font-bold text-purple-700">
+                      {stats.classification.mixedOrders}
+                    </div>
+                    <div className="text-sm text-purple-600 font-medium">Mixed POs</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {stats.classification.percentages.mixedPercent}% of total
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 text-xs text-gray-500 text-center">
+                  Classification based on line item analysis: Items (InvntItem='Y') vs Services (InvntItem='N')
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
