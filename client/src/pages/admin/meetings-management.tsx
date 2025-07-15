@@ -3730,21 +3730,25 @@ Suggested next steps
             </div>
           </Card>
 
-          {/* Conflict Warning Notice */}
-          <Card className="p-6 bg-red-50 border-red-200">
-            <h3 className="font-semibold text-red-800 mb-3">⚠️ SCHEDULING CONFLICT DETECTED</h3>
+          {/* Conflict Resolution Notice */}
+          <Card className="p-6 bg-green-50 border-green-200">
+            <h3 className="font-semibold text-green-800 mb-3">✅ NO CONFLICTS DETECTED</h3>
             <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <span className="text-sm text-red-700">Employee Planning: 10:30 AM - 11:00 AM (All weekdays)</span>
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="text-sm text-green-700">Employee Planning: 10:30 AM - 11:00 AM (All weekdays)</span>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <span className="text-sm text-red-700">MD Strategic Thinking: 10:30 AM - 12:30 PM (Mondays)</span>
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span className="text-sm text-green-700">MD Executive Brief: 11:30 AM - 12:00 PM (Mondays)</span>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                <span className="text-sm text-red-700 font-medium">⚠️ CONFLICT: 30-minute overlap every Monday</span>
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span className="text-sm text-green-700">MD Strategic Thinking: 2:00 PM - 4:00 PM (Mondays)</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="text-sm text-green-700 font-medium">✅ PERFECT SCHEDULING: No overlaps between any meetings</span>
               </div>
             </div>
           </Card>

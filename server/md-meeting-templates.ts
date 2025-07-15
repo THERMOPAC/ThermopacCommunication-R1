@@ -81,17 +81,17 @@ export const mdMeetingTemplates = {
       priority: "High",
       duration: 30,
       dayOfWeek: 0, // Monday (0-based for Monday-start week)
-      timeSlot: "10:00", // Updated: No meetings before 10:00 AM
+      timeSlot: "11:30", // Updated: Moved to avoid conflict with Employee Planning
       attendeeRoles: ["General Manager", "Senior Manager", "Manager"]
     },
     strategicThinking: {
       title: "Strategic Thinking Session",
-      description: "Individual planning and analysis",
+      description: "Deep individual focus for planning, reflection, and strategy",
       meetingType: "Strategic",
       priority: "Critical",
       duration: 120,
       dayOfWeek: 0, // Monday (0-based for Monday-start week)
-      timeSlot: "10:30", // Updated: No meetings before 10:00 AM
+      timeSlot: "14:00", // Updated: Moved to afternoon to avoid conflicts
       attendeeRoles: [] // Individual time
     },
     marketingStrategyCheckin: {

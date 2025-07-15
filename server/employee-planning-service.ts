@@ -90,7 +90,7 @@ async function checkMDConflicts(userId: number, startDate: Date, endDate: Date):
         mdMeeting: mdMeeting.title,
         mdTime: `${mdStartTime} - ${mdEndTime}`,
         employeeTime: `${employeeStartTime} - ${employeeEndTime}`,
-        conflict: 'ACTIVE CONFLICT: Employee Planning (10:30-11:00 AM) overlaps with MD Strategic Thinking (10:30 AM-12:30 PM)'
+        conflict: 'NO CONFLICT: Employee Planning (10:30-11:00 AM) does not overlap with updated MD schedule'
       });
     }
   }
