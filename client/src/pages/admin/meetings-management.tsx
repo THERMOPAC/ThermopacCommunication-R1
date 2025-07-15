@@ -1202,6 +1202,7 @@ export default function MeetingsManagement() {
       agenda: '',
       autoCreateGoogleMeet: true,
     });
+    setSelectedStartTime(''); // Reset the selected start time state
     setEditingMeeting(null);
     setIsCreateMeetingOpen(false);
   };
@@ -1229,6 +1230,8 @@ export default function MeetingsManagement() {
 
   const startEditMeeting = (meeting: Meeting) => {
     setEditingMeeting(meeting);
+    // Set the selected start time first to enable the end time dropdown
+    setSelectedStartTime(meeting.meeting.startTime);
     meetingForm.reset({
       title: meeting.meeting.title,
       description: meeting.meeting.description || '',
