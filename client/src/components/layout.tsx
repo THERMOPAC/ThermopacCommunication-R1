@@ -400,8 +400,35 @@ function Layout({ children }: LayoutProps) {
                   );
                 })}
                 
-                {/* Show submenu items */}
-                {menuItems.filter(item => item.isSubmenu).map((item, index) => {
+                {/* Show submenu items in specific order */}
+                {(() => {
+                  const orderedModules = [
+                    'Project Management',
+                    'Sales and Marketing',
+                    'Finance',
+                    'Procurement Management',
+                    'Production Management',
+                    'Quality Management'
+                  ];
+                  
+                  const submenuItems = menuItems.filter(item => item.isSubmenu);
+                  const orderedItems = [];
+                  
+                  // Add items in the specified order
+                  orderedModules.forEach(moduleLabel => {
+                    const item = submenuItems.find(item => item.label === moduleLabel);
+                    if (item) orderedItems.push(item);
+                  });
+                  
+                  // Add any remaining items not in the ordered list
+                  submenuItems.forEach(item => {
+                    if (!orderedItems.includes(item)) {
+                      orderedItems.push(item);
+                    }
+                  });
+                  
+                  return orderedItems;
+                })().map((item, index) => {
                   const Icon = item.icon;
                   // Check if any child is active
                   const isChildActive = item.children?.some(child => location.startsWith(child.href?.split('?')[0] || ''));
@@ -452,6 +479,24 @@ function Layout({ children }: LayoutProps) {
                           })}
                         </ul>
                       )}
+                      
+                      {/* Show SAP B1 Purchase right after Project Management */}
+                      {item.label === 'Project Management' && (
+                        <li key="sap-b1-purchase" className="mt-1">
+                          <Link href="/sap-b1/purchase">
+                            <button
+                              className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#3B82F6] transition-all
+                                ${location === '/sap-b1/purchase'
+                                  ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold'
+                                  : 'hover:bg-[#F3F4F6] rounded-md'
+                                }`}
+                            >
+                              <Database className={`h-5 w-5 ${location === '/sap-b1/purchase' ? 'text-[#3B82F6]' : 'text-[#3B82F6]'}`} />
+                              <span>SAP B1 Purchase</span>
+                            </button>
+                          </Link>
+                        </li>
+                      )}
                     </li>
                   );
                 })}
@@ -461,8 +506,7 @@ function Layout({ children }: LayoutProps) {
                   !item.isSubmenu && 
                   (item.href === '/project-commissioning' || 
                    item.href === '/dispatch-shipping' || 
-                   item.href === '/after-sales' ||
-                   item.href === '/sap-b1/purchase')
+                   item.href === '/after-sales')
                 ).map((item, index) => {
                   const Icon = item.icon;
                   const isActive = item.href ? location === item.href : false;
