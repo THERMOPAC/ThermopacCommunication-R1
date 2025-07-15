@@ -20,6 +20,28 @@ export function ResetPasswordForm({ token, onSuccess, onError }: ResetPasswordFo
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [username, setUsername] = useState<string>('');
+
+  // Fetch username from token validation
+  useEffect(() => {
+    const fetchUsername = async () => {
+      try {
+        const response = await fetch(`/api/validate-reset-token?token=${token}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.valid && data.username) {
+            setUsername(data.username);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching username:', error);
+      }
+    };
+    
+    if (token) {
+      fetchUsername();
+    }
+  }, [token]);
 
   // Password validation
   const validatePassword = (password: string) => {
@@ -90,6 +112,9 @@ export function ResetPasswordForm({ token, onSuccess, onError }: ResetPasswordFo
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-bold text-blue-600">Create New Password</CardTitle>
+        {username && (
+          <p className="text-lg font-medium text-gray-700 mt-2">for {username}</p>
+        )}
         <CardDescription>
           Please enter your new password. Make sure it meets all security requirements.
         </CardDescription>
