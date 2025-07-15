@@ -101,8 +101,7 @@ async function hashPassword(password: string) {
 async function comparePasswords(supplied: string, stored: string) {
   // Check if it's a bcrypt hash (starts with $2b$)
   if (stored.startsWith('$2b$')) {
-    const bcrypt = require('bcrypt');
-    return await bcrypt.compare(supplied, stored);
+    return await secureVerifyPassword(supplied, stored);
   }
   
   // Legacy custom hash format (contains a dot separator)
