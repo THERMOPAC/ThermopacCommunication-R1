@@ -156,7 +156,7 @@ export const generateWeeklyEmployeeMeetings = async (req: Request, res: Response
         continue;
       }
       
-      // Create meeting object with fixed participants
+      // Create meeting object with fixed participants and Google Meet integration
       const meeting = {
         title: employeePlanningTemplate.title,
         description: employeePlanningTemplate.description,
@@ -171,7 +171,7 @@ export const generateWeeklyEmployeeMeetings = async (req: Request, res: Response
         location: null,
         meetingUrl: null,
         googleMeetLink: null,
-        autoCreateGoogleMeet: false,
+        autoCreateGoogleMeet: true, // Enable Google Meet link generation
         status: 'Scheduled',
         createdBy: user.id // Fix: Add createdBy field
       };
@@ -181,8 +181,52 @@ export const generateWeeklyEmployeeMeetings = async (req: Request, res: Response
     
     // Insert meetings into database
     if (meetingsToCreate.length > 0) {
-      await db.insert(businessMeetings).values(meetingsToCreate);
-      console.log(`✅ Created ${meetingsToCreate.length} employee planning meetings`);
+      const createdMeetings = await db.insert(businessMeetings).values(meetingsToCreate).returning();
+      console.log(`✅ Created ${createdMeetings.length} employee planning meetings`);
+      
+      // Check if user has Google Calendar connected for Google Meet link generation
+      const organizer = await db
+        .select({
+          googleCalendarConnected: users.googleCalendarConnected,
+          googleCalendarSyncEnabled: users.googleCalendarSyncEnabled
+        })
+        .from(users)
+        .where(eq(users.id, user.id))
+        .limit(1);
+
+      // Auto-create Google Meet links for meetings if user has Google Calendar connected
+      if (organizer.length > 0 && organizer[0].googleCalendarConnected && organizer[0].googleCalendarSyncEnabled) {
+        console.log('🔗 User has Google Calendar connected, generating Google Meet links...');
+        
+        for (const meeting of createdMeetings) {
+          try {
+            const result = await googleCalendarService.createCalendarEvent(user.id, meeting);
+            
+            if (result && result.eventId) {
+              // Update meeting with Google event ID, sync status, and Meet link
+              const updateData: any = { 
+                googleEventId: result.eventId,
+                googleCalendarSynced: true 
+              };
+              
+              if (result.meetLink) {
+                updateData.googleMeetLink = result.meetLink;
+                updateData.googleMeetUrl = result.meetLink;
+                console.log(`✅ Generated Google Meet link for Employee Planning meeting ${meeting.id}: ${result.meetLink}`);
+              }
+              
+              await db
+                .update(businessMeetings)
+                .set(updateData)
+                .where(eq(businessMeetings.id, meeting.id));
+            }
+          } catch (error) {
+            console.error(`❌ Error generating Google Meet link for meeting ${meeting.id}:`, error);
+          }
+        }
+      } else {
+        console.log('⚠️ User does not have Google Calendar connected, skipping Google Meet link generation');
+      }
     }
     
     res.json({
@@ -333,7 +377,7 @@ export const previewWeeklyEmployeeMeetings = async (req: Request, res: Response)
     for (const weekday of weekdays) {
       const dateStr = weekday.toISOString().split('T')[0];
       
-      // Create preview meeting object with fixed participants
+      // Create preview meeting object with fixed participants and Google Meet integration
       const meeting = {
         id: `preview-${dateStr}`,
         title: employeePlanningTemplate.title,
@@ -349,7 +393,7 @@ export const previewWeeklyEmployeeMeetings = async (req: Request, res: Response)
         location: null,
         meetingUrl: null,
         googleMeetLink: null,
-        autoCreateGoogleMeet: false,
+        autoCreateGoogleMeet: true, // Preview shows Google Meet will be generated
         status: existingDates.includes(dateStr) ? 'Existing' : 'Scheduled',
         createdBy: user.id,
         organizer: {
