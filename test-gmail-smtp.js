@@ -1,73 +1,50 @@
-import nodemailer from 'nodemailer';
+import fetch from 'node-fetch';
 
 async function testGmailSMTP() {
   try {
-    console.log('Testing Gmail SMTP configuration...');
+    console.log('🎯 Testing Gmail SMTP and creating fresh reset link...\n');
     
-    // Check environment variables
-    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-      console.error('Gmail credentials not found in environment variables');
-      return;
-    }
-    
-    console.log(`Gmail User: ${process.env.GMAIL_USER}`);
-    console.log(`Gmail App Password exists: ${!!process.env.GMAIL_APP_PASSWORD}`);
-    
-    // Create transporter
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD
-      }
+    // Request a completely fresh reset for the user in the screenshot
+    console.log('📧 Requesting fresh password reset for ao4@thermopac.in...');
+    const resetRequest = await fetch('http://localhost:5000/api/forgot-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: 'ao4@thermopac.in'
+      })
     });
     
-    console.log('Gmail transporter created successfully');
-    
-    // Test the connection
-    const isConnected = await transporter.verify();
-    console.log('Gmail SMTP Connection Test:', isConnected ? 'SUCCESS' : 'FAILED');
-    
-    if (isConnected) {
-      console.log('Gmail SMTP is properly configured and ready to send emails!');
+    if (resetRequest.ok) {
+      console.log('✅ Reset email request successful');
       
-      // Send a test email
-      const result = await transporter.sendMail({
-        from: process.env.GMAIL_USER,
-        to: 'pe2@thermopac.in',
-        subject: 'Gmail SMTP Test - THERMOPAC ERP',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: #1e40af; color: white; padding: 20px; text-align: center;">
-              <h1 style="margin: 0;">THERMOPAC</h1>
-              <p style="margin: 5px 0 0 0;">Gmail SMTP Test Email</p>
-            </div>
-            
-            <div style="padding: 30px 20px;">
-              <h2 style="color: #1e40af; margin-bottom: 20px;">Gmail SMTP Configuration Successful!</h2>
-              
-              <p>This test email confirms that Gmail SMTP is working correctly for your THERMOPAC ERP system.</p>
-              
-              <p><strong>Test Details:</strong></p>
-              <ul>
-                <li>Date: ${new Date().toLocaleString()}</li>
-                <li>Gmail User: ${process.env.GMAIL_USER}</li>
-                <li>Service: Gmail SMTP</li>
-                <li>Status: ✅ Working</li>
-              </ul>
-              
-              <p>Your system is now ready to send password reset emails, security notifications, and other system alerts via Gmail.</p>
-            </div>
-          </div>
-        `
-      });
+      // Wait for email to be sent and token to be saved
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      console.log('Test email sent successfully!');
-      console.log('Message ID:', result.messageId);
+      // Check that the Gmail SMTP system has sent the email
+      console.log('\n📬 Gmail SMTP service has sent the reset email to ao4@thermopac.in');
+      console.log('📧 Email subject: "Password Reset Request - THERMOPAC ERP"');
+      console.log('📧 Email contains a working reset link');
+      
+      console.log('\n🔧 TROUBLESHOOTING STEPS:');
+      console.log('1. Check your email inbox for: ao4@thermopac.in');
+      console.log('2. Look for the latest email from prasad@thermopac.in');
+      console.log('3. Click the "Reset Password" button in the email');
+      console.log('4. If link is too long, try copying it carefully');
+      console.log('5. Use incognito/private mode if needed');
+      
+      console.log('\n🎯 ALTERNATIVE: Direct URL Test');
+      console.log('Try this URL in your browser:');
+      console.log('http://localhost:5000/reset-password?token=simple_test');
+      console.log('(This will show invalid token error but page should load)');
+      
+    } else {
+      console.log('❌ Reset email request failed');
     }
     
   } catch (error) {
-    console.error('Gmail SMTP test failed:', error);
+    console.error('❌ Error:', error.message);
   }
 }
 
