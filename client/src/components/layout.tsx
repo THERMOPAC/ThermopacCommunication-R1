@@ -253,6 +253,8 @@ function Layout({ children }: LayoutProps) {
         { icon: Palette, label: "Design Tools", href: "/design-tools" }
       ]
     }] : []),
+    // SAP B1 Integration Module (available to all users for now)
+    { icon: Database, label: "SAP B1 Purchase", href: "/sap-b1/purchase" },
     ...(hasViewPermission("Procurement Management") ? [{
       icon: TrendingUp,
       label: "Procurement Management",
@@ -292,8 +294,6 @@ function Layout({ children }: LayoutProps) {
         { icon: LayoutTemplate, label: "Template Management", href: "/template-management" }
       ]
     }] : []),
-    // SAP B1 Integration Module (available to all users for now)
-    { icon: Database, label: "SAP B1 Purchase", href: "/sap-b1/purchase" },
     ...(hasViewPermission("Project Commissioning") ? [{ icon: Briefcase, label: "Project Commissioning", href: "/project-commissioning" }] : []),
     ...(hasViewPermission("Dispatch & Shipping") ? [{ icon: Truck, label: "Dispatch & Shipping", href: "/dispatch-shipping" }] : []),
     ...(hasViewPermission("After-Sales") ? [{ icon: HeartPulse, label: "After-Sales", href: "/after-sales" }] : []),

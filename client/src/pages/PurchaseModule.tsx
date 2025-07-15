@@ -64,7 +64,7 @@ export default function PurchaseModule() {
   // Fetch purchase orders
   const { data: purchaseOrders, isLoading: ordersLoading } = useQuery<PurchaseOrder[]>({
     queryKey: ['/api/sap/purchase/purchase-orders'],
-    enabled: activeTab === 'purchase-orders'
+    enabled: activeTab === 'purchase-orders' || activeTab === 'dashboard'
   });
 
   // Fetch purchase requisitions
@@ -251,7 +251,7 @@ export default function PurchaseModule() {
                   <div className="text-center py-8">Loading statistics...</div>
                 ) : (
                   <div className="space-y-4">
-                    {purchaseOrders?.slice(0, 5).map((order) => (
+                    {(purchaseOrders || []).slice(0, 5).map((order) => (
                       <div key={order.docEntry} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                         <div>
                           <p className="font-medium">{order.docNum}</p>
