@@ -148,8 +148,26 @@ export function PasswordChangeDialog({
 
   const skipPasswordUpdateMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('POST', '/api/skip-password-update', {});
-      return response;
+      try {
+        const response = await fetch('/api/skip-password-update', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include', // Include session cookies
+          body: JSON.stringify({})
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        console.error('Skip password update error:', error);
+        throw error;
+      }
     },
     onSuccess: async (response) => {
       toast({
@@ -157,15 +175,8 @@ export function PasswordChangeDialog({
         description: "You can continue using your current secure password.",
       });
       
-      // Update authentication state
-      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      
-      // Close dialog and redirect
-      if (onCancel) {
-        onCancel();
-      } else {
-        setLocation("/");
-      }
+      // Force page refresh to update authentication state
+      window.location.href = "/";
     },
     onError: (error: any) => {
       console.error('Skip password update error:', error);

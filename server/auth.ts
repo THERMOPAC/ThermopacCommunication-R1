@@ -390,17 +390,19 @@ export function setupAuth(app: Express) {
         req.login(updatedUser, (err) => {
           if (err) {
             console.error('Session update error after skip:', err);
+            return res.status(500).json({ message: "Session update failed" });
           } else {
             console.log('Session updated successfully after skip');
+            res.status(200).json({ 
+              message: "Password update skipped successfully",
+              requiresPasswordUpdate: false,
+              user: updatedUser
+            });
           }
         });
+      } else {
+        res.status(500).json({ message: "Failed to retrieve updated user" });
       }
-
-      res.status(200).json({ 
-        message: "Password update skipped successfully",
-        requiresPasswordUpdate: false,
-        user: updatedUser
-      });
     } catch (error) {
       console.error('Skip password update error:', error);
       res.status(500).json({ message: "Internal server error" });
