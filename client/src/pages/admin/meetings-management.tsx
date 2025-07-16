@@ -2405,6 +2405,12 @@ export default function MeetingsManagement() {
                                 value={
                                   commitmentForm.watch('meetingType') === 'google_calendar' 
                                     ? `google_calendar_${commitmentForm.watch('googleCalendarEventId')}`
+                                    : commitmentForm.watch('meetingType') === 'internal' && field.value
+                                    ? (() => {
+                                        // Find the meeting by ID in combinedMeetingsList
+                                        const internalMeeting = combinedMeetingsList.internal.find(meeting => meeting.id === field.value);
+                                        return internalMeeting ? internalMeeting.displayId.toString() : field.value.toString();
+                                      })()
                                     : field.value ? field.value.toString() : undefined
                                 }
                               >
