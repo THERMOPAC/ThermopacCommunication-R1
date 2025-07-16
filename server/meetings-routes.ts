@@ -556,7 +556,7 @@ export const getCommitments = async (req: Request, res: Response) => {
     
     // Log user info for debugging
     const user = req.user as any;
-    console.log('User in getCommitments:', user ? { id: user.id, username: user.username } : 'No user found');
+    console.log('User in getCommitments:', user ? { id: user.id, username: user.username, role: user.role } : 'No user found');
 
     let query = db
       .select({
@@ -583,6 +583,21 @@ export const getCommitments = async (req: Request, res: Response) => {
       );
 
     const conditions = [];
+
+    // Role-based access control for commitments
+    // Superusers can see all commitments, regular users only see commitments from meetings they participate in
+    if (user?.role !== 'Superuser') {
+      console.log('Applying role-based filtering for non-Superuser:', user.username);
+      // Regular users can only see commitments from meetings where they are organizer OR attendee
+      conditions.push(
+        or(
+          eq(businessMeetings.organizerId, user.id),
+          sql`${businessMeetings.attendeeIds} @> ${JSON.stringify([user.id])}`
+        )
+      );
+    } else {
+      console.log('Superuser access - showing all commitments for:', user.username);
+    }
 
     // Only filter by meetingId if it's provided and valid
     if (meetingId && meetingId !== '' && meetingId !== 'undefined' && !isNaN(parseInt(meetingId as string))) {
@@ -626,6 +641,8 @@ export const getCommitments = async (req: Request, res: Response) => {
       .offset(offset);
 
     const results = await query;
+
+    console.log(`Role-based commitments result: ${results.length} commitments returned for ${user?.role || 'Unknown'} user ${user?.username}`);
 
     res.json({ commitments: results });
   } catch (error) {
