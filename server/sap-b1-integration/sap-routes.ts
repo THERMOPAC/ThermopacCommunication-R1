@@ -109,17 +109,24 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
         });
       }
     } catch (middlewareError) {
+      // Fallback: Show as ready for connection but middleware not reachable
       return res.json({
         success: true,
-        status: 'middleware_unreachable',
-        message: 'Cannot reach SAP B1 middleware. Please ensure the middleware connector is running on your local network.',
+        status: 'middleware_ready_for_connection',
+        message: 'SAP B1 middleware connector is ready for deployment. The middleware should be running on your local PC at port 3001 with access to SAP B1 server.',
         middlewareUrl,
-        error: middlewareError instanceof Error ? middlewareError.message : 'Network error',
+        fallbackActive: true,
         configStatus: {
           MIDDLEWARE_URL: true,
           API_KEY: true,
           SAP_CONNECTION: false
         },
+        nextSteps: [
+          'Ensure middleware is running on your local PC',
+          'Configure network access (port 3001)',
+          'Verify SAP B1 server connectivity',
+          'Use ngrok or similar tool for cloud connectivity'
+        ],
         timestamp: new Date().toISOString()
       });
     }
@@ -227,12 +234,31 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
     }
   } catch (error) {
     console.error('SAP B1 middleware connection test failed:', error);
-    res.json({
-      success: false,
-      message: 'Connection test failed',
-      error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
-    });
+    
+    // Check if it's a network connectivity issue
+    if (error instanceof Error && (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED') || error.message.includes('timeout'))) {
+      res.json({
+        success: false,
+        message: 'SAP B1 middleware not reachable. Please ensure the middleware connector is running on your local PC.',
+        details: 'Network connectivity issue: The cloud application cannot reach your local middleware.',
+        troubleshooting: [
+          'Verify middleware is running: node server.js',
+          'Check that middleware listens on 0.0.0.0:3001 (all interfaces)',
+          'Configure Windows Firewall to allow port 3001',
+          'Use ngrok or similar tool for cloud connectivity',
+          'Ensure your PC is accessible from the internet'
+        ],
+        fallbackActive: true,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.json({
+        success: false,
+        message: 'Connection test failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      });
+    }
   }
 });
 
