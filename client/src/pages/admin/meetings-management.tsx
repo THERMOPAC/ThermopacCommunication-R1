@@ -4386,7 +4386,7 @@ Suggested next steps
                           </div>
                           <div className="flex items-center gap-2">
                             <UserIcon className="h-4 w-4" />
-                            <span>{meeting.organizer.username}</span>
+                            <span>{meeting.organizer?.username || 'Organizer'}</span>
                           </div>
                         </div>
                         {meeting.description && (
