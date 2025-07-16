@@ -175,6 +175,7 @@ router.get('/connection/config', ensureAuthenticated, async (req, res) => {
  * Test SAP B1 connection via middleware
  */
 router.post('/connection/test', ensureAuthenticated, async (req, res) => {
+  console.log('SAP connection test endpoint hit by user:', req.user?.username);
   try {
     const middlewareUrl = process.env.SAP_MIDDLEWARE_URL || 'http://localhost:3001';
     const apiKey = process.env.SAP_MIDDLEWARE_API_KEY || process.env.API_SECRET_KEY;
