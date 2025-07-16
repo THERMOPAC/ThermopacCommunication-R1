@@ -896,23 +896,25 @@ export default function MeetingsManagement() {
       console.log(`Frontend UTC: ${todayUTC.toUTCString()} (UTC day ${utcDay})`);
       console.log(`Frontend timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}`);
       
-      let startOfWeek: Date;
+      let startDate: Date;
+      let endOfWeek: Date;
       
       if (utcDay === 0) {
         // If today is Sunday in UTC, generate for next Monday's week
         console.log(`🔄 SUNDAY DETECTED (UTC): Generating for NEXT week`);
         const diff = todayUTC.getUTCDate() - utcDay + 1; // Next Monday
-        startOfWeek = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), diff));
+        startDate = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), diff));
+        endOfWeek = new Date(startDate);
+        endOfWeek.setUTCDate(startDate.getUTCDate() + 6); // Following Sunday
       } else {
-        // Generate for this week (from this Monday)
-        console.log(`📅 WEEKDAY DETECTED (UTC): Generating for THIS week`);
-        const diff = todayUTC.getUTCDate() - utcDay + 1; // This Monday
-        startOfWeek = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), diff));
+        // Generate for remaining days of this week (from TODAY forward, not from Monday)
+        console.log(`📅 WEEKDAY DETECTED (UTC): Generating from TODAY forward`);
+        startDate = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), todayUTC.getUTCDate())); // Today
+        
+        // Calculate end of this week (Sunday)
+        const mondayOfThisWeek = todayUTC.getUTCDate() - utcDay + 1;
+        endOfWeek = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), mondayOfThisWeek + 6));
       }
-      
-      // End of week is always the following Sunday
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
       
       // Format dates using UTC to avoid timezone shifts
       const formatDate = (date: Date) => {
@@ -922,12 +924,12 @@ export default function MeetingsManagement() {
         return `${year}-${month}-${day}`;
       };
       
-      const startDateStr = formatDate(startOfWeek);
+      const startDateStr = formatDate(startDate);
       const endDateStr = formatDate(endOfWeek);
       
-      console.log(`Week selection logic (UTC): Today is UTC day ${utcDay}, generating for ${startOfWeek.toDateString()} - ${endOfWeek.toDateString()}`);
+      console.log(`Week selection logic (UTC): Today is UTC day ${utcDay}, generating from ${startDate.toDateString()} - ${endOfWeek.toDateString()}`);
       console.log(`Is Sunday check (UTC): utcDay === 0 ? ${utcDay === 0}`);
-      console.log(`Week range: ${startDateStr} to ${endDateStr}`);
+      console.log(`Date range: ${startDateStr} to ${endDateStr}`);
       
       return apiRequest('POST', '/api/meetings/md/preview-weekly', {
         startDate: startDateStr,
@@ -2737,8 +2739,8 @@ export default function MeetingsManagement() {
                   className="h-16 flex-col gap-2"
                 >
                   <CalendarDaysIcon className="h-6 w-6" />
-                  Preview & Generate This Week's Meetings
-                  <span className="text-xs opacity-75">Strategic focus + afternoon meetings</span>
+                  Preview & Generate Upcoming Meetings
+                  <span className="text-xs opacity-75">From today through end of week</span>
                 </Button>
 
                 <Button
