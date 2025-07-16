@@ -3802,23 +3802,43 @@ Suggested next steps
                     const todayUTC = new Date();
                     const utcDay = todayUTC.getUTCDay();
                     
-                    let startOfWeek: Date;
+                    console.log(`Frontend local: ${todayUTC.toDateString()} (local day ${utcDay})`);
+                    console.log(`Frontend UTC: ${todayUTC.toUTCString()} (UTC day ${utcDay})`);
+                    console.log(`Frontend timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}`);
+
+                    let startDate: Date;
+                    let endDate: Date;
+
                     if (utcDay === 0) {
-                      // If Sunday, generate for next week
-                      const diff = todayUTC.getUTCDate() - utcDay + 1;
-                      startOfWeek = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), diff));
+                      // Sunday - generate for next week starting Monday
+                      console.log('📅 SUNDAY DETECTED (UTC): Generating for NEXT WEEK starting Monday');
+                      const nextMonday = new Date(todayUTC);
+                      nextMonday.setUTCDate(todayUTC.getUTCDate() + 1); // Tomorrow (Monday)
+                      startDate = nextMonday;
+                      
+                      endDate = new Date(nextMonday);
+                      endDate.setUTCDate(nextMonday.getUTCDate() + 6); // Sunday of next week
+                      
+                      console.log(`Week selection logic (UTC): Sunday detected, generating for NEXT week: ${startDate.toDateString()} - ${endDate.toDateString()}`);
                     } else {
-                      // Generate for this week
-                      const diff = todayUTC.getUTCDate() - utcDay + 1;
-                      startOfWeek = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), diff));
+                      // Weekday - generate from today forward through Sunday
+                      console.log('📅 WEEKDAY DETECTED (UTC): Generating from TODAY forward');
+                      startDate = new Date(todayUTC); // Start from today
+                      
+                      // Find this Sunday
+                      endDate = new Date(todayUTC);
+                      const daysUntilSunday = 7 - utcDay; // Days until Sunday (0)
+                      endDate.setUTCDate(todayUTC.getUTCDate() + daysUntilSunday);
+                      
+                      console.log(`Week selection logic (UTC): Today is UTC day ${utcDay}, generating from ${startDate.toDateString()} - ${endDate.toDateString()}`);
                     }
-                    
-                    const endOfWeek = new Date(startOfWeek);
-                    endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
+
+                    console.log(`Is Sunday check (UTC): utcDay === 0 ? ${utcDay === 0}`);
+                    console.log(`Date range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
                     
                     previewWeeklyEmployeeMeetingsMutation.mutate({
-                      startDate: startOfWeek.toISOString().split('T')[0],
-                      endDate: endOfWeek.toISOString().split('T')[0]
+                      startDate: startDate.toISOString().split('T')[0],
+                      endDate: endDate.toISOString().split('T')[0]
                     });
                   }} 
                   disabled={previewWeeklyEmployeeMeetingsMutation.isPending}
@@ -3832,7 +3852,7 @@ Suggested next steps
                   ) : (
                     <>
                       <EyeIcon className="h-4 w-4 mr-2" />
-                      Preview This Week's Planning
+                      Preview & Generate Upcoming Planning
                     </>
                   )}
                 </Button>
@@ -3841,23 +3861,30 @@ Suggested next steps
                     const todayUTC = new Date();
                     const utcDay = todayUTC.getUTCDay();
                     
-                    let startOfWeek: Date;
+                    let startDate: Date;
+                    let endDate: Date;
+
                     if (utcDay === 0) {
-                      // If Sunday, generate for next week
-                      const diff = todayUTC.getUTCDate() - utcDay + 1;
-                      startOfWeek = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), diff));
+                      // Sunday - generate for next week starting Monday
+                      const nextMonday = new Date(todayUTC);
+                      nextMonday.setUTCDate(todayUTC.getUTCDate() + 1); // Tomorrow (Monday)
+                      startDate = nextMonday;
+                      
+                      endDate = new Date(nextMonday);
+                      endDate.setUTCDate(nextMonday.getUTCDate() + 6); // Sunday of next week
                     } else {
-                      // Generate for this week
-                      const diff = todayUTC.getUTCDate() - utcDay + 1;
-                      startOfWeek = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth(), diff));
+                      // Weekday - generate from today forward through Sunday
+                      startDate = new Date(todayUTC); // Start from today
+                      
+                      // Find this Sunday
+                      endDate = new Date(todayUTC);
+                      const daysUntilSunday = 7 - utcDay; // Days until Sunday (0)
+                      endDate.setUTCDate(todayUTC.getUTCDate() + daysUntilSunday);
                     }
                     
-                    const endOfWeek = new Date(startOfWeek);
-                    endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
-                    
                     generateWeeklyEmployeeMeetingsMutation.mutate({
-                      startDate: startOfWeek.toISOString().split('T')[0],
-                      endDate: endOfWeek.toISOString().split('T')[0]
+                      startDate: startDate.toISOString().split('T')[0],
+                      endDate: endDate.toISOString().split('T')[0]
                     });
                   }} 
                   disabled={generateWeeklyEmployeeMeetingsMutation.isPending}
@@ -3871,7 +3898,7 @@ Suggested next steps
                   ) : (
                     <>
                       <PlusIcon className="h-4 w-4 mr-2" />
-                      Generate This Week's Planning
+                      Generate Upcoming Planning
                     </>
                   )}
                 </Button>
