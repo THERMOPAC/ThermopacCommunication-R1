@@ -2073,6 +2073,26 @@ const TripList = () => {
     },
   });
 
+  const submitTripMutation = useMutation({
+    mutationFn: (tripId: number) => apiRequest('POST', `/api/trips/${tripId}/submit`),
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Trip submitted for approval successfully',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/user'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/all'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/dashboard'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to submit trip',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const concludeTripMutation = useMutation({
     mutationFn: (tripId: number) => apiRequest('POST', `/api/trips/${tripId}/conclude`),
     onSuccess: (data: any) => {
@@ -2082,6 +2102,7 @@ const TripList = () => {
           ? 'Trip concluded successfully and automatically linked to EU 180-Day Tracker'
           : 'Trip concluded successfully',
       });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/user'] });
       queryClient.invalidateQueries({ queryKey: ['/api/trips/all'] });
       queryClient.invalidateQueries({ queryKey: ['/api/trips/dashboard'] });
     },
@@ -2102,15 +2123,15 @@ const TripList = () => {
     setViewingTrip(trip);
   };
 
-  const handleDelete = (trip: any) => {
-    if (confirm(`Are you sure you want to delete the trip request "${trip.tripTitle}"?`)) {
-      deleteTripMutation.mutate(trip.id);
-    }
-  };
-
   const handleSubmit = (trip: any) => {
     if (confirm(`Are you sure you want to submit the trip "${trip.tripTitle}" for approval? Once submitted, you cannot edit the trip details.`)) {
       submitTripMutation.mutate(trip.id);
+    }
+  };
+
+  const handleDelete = (trip: any) => {
+    if (confirm(`Are you sure you want to delete the trip request "${trip.tripTitle}"?`)) {
+      deleteTripMutation.mutate(trip.id);
     }
   };
 
