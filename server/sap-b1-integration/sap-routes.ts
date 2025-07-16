@@ -19,7 +19,7 @@ router.use('/purchase', purchaseRoutes);
 router.get('/connection/status', ensureAuthenticated, async (req, res) => {
   try {
     // Check Service Layer connection status
-    const serviceLayerUrl = process.env.SAP_SERVICE_LAYER_URL || 'https://DESKTOP-NH04TP:50000/b1s/v1';
+    const serviceLayerUrl = process.env.SAP_SERVICE_LAYER_URL || 'https://59.152.52.58:50000/b1s/v1';
     const sapUsername = process.env.SAP_USERNAME;
     const sapPassword = process.env.SAP_PASSWORD;
     const sapCompanyDb = process.env.SAP_COMPANY_DB;
@@ -40,7 +40,10 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    // Test Service Layer connectivity with timeout
+    // Test Service Layer connectivity with timeout and SSL bypass for self-signed certificates
+    // Disable SSL verification for development with self-signed certificates
+    process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
+    
     try {
       const loginResponse = await fetch(`${serviceLayerUrl}/Login`, {
         method: 'POST',

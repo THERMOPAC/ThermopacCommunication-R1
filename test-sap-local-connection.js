@@ -11,10 +11,10 @@ async function testSAPLocalConnection() {
   console.log('=' .repeat(50));
 
   const config = {
-    serviceLayerUrl: process.env.SAP_SERVICE_LAYER_URL || 'https://192.168.1.100:50000/b1s/v1',
+    serviceLayerUrl: process.env.SAP_SERVICE_LAYER_URL || 'https://59.152.52.58:50000/b1s/v1',
     companyDB: process.env.SAP_COMPANY_DB,
-    username: process.env.SAP_USERNAME || 'manager',
-    password: process.env.SAP_PASSWORD || '4165'
+    username: process.env.SAP_USERNAME || 'sa',
+    password: process.env.SAP_PASSWORD
   };
 
   console.log(`🔗 Service Layer URL: ${config.serviceLayerUrl}`);

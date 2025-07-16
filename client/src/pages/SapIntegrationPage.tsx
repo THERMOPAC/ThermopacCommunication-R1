@@ -173,18 +173,18 @@ export default function SapIntegrationPage() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <h4 className="font-medium text-sm">Current Service Layer URL:</h4>
+                    <h4 className="font-medium text-sm">Configured Service Layer URL:</h4>
                     <code className="text-xs bg-gray-100 px-2 py-1 rounded block">
-                      https://192.168.1.100:50000/b1s/v1
-                    </code>
-                    <p className="text-xs text-red-600">❌ Private IP - Not accessible from cloud</p>
-                  </div>
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-sm">Required Service Layer URL:</h4>
-                    <code className="text-xs bg-gray-100 px-2 py-1 rounded block">
-                      https://[YOUR_PUBLIC_IP]:50000/b1s/v1
+                      https://59.152.52.58:50000/b1s/v1
                     </code>
                     <p className="text-xs text-green-600">✅ Public IP - Cloud accessible</p>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">Network Architecture:</h4>
+                    <code className="text-xs bg-blue-50 px-2 py-1 rounded block">
+                      Cloud App → 59.152.52.58:50000 → Router → SAP Server (192.168.1.100:50000)
+                    </code>
+                    <p className="text-xs text-blue-600">📡 Port forwarding required for connectivity</p>
                   </div>
                 </div>
                 
