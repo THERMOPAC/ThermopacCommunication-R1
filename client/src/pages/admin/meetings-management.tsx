@@ -367,10 +367,10 @@ export default function MeetingsManagement() {
     enabled: activeTab === 'dashboard',
   });
 
-  // Fetch all meetings
+  // Fetch all meetings (including meetings where user is organizer OR attendee)
   const { data: meetingsData, isLoading: meetingsLoading } = useQuery<{ meetings: Meeting[] }>({
-    queryKey: ['/api/meetings', { status: statusFilter, type: typeFilter, priority: priorityFilter }],
-    enabled: activeTab === 'meetings' || activeTab === 'ai-notes' || activeTab === 'commitments' || activeTab === 'ai-processing' || activeTab === 'analytics',
+    queryKey: ['/api/meetings', { status: statusFilter, type: typeFilter, priority: priorityFilter, attendeeId: user?.id }],
+    enabled: (activeTab === 'meetings' || activeTab === 'ai-notes' || activeTab === 'commitments' || activeTab === 'ai-processing' || activeTab === 'analytics') && !!user?.id,
   });
 
   // Fetch commitments

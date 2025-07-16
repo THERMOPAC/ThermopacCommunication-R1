@@ -77,12 +77,18 @@ export const getMeetings = async (req: Request, res: Response) => {
       conditions.push(eq(businessMeetings.priority, priority as string));
     }
     
-    if (organizerId) {
-      conditions.push(eq(businessMeetings.organizerId, parseInt(organizerId as string)));
-    }
-    
+    // Handle user filtering - if attendeeId is provided, show meetings where user is organizer OR attendee
     if (attendeeId) {
-      conditions.push(sql`${businessMeetings.attendeeIds} @> ${JSON.stringify([parseInt(attendeeId as string)])}`);
+      const userId = parseInt(attendeeId as string);
+      conditions.push(
+        or(
+          eq(businessMeetings.organizerId, userId),
+          sql`${businessMeetings.attendeeIds} @> ${JSON.stringify([userId])}`
+        )
+      );
+    } else if (organizerId) {
+      // Legacy support for organizerId only
+      conditions.push(eq(businessMeetings.organizerId, parseInt(organizerId as string)));
     }
     
     if (startDate) {
