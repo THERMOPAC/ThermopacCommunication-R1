@@ -2407,8 +2407,21 @@ export default function MeetingsManagement() {
                                     ? `google_calendar_${commitmentForm.watch('googleCalendarEventId')}`
                                     : commitmentForm.watch('meetingType') === 'internal' && field.value
                                     ? (() => {
-                                        // Find the meeting by ID in combinedMeetingsList
-                                        const internalMeeting = combinedMeetingsList.internal.find(meeting => meeting.id === field.value);
+                                        // Debug logging
+                                        console.log('Edit commitment debug:', {
+                                          fieldValue: field.value,
+                                          meetingType: commitmentForm.watch('meetingType'),
+                                          internalMeetingsCount: combinedMeetingsList.internal.length,
+                                          internalMeetings: combinedMeetingsList.internal.map(m => ({ id: m.id, displayId: m.displayId, title: m.title }))
+                                        });
+                                        
+                                        // Find the meeting by ID in combinedMeetingsList - try both id and displayId
+                                        let internalMeeting = combinedMeetingsList.internal.find(meeting => meeting.id === field.value);
+                                        if (!internalMeeting) {
+                                          internalMeeting = combinedMeetingsList.internal.find(meeting => meeting.displayId === field.value);
+                                        }
+                                        
+                                        console.log('Found internal meeting:', internalMeeting);
                                         return internalMeeting ? internalMeeting.displayId.toString() : field.value.toString();
                                       })()
                                     : field.value ? field.value.toString() : undefined
