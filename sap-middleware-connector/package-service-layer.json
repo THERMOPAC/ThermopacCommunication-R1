@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node service-layer-server.js",
     "dev": "nodemon service-layer-server.js",
-    "test": "node -e \"console.log('Testing Service Layer connection...'); require('./service-layer-server.js')\""
+    "test": "node service-layer-verification.js",
+    "verify": "node service-layer-verification.js",
+    "setup": "node -e \"console.log('Copy .env-service-layer to .env and configure with your SAP details')\""
   },
   "dependencies": {
     "express": "^4.18.2",

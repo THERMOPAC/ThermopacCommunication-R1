@@ -1,26 +1,27 @@
 @echo off
 echo ==========================================
-echo   SAP B1 Integration - ngrok Launcher
+echo   SAP B1 Service Layer + ngrok Setup
 echo ==========================================
 echo.
 
-echo 1. Starting SAP Middleware Server...
-start "SAP Middleware" cmd /k "node server.js"
+echo Step 1: Verifying Service Layer...
+node service-layer-verification.js
 
-echo 2. Waiting for middleware to start...
-timeout /t 5 /nobreak >nul
+echo.
+echo Step 2: Starting middleware server...
+start "SAP Middleware" cmd /k "node service-layer-server.js"
 
-echo 3. Starting ngrok tunnel...
-echo    This will create a public URL for your middleware
-echo    Copy the HTTPS URL that appears and send it to the developer
+echo.
+echo Step 3: Waiting for server to start...
+timeout /t 5 /nobreak > nul
+
+echo.
+echo Step 4: Starting ngrok tunnel...
+echo Opening ngrok tunnel for port 3001...
+echo.
+echo After ngrok starts, you'll see a URL like:
+echo https://abc123.ngrok.io
+echo.
+echo Copy this URL and send it to complete the integration!
 echo.
 ngrok http 3001
-
-echo.
-echo ==========================================
-echo   Integration Complete!
-echo ==========================================
-echo.
-echo Send the ngrok HTTPS URL to complete the integration.
-echo Press any key to exit...
-pause >nul

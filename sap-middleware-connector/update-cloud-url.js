@@ -1,27 +1,32 @@
-const fs = require('fs');
-const path = require('path');
+const axios = require('axios');
 
-// Function to update the cloud application with ngrok URL
-function updateCloudURL(ngrokUrl) {
-  const envPath = path.join(__dirname, '..', '.env');
+// Update cloud application with ngrok URL
+const cloudAppUrl = 'https://thermopac-communication-thermopacllp.replit.app';
+
+async function updateCloudWithNgrokUrl(ngrokUrl) {
+  console.log('🔄 Updating cloud application with ngrok URL...');
+  console.log(`Cloud App: ${cloudAppUrl}`);
+  console.log(`Ngrok URL: ${ngrokUrl}`);
   
   try {
-    // Read current .env file
-    let envContent = fs.readFileSync(envPath, 'utf8');
+    const response = await axios.post(`${cloudAppUrl}/api/sap/update-middleware-url`, {
+      middlewareUrl: ngrokUrl,
+      timestamp: new Date().toISOString()
+    });
     
-    // Update the SAP_MIDDLEWARE_URL
-    envContent = envContent.replace(
-      /SAP_MIDDLEWARE_URL=.*/,
-      `SAP_MIDDLEWARE_URL=${ngrokUrl}`
-    );
-    
-    // Write back to .env file
-    fs.writeFileSync(envPath, envContent);
-    
-    console.log('✅ Cloud application updated with ngrok URL:', ngrokUrl);
-    console.log('🔄 Restart the cloud application to apply changes');
+    if (response.data.success) {
+      console.log('✅ Cloud application updated successfully!');
+      console.log('🚀 SAP B1 integration is now live!');
+      console.log('');
+      console.log('Test the integration:');
+      console.log(`${cloudAppUrl}/admin/sap-integration`);
+    } else {
+      console.log('❌ Failed to update cloud application');
+      console.log('Response:', response.data);
+    }
   } catch (error) {
-    console.error('❌ Error updating cloud application:', error.message);
+    console.log('❌ Error updating cloud application:', error.message);
+    console.log('Manual update required - send ngrok URL to developer');
   }
 }
 
@@ -34,4 +39,4 @@ if (!ngrokUrl) {
   process.exit(1);
 }
 
-updateCloudURL(ngrokUrl);
+updateCloudWithNgrokUrl(ngrokUrl);
