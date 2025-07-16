@@ -14,6 +14,94 @@ router.use('/purchase', purchaseRoutes);
  */
 
 /**
+ * Get SAP B1 connection status
+ */
+router.get('/connection/status', ensureAuthenticated, async (req, res) => {
+  try {
+    // Check if SAP B1 environment variables are configured
+    const sapServer = process.env.SAP_SERVER;
+    const sapDatabase = process.env.SAP_DATABASE;
+    const sapUsername = process.env.SAP_USERNAME;
+    const sapPassword = process.env.SAP_PASSWORD;
+
+    if (!sapServer || !sapDatabase || !sapUsername || !sapPassword) {
+      return res.json({
+        success: true,
+        status: 'not_configured',
+        message: 'SAP B1 connection not configured. Environment variables required: SAP_SERVER, SAP_DATABASE, SAP_USERNAME, SAP_PASSWORD',
+        configStatus: {
+          SAP_SERVER: !!sapServer,
+          SAP_DATABASE: !!sapDatabase,
+          SAP_USERNAME: !!sapUsername,
+          SAP_PASSWORD: !!sapPassword
+        },
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const isConnected = await sapB1Connector.testConnection();
+    
+    res.json({
+      success: true,
+      status: isConnected ? 'connected' : 'disconnected',
+      message: isConnected ? 'Connected to SAP B1 successfully' : 'Failed to connect to SAP B1 database. Check server connectivity and credentials.',
+      configStatus: {
+        SAP_SERVER: true,
+        SAP_DATABASE: true,
+        SAP_USERNAME: true,
+        SAP_PASSWORD: true
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('SAP B1 connection status check failed:', error);
+    res.json({
+      success: false,
+      status: 'disconnected',
+      message: 'Connection status check failed',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * Get SAP B1 connection configuration status
+ */
+router.get('/connection/config', ensureAuthenticated, async (req, res) => {
+  try {
+    const sapServer = process.env.SAP_SERVER;
+    const sapDatabase = process.env.SAP_DATABASE;
+    const sapUsername = process.env.SAP_USERNAME;
+    const sapPassword = process.env.SAP_PASSWORD;
+
+    res.json({
+      success: true,
+      configured: !!(sapServer && sapDatabase && sapUsername && sapPassword),
+      configStatus: {
+        SAP_SERVER: !!sapServer,
+        SAP_DATABASE: !!sapDatabase,
+        SAP_USERNAME: !!sapUsername,
+        SAP_PASSWORD: !!sapPassword
+      },
+      serverInfo: {
+        server: sapServer || 'Not configured',
+        database: sapDatabase || 'Not configured',
+        username: sapUsername || 'Not configured'
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error checking SAP B1 configuration:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check configuration',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
  * Test SAP B1 connection
  */
 router.get('/test-connection', ensureAuthenticated, async (req, res) => {
