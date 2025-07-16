@@ -67,7 +67,8 @@ import {
   FileDown,
   RefreshCw,
   Target,
-  CheckSquare
+  CheckSquare,
+  Send
 } from 'lucide-react';
 
 // Form schemas
@@ -1260,6 +1261,25 @@ const TripDashboard = () => {
     },
   });
 
+  const submitTripMutation = useMutation({
+    mutationFn: (tripId: number) => apiRequest('POST', `/api/trips/${tripId}/submit`),
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Trip submitted for approval successfully',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/all'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/dashboard'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to submit trip',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const concludeTripMutation = useMutation({
     mutationFn: (tripId: number) => apiRequest('POST', `/api/trips/${tripId}/conclude`),
     onSuccess: (data: any) => {
@@ -1332,6 +1352,12 @@ const TripDashboard = () => {
   const handleDelete = (trip: any) => {
     if (window.confirm(`Are you sure you want to delete the trip "${trip.tripTitle}"?`)) {
       deleteTripMutation.mutate(trip.id);
+    }
+  };
+
+  const handleSubmit = (trip: any) => {
+    if (confirm(`Are you sure you want to submit the trip "${trip.tripTitle}" for approval? Once submitted, you cannot edit the trip details.`)) {
+      submitTripMutation.mutate(trip.id);
     }
   };
 
@@ -1544,6 +1570,15 @@ const TripDashboard = () => {
                           <Edit className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenuItem>
+                        {trip.status === 'draft' && (
+                          <DropdownMenuItem 
+                            onClick={() => handleSubmit(trip)}
+                            className="text-blue-600 focus:text-blue-600"
+                          >
+                            <Send className="mr-2 h-4 w-4" />
+                            Submit for Approval
+                          </DropdownMenuItem>
+                        )}
                         {trip.status === 'final_approved' && (
                           <DropdownMenuItem 
                             onClick={() => handleConclude(trip)}
@@ -2073,6 +2108,12 @@ const TripList = () => {
     }
   };
 
+  const handleSubmit = (trip: any) => {
+    if (confirm(`Are you sure you want to submit the trip "${trip.tripTitle}" for approval? Once submitted, you cannot edit the trip details.`)) {
+      submitTripMutation.mutate(trip.id);
+    }
+  };
+
   const handleConclude = (trip: any) => {
     if (confirm(`Are you sure you want to mark this trip "${trip.tripTitle}" as concluded? This action cannot be undone and will automatically create a travel entry in the EU 180-Day Tracker if the destination is in the Schengen Area.`)) {
       concludeTripMutation.mutate(trip.id);
@@ -2253,6 +2294,15 @@ const TripList = () => {
                       <Edit className="mr-2 h-4 w-4" />
                       Edit
                     </DropdownMenuItem>
+                    {trip.status === 'draft' && (
+                      <DropdownMenuItem 
+                        onClick={() => handleSubmit(trip)}
+                        className="text-blue-600 focus:text-blue-600"
+                      >
+                        <Send className="mr-2 h-4 w-4" />
+                        Submit for Approval
+                      </DropdownMenuItem>
+                    )}
                     {trip.status === 'final_approved' && (
                       <DropdownMenuItem 
                         onClick={() => handleConclude(trip)}
