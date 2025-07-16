@@ -396,17 +396,7 @@ export default function MeetingsManagement() {
     retry: false,
   });
 
-  // Add debugging for commitments query
-  console.log('Commitments Query Debug:', {
-    activeTab,
-    enabled: activeTab === 'commitments',
-    data: commitmentsData,
-    loading: commitmentsLoading,
-    error: commitmentsError,
-    statusFilter,
-    priorityFilter,
-    errorDetails: commitmentsError ? JSON.stringify(commitmentsError) : null
-  });
+
 
   // Force refetch commitments when tab becomes active
   useEffect(() => {
@@ -2407,18 +2397,8 @@ export default function MeetingsManagement() {
                                     ? `google_calendar_${commitmentForm.watch('googleCalendarEventId')}`
                                     : commitmentForm.watch('meetingType') === 'internal' && field.value
                                     ? (() => {
-                                        // Debug logging
-                                        console.log('Edit commitment debug:', {
-                                          fieldValue: field.value,
-                                          meetingType: commitmentForm.watch('meetingType'),
-                                          internalMeetingsCount: combinedMeetingsList.internal.length,
-                                          internalMeetings: combinedMeetingsList.internal.map(m => ({ id: m.id, displayId: m.displayId, title: m.title }))
-                                        });
-                                        
                                         // Find the meeting by displayId in combinedMeetingsList
                                         const internalMeeting = combinedMeetingsList.internal.find(meeting => meeting.displayId === field.value);
-                                        
-                                        console.log('Found internal meeting:', internalMeeting);
                                         
                                         if (internalMeeting) {
                                           return internalMeeting.displayId.toString();
