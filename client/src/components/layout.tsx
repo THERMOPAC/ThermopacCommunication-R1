@@ -381,169 +381,120 @@ function Layout({ children }: LayoutProps) {
             <div>
               <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-2 px-3">Modules</h3>
               <ul className="space-y-1">
-                {/* Show Meetings & Commitments first if available */}
-                {menuItems.filter(item => 
-                  !item.isSubmenu && item.href === '/admin/meetings-management'
-                ).map((item, index) => {
-                  const Icon = item.icon;
-                  const isActive = item.href ? location === item.href : false;
-                  
-                  return (
-                    <li key={item.href || `meeting-${index}`}>
-                      {item.href && (
-                        <Link href={item.href || ''}>
-                          <button
-                            className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#3B82F6] transition-all
-                              ${isActive
-                                ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold'
-                                : 'hover:bg-[#F3F4F6] rounded-md'
-                              }`}
-                          >
-                            <Icon className={`h-5 w-5 ${isActive ? 'text-[#3B82F6]' : 'text-[#3B82F6]'}`} />
-                            <span>{item.label}</span>
-                          </button>
-                        </Link>
-                      )}
-                    </li>
-                  );
-                })}
-                
-                {/* Show submenu items in specific order */}
                 {(() => {
-                  const orderedModules = [
-                    'Project Management',
-                    'Sales and Marketing',
-                    'Finance',
-                    'Procurement Management',
-                    'Production Management',
-                    'Quality Management'
+                  // Define the exact order requested by user
+                  const moduleOrder = [
+                    { type: 'single', href: '/admin/meetings-management', label: 'Meetings & Commitments' },
+                    { type: 'single', href: '/sap-integration', label: 'SAP B1 Integration' },
+                    { type: 'submenu', label: 'Administration' },
+                    { type: 'submenu', label: 'Finance' },
+                    { type: 'submenu', label: 'Sales and Marketing' },
+                    { type: 'submenu', label: 'Project Management' },
+                    { type: 'single', href: '/sap-b1/purchase', label: 'SAP B1 Purchase' },
+                    { type: 'submenu', label: 'Procurement Management' },
+                    { type: 'submenu', label: 'Production Management' },
+                    { type: 'submenu', label: 'Quality Management' },
+                    { type: 'single', href: '/project-commissioning', label: 'Project Commissioning' },
+                    { type: 'single', href: '/dispatch-shipping', label: 'Dispatch & Shipping' },
+                    { type: 'single', href: '/after-sales', label: 'After-Sales' }
                   ];
-                  
+
                   const submenuItems = menuItems.filter(item => item.isSubmenu);
-                  const orderedItems = [];
+                  const singleItems = menuItems.filter(item => !item.isSubmenu);
                   
-                  // Add items in the specified order
-                  orderedModules.forEach(moduleLabel => {
-                    const item = submenuItems.find(item => item.label === moduleLabel);
-                    if (item) orderedItems.push(item);
-                  });
-                  
-                  // Add any remaining items not in the ordered list
-                  submenuItems.forEach(item => {
-                    if (!orderedItems.includes(item)) {
-                      orderedItems.push(item);
-                    }
-                  });
-                  
-                  return orderedItems;
-                })().flatMap((item, index) => {
-                  const Icon = item.icon;
-                  // Check if any child is active
-                  const isChildActive = item.children?.some(child => location.startsWith(child.href?.split('?')[0] || ''));
-                  
-                  const submenuItem = (
-                    <li key={`submenu-${index}`} className="space-y-1">
-                      <button
-                        onClick={item.toggle}
-                        className={`flex items-center justify-between gap-3 px-3 py-2 w-full text-left text-[#3B82F6] transition-colors rounded-md
-                          ${isChildActive ? 'bg-[#E0F2FE] font-semibold' : 'hover:bg-[#F3F4F6]'}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Icon className={`h-5 w-5 ${isChildActive ? 'text-[#3B82F6]' : 'text-[#3B82F6]'}`} />
-                          <span>{item.label}</span>
-                        </div>
-                        {item.isOpen ? (
-                          <ChevronDown className="h-4 w-4 text-[#3B82F6]" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-[#3B82F6]" />
-                        )}
-                      </button>
+                  return moduleOrder.map((orderItem, orderIndex) => {
+                    if (orderItem.type === 'single') {
+                      // Find single menu item
+                      const item = singleItems.find(item => 
+                        item.href === orderItem.href && 
+                        hasViewPermission(orderItem.label as Module)
+                      );
                       
-                      {item.isOpen && (
-                        <ul className="pl-10 space-y-1 mt-1">
-                          {item.children?.map((child, childIndex) => {
-                            const ChildIcon = child.icon;
-                            // Check if current location starts with child.href to handle query parameters
-                            const isChildActive = child.href ? location.startsWith(child.href.split('?')[0]) : false;
-                            // When we have exact match or for the case of query parameters - check full href match
-                            const isExactMatch = location === child.href;
-                            
-                            return (
-                              <li key={`${index}-${childIndex}`}>
-                                <Link href={child.href || ''}>
-                                  <button
-                                    className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#EF4444] transition-colors
-                                      ${isExactMatch || isChildActive
-                                        ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold rounded-r-md'
-                                        : 'hover:bg-[#F3F4F6] rounded-md'
-                                      }`}
-                                  >
-                                    <ChildIcon className={`h-4 w-4 ${isExactMatch || isChildActive ? 'text-[#EF4444]' : 'text-[#EF4444]'}`} />
-                                    <span>{child.label}</span>
-                                  </button>
-                                </Link>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </li>
-                  );
-                  
-                  // If this is Project Management, add SAP B1 Purchase right after it
-                  if (item.label === 'Project Management') {
-                    const sapB1Item = (
-                      <li key="sap-b1-purchase" className="mt-1">
-                        <Link href="/sap-b1/purchase">
+                      if (!item) return null;
+                      
+                      const Icon = item.icon;
+                      const isActive = item.href ? location === item.href : false;
+                      
+                      return (
+                        <li key={item.href || `module-${orderIndex}`}>
+                          <Link href={item.href || ''}>
+                            <button
+                              className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#3B82F6] transition-all
+                                ${isActive
+                                  ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold'
+                                  : 'hover:bg-[#F3F4F6] rounded-md'
+                                }`}
+                            >
+                              <Icon className={`h-5 w-5 ${isActive ? 'text-[#3B82F6]' : 'text-[#3B82F6]'}`} />
+                              <span>{item.label}</span>
+                            </button>
+                          </Link>
+                        </li>
+                      );
+                    } else {
+                      // Find submenu item
+                      const item = submenuItems.find(item => 
+                        item.label === orderItem.label && 
+                        hasViewPermission(orderItem.label as Module)
+                      );
+                      
+                      if (!item) return null;
+                      
+                      const Icon = item.icon;
+                      // Check if any child is active
+                      const isChildActive = item.children?.some(child => location.startsWith(child.href?.split('?')[0] || ''));
+                      
+                      return (
+                        <li key={`submenu-${orderIndex}`} className="space-y-1">
                           <button
-                            className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#3B82F6] transition-all
-                              ${location === '/sap-b1/purchase'
-                                ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold'
-                                : 'hover:bg-[#F3F4F6] rounded-md'
-                              }`}
+                            onClick={item.toggle}
+                            className={`flex items-center justify-between gap-3 px-3 py-2 w-full text-left text-[#3B82F6] transition-colors rounded-md
+                              ${isChildActive ? 'bg-[#E0F2FE] font-semibold' : 'hover:bg-[#F3F4F6]'}`}
                           >
-                            <Database className={`h-5 w-5 ${location === '/sap-b1/purchase' ? 'text-[#3B82F6]' : 'text-[#3B82F6]'}`} />
-                            <span>SAP B1 Purchase</span>
+                            <div className="flex items-center gap-3">
+                              <Icon className={`h-5 w-5 ${isChildActive ? 'text-[#3B82F6]' : 'text-[#3B82F6]'}`} />
+                              <span>{item.label}</span>
+                            </div>
+                            {item.isOpen ? (
+                              <ChevronDown className="h-4 w-4 text-[#3B82F6]" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-[#3B82F6]" />
+                            )}
                           </button>
-                        </Link>
-                      </li>
-                    );
-                    return [submenuItem, sapB1Item];
-                  }
-                  
-                  return [submenuItem];
-                })}
-                
-                {/* Show individual module items (non-submenu) */}
-                {menuItems.filter(item => 
-                  !item.isSubmenu && 
-                  (item.href === '/project-commissioning' || 
-                   item.href === '/dispatch-shipping' || 
-                   item.href === '/after-sales' ||
-                   item.href === '/sap-integration')
-                ).map((item, index) => {
-                  const Icon = item.icon;
-                  const isActive = item.href ? location === item.href : false;
-                  
-                  return (
-                    <li key={item.href || `module-${index}`}>
-                      {item.href && (
-                        <Link href={item.href || ''}>
-                          <button
-                            className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#3B82F6] transition-all
-                              ${isActive
-                                ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold'
-                                : 'hover:bg-[#F3F4F6] rounded-md'
-                              }`}
-                          >
-                            <Icon className={`h-5 w-5 ${isActive ? 'text-[#3B82F6]' : 'text-[#3B82F6]'}`} />
-                            <span>{item.label}</span>
-                          </button>
-                        </Link>
-                      )}
-                    </li>
-                  );
-                })}
+                          
+                          {item.isOpen && (
+                            <ul className="pl-10 space-y-1 mt-1">
+                              {item.children?.map((child, childIndex) => {
+                                const ChildIcon = child.icon;
+                                // Check if current location starts with child.href to handle query parameters
+                                const isChildActive = child.href ? location.startsWith(child.href.split('?')[0]) : false;
+                                // When we have exact match or for the case of query parameters - check full href match
+                                const isExactMatch = location === child.href;
+                                
+                                return (
+                                  <li key={`${orderIndex}-${childIndex}`}>
+                                    <Link href={child.href || ''}>
+                                      <button
+                                        className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#EF4444] transition-colors
+                                          ${isExactMatch || isChildActive
+                                            ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold rounded-r-md'
+                                            : 'hover:bg-[#F3F4F6] rounded-md'
+                                          }`}
+                                      >
+                                        <ChildIcon className={`h-4 w-4 ${isExactMatch || isChildActive ? 'text-[#EF4444]' : 'text-[#EF4444]'}`} />
+                                        <span>{child.label}</span>
+                                      </button>
+                                    </Link>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                        </li>
+                      );
+                    }
+                  }).filter(Boolean); // Remove null entries
+                })()}
               </ul>
             </div>
             
