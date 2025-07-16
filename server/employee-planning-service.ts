@@ -122,6 +122,25 @@ function generateWeekdayDates(startDate: Date): Date[] {
 }
 
 /**
+ * Generate weekday dates from a specific date range (today forward logic)
+ */
+function generateWeekdaysFromRange(startDate: Date, endDate: Date): Date[] {
+  const weekdays = [];
+  const current = new Date(startDate);
+  
+  while (current <= endDate) {
+    const dayOfWeek = current.getDay();
+    // Only include weekdays (Monday=1 to Friday=5)
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      weekdays.push(new Date(current));
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return weekdays;
+}
+
+/**
  * Generate employee planning meetings for the week
  */
 export const generateWeeklyEmployeeMeetings = async (req: Request, res: Response) => {
@@ -131,20 +150,18 @@ export const generateWeeklyEmployeeMeetings = async (req: Request, res: Response
     
     console.log(`📅 Generating weekly employee planning meetings for user: ${user.username} (ID: ${user.id})`);
     
-    // Calculate week boundaries
-    const weekStart = startDate ? new Date(startDate) : new Date();
-    const weekEnd = endDate ? new Date(endDate) : new Date();
+    // Use exact dates from frontend (today forward logic)
+    const actualStart = startDate ? new Date(startDate) : new Date();
+    const actualEnd = endDate ? new Date(endDate) : new Date();
     
-    const { startDate: calculatedStart, endDate: calculatedEnd } = calculateWeekBoundaries(weekStart);
+    console.log(`📅 Using actual date range: ${actualStart.toDateString()} to ${actualEnd.toDateString()}`);
     
-    console.log(`📅 Week range: ${calculatedStart.toDateString()} to ${calculatedEnd.toDateString()}`);
-    
-    // Check for existing meetings
-    const existingDates = await checkExistingMeetings(user.id, calculatedStart, calculatedEnd);
+    // Check for existing meetings in the actual date range
+    const existingDates = await checkExistingMeetings(user.id, actualStart, actualEnd);
     console.log(`📅 Existing meetings found for dates: ${existingDates.join(', ')}`);
     
-    // Generate weekday dates
-    const weekdays = generateWeekdayDates(calculatedStart);
+    // Generate weekday dates from actual start date forward
+    const weekdays = generateWeekdaysFromRange(actualStart, actualEnd);
     const meetingsToCreate = [];
     
     for (const weekday of weekdays) {
@@ -235,8 +252,8 @@ export const generateWeeklyEmployeeMeetings = async (req: Request, res: Response
       meetings: meetingsToCreate,
       skipped: existingDates.length,
       weekRange: {
-        start: calculatedStart.toISOString().split('T')[0],
-        end: calculatedEnd.toISOString().split('T')[0]
+        start: actualStart.toISOString().split('T')[0],
+        end: actualEnd.toISOString().split('T')[0]
       }
     });
     
@@ -354,24 +371,23 @@ export const previewWeeklyEmployeeMeetings = async (req: Request, res: Response)
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate } = req.body;
     
     console.log(`📅 Previewing weekly employee planning meetings for user: ${user.username} (ID: ${user.id})`);
+    console.log(`📅 Received startDate: ${startDate}, endDate: ${endDate}`);
     
-    // Calculate week boundaries
-    const weekStart = startDate ? new Date(startDate as string) : new Date();
-    const weekEnd = endDate ? new Date(endDate as string) : new Date();
+    // Use the exact dates from frontend (today forward logic)
+    const actualStart = startDate ? new Date(startDate) : new Date();
+    const actualEnd = endDate ? new Date(endDate) : new Date();
     
-    const { startDate: calculatedStart, endDate: calculatedEnd } = calculateWeekBoundaries(weekStart);
+    console.log(`📅 Using actual date range: ${actualStart.toDateString()} to ${actualEnd.toDateString()}`);
     
-    console.log(`📅 Week range: ${calculatedStart.toDateString()} to ${calculatedEnd.toDateString()}`);
-    
-    // Check for existing meetings
-    const existingDates = await checkExistingMeetings(user.id, calculatedStart, calculatedEnd);
+    // Check for existing meetings in the actual date range
+    const existingDates = await checkExistingMeetings(user.id, actualStart, actualEnd);
     console.log(`📅 Existing meetings found for dates: ${existingDates.join(', ')}`);
     
-    // Generate weekday dates
-    const weekdays = generateWeekdayDates(calculatedStart);
+    // Generate weekday dates from actual start date forward
+    const weekdays = generateWeekdaysFromRange(actualStart, actualEnd);
     const previewMeetings = [];
     
     for (const weekday of weekdays) {
@@ -412,8 +428,8 @@ export const previewWeeklyEmployeeMeetings = async (req: Request, res: Response)
       data: {
         meetings: previewMeetings,
         weekRange: {
-          start: calculatedStart.toISOString().split('T')[0],
-          end: calculatedEnd.toISOString().split('T')[0]
+          start: actualStart.toISOString().split('T')[0],
+          end: actualEnd.toISOString().split('T')[0]
         },
         existing: existingDates.length,
         new: previewMeetings.filter(m => m.status === 'Scheduled').length
