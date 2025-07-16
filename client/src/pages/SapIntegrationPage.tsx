@@ -200,11 +200,14 @@ export default function SapIntegrationPage() {
                   </ol>
                 </div>
                 
-                <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
-                  <h4 className="font-medium text-sm mb-1 text-yellow-800">📖 Detailed Setup Guide Available</h4>
-                  <p className="text-xs text-yellow-700">
-                    Comprehensive router configuration, firewall setup, and security guidelines 
-                    available in SAP_B1_PUBLIC_IP_SETUP_GUIDE.md file.
+                <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                  <h4 className="font-medium text-sm mb-1 text-blue-800">🔧 Current Status: Port Forwarding Required</h4>
+                  <p className="text-xs text-blue-700 mb-2">
+                    Connection timeouts are expected until router port forwarding is configured.
+                    System is correctly configured for public IP connectivity.
+                  </p>
+                  <p className="text-xs text-blue-600">
+                    📖 Complete setup guide available in SAP_B1_PUBLIC_IP_SETUP_GUIDE.md
                   </p>
                 </div>
               </div>
