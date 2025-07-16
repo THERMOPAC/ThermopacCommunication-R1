@@ -153,6 +153,59 @@ export default function SapIntegrationPage() {
         </TabsList>
 
         <TabsContent value="overview">
+          {/* Service Layer Setup Guide */}
+          <Card className="border-blue-200 bg-blue-50 mb-6">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center">
+                <Shield className="h-5 w-5 mr-2 text-blue-600" />
+                SAP B1 Service Layer Integration
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="text-sm">
+                  <p className="font-medium mb-2">Your SAP B1 10.0 FP 2208 supports Service Layer!</p>
+                  <p className="text-gray-600">
+                    Service Layer provides official SAP API access with proper authentication, 
+                    business logic validation, and OData standard compliance.
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">Expected Service Layer URL:</h4>
+                    <code className="text-xs bg-gray-100 px-2 py-1 rounded block">
+                      https://DESKTOP-NH04TP:50000/b1s/v1
+                    </code>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">Setup Status:</h4>
+                    <div className="text-xs space-y-1">
+                      <div className="flex items-center">
+                        <CheckCircle className="h-3 w-3 text-green-500 mr-1" />
+                        SAP B1 Version Compatible
+                      </div>
+                      <div className="flex items-center">
+                        <AlertTriangle className="h-3 w-3 text-yellow-500 mr-1" />
+                        Middleware Not Running
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-white p-3 rounded border">
+                  <h4 className="font-medium text-sm mb-2">Next Steps:</h4>
+                  <ol className="text-xs space-y-1 list-decimal list-inside text-gray-600">
+                    <li>Run service-layer-verification.js on your SAP server</li>
+                    <li>Configure middleware with your SAP credentials</li>
+                    <li>Start the Service Layer middleware</li>
+                    <li>Setup ngrok tunnel for cloud connectivity</li>
+                  </ol>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
