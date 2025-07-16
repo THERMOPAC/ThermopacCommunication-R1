@@ -2911,6 +2911,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/sap', sapB1Routes);
   console.log('SAP B1 integration routes registered at /api/sap');
 
+  // SAP B1 Middleware Connector Routes (for receiving synced data)
+  const { middlewareRoutes } = await import('./sap-b1-integration/middleware-routes');
+  app.use('/api/sap/middleware', middlewareRoutes);
+  console.log('SAP B1 middleware integration routes registered at /api/sap/middleware');
+
   const httpServer = createServer(app);
   return httpServer;
 }
