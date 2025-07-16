@@ -83,6 +83,9 @@ import {
   concludeMeeting,
   getCommitments,
   getUserPendingCommitments,
+  getCommitmentTasks,
+  getUserCommitmentTasks,
+  completeCommitmentTask,
   createCommitment,
   updateCommitment,
   deleteCommitment,
@@ -2814,6 +2817,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Meeting Commitments endpoints (MUST come before parameterized routes)
   app.get('/api/meetings/commitments', ensureAuthenticated, getCommitments);
   app.get('/api/meetings/commitments/pending', ensureAuthenticated, getUserPendingCommitments);
+  app.get('/api/meetings/commitments/tasks', ensureAuthenticated, getCommitmentTasks);
+  app.get('/api/meetings/commitments/user-tasks', ensureAuthenticated, getUserCommitmentTasks);
+  app.post('/api/meetings/commitments/tasks/:taskId/complete', ensureAuthenticated, completeCommitmentTask);
   app.post('/api/meetings/commitments', ensureAuthenticated, createCommitment);
   app.put('/api/meetings/commitments/:id', ensureAuthenticated, updateCommitment);
   app.delete('/api/meetings/commitments/:id', ensureAuthenticated, deleteCommitment);

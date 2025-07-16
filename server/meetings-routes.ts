@@ -1407,6 +1407,147 @@ export const getCommitmentTasks = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Get commitment tasks for current user (for Tasks page)
+ */
+export const getUserCommitmentTasks = async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const { status, priority, page = 1, limit = 50 } = req.query;
+
+    console.log('getUserCommitmentTasks called for user:', user.username, 'with params:', { status, priority, page, limit });
+
+    let query = db
+      .select({
+        task: tasks,
+        commitment: meetingCommitments,
+        meeting: {
+          id: businessMeetings.id,
+          title: businessMeetings.title,
+          meetingDate: businessMeetings.meetingDate,
+        },
+        assignedTo: {
+          id: users.id,
+          username: users.username,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        }
+      })
+      .from(tasks)
+      .innerJoin(
+        meetingCommitments,
+        eq(tasks.sourceId, meetingCommitments.id)
+      )
+      .leftJoin(businessMeetings, eq(meetingCommitments.meetingId, businessMeetings.id))
+      .leftJoin(users, eq(tasks.assignedTo, users.id))
+      .where(
+        and(
+          eq(tasks.sourceType, 'meeting_commitment'),
+          eq(tasks.assignedTo, user.id)
+        )
+      );
+
+    const conditions = [
+      eq(tasks.sourceType, 'meeting_commitment'),
+      eq(tasks.assignedTo, user.id)
+    ];
+
+    if (status && status !== 'all') {
+      conditions.push(eq(tasks.status, status as string));
+    }
+
+    if (priority && priority !== 'all') {
+      conditions.push(eq(tasks.priority, priority as string));
+    }
+
+    if (conditions.length > 2) {
+      query = query.where(and(...conditions));
+    }
+
+    // Apply pagination
+    const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+    query = query
+      .orderBy(asc(tasks.dueDate))
+      .limit(parseInt(limit as string))
+      .offset(offset);
+
+    const results = await query;
+
+    console.log(`Found ${results.length} commitment tasks for user ${user.username}`);
+
+    res.json({ commitmentTasks: results });
+  } catch (error) {
+    console.error('Error fetching user commitment tasks:', error);
+    res.status(500).json({ error: 'Failed to fetch user commitment tasks' });
+  }
+};
+
+/**
+ * Complete a commitment task (marks both task and commitment as completed)
+ */
+export const completeCommitmentTask = async (req: Request, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    const user = req.user as any;
+
+    console.log('completeCommitmentTask called for task:', taskId, 'by user:', user.username);
+
+    const result = await db.transaction(async (tx) => {
+      // First, get the task and verify it belongs to the user
+      const [task] = await tx
+        .select()
+        .from(tasks)
+        .where(
+          and(
+            eq(tasks.id, parseInt(taskId)),
+            eq(tasks.assignedTo, user.id),
+            eq(tasks.sourceType, 'meeting_commitment')
+          )
+        );
+
+      if (!task) {
+        throw new Error('Task not found or not assigned to user');
+      }
+
+      // Update the task status to completed
+      const [updatedTask] = await tx
+        .update(tasks)
+        .set({
+          status: 'completed',
+          completedAt: new Date().toISOString(),
+          updatedAt: new Date()
+        })
+        .where(eq(tasks.id, parseInt(taskId)))
+        .returning();
+
+      // Update the linked commitment status to completed
+      const [updatedCommitment] = await tx
+        .update(meetingCommitments)
+        .set({
+          status: 'Completed',
+          completionDate: new Date().toISOString().split('T')[0],
+          updatedAt: new Date()
+        })
+        .where(eq(meetingCommitments.id, task.sourceId))
+        .returning();
+
+      console.log(`Completed task ID ${updatedTask.id} and commitment ID ${updatedCommitment.id}`);
+
+      return { task: updatedTask, commitment: updatedCommitment };
+    });
+
+    res.json({
+      success: true,
+      message: 'Task and commitment marked as completed',
+      task: result.task,
+      commitment: result.commitment
+    });
+  } catch (error) {
+    console.error('Error completing commitment task:', error);
+    res.status(500).json({ error: 'Failed to complete commitment task' });
+  }
+};
+
 // =============================================================================
 // AI MEETING NOTES ENDPOINTS
 // =============================================================================

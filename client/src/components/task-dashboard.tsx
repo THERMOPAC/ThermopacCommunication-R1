@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Task, User } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,7 +22,9 @@ import {
   ChevronDown,
   SortAsc,
   SortDesc,
-  RefreshCw
+  RefreshCw,
+  Users,
+  CalendarDays
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +37,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function TaskDashboard() {
   const { user } = useAuth();
@@ -63,11 +67,19 @@ export default function TaskDashboard() {
     queryKey: ["/api/subordinates"],
   });
 
+  // Fetch commitment tasks for the current user
+  const { data: commitmentTasksData, refetch: refetchCommitmentTasks, isLoading: isLoadingCommitmentTasks } = useQuery({
+    queryKey: ["/api/meetings/commitments/user-tasks"],
+    select: (data: any) => data?.commitmentTasks || []
+  });
+
   // Function to manually refresh tasks
   const handleRefreshTasks = async () => {
-    console.log("Manually refreshing tasks...");
+    console.log("Manually refreshing tasks and commitment tasks...");
     await queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/meetings/commitments/user-tasks"] });
     await refetchTasks();
+    await refetchCommitmentTasks();
   };
 
   // Debug logging to understand the data flow
@@ -342,10 +354,14 @@ export default function TaskDashboard() {
       
       {/* Task filters by status */}
       <Tabs defaultValue="my" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="my" className="flex items-center justify-center gap-2">
             My Tasks
             <Badge variant="secondary">{myTasksCount}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="commitments" className="flex items-center justify-center gap-2">
+            Commitments
+            <Badge variant="secondary">{commitmentTasksData?.length || 0}</Badge>
           </TabsTrigger>
           <TabsTrigger value="all" className="flex items-center justify-center gap-2">
             All Tasks
@@ -368,7 +384,12 @@ export default function TaskDashboard() {
         </TabsList>
         
         <div className="mt-4">
-          {filteredTasks.length > 0 ? (
+          {activeTab === "commitments" ? (
+            <CommitmentTasksList 
+              commitmentTasks={commitmentTasksData || []}
+              isLoading={isLoadingCommitmentTasks}
+            />
+          ) : filteredTasks.length > 0 ? (
             <TaskList 
               tasks={filteredTasks} 
               subordinates={subordinates} 
@@ -421,6 +442,173 @@ export default function TaskDashboard() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// Commitment Tasks List Component
+interface CommitmentTasksListProps {
+  commitmentTasks: any[];
+  isLoading: boolean;
+}
+
+function CommitmentTasksList({ commitmentTasks, isLoading }: CommitmentTasksListProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const completeTaskMutation = useMutation({
+    mutationFn: async (taskId: number) => {
+      return apiRequest(`/api/meetings/commitments/tasks/${taskId}/complete`, {
+        method: 'POST'
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Task Completed",
+        description: "Commitment task marked as completed successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/meetings/commitments/user-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to complete task",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleCompleteTask = (taskId: number) => {
+    completeTaskMutation.mutate(taskId);
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <div className="flex flex-col items-center gap-2">
+            <RefreshCw className="h-8 w-8 text-muted-foreground animate-spin" />
+            <h3 className="text-lg font-medium">Loading commitment tasks...</h3>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!commitmentTasks || commitmentTasks.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <div className="flex flex-col items-center gap-2">
+            <Users className="h-10 w-10 text-muted-foreground opacity-30" />
+            <h3 className="text-lg font-medium">No commitment tasks found</h3>
+            <p className="text-sm text-muted-foreground">
+              Tasks from meeting commitments assigned to you will appear here.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">My Commitment Tasks</h3>
+        <Badge variant="outline">{commitmentTasks.length} tasks</Badge>
+      </div>
+      
+      {commitmentTasks.map((item) => {
+        const task = item.task;
+        const commitment = item.commitment;
+        const meeting = item.meeting;
+        
+        const isCompleted = task.status === 'completed';
+        const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !isCompleted;
+        
+        return (
+          <Card key={task.id} className={`${isCompleted ? 'opacity-70' : ''}`}>
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <h4 className="font-semibold text-lg flex items-center gap-2">
+                      {task.title}
+                      {isCompleted && <CheckCircle className="h-5 w-5 text-green-500" />}
+                      {isOverdue && <AlertCircle className="h-5 w-5 text-red-500" />}
+                    </h4>
+                    {task.description && (
+                      <p className="text-muted-foreground mt-1">{task.description}</p>
+                    )}
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant={task.priority === 'High' ? 'destructive' : task.priority === 'Medium' ? 'default' : 'secondary'}>
+                      {task.priority} Priority
+                    </Badge>
+                    <Badge variant={isCompleted ? 'default' : 'outline'}>
+                      {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                    </Badge>
+                    {commitment.status && (
+                      <Badge variant="outline" className="bg-blue-50">
+                        Commitment: {commitment.status}
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {meeting && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <CalendarDays className="h-4 w-4" />
+                        <span>From meeting: <strong>{meeting.title}</strong></span>
+                        {meeting.meetingDate && (
+                          <span>({new Date(meeting.meetingDate).toLocaleDateString()})</span>
+                        )}
+                      </div>
+                    )}
+                    
+                    {task.dueDate && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                        {isOverdue && <span className="text-red-500 font-medium">(Overdue)</span>}
+                      </div>
+                    )}
+                    
+                    {commitment.dueDate && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="h-4 w-4" />
+                        <span>Commitment due: {new Date(commitment.dueDate).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {!isCompleted && (
+                  <Button
+                    onClick={() => handleCompleteTask(task.id)}
+                    disabled={completeTaskMutation.isPending}
+                    className="ml-4"
+                  >
+                    {completeTaskMutation.isPending ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Completing...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Complete
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }
