@@ -1255,6 +1255,11 @@ export default function MeetingsManagement() {
     setEditingCommitment(commitment);
     commitmentForm.reset({
       meetingId: commitment.commitment.meetingId,
+      meetingType: commitment.commitment.meetingType || 'internal',
+      googleCalendarEventId: commitment.commitment.googleCalendarEventId || undefined,
+      meetingTitle: commitment.commitment.meetingTitle || '',
+      meetingDate: commitment.commitment.meetingDate || '',
+      meetingStartTime: commitment.commitment.meetingStartTime || '',
       title: commitment.commitment.title,
       description: commitment.commitment.description || '',
       priority: commitment.commitment.priority as any,
