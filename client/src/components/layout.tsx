@@ -119,6 +119,9 @@ function Layout({ children }: LayoutProps) {
   // Check if we're on any meetings-related page
   const isOnMeetingsPage = location === '/admin/meetings-management' ||
                           location === '/google-calendar-settings';
+
+  // Check if we're on SAP Integration page
+  const isOnSapIntegrationPage = location === '/sap-integration';
   
   // Auto-open menus based on current page
   useEffect(() => {
@@ -253,8 +256,11 @@ function Layout({ children }: LayoutProps) {
         { icon: Palette, label: "Design Tools", href: "/design-tools" }
       ]
     }] : []),
-    // SAP B1 Integration Module (available to all users for now)
-    { icon: Database, label: "SAP B1 Purchase", href: "/sap-b1/purchase" },
+    ...(hasViewPermission("SAP B1 Integration") ? [{ 
+      icon: Database, 
+      label: "SAP B1 Integration", 
+      href: "/sap-integration"
+    }] : []),
     ...(hasViewPermission("Procurement Management") ? [{
       icon: TrendingUp,
       label: "Procurement Management",

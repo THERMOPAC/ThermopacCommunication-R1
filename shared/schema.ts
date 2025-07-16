@@ -18,8 +18,11 @@ export const modules = [
   "Quality Management",
   "Project Commissioning",
   "Dispatch & Shipping",
-  "After-Sales"
+  "After-Sales",
+  "SAP B1 Integration"
 ] as const;
+
+export type Module = typeof modules[number];
 
 // Lead status values
 export const leadStatuses = [

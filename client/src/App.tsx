@@ -105,6 +105,7 @@ import DwarPage from "@/pages/dwar-page";
 
 // SAP B1 Integration pages
 import PurchaseModule from "@/pages/PurchaseModule";
+import SapIntegrationPage from "@/pages/SapIntegrationPage";
 
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
@@ -300,6 +301,7 @@ function Router() {
       <ProtectedRoute path="/google-calendar-settings" component={() => <Layout><GoogleCalendarSettingsPage /></Layout>} />
       
       {/* SAP B1 Integration Routes */}
+      <ProtectedRoute path="/sap-integration" component={() => <Layout><SapIntegrationPage /></Layout>} />
       <ProtectedRoute path="/sap-b1/purchase" component={() => <Layout><PurchaseModule /></Layout>} />
       
       <SuperuserRoute path="/gcs-diagnostic" component={GcsDiagnosticPage} />
