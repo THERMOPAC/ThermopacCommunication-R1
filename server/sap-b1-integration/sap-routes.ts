@@ -14,50 +14,120 @@ router.use('/purchase', purchaseRoutes);
  */
 
 /**
- * Get SAP B1 connection status
+ * Get SAP B1 connection status via middleware
  */
 router.get('/connection/status', ensureAuthenticated, async (req, res) => {
   try {
-    // Check if SAP B1 environment variables are configured
-    const sapServer = process.env.SAP_SERVER;
-    const sapDatabase = process.env.SAP_DATABASE;
-    const sapUsername = process.env.SAP_USERNAME;
-    const sapPassword = process.env.SAP_PASSWORD;
+    // Check middleware connection status
+    const middlewareUrl = process.env.SAP_MIDDLEWARE_URL || 'http://localhost:3001';
+    const apiKey = process.env.SAP_MIDDLEWARE_API_KEY || process.env.API_SECRET_KEY;
 
-    if (!sapServer || !sapDatabase || !sapUsername || !sapPassword) {
+    if (!apiKey) {
       return res.json({
         success: true,
-        status: 'not_configured',
-        message: 'SAP B1 connection not configured. Environment variables required: SAP_SERVER, SAP_DATABASE, SAP_USERNAME, SAP_PASSWORD',
+        status: 'middleware_not_configured',
+        message: 'SAP B1 middleware not configured. API key required for secure connection.',
+        middlewareUrl,
         configStatus: {
-          SAP_SERVER: !!sapServer,
-          SAP_DATABASE: !!sapDatabase,
-          SAP_USERNAME: !!sapUsername,
-          SAP_PASSWORD: !!sapPassword
+          MIDDLEWARE_URL: !!middlewareUrl,
+          API_KEY: false
         },
         timestamp: new Date().toISOString()
       });
     }
 
-    const isConnected = await sapB1Connector.testConnection();
-    
-    res.json({
-      success: true,
-      status: isConnected ? 'connected' : 'disconnected',
-      message: isConnected ? 'Connected to SAP B1 successfully' : 'Failed to connect to SAP B1 database. Check server connectivity and credentials.',
-      configStatus: {
-        SAP_SERVER: true,
-        SAP_DATABASE: true,
-        SAP_USERNAME: true,
-        SAP_PASSWORD: true
-      },
-      timestamp: new Date().toISOString()
-    });
+    // Test middleware connectivity
+    try {
+      const middlewareResponse = await fetch(`${middlewareUrl}/health`);
+      
+      if (middlewareResponse.ok) {
+        // Middleware is running, test SAP connection through middleware
+        try {
+          const sapStatusResponse = await fetch(`${middlewareUrl}/sap/status`, {
+            headers: {
+              'x-api-key': apiKey,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (sapStatusResponse.ok) {
+            const sapStatus = await sapStatusResponse.json();
+            return res.json({
+              success: true,
+              status: 'connected',
+              message: 'Connected to SAP B1 via middleware successfully',
+              middlewareUrl,
+              sapStatus,
+              configStatus: {
+                MIDDLEWARE_URL: true,
+                API_KEY: true,
+                SAP_CONNECTION: true
+              },
+              timestamp: new Date().toISOString()
+            });
+          } else {
+            return res.json({
+              success: true,
+              status: 'middleware_connected_sap_disconnected',
+              message: 'Middleware running but SAP B1 connection failed',
+              middlewareUrl,
+              configStatus: {
+                MIDDLEWARE_URL: true,
+                API_KEY: true,
+                SAP_CONNECTION: false
+              },
+              timestamp: new Date().toISOString()
+            });
+          }
+        } catch (sapError) {
+          return res.json({
+            success: true,
+            status: 'middleware_connected_sap_error',
+            message: 'Middleware running but SAP B1 connection error',
+            middlewareUrl,
+            error: sapError instanceof Error ? sapError.message : 'Unknown SAP error',
+            configStatus: {
+              MIDDLEWARE_URL: true,
+              API_KEY: true,
+              SAP_CONNECTION: false
+            },
+            timestamp: new Date().toISOString()
+          });
+        }
+      } else {
+        return res.json({
+          success: true,
+          status: 'middleware_disconnected',
+          message: 'SAP B1 middleware not running. Please start the middleware connector on your local PC.',
+          middlewareUrl,
+          configStatus: {
+            MIDDLEWARE_URL: true,
+            API_KEY: true,
+            SAP_CONNECTION: false
+          },
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (middlewareError) {
+      return res.json({
+        success: true,
+        status: 'middleware_unreachable',
+        message: 'Cannot reach SAP B1 middleware. Please ensure the middleware connector is running on your local network.',
+        middlewareUrl,
+        error: middlewareError instanceof Error ? middlewareError.message : 'Network error',
+        configStatus: {
+          MIDDLEWARE_URL: true,
+          API_KEY: true,
+          SAP_CONNECTION: false
+        },
+        timestamp: new Date().toISOString()
+      });
+    }
   } catch (error) {
-    console.error('SAP B1 connection status check failed:', error);
+    console.error('SAP B1 middleware connection status check failed:', error);
     res.json({
       success: false,
-      status: 'disconnected',
+      status: 'error',
       message: 'Connection status check failed',
       error: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
@@ -102,23 +172,65 @@ router.get('/connection/config', ensureAuthenticated, async (req, res) => {
 });
 
 /**
- * Test SAP B1 connection
+ * Test SAP B1 connection via middleware
  */
-router.get('/test-connection', ensureAuthenticated, async (req, res) => {
+router.post('/connection/test', ensureAuthenticated, async (req, res) => {
   try {
-    const isConnected = await sapB1Connector.testConnection();
+    const middlewareUrl = process.env.SAP_MIDDLEWARE_URL || 'http://localhost:3001';
+    const apiKey = process.env.SAP_MIDDLEWARE_API_KEY || process.env.API_SECRET_KEY;
+
+    if (!apiKey) {
+      return res.json({
+        success: false,
+        message: 'SAP B1 middleware API key not configured',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Test middleware connectivity first
+    const middlewareResponse = await fetch(`${middlewareUrl}/health`);
     
-    res.json({
-      success: isConnected,
-      message: isConnected ? 'Connected to SAP B1 successfully' : 'Failed to connect to SAP B1',
-      timestamp: new Date().toISOString()
+    if (!middlewareResponse.ok) {
+      return res.json({
+        success: false,
+        message: 'SAP B1 middleware not running. Please start the middleware connector.',
+        middlewareUrl,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Test SAP connection through middleware
+    const sapTestResponse = await fetch(`${middlewareUrl}/sap/status`, {
+      headers: {
+        'x-api-key': apiKey,
+        'Content-Type': 'application/json'
+      }
     });
+
+    if (sapTestResponse.ok) {
+      const sapResult = await sapTestResponse.json();
+      return res.json({
+        success: true,
+        message: 'Connected to SAP B1 via middleware successfully',
+        middlewareUrl,
+        sapResult,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      return res.json({
+        success: false,
+        message: 'Middleware running but SAP B1 connection failed',
+        middlewareUrl,
+        timestamp: new Date().toISOString()
+      });
+    }
   } catch (error) {
-    console.error('SAP B1 connection test failed:', error);
-    res.status(500).json({
+    console.error('SAP B1 middleware connection test failed:', error);
+    res.json({
       success: false,
       message: 'Connection test failed',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
     });
   }
 });
