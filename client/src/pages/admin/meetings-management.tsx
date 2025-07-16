@@ -3974,7 +3974,18 @@ Suggested next steps
               {/* Meetings List */}
               <div className="space-y-3">
                 <h4 className="font-medium text-gray-900">Meeting Details</h4>
-                {previewData.meetings.map((meeting: any, index: number) => (
+                {previewData.meetings
+                  .sort((a: any, b: any) => {
+                    // Sort by date in ascending order (earliest to latest)
+                    const dateA = new Date(a.meetingDate);
+                    const dateB = new Date(b.meetingDate);
+                    if (dateA.getTime() !== dateB.getTime()) {
+                      return dateA.getTime() - dateB.getTime();
+                    }
+                    // If dates are same, sort by start time
+                    return a.startTime.localeCompare(b.startTime);
+                  })
+                  .map((meeting: any, index: number) => (
                   <div 
                     key={index} 
                     className={`p-4 rounded-lg border ${
