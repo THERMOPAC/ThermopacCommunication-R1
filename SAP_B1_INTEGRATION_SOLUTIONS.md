@@ -3,11 +3,28 @@
 ## Current Status
 ✅ **Cloud Application**: SAP B1 integration fully implemented with authentication, APIs, and UI
 ✅ **Local Middleware**: Running successfully on your PC at port 3001
+✅ **Service Layer Support**: Updated middleware to use SAP B1 Service Layer API (recommended)
 ❌ **Network Connectivity**: Cloud application cannot reach your local middleware due to network restrictions
+
+## Recommended Approach: SAP B1 Service Layer
+
+### SAP B1 Service Layer Prerequisites
+**IMPORTANT**: Your SAP B1 system must have Service Layer enabled and accessible:
+- Service Layer URL: `https://your-sap-server:50000/b1s/v1`
+- Ask your SAP IT team to enable this if not already available
+- Test accessibility: `curl -k https://your-sap-server:50000/b1s/v1/$metadata`
+
+### Service Layer Advantages:
+✅ **Official SAP API** - Fully supported by SAP
+✅ **Business Logic** - Respects all SAP validation rules  
+✅ **Security** - Proper authentication and session management
+✅ **OData Standard** - Modern REST API with filtering/paging
+✅ **Real-time Data** - Always current, no sync delays
+✅ **Transaction Safety** - Proper ACID compliance
 
 ## Solution Options
 
-### Option 1: Cloud Tunneling (Recommended)
+### Option 1: Service Layer + Cloud Tunneling (Recommended)
 Use ngrok or similar service to create a secure tunnel from your local middleware to the cloud.
 
 #### Steps:
