@@ -36,9 +36,15 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    // Test middleware connectivity
+    // Test middleware connectivity with timeout
     try {
-      const middlewareResponse = await fetch(`${middlewareUrl}/health`);
+      const middlewareResponse = await fetch(`${middlewareUrl}/health`, {
+        signal: AbortSignal.timeout(10000), // 10 second timeout
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
       
       if (middlewareResponse.ok) {
         // Middleware is running, test SAP connection through middleware
@@ -195,8 +201,13 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    // Test middleware connectivity first
-    const middlewareResponse = await fetch(`${middlewareUrl}/health`);
+    // Test middleware connectivity first with timeout
+    const middlewareResponse = await fetch(`${middlewareUrl}/health`, {
+      signal: AbortSignal.timeout(8000), // 8 second timeout
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
     
     if (!middlewareResponse.ok) {
       return res.json({
