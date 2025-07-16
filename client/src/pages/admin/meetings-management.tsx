@@ -1029,6 +1029,29 @@ export default function MeetingsManagement() {
     },
   });
 
+  const completeCommitmentMutation = useMutation({
+    mutationFn: async (commitmentId: number) => {
+      return apiRequest('POST', `/api/meetings/commitments/tasks/${commitmentId}/complete`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Commitment marked as completed successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings/commitments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings/dashboard/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings/commitments/user-tasks'] });
+    },
+    onError: (error) => {
+      console.error('Failed to complete commitment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete commitment",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Preview modal helper functions
   const handleEditPreviewMeeting = (meeting: any, index: number) => {
     setEditingPreviewMeeting({ 
@@ -2673,6 +2696,17 @@ export default function MeetingsManagement() {
                                 <EditIcon className="h-4 w-4 mr-2" />
                                 Edit
                               </DropdownMenuItem>
+                              {/* Only show Mark as Completed option for assigned users and non-completed commitments */}
+                              {user && commitment.assignedTo.id === user.id && commitment.commitment.status !== 'Completed' && (
+                                <DropdownMenuItem 
+                                  className="text-green-600"
+                                  onClick={() => completeCommitmentMutation.mutate(commitment.commitment.id)}
+                                  disabled={completeCommitmentMutation.isPending}
+                                >
+                                  <CheckCircleIcon className="h-4 w-4 mr-2" />
+                                  Mark as Completed
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem 
                                 className="text-red-600"
                                 onClick={() => deleteCommitmentMutation.mutate(commitment.commitment.id)}
