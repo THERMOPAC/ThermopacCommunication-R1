@@ -384,7 +384,7 @@ function Layout({ children }: LayoutProps) {
                 {(() => {
                   // Define the exact order requested by user
                   const moduleOrder = [
-                    { type: 'single', href: '/admin/meetings-management', label: 'Meetings & Commitments' },
+                    { type: 'submenu', label: 'Meetings & Commitments' },
                     { type: 'single', href: '/sap-integration', label: 'SAP B1 Integration' },
                     { type: 'submenu', label: 'Administration' },
                     { type: 'submenu', label: 'Finance' },
