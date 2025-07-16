@@ -2697,7 +2697,17 @@ export default function MeetingsManagement() {
                                 Edit
                               </DropdownMenuItem>
                               {/* Only show Mark as Completed option for assigned users and non-completed commitments */}
-                              {user && commitment.assignedTo.id === user.id && commitment.commitment.status !== 'Completed' && (
+                              {(() => {
+                                const shouldShow = user && commitment.assignedTo.id === user.id && commitment.commitment.status !== 'Completed';
+                                console.log('Debug completion option:', {
+                                  hasUser: !!user,
+                                  userId: user?.id,
+                                  assignedToId: commitment.assignedTo.id,
+                                  status: commitment.commitment.status,
+                                  shouldShow
+                                });
+                                return shouldShow;
+                              })() && (
                                 <DropdownMenuItem 
                                   className="text-green-600"
                                   onClick={() => completeCommitmentMutation.mutate(commitment.commitment.id)}
