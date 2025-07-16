@@ -28,8 +28,8 @@ export class SAPB1Connector {
         options: {
           encrypt: true,
           trustServerCertificate: true,
-          enableArithAbort: true,
-          instanceName: process.env.SAP_INSTANCE || 'SQLEXPRESS'
+          enableArithAbort: true
+          // No instanceName specified - using default SQL Server instance (MSSQLSERVER)
         },
         pool: {
           max: 10,

@@ -29,11 +29,9 @@ SAP_SERVER=your-sap-server-ip-or-name
 SAP_DATABASE=your-sap-database-name
 SAP_USERNAME=your-sap-username
 SAP_PASSWORD=your-sap-password
-SAP_INSTANCE=SQLEXPRESS
 
-# Optional: For encryption
-SAP_ENCRYPT=true
-SAP_TRUST_SERVER_CERTIFICATE=true
+# Note: Using default SQL Server instance (MSSQLSERVER)
+# No SAP_INSTANCE needed for default instances
 ```
 
 ## SAP B1 Database Tables Used
