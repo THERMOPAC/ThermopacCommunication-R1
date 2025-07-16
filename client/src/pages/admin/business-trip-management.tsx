@@ -1468,6 +1468,11 @@ const TripDashboard = () => {
                 <div>
                   <p className="text-sm text-gray-600 capitalize">{status.status.replace('_', ' ')}</p>
                   <p className="text-2xl font-bold">{status.count}</p>
+                  {status.status === 'draft' && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Need to be submitted for approval
+                    </p>
+                  )}
                 </div>
                 <div className="text-blue-600">
                   {status.status === 'final_approved' && <CheckCircle className="h-8 w-8" />}
@@ -2711,7 +2716,12 @@ const TripApprovalsTab = () => {
             <div className="text-center py-8">
               <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
               <p className="text-lg font-medium text-gray-600">No pending approvals</p>
-              <p className="text-sm text-gray-500">All trip requests have been reviewed</p>
+              <p className="text-sm text-gray-500 mb-3">All submitted trip requests have been reviewed</p>
+              <div className="bg-blue-50 p-3 rounded border border-blue-200 mt-4">
+                <p className="text-xs text-blue-700">
+                  <strong>Note:</strong> Draft trips (visible in Dashboard) must be submitted by employees before appearing here for approval.
+                </p>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
