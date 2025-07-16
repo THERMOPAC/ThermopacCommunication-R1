@@ -169,11 +169,33 @@ function Layout({ children }: LayoutProps) {
     
     // If user is a Superuser, they have access to everything
     if (user?.role === "Superuser") {
+      // Debug log for SAP B1 Integration
+      if (moduleName === "SAP B1 Integration") {
+        console.log("SAP B1 Integration permission check:", {
+          user: user?.username,
+          role: user?.role,
+          isLoadingPermissions,
+          hasPermission: true
+        });
+      }
       return true;
     }
     
     // Check if the user has view permission for this module
-    return modulePermissions?.[moduleName]?.canView === true;
+    const hasPermission = modulePermissions?.[moduleName]?.canView === true;
+    
+    // Debug log for SAP B1 Integration
+    if (moduleName === "SAP B1 Integration") {
+      console.log("SAP B1 Integration permission check:", {
+        user: user?.username,
+        role: user?.role,
+        isLoadingPermissions,
+        modulePermissions,
+        hasPermission
+      });
+    }
+    
+    return hasPermission;
   };
 
   const menuItems = [
