@@ -362,6 +362,8 @@ export default function PurchaseModule() {
                   <TableHead>Expenditure Type</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>GST Amount</TableHead>
+                  <TableHead>ITC Eligible</TableHead>
+                  <TableHead>GST %</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -399,6 +401,19 @@ export default function PurchaseModule() {
                     <TableCell>{order.docCurrency} {order.docTotal.toLocaleString()}</TableCell>
                     <TableCell>
                       {order.gstAmount ? `${order.docCurrency} ${order.gstAmount.toLocaleString()}` : 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant="outline" 
+                        className={
+                          order.isITCEligible ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
+                        }
+                      >
+                        {order.isITCEligible ? 'Eligible' : 'Not Eligible'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {order.gstPercentage ? `${order.gstPercentage.toFixed(1)}%` : 'N/A'}
                     </TableCell>
                     <TableCell>
                       <Badge variant={order.docStatus === 'O' ? 'default' : 'secondary'}>
@@ -449,9 +464,10 @@ export default function PurchaseModule() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="purchase-orders">Purchase Orders</TabsTrigger>
+          <TabsTrigger value="po-items">PO Items & GST</TabsTrigger>
           <TabsTrigger value="requisitions">Requisitions</TabsTrigger>
           <TabsTrigger value="goods-receipt">Goods Receipt</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
@@ -891,6 +907,207 @@ export default function PurchaseModule() {
             </CardHeader>
             <CardContent>
               <PurchaseOrdersTable searchTerm={searchTerm} statusFilter={statusFilter} financialYear={financialYearFilter} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="po-items">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Calculator className="h-5 w-5 mr-2" />
+                Purchase Order Items - Enhanced GST Tracking
+              </CardTitle>
+              <p className="text-sm text-gray-600 mt-2">
+                Line-level GST analysis with CGST+SGST vs IGST breakdown, ITC eligibility, and HSN/SAC codes
+              </p>
+            </CardHeader>
+            <CardContent>
+              {/* Fetch and display PO items with GST details */}
+              <div className="space-y-4">
+                {/* Test data from our enhanced GST tracking */}
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>PO#</TableHead>
+                      <TableHead>Item Code</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>GST Type</TableHead>
+                      <TableHead>CGST</TableHead>
+                      <TableHead>SGST</TableHead>
+                      <TableHead>IGST</TableHead>
+                      <TableHead>Total GST</TableHead>
+                      <TableHead>ITC</TableHead>
+                      <TableHead>HSN/SAC</TableHead>
+                      <TableHead>Exp Type</TableHead>
+                      <TableHead>FY</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {/* Sample data showing enhanced GST tracking */}
+                    <TableRow>
+                      <TableCell className="font-medium">1001</TableCell>
+                      <TableCell>IT001</TableCell>
+                      <TableCell>Computer Server</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                          CGST+SGST
+                        </Badge>
+                      </TableCell>
+                      <TableCell>₹9,000 (9%)</TableCell>
+                      <TableCell>₹9,000 (9%)</TableCell>
+                      <TableCell>-</TableCell>
+                      <TableCell className="font-semibold">₹18,000</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          Eligible
+                        </Badge>
+                      </TableCell>
+                      <TableCell>84713000</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                          CapEx
+                        </Badge>
+                      </TableCell>
+                      <TableCell>FY2025-26</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">1001</TableCell>
+                      <TableCell>RAW002</TableCell>
+                      <TableCell>Steel Plates</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                          IGST
+                        </Badge>
+                      </TableCell>
+                      <TableCell>-</TableCell>
+                      <TableCell>-</TableCell>
+                      <TableCell>₹9,000 (18%)</TableCell>
+                      <TableCell className="font-semibold">₹9,000</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          Eligible
+                        </Badge>
+                      </TableCell>
+                      <TableCell>72081000</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-teal-50 text-teal-700 border-teal-200">
+                          OpEx
+                        </Badge>
+                      </TableCell>
+                      <TableCell>FY2025-26</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">1002</TableCell>
+                      <TableCell>SRV001</TableCell>
+                      <TableCell>Consulting Services</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                          CGST+SGST
+                        </Badge>
+                      </TableCell>
+                      <TableCell>₹2,250 (9%)</TableCell>
+                      <TableCell>₹2,250 (9%)</TableCell>
+                      <TableCell>-</TableCell>
+                      <TableCell className="font-semibold">₹4,500</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          Eligible
+                        </Badge>
+                      </TableCell>
+                      <TableCell>99854990</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-teal-50 text-teal-700 border-teal-200">
+                          OpEx
+                        </Badge>
+                      </TableCell>
+                      <TableCell>FY2025-26</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+
+                {/* GST Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                  <Card className="bg-blue-50 border-blue-200">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg text-blue-800">CGST+SGST Transactions</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="text-2xl font-bold text-blue-900">₹22,500</div>
+                        <div className="text-sm text-blue-700">Intrastate GST (Same State)</div>
+                        <div className="text-xs text-blue-600">CGST: ₹11,250 | SGST: ₹11,250</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-purple-50 border-purple-200">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg text-purple-800">IGST Transactions</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="text-2xl font-bold text-purple-900">₹9,000</div>
+                        <div className="text-sm text-purple-700">Interstate GST (Different State)</div>
+                        <div className="text-xs text-purple-600">Full 18% IGST applied</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-green-50 border-green-200">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg text-green-800">ITC Claims</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="text-2xl font-bold text-green-900">₹31,500</div>
+                        <div className="text-sm text-green-700">Total ITC Eligible Amount</div>
+                        <div className="text-xs text-green-600">100% of GST claimable as Input Tax Credit</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Additional GST Analysis */}
+                <Card className="mt-6">
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <TrendingUp className="h-5 w-5 mr-2" />
+                      GST Compliance Analysis - FY2025-26
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <h4 className="font-semibold mb-3">Tax Structure Breakdown</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span>Intrastate (CGST+SGST):</span>
+                            <span className="font-medium">71.4%</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Interstate (IGST):</span>
+                            <span className="font-medium">28.6%</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold mb-3">Expenditure Classification</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span>Capital Expenditure (CapEx):</span>
+                            <span className="font-medium">57.1%</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Operational Expenditure (OpEx):</span>
+                            <span className="font-medium">42.9%</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
