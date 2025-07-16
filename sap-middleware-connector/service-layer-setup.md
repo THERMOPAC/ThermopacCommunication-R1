@@ -13,18 +13,21 @@ Contact your SAP IT team to ensure:
 Before setting up middleware, test if Service Layer is working:
 
 ```bash
-# Test metadata endpoint
-curl -k https://your-sap-server:50000/b1s/v1/$metadata
+# Test metadata endpoint (using your system)
+curl -k https://DESKTOP-NH04TP:50000/b1s/v1/$metadata
+# Or using IP: curl -k https://192.168.1.100:50000/b1s/v1/$metadata
 
-# Test login endpoint (replace with your details)
-curl -k -X POST https://your-sap-server:50000/b1s/v1/Login \
+# Test login endpoint (replace with your actual credentials)
+curl -k -X POST https://DESKTOP-NH04TP:50000/b1s/v1/Login \
   -H "Content-Type: application/json" \
   -d '{
-    "CompanyDB": "SBODemoUS",
+    "CompanyDB": "your_actual_company_db",
     "UserName": "manager",
-    "Password": "your_password"
+    "Password": "your_actual_password"
   }'
 ```
+
+**Your SAP B1 10.0 FP 2208 with Microsoft SQL Server is fully compatible!**
 
 ## Installation Steps
 
