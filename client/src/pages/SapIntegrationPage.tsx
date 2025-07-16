@@ -153,54 +153,59 @@ export default function SapIntegrationPage() {
         </TabsList>
 
         <TabsContent value="overview">
-          {/* Service Layer Setup Guide */}
-          <Card className="border-blue-200 bg-blue-50 mb-6">
+          {/* Public IP Port Forwarding Setup Guide */}
+          <Card className="border-orange-200 bg-orange-50 mb-6">
             <CardHeader>
               <CardTitle className="text-lg flex items-center">
-                <Shield className="h-5 w-5 mr-2 text-blue-600" />
-                SAP B1 Service Layer Integration
+                <Shield className="h-5 w-5 mr-2 text-orange-600" />
+                SAP B1 Public IP Port Forwarding Setup
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="text-sm">
-                  <p className="font-medium mb-2">Your SAP B1 10.0 FP 2208 supports Service Layer!</p>
+                  <p className="font-medium mb-2">Network Architecture: Cloud Application → Public IP → Router → SAP Server</p>
                   <p className="text-gray-600">
-                    Direct Service Layer API integration over public IP/VPN with official SAP connectivity, 
-                    enterprise-grade security, business logic validation, and real-time data synchronization.
+                    Your SAP B1 server (192.168.1.100:50000) needs public IP access for cloud connectivity. 
+                    Configure router port forwarding to enable direct Service Layer integration.
                   </p>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <h4 className="font-medium text-sm">Expected Service Layer URL:</h4>
+                    <h4 className="font-medium text-sm">Current Service Layer URL:</h4>
                     <code className="text-xs bg-gray-100 px-2 py-1 rounded block">
-                      https://DESKTOP-NH04TP:50000/b1s/v1
+                      https://192.168.1.100:50000/b1s/v1
                     </code>
+                    <p className="text-xs text-red-600">❌ Private IP - Not accessible from cloud</p>
                   </div>
                   <div className="space-y-2">
-                    <h4 className="font-medium text-sm">Setup Status:</h4>
-                    <div className="text-xs space-y-1">
-                      <div className="flex items-center">
-                        <CheckCircle className="h-3 w-3 text-green-500 mr-1" />
-                        SAP B1 Version Compatible
-                      </div>
-                      <div className="flex items-center">
-                        <AlertTriangle className="h-3 w-3 text-yellow-500 mr-1" />
-                        Service Layer Not Configured
-                      </div>
-                    </div>
+                    <h4 className="font-medium text-sm">Required Service Layer URL:</h4>
+                    <code className="text-xs bg-gray-100 px-2 py-1 rounded block">
+                      https://[YOUR_PUBLIC_IP]:50000/b1s/v1
+                    </code>
+                    <p className="text-xs text-green-600">✅ Public IP - Cloud accessible</p>
                   </div>
                 </div>
                 
                 <div className="bg-white p-3 rounded border">
-                  <h4 className="font-medium text-sm mb-2">Next Steps:</h4>
+                  <h4 className="font-medium text-sm mb-2">Setup Instructions:</h4>
                   <ol className="text-xs space-y-1 list-decimal list-inside text-gray-600">
-                    <li>Configure SAP Service Layer credentials</li>
-                    <li>Verify Service Layer is running on port 50000</li>
-                    <li>Test direct Service Layer connectivity</li>
-                    <li>Enable SSL certificates for HTTPS access</li>
+                    <li>Access your router admin panel (typically 192.168.1.1)</li>
+                    <li>Create port forwarding rule: External Port 50000 → 192.168.1.100:50000</li>
+                    <li>Configure Windows Firewall to allow port 50000 inbound</li>
+                    <li>Get your public IP address (visit whatismyipaddress.com)</li>
+                    <li>Update Service Layer URL with your public IP</li>
+                    <li>Test connection from this application</li>
                   </ol>
+                </div>
+                
+                <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
+                  <h4 className="font-medium text-sm mb-1 text-yellow-800">📖 Detailed Setup Guide Available</h4>
+                  <p className="text-xs text-yellow-700">
+                    Comprehensive router configuration, firewall setup, and security guidelines 
+                    available in SAP_B1_PUBLIC_IP_SETUP_GUIDE.md file.
+                  </p>
                 </div>
               </div>
             </CardContent>
