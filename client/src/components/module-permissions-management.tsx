@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest, getQueryFn } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { roles, roleHierarchy } from "@shared/roles";
 
 interface ModulePermission {
   canView: boolean;
@@ -55,6 +56,21 @@ const ModulePermissionsManagement: React.FC = () => {
     queryKey: ['/api/users'],
     queryFn: getQueryFn({ on401: "throw" })
   });
+
+  // Group users by role with proper hierarchy
+  const groupedUsers = useMemo(() => {
+    if (!users || users.length === 0) return {} as Record<string, User[]>;
+    
+    return Array.from(roles)
+      .sort((a, b) => roleHierarchy[a] - roleHierarchy[b])
+      .reduce((acc: Record<string, User[]>, role) => {
+        const usersInRole = users.filter(u => u.role === role);
+        if (usersInRole.length > 0) {
+          acc[role] = usersInRole;
+        }
+        return acc;
+      }, {} as Record<string, User[]>);
+  }, [users]);
   
   // Fetch role-based module permissions
   const { data: rolePermissions, isLoading: isLoadingRolePermissions } = useQuery<Record<string, Record<string, ModulePermission>>, Error>({
@@ -209,54 +225,17 @@ const ModulePermissionsManagement: React.FC = () => {
                       <SelectValue placeholder="Select a user" />
                     </SelectTrigger>
                     <SelectContent>
-                      {/* Superusers */}
-                      <SelectItem value="superusers_header" disabled className="font-semibold text-primary">
-                        Superusers
-                      </SelectItem>
-                      {users?.filter(user => user.role === 'Superuser').map((user: User) => (
-                        <SelectItem key={user.id} value={user.id.toString()}>
-                          {user.username}
-                        </SelectItem>
-                      ))}
-                      
-                      {/* General Managers */}
-                      <SelectItem value="general_managers_header" disabled className="font-semibold text-primary mt-2">
-                        General Managers
-                      </SelectItem>
-                      {users?.filter(user => user.role === 'General Manager').map((user: User) => (
-                        <SelectItem key={user.id} value={user.id.toString()}>
-                          {user.username}
-                        </SelectItem>
-                      ))}
-                      
-                      {/* Senior Managers */}
-                      <SelectItem value="senior_managers_header" disabled className="font-semibold text-primary mt-2">
-                        Senior Managers
-                      </SelectItem>
-                      {users?.filter(user => user.role === 'Senior Manager').map((user: User) => (
-                        <SelectItem key={user.id} value={user.id.toString()}>
-                          {user.username}
-                        </SelectItem>
-                      ))}
-                      
-                      {/* Managers */}
-                      <SelectItem value="managers_header" disabled className="font-semibold text-primary mt-2">
-                        Managers
-                      </SelectItem>
-                      {users?.filter(user => user.role === 'Manager').map((user: User) => (
-                        <SelectItem key={user.id} value={user.id.toString()}>
-                          {user.username}
-                        </SelectItem>
-                      ))}
-                      
-                      {/* Employees */}
-                      <SelectItem value="employees_header" disabled className="font-semibold text-primary mt-2">
-                        Employees
-                      </SelectItem>
-                      {users?.filter(user => user.role === 'Employee').map((user: User) => (
-                        <SelectItem key={user.id} value={user.id.toString()}>
-                          {user.username}
-                        </SelectItem>
+                      {Object.entries(groupedUsers).map(([role, roleUsers]) => (
+                        <SelectGroup key={role}>
+                          <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                            {role}s
+                          </SelectLabel>
+                          {roleUsers.map((user: User) => (
+                            <SelectItem key={user.id} value={user.id.toString()}>
+                              {user.username}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
                       ))}
                     </SelectContent>
                   </Select>
