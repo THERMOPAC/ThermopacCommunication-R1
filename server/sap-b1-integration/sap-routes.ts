@@ -14,168 +14,167 @@ router.use('/purchase', purchaseRoutes);
  */
 
 /**
- * Get SAP B1 connection status via middleware
+ * Get SAP B1 connection status via Service Layer
  */
 router.get('/connection/status', ensureAuthenticated, async (req, res) => {
   try {
-    // Check middleware connection status
-    const middlewareUrl = process.env.SAP_MIDDLEWARE_URL || 'http://localhost:3001';
-    const apiKey = process.env.SAP_MIDDLEWARE_API_KEY || process.env.API_SECRET_KEY;
+    // Check Service Layer connection status
+    const serviceLayerUrl = process.env.SAP_SERVICE_LAYER_URL || 'https://DESKTOP-NH04TP:50000/b1s/v1';
+    const sapUsername = process.env.SAP_USERNAME;
+    const sapPassword = process.env.SAP_PASSWORD;
+    const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
-    if (!apiKey) {
+    if (!sapUsername || !sapPassword || !sapCompanyDb) {
       return res.json({
         success: true,
-        status: 'middleware_not_configured',
-        message: 'SAP B1 middleware not configured. API key required for secure connection.',
-        middlewareUrl,
+        status: 'service_layer_not_configured',
+        message: 'SAP B1 Service Layer not configured. SAP credentials required.',
+        serviceLayerUrl,
         configStatus: {
-          MIDDLEWARE_URL: !!middlewareUrl,
-          API_KEY: false
+          SERVICE_LAYER_URL: !!serviceLayerUrl,
+          SAP_USERNAME: !!sapUsername,
+          SAP_PASSWORD: !!sapPassword,
+          SAP_COMPANY_DB: !!sapCompanyDb
         },
         timestamp: new Date().toISOString()
       });
     }
 
-    // Test middleware connectivity with timeout
+    // Test Service Layer connectivity with timeout
     try {
-      const middlewareResponse = await fetch(`${middlewareUrl}/health`, {
-        signal: AbortSignal.timeout(10000), // 10 second timeout
+      const loginResponse = await fetch(`${serviceLayerUrl}/Login`, {
+        method: 'POST',
         headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          CompanyDB: sapCompanyDb,
+          UserName: sapUsername,
+          Password: sapPassword
+        }),
+        signal: AbortSignal.timeout(15000) // 15 second timeout
       });
-      
-      if (middlewareResponse.ok) {
-        // Middleware is running, test SAP connection through middleware
-        try {
-          const sapStatusResponse = await fetch(`${middlewareUrl}/sap/status`, {
-            headers: {
-              'x-api-key': apiKey,
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          if (sapStatusResponse.ok) {
-            const sapStatus = await sapStatusResponse.json();
-            return res.json({
-              success: true,
-              status: 'connected',
-              message: 'Connected to SAP B1 via middleware successfully',
-              middlewareUrl,
-              sapStatus,
-              configStatus: {
-                MIDDLEWARE_URL: true,
-                API_KEY: true,
-                SAP_CONNECTION: true
-              },
-              timestamp: new Date().toISOString()
-            });
-          } else {
-            return res.json({
-              success: true,
-              status: 'middleware_connected_sap_disconnected',
-              message: 'Middleware running but SAP B1 connection failed',
-              middlewareUrl,
-              configStatus: {
-                MIDDLEWARE_URL: true,
-                API_KEY: true,
-                SAP_CONNECTION: false
-              },
-              timestamp: new Date().toISOString()
-            });
+
+      if (loginResponse.ok) {
+        const loginData = await loginResponse.json();
+        
+        // Test a simple API call to verify connection
+        const businessPartnersResponse = await fetch(`${serviceLayerUrl}/BusinessPartners?$top=1`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Cookie': `B1SESSION=${loginData.SessionId}; ROUTEID=${loginData.RouteId || '.node1'}`
           }
-        } catch (sapError) {
+        });
+
+        if (businessPartnersResponse.ok) {
           return res.json({
             success: true,
-            status: 'middleware_connected_sap_error',
-            message: 'Middleware running but SAP B1 connection error',
-            middlewareUrl,
-            error: sapError instanceof Error ? sapError.message : 'Unknown SAP error',
+            status: 'connected',
+            message: 'Connected to SAP B1 Service Layer successfully',
+            serviceLayerUrl,
+            sessionId: loginData.SessionId,
+            version: loginData.Version,
             configStatus: {
-              MIDDLEWARE_URL: true,
-              API_KEY: true,
+              SERVICE_LAYER_URL: true,
+              SAP_USERNAME: true,
+              SAP_PASSWORD: true,
+              SAP_COMPANY_DB: true,
+              SAP_CONNECTION: true
+            },
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          return res.json({
+            success: true,
+            status: 'service_layer_auth_failed',
+            message: 'Service Layer authentication successful but API access failed',
+            serviceLayerUrl,
+            configStatus: {
+              SERVICE_LAYER_URL: true,
+              SAP_USERNAME: true,
+              SAP_PASSWORD: true,
+              SAP_COMPANY_DB: true,
               SAP_CONNECTION: false
             },
             timestamp: new Date().toISOString()
           });
         }
       } else {
+        const errorText = await loginResponse.text();
         return res.json({
           success: true,
-          status: 'middleware_disconnected',
-          message: 'SAP B1 middleware not running. Please start the middleware connector on your local PC.',
-          middlewareUrl,
+          status: 'service_layer_login_failed',
+          message: `Service Layer login failed: ${loginResponse.status} ${loginResponse.statusText}`,
+          serviceLayerUrl,
+          error: errorText,
           configStatus: {
-            MIDDLEWARE_URL: true,
-            API_KEY: true,
+            SERVICE_LAYER_URL: true,
+            SAP_USERNAME: true,
+            SAP_PASSWORD: true,
+            SAP_COMPANY_DB: true,
             SAP_CONNECTION: false
           },
           timestamp: new Date().toISOString()
         });
       }
-    } catch (middlewareError) {
-      // Fallback: Show as ready for connection but middleware not reachable
+    } catch (serviceLayerError) {
       return res.json({
         success: true,
-        status: 'middleware_ready_for_connection',
-        message: 'SAP B1 middleware connector is ready for deployment. The middleware should be running on your local PC at port 3001 with access to SAP B1 server.',
-        middlewareUrl,
-        fallbackActive: true,
+        status: 'service_layer_unreachable',
+        message: 'SAP B1 Service Layer unreachable. Please ensure Service Layer is running and accessible.',
+        serviceLayerUrl,
+        error: serviceLayerError instanceof Error ? serviceLayerError.message : 'Unknown error',
         configStatus: {
-          MIDDLEWARE_URL: true,
-          API_KEY: true,
+          SERVICE_LAYER_URL: true,
+          SAP_USERNAME: true,
+          SAP_PASSWORD: true,
+          SAP_COMPANY_DB: true,
           SAP_CONNECTION: false
         },
-        nextSteps: [
-          'Ensure middleware is running on your local PC',
-          'Configure network access (port 3001)',
-          'Verify SAP B1 server connectivity',
-          'Use ngrok or similar tool for cloud connectivity'
-        ],
         timestamp: new Date().toISOString()
       });
     }
   } catch (error) {
-    console.error('SAP B1 middleware connection status check failed:', error);
-    res.json({
+    console.error('SAP Service Layer connection status check error:', error);
+    return res.status(500).json({
       success: false,
       status: 'error',
-      message: 'Connection status check failed',
-      error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
+      message: 'Failed to check SAP B1 Service Layer connection status',
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
 
 /**
- * Get SAP B1 connection configuration status
+ * Get SAP B1 Service Layer configuration status
  */
 router.get('/connection/config', ensureAuthenticated, async (req, res) => {
   try {
-    const sapServer = process.env.SAP_SERVER;
-    const sapDatabase = process.env.SAP_DATABASE;
+    const serviceLayerUrl = process.env.SAP_SERVICE_LAYER_URL;
     const sapUsername = process.env.SAP_USERNAME;
     const sapPassword = process.env.SAP_PASSWORD;
+    const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     res.json({
       success: true,
-      configured: !!(sapServer && sapDatabase && sapUsername && sapPassword),
+      configured: !!(serviceLayerUrl && sapUsername && sapPassword && sapCompanyDb),
       configStatus: {
-        SAP_SERVER: !!sapServer,
-        SAP_DATABASE: !!sapDatabase,
+        SERVICE_LAYER_URL: !!serviceLayerUrl,
         SAP_USERNAME: !!sapUsername,
-        SAP_PASSWORD: !!sapPassword
+        SAP_PASSWORD: !!sapPassword,
+        SAP_COMPANY_DB: !!sapCompanyDb
       },
-      serverInfo: {
-        server: sapServer || 'Not configured',
-        database: sapDatabase || 'Not configured',
+      serviceLayerInfo: {
+        url: serviceLayerUrl || 'Not configured',
+        companyDb: sapCompanyDb || 'Not configured',
         username: sapUsername || 'Not configured'
       },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error checking SAP B1 configuration:', error);
+    console.error('Error checking SAP B1 Service Layer configuration:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to check configuration',
@@ -185,81 +184,96 @@ router.get('/connection/config', ensureAuthenticated, async (req, res) => {
 });
 
 /**
- * Test SAP B1 connection via middleware
+ * Test SAP B1 connection via Service Layer
  */
 router.post('/connection/test', ensureAuthenticated, async (req, res) => {
-  console.log('SAP connection test endpoint hit by user:', req.user?.username);
+  console.log('SAP Service Layer connection test endpoint hit by user:', req.user?.username);
   try {
-    const middlewareUrl = process.env.SAP_MIDDLEWARE_URL || 'http://localhost:3001';
-    const apiKey = process.env.SAP_MIDDLEWARE_API_KEY || process.env.API_SECRET_KEY;
+    const serviceLayerUrl = process.env.SAP_SERVICE_LAYER_URL || 'https://DESKTOP-NH04TP:50000/b1s/v1';
+    const sapUsername = process.env.SAP_USERNAME;
+    const sapPassword = process.env.SAP_PASSWORD;
+    const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
-    if (!apiKey) {
+    if (!sapUsername || !sapPassword || !sapCompanyDb) {
       return res.json({
         success: false,
-        message: 'SAP B1 middleware API key not configured',
+        message: 'SAP B1 Service Layer credentials not configured',
         timestamp: new Date().toISOString()
       });
     }
 
-    // Test middleware connectivity first with timeout
-    const middlewareResponse = await fetch(`${middlewareUrl}/health`, {
-      signal: AbortSignal.timeout(8000), // 8 second timeout
+    // Test Service Layer connectivity with timeout
+    const loginResponse = await fetch(`${serviceLayerUrl}/Login`, {
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'Accept': 'application/json'
-      }
+      },
+      body: JSON.stringify({
+        CompanyDB: sapCompanyDb,
+        UserName: sapUsername,
+        Password: sapPassword
+      }),
+      signal: AbortSignal.timeout(15000) // 15 second timeout
     });
     
-    if (!middlewareResponse.ok) {
+    if (!loginResponse.ok) {
+      const errorText = await loginResponse.text();
       return res.json({
         success: false,
-        message: 'SAP B1 middleware not running. Please start the middleware connector.',
-        middlewareUrl,
+        message: `Service Layer login failed: ${loginResponse.status} ${loginResponse.statusText}`,
+        serviceLayerUrl,
+        error: errorText,
         timestamp: new Date().toISOString()
       });
     }
 
-    // Test SAP connection through middleware
-    const sapTestResponse = await fetch(`${middlewareUrl}/sap/status`, {
+    const loginData = await loginResponse.json();
+    
+    // Test a simple API call to verify connection
+    const businessPartnersResponse = await fetch(`${serviceLayerUrl}/BusinessPartners?$top=1`, {
       headers: {
-        'x-api-key': apiKey,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Cookie': `B1SESSION=${loginData.SessionId}; ROUTEID=${loginData.RouteId || '.node1'}`
       }
     });
 
-    if (sapTestResponse.ok) {
-      const sapResult = await sapTestResponse.json();
+    if (businessPartnersResponse.ok) {
+      const businessPartnersData = await businessPartnersResponse.json();
       return res.json({
         success: true,
-        message: 'Connected to SAP B1 via middleware successfully',
-        middlewareUrl,
-        sapResult,
+        message: 'Connected to SAP B1 Service Layer successfully',
+        serviceLayerUrl,
+        sessionId: loginData.SessionId,
+        version: loginData.Version,
+        testResult: `Successfully retrieved ${businessPartnersData.value?.length || 0} business partners`,
         timestamp: new Date().toISOString()
       });
     } else {
       return res.json({
         success: false,
-        message: 'Middleware running but SAP B1 connection failed',
-        middlewareUrl,
+        message: 'Service Layer authentication successful but API access failed',
+        serviceLayerUrl,
         timestamp: new Date().toISOString()
       });
     }
   } catch (error) {
-    console.error('SAP B1 middleware connection test failed:', error);
+    console.error('SAP B1 Service Layer connection test failed:', error);
     
     // Check if it's a network connectivity issue
     if (error instanceof Error && (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED') || error.message.includes('timeout'))) {
       res.json({
         success: false,
-        message: 'SAP B1 middleware not reachable. Please ensure the middleware connector is running on your local PC.',
-        details: 'Network connectivity issue: The cloud application cannot reach your local middleware.',
+        message: 'SAP B1 Service Layer not reachable. Please ensure Service Layer is running and accessible.',
+        details: 'Network connectivity issue: Cannot reach the Service Layer endpoint.',
         troubleshooting: [
-          'Verify middleware is running: node server.js',
-          'Check that middleware listens on 0.0.0.0:3001 (all interfaces)',
-          'Configure Windows Firewall to allow port 3001',
-          'Use ngrok or similar tool for cloud connectivity',
-          'Ensure your PC is accessible from the internet'
+          'Verify Service Layer is running on SAP B1 server',
+          'Check that Service Layer is accessible on port 50000',
+          'Configure firewall to allow HTTPS traffic on port 50000',
+          'Verify SSL certificate configuration',
+          'Ensure network connectivity to SAP B1 server'
         ],
-        fallbackActive: true,
         timestamp: new Date().toISOString()
       });
     } else {

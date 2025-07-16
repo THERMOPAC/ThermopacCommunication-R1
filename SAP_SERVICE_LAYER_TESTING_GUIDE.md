@@ -1,67 +1,39 @@
-# SAP B1 Service Layer Testing Guide
+# SAP B1 Direct Service Layer Integration Guide
 
-## 🎯 IMMEDIATE ACTION REQUIRED
+## 🎯 DIRECT SERVICE LAYER INTEGRATION
 
-Your SAP B1 10.0 FP 2208 system **DEFINITELY** includes Service Layer functionality. Here's what you need to test **RIGHT NOW**:
+Your SAP B1 10.0 FP 2208 system supports **direct Service Layer API integration** over public IP/VPN. No middleware or ngrok required.
 
-### Step 1: Test Service Layer Availability
-On your SAP B1 server (DESKTOP-NH04TP), open Command Prompt and run:
+### Step 1: Verify Service Layer is Running
+On your SAP B1 server (DESKTOP-NH04TP), test Service Layer availability:
 
 ```bash
-cd C:\sap-middleware-connector
-node service-layer-verification.js
+# Test Service Layer endpoint directly
+curl -k https://DESKTOP-NH04TP:50000/b1s/v1/$metadata
 ```
 
 **Expected Results:**
-- ✅ Service Layer metadata accessible
-- ✅ Login endpoint responding
-- ✅ Core endpoints available
-- ✅ Working URL confirmed
+- ✅ Service Layer responds with metadata
+- ✅ HTTPS endpoint accessible
+- ✅ No errors returned
 
-### Step 2: Get Your SAP Credentials
-You'll need:
-- **SAP Username**: Your SAP B1 login username
-- **SAP Password**: Your SAP B1 login password  
-- **Company Database**: Your SAP B1 company database name
+### Step 2: Configure Environment Variables
+In your Replit environment, set these variables:
 
-### Step 3: Configure Environment
 ```bash
-# Copy the template
-copy .env-service-layer .env
-
-# Edit .env with your actual details:
 SAP_SERVICE_LAYER_URL=https://DESKTOP-NH04TP:50000/b1s/v1
 SAP_USERNAME=your_actual_sap_username
 SAP_PASSWORD=your_actual_sap_password
 SAP_COMPANY_DB=your_actual_company_database
 ```
 
-### Step 4: Start the Service Layer Middleware
+### Step 3: Test Direct Connection
+The cloud application will connect directly to Service Layer:
+
 ```bash
-npm install
-node service-layer-server.js
-```
-
-### Step 5: Test Complete Integration
-```bash
-# Test health endpoint
-curl http://localhost:3001/health
-
-# Test SAP connection
-curl -H "x-api-key: 01c8cc8a576717e893a547b4e020f93a8aa5d1118f61a7d58a299b386746720e" \
-  http://localhost:3001/sap/status
-```
-
-### Step 6: Setup Cloud Connectivity
-```bash
-# Install ngrok (if not already installed)
-# Download from https://ngrok.com/download
-
-# Create tunnel
-ngrok http 3001
-
-# You'll get a URL like: https://abc123.ngrok.io
-# Send this URL to complete the integration
+# No local middleware needed
+# No ngrok tunnel required
+# Direct API calls to Service Layer
 ```
 
 ## 🚀 What This Achieves

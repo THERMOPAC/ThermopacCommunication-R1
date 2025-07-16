@@ -166,8 +166,8 @@ export default function SapIntegrationPage() {
                 <div className="text-sm">
                   <p className="font-medium mb-2">Your SAP B1 10.0 FP 2208 supports Service Layer!</p>
                   <p className="text-gray-600">
-                    Service Layer provides official SAP API access with proper authentication, 
-                    business logic validation, and OData standard compliance.
+                    Direct Service Layer API integration over public IP/VPN with official SAP connectivity, 
+                    enterprise-grade security, business logic validation, and real-time data synchronization.
                   </p>
                 </div>
                 
@@ -187,7 +187,7 @@ export default function SapIntegrationPage() {
                       </div>
                       <div className="flex items-center">
                         <AlertTriangle className="h-3 w-3 text-yellow-500 mr-1" />
-                        Middleware Not Running
+                        Service Layer Not Configured
                       </div>
                     </div>
                   </div>
@@ -196,10 +196,10 @@ export default function SapIntegrationPage() {
                 <div className="bg-white p-3 rounded border">
                   <h4 className="font-medium text-sm mb-2">Next Steps:</h4>
                   <ol className="text-xs space-y-1 list-decimal list-inside text-gray-600">
-                    <li>Run service-layer-verification.js on your SAP server</li>
-                    <li>Configure middleware with your SAP credentials</li>
-                    <li>Start the Service Layer middleware</li>
-                    <li>Setup ngrok tunnel for cloud connectivity</li>
+                    <li>Configure SAP Service Layer credentials</li>
+                    <li>Verify Service Layer is running on port 50000</li>
+                    <li>Test direct Service Layer connectivity</li>
+                    <li>Enable SSL certificates for HTTPS access</li>
                   </ol>
                 </div>
               </div>
