@@ -2415,14 +2415,24 @@ export default function MeetingsManagement() {
                                           internalMeetings: combinedMeetingsList.internal.map(m => ({ id: m.id, displayId: m.displayId, title: m.title }))
                                         });
                                         
-                                        // Find the meeting by ID in combinedMeetingsList - try both id and displayId
-                                        let internalMeeting = combinedMeetingsList.internal.find(meeting => meeting.id === field.value);
-                                        if (!internalMeeting) {
-                                          internalMeeting = combinedMeetingsList.internal.find(meeting => meeting.displayId === field.value);
-                                        }
+                                        // Find the meeting by displayId in combinedMeetingsList
+                                        const internalMeeting = combinedMeetingsList.internal.find(meeting => meeting.displayId === field.value);
                                         
                                         console.log('Found internal meeting:', internalMeeting);
-                                        return internalMeeting ? internalMeeting.displayId.toString() : field.value.toString();
+                                        
+                                        if (internalMeeting) {
+                                          return internalMeeting.displayId.toString();
+                                        } else {
+                                          // If meeting not found in filtered list, it might be concluded/cancelled
+                                          // Still try to show the stored meeting title from commitment data
+                                          const commitmentMeetingTitle = commitmentForm.watch('meetingTitle');
+                                          if (commitmentMeetingTitle) {
+                                            // Add a temporary option for concluded meetings
+                                            return `concluded_${field.value}`;
+                                          }
+                                        }
+                                        
+                                        return field.value ? field.value.toString() : undefined;
                                       })()
                                     : field.value ? field.value.toString() : undefined
                                 }
@@ -2464,6 +2474,21 @@ export default function MeetingsManagement() {
                                           </span>
                                         </SelectItem>
                                       ))}
+                                    </SelectGroup>
+                                  )}
+                                  
+                                  {/* Concluded meetings - only shown when editing and commitment has a meeting that's not in the active list */}
+                                  {editingCommitment && commitmentForm.watch('meetingType') === 'internal' && field.value && !combinedMeetingsList.internal.find(m => m.displayId === field.value) && commitmentForm.watch('meetingTitle') && (
+                                    <SelectGroup>
+                                      <SelectLabel className="font-semibold text-gray-600 dark:text-gray-400">
+                                        Concluded Meetings
+                                      </SelectLabel>
+                                      <SelectItem value={`concluded_${field.value}`}>
+                                        {commitmentForm.watch('meetingTitle')}
+                                        <span className="ml-2 text-sm text-gray-500">
+                                          (Concluded - {commitmentForm.watch('meetingDate') ? format(parseISO(commitmentForm.watch('meetingDate')), 'MMM dd') : ''})
+                                        </span>
+                                      </SelectItem>
                                     </SelectGroup>
                                   )}
                                   
