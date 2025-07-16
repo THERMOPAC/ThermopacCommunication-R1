@@ -122,6 +122,8 @@ function Layout({ children }: LayoutProps) {
 
   // Check if we're on SAP Integration page
   const isOnSapIntegrationPage = location === '/sap-integration';
+
+
   
   // Auto-open menus based on current page
   useEffect(() => {
