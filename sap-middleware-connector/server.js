@@ -376,11 +376,12 @@ async function startServer() {
     // Initialize SAP connection
     await initializeSAPConnection();
     
-    // Start Express server
-    app.listen(PORT, () => {
+    // Start Express server on all interfaces for network access
+    app.listen(PORT, '0.0.0.0', () => {
       console.log('🚀 SAP B1 Middleware Connector started successfully');
-      console.log(`📡 Server running on port ${PORT}`);
+      console.log(`📡 Server running on port ${PORT} (all interfaces)`);
       console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+      console.log(`🌐 Network access: http://192.168.1.48:${PORT}/health`);
       console.log(`🗄️  SAP Server: ${sapConfig.server}:${sapConfig.port}`);
       console.log(`📋 Database: ${sapConfig.database}`);
       console.log('✅ Middleware ready for SAP B1 integration');
