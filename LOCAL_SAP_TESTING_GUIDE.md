@@ -4,6 +4,8 @@
 
 This guide details testing SAP B1 Service Layer integration locally on the same LAN before cloud deployment.
 
+**IMPORTANT**: The cloud environment (Replit) cannot directly access your local network (192.168.1.100). You need to run this application locally on your PC for LAN testing.
+
 ## Current Configuration
 
 ### Local LAN Setup

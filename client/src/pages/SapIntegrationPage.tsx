@@ -371,14 +371,14 @@ export default function SapIntegrationPage() {
                   
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Connection Mode:</span>
-                    <Badge variant="outline" className="bg-green-50 text-green-700">
-                      Local LAN
+                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
+                      Cloud → Local (Limited)
                     </Badge>
                   </div>
 
-                  <div className="text-xs text-gray-600 bg-green-50 p-3 rounded border border-green-200">
-                    <p className="font-medium mb-1">Local LAN Testing Mode:</p>
-                    <p>Connected directly to SAP B1 server (192.168.1.100:50000) on same local network. Perfect for testing before cloud deployment with VPN.</p>
+                  <div className="text-xs text-gray-600 bg-yellow-50 p-3 rounded border border-yellow-200">
+                    <p className="font-medium mb-1">Network Limitation:</p>
+                    <p>Cloud environment cannot access local network (192.168.1.100). For SAP B1 testing, deploy application locally on your PC or configure VPN. See LOCAL_DEPLOYMENT_INSTRUCTIONS.md for setup guide.</p>
                   </div>
 
                   <div className="pt-2 space-y-2">
