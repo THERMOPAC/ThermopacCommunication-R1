@@ -351,7 +351,54 @@ export default function SapIntegrationPage() {
         </TabsContent>
 
         <TabsContent value="connection">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* VPN Management Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Shield className="h-5 w-5 mr-2 text-blue-600" />
+                  VPN Management
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">VPN Status:</span>
+                    <Badge variant="outline" className="bg-orange-50 text-orange-700">
+                      Disabled
+                    </Badge>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Connection Mode:</span>
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                      Direct
+                    </Badge>
+                  </div>
+
+                  <div className="text-xs text-gray-600 bg-blue-50 p-3 rounded border">
+                    <p className="font-medium mb-1">Connection Status:</p>
+                    <p>Currently using direct connection (59.152.52.58:50000). VPN integration is ready but disabled. Connection failures are expected without VPN or port forwarding.</p>
+                  </div>
+
+                  <div className="pt-2 space-y-2">
+                    <Button 
+                      className="w-full"
+                      variant="outline"
+                      disabled
+                    >
+                      <Shield className="h-4 w-4 mr-2" />
+                      Enable VPN Mode
+                    </Button>
+                    <p className="text-xs text-gray-500 text-center">
+                      Configure VPN_CONFIG to enable
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Connection Management Section */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -412,38 +459,40 @@ export default function SapIntegrationPage() {
               </CardContent>
             </Card>
 
+            {/* Connection Configuration Section */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Settings className="h-5 w-5 mr-2" />
-                  Connection Configuration
+                  Configuration Guide
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div className="text-sm">
-                    <strong>Server Configuration:</strong>
-                    <div className="text-xs text-gray-600 mt-1">
-                      Configure SAP B1 server connection details in environment variables
-                    </div>
+                    <strong>VPN Configuration (Recommended):</strong>
+                    <ul className="text-xs text-gray-600 mt-1 list-disc list-inside">
+                      <li>SAP_VPN_ENABLED=true</li>
+                      <li>VPN_CONFIG=&lt;base64_ovpn&gt;</li>
+                      <li>VPN_SERVER_IP=&lt;vpn_server&gt;</li>
+                      <li>VPN_AUTO_RECONNECT=true</li>
+                    </ul>
                   </div>
                   
                   <div className="text-sm">
-                    <strong>Required Environment Variables:</strong>
+                    <strong>Service Layer Settings:</strong>
                     <ul className="text-xs text-gray-600 mt-1 list-disc list-inside">
-                      <li>SAP_SERVER</li>
-                      <li>SAP_DATABASE</li>
-                      <li>SAP_USERNAME</li>
-                      <li>SAP_PASSWORD</li>
-                      <li>SAP_INSTANCE</li>
+                      <li>SAP_SERVICE_LAYER_URL</li>
+                      <li>SAP_USERNAME / SAP_PASSWORD</li>
+                      <li>SAP_COMPANY_DB</li>
                     </ul>
                   </div>
 
-                  <div className="text-sm">
-                    <strong>Security Note:</strong>
-                    <div className="text-xs text-gray-600 mt-1">
-                      All connections use encrypted SSL/TLS protocols and require valid authentication credentials.
-                    </div>
+                  <div className="bg-green-50 p-3 rounded border border-green-200">
+                    <p className="text-xs text-green-700">
+                      <strong>Setup Guide:</strong><br/>
+                      Complete VPN setup instructions available in SAP_B1_VPN_INTEGRATION_GUIDE.md
+                    </p>
                   </div>
                 </div>
               </CardContent>
