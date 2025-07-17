@@ -60,6 +60,30 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
         success: false
       };
     }
+
+    // Fetch project_code from inspection_orders table
+    let projectCode = 'UNKNOWN';
+    try {
+      const client = await pool.connect();
+      try {
+        const result = await client.query(
+          'SELECT project_code FROM inspection_orders WHERE inspection_order_number = $1',
+          [inspectionOrderNumber]
+        );
+        
+        if (result.rows.length > 0) {
+          projectCode = result.rows[0].project_code || 'UNKNOWN';
+          console.log(`uploadInspectionDocument: Found project code: ${projectCode}`);
+        } else {
+          console.warn(`uploadInspectionDocument: No inspection order found for ${inspectionOrderNumber}, using UNKNOWN`);
+        }
+      } finally {
+        client.release();
+      }
+    } catch (dbError) {
+      console.error('uploadInspectionDocument: Database error fetching project code:', dbError);
+      // Continue with UNKNOWN project code
+    }
     
     // Extract file extension from the original file name
     const fileExtension = path.extname(uploadedFile.originalname).substring(1) || 'pdf';
@@ -77,9 +101,10 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
     
     // Use consistent naming without timestamps to enable file overwriting
     // Now that we have proper storage.objects.delete permissions, we can overwrite files directly
-    const filePath = `QMS/Inspections_Records/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${fileExtension}`;
+    // Format: QMS/Inspections_Records/{project_code}/{InspectionOrderNumber}/{TabName}/{recordId}.{extension}
+    const filePath = `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${fileExtension}`;
     
-    console.log(`uploadInspectionDocument: File path: ${filePath} (original tab name: ${tabName})`);
+    console.log(`uploadInspectionDocument: File path: ${filePath} (project code: ${projectCode}, original tab name: ${tabName})`);
     
     // Get the storage bucket
     const bucket = storage.bucket(bucketName);

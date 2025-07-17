@@ -1504,11 +1504,20 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
           appendixDocTypeTracker[materialId] = new Set<string>();
           allMaterialDocsByMaterial[materialId] = [];
           
-          // Get all documents for this material
-          const materialDocsPath = `QMS/Material_Identification/${materialId}`;
+          // Get all documents for this material - try new hierarchical path first, then fallback
+          let materialDocs: string[] = [];
           try {
-            const materialDocs = await listFiles(materialDocsPath);
-            console.log(`Found ${materialDocs.length} documents for Material ID: ${materialId} to list in appendices`);
+            // Try new project-based path first
+            const newPath = `QMS/Material_Identification/${inspectionOrder.projectCode}/${materialId}`;
+            try {
+              materialDocs = await listFiles(newPath);
+              console.log(`Found ${materialDocs.length} documents for Material ID: ${materialId} using new path structure (${newPath})`);
+            } catch (newPathError) {
+              // Fallback to old path structure
+              const oldPath = `QMS/Material_Identification/${materialId}`;
+              materialDocs = await listFiles(oldPath);
+              console.log(`Found ${materialDocs.length} documents for Material ID: ${materialId} using old path structure (${oldPath})`);
+            }
             
             // Filter and sort (newest first)
             const filteredDocs = materialDocs
@@ -1577,13 +1586,14 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       }
       
       // 2. List inspection documents by tab
-      // Inspection document sections
+      // Inspection document sections - updated to include project code in path structure
       const inspectionSections = [
-        { name: 'Welding', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Welding` },
-        { name: 'NDT', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/NDT` },
-        { name: 'Visual Inspection', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Visual` }, // Use actual path from the system
-        { name: 'Hydrotest', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Hydrotest` },
-        { name: 'NCR', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/NCR` }
+        { name: 'Material Traceability', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/MaterialTraceability` },
+        { name: 'Welding', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Welding` },
+        { name: 'NDT', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NDT` },
+        { name: 'Visual Inspection', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Visual` },
+        { name: 'Hydrotest', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Hydrotest` },
+        { name: 'NCR', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NCR` }
       ];
       
       // First process inspection document sections
@@ -1987,11 +1997,20 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         // Initialize tracking for this material
         materialDocTypes[materialId] = new Set<string>();
         
-        // Get all documents for this material
-        const materialDocsPath = `QMS/Material_Identification/${materialId}`;
+        // Get all documents for this material - try new hierarchical path first, then fallback
+        let materialDocs: string[] = [];
         try {
-          const materialDocs = await listFiles(materialDocsPath);
-          console.log(`Found ${materialDocs.length} documents for Material ID: ${materialId}`);
+          // Try new project-based path first
+          const newPath = `QMS/Material_Identification/${inspectionOrder.projectCode}/${materialId}`;
+          try {
+            materialDocs = await listFiles(newPath);
+            console.log(`Found ${materialDocs.length} documents for Material ID: ${materialId} using new path structure (${newPath})`);
+          } catch (newPathError) {
+            // Fallback to old path structure
+            const oldPath = `QMS/Material_Identification/${materialId}`;
+            materialDocs = await listFiles(oldPath);
+            console.log(`Found ${materialDocs.length} documents for Material ID: ${materialId} using old path structure (${oldPath})`);
+          }
           
           // Filter for PDFs only and sort (newest first)
           const pdfDocs = materialDocs
@@ -2035,13 +2054,14 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         }
       }
       
-      // Collect inspection document PDFs by section
+      // Collect inspection document PDFs by section - updated to include project code
       const sections = [
-        `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Welding`,
-        `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/NDT`,
-        `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Visual`, // Use actual path from the system
-        `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Hydrotest`,
-        `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/NCR`
+        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/MaterialTraceability`,
+        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Welding`,
+        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NDT`,
+        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Visual`,
+        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Hydrotest`,
+        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NCR`
       ];
       
       for (const sectionPath of sections) {
