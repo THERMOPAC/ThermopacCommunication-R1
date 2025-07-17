@@ -810,4 +810,109 @@ router.delete("/documents/:documentId", async (req: Request, res: Response) => {
   }
 });
 
+// Download a document
+router.get("/:id/documents/:documentId/download", async (req: Request, res: Response) => {
+  try {
+    const materialIdentificationId = req.params.id;
+    const documentId = req.params.documentId;
+    
+    if (!materialIdentificationId || !documentId) {
+      return res.status(400).json({ error: "Material identification ID and document ID are required" });
+    }
+    
+    // Get document details from database
+    const document = await db.execute(sql`
+      SELECT * FROM material_identification_documents
+      WHERE id = ${documentId} AND material_identification_id = ${materialIdentificationId}
+    `) as any;
+    
+    if (!document || !document.rows || document.rows.length === 0) {
+      return res.status(404).json({ error: "Document not found" });
+    }
+    
+    const documentDetails = document.rows[0];
+    
+    // Get material identification details to get project number
+    const miRecord = await db.execute(sql`
+      SELECT material_identification_id, project_number FROM material_identification 
+      WHERE id = ${materialIdentificationId}
+    `) as any;
+    
+    if (!miRecord || !miRecord.rows || miRecord.rows.length === 0) {
+      return res.status(404).json({ error: "Material identification not found" });
+    }
+    
+    const miId = miRecord.rows[0].material_identification_id;
+    const projectNumber = miRecord.rows[0].project_number || 'UNKNOWN';
+    
+    // Get GCS client
+    const { storage, bucketName } = getGcsClient();
+    const bucket = storage.bucket(bucketName);
+    
+    // Try to find the file with different path structures
+    const possiblePaths = [
+      // New hierarchical path structure
+      `QMS/Material_Identification/${projectNumber}/${miId}/${documentDetails.file_name}`,
+      // Old path structure (stored in database)
+      documentDetails.file_path,
+      // Alternative old path structure
+      `QMS/Material_Identification/${miId}/${documentDetails.file_name}`
+    ];
+    
+    let file = null;
+    let foundPath = null;
+    
+    // Try each path until we find the file
+    for (const path of possiblePaths) {
+      try {
+        const testFile = bucket.file(path);
+        const [exists] = await testFile.exists();
+        if (exists) {
+          file = testFile;
+          foundPath = path;
+          console.log(`Found file at path: ${path}`);
+          break;
+        }
+      } catch (err) {
+        console.log(`Path ${path} not found, trying next...`);
+      }
+    }
+    
+    if (!file) {
+      console.error(`File not found at any of the attempted paths:`, possiblePaths);
+      return res.status(404).json({ error: "File not found in storage" });
+    }
+    
+    // Get file metadata
+    const [metadata] = await file.getMetadata();
+    const fileSize = metadata.size;
+    const mimeType = metadata.contentType || 'application/octet-stream';
+    
+    // Set response headers
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Length', fileSize);
+    res.setHeader('Content-Disposition', `attachment; filename="${documentDetails.file_name}"`);
+    
+    // Stream the file to the response
+    const stream = file.createReadStream();
+    
+    stream.on('error', (err) => {
+      console.error('Error streaming file:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Error downloading file' });
+      }
+    });
+    
+    stream.on('end', () => {
+      console.log(`Successfully downloaded file: ${documentDetails.file_name} (${fileSize} bytes) from path: ${foundPath}`);
+    });
+    
+    stream.pipe(res);
+    
+  } catch (error) {
+    console.error("Error downloading document:", error);
+    res.status(500).json({ error: "Failed to download document" });
+  }
+});
+
 export default router;

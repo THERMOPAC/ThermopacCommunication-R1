@@ -434,7 +434,7 @@ export default function MaterialIdentificationViewNewPage({ params }: MaterialId
                               <td className="px-4 py-3 text-sm text-right">
                                 <div className="flex justify-end gap-2">
                                   <a 
-                                    href={doc.file_url} 
+                                    href={`/api/quality/material-identification/${recordId}/documents/${doc.id}/download`} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-gray-200 hover:bg-gray-100"
