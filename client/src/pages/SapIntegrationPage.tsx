@@ -371,14 +371,14 @@ export default function SapIntegrationPage() {
                   
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Connection Mode:</span>
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                      Direct
+                    <Badge variant="outline" className="bg-green-50 text-green-700">
+                      Local LAN
                     </Badge>
                   </div>
 
-                  <div className="text-xs text-gray-600 bg-blue-50 p-3 rounded border">
-                    <p className="font-medium mb-1">Connection Status:</p>
-                    <p>Currently using direct connection (59.152.52.58:50000). VPN integration is ready but disabled. Connection failures are expected without VPN or port forwarding.</p>
+                  <div className="text-xs text-gray-600 bg-green-50 p-3 rounded border border-green-200">
+                    <p className="font-medium mb-1">Local LAN Testing Mode:</p>
+                    <p>Connected directly to SAP B1 server (192.168.1.100:50000) on same local network. Perfect for testing before cloud deployment with VPN.</p>
                   </div>
 
                   <div className="pt-2 space-y-2">
