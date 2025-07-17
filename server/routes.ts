@@ -2927,19 +2927,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // VPN MANAGER INITIALIZATION (for SAP B1 Integration)
   // =============================================================================
   
-  // Initialize VPN manager if enabled
+  // Check VPN manager status
   const vpnEnabled = process.env.SAP_VPN_ENABLED === 'true';
   if (vpnEnabled) {
-    console.log('🔐 VPN enabled for SAP B1 integration - initializing VPN manager...');
-    try {
-      const initialized = await vpnManager.initialize();
-      if (initialized) {
-        console.log('✅ VPN manager initialized successfully for SAP B1 integration');
-      } else {
-        console.warn('⚠️ VPN manager initialization failed - SAP B1 connectivity may be limited');
+    console.log('🔐 VPN enabled for SAP B1 integration - VPN manager is ready');
+    const vpnStatus = vpnManager.getStatus();
+    if (vpnStatus.connected) {
+      console.log('✅ VPN manager connected successfully for SAP B1 integration');
+    } else {
+      console.log('⚠️ VPN manager is enabled but not yet connected - attempting connection...');
+      try {
+        const connected = await vpnManager.connect();
+        if (connected) {
+          console.log('✅ VPN connection established successfully');
+        } else {
+          console.warn('⚠️ VPN connection failed - SAP B1 connectivity may be limited');
+        }
+      } catch (error) {
+        console.error('❌ VPN connection error:', error);
       }
-    } catch (error) {
-      console.error('❌ VPN manager initialization error:', error);
     }
   } else {
     console.log('ℹ️ VPN disabled for SAP B1 integration - using direct connection mode');

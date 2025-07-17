@@ -830,4 +830,108 @@ router.get('/vpn/test-connectivity', ensureAuthenticated, async (req, res) => {
   }
 });
 
+// VPN Management Routes
+router.get('/vpn/status', ensureAuthenticated, async (req, res) => {
+  try {
+    const vpnEnabled = process.env.SAP_VPN_ENABLED === 'true';
+    const vpnStatus = vpnManager.getStatus();
+    const vpnLogs = vpnManager.getLogs();
+    
+    res.json({
+      success: true,
+      vpnEnabled,
+      vpnStatus,
+      vpnLogs: vpnLogs.slice(-10), // Last 10 log entries
+      environment: {
+        SAP_VPN_ENABLED: process.env.SAP_VPN_ENABLED,
+        VPN_SERVER_IP: process.env.VPN_SERVER_IP,
+        VPN_USERNAME: process.env.VPN_USERNAME,
+        VPN_PASSWORD: process.env.VPN_PASSWORD ? '***' : 'not set'
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get VPN status',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+router.post('/vpn/connect', ensureAuthenticated, async (req, res) => {
+  try {
+    const connected = await vpnManager.connect();
+    const vpnStatus = vpnManager.getStatus();
+    
+    res.json({
+      success: connected,
+      message: connected ? 'VPN connected successfully' : 'VPN connection failed',
+      vpnStatus,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to connect VPN',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+router.post('/vpn/disconnect', ensureAuthenticated, async (req, res) => {
+  try {
+    await vpnManager.disconnect();
+    const vpnStatus = vpnManager.getStatus();
+    
+    res.json({
+      success: true,
+      message: 'VPN disconnected successfully',
+      vpnStatus,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to disconnect VPN',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+router.get('/vpn/logs', ensureAuthenticated, async (req, res) => {
+  try {
+    const logs = vpnManager.getLogs();
+    res.json({
+      success: true,
+      logs,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get VPN logs',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+router.get('/vpn/test-connectivity', ensureAuthenticated, async (req, res) => {
+  try {
+    const canReachSAP = await vpnManager.testConnectivity();
+    res.json({
+      success: true,
+      canReachSAP,
+      message: canReachSAP ? 'SAP server reachable via VPN' : 'SAP server not reachable',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to test connectivity',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;

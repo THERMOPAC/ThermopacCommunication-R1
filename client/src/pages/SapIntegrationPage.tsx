@@ -9,6 +9,8 @@ import {
   CheckCircle, 
   AlertTriangle,
   Shield,
+  ShieldOff,
+  Loader2,
   Activity,
   BarChart3,
   Package,
@@ -55,6 +57,12 @@ export default function SapIntegrationPage() {
     queryKey: ['/api/sap/sync/stats'],
   });
 
+  // Fetch VPN status
+  const { data: vpnStatus } = useQuery({
+    queryKey: ['/api/sap/vpn/status'],
+    refetchInterval: 30000, // Check every 30 seconds
+  });
+
   // Test connection mutation
   const testConnectionMutation = useMutation({
     mutationFn: () => apiRequest('POST', '/api/sap/connection/test'),
@@ -89,6 +97,45 @@ export default function SapIntegrationPage() {
       toast({
         title: "Sync Error",
         description: "Failed to sync SAP B1 data",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // VPN connect mutation
+  const vpnConnectMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/sap/vpn/connect'),
+    onSuccess: (data) => {
+      toast({
+        title: "VPN Connection",
+        description: data.message || "VPN connection successful",
+        variant: data.success ? "default" : "destructive",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/sap/vpn/status'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "VPN Error",
+        description: "Failed to connect VPN",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // VPN disconnect mutation
+  const vpnDisconnectMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/sap/vpn/disconnect'),
+    onSuccess: (data) => {
+      toast({
+        title: "VPN Disconnection",
+        description: data.message || "VPN disconnected successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/sap/vpn/status'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "VPN Error",
+        description: "Failed to disconnect VPN",
         variant: "destructive",
       });
     },
@@ -364,35 +411,67 @@ export default function SapIntegrationPage() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">VPN Status:</span>
-                    <Badge variant="outline" className="bg-orange-50 text-orange-700">
-                      Disabled
-                    </Badge>
+                    {vpnStatus?.vpnStatus?.connected ? (
+                      <Badge variant="default" className="bg-green-100 text-green-800">
+                        <Shield className="h-3 w-3 mr-1" />
+                        Connected
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-red-50 text-red-700">
+                        <ShieldOff className="h-3 w-3 mr-1" />
+                        Disconnected
+                      </Badge>
+                    )}
                   </div>
                   
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Connection Mode:</span>
-                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
-                      Cloud → Local (Limited)
-                    </Badge>
+                    <span className="text-sm font-medium">Server:</span>
+                    <span className="text-sm text-gray-600">59.152.52.58</span>
                   </div>
 
-                  <div className="text-xs text-gray-600 bg-yellow-50 p-3 rounded border border-yellow-200">
-                    <p className="font-medium mb-1">Network Limitation:</p>
-                    <p>Cloud environment cannot access local network (192.168.1.100). For SAP B1 testing, deploy application locally on your PC or configure VPN. See LOCAL_DEPLOYMENT_INSTRUCTIONS.md for setup guide.</p>
+                  {vpnStatus?.vpnStatus?.connectionTime && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Connected Since:</span>
+                      <span className="text-sm text-gray-600">
+                        {new Date(vpnStatus.vpnStatus.connectionTime).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="text-xs text-gray-600 bg-blue-50 p-3 rounded border border-blue-200">
+                    <p className="font-medium mb-1">VPN-Based Access:</p>
+                    <p>Secure encrypted tunnel to office network (59.152.52.58) enabling cloud-to-LAN connectivity for SAP B1 Service Layer access.</p>
                   </div>
 
                   <div className="pt-2 space-y-2">
-                    <Button 
-                      className="w-full"
-                      variant="outline"
-                      disabled
-                    >
-                      <Shield className="h-4 w-4 mr-2" />
-                      Enable VPN Mode
-                    </Button>
-                    <p className="text-xs text-gray-500 text-center">
-                      Configure VPN_CONFIG to enable
-                    </p>
+                    <div className="flex gap-2">
+                      <Button 
+                        className="flex-1"
+                        variant="outline"
+                        onClick={() => vpnConnectMutation.mutate()}
+                        disabled={vpnConnectMutation.isPending || vpnStatus?.vpnStatus?.connected}
+                      >
+                        {vpnConnectMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Shield className="h-4 w-4 mr-2" />
+                        )}
+                        Connect VPN
+                      </Button>
+                      <Button 
+                        className="flex-1"
+                        variant="outline"
+                        onClick={() => vpnDisconnectMutation.mutate()}
+                        disabled={vpnDisconnectMutation.isPending || !vpnStatus?.vpnStatus?.connected}
+                      >
+                        {vpnDisconnectMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <ShieldOff className="h-4 w-4 mr-2" />
+                        )}
+                        Disconnect
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
