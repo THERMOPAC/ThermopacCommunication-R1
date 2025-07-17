@@ -100,7 +100,7 @@ export const uploadMaterialIdentificationDocument = async (req: Request): Promis
     // First, we need to get the full material_identification_id from the database
     const db = drizzle(pool);
     
-    // Get the full material_identification_id based on the numeric ID
+    // Get the full material_identification_id and project_number from the database
     const result = await db.query.materialIdentification.findFirst({
       where: eq(materialIdentification.id, parseInt(materialIdentificationId))
     });
@@ -110,10 +110,12 @@ export const uploadMaterialIdentificationDocument = async (req: Request): Promis
     }
     
     const miId = result.material_identification_id;
+    const projectNumber = result.project_number || 'UNKNOWN';
     console.log(`uploadMaterialIdentificationDocument: Using Material Identification ID: ${miId}`);
+    console.log(`uploadMaterialIdentificationDocument: Using Project Number: ${projectNumber}`);
     
-    // Format: QMS/Material_Identification/{MI ID}/{Document Type}.{extension}
-    const filePath = `QMS/Material_Identification/${miId}/${documentTypeName}.${fileExtension}`;
+    // Format: QMS/Material_Identification/{projectNumber}/{MI ID}/{Document Type}.{extension}
+    const filePath = `QMS/Material_Identification/${projectNumber}/${miId}/${documentTypeName}.${fileExtension}`;
     console.log(`uploadMaterialIdentificationDocument: File path: ${filePath}`);
     
     // Create a new blob in the bucket and upload the file data

@@ -90,11 +90,11 @@ export const uploadMaterialIdentificationDocument = async (req: Request): Promis
     // Use the display name from the map, or use the documentType as-is if not found in the map
     const documentTypeName = documentTypeMap[documentType] || documentType;
     
-    // Get the full material_identification_id from the database using a direct SQL query
+    // Get the full material_identification_id and project_number from the database using a direct SQL query
     // since we're having issues with the Drizzle query builder
     try {
       const queryResult = await pool.query(
-        'SELECT material_identification_id FROM material_identification WHERE id = $1',
+        'SELECT material_identification_id, project_number FROM material_identification WHERE id = $1',
         [parseInt(materialIdentificationId)]
       );
       
@@ -103,10 +103,12 @@ export const uploadMaterialIdentificationDocument = async (req: Request): Promis
       }
       
       const miId = queryResult.rows[0].material_identification_id;
+      const projectNumber = queryResult.rows[0].project_number || 'UNKNOWN';
     console.log(`uploadMaterialIdentificationDocument: Using Material Identification ID: ${miId}`);
+    console.log(`uploadMaterialIdentificationDocument: Using Project Number: ${projectNumber}`);
     
-    // Format: QMS/Material_Identification/{MI ID}/{Document Type}.{extension}
-    const filePath = `QMS/Material_Identification/${miId}/${documentTypeName}.${fileExtension}`;
+    // Format: QMS/Material_Identification/{projectNumber}/{MI ID}/{Document Type}.{extension}
+    const filePath = `QMS/Material_Identification/${projectNumber}/${miId}/${documentTypeName}.${fileExtension}`;
     console.log(`uploadMaterialIdentificationDocument: File path: ${filePath}`);
     
     // Create a new blob in the bucket and upload the file data
