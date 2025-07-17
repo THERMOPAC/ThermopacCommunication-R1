@@ -251,11 +251,14 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
     
     if (!loginResponse.ok) {
       const errorText = await loginResponse.text();
+      console.error('❌ Service Layer login failed:', loginResponse.status, loginResponse.statusText);
+      console.error('Error details:', errorText);
       return res.json({
         success: false,
         message: `Service Layer login failed: ${loginResponse.status} ${loginResponse.statusText}`,
         serviceLayerUrl,
         error: errorText,
+        vpnStatus: vpnManager.getStatus(),
         timestamp: new Date().toISOString()
       });
     }
@@ -291,20 +294,22 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('SAP B1 Service Layer connection test failed:', error);
+    console.error('❌ SAP B1 Service Layer connection test failed:', error);
     
     // Check if it's a network connectivity issue
     if (error instanceof Error && (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED') || error.message.includes('timeout'))) {
       res.json({
         success: false,
-        message: 'SAP B1 Service Layer not reachable. Please ensure Service Layer is running and accessible.',
-        details: 'Network connectivity issue: Cannot reach the Service Layer endpoint.',
+        message: 'SAP B1 Service Layer not reachable through VPN tunnel.',
+        details: 'Network connectivity issue: Cannot reach the Service Layer endpoint at 192.168.1.100:50000.',
+        serviceLayerUrl: process.env.SAP_SERVICE_LAYER_URL,
+        vpnStatus: vpnManager.getStatus(),
         troubleshooting: [
-          'Verify Service Layer is running on SAP B1 server',
-          'Check that Service Layer is accessible on port 50000',
-          'Configure firewall to allow HTTPS traffic on port 50000',
-          'Verify SSL certificate configuration',
-          'Ensure network connectivity to SAP B1 server'
+          'Verify Service Layer is running on SAP B1 server (192.168.1.100:50000)',
+          'Check SAP B1 server firewall allows HTTPS traffic on port 50000',
+          'Verify VPN tunnel can route traffic to 192.168.1.100 subnet',
+          'Test local network connectivity from SAP B1 server to verify Service Layer is accessible',
+          'Check SAP B1 Service Layer SSL certificate configuration'
         ],
         timestamp: new Date().toISOString()
       });
@@ -313,6 +318,8 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
         success: false,
         message: 'Connection test failed',
         error: error instanceof Error ? error.message : 'Unknown error',
+        serviceLayerUrl: process.env.SAP_SERVICE_LAYER_URL,
+        vpnStatus: vpnManager.getStatus(),
         timestamp: new Date().toISOString()
       });
     }
