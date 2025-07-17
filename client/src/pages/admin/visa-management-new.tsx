@@ -1237,32 +1237,43 @@ function VisaRecordsTab() {
                             <div className="p-2 text-sm text-muted-foreground">No employees found</div>
                           ) : (
                             (() => {
-                              // Group employees by role
-                              const groupedEmployees = employees.reduce((groups: Record<string, any[]>, employee: any) => {
+                              // Standard role-based grouping with alphabetical sorting
+                              const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Employee'];
+                              const groups: Record<string, any[]> = {};
+                              
+                              employees.forEach((employee: any) => {
                                 const role = employee.role || 'Employee';
                                 if (!groups[role]) {
                                   groups[role] = [];
                                 }
                                 groups[role].push(employee);
-                                return groups;
-                              }, {});
-
-                              // Sort roles: Superuser, General Manager, Senior Manager, Manager, Employee
-                              const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Employee'];
-                              const sortedRoles = Object.keys(groupedEmployees).sort((a, b) => {
-                                const aIndex = roleOrder.indexOf(a);
-                                const bIndex = roleOrder.indexOf(b);
-                                return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+                              });
+                              
+                              // Sort alphabetically within each group
+                              Object.values(groups).forEach(group => {
+                                group.sort((a, b) => {
+                                  const nameA = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
+                                  const nameB = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
+                                  return nameA.localeCompare(nameB);
+                                });
                               });
 
-                              return sortedRoles.map((role) => (
+                              return roleOrder.filter(role => groups[role]).map(role => (
                                 <SelectGroup key={role}>
                                   <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
-                                    {role}s
+                                    {role === 'Superuser' ? 'Superusers' :
+                                     role === 'General Manager' ? 'General Managers' :
+                                     role === 'Senior Manager' ? 'Senior Managers' :
+                                     role === 'Manager' ? 'Managers' :
+                                     role === 'Employee' ? 'Employees' : `${role}s`}
                                   </SelectLabel>
-                                  {groupedEmployees[role].map((employee: any) => (
+                                  {groups[role].map((employee: any) => (
                                     <SelectItem key={employee.id} value={employee.id.toString()}>
-                                      {employee.username}
+                                      {employee.firstName && employee.lastName 
+                                        ? `${employee.firstName} ${employee.lastName} (${employee.username})`
+                                        : employee.username
+                                      }
+                                      {employee.department && ` • ${employee.department}`}
                                     </SelectItem>
                                   ))}
                                 </SelectGroup>

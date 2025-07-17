@@ -589,14 +589,41 @@ export default function UserManagementPage() {
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="none">No Manager</SelectItem>
-                    {users?.filter(u => u.id !== selectedUser?.id).map((user) => (
-                      <SelectItem key={user.id} value={user.id.toString()}>
-                        {user.firstName && user.lastName 
-                          ? `${user.firstName} ${user.lastName} (${user.username})`
-                          : user.username
+                    {React.useMemo(() => {
+                      const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Employee'];
+                      const groups: Record<string, any[]> = {};
+                      
+                      users?.filter(u => u.id !== selectedUser?.id).forEach((user: any) => {
+                        const role = user.role || 'Employee';
+                        if (!groups[role]) {
+                          groups[role] = [];
                         }
-                      </SelectItem>
-                    ))}
+                        groups[role].push(user);
+                      });
+                      
+                      // Sort alphabetically within each group
+                      Object.values(groups).forEach(group => {
+                        group.sort((a, b) => {
+                          const nameA = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
+                          const nameB = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
+                          return nameA.localeCompare(nameB);
+                        });
+                      });
+                      
+                      return roleOrder.filter(role => groups[role]).map(role => (
+                        <SelectGroup key={role}>
+                          <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">{role}</SelectLabel>
+                          {groups[role].map((user: any) => (
+                            <SelectItem key={user.id} value={user.id.toString()}>
+                              {user.firstName && user.lastName 
+                                ? `${user.firstName} ${user.lastName}${user.department ? ` • ${user.department}` : ''}`
+                                : user.username
+                              }
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ));
+                    }, [users, selectedUser])}
                   </SelectContent>
                 </Select>
                 <FormMessage />
