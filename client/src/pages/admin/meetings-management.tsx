@@ -2664,10 +2664,12 @@ export default function MeetingsManagement() {
                               <UsersIcon className="h-4 w-4" />
                               Assigned to {commitment.assignedTo.username}
                             </span>
-                            <span className="flex items-center gap-1">
-                              <CalendarDaysIcon className="h-4 w-4" />
-                              From: {commitment.meeting.title}
-                            </span>
+                            {commitment.meeting && (
+                              <span className="flex items-center gap-1">
+                                <CalendarDaysIcon className="h-4 w-4" />
+                                From: {commitment.meeting.title}
+                              </span>
+                            )}
                             {commitment.commitment.progressPercentage > 0 && (
                               <span className="flex items-center gap-1">
                                 <TrendingUpIcon className="h-4 w-4" />
