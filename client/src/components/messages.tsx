@@ -4,11 +4,12 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { GmailMessage, InsertTask, User } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { roles, roleHierarchy } from "@shared/roles";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -976,11 +977,31 @@ function Messages() {
                     <SelectValue placeholder="Select user" />
                   </SelectTrigger>
                   <SelectContent>
-                    {users?.map((u) => (
-                      <SelectItem key={u.id} value={u.id.toString()}>
-                        {u.username} {u.role ? `(${u.role})` : ''}
-                      </SelectItem>
-                    ))}
+                    {/* Group users by role for better organization */}
+                    {[...roles].sort((a, b) => roleHierarchy[a] - roleHierarchy[b]).map((role) => {
+                      const usersWithRole = users?.filter((u) => u.role === role) || [];
+                      if (usersWithRole.length === 0) return null;
+                      
+                      // Sort alphabetically within each group
+                      usersWithRole.sort((a, b) => {
+                        const nameA = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
+                        const nameB = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
+                        return nameA.localeCompare(nameB);
+                      });
+                      
+                      return (
+                        <SelectGroup key={role}>
+                          <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                            {role}s
+                          </SelectLabel>
+                          {usersWithRole.map((user) => (
+                            <SelectItem key={user.id} value={user.id.toString()}>
+                              {user.username}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>

@@ -275,6 +275,13 @@ function InternalMessages() {
                     const usersWithRole = users.filter((u) => u.role === role);
                     if (usersWithRole.length === 0) return null;
                     
+                    // Sort alphabetically within each group
+                    usersWithRole.sort((a, b) => {
+                      const nameA = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
+                      const nameB = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
+                      return nameA.localeCompare(nameB);
+                    });
+                    
                     return (
                       <SelectGroup key={role}>
                         <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
