@@ -2,6 +2,7 @@ import express from 'express';
 import { sapB1Connector } from './sap-connector';
 import { sapSyncService } from './sync-service';
 import { ensureAuthenticated } from '../auth-middleware';
+import { vpnManager } from '../vpn/vpn-manager';
 import purchaseRoutes from './purchase-routes';
 
 const router = express.Router();
@@ -14,12 +15,36 @@ router.use('/purchase', purchaseRoutes);
  */
 
 /**
- * Get SAP B1 connection status via Service Layer
+ * Get SAP B1 connection status via Service Layer (with VPN support)
  */
 router.get('/connection/status', ensureAuthenticated, async (req, res) => {
   try {
+    // Check VPN status if enabled
+    const vpnEnabled = process.env.SAP_VPN_ENABLED === 'true';
+    let vpnStatus = null;
+    
+    if (vpnEnabled) {
+      vpnStatus = vpnManager.getStatus();
+      
+      // If VPN is not connected, attempt connection
+      if (!vpnStatus.connected) {
+        console.log('🔄 VPN not connected, attempting connection...');
+        const connected = await vpnManager.connect();
+        if (!connected) {
+          return res.json({
+            success: true,
+            status: 'vpn_connection_failed',
+            message: 'VPN connection to SAP network failed',
+            vpnStatus: vpnManager.getStatus(),
+            timestamp: new Date().toISOString()
+          });
+        }
+        vpnStatus = vpnManager.getStatus();
+      }
+    }
+
     // Check Service Layer connection status
-    const serviceLayerUrl = process.env.SAP_SERVICE_LAYER_URL || 'https://59.152.52.58:50000/b1s/v1';
+    const serviceLayerUrl = process.env.SAP_SERVICE_LAYER_URL || (vpnEnabled ? 'https://192.168.1.100:50000/b1s/v1' : 'https://59.152.52.58:50000/b1s/v1');
     const sapUsername = process.env.SAP_USERNAME;
     const sapPassword = process.env.SAP_PASSWORD;
     const sapCompanyDb = process.env.SAP_COMPANY_DB;
@@ -75,16 +100,20 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
           return res.json({
             success: true,
             status: 'connected',
-            message: 'Connected to SAP B1 Service Layer successfully',
+            message: vpnEnabled ? 'Connected to SAP B1 Service Layer via VPN successfully' : 'Connected to SAP B1 Service Layer successfully',
+            connectionType: vpnEnabled ? 'VPN' : 'Direct',
             serviceLayerUrl,
             sessionId: loginData.SessionId,
             version: loginData.Version,
+            vpnStatus,
             configStatus: {
               SERVICE_LAYER_URL: true,
               SAP_USERNAME: true,
               SAP_PASSWORD: true,
               SAP_COMPANY_DB: true,
-              SAP_CONNECTION: true
+              SAP_CONNECTION: true,
+              VPN_ENABLED: vpnEnabled,
+              VPN_CONNECTED: vpnStatus?.connected || false
             },
             timestamp: new Date().toISOString()
           });
@@ -594,6 +623,208 @@ router.post('/sync/customer/:cardCode', ensureAuthenticated, async (req, res) =>
     res.status(500).json({
       success: false,
       message: 'Failed to sync customer',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * VPN Management Endpoints
+ */
+
+/**
+ * Get VPN connection status
+ */
+router.get('/vpn/status', ensureAuthenticated, async (req, res) => {
+  try {
+    const vpnEnabled = process.env.SAP_VPN_ENABLED === 'true';
+    
+    if (!vpnEnabled) {
+      return res.json({
+        success: true,
+        vpnEnabled: false,
+        message: 'VPN is disabled for SAP B1 integration',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const vpnStatus = vpnManager.getStatus();
+    const connectivityTest = await vpnManager.testConnectivity();
+
+    res.json({
+      success: true,
+      vpnEnabled: true,
+      vpnStatus,
+      connectivity: {
+        canReachSAP: connectivityTest,
+        testedAt: new Date().toISOString()
+      },
+      configuration: {
+        serviceLayerUrl: process.env.SAP_SERVICE_LAYER_URL,
+        autoReconnect: process.env.VPN_AUTO_RECONNECT === 'true',
+        serverIP: process.env.VPN_SERVER_IP
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('VPN status check error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get VPN status',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * Connect VPN
+ */
+router.post('/vpn/connect', ensureAuthenticated, async (req, res) => {
+  try {
+    const vpnEnabled = process.env.SAP_VPN_ENABLED === 'true';
+    
+    if (!vpnEnabled) {
+      return res.json({
+        success: false,
+        message: 'VPN is disabled for SAP B1 integration'
+      });
+    }
+
+    console.log('🔄 Manual VPN connection requested');
+    const connected = await vpnManager.connect();
+    
+    if (connected) {
+      const vpnStatus = vpnManager.getStatus();
+      res.json({
+        success: true,
+        message: 'VPN connection established successfully',
+        vpnStatus,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      const vpnStatus = vpnManager.getStatus();
+      res.json({
+        success: false,
+        message: 'Failed to establish VPN connection',
+        vpnStatus,
+        error: vpnStatus.lastError,
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('VPN connection error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'VPN connection failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * Disconnect VPN
+ */
+router.post('/vpn/disconnect', ensureAuthenticated, async (req, res) => {
+  try {
+    const vpnEnabled = process.env.SAP_VPN_ENABLED === 'true';
+    
+    if (!vpnEnabled) {
+      return res.json({
+        success: false,
+        message: 'VPN is disabled for SAP B1 integration'
+      });
+    }
+
+    console.log('🔄 Manual VPN disconnection requested');
+    await vpnManager.disconnect();
+    
+    res.json({
+      success: true,
+      message: 'VPN disconnected successfully',
+      vpnStatus: vpnManager.getStatus(),
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('VPN disconnection error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'VPN disconnection failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * Get VPN connection logs
+ */
+router.get('/vpn/logs', ensureAuthenticated, async (req, res) => {
+  try {
+    const vpnEnabled = process.env.SAP_VPN_ENABLED === 'true';
+    
+    if (!vpnEnabled) {
+      return res.json({
+        success: false,
+        message: 'VPN is disabled for SAP B1 integration'
+      });
+    }
+
+    const logs = await vpnManager.getConnectionLogs();
+    
+    res.json({
+      success: true,
+      logs,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('VPN logs retrieval error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve VPN logs',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * Test VPN connectivity to SAP
+ */
+router.get('/vpn/test-connectivity', ensureAuthenticated, async (req, res) => {
+  try {
+    const vpnEnabled = process.env.SAP_VPN_ENABLED === 'true';
+    
+    if (!vpnEnabled) {
+      return res.json({
+        success: false,
+        message: 'VPN is disabled for SAP B1 integration'
+      });
+    }
+
+    const vpnStatus = vpnManager.getStatus();
+    if (!vpnStatus.connected) {
+      return res.json({
+        success: false,
+        message: 'VPN is not connected',
+        vpnStatus
+      });
+    }
+
+    const connectivityTest = await vpnManager.testConnectivity();
+    
+    res.json({
+      success: true,
+      connectivity: {
+        canReachSAP: connectivityTest,
+        vpnConnected: vpnStatus.connected,
+        testedAt: new Date().toISOString()
+      },
+      vpnStatus,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('VPN connectivity test error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'VPN connectivity test failed',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }

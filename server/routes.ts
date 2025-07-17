@@ -73,6 +73,7 @@ import { default as visaManagementRoutes } from "./visa-management-routes";
 import { default as schengenRoutes } from "./schengen-routes";
 import { default as legalManagementRoutes } from "./legal-management-routes";
 import { default as googleCalendarRoutes } from "./google-calendar-routes";
+import { vpnManager } from "./vpn/vpn-manager";
 import { detectTimezoneFromIP, getTimezoneOffset } from "./timezone-detection-service";
 import { 
   getMeetings, 
@@ -2921,6 +2922,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { middlewareRoutes } = await import('./sap-b1-integration/middleware-routes');
   app.use('/api/sap/middleware', middlewareRoutes);
   console.log('SAP B1 middleware integration routes registered at /api/sap/middleware');
+
+  // =============================================================================
+  // VPN MANAGER INITIALIZATION (for SAP B1 Integration)
+  // =============================================================================
+  
+  // Initialize VPN manager if enabled
+  const vpnEnabled = process.env.SAP_VPN_ENABLED === 'true';
+  if (vpnEnabled) {
+    console.log('🔐 VPN enabled for SAP B1 integration - initializing VPN manager...');
+    try {
+      const initialized = await vpnManager.initialize();
+      if (initialized) {
+        console.log('✅ VPN manager initialized successfully for SAP B1 integration');
+      } else {
+        console.warn('⚠️ VPN manager initialization failed - SAP B1 connectivity may be limited');
+      }
+    } catch (error) {
+      console.error('❌ VPN manager initialization error:', error);
+    }
+  } else {
+    console.log('ℹ️ VPN disabled for SAP B1 integration - using direct connection mode');
+  }
 
   const httpServer = createServer(app);
   return httpServer;
