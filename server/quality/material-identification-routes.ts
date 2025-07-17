@@ -768,9 +768,14 @@ router.get("/:id/documents", async (req: Request, res: Response) => {
 // Delete a document
 router.delete("/documents/:documentId", async (req: Request, res: Response) => {
   try {
+    console.log('🗑️ Delete document request received');
+    console.log('Request params:', req.params);
+    console.log('Document ID:', req.params.documentId);
+    
     const documentId = req.params.documentId;
     
     if (!documentId) {
+      console.error('❌ Document ID is missing');
       return res.status(400).json({ error: "Document ID is required" });
     }
     

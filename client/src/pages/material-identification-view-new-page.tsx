@@ -208,6 +208,10 @@ export default function MaterialIdentificationViewNewPage({ params }: MaterialId
   const handleDeleteDocument = async () => {
     if (!documentToDelete) return;
     
+    console.log('🗑️ Delete document clicked');
+    console.log('Document to delete:', documentToDelete);
+    console.log('Delete URL:', `/api/quality/material-identification/documents/${documentToDelete.id}`);
+    
     try {
       const response = await fetch(`/api/quality/material-identification/documents/${documentToDelete.id}`, {
         method: 'DELETE',
