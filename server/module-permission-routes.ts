@@ -167,6 +167,21 @@ router.get('/api/modules/:moduleName/analytics', authenticateUser, isAdmin, asyn
       }
     }
 
+    // Sort users by role hierarchy (highest to lowest)
+    const roleHierarchy = {
+      'Superuser': 1,
+      'General Manager': 2,
+      'Senior Manager': 3,
+      'Manager': 4,
+      'Employee': 5
+    };
+
+    usersWithAccess.sort((a, b) => {
+      const aRank = roleHierarchy[a.role as keyof typeof roleHierarchy] || 999;
+      const bRank = roleHierarchy[b.role as keyof typeof roleHierarchy] || 999;
+      return aRank - bRank;
+    });
+
     const analytics = {
       totalUsers: allUsers.length,
       usersWithAccess,
