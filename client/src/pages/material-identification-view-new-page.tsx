@@ -213,13 +213,22 @@ export default function MaterialIdentificationViewNewPage({ params }: MaterialId
     console.log('Delete URL:', `/api/quality/material-identification/documents/${documentToDelete.id}`);
     
     try {
+      console.log('🌐 Making DELETE request to:', `/api/quality/material-identification/documents/${documentToDelete.id}`);
       const response = await fetch(`/api/quality/material-identification/documents/${documentToDelete.id}`, {
         method: 'DELETE',
       });
       
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response ok:', response.ok);
+      
       if (!response.ok) {
-        throw new Error('Failed to delete document');
+        const errorText = await response.text();
+        console.error('❌ Delete request failed:', errorText);
+        throw new Error(`Failed to delete document: ${response.status} - ${errorText}`);
       }
+      
+      const responseData = await response.json();
+      console.log('✅ Delete response:', responseData);
       
       // Invalidate document cache to refresh the list
       queryClient.invalidateQueries({ queryKey: ['/api/quality/material-identification', recordId, 'documents'] });
