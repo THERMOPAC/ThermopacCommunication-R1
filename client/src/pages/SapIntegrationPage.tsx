@@ -153,61 +153,72 @@ export default function SapIntegrationPage() {
         </TabsList>
 
         <TabsContent value="overview">
-          {/* Public IP Port Forwarding Setup Guide */}
-          <Card className="border-orange-200 bg-orange-50 mb-6">
+          {/* VPN-Based Integration Architecture */}
+          <Card className="border-blue-200 bg-blue-50 mb-6">
             <CardHeader>
               <CardTitle className="text-lg flex items-center">
-                <Shield className="h-5 w-5 mr-2 text-orange-600" />
-                SAP B1 Public IP Port Forwarding Setup
+                <Shield className="h-5 w-5 mr-2 text-blue-600" />
+                SAP B1 VPN-Based Integration Architecture
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="text-sm">
-                  <p className="font-medium mb-2">Network Architecture: Cloud Application → Public IP → Router → SAP Server</p>
+                  <p className="font-medium mb-2">Secure Network Architecture: Cloud App ↔ VPN Tunnel ↔ SAP B1 Server</p>
                   <p className="text-gray-600">
-                    Your SAP B1 server (192.168.1.100:50000) needs public IP access for cloud connectivity. 
-                    Configure router port forwarding to enable direct Service Layer integration.
+                    Advanced VPN-based integration provides encrypted connectivity to SAP B1 systems without exposing public IP addresses. 
+                    Supports both VPN (recommended for production) and direct connection modes.
                   </p>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <h4 className="font-medium text-sm">Configured Service Layer URL:</h4>
-                    <code className="text-xs bg-gray-100 px-2 py-1 rounded block">
-                      https://59.152.52.58:50000/b1s/v1
-                    </code>
-                    <p className="text-xs text-green-600">✅ Public IP - Cloud accessible</p>
+                    <h4 className="font-medium text-sm">Connection Modes Available:</h4>
+                    <div className="space-y-1">
+                      <div className="flex items-center text-xs">
+                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                        <span className="font-medium">VPN Mode:</span>
+                        <code className="ml-2 bg-green-100 px-1 py-0.5 rounded text-xs">192.168.1.100:50000</code>
+                      </div>
+                      <div className="flex items-center text-xs">
+                        <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
+                        <span className="font-medium">Direct Mode:</span>
+                        <code className="ml-2 bg-orange-100 px-1 py-0.5 rounded text-xs">59.152.52.58:50000</code>
+                      </div>
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <h4 className="font-medium text-sm">Network Architecture:</h4>
-                    <code className="text-xs bg-blue-50 px-2 py-1 rounded block">
-                      Cloud App → 59.152.52.58:50000 → Router → SAP Server (192.168.1.100:50000)
-                    </code>
-                    <p className="text-xs text-blue-600">📡 Port forwarding required for connectivity</p>
+                    <h4 className="font-medium text-sm">VPN Integration Features:</h4>
+                    <ul className="text-xs space-y-1 text-gray-600">
+                      <li>• Encrypted data transmission</li>
+                      <li>• Health monitoring every 2 minutes</li>
+                      <li>• Auto-reconnection with backoff</li>
+                      <li>• No public IP exposure required</li>
+                      <li>• Network-level access control</li>
+                    </ul>
                   </div>
                 </div>
                 
                 <div className="bg-white p-3 rounded border">
-                  <h4 className="font-medium text-sm mb-2">Setup Instructions:</h4>
+                  <h4 className="font-medium text-sm mb-2">VPN Configuration Steps:</h4>
                   <ol className="text-xs space-y-1 list-decimal list-inside text-gray-600">
-                    <li>Access your router admin panel (typically 192.168.1.1)</li>
-                    <li>Create port forwarding rule: External Port 50000 → 192.168.1.100:50000</li>
-                    <li>Configure Windows Firewall to allow port 50000 inbound</li>
-                    <li>Get your public IP address (visit whatismyipaddress.com)</li>
-                    <li>Update Service Layer URL with your public IP</li>
-                    <li>Test connection from this application</li>
+                    <li>Set <code className="bg-gray-100 px-1 rounded">SAP_VPN_ENABLED=true</code> in environment variables</li>
+                    <li>Upload base64-encoded OpenVPN configuration to <code className="bg-gray-100 px-1 rounded">VPN_CONFIG</code></li>
+                    <li>Configure VPN server IP in <code className="bg-gray-100 px-1 rounded">VPN_SERVER_IP</code></li>
+                    <li>Enable auto-reconnection with <code className="bg-gray-100 px-1 rounded">VPN_AUTO_RECONNECT=true</code></li>
+                    <li>Update Service Layer URL to private IP: <code className="bg-gray-100 px-1 rounded">192.168.1.100:50000</code></li>
+                    <li>Test VPN connectivity using monitoring endpoints</li>
                   </ol>
                 </div>
                 
-                <div className="bg-blue-50 p-3 rounded border border-blue-200">
-                  <h4 className="font-medium text-sm mb-1 text-blue-800">🔧 Current Status: Port Forwarding Required</h4>
-                  <p className="text-xs text-blue-700 mb-2">
-                    Connection timeouts are expected until router port forwarding is configured.
-                    System is correctly configured for public IP connectivity.
+                <div className="bg-green-50 p-3 rounded border border-green-200">
+                  <h4 className="font-medium text-sm mb-1 text-green-800">✅ VPN Infrastructure Ready</h4>
+                  <p className="text-xs text-green-700 mb-2">
+                    VPN manager fully implemented with lifecycle management, health monitoring, and auto-reconnection. 
+                    Currently using direct connection mode - VPN can be enabled when ready.
                   </p>
-                  <p className="text-xs text-blue-600">
-                    📖 Complete setup guide available in SAP_B1_PUBLIC_IP_SETUP_GUIDE.md
+                  <p className="text-xs text-green-600">
+                    📖 Complete setup guide: <code className="bg-green-100 px-1 rounded">SAP_B1_VPN_INTEGRATION_GUIDE.md</code>
                   </p>
                 </div>
               </div>
