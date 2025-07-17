@@ -84,6 +84,12 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
     .reduce((acc: Record<string, User[]>, role: string) => {
       const usersInRole = allUsers.filter(u => u.role === role);
       if (usersInRole.length > 0) {
+        // Sort alphabetically within each group
+        usersInRole.sort((a, b) => {
+          const nameA = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
+          const nameB = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
+          return nameA.localeCompare(nameB);
+        });
         acc[role] = usersInRole;
       }
       return acc;
