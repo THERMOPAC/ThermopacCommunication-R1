@@ -781,8 +781,10 @@ router.delete("/documents/:documentId", async (req: Request, res: Response) => {
     
     // Get document details first
     const document = await db.execute(sql`
-      SELECT * FROM material_identification_documents
-      WHERE id = ${documentId}
+      SELECT mid.*, mi.material_identification_id, mi.project_number
+      FROM material_identification_documents mid
+      JOIN material_identification mi ON mid.material_identification_id = mi.id
+      WHERE mid.id = ${documentId}
     `) as any;
     
     if (!document || !document.rows || document.rows.length === 0) {
@@ -790,13 +792,80 @@ router.delete("/documents/:documentId", async (req: Request, res: Response) => {
     }
     
     const documentDetails = document.rows[0];
+    const miId = documentDetails.material_identification_id;
+    const projectNumber = documentDetails.project_number || 'UNKNOWN';
     
-    // Delete from GCS
-    const deleteResult = await deleteMaterialIdentificationDocument(documentDetails.file_path);
+    console.log('📄 Document details:', {
+      id: documentDetails.id,
+      miId,
+      projectNumber,
+      storedPath: documentDetails.file_path,
+      documentType: documentDetails.document_type
+    });
     
-    if (!deleteResult.success) {
-      console.warn("Warning: Failed to delete file from GCS:", deleteResult.error);
-      // Continue with database deletion even if GCS deletion fails
+    // Get GCS client
+    const { storage, bucketName } = getGcsClient();
+    const bucket = storage.bucket(bucketName);
+    
+    // Try multiple paths to find the file (similar to download function)
+    let fileFound = false;
+    let actualFilePath = '';
+    
+    // Path 1: Try new hierarchical format
+    const newPath = `QMS/Material_Identification/${projectNumber}/${miId}/${documentDetails.document_type === 'material_certificate' ? 'Material Certificate' : 
+      documentDetails.document_type === 'technical_datasheet' ? 'Technical Datasheet' : 
+      documentDetails.document_type === 'inspection_report' ? 'Inspection Report' : 
+      documentDetails.document_type === 'calibration_certificate' ? 'Calibration Certificate' : 
+      'Other Document'}.${documentDetails.file_name.split('.').pop()}`;
+    
+    console.log('🔍 Trying new path format:', newPath);
+    let file = bucket.file(newPath);
+    let [exists] = await file.exists();
+    
+    if (exists) {
+      console.log('✅ File found in new path format');
+      fileFound = true;
+      actualFilePath = newPath;
+    } else {
+      // Path 2: Try stored database path
+      console.log('🔍 Trying stored database path:', documentDetails.file_path);
+      file = bucket.file(documentDetails.file_path);
+      [exists] = await file.exists();
+      
+      if (exists) {
+        console.log('✅ File found in stored database path');
+        fileFound = true;
+        actualFilePath = documentDetails.file_path;
+      } else {
+        // Path 3: Try old format without project number
+        const oldPath = `QMS/Material_Identification/${miId}/${documentDetails.document_type === 'material_certificate' ? 'Material Certificate' : 
+          documentDetails.document_type === 'technical_datasheet' ? 'Technical Datasheet' : 
+          documentDetails.document_type === 'inspection_report' ? 'Inspection Report' : 
+          documentDetails.document_type === 'calibration_certificate' ? 'Calibration Certificate' : 
+          'Other Document'}.${documentDetails.file_name.split('.').pop()}`;
+        
+        console.log('🔍 Trying old path format:', oldPath);
+        file = bucket.file(oldPath);
+        [exists] = await file.exists();
+        
+        if (exists) {
+          console.log('✅ File found in old path format');
+          fileFound = true;
+          actualFilePath = oldPath;
+        }
+      }
+    }
+    
+    if (!fileFound) {
+      console.warn('⚠️ File not found in any path format, but continuing with database deletion');
+    } else {
+      // Delete the file from GCS
+      try {
+        await file.delete();
+        console.log('✅ File deleted from GCS:', actualFilePath);
+      } catch (deleteError) {
+        console.warn('⚠️ Failed to delete file from GCS:', deleteError);
+      }
     }
     
     // Delete from database
@@ -804,6 +873,8 @@ router.delete("/documents/:documentId", async (req: Request, res: Response) => {
       DELETE FROM material_identification_documents
       WHERE id = ${documentId}
     `);
+    
+    console.log('✅ Document deleted from database');
     
     res.json({
       success: true,
