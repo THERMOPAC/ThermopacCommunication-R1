@@ -58,9 +58,14 @@ export default function SapIntegrationPage() {
   });
 
   // Fetch VPN status
-  const { data: vpnStatus } = useQuery({
+  const { data: vpnStatus, error: vpnError } = useQuery({
     queryKey: ['/api/sap/vpn/status'],
     refetchInterval: 30000, // Check every 30 seconds
+    retry: 3,
+    retryDelay: 1000,
+    onError: (error) => {
+      console.error('VPN status query error:', error);
+    }
   });
 
   // Test connection mutation
