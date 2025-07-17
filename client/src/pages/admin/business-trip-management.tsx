@@ -130,6 +130,34 @@ const TripReports = () => {
     queryFn: () => apiRequest('GET', '/api/admin/users')
   });
 
+  // Memoized grouped employees for role-based dropdown in Reports tab
+  const groupedEmployees = React.useMemo(() => {
+    const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Employee'];
+    const groups: Record<string, any[]> = {};
+    
+    employees?.forEach((employee: any) => {
+      const role = employee.role || 'Employee';
+      if (!groups[role]) {
+        groups[role] = [];
+      }
+      groups[role].push(employee);
+    });
+    
+    // Sort employees within each group alphabetically
+    Object.values(groups).forEach(group => {
+      group.sort((a, b) => {
+        const nameA = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
+        const nameB = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
+        return nameA.localeCompare(nameB);
+      });
+    });
+    
+    return roleOrder.filter(role => groups[role]).map(role => ({
+      role,
+      employees: groups[role]
+    }));
+  }, [employees]);
+
   // Chart colors
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
@@ -236,43 +264,21 @@ const TripReports = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Employees</SelectItem>
-                  {React.useMemo(() => {
-                    const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Employee'];
-                    const groups: Record<string, any[]> = {};
-                    
-                    employees?.forEach((employee: any) => {
-                      const role = employee.role || 'Employee';
-                      if (!groups[role]) {
-                        groups[role] = [];
-                      }
-                      groups[role].push(employee);
-                    });
-                    
-                    // Sort employees within each group alphabetically
-                    Object.values(groups).forEach(group => {
-                      group.sort((a, b) => {
-                        const nameA = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
-                        const nameB = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
-                        return nameA.localeCompare(nameB);
-                      });
-                    });
-                    
-                    return roleOrder.filter(role => groups[role]).map(role => (
-                      <SelectGroup key={role}>
-                        <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
-                          {role}s
-                        </SelectLabel>
-                        {groups[role].map((employee: any) => (
-                          <SelectItem key={employee.id} value={employee.id.toString()}>
-                            {employee.firstName && employee.lastName ? 
-                              `${employee.firstName} ${employee.lastName}` : 
-                              employee.username}
-                            {employee.department && ` • ${employee.department}`}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    ));
-                  }, [employees])}
+                  {groupedEmployees.map(({ role, employees: roleEmployees }) => (
+                    <SelectGroup key={role}>
+                      <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                        {role}s
+                      </SelectLabel>
+                      {roleEmployees.map((employee: any) => (
+                        <SelectItem key={employee.id} value={employee.id.toString()}>
+                          {employee.firstName && employee.lastName ? 
+                            `${employee.firstName} ${employee.lastName}` : 
+                            employee.username}
+                          {employee.department && ` • ${employee.department}`}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -1269,6 +1275,34 @@ const TripDashboard = () => {
     queryFn: () => apiRequest('GET', '/api/admin/users'),
   });
 
+  // Memoized grouped users for role-based dropdown
+  const groupedUsers = React.useMemo(() => {
+    const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Employee'];
+    const groups: Record<string, any[]> = {};
+    
+    users?.forEach((user: any) => {
+      const role = user.role || 'Employee';
+      if (!groups[role]) {
+        groups[role] = [];
+      }
+      groups[role].push(user);
+    });
+    
+    // Sort users within each group alphabetically
+    Object.values(groups).forEach(group => {
+      group.sort((a, b) => {
+        const nameA = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
+        const nameB = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
+        return nameA.localeCompare(nameB);
+      });
+    });
+    
+    return roleOrder.filter(role => groups[role]).map(role => ({
+      role,
+      users: groups[role]
+    }));
+  }, [users]);
+
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -1448,43 +1482,21 @@ const TripDashboard = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Employees</SelectItem>
-                  {React.useMemo(() => {
-                    const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Employee'];
-                    const groups: Record<string, any[]> = {};
-                    
-                    users?.forEach((user: any) => {
-                      const role = user.role || 'Employee';
-                      if (!groups[role]) {
-                        groups[role] = [];
-                      }
-                      groups[role].push(user);
-                    });
-                    
-                    // Sort users within each group alphabetically
-                    Object.values(groups).forEach(group => {
-                      group.sort((a, b) => {
-                        const nameA = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
-                        const nameB = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
-                        return nameA.localeCompare(nameB);
-                      });
-                    });
-                    
-                    return roleOrder.filter(role => groups[role]).map(role => (
-                      <SelectGroup key={role}>
-                        <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
-                          {role}s
-                        </SelectLabel>
-                        {groups[role].map((user: any) => (
-                          <SelectItem key={user.id} value={user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.username}>
-                            {user.firstName && user.lastName ? 
-                              `${user.firstName} ${user.lastName}` : 
-                              user.username}
-                            {user.department && ` • ${user.department}`}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    ));
-                  }, [users])}
+                  {groupedUsers.map(({ role, users: roleUsers }) => (
+                    <SelectGroup key={role}>
+                      <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                        {role}s
+                      </SelectLabel>
+                      {roleUsers.map((user: any) => (
+                        <SelectItem key={user.id} value={user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.username}>
+                          {user.firstName && user.lastName ? 
+                            `${user.firstName} ${user.lastName}` : 
+                            user.username}
+                          {user.department && ` • ${user.department}`}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
