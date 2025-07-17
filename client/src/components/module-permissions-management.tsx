@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, RefreshCw, Users, BarChart3 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { roles, roleHierarchy } from "@shared/roles";
 
@@ -44,6 +44,7 @@ const ModulePermissionsManagement: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState("users");
   const [selectedUser, setSelectedUser] = useState<number | null>(null);
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
+  const [selectedAnalyticsModule, setSelectedAnalyticsModule] = useState<string | null>(null);
   
   // Fetch all modules
   const { data: modules, isLoading: isLoadingModules } = useQuery<string[], Error>({
@@ -92,6 +93,29 @@ const ModulePermissionsManagement: React.FC = () => {
       return response;
     },
     enabled: !!selectedUser && selectedTab === 'users',
+  });
+
+  // Fetch module analytics for selected module
+  const { 
+    data: moduleAnalytics, 
+    isLoading: isLoadingModuleAnalytics 
+  } = useQuery<{ 
+    totalUsers: number; 
+    usersWithAccess: User[];
+    accessStats: {
+      canView: number;
+      canCreate: number;
+      canEdit: number;
+      canDelete: number;
+    }
+  }, Error>({
+    queryKey: ['/api/modules', selectedAnalyticsModule, 'analytics'],
+    queryFn: async () => {
+      if (!selectedAnalyticsModule) return null;
+      const response = await apiRequest("GET", `/api/modules/${selectedAnalyticsModule}/analytics`);
+      return response;
+    },
+    enabled: !!selectedAnalyticsModule && selectedTab === 'analytics',
   });
   
   // Set custom permissions for a user
@@ -211,6 +235,7 @@ const ModulePermissionsManagement: React.FC = () => {
             <TabsList className="mb-4">
               <TabsTrigger value="users">User Permissions</TabsTrigger>
               <TabsTrigger value="roles">Role Defaults</TabsTrigger>
+              <TabsTrigger value="analytics">Module Permissions</TabsTrigger>
             </TabsList>
             
             <TabsContent value="users" className="space-y-6">
@@ -484,6 +509,143 @@ const ModulePermissionsManagement: React.FC = () => {
                     </div>
                   ))}
                 </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="analytics" className="space-y-6">
+              <div className="mb-6">
+                <Label htmlFor="analytics-module-select">Select Module for Analytics</Label>
+                <Select 
+                  value={selectedAnalyticsModule || ""} 
+                  onValueChange={setSelectedAnalyticsModule}
+                >
+                  <SelectTrigger id="analytics-module-select">
+                    <SelectValue placeholder="Select a module to view analytics" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {modules?.map((module: string) => (
+                      <SelectItem key={module} value={module}>
+                        {module}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedAnalyticsModule && (
+                <div className="space-y-6">
+                  {isLoadingModuleAnalytics ? (
+                    <div className="flex justify-center my-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : moduleAnalytics ? (
+                    <div className="space-y-6">
+                      {/* Module Analytics Summary */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <BarChart3 className="h-5 w-5 text-blue-600" />
+                            {selectedAnalyticsModule} - Access Analytics
+                          </CardTitle>
+                          <CardDescription>
+                            User access statistics for the {selectedAnalyticsModule} module
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="text-center p-4 bg-blue-50 rounded-lg border">
+                              <div className="text-2xl font-bold text-blue-600">
+                                {moduleAnalytics.usersWithAccess.length}
+                              </div>
+                              <div className="text-sm text-blue-800">Users with Access</div>
+                            </div>
+                            <div className="text-center p-4 bg-green-50 rounded-lg border">
+                              <div className="text-2xl font-bold text-green-600">
+                                {moduleAnalytics.accessStats.canView}
+                              </div>
+                              <div className="text-sm text-green-800">Can View</div>
+                            </div>
+                            <div className="text-center p-4 bg-yellow-50 rounded-lg border">
+                              <div className="text-2xl font-bold text-yellow-600">
+                                {moduleAnalytics.accessStats.canCreate}
+                              </div>
+                              <div className="text-sm text-yellow-800">Can Create</div>
+                            </div>
+                            <div className="text-center p-4 bg-purple-50 rounded-lg border">
+                              <div className="text-2xl font-bold text-purple-600">
+                                {moduleAnalytics.accessStats.canEdit}
+                              </div>
+                              <div className="text-sm text-purple-800">Can Edit</div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Users with Access List */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Users className="h-5 w-5 text-green-600" />
+                            Users with Access ({moduleAnalytics.usersWithAccess.length})
+                          </CardTitle>
+                          <CardDescription>
+                            List of users who have access to the {selectedAnalyticsModule} module
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          {moduleAnalytics.usersWithAccess.length > 0 ? (
+                            <div className="space-y-3">
+                              {moduleAnalytics.usersWithAccess.map((user: User) => (
+                                <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                      <span className="text-sm font-medium text-blue-600">
+                                        {user.username.charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <div className="font-medium">{user.username}</div>
+                                      <div className="text-sm text-muted-foreground">{user.role}</div>
+                                    </div>
+                                  </div>
+                                  <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+                                    Has Access
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <Alert>
+                              <AlertCircle className="h-4 w-4" />
+                              <AlertTitle>No users found</AlertTitle>
+                              <AlertDescription>
+                                No users currently have access to the {selectedAnalyticsModule} module.
+                              </AlertDescription>
+                            </Alert>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  ) : (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>No analytics data</AlertTitle>
+                      <AlertDescription>
+                        Unable to load analytics data for the selected module.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              )}
+
+              {!selectedAnalyticsModule && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>No module selected</AlertTitle>
+                  <AlertDescription>
+                    Please select a module to view analytics and user access information.
+                  </AlertDescription>
+                </Alert>
               )}
             </TabsContent>
           </Tabs>

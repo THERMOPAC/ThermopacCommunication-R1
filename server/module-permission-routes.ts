@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from './db';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or } from 'drizzle-orm';
 import { modules, modulePermissions, roleModulePermissions, users } from '@shared/schema';
 import { checkModulePermission, getUserModulePermissions, resetUserModulePermissions, setUserModulePermission } from './utils/permission-utils';
 import { authenticateUser, isAdmin } from './middlewares/auth';
@@ -125,6 +125,63 @@ router.get('/api/my-permissions/:moduleName/:permission', authenticateUser, asyn
   } catch (error) {
     console.error('Error checking module permission:', error);
     res.status(500).json({ error: 'Failed to check module permission' });
+  }
+});
+
+// Get analytics for a specific module
+router.get('/api/modules/:moduleName/analytics', authenticateUser, isAdmin, async (req, res) => {
+  try {
+    const moduleName = req.params.moduleName as any;
+    
+    // Validate module name
+    if (!modules.includes(moduleName)) {
+      return res.status(400).json({ error: 'Invalid module name' });
+    }
+
+    // Get all active users
+    const allUsers = await db.select({
+      id: users.id,
+      username: users.username,
+      role: users.role
+    }).from(users).where(eq(users.isActive, true));
+
+    // Get users with access to this module
+    const usersWithAccess = [];
+    let canViewCount = 0;
+    let canCreateCount = 0;
+    let canEditCount = 0;
+    let canDeleteCount = 0;
+
+    // Check each user's permissions for this module
+    for (const user of allUsers) {
+      const permissions = await getUserModulePermissions(user.id);
+      const modulePermission = permissions[moduleName];
+      
+      if (modulePermission && modulePermission.canView) {
+        usersWithAccess.push(user);
+        
+        if (modulePermission.canView) canViewCount++;
+        if (modulePermission.canCreate) canCreateCount++;
+        if (modulePermission.canEdit) canEditCount++;
+        if (modulePermission.canDelete) canDeleteCount++;
+      }
+    }
+
+    const analytics = {
+      totalUsers: allUsers.length,
+      usersWithAccess,
+      accessStats: {
+        canView: canViewCount,
+        canCreate: canCreateCount,
+        canEdit: canEditCount,
+        canDelete: canDeleteCount
+      }
+    };
+
+    res.json(analytics);
+  } catch (error) {
+    console.error('Error getting module analytics:', error);
+    res.status(500).json({ error: 'Failed to get module analytics' });
   }
 });
 
