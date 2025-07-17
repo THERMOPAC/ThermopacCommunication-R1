@@ -110,7 +110,61 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 - **Production**: Requires proper GCS credentials and database URL
 - **Critical Variables**: GOOGLE_CLOUD_CREDENTIALS, GOOGLE_CLOUD_BUCKET, DATABASE_URL
 
+# User Interface Standards
+
+## Employee/User Dropdown Components
+
+All dropdowns for selecting employees or users must follow this unified format:
+
+### Role-Based Grouping (Mandatory Hierarchy)
+1. **Superuser**
+2. **General Manager** 
+3. **Senior Manager**
+4. **Manager**
+5. **Employee**
+
+### Implementation Requirements
+- **Grouping**: Use `SelectGroup` and `SelectLabel` components
+- **Sorting**: Alphabetical within each role group
+- **Styling**: Blue-colored role headers (`font-semibold text-blue-600 dark:text-blue-400`)
+- **User Display**: Show full name when available, fallback to username
+- **Department Info**: Include department with bullet separator when available
+- **Memoization**: Use `React.useMemo` outside JSX to prevent hooks violations
+
+### Standard Implementation Pattern
+```typescript
+const groupedUsers = React.useMemo(() => {
+  const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Employee'];
+  const groups: Record<string, any[]> = {};
+  
+  users?.forEach((user: any) => {
+    const role = user.role || 'Employee';
+    if (!groups[role]) {
+      groups[role] = [];
+    }
+    groups[role].push(user);
+  });
+  
+  // Sort alphabetically within each group
+  Object.values(groups).forEach(group => {
+    group.sort((a, b) => {
+      const nameA = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
+      const nameB = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
+      return nameA.localeCompare(nameB);
+    });
+  });
+  
+  return roleOrder.filter(role => groups[role]).map(role => ({
+    role,
+    users: groups[role]
+  }));
+}, [users]);
+```
+
+This standard applies to ALL existing and future user/employee selection components across the entire application.
+
 # Changelog
+- July 17, 2025. STANDARDIZED USER DROPDOWN DESIGN PATTERN: Established mandatory design pattern for all employee/user selection dropdowns across the application. Updated Business Trip Management page Employee dropdowns (Reports and My Trips tabs) to match Create New Task dialog "Assign To" dropdown design. Fixed React hooks violation by implementing proper memoization outside JSX. All user dropdowns now feature role-based grouping (Superuser → General Manager → Senior Manager → Manager → Employee), blue-colored role headers, alphabetical sorting within groups, and consistent professional styling. Pattern includes proper SelectGroup/SelectLabel usage, department information display, and proper memoization to prevent rendering errors.
 - July 17, 2025. MODULE PERMISSIONS ANALYTICS SYSTEM COMPLETED: Successfully implemented comprehensive analytics functionality for Module Permissions Management with enhanced user access reporting and role hierarchy sorting. Added third "Module Permissions" tab to existing interface featuring: module selection dropdown for analytics queries, visual dashboard with access statistics cards (users with access, can view/create/edit/delete counts), detailed users with access list sorted by role hierarchy (Superuser → General Manager → Senior Manager → Manager → Employee), professional UI with color-coded metrics and user avatars. Created backend `/api/modules/:moduleName/analytics` endpoint with comprehensive permission checking for all active users, role-based sorting algorithm, and detailed access statistics calculation. System provides complete module access visibility for administrators with intuitive analytics dashboard and proper organizational hierarchy display for efficient permission management and compliance reporting.
 - July 16, 2025. EDIT COMMITMENT RELATED MEETING DROPDOWN ISSUE COMPLETELY RESOLVED: Successfully fixed critical bug where "Related Meeting" field showed blank in Edit Commitment dialog despite commitments being linked to valid meetings. Root cause identified: concluded meetings were filtered out of combinedMeetingsList, preventing commitments linked to past meetings from displaying in dropdown. Implemented comprehensive solution: (1) Enhanced Select value logic to detect concluded meetings and handle special concluded_meetingId format, (2) Added "Concluded Meetings" section in dropdown specifically for editing scenarios, (3) Added fallback logic to display meeting title from commitment data when meeting not found in active list. Edit Commitment dialog now properly displays meeting names for both active and concluded meetings, maintaining complete commitment editing functionality regardless of meeting status. System provides seamless user experience with proper meeting reference preservation across all commitment lifecycle stages.
 - July 16, 2025. PARTICIPANT MEETING VISIBILITY FIXED IN DASHBOARD AND MEETINGS TABS: Successfully resolved critical issue where meetings only displayed if current user was organizer, missing meetings where user was participant/attendee. Updated `/api/meetings` endpoint backend logic to include meetings where user is either organizer OR attendee using `or(eq(organizerId, userId), sql attendeeIds @> [userId])` condition. Enhanced frontend meeting query to automatically include current user ID as `attendeeId` parameter ensuring comprehensive meeting visibility. Dashboard "Today's Meetings" and "Upcoming Google Calendar Events" cards now correctly display ALL relevant meetings including those where user is participant. Meetings tab now shows complete meeting list (organizer + attendee meetings) increasing from 0 to 12 visible meetings for user verification. System provides proper participant-inclusive meeting visibility across all meeting management interfaces.
