@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, FileText, FileUp, Download, Trash2, AlertCircle } from "lucide-react";
+import { CalendarIcon, FileText, FileUp, Download, Trash2, AlertCircle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { 
   Dialog,
@@ -441,8 +441,13 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
         description: "Document deleted successfully.",
       });
       
-      // Refresh documents list
-      refetchDocuments();
+      // Force refresh documents list using multiple approaches
+      await refetchDocuments();
+      
+      // Also invalidate the query cache to ensure complete refresh
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/quality/material-identification', recordId, 'documents'] 
+      });
       
     } catch (error) {
       console.error("Document deletion error:", error);
@@ -1013,13 +1018,23 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
                   Manage documents related to this Material Identification record.
                 </CardDescription>
               </div>
-              <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" onClick={() => setUploadDialogOpen(true)}>
-                    <FileUp className="h-4 w-4 mr-2" />
-                    Upload Document
-                  </Button>
-                </DialogTrigger>
+              <div className="flex gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => refetchDocuments()}
+                  disabled={isLoadingDocuments}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingDocuments ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+                <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" onClick={() => setUploadDialogOpen(true)}>
+                      <FileUp className="h-4 w-4 mr-2" />
+                      Upload Document
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Upload Document</DialogTitle>
@@ -1099,6 +1114,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+              </div>
             </CardHeader>
             
             <CardContent>
