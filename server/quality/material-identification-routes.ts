@@ -157,8 +157,8 @@ router.get("/", async (req, res) => {
     }
     
     // Add order by and pagination
-    // Sort by created_at DESC first (most recent records at top), then by material_identification_id ASC
-    baseQuery = sql`${baseQuery} ORDER BY created_at DESC, material_identification_id ASC LIMIT ${limitNum} OFFSET ${offset}`;
+    // Sort by MI ID number in ascending order (extract numeric suffix for proper sorting)
+    baseQuery = sql`${baseQuery} ORDER BY CAST(SPLIT_PART(material_identification_id, '-', 3) AS INTEGER) ASC LIMIT ${limitNum} OFFSET ${offset}`;
     
     // Execute the query
     const materialIdentifications = await db.execute(baseQuery) as any;
