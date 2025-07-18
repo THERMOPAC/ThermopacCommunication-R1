@@ -458,9 +458,7 @@ function CommitmentTasksList({ commitmentTasks, isLoading }: CommitmentTasksList
 
   const completeTaskMutation = useMutation({
     mutationFn: async (taskId: number) => {
-      return apiRequest(`/api/meetings/commitments/tasks/${taskId}/complete`, {
-        method: 'POST'
-      });
+      return apiRequest('POST', `/api/meetings/commitments/tasks/${taskId}/complete`);
     },
     onSuccess: () => {
       toast({
