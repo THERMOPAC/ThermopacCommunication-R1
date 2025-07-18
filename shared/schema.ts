@@ -16,6 +16,7 @@ export const modules = [
   "Procurement Management", 
   "Production Management", 
   "Quality Management",
+  "Design Management",
   "Project Commissioning",
   "Dispatch & Shipping",
   "After-Sales",
@@ -7202,3 +7203,617 @@ export type MeetingReminder = typeof meetingReminders.$inferSelect;
 export type MeetingAnalytics = typeof meetingAnalytics.$inferSelect;
 export type MeetingKpiLink = typeof meetingKpiLinks.$inferSelect;
 export type MeetingTemplate = typeof meetingTemplates.$inferSelect;
+
+// ==================== DESIGN MANAGEMENT MODULE ====================
+
+// Design Project Status
+export const designProjectStatuses = [
+  "Draft",
+  "In Progress", 
+  "Under Review",
+  "Approved",
+  "On Hold",
+  "Cancelled",
+  "Completed"
+] as const;
+
+export type DesignProjectStatus = typeof designProjectStatuses[number];
+
+// Design Phases
+export const designPhases = [
+  "Conceptual",
+  "Preliminary",
+  "Detailed",
+  "Final",
+  "As-Built"
+] as const;
+
+export type DesignPhase = typeof designPhases[number];
+
+// Drawing Categories
+export const drawingCategories = [
+  "P&ID",
+  "Equipment Layout",
+  "Piping Isometric",
+  "Electrical",
+  "Civil",
+  "Instrumentation",
+  "3D Model",
+  "General Arrangement",
+  "Assembly Drawing",
+  "Detail Drawing"
+] as const;
+
+export type DrawingCategory = typeof drawingCategories[number];
+
+// Drawing Status
+export const drawingStatuses = [
+  "Draft",
+  "Under Review",
+  "Approved",
+  "Issued for Construction",
+  "As-Built",
+  "Superseded",
+  "Cancelled"
+] as const;
+
+export type DrawingStatus = typeof drawingStatuses[number];
+
+// Review Status
+export const reviewStatuses = [
+  "Pending",
+  "In Progress",
+  "Approved",
+  "Rejected",
+  "Approved with Comments"
+] as const;
+
+export type ReviewStatus = typeof reviewStatuses[number];
+
+// Design Projects table
+export const designProjects = pgTable('design_projects', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectCode: text('project_code').notNull(),
+  designProjectName: varchar('design_project_name', { length: 255 }).notNull(),
+  description: text('description'),
+  designPhase: varchar('design_phase', { length: 50 }).notNull(),
+  status: varchar('status', { length: 50 }).notNull().default('Draft'),
+  
+  // Design Manager and Team
+  designManagerId: integer('design_manager_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  teamMembers: jsonb('team_members').default([]), // Array of user IDs
+  
+  // Timeline
+  startDate: date('start_date'),
+  targetEndDate: date('target_end_date'),
+  actualEndDate: date('actual_end_date'),
+  
+  // Client Information
+  clientApprovalRequired: boolean('client_approval_required').default(false),
+  clientContactInfo: text('client_contact_info'),
+  
+  // Progress Tracking
+  overallProgress: integer('overall_progress').default(0), // Percentage 0-100
+  
+  // Audit Information
+  createdBy: integer('created_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Design Drawings table
+export const designDrawings = pgTable('design_drawings', {
+  id: serial('id').primaryKey(),
+  designProjectId: integer('design_project_id').notNull().references(() => designProjects.id, { onDelete: 'cascade' }),
+  
+  // Drawing Identification
+  drawingNumber: varchar('drawing_number', { length: 100 }).notNull().unique(),
+  drawingTitle: varchar('drawing_title', { length: 255 }).notNull(),
+  category: varchar('category', { length: 50 }).notNull(),
+  disciplineCode: varchar('discipline_code', { length: 10 }), // ME, EE, CV, etc.
+  
+  // Drawing Details
+  description: text('description'),
+  scale: varchar('scale', { length: 50 }),
+  paperSize: varchar('paper_size', { length: 10 }).default('A1'),
+  sheetCount: integer('sheet_count').default(1),
+  
+  // Status and Version
+  status: varchar('status', { length: 50 }).notNull().default('Draft'),
+  currentRevision: varchar('current_revision', { length: 10 }).default('A'),
+  latestVersionId: integer('latest_version_id'), // Self-reference to latest version
+  
+  // Assignment
+  assignedToId: integer('assigned_to_id').references(() => users.id, { onDelete: 'set null' }),
+  checkedById: integer('checked_by_id').references(() => users.id, { onDelete: 'set null' }),
+  approvedById: integer('approved_by_id').references(() => users.id, { onDelete: 'set null' }),
+  
+  // Timeline
+  dueDate: date('due_date'),
+  approvedDate: date('approved_date'),
+  issuedDate: date('issued_date'),
+  
+  // Client Approval
+  clientApprovalRequired: boolean('client_approval_required').default(false),
+  clientApprovedDate: date('client_approved_date'),
+  clientApprovedBy: text('client_approved_by'),
+  
+  // References
+  relatedDrawings: jsonb('related_drawings').default([]), // Array of drawing IDs
+  supersededBy: integer('superseded_by').references(() => designDrawings.id),
+  supersedes: integer('supersedes').references(() => designDrawings.id),
+  
+  // Audit Information
+  createdBy: integer('created_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Drawing Versions table (for version control)
+export const drawingVersions = pgTable('drawing_versions', {
+  id: serial('id').primaryKey(),
+  drawingId: integer('drawing_id').notNull().references(() => designDrawings.id, { onDelete: 'cascade' }),
+  
+  // Version Information
+  version: integer('version').notNull(),
+  revision: varchar('revision', { length: 10 }).notNull(),
+  changeDescription: text('change_description'),
+  
+  // File Information
+  fileName: varchar('file_name', { length: 255 }).notNull(),
+  fileUrl: text('file_url').notNull(),
+  filePath: text('file_path').notNull(),
+  fileSize: integer('file_size'),
+  fileType: varchar('file_type', { length: 50 }),
+  mimeType: varchar('mime_type', { length: 100 }),
+  
+  // Drawing Properties
+  fileFormat: varchar('file_format', { length: 10 }).default('DWG'), // DWG, PDF, STEP, etc.
+  isWorkingCopy: boolean('is_working_copy').default(false),
+  isLatestVersion: boolean('is_latest_version').default(true),
+  
+  // Check-in/Check-out system
+  isCheckedOut: boolean('is_checked_out').default(false),
+  checkedOutBy: integer('checked_out_by').references(() => users.id, { onDelete: 'set null' }),
+  checkedOutAt: timestamp('checked_out_at'),
+  
+  // Approval Status
+  reviewStatus: varchar('review_status', { length: 50 }).default('Pending'),
+  
+  // Audit Information
+  createdBy: integer('created_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+// Design Reviews table
+export const designReviews = pgTable('design_reviews', {
+  id: serial('id').primaryKey(),
+  drawingId: integer('drawing_id').notNull().references(() => designDrawings.id, { onDelete: 'cascade' }),
+  versionId: integer('version_id').notNull().references(() => drawingVersions.id, { onDelete: 'cascade' }),
+  
+  // Review Information
+  reviewType: varchar('review_type', { length: 50 }).notNull(), // Internal, Client, Third Party
+  reviewStage: varchar('review_stage', { length: 50 }), // Preliminary, Detailed, Final
+  reviewTitle: varchar('review_title', { length: 255 }),
+  
+  // Review Assignment
+  reviewerId: integer('reviewer_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  reviewerRole: varchar('reviewer_role', { length: 50 }), // Designer, Checker, Approver, Client
+  
+  // Review Status
+  status: varchar('status', { length: 50 }).notNull().default('Pending'),
+  priority: varchar('priority', { length: 20 }).default('Medium'),
+  
+  // Review Details
+  reviewComments: text('review_comments'),
+  markupFileUrl: text('markup_file_url'), // Marked up drawing
+  
+  // Timeline
+  requestedDate: timestamp('requested_date').notNull().defaultNow(),
+  dueDate: date('due_date'),
+  startedDate: timestamp('started_date'),
+  completedDate: timestamp('completed_date'),
+  
+  // Review Decision
+  recommendation: varchar('recommendation', { length: 50 }), // Approve, Reject, Approve with Comments
+  
+  // Audit Information
+  createdBy: integer('created_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Review Comments table (detailed feedback)
+export const reviewComments = pgTable('review_comments', {
+  id: serial('id').primaryKey(),
+  reviewId: integer('review_id').notNull().references(() => designReviews.id, { onDelete: 'cascade' }),
+  
+  // Comment Details
+  commentNumber: integer('comment_number').notNull(),
+  commentType: varchar('comment_type', { length: 50 }).default('General'), // General, Critical, Minor, Suggestion
+  discipline: varchar('discipline', { length: 50 }),
+  
+  // Comment Content
+  comment: text('comment').notNull(),
+  location: varchar('location', { length: 255 }), // Drawing coordinate or description
+  category: varchar('category', { length: 100 }), // Design, Code Compliance, etc.
+  
+  // Response and Resolution
+  designerResponse: text('designer_response'),
+  resolutionAction: text('resolution_action'),
+  resolutionStatus: varchar('resolution_status', { length: 50 }).default('Open'), // Open, Closed, Verified
+  
+  // Timeline
+  raisedDate: timestamp('raised_date').notNull().defaultNow(),
+  targetResolutionDate: date('target_resolution_date'),
+  resolvedDate: timestamp('resolved_date'),
+  verifiedDate: timestamp('verified_date'),
+  
+  // Assignment
+  assignedToId: integer('assigned_to_id').references(() => users.id, { onDelete: 'set null' }),
+  verifiedById: integer('verified_by_id').references(() => users.id, { onDelete: 'set null' }),
+  
+  // Audit Information
+  createdBy: integer('created_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Design Standards table
+export const designStandards = pgTable('design_standards', {
+  id: serial('id').primaryKey(),
+  
+  // Standard Information
+  standardNumber: varchar('standard_number', { length: 100 }).notNull(),
+  title: varchar('title', { length: 255 }).notNull(),
+  category: varchar('category', { length: 100 }).notNull(), // Templates, Symbols, Specifications, Guidelines
+  discipline: varchar('discipline', { length: 50 }), // Mechanical, Electrical, Civil, etc.
+  
+  // Content
+  description: text('description'),
+  content: text('content'), // For text-based standards
+  
+  // File Attachments
+  fileUrl: text('file_url'),
+  filePath: text('file_path'),
+  fileName: varchar('file_name', { length: 255 }),
+  fileSize: integer('file_size'),
+  fileType: varchar('file_type', { length: 50 }),
+  
+  // Version Control
+  version: varchar('version', { length: 50 }).notNull(),
+  revision: varchar('revision', { length: 10 }).default('A'),
+  effectiveDate: date('effective_date'),
+  supersededDate: date('superseded_date'),
+  
+  // Usage and Access
+  isActive: boolean('is_active').default(true),
+  accessLevel: varchar('access_level', { length: 50 }).default('Internal'), // Internal, Client, Public
+  usageGuidelines: text('usage_guidelines'),
+  
+  // References
+  relatedStandards: jsonb('related_standards').default([]), // Array of standard IDs
+  
+  // Audit Information
+  createdBy: integer('created_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Drawing Transmittals table (for client/external submissions)
+export const drawingTransmittals = pgTable('drawing_transmittals', {
+  id: serial('id').primaryKey(),
+  designProjectId: integer('design_project_id').notNull().references(() => designProjects.id, { onDelete: 'cascade' }),
+  
+  // Transmittal Information
+  transmittalNumber: varchar('transmittal_number', { length: 100 }).notNull().unique(),
+  transmittalTitle: varchar('transmittal_title', { length: 255 }).notNull(),
+  purpose: varchar('purpose', { length: 100 }), // For Approval, For Information, For Construction
+  
+  // Recipient Information
+  recipientOrganization: varchar('recipient_organization', { length: 255 }).notNull(),
+  recipientContact: varchar('recipient_contact', { length: 255 }),
+  recipientEmail: varchar('recipient_email', { length: 255 }),
+  
+  // Drawings Included
+  drawingIds: jsonb('drawing_ids').notNull(), // Array of drawing IDs
+  totalDrawings: integer('total_drawings').notNull(),
+  
+  // Status and Timeline
+  status: varchar('status', { length: 50 }).default('Draft'), // Draft, Sent, Acknowledged, Approved
+  sentDate: timestamp('sent_date'),
+  acknowledgedDate: timestamp('acknowledged_date'),
+  responseDate: timestamp('response_date'),
+  dueDate: date('due_date'),
+  
+  // Content
+  coverLetter: text('cover_letter'),
+  specialInstructions: text('special_instructions'),
+  
+  // Response Tracking
+  clientComments: text('client_comments'),
+  responseDocumentUrl: text('response_document_url'),
+  
+  // Audit Information
+  createdBy: integer('created_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Design Assignments table (for task management)
+export const designAssignments = pgTable('design_assignments', {
+  id: serial('id').primaryKey(),
+  designProjectId: integer('design_project_id').notNull().references(() => designProjects.id, { onDelete: 'cascade' }),
+  drawingId: integer('drawing_id').references(() => designDrawings.id, { onDelete: 'cascade' }),
+  
+  // Assignment Details
+  taskTitle: varchar('task_title', { length: 255 }).notNull(),
+  taskDescription: text('task_description'),
+  taskType: varchar('task_type', { length: 50 }).notNull(), // Design, Review, Approval, Checking
+  
+  // Assignment
+  assignedToId: integer('assigned_to_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  assignedById: integer('assigned_by_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  
+  // Status and Priority
+  status: varchar('status', { length: 50 }).default('Assigned'), // Assigned, In Progress, Completed, On Hold
+  priority: varchar('priority', { length: 20 }).default('Medium'),
+  
+  // Timeline
+  assignedDate: timestamp('assigned_date').notNull().defaultNow(),
+  dueDate: date('due_date'),
+  startedDate: timestamp('started_date'),
+  completedDate: timestamp('completed_date'),
+  
+  // Work Tracking
+  estimatedHours: decimal('estimated_hours', { precision: 5, scale: 2 }),
+  actualHours: decimal('actual_hours', { precision: 5, scale: 2 }),
+  progressPercentage: integer('progress_percentage').default(0),
+  
+  // Comments and Notes
+  assignmentNotes: text('assignment_notes'),
+  completionNotes: text('completion_notes'),
+  
+  // Audit Information
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Define relationships for Design Module
+export const designProjectsRelations = relations(designProjects, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [designProjects.projectId],
+    references: [projects.id],
+  }),
+  designManager: one(users, {
+    fields: [designProjects.designManagerId],
+    references: [users.id],
+  }),
+  creator: one(users, {
+    fields: [designProjects.createdBy],
+    references: [users.id],
+  }),
+  drawings: many(designDrawings),
+  transmittals: many(drawingTransmittals),
+  assignments: many(designAssignments),
+}));
+
+export const designDrawingsRelations = relations(designDrawings, ({ one, many }) => ({
+  designProject: one(designProjects, {
+    fields: [designDrawings.designProjectId],
+    references: [designProjects.id],
+  }),
+  assignedTo: one(users, {
+    fields: [designDrawings.assignedToId],
+    references: [users.id],
+  }),
+  checkedBy: one(users, {
+    fields: [designDrawings.checkedById],
+    references: [users.id],
+  }),
+  approvedBy: one(users, {
+    fields: [designDrawings.approvedById],
+    references: [users.id],
+  }),
+  supersededByDrawing: one(designDrawings, {
+    fields: [designDrawings.supersededBy],
+    references: [designDrawings.id],
+  }),
+  supersedesDrawing: one(designDrawings, {
+    fields: [designDrawings.supersedes],
+    references: [designDrawings.id],
+  }),
+  creator: one(users, {
+    fields: [designDrawings.createdBy],
+    references: [users.id],
+  }),
+  versions: many(drawingVersions),
+  reviews: many(designReviews),
+}));
+
+export const drawingVersionsRelations = relations(drawingVersions, ({ one, many }) => ({
+  drawing: one(designDrawings, {
+    fields: [drawingVersions.drawingId],
+    references: [designDrawings.id],
+  }),
+  checkedOutBy: one(users, {
+    fields: [drawingVersions.checkedOutBy],
+    references: [users.id],
+  }),
+  creator: one(users, {
+    fields: [drawingVersions.createdBy],
+    references: [users.id],
+  }),
+  reviews: many(designReviews),
+}));
+
+export const designReviewsRelations = relations(designReviews, ({ one, many }) => ({
+  drawing: one(designDrawings, {
+    fields: [designReviews.drawingId],
+    references: [designDrawings.id],
+  }),
+  version: one(drawingVersions, {
+    fields: [designReviews.versionId],
+    references: [drawingVersions.id],
+  }),
+  reviewer: one(users, {
+    fields: [designReviews.reviewerId],
+    references: [users.id],
+  }),
+  creator: one(users, {
+    fields: [designReviews.createdBy],
+    references: [users.id],
+  }),
+  comments: many(reviewComments),
+}));
+
+export const reviewCommentsRelations = relations(reviewComments, ({ one }) => ({
+  review: one(designReviews, {
+    fields: [reviewComments.reviewId],
+    references: [designReviews.id],
+  }),
+  assignedTo: one(users, {
+    fields: [reviewComments.assignedToId],
+    references: [users.id],
+  }),
+  verifiedBy: one(users, {
+    fields: [reviewComments.verifiedById],
+    references: [users.id],
+  }),
+  creator: one(users, {
+    fields: [reviewComments.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const designStandardsRelations = relations(designStandards, ({ one }) => ({
+  creator: one(users, {
+    fields: [designStandards.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const drawingTransmittalsRelations = relations(drawingTransmittals, ({ one }) => ({
+  designProject: one(designProjects, {
+    fields: [drawingTransmittals.designProjectId],
+    references: [designProjects.id],
+  }),
+  creator: one(users, {
+    fields: [drawingTransmittals.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const designAssignmentsRelations = relations(designAssignments, ({ one }) => ({
+  designProject: one(designProjects, {
+    fields: [designAssignments.designProjectId],
+    references: [designProjects.id],
+  }),
+  drawing: one(designDrawings, {
+    fields: [designAssignments.drawingId],
+    references: [designDrawings.id],
+  }),
+  assignedTo: one(users, {
+    fields: [designAssignments.assignedToId],
+    references: [users.id],
+  }),
+  assignedBy: one(users, {
+    fields: [designAssignments.assignedById],
+    references: [users.id],
+  }),
+}));
+
+// Create Zod schemas for data validation
+export const insertDesignProjectSchema = createInsertSchema(designProjects)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    designPhase: z.enum(['Conceptual', 'Preliminary', 'Detailed', 'Final', 'As-Built']),
+    status: z.enum(['Draft', 'In Progress', 'Under Review', 'Approved', 'On Hold', 'Cancelled', 'Completed']),
+    startDate: z.string().optional().transform(dateStringToDate),
+    targetEndDate: z.string().optional().transform(dateStringToDate),
+    actualEndDate: z.string().optional().transform(dateStringToDate),
+    teamMembers: z.array(z.number()).default([]),
+    overallProgress: z.number().min(0).max(100).default(0),
+  });
+
+export const insertDesignDrawingSchema = createInsertSchema(designDrawings)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    category: z.enum(['P&ID', 'Equipment Layout', 'Piping Isometric', 'Electrical', 'Civil', 'Instrumentation', '3D Model', 'General Arrangement', 'Assembly Drawing', 'Detail Drawing']),
+    status: z.enum(['Draft', 'Under Review', 'Approved', 'Issued for Construction', 'As-Built', 'Superseded', 'Cancelled']),
+    dueDate: z.string().optional().transform(dateStringToDate),
+    approvedDate: z.string().optional().transform(dateStringToDate),
+    issuedDate: z.string().optional().transform(dateStringToDate),
+    clientApprovedDate: z.string().optional().transform(dateStringToDate),
+    relatedDrawings: z.array(z.number()).default([]),
+  });
+
+export const insertDrawingVersionSchema = createInsertSchema(drawingVersions)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    reviewStatus: z.enum(['Pending', 'In Progress', 'Approved', 'Rejected', 'Approved with Comments']),
+  });
+
+export const insertDesignReviewSchema = createInsertSchema(designReviews)
+  .omit({ id: true, createdAt: true, updatedAt: true, requestedDate: true })
+  .extend({
+    status: z.enum(['Pending', 'In Progress', 'Approved', 'Rejected', 'Approved with Comments']),
+    dueDate: z.string().optional().transform(dateStringToDate),
+    recommendation: z.enum(['Approve', 'Reject', 'Approve with Comments']).optional(),
+  });
+
+export const insertReviewCommentSchema = createInsertSchema(reviewComments)
+  .omit({ id: true, createdAt: true, updatedAt: true, raisedDate: true })
+  .extend({
+    resolutionStatus: z.enum(['Open', 'Closed', 'Verified']),
+    targetResolutionDate: z.string().optional().transform(dateStringToDate),
+  });
+
+export const insertDesignStandardSchema = createInsertSchema(designStandards)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    effectiveDate: z.string().optional().transform(dateStringToDate),
+    supersededDate: z.string().optional().transform(dateStringToDate),
+    relatedStandards: z.array(z.number()).default([]),
+  });
+
+export const insertDrawingTransmittalSchema = createInsertSchema(drawingTransmittals)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    drawingIds: z.array(z.number()).min(1, "At least one drawing must be included"),
+    dueDate: z.string().optional().transform(dateStringToDate),
+  });
+
+export const insertDesignAssignmentSchema = createInsertSchema(designAssignments)
+  .omit({ id: true, createdAt: true, updatedAt: true, assignedDate: true })
+  .extend({
+    status: z.enum(['Assigned', 'In Progress', 'Completed', 'On Hold']),
+    dueDate: z.string().optional().transform(dateStringToDate),
+    progressPercentage: z.number().min(0).max(100).default(0),
+  });
+
+// Export types for Design Module
+export type DesignProject = typeof designProjects.$inferSelect;
+export type InsertDesignProject = z.infer<typeof insertDesignProjectSchema>;
+
+export type DesignDrawing = typeof designDrawings.$inferSelect;
+export type InsertDesignDrawing = z.infer<typeof insertDesignDrawingSchema>;
+
+export type DrawingVersion = typeof drawingVersions.$inferSelect;
+export type InsertDrawingVersion = z.infer<typeof insertDrawingVersionSchema>;
+
+export type DesignReview = typeof designReviews.$inferSelect;
+export type InsertDesignReview = z.infer<typeof insertDesignReviewSchema>;
+
+export type ReviewComment = typeof reviewComments.$inferSelect;
+export type InsertReviewComment = z.infer<typeof insertReviewCommentSchema>;
+
+export type DesignStandard = typeof designStandards.$inferSelect;
+export type InsertDesignStandard = z.infer<typeof insertDesignStandardSchema>;
+
+export type DrawingTransmittal = typeof drawingTransmittals.$inferSelect;
+export type InsertDrawingTransmittal = z.infer<typeof insertDrawingTransmittalSchema>;
+
+export type DesignAssignment = typeof designAssignments.$inferSelect;
+export type InsertDesignAssignment = z.infer<typeof insertDesignAssignmentSchema>;
