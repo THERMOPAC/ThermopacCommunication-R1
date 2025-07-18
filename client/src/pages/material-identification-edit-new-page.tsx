@@ -155,14 +155,35 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
   const { data: documents = [], isLoading: isLoadingDocuments, refetch: refetchDocuments } = useQuery<Document[]>({
     queryKey: ['/api/quality/material-identification', recordId, 'documents'],
     queryFn: async () => {
-      const response = await fetch(`/api/quality/material-identification/${recordId}/documents`);
+      const response = await fetch(`/api/quality/material-identification/${recordId}/documents`, {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch material identification documents');
       }
       return response.json();
     },
     enabled: !!recordId && recordId !== 'new',
+    staleTime: 0, // Always refetch
+    cacheTime: 0, // Don't cache
   });
+
+  // Debug logging for documents
+  React.useEffect(() => {
+    if (documents && documents.length > 0) {
+      console.log('Documents loaded:', documents.map(doc => ({
+        id: doc.id,
+        file_name: doc.file_name,
+        file_path: doc.file_path,
+        document_type: doc.document_type
+      })));
+    } else {
+      console.log('No documents loaded, count:', documents.length);
+    }
+  }, [documents]);
   
   // Create form with default values
   const form = useForm<MaterialIdentificationFormValues>({
