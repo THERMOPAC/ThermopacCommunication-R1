@@ -73,6 +73,7 @@ import { default as visaManagementRoutes } from "./visa-management-routes";
 import { default as schengenRoutes } from "./schengen-routes";
 import { default as legalManagementRoutes } from "./legal-management-routes";
 import { default as googleCalendarRoutes } from "./google-calendar-routes";
+import { default as designRoutes } from "./design-routes";
 import { vpnManager } from "./vpn/vpn-manager";
 import { detectTimezoneFromIP, getTimezoneOffset } from "./timezone-detection-service";
 import { 
@@ -2950,6 +2951,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   } else {
     console.log('ℹ️ VPN disabled for SAP B1 integration - using direct connection mode');
   }
+
+  // =============================================================================
+  // DESIGN MANAGEMENT ROUTES
+  // =============================================================================
+  
+  app.use('/api/design', designRoutes);
+  console.log('Design Management routes registered at /api/design');
 
   const httpServer = createServer(app);
   return httpServer;

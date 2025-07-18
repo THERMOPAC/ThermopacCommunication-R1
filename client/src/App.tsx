@@ -100,6 +100,11 @@ import GcsDiagnosticPage from "@/pages/gcs-diagnostic-page";
 import GcsTestPage from "@/pages/gcs-test-page";
 import DesignToolsPage from "@/pages/design-tools-page";
 import DesignManagementPage from "@/pages/design-management-page";
+import DesignProjectsPage from "@/pages/design-projects-page";
+import DesignDrawingsPage from "@/pages/design-drawings-page";
+import DesignReviewsPage from "@/pages/design-reviews-page";
+import DesignStandardsPage from "@/pages/design-standards-page";
+import DesignTransmittalsPage from "@/pages/design-transmittals-page";
 import WorkLocationsPage from "@/pages/work-locations-page";
 import AttendancePage from "@/pages/attendance-page";
 import DwarPage from "@/pages/dwar-page";
@@ -302,6 +307,14 @@ function Router() {
       <SuperuserRoute path="/module-permissions" component={ModulePermissionsPage} />
       <ProtectedRoute path="/google-calendar-settings" component={() => <Layout><GoogleCalendarSettingsPage /></Layout>} />
       
+      {/* Design Management Routes */}
+      <ProtectedRoute path="/design-management" component={() => <Layout><DesignManagementPage /></Layout>} />
+      <ProtectedRoute path="/design-projects" component={() => <Layout><DesignProjectsPage /></Layout>} />
+      <ProtectedRoute path="/design-drawings" component={() => <Layout><DesignDrawingsPage /></Layout>} />
+      <ProtectedRoute path="/design-reviews" component={() => <Layout><DesignReviewsPage /></Layout>} />
+      <ProtectedRoute path="/design-standards" component={() => <Layout><DesignStandardsPage /></Layout>} />
+      <ProtectedRoute path="/design-transmittals" component={() => <Layout><DesignTransmittalsPage /></Layout>} />
+
       {/* SAP B1 Integration Routes */}
       <ProtectedRoute path="/sap-integration" component={() => <Layout><SapIntegrationPage /></Layout>} />
       <ProtectedRoute path="/sap-b1/purchase" component={() => <Layout><PurchaseModule /></Layout>} />
