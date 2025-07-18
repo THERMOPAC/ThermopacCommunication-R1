@@ -53,19 +53,7 @@ const validateSchema = (schema: AnyZodObject) => {
   };
 };
 
-// Import the main authentication middleware
-import { ensureAuthenticated } from '../auth-middleware';
-
 const router = Router();
-
-// Add debug middleware to log all requests
-router.use((req: Request, res: Response, next) => {
-  console.log(`🔍 MATERIAL IDENTIFICATION ROUTE - ${req.method} ${req.originalUrl}`);
-  console.log(`🔍 Base URL: ${req.baseUrl}`);
-  console.log(`🔍 Path: ${req.path}`);
-  console.log(`🔍 Params:`, req.params);
-  next();
-});
 
 // Schema for material identification validation 
 const materialIdentificationSchema = z.object({
@@ -778,21 +766,17 @@ router.get("/:id/documents", async (req: Request, res: Response) => {
 });
 
 // Delete a document
-router.delete("/:id/documents/:documentId", ensureAuthenticated, async (req: Request, res: Response) => {
-  console.log('🗑️ MATERIAL IDENTIFICATION DELETE - Request received');
-  console.log('🗑️ Request URL:', req.originalUrl);
-  console.log('🗑️ Request params:', req.params);
-  console.log('🗑️ Material ID:', req.params.id);
-  console.log('🗑️ Document ID:', req.params.documentId);
-  
+router.delete("/documents/:documentId", async (req: Request, res: Response) => {
   try {
+    console.log('🗑️ Delete document request received');
+    console.log('Request params:', req.params);
+    console.log('Document ID:', req.params.documentId);
     
-    const materialId = req.params.id;
     const documentId = req.params.documentId;
     
-    if (!materialId || !documentId) {
-      console.error('❌ Material ID or Document ID is missing');
-      return res.status(400).json({ error: "Material ID and Document ID are required" });
+    if (!documentId) {
+      console.error('❌ Document ID is missing');
+      return res.status(400).json({ error: "Document ID is required" });
     }
     
     // Get document details first
@@ -800,7 +784,7 @@ router.delete("/:id/documents/:documentId", ensureAuthenticated, async (req: Req
       SELECT mid.*, mi.material_identification_id, mi.project_number
       FROM material_identification_documents mid
       JOIN material_identification mi ON mid.material_identification_id = mi.id
-      WHERE mid.id = ${documentId} AND mi.id = ${materialId}
+      WHERE mid.id = ${documentId}
     `) as any;
     
     if (!document || !document.rows || document.rows.length === 0) {
@@ -1006,7 +990,5 @@ router.get("/:id/documents/:documentId/download", async (req: Request, res: Resp
     res.status(500).json({ error: "Failed to download document" });
   }
 });
-
-console.log('🚀 Material Identification routes loaded with delete endpoint');
 
 export default router;
