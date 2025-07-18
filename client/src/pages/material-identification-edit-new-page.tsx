@@ -115,10 +115,15 @@ interface MaterialIdentificationEditProps {
 }
 
 export default function MaterialIdentificationEditNewPage({ params }: MaterialIdentificationEditProps) {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const recordId = params.id;
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Parse URL parameters for project filter context
+  const urlParams = new URLSearchParams(window.location.search);
+  const projectParam = urlParams.get('project');
+  const keepParam = urlParams.get('keep');
   
   // State to track select field values
   const [specificationValue, setSpecificationValue] = useState("");
@@ -562,7 +567,14 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
               <Button 
                 variant="outline" 
                 className="mt-4" 
-                onClick={() => navigate('/quality/material-identification')}
+                onClick={() => {
+                  // Preserve project filter context if Keep Visible was enabled
+                  if (projectParam && keepParam === 'true') {
+                    navigate(`/quality/material-identification?project=${projectParam}&keep=true`);
+                  } else {
+                    navigate('/quality/material-identification');
+                  }
+                }}
               >
                 Back to List
               </Button>
@@ -580,7 +592,14 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
         <div className="mb-6">
           <Button 
             variant="outline" 
-            onClick={() => navigate('/quality/material-identification')}
+            onClick={() => {
+              // Preserve project filter context if Keep Visible was enabled
+              if (projectParam && keepParam === 'true') {
+                navigate(`/quality/material-identification?project=${projectParam}&keep=true`);
+              } else {
+                navigate('/quality/material-identification');
+              }
+            }}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />

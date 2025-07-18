@@ -6,6 +6,8 @@ import Layout from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { 
   Table, 
   TableBody, 
@@ -84,12 +86,45 @@ interface Project {
 }
 
 export default function MaterialIdentificationListNewPage() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(10);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [showRecords, setShowRecords] = useState(false);
+  const [keepVisible, setKeepVisible] = useState(false);
+  
+  // Parse URL parameters on component mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectParam = urlParams.get('project');
+    const keepParam = urlParams.get('keep');
+    
+    if (projectParam) {
+      const projectId = parseInt(projectParam);
+      setSelectedProjectId(projectId);
+      setShowRecords(true);
+    }
+    
+    if (keepParam === 'true') {
+      setKeepVisible(true);
+    }
+  }, [location]);
+  
+  // Update URL when project filter changes
+  const updateURL = (projectId: number | null, keep: boolean) => {
+    const params = new URLSearchParams();
+    if (projectId && keep) {
+      params.set('project', projectId.toString());
+      params.set('keep', 'true');
+    }
+    
+    const newUrl = params.toString() ? 
+      `/quality/material-identification?${params.toString()}` : 
+      '/quality/material-identification';
+    
+    window.history.replaceState({}, '', newUrl);
+  };
   
   // Fetch projects for the dropdown
   const { data: projectsData, isLoading: projectsLoading } = useQuery({
@@ -165,11 +200,19 @@ export default function MaterialIdentificationListNewPage() {
   
   // Handle navigation to view/edit pages
   const handleView = (id: number) => {
-    navigate(`/quality/material-identification/view/${id}`);
+    if (keepVisible && selectedProjectId) {
+      navigate(`/quality/material-identification/view/${id}?project=${selectedProjectId}&keep=true`);
+    } else {
+      navigate(`/quality/material-identification/view/${id}`);
+    }
   };
   
   const handleEdit = (id: number) => {
-    navigate(`/quality/material-identification/edit/${id}`);
+    if (keepVisible && selectedProjectId) {
+      navigate(`/quality/material-identification/edit/${id}?project=${selectedProjectId}&keep=true`);
+    } else {
+      navigate(`/quality/material-identification/edit/${id}`);
+    }
   };
   
   const handleCreate = () => {
@@ -269,28 +312,51 @@ export default function MaterialIdentificationListNewPage() {
                 Select a project to view its material identification records.
               </p>
               
-              <div className="flex-1">
-                {projectsLoading ? (
-                  <div className="h-10 flex items-center">Loading projects...</div>
-                ) : (
-                  <select 
-                    className="w-full h-10 rounded-md border border-input bg-background px-3 py-2"
-                    value={selectedProjectId || ""}
-                    onChange={(e) => {
-                      const id = e.target.value ? parseInt(e.target.value) : null;
-                      setSelectedProjectId(id);
-                      // Automatically show records when project is selected
-                      setShowRecords(!!id);
+              <div className="space-y-4">
+                <div className="flex-1">
+                  {projectsLoading ? (
+                    <div className="h-10 flex items-center">Loading projects...</div>
+                  ) : (
+                    <select 
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 py-2"
+                      value={selectedProjectId || ""}
+                      onChange={(e) => {
+                        const id = e.target.value ? parseInt(e.target.value) : null;
+                        setSelectedProjectId(id);
+                        // Automatically show records when project is selected
+                        setShowRecords(!!id);
+                        // Update URL when project changes
+                        updateURL(id, keepVisible);
+                      }}
+                    >
+                      <option value="">-- Select a project --</option>
+                      {activeProjects.map(project => (
+                        <option key={project.id} value={project.id}>
+                          {project.code} - {project.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                
+                {/* Keep Visible checkbox */}
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="keep-visible" 
+                    checked={keepVisible}
+                    onCheckedChange={(checked) => {
+                      const isChecked = checked === true;
+                      setKeepVisible(isChecked);
+                      updateURL(selectedProjectId, isChecked);
                     }}
-                  >
-                    <option value="">-- Select a project --</option>
-                    {activeProjects.map(project => (
-                      <option key={project.id} value={project.id}>
-                        {project.code} - {project.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
+                  />
+                  <Label htmlFor="keep-visible" className="text-sm font-medium">
+                    Keep Visible
+                  </Label>
+                  <span className="text-xs text-gray-500">
+                    (Maintain project filter when returning from edit/view pages)
+                  </span>
+                </div>
               </div>
             </div>
             
