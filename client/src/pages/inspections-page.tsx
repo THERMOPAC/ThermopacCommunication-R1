@@ -4276,7 +4276,7 @@ export default function InspectionsPage() {
                               <TableHead>Duration (min)</TableHead>
                               <TableHead>Medium</TableHead>
                               <TableHead>Pressure Gauge</TableHead>
-                              <TableHead>Operator</TableHead>
+                              <TableHead>Inspector</TableHead>
                               <TableHead>Date</TableHead>
                               <TableHead>Result</TableHead>
                               <TableHead>Notes</TableHead>
