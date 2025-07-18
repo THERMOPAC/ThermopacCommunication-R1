@@ -1,7 +1,8 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { FileText, Eye, Download, Loader2 } from 'lucide-react';
+import { FileText, Eye, Download, Loader2, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import {
   Card,
   CardContent,
@@ -40,6 +41,9 @@ const InspectionDocumentViewer: React.FC<InspectionDocumentViewerProps> = ({
   recordId,
   className = '',
 }) => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
   const { data, isLoading, error } = useQuery({
     queryKey: ['/api/quality/inspection-documents', inspectionOrderNumber, tabName, recordId],
     queryFn: async () => {
@@ -56,6 +60,88 @@ const InspectionDocumentViewer: React.FC<InspectionDocumentViewerProps> = ({
     enabled: !!inspectionOrderNumber && !!tabName && !!recordId,
   });
   
+  const downloadMutation = useMutation({
+    mutationFn: async (documentId: number) => {
+      const response = await fetch(`/api/quality/inspection-documents/${inspectionOrderNumber}/${tabName}/${recordId}/documents/${documentId}/download`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to download document');
+      }
+      
+      return response;
+    },
+    onSuccess: async (response, documentId) => {
+      // Get the document to retrieve filename
+      const document = data?.find(d => d.id === documentId);
+      const fileName = document?.fileName || `document_${documentId}.pdf`;
+      
+      // Create blob from response
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = window.document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      window.document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup
+      window.document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Document downloaded",
+        description: `${fileName} has been downloaded successfully.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Download failed",
+        description: error instanceof Error ? error.message : "Failed to download document",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const deleteMutation = useMutation({
+    mutationFn: async (documentId: number) => {
+      const response = await fetch(`/api/quality/inspection-documents/${inspectionOrderNumber}/${tabName}/${recordId}/documents/${documentId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete document');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (responseData, documentId) => {
+      // Get the document to retrieve filename before it's removed from the cache
+      const document = data?.find(d => d.id === documentId);
+      const fileName = document?.fileName || `Document ${documentId}`;
+      
+      // Invalidate and refetch the documents
+      queryClient.invalidateQueries({
+        queryKey: ['/api/quality/inspection-documents', inspectionOrderNumber, tabName, recordId]
+      });
+      
+      toast({
+        title: "Document deleted",
+        description: `${fileName} has been deleted successfully.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Delete failed",
+        description: error instanceof Error ? error.message : "Failed to delete document",
+        variant: "destructive",
+      });
+    },
+  });
+  
   const openDocument = (url?: string) => {
     if (!url) return;
     
@@ -64,15 +150,13 @@ const InspectionDocumentViewer: React.FC<InspectionDocumentViewerProps> = ({
   };
   
   const downloadDocument = (document: Document) => {
-    if (!document.fileUrl) return;
-    
-    // Create a temporary anchor element
-    const a = window.document.createElement('a');
-    a.href = document.fileUrl;
-    a.download = document.fileName || `document_${document.id}.pdf`;
-    window.document.body.appendChild(a);
-    a.click();
-    window.document.body.removeChild(a);
+    downloadMutation.mutate(document.id);
+  };
+  
+  const deleteDocument = (document: Document) => {
+    if (window.confirm(`Are you sure you want to delete "${document.fileName}"? This action cannot be undone.`)) {
+      deleteMutation.mutate(document.id);
+    }
   };
   
   if (isLoading) {
@@ -127,9 +211,27 @@ const InspectionDocumentViewer: React.FC<InspectionDocumentViewerProps> = ({
               variant="outline"
               size="sm"
               onClick={() => downloadDocument(document)}
-              disabled={!document.fileUrl}
+              disabled={downloadMutation.isPending}
             >
-              <Download className="h-4 w-4 mr-1" /> Download
+              {downloadMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-1" />
+              )}
+              Download
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => deleteDocument(document)}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-1" />
+              )}
+              Delete
             </Button>
           </CardFooter>
         </Card>

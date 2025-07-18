@@ -217,4 +217,227 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId", ensureAuthenticated, as
   }
 });
 
+// Download inspection document
+router.get("/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId/download", ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { inspectionOrderNumber, tabName, recordId, documentId } = req.params;
+    
+    console.log(`Download request - Inspection: ${inspectionOrderNumber}, Tab: ${tabName}, Record: ${recordId}, Document: ${documentId}`);
+    
+    if (!inspectionOrderNumber || !tabName || !recordId || !documentId) {
+      return res.status(400).json({ error: "Required parameters are missing" });
+    }
+    
+    // Get the inspection order and project code
+    const inspection = await db.query.inspectionOrders.findFirst({
+      where: eq(inspectionOrders.inspectionOrderNumber, inspectionOrderNumber)
+    });
+    
+    if (!inspection) {
+      return res.status(404).json({ error: "Inspection order not found" });
+    }
+    
+    // Get the document record
+    const document = await db.query.inspectionDocuments.findFirst({
+      where: eq(inspectionDocuments.id, parseInt(documentId))
+    });
+    
+    if (!document) {
+      return res.status(404).json({ error: "Document not found" });
+    }
+    
+    // Map tab names to folder names
+    let formattedTabName = tabName;
+    if (tabName === 'NonConformance') {
+      formattedTabName = 'NCR';
+    } else if (tabName === 'Visual') {
+      formattedTabName = 'Visual';
+    }
+    
+    // Try multiple path formats for file detection
+    const projectCode = inspection.projectCode || 'UNKNOWN';
+    const pathsToTry = [
+      // New hierarchical format (preferred)
+      `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${document.fileName?.split('.').pop() || 'pdf'}`,
+      // Stored database path
+      document.filePath,
+      // Old format fallback
+      `QMS/Inspections_Records/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${document.fileName?.split('.').pop() || 'pdf'}`
+    ].filter(Boolean);
+    
+    console.log(`Trying paths for download:`, pathsToTry);
+    
+    // Import GCS utilities
+    const { Storage } = require('@google-cloud/storage');
+    const { gcsCredentials, gcsBucketName } = require('../utils/gcs-config');
+    
+    const storage = new Storage({
+      credentials: gcsCredentials,
+      projectId: gcsCredentials.project_id
+    });
+    
+    const bucket = storage.bucket(gcsBucketName);
+    let fileFound = false;
+    let finalPath = '';
+    
+    // Try each path to find the file
+    for (const path of pathsToTry) {
+      try {
+        const file = bucket.file(path);
+        const [exists] = await file.exists();
+        
+        if (exists) {
+          fileFound = true;
+          finalPath = path;
+          console.log(`File found at path: ${finalPath}`);
+          break;
+        } else {
+          console.log(`File not found at path: ${path}`);
+        }
+      } catch (error) {
+        console.log(`Error checking path ${path}:`, error);
+      }
+    }
+    
+    if (!fileFound) {
+      console.error(`File not found at any of the attempted paths for document ${documentId}`);
+      return res.status(404).json({ error: "File not found in storage" });
+    }
+    
+    // Stream the file
+    const file = bucket.file(finalPath);
+    const readStream = file.createReadStream();
+    
+    // Set appropriate headers
+    res.setHeader('Content-Disposition', `attachment; filename="${document.fileName || 'document.pdf'}"`);
+    res.setHeader('Content-Type', document.fileType || 'application/pdf');
+    
+    // Handle stream errors
+    readStream.on('error', (error) => {
+      console.error('Error streaming file:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Error downloading file" });
+      }
+    });
+    
+    // Pipe the file to response
+    readStream.pipe(res);
+    
+  } catch (error) {
+    console.error('Error downloading inspection document:', error);
+    return res.status(500).json({ 
+      error: "Internal server error",
+      message: error instanceof Error ? error.message : "Unknown error occurred"
+    });
+  }
+});
+
+// Delete inspection document
+router.delete("/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId", ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { inspectionOrderNumber, tabName, recordId, documentId } = req.params;
+    
+    console.log(`Delete request - Inspection: ${inspectionOrderNumber}, Tab: ${tabName}, Record: ${recordId}, Document: ${documentId}`);
+    
+    if (!inspectionOrderNumber || !tabName || !recordId || !documentId) {
+      return res.status(400).json({ error: "Required parameters are missing" });
+    }
+    
+    // Get the inspection order and project code
+    const inspection = await db.query.inspectionOrders.findFirst({
+      where: eq(inspectionOrders.inspectionOrderNumber, inspectionOrderNumber)
+    });
+    
+    if (!inspection) {
+      return res.status(404).json({ error: "Inspection order not found" });
+    }
+    
+    // Get the document record
+    const document = await db.query.inspectionDocuments.findFirst({
+      where: eq(inspectionDocuments.id, parseInt(documentId))
+    });
+    
+    if (!document) {
+      return res.status(404).json({ error: "Document not found" });
+    }
+    
+    // Map tab names to folder names
+    let formattedTabName = tabName;
+    if (tabName === 'NonConformance') {
+      formattedTabName = 'NCR';
+    } else if (tabName === 'Visual') {
+      formattedTabName = 'Visual';
+    }
+    
+    // Try multiple path formats for file detection
+    const projectCode = inspection.projectCode || 'UNKNOWN';
+    const pathsToTry = [
+      // New hierarchical format (preferred)
+      `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${document.fileName?.split('.').pop() || 'pdf'}`,
+      // Stored database path
+      document.filePath,
+      // Old format fallback
+      `QMS/Inspections_Records/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${document.fileName?.split('.').pop() || 'pdf'}`
+    ].filter(Boolean);
+    
+    console.log(`Trying paths for deletion:`, pathsToTry);
+    
+    // Import GCS utilities
+    const { Storage } = require('@google-cloud/storage');
+    const { gcsCredentials, gcsBucketName } = require('../utils/gcs-config');
+    
+    const storage = new Storage({
+      credentials: gcsCredentials,
+      projectId: gcsCredentials.project_id
+    });
+    
+    const bucket = storage.bucket(gcsBucketName);
+    let fileDeleted = false;
+    let finalPath = '';
+    
+    // Try each path to find and delete the file
+    for (const path of pathsToTry) {
+      try {
+        const file = bucket.file(path);
+        const [exists] = await file.exists();
+        
+        if (exists) {
+          await file.delete();
+          fileDeleted = true;
+          finalPath = path;
+          console.log(`File deleted from path: ${finalPath}`);
+          break;
+        } else {
+          console.log(`File not found at path: ${path}`);
+        }
+      } catch (error) {
+        console.log(`Error deleting file at path ${path}:`, error);
+      }
+    }
+    
+    if (!fileDeleted) {
+      console.warn(`File not found at any path for document ${documentId}, continuing with database deletion`);
+    }
+    
+    // Delete the database record regardless of GCS deletion status
+    await db.delete(inspectionDocuments)
+      .where(eq(inspectionDocuments.id, parseInt(documentId)));
+    
+    console.log(`Database record deleted for document ${documentId}`);
+    
+    return res.status(200).json({ 
+      message: "Document deleted successfully",
+      fileDeleted: fileDeleted,
+      pathUsed: finalPath || 'No file found in storage'
+    });
+    
+  } catch (error) {
+    console.error('Error deleting inspection document:', error);
+    return res.status(500).json({ 
+      error: "Internal server error",
+      message: error instanceof Error ? error.message : "Unknown error occurred"
+    });
+  }
+});
+
 export default router;
