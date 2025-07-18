@@ -2064,8 +2064,8 @@ const TripList = () => {
   const [toDateFilter, setToDateFilter] = useState('');
   
   const { data: trips, isLoading } = useQuery({
-    queryKey: ['/api/trips/user'],
-    queryFn: () => apiRequest('GET', '/api/trips/user'),
+    queryKey: ['/api/trips/all'],
+    queryFn: () => apiRequest('GET', '/api/trips/all'),
   });
 
   // Get employees list for filter dropdown
@@ -2154,7 +2154,6 @@ const TripList = () => {
         title: 'Success',
         description: 'Trip submitted for approval successfully',
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/trips/user'] });
       queryClient.invalidateQueries({ queryKey: ['/api/trips/all'] });
       queryClient.invalidateQueries({ queryKey: ['/api/trips/dashboard'] });
     },
@@ -2176,7 +2175,6 @@ const TripList = () => {
           ? 'Trip concluded successfully and automatically linked to EU 180-Day Tracker'
           : 'Trip concluded successfully',
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/trips/user'] });
       queryClient.invalidateQueries({ queryKey: ['/api/trips/all'] });
       queryClient.invalidateQueries({ queryKey: ['/api/trips/dashboard'] });
     },
@@ -3079,8 +3077,8 @@ const TripDocumentsTab = () => {
   const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
 
   const { data: trips = [], isLoading } = useQuery({
-    queryKey: ['/api/trips/user'],
-    queryFn: () => apiRequest('GET', '/api/trips/user'),
+    queryKey: ['/api/trips/all'],
+    queryFn: () => apiRequest('GET', '/api/trips/all'),
   });
 
   if (isLoading) {
