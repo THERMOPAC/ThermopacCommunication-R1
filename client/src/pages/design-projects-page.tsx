@@ -66,7 +66,11 @@ export default function DesignProjectsPage() {
 
   // Fetch design projects
   const { data: designProjects = [], isLoading } = useQuery({
-    queryKey: ["/api/design-projects", { search, status: statusFilter, designPhase: phaseFilter }],
+    queryKey: ["/api/design-projects", { 
+      search, 
+      status: statusFilter === "all" ? "" : statusFilter, 
+      designPhase: phaseFilter === "all" ? "" : phaseFilter 
+    }],
   });
 
   // Fetch projects for dropdown
@@ -475,7 +479,7 @@ export default function DesignProjectsPage() {
                   <SelectValue placeholder="All Statuses" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Statuses</SelectItem>
+                  <SelectItem value="all">All Statuses</SelectItem>
                   {designStatuses.map((status) => (
                     <SelectItem key={status} value={status}>
                       {status}
@@ -491,7 +495,7 @@ export default function DesignProjectsPage() {
                   <SelectValue placeholder="All Phases" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Phases</SelectItem>
+                  <SelectItem value="all">All Phases</SelectItem>
                   {designPhases.map((phase) => (
                     <SelectItem key={phase} value={phase}>
                       {phase}
