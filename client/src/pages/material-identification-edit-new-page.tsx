@@ -477,7 +477,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
     }
     
     try {
-      const response = await fetch(`/api/quality/material-identification/${recordId}/documents/${documentId}`, {
+      const response = await fetch(`/api/quality/material-identification/documents/${documentId}`, {
         method: "DELETE",
       });
       
