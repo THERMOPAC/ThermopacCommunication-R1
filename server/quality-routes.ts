@@ -48,19 +48,10 @@ router.get('/inspection-orders/project/:projectId', ensureAuthenticated, async (
     }
     
     // Fetch inspection orders for this project, sorted by inspection order number ascending
-    // Use natural sorting to handle alphanumeric sequences properly (IO-2025-1-M-1, IO-2025-1-M-2, etc.)
-    const orders = await db.execute(sql`
-      SELECT * FROM inspection_orders 
-      WHERE project_id = ${projectId}
-      ORDER BY 
-        -- Extract year and project number for primary sorting
-        CAST(SPLIT_PART(SPLIT_PART(inspection_order_number, '-', 2), '-', 1) AS INTEGER),
-        CAST(SPLIT_PART(SPLIT_PART(inspection_order_number, '-', 3), '-', 1) AS INTEGER),
-        -- Then sort by M/B category
-        SPLIT_PART(inspection_order_number, '-', 4),
-        -- Finally sort by sequence number
-        CAST(SPLIT_PART(inspection_order_number, '-', 5) AS INTEGER)
-    `);
+    const orders = await db.query.inspectionOrders.findMany({
+      where: eq(inspectionOrders.projectId, projectId),
+      orderBy: (inspectionOrders, { asc }) => [asc(inspectionOrders.inspectionOrderNumber)]
+    });
     
     res.json(orders);
   } catch (error) {
