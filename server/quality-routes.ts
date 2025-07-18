@@ -8,7 +8,7 @@ import calibrationRoutes from './quality/calibration-routes';
 import { previewInspectionOrders, generateInspectionOrders } from './quality/inspection-order-generator';
 import { db } from './db';
 import { inspectionOrders, inspectionOrderItems, materialInspectionLinks } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { registerWelderRoutes } from './quality/welder-routes';
 import { registerWelderCertificateRoutes } from './quality/welder-certificate-routes';
 import { registerWelderPhotoRoutes } from './quality/welder-photo-routes';
@@ -47,11 +47,20 @@ router.get('/inspection-orders/project/:projectId', ensureAuthenticated, async (
       return res.status(400).json({ error: 'Invalid project ID' });
     }
     
-    // Fetch inspection orders for this project
-    const orders = await db.query.inspectionOrders.findMany({
-      where: eq(inspectionOrders.projectId, projectId),
-      orderBy: (inspectionOrders, { desc }) => [desc(inspectionOrders.createdAt)]
-    });
+    // Fetch inspection orders for this project, sorted by inspection order number ascending
+    // Use natural sorting to handle alphanumeric sequences properly (IO-2025-1-M-1, IO-2025-1-M-2, etc.)
+    const orders = await db.execute(sql`
+      SELECT * FROM inspection_orders 
+      WHERE project_id = ${projectId}
+      ORDER BY 
+        -- Extract year and project number for primary sorting
+        CAST(SPLIT_PART(SPLIT_PART(inspection_order_number, '-', 2), '-', 1) AS INTEGER),
+        CAST(SPLIT_PART(SPLIT_PART(inspection_order_number, '-', 3), '-', 1) AS INTEGER),
+        -- Then sort by M/B category
+        SPLIT_PART(inspection_order_number, '-', 4),
+        -- Finally sort by sequence number
+        CAST(SPLIT_PART(inspection_order_number, '-', 5) AS INTEGER)
+    `);
     
     res.json(orders);
   } catch (error) {
