@@ -36,6 +36,7 @@ const calibrationInstrumentSchema = z.object({
   calibration_frequency: z.string().min(1, { message: "Calibration frequency is required" }),
   last_calibration_date: z.string().min(1, { message: "Last calibration date is required" }),
   calibration_status: z.string().min(1, { message: "Calibration status is required" }),
+  in_use: z.string().min(1, { message: "In Use status is required" }),
   certificate_number: z.string().optional(),
   remarks: z.string().optional(),
 });
@@ -56,6 +57,7 @@ type CalibrationInstrument = {
   last_calibration_date: string;
   next_calibration_date: string;
   calibration_status: string;
+  in_use: string;
   certificate_number?: string;
   certificate_file_path?: string;
   certificate_url?: string; // Added for GCS signed URLs
@@ -98,6 +100,12 @@ const calibrationStatusOptions = [
   "Overdue",
   "Out of Service",
   "Pending"
+];
+
+// In Use options
+const inUseOptions = [
+  "In Use",
+  "Not in Use"
 ];
 
 export default function CalibrationManagementPage() {
@@ -375,6 +383,7 @@ export default function CalibrationManagementPage() {
       calibration_frequency: "",
       last_calibration_date: "",
       calibration_status: "Calibrated",
+      in_use: "In Use",
       certificate_number: "",
       remarks: "",
     },
@@ -392,6 +401,7 @@ export default function CalibrationManagementPage() {
       calibration_frequency: "",
       last_calibration_date: "",
       calibration_status: "",
+      in_use: "",
       certificate_number: "",
       remarks: "",
     },
@@ -735,6 +745,7 @@ export default function CalibrationManagementPage() {
         calibration_frequency: selectedInstrument.calibration_frequency,
         last_calibration_date: selectedInstrument.last_calibration_date,
         calibration_status: selectedInstrument.calibration_status,
+        in_use: selectedInstrument.in_use || "In Use",
         certificate_number: selectedInstrument.certificate_number || "",
         remarks: selectedInstrument.remarks || "",
       });
@@ -1047,6 +1058,33 @@ export default function CalibrationManagementPage() {
                         />
                         <FormField
                           control={form.control}
+                          name="in_use"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>In Use*</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                value={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select In Use status" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {inUseOptions.map((option) => (
+                                    <SelectItem key={option} value={option}>
+                                      {option}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
                           name="certificate_number"
                           render={({ field }) => (
                             <FormItem>
@@ -1204,20 +1242,21 @@ export default function CalibrationManagementPage() {
                 <TableHead>Last Calibration</TableHead>
                 <TableHead>Next Due</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>In Use</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-24 text-center">
+                  <TableCell colSpan={10} className="h-24 text-center">
                     <Loader2 className="mx-auto h-6 w-6 animate-spin" />
                     <span className="mt-2 block text-sm text-muted-foreground">Loading instrument data...</span>
                   </TableCell>
                 </TableRow>
               ) : filteredInstruments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-24 text-center">
+                  <TableCell colSpan={10} className="h-24 text-center">
                     {searchTerm || statusFilter ? (
                       <span className="text-sm text-muted-foreground">No instruments found matching your search criteria.</span>
                     ) : (
@@ -1246,6 +1285,16 @@ export default function CalibrationManagementPage() {
                       }
                     </TableCell>
                     <TableCell>{getStatusBadge(instrument.calibration_status)}</TableCell>
+                    <TableCell>
+                      <span className={cn(
+                        "px-2 py-1 rounded-full text-xs font-medium",
+                        instrument.in_use === "In Use" 
+                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" 
+                          : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+                      )}>
+                        {instrument.in_use || "In Use"}
+                      </span>
+                    </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         <Button 
@@ -1458,6 +1507,33 @@ export default function CalibrationManagementPage() {
                               </FormControl>
                               <SelectContent>
                                 {calibrationStatusOptions.map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
+                        name="in_use"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>In Use*</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select In Use status" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {inUseOptions.map((option) => (
                                   <SelectItem key={option} value={option}>
                                     {option}
                                   </SelectItem>

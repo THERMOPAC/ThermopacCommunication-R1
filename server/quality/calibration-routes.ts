@@ -250,6 +250,7 @@ router.post('/instruments', ensureAuthenticated, async (req: Request, res: Respo
       calibration_frequency,
       last_calibration_date,
       calibration_status,
+      in_use,
       certificate_number,
       remarks
     } = req.body;
@@ -305,11 +306,12 @@ router.post('/instruments', ensureAuthenticated, async (req: Request, res: Respo
         last_calibration_date,
         next_calibration_date,
         calibration_status,
+        in_use,
         certificate_number,
         certificate_file_path,
         remarks
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *
     `, [
       instrument_id,
@@ -322,6 +324,7 @@ router.post('/instruments', ensureAuthenticated, async (req: Request, res: Respo
       last_calibration_date,
       next_calibration_date,
       calibration_status,
+      in_use || 'In Use',
       certificate_number || null,
       certificate_file_path,
       remarks || null
@@ -384,6 +387,7 @@ router.put('/instruments/:id', ensureAuthenticated, async (req: Request, res: Re
       calibration_frequency,
       last_calibration_date,
       calibration_status,
+      in_use,
       certificate_number,
       remarks
     } = req.body;
@@ -454,6 +458,7 @@ router.put('/instruments/:id', ensureAuthenticated, async (req: Request, res: Re
       calibration_frequency,
       last_calibration_date,
       calibration_status,
+      in_use,
       certificate_number,
       remarks,
       updated_at: new Date()
