@@ -36,7 +36,12 @@ router.use('/wps-pqr', wpsPqrRoutes);
 router.use('/wpqr', wpqrRoutes);
 
 // Register Material Identification routes
-router.use('/material-identification', materialIdentificationRoutes);
+console.log('🔍 Registering Material Identification routes...');
+router.use('/material-identification', (req, res, next) => {
+  console.log(`🔍 QUALITY ROUTER - Material Identification route hit: ${req.method} ${req.originalUrl}`);
+  next();
+}, materialIdentificationRoutes);
+console.log('✅ Material Identification routes registered successfully');
 
 // Register Inspection Orders routes
 router.get('/inspection-orders/project/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
@@ -360,7 +365,10 @@ router.post('/inspection-orders/special-fix-project-7', ensureAuthenticated, gen
  * @param app Express application
  */
 export function setupQualityRoutes(app: Express) {
-  app.use('/api/quality', router);
+  app.use('/api/quality', (req, res, next) => {
+    console.log(`🔍 QUALITY SETUP - Route hit: ${req.method} ${req.originalUrl}`);
+    next();
+  }, router);
   
   // Setup welder management routes directly
   registerWelderRoutes(app);
