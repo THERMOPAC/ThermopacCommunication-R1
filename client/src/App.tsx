@@ -99,6 +99,7 @@ import DiagnosticsPage from "@/pages/diagnostics-page";
 import GcsDiagnosticPage from "@/pages/gcs-diagnostic-page";
 import GcsTestPage from "@/pages/gcs-test-page";
 import DesignToolsPage from "@/pages/design-tools-page";
+import DesignManagementPage from "@/pages/design-management-page";
 import WorkLocationsPage from "@/pages/work-locations-page";
 import AttendancePage from "@/pages/attendance-page";
 import DwarPage from "@/pages/dwar-page";
@@ -235,6 +236,7 @@ function Router() {
       <ProtectedRoute path="/customers" component={CustomersPage} />
       <ProtectedRoute path="/item-master" component={ItemMasterPage} />
       <ProtectedRoute path="/design-tools" component={DesignToolsPage} />
+      <ProtectedRoute path="/design-management" component={DesignManagementPage} />
       <ProtectedRoute path="/procurement-planning" component={ProcurementPlanningPage} />
       <ProtectedRoute path="/procurement-tracking" component={ProcurementTrackingPage} />
       <ProtectedRoute path="/production-planning" component={ProductionPlanningPage} />

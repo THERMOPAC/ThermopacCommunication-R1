@@ -46,7 +46,8 @@ import {
   FileText,
   Plane,
   Gavel,
-  Database
+  Database,
+  Compass
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -67,6 +68,7 @@ function Layout({ children }: LayoutProps) {
   const [isFinanceMenuOpen, setIsFinanceMenuOpen] = useState(false);
   const [isAdministrationMenuOpen, setIsAdministrationMenuOpen] = useState(false);
   const [isMeetingsMenuOpen, setIsMeetingsMenuOpen] = useState(false);
+  const [isDesignMenuOpen, setIsDesignMenuOpen] = useState(false);
   const [attendanceCheckCompleted, setAttendanceCheckCompleted] = useState(false);
 
   // Get all module permissions for the current user
@@ -122,6 +124,14 @@ function Layout({ children }: LayoutProps) {
 
   // Check if we're on SAP Integration page
   const isOnSapIntegrationPage = location === '/sap-integration';
+  
+  // Check if we're on any design management-related page
+  const isOnDesignPage = location.startsWith('/design') ||
+                        location === '/design-management' ||
+                        location === '/design-projects' ||
+                        location === '/design-drawings' ||
+                        location === '/design-reviews' ||
+                        location === '/design-standards';
 
 
   
@@ -158,7 +168,11 @@ function Layout({ children }: LayoutProps) {
     if (isOnMeetingsPage && !isMeetingsMenuOpen) {
       setIsMeetingsMenuOpen(true);
     }
-  }, [isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage]);
+    
+    if (isOnDesignPage && !isDesignMenuOpen) {
+      setIsDesignMenuOpen(true);
+    }
+  }, [isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnDesignPage]);
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
@@ -256,6 +270,21 @@ function Layout({ children }: LayoutProps) {
         { icon: Users, label: "Customers", href: "/customers" },
         { icon: TrendingUp, label: "Item Master", href: "/item-master" },
         { icon: Palette, label: "Design Tools", href: "/design-tools" }
+      ]
+    }] : []),
+    ...(hasViewPermission("Design Management") ? [{ 
+      icon: Compass, 
+      label: "Design Management", 
+      isSubmenu: true,
+      isOpen: isDesignMenuOpen,
+      toggle: () => setIsDesignMenuOpen(!isDesignMenuOpen),
+      children: [
+        { icon: FolderKanban, label: "Design Projects", href: "/design-projects" },
+        { icon: FileText, label: "Drawing Registry", href: "/design-drawings" },
+        { icon: CheckSquare, label: "Design Reviews", href: "/design-reviews" },
+        { icon: LayoutTemplate, label: "Design Standards", href: "/design-standards" },
+        { icon: FileCheck, label: "Drawing Transmittals", href: "/design-transmittals" },
+        { icon: Settings, label: "Design Dashboard", href: "/design-management" }
       ]
     }] : []),
     ...(hasViewPermission("SAP B1 Integration") ? [{ 
