@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, FileText, FileUp, Download, Trash2, AlertCircle, RefreshCw } from "lucide-react";
+import { CalendarIcon, FileText, FileUp, Download, Trash2, AlertCircle, RefreshCw, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { 
   Dialog,
@@ -576,6 +576,18 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
   return (
     <Layout>
       <div className="container mx-auto py-6">
+        {/* Back to List Button */}
+        <div className="mb-6">
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/quality/material-identification')}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to List
+          </Button>
+        </div>
+        
         <Card>
           <CardHeader>
             <CardTitle>Edit Material Identification Record</CardTitle>
