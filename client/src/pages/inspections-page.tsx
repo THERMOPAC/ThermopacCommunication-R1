@@ -970,6 +970,7 @@ export default function InspectionsPage() {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to fetch inspection orders");
       }
+      
       return response.json();
     },
     enabled: !!selectedProject,
@@ -2319,9 +2320,11 @@ export default function InspectionsPage() {
                             `Showing ${inspectionOrders.filter((order: any) => {
                               const query = searchQuery.toLowerCase();
                               return (
+                                (order.inspection_order_number && order.inspection_order_number.toLowerCase().includes(query)) ||
                                 (order.inspectionOrderNumber && order.inspectionOrderNumber.toLowerCase().includes(query)) ||
                                 (order.description && order.description.toLowerCase().includes(query)) ||
                                 (order.title && order.title.toLowerCase().includes(query)) ||
+                                (order.drawing_no && order.drawing_no.toLowerCase().includes(query)) ||
                                 (order.drawingNo && order.drawingNo.toLowerCase().includes(query)) ||
                                 (order.status && order.status.toLowerCase().includes(query))
                               );
@@ -2346,18 +2349,20 @@ export default function InspectionsPage() {
                               if (!searchQuery) return true;
                               const query = searchQuery.toLowerCase();
                               return (
+                                (order.inspection_order_number && order.inspection_order_number.toLowerCase().includes(query)) ||
                                 (order.inspectionOrderNumber && order.inspectionOrderNumber.toLowerCase().includes(query)) ||
                                 (order.description && order.description.toLowerCase().includes(query)) ||
                                 (order.title && order.title.toLowerCase().includes(query)) ||
+                                (order.drawing_no && order.drawing_no.toLowerCase().includes(query)) ||
                                 (order.drawingNo && order.drawingNo.toLowerCase().includes(query)) ||
                                 (order.status && order.status.toLowerCase().includes(query))
                               );
                             })
                             .map((order: any) => (
                             <TableRow key={order.id}>
-                              <TableCell className="font-medium">{order.inspectionOrderNumber}</TableCell>
+                              <TableCell className="font-medium">{order.inspection_order_number || order.inspectionOrderNumber}</TableCell>
                               <TableCell>{order.description || order.title}</TableCell>
-                              <TableCell>{order.drawingNo || 'N/A'}</TableCell>
+                              <TableCell>{order.drawing_no || order.drawingNo || 'N/A'}</TableCell>
                               <TableCell>{getStatusBadge(order.status)}</TableCell>
                               <TableCell>{order.quantity} {order.unit}</TableCell>
                               <TableCell>
@@ -2614,7 +2619,11 @@ export default function InspectionsPage() {
                                   .filter(schedule => {
                                     if (!selectedDate) return true;
                                     
+                                    // Safe date parsing with validation
+                                    if (!schedule.date) return false;
                                     const scheduleDate = new Date(schedule.date);
+                                    if (isNaN(scheduleDate.getTime())) return false;
+                                    
                                     const isInMonth = 
                                       scheduleDate.getMonth() === selectedDate.getMonth() && 
                                       scheduleDate.getFullYear() === selectedDate.getFullYear();
@@ -2662,7 +2671,12 @@ export default function InspectionsPage() {
                                         </div>
                                       </div>
                                       <div className="text-right">
-                                        <p className="font-medium">{format(new Date(schedule.date), 'dd MMM yyyy')}</p>
+                                        <p className="font-medium">
+                                          {schedule.date && !isNaN(new Date(schedule.date).getTime()) 
+                                            ? format(new Date(schedule.date), 'dd MMM yyyy')
+                                            : 'Invalid Date'
+                                          }
+                                        </p>
                                         {getStatusBadge(schedule.status)}
                                       </div>
                                     </div>
