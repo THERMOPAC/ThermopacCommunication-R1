@@ -58,6 +58,7 @@ export default function DesignProjectsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [phaseFilter, setPhaseFilter] = useState("");
+  const [projectFilter, setProjectFilter] = useState("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingProject, setEditingProject] = useState<any>(null);
   
@@ -69,7 +70,8 @@ export default function DesignProjectsPage() {
     queryKey: ["/api/design-projects", { 
       search, 
       status: statusFilter === "all" ? "" : statusFilter, 
-      designPhase: phaseFilter === "all" ? "" : phaseFilter 
+      designPhase: phaseFilter === "all" ? "" : phaseFilter,
+      projectId: projectFilter === "all" ? "" : projectFilter
     }],
   });
 
@@ -471,6 +473,22 @@ export default function DesignProjectsPage() {
                   className="pl-10"
                 />
               </div>
+            </div>
+            <div>
+              <Label htmlFor="project-filter">Project</Label>
+              <Select value={projectFilter} onValueChange={setProjectFilter}>
+                <SelectTrigger className="w-52">
+                  <SelectValue placeholder="All Projects" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Projects</SelectItem>
+                  {projects.map((project: any) => (
+                    <SelectItem key={project.id} value={project.id.toString()}>
+                      {project.projectCode} - {project.projectName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="status-filter">Status</Label>
