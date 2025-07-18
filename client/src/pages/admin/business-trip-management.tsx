@@ -3076,10 +3076,24 @@ const TripApprovalCard = ({
 const TripDocumentsTab = () => {
   const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
 
-  const { data: trips = [], isLoading } = useQuery({
+  const { data: trips = [], isLoading, error } = useQuery({
     queryKey: ['/api/trips/all'],
-    queryFn: () => apiRequest('GET', '/api/trips/all'),
+    queryFn: async () => {
+      console.log('TripDocumentsTab: Fetching trips...');
+      try {
+        const result = await apiRequest('GET', '/api/trips/all');
+        console.log('TripDocumentsTab: API response:', result);
+        return result;
+      } catch (error) {
+        console.error('TripDocumentsTab: API error:', error);
+        throw error;
+      }
+    },
   });
+
+  console.log('TripDocumentsTab: trips length:', trips?.length || 0);
+  console.log('TripDocumentsTab: isLoading:', isLoading);
+  console.log('TripDocumentsTab: error:', error);
 
   if (isLoading) {
     return <div className="text-center py-8">Loading trips...</div>;
