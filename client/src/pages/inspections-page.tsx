@@ -970,12 +970,7 @@ export default function InspectionsPage() {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to fetch inspection orders");
       }
-      const data = await response.json();
-      
-      // Debug: Log the received data to see the order
-      console.log('Inspection Orders received from backend:', data.map((order: any) => order.inspectionOrderNumber));
-      
-      return data;
+      return response.json();
     },
     enabled: !!selectedProject,
     staleTime: 0, // Force fresh data
@@ -1837,8 +1832,10 @@ export default function InspectionsPage() {
       const monthCounts: { [key: string]: number } = {};
       inspectionOrders.forEach(order => {
         const date = new Date(order.createdAt);
-        const monthYear = format(date, 'MMM yyyy');
-        monthCounts[monthYear] = (monthCounts[monthYear] || 0) + 1;
+        if (!isNaN(date.getTime())) { // Check if date is valid
+          const monthYear = format(date, 'MMM yyyy');
+          monthCounts[monthYear] = (monthCounts[monthYear] || 0) + 1;
+        }
       });
       
       const monthData = Object.entries(monthCounts)
@@ -1858,9 +1855,18 @@ export default function InspectionsPage() {
         let scheduleDate = new Date(order.createdAt);
         
         // Use any available inspection dates if present
-        if (order.hydrotestDate) scheduleDate = new Date(order.hydrotestDate);
-        if (order.ndtDate) scheduleDate = new Date(order.ndtDate);
-        if (order.visualInspectionDate) scheduleDate = new Date(order.visualInspectionDate);
+        if (order.hydrotestDate) {
+          const testDate = new Date(order.hydrotestDate);
+          if (!isNaN(testDate.getTime())) scheduleDate = testDate;
+        }
+        if (order.ndtDate) {
+          const testDate = new Date(order.ndtDate);
+          if (!isNaN(testDate.getTime())) scheduleDate = testDate;
+        }
+        if (order.visualInspectionDate) {
+          const testDate = new Date(order.visualInspectionDate);
+          if (!isNaN(testDate.getTime())) scheduleDate = testDate;
+        }
         
         return {
           id: order.id,

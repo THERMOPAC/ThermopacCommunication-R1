@@ -66,9 +66,6 @@ router.get('/inspection-orders/project/:projectId', ensureAuthenticated, async (
     // Return the rows array from the query result
     const ordersArray = Array.isArray(orders) ? orders : orders.rows || [];
     
-    // Debug: Log the inspection order numbers to verify sorting
-    console.log('Inspection Orders sorted backend response:', ordersArray.map((order: any) => order.inspection_order_number));
-    
     res.json(ordersArray);
   } catch (error) {
     console.error('Error fetching inspection orders:', error);
