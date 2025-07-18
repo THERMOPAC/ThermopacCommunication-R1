@@ -965,14 +965,21 @@ export default function InspectionsPage() {
       const [_, projectId] = queryKey;
       if (!projectId) throw new Error("Project ID is required");
       
-      const response = await fetch(`/api/quality/inspection-orders/project/${projectId}`);
+      const response = await fetch(`/api/quality/inspection-orders/project/${projectId}?t=${Date.now()}`); // Add cache buster
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to fetch inspection orders");
       }
-      return response.json();
+      const data = await response.json();
+      
+      // Debug: Log the received data to see the order
+      console.log('Inspection Orders received from backend:', data.map((order: any) => order.inspectionOrderNumber));
+      
+      return data;
     },
     enabled: !!selectedProject,
+    staleTime: 0, // Force fresh data
+    gcTime: 0, // Don't cache
   });
   
   // Define an interface for Material Identification records
