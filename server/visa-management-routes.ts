@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import { db } from './db';
 import { visaRecords, visaAlerts, visaQuotaSettings, users } from '@shared/schema';
-import { eq, desc, and, gte, lte, like, sql, count } from 'drizzle-orm';
+import { eq, desc, and, gte, lte, like, sql, count, or } from 'drizzle-orm';
 import { insertVisaRecordSchema } from '@shared/schema';
 import multer from 'multer';
 import { Storage } from '@google-cloud/storage';
@@ -214,12 +214,28 @@ export const checkVisaValidity = async (req: Request, res: Response) => {
 
     const travelDate = tripDate ? new Date(tripDate as string) : new Date();
     
-    // For Schengen Area destinations, check for "Schengen Area (EU)" visas
+    // List of Schengen Area countries
+    const schengenCountries = [
+      'Austria', 'Belgium', 'Czech Republic', 'Denmark', 'Estonia', 'Finland', 
+      'France', 'Germany', 'Greece', 'Hungary', 'Iceland', 'Italy', 'Latvia', 
+      'Lithuania', 'Luxembourg', 'Malta', 'Netherlands', 'Norway', 'Poland', 
+      'Portugal', 'Slovakia', 'Slovenia', 'Spain', 'Sweden', 'Switzerland', 
+      'Liechtenstein'
+    ];
+    
+    // Determine visa search criteria
     let countryCondition;
     if (destination === 'Schengen Area (EU)') {
+      // Looking for Schengen Area visas
       countryCondition = eq(visaRecords.country, 'Schengen Area (EU)');
+    } else if (schengenCountries.includes(destination as string)) {
+      // For Schengen countries, check both exact country match AND Schengen Area visas
+      countryCondition = or(
+        eq(visaRecords.country, destination as string),
+        eq(visaRecords.country, 'Schengen Area (EU)')
+      );
     } else {
-      // For other destinations, match exact country or Schengen if it's a Schengen country
+      // For non-Schengen destinations, match exact country only
       countryCondition = eq(visaRecords.country, destination as string);
     }
     
