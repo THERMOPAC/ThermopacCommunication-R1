@@ -275,17 +275,7 @@ function Layout({ children }: LayoutProps) {
     ...(hasViewPermission("Design Management") ? [{ 
       icon: Compass, 
       label: "Design Management", 
-      isSubmenu: true,
-      isOpen: isDesignMenuOpen,
-      toggle: () => setIsDesignMenuOpen(!isDesignMenuOpen),
-      children: [
-        { icon: FolderKanban, label: "Design Projects", href: "/design-projects" },
-        { icon: FileText, label: "Drawing Registry", href: "/design-drawings" },
-        { icon: CheckSquare, label: "Design Reviews", href: "/design-reviews" },
-        { icon: LayoutTemplate, label: "Design Standards", href: "/design-standards" },
-        { icon: FileCheck, label: "Drawing Transmittals", href: "/design-transmittals" },
-        { icon: Settings, label: "Design Dashboard", href: "/design-management" }
-      ]
+      href: "/design-management"
     }] : []),
     ...(hasViewPermission("SAP B1 Integration") ? [{ 
       icon: Database, 
