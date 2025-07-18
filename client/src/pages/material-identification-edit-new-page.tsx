@@ -131,6 +131,37 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
   const [documentDescription, setDocumentDescription] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Map document type codes to display names
+  const documentTypeMap: {[key: string]: string} = {
+    'general': 'General Document',
+    'mill_test_certificate': 'Mill Test Certificate',
+    'inspection_report': 'Inspection Report',
+    'material_certificate': 'Material Certificate',
+    'test_report': 'Test Report',
+    'technical_datasheet': 'Technical Datasheet',
+    'other': 'Other Document'
+  };
+
+  // Handle document type selection with auto-population of description
+  const handleDocumentTypeChange = (value: string) => {
+    setDocumentType(value);
+    // Auto-populate description with document type display name
+    const displayName = documentTypeMap[value] || value;
+    setDocumentDescription(displayName);
+  };
+
+  // Reset upload form when dialog closes
+  const resetUploadForm = () => {
+    setDocumentType("");
+    setDocumentDescription("");
+    setSelectedFile(null);
+    setIsUploading(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
   
   // Fetch the Material Identification record
   const { data: recordData, isLoading: isLoadingRecord, error } = useQuery({
@@ -376,9 +407,6 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
       });
     }
   };
-  
-  // File input reference for document upload
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle file selection
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -1049,7 +1077,12 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
                   <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingDocuments ? 'animate-spin' : ''}`} />
                   Refresh
                 </Button>
-                <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+                <Dialog open={uploadDialogOpen} onOpenChange={(open) => {
+                  if (!open) {
+                    resetUploadForm();
+                  }
+                  setUploadDialogOpen(open);
+                }}>
                   <DialogTrigger asChild>
                     <Button variant="outline" onClick={() => setUploadDialogOpen(true)}>
                       <FileUp className="h-4 w-4 mr-2" />
@@ -1071,7 +1104,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
                       </Label>
                       <Select 
                         value={documentType} 
-                        onValueChange={setDocumentType}
+                        onValueChange={handleDocumentTypeChange}
                       >
                         <SelectTrigger className="col-span-3">
                           <SelectValue placeholder="Select document type" />
@@ -1092,13 +1125,18 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
                       <Label htmlFor="description" className="text-right">
                         Description
                       </Label>
-                      <Input
-                        id="description"
-                        placeholder="Enter document description"
-                        className="col-span-3"
-                        value={documentDescription}
-                        onChange={(e) => setDocumentDescription(e.target.value)}
-                      />
+                      <div className="col-span-3">
+                        <Input
+                          id="description"
+                          placeholder="Auto-filled when document type is selected"
+                          className="w-full"
+                          value={documentDescription}
+                          onChange={(e) => setDocumentDescription(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Auto-populated from document type (you can edit this)
+                        </p>
+                      </div>
                     </div>
                     
                     <div className="grid grid-cols-4 items-center gap-4">
