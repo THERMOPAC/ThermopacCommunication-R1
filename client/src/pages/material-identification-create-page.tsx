@@ -574,6 +574,24 @@ export default function MaterialIdentificationCreatePage() {
                                 <SelectItem value="ASTM A790 UNS S31803">ASTM A790 UNS S31803</SelectItem>
                                 <SelectItem value="ASTM A790 UNS S32750">ASTM A790 UNS S32750</SelectItem>
                               </SelectGroup>
+                              
+                              {/* Bolts */}
+                              <SelectGroup>
+                                <SelectLabel>Bolts</SelectLabel>
+                                <SelectItem value="SA-193 B7">SA-193 B7</SelectItem>
+                              </SelectGroup>
+                              
+                              {/* Nuts */}
+                              <SelectGroup>
+                                <SelectLabel>Nuts</SelectLabel>
+                                <SelectItem value="SA-193 B7">SA-193 B7</SelectItem>
+                              </SelectGroup>
+                              
+                              {/* Gaskets */}
+                              <SelectGroup>
+                                <SelectLabel>Gaskets</SelectLabel>
+                                <SelectItem value="AF 159">AF 159</SelectItem>
+                              </SelectGroup>
                             </SelectContent>
                           </Select>
                           <FormMessage />
