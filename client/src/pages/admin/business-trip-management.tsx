@@ -3075,25 +3075,38 @@ const TripApprovalCard = ({
 // Trip Documents Tab Component
 const TripDocumentsTab = () => {
   const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
+  const { toast } = useToast();
 
-  const { data: trips = [], isLoading, error } = useQuery({
+  const { data: trips = [], isLoading, error, refetch } = useQuery({
     queryKey: ['/api/trips/all'],
     queryFn: async () => {
       console.log('TripDocumentsTab: Fetching trips...');
       try {
         const result = await apiRequest('GET', '/api/trips/all');
         console.log('TripDocumentsTab: API response:', result);
+        console.log('TripDocumentsTab: Result type:', typeof result);
+        console.log('TripDocumentsTab: Is array?', Array.isArray(result));
         return result;
       } catch (error) {
         console.error('TripDocumentsTab: API error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load trips. Please try again.",
+          variant: "destructive",
+        });
         throw error;
       }
     },
+    staleTime: 0, // Always fetch fresh data
+    cacheTime: 0, // Don't cache data
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   console.log('TripDocumentsTab: trips length:', trips?.length || 0);
   console.log('TripDocumentsTab: isLoading:', isLoading);
   console.log('TripDocumentsTab: error:', error);
+  console.log('TripDocumentsTab: Component rendered at:', new Date().toISOString());
 
   if (isLoading) {
     return <div className="text-center py-8">Loading trips...</div>;
@@ -3103,12 +3116,23 @@ const TripDocumentsTab = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Trip Documents</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Trip Documents</CardTitle>
+            <Button onClick={() => refetch()} variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="text-center py-8 text-gray-500">
           <Paperclip className="h-12 w-12 mx-auto mb-4 text-gray-300" />
           <p>No trips found</p>
           <p className="text-sm">Create a trip request first to upload documents</p>
+          {error && (
+            <div className="mt-4 p-3 bg-red-50 text-red-700 rounded-md text-sm">
+              Error: {error instanceof Error ? error.message : 'Unknown error'}
+            </div>
+          )}
         </CardContent>
       </Card>
     );
