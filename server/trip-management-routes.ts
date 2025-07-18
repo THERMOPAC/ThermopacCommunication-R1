@@ -848,7 +848,7 @@ export const getTripDashboard = async (req: Request, res: Response) => {
       statusCounts,
       upcomingTrips,
       monthlySpend,
-      pendingApprovals: userRole === 'Superuser' || userRole === 'General Manager' ? pendingApprovals : [],
+      pendingApprovals: userRole === 'Superuser' || userRole === 'General Manager' || userRole === 'Manager' ? pendingApprovals : [],
     });
   } catch (error) {
     console.error('Error fetching trip dashboard:', error);
@@ -866,7 +866,7 @@ export const getTripReports = async (req: Request, res: Response) => {
     const { startDate, endDate, employeeId, status, destination } = req.query;
 
     // Base query condition - employees see only their trips, admins see all
-    let baseCondition = userRole === 'Superuser' || userRole === 'General Manager' 
+    let baseCondition = userRole === 'Superuser' || userRole === 'General Manager' || userRole === 'Manager'
       ? undefined 
       : eq(businessTrips.employeeId, userId);
 
@@ -880,7 +880,7 @@ export const getTripReports = async (req: Request, res: Response) => {
     }
 
     // Add employee filter if provided (for admins)
-    if (employeeId && (userRole === 'Superuser' || userRole === 'General Manager')) {
+    if (employeeId && (userRole === 'Superuser' || userRole === 'General Manager' || userRole === 'Manager')) {
       const empCondition = eq(businessTrips.employeeId, parseInt(employeeId as string));
       baseCondition = baseCondition ? and(baseCondition, empCondition) : empCondition;
     }
@@ -1195,7 +1195,7 @@ export const deleteTripDocument = async (req: Request, res: Response) => {
 
     // Check if user can delete (uploaded by user or admin)
     const userRole = (req.user as any)?.role;
-    if (document[0].uploadedBy !== userId && !['Superuser', 'General Manager'].includes(userRole)) {
+    if (document[0].uploadedBy !== userId && !['Superuser', 'General Manager', 'Manager'].includes(userRole)) {
       return res.status(403).json({ error: 'Permission denied' });
     }
 
