@@ -33,25 +33,31 @@ router.get("/dashboard/stats", async (req, res) => {
 // Get all projects with customer information for design management
 router.get("/projects", async (req, res) => {
   try {
-    // Get all projects with customer details
-    const projectsWithCustomers = await db
-      .select({
-        id: projects.id,
-        projectName: projects.projectName,
-        projectCode: projects.projectCode,
-        customerName: customers.customerName,
-        customerId: projects.customerId,
-        status: projects.status,
-        startDate: projects.startDate,
-        endDate: projects.endDate,
-        projectValue: projects.projectValue,
-        currency: projects.currency,
-        description: projects.description
-      })
-      .from(projects)
-      .leftJoin(customers, eq(projects.customerId, customers.id));
+    // Use raw SQL to avoid complex Drizzle ORM issues
+    const result = await db.execute(`
+      SELECT 
+        p.id,
+        p.name as "projectName",
+        p.code as "projectCode", 
+        c.customer_name as "customerName",
+        p.customer_id as "customerId",
+        p.status,
+        p.start_date as "startDate",
+        p.target_end_date as "targetEndDate",
+        p.actual_end_date as "actualEndDate",
+        p.estimated_budget as "estimatedBudget",
+        p.actual_cost as "actualCost",
+        p.currency,
+        p.description,
+        p.progress,
+        p.priority,
+        p.financial_year as "financialYear"
+      FROM projects p
+      LEFT JOIN customers c ON p.customer_id = c.id
+      ORDER BY p.created_at DESC
+    `);
 
-    res.json(projectsWithCustomers);
+    res.json(result.rows || []);
   } catch (error) {
     console.error("Error fetching projects for design management:", error);
     res.status(500).json({ error: "Failed to fetch projects" });
@@ -63,25 +69,49 @@ router.get("/projects/:id", async (req, res) => {
   try {
     const projectId = parseInt(req.params.id);
     
-    // Get project with customer details
-    const project = await db
-      .select({
-        id: projects.id,
-        projectName: projects.projectName,
-        projectCode: projects.projectCode,
-        customerName: customers.customerName,
-        customerId: projects.customerId,
-        status: projects.status,
-        startDate: projects.startDate,
-        endDate: projects.endDate,
-        projectValue: projects.projectValue,
-        currency: projects.currency,
-        description: projects.description
-      })
+    // Get project by ID
+    const projectData = await db
+      .select()
       .from(projects)
-      .leftJoin(customers, eq(projects.customerId, customers.id))
       .where(eq(projects.id, projectId))
       .limit(1);
+    
+    if (projectData.length === 0) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+    
+    const projectRecord = projectData[0];
+    
+    // Get customer if project has one
+    let customer = null;
+    if (projectRecord.customerId) {
+      const customerData = await db
+        .select()
+        .from(customers)
+        .where(eq(customers.id, projectRecord.customerId))
+        .limit(1);
+      customer = customerData[0] || null;
+    }
+    
+    // Map project with customer information
+    const project = [{
+      id: projectRecord.id,
+      projectName: projectRecord.name,
+      projectCode: projectRecord.code,
+      customerName: customer?.customerName || null,
+      customerId: projectRecord.customerId,
+      status: projectRecord.status,
+      startDate: projectRecord.startDate,
+      targetEndDate: projectRecord.targetEndDate,
+      actualEndDate: projectRecord.actualEndDate,
+      estimatedBudget: projectRecord.estimatedBudget,
+      actualCost: projectRecord.actualCost,
+      currency: projectRecord.currency,
+      description: projectRecord.description,
+      progress: projectRecord.progress,
+      priority: projectRecord.priority,
+      financialYear: projectRecord.financialYear
+    }];
 
     if (project.length === 0) {
       return res.status(404).json({ error: "Project not found" });

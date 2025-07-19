@@ -163,8 +163,7 @@ export default function DesignDashboard() {
             </div>
           ) : !projects || projects.length === 0 ? (
             <div className="text-center py-8">
-              <FolderOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No projects available</h3>
+              <p className="text-lg font-medium text-gray-900 mb-2">No projects available</p>
               <p className="text-gray-600">
                 Projects will appear here once created in the Project Management module.
               </p>
@@ -197,14 +196,33 @@ export default function DesignDashboard() {
                         <Calendar className="h-4 w-4 mr-2" />
                         <span>
                           {new Date(project.startDate).toLocaleDateString()} - 
-                          {new Date(project.endDate).toLocaleDateString()}
+                          {project.targetEndDate ? new Date(project.targetEndDate).toLocaleDateString() : 'TBD'}
                         </span>
                       </div>
                       
-                      <div className="flex items-center text-sm text-gray-600">
-                        <DollarSign className="h-4 w-4 mr-2" />
-                        <span>{project.currency} {parseFloat(project.projectValue).toLocaleString()}</span>
-                      </div>
+                      {project.estimatedBudget && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <DollarSign className="h-4 w-4 mr-2" />
+                          <span>{project.currency} {Number(project.estimatedBudget).toLocaleString()}</span>
+                        </div>
+                      )}
+                      
+                      {project.progress !== null && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <div className="w-full">
+                            <div className="flex justify-between text-xs mb-1">
+                              <span>Progress</span>
+                              <span>{project.progress}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-blue-600 h-2 rounded-full" 
+                                style={{ width: `${project.progress}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       
                       {project.description && (
                         <p className="text-sm text-gray-600 line-clamp-2">
