@@ -174,89 +174,97 @@ export default function DesignDashboard() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <div className="flex gap-6 pb-4" style={{ minWidth: 'max-content' }}>
-                {projects.map((project) => {
-                  // Calculate project year from financial year or dates
-                  const getProjectYear = () => {
-                    if (project.financialYear) {
-                      return project.financialYear;
-                    }
-                    if (project.startDate && project.targetEndDate) {
-                      const startYear = new Date(project.startDate).getFullYear();
-                      const endYear = new Date(project.targetEndDate).getFullYear();
-                      return startYear === endYear ? startYear.toString() : `${startYear}–${endYear}`;
-                    }
-                    return 'N/A';
-                  };
+            <div className="space-y-4">
+              {projects.map((project) => {
+                // Calculate project year from financial year or dates
+                const getProjectYear = () => {
+                  if (project.financialYear) {
+                    return project.financialYear;
+                  }
+                  if (project.startDate && project.targetEndDate) {
+                    const startYear = new Date(project.startDate).getFullYear();
+                    const endYear = new Date(project.targetEndDate).getFullYear();
+                    return startYear === endYear ? startYear.toString() : `${startYear}–${endYear}`;
+                  }
+                  return 'N/A';
+                };
 
-                  // Format project duration
-                  const getProjectDuration = () => {
-                    if (project.startDate && project.targetEndDate) {
-                      const startDate = new Date(project.startDate).toLocaleDateString('en-US', {
-                        month: '2-digit',
-                        day: '2-digit', 
-                        year: 'numeric'
-                      });
-                      const endDate = new Date(project.targetEndDate).toLocaleDateString('en-US', {
-                        month: '2-digit',
-                        day: '2-digit',
-                        year: 'numeric'
-                      });
-                      return `${startDate} – ${endDate}`;
-                    }
-                    return 'Duration TBD';
-                  };
+                // Format project duration
+                const getProjectDuration = () => {
+                  if (project.startDate && project.targetEndDate) {
+                    const startDate = new Date(project.startDate).toLocaleDateString('en-US', {
+                      month: '2-digit',
+                      day: '2-digit', 
+                      year: 'numeric'
+                    });
+                    const endDate = new Date(project.targetEndDate).toLocaleDateString('en-US', {
+                      month: '2-digit',
+                      day: '2-digit',
+                      year: 'numeric'
+                    });
+                    return `${startDate} – ${endDate}`;
+                  }
+                  return 'Duration TBD';
+                };
 
-                  return (
-                    <Card key={project.id} className="flex-shrink-0 w-80 hover:shadow-md transition-shadow">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <CardTitle className="text-lg line-clamp-1">{project.projectName}</CardTitle>
-                            <CardDescription className="text-sm font-medium text-blue-600">
-                              {project.projectCode}
-                            </CardDescription>
-                          </div>
-                          <Badge className={getStatusColor(project.status)}>
-                            {project.status}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="space-y-3">
-                          <div className="flex items-center text-sm text-gray-600">
-                            <Calendar className="h-4 w-4 mr-2" />
-                            <span className="font-medium">Year:</span>
-                            <span className="ml-1">{getProjectYear()}</span>
+                return (
+                  <Card key={project.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
+                          {/* Project Name & Code */}
+                          <div className="space-y-1">
+                            <h3 className="font-semibold text-lg text-gray-900">{project.projectName}</h3>
+                            <p className="text-sm font-medium text-blue-600">{project.projectCode}</p>
                           </div>
                           
-                          <div className="flex items-start text-sm text-gray-600">
-                            <Clock className="h-4 w-4 mr-2 mt-0.5" />
-                            <div>
-                              <div className="font-medium">Duration:</div>
-                              <div>{getProjectDuration()}</div>
-                            </div>
+                          {/* Project Year */}
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-gray-500">Project Year</p>
+                            <p className="text-sm text-gray-900">{getProjectYear()}</p>
                           </div>
                           
-                          {project.description && (
-                            <p className="text-sm text-gray-600 line-clamp-2">
-                              {project.description}
-                            </p>
-                          )}
+                          {/* Project Status */}
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-gray-500">Status</p>
+                            <Badge className={getStatusColor(project.status)}>
+                              {project.status}
+                            </Badge>
+                          </div>
+                          
+                          {/* Project Duration */}
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-gray-500">Duration</p>
+                            <p className="text-sm text-gray-900">{getProjectDuration()}</p>
+                          </div>
                         </div>
                         
-                        <div className="mt-4 pt-4 border-t">
-                          <Button variant="outline" size="sm" className="w-full">
+                        {/* Action Button */}
+                        <div className="ml-6">
+                          <Button variant="outline" size="sm">
                             Start Design Work
                             <ArrowRight className="h-3 w-3 ml-2" />
                           </Button>
                         </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className="mt-4 pt-4 border-t">
+                        <div className="flex items-center justify-between text-sm mb-2">
+                          <span className="font-medium text-gray-700">Progress</span>
+                          <span className="text-gray-600">{project.progress || 0}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                            style={{ width: `${project.progress || 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </CardContent>
