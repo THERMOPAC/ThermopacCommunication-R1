@@ -25,10 +25,15 @@ interface Project {
   customerId: number;
   status: string;
   startDate: string;
-  endDate: string;
-  projectValue: string;
+  targetEndDate: string;
+  actualEndDate: string;
+  estimatedBudget: string;
+  actualCost: string;
   currency: string;
   description: string;
+  progress: number;
+  priority: string;
+  financialYear: string;
 }
 
 interface DashboardStats {
@@ -169,77 +174,89 @@ export default function DesignDashboard() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.slice(0, 6).map((project) => (
-                <Card key={project.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg line-clamp-1">{project.projectName}</CardTitle>
-                        <CardDescription className="text-sm font-medium text-blue-600">
-                          {project.projectCode}
-                        </CardDescription>
-                      </div>
-                      <Badge className={getStatusColor(project.status)}>
-                        {project.status}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-3">
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Building2 className="h-4 w-4 mr-2" />
-                        <span className="line-clamp-1">{project.customerName}</span>
-                      </div>
-                      
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        <span>
-                          {new Date(project.startDate).toLocaleDateString()} - 
-                          {project.targetEndDate ? new Date(project.targetEndDate).toLocaleDateString() : 'TBD'}
-                        </span>
-                      </div>
-                      
-                      {project.estimatedBudget && (
-                        <div className="flex items-center text-sm text-gray-600">
-                          <DollarSign className="h-4 w-4 mr-2" />
-                          <span>{project.currency} {Number(project.estimatedBudget).toLocaleString()}</span>
+            <div className="overflow-x-auto">
+              <div className="flex gap-6 pb-4" style={{ minWidth: 'max-content' }}>
+                {projects.map((project) => {
+                  // Calculate project year from financial year or dates
+                  const getProjectYear = () => {
+                    if (project.financialYear) {
+                      return project.financialYear;
+                    }
+                    if (project.startDate && project.targetEndDate) {
+                      const startYear = new Date(project.startDate).getFullYear();
+                      const endYear = new Date(project.targetEndDate).getFullYear();
+                      return startYear === endYear ? startYear.toString() : `${startYear}–${endYear}`;
+                    }
+                    return 'N/A';
+                  };
+
+                  // Format project duration
+                  const getProjectDuration = () => {
+                    if (project.startDate && project.targetEndDate) {
+                      const startDate = new Date(project.startDate).toLocaleDateString('en-US', {
+                        month: '2-digit',
+                        day: '2-digit', 
+                        year: 'numeric'
+                      });
+                      const endDate = new Date(project.targetEndDate).toLocaleDateString('en-US', {
+                        month: '2-digit',
+                        day: '2-digit',
+                        year: 'numeric'
+                      });
+                      return `${startDate} – ${endDate}`;
+                    }
+                    return 'Duration TBD';
+                  };
+
+                  return (
+                    <Card key={project.id} className="flex-shrink-0 w-80 hover:shadow-md transition-shadow">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle className="text-lg line-clamp-1">{project.projectName}</CardTitle>
+                            <CardDescription className="text-sm font-medium text-blue-600">
+                              {project.projectCode}
+                            </CardDescription>
+                          </div>
+                          <Badge className={getStatusColor(project.status)}>
+                            {project.status}
+                          </Badge>
                         </div>
-                      )}
-                      
-                      {project.progress !== null && (
-                        <div className="flex items-center text-sm text-gray-600">
-                          <div className="w-full">
-                            <div className="flex justify-between text-xs mb-1">
-                              <span>Progress</span>
-                              <span>{project.progress}%</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-blue-600 h-2 rounded-full" 
-                                style={{ width: `${project.progress}%` }}
-                              ></div>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="space-y-3">
+                          <div className="flex items-center text-sm text-gray-600">
+                            <Calendar className="h-4 w-4 mr-2" />
+                            <span className="font-medium">Year:</span>
+                            <span className="ml-1">{getProjectYear()}</span>
+                          </div>
+                          
+                          <div className="flex items-start text-sm text-gray-600">
+                            <Clock className="h-4 w-4 mr-2 mt-0.5" />
+                            <div>
+                              <div className="font-medium">Duration:</div>
+                              <div>{getProjectDuration()}</div>
                             </div>
                           </div>
+                          
+                          {project.description && (
+                            <p className="text-sm text-gray-600 line-clamp-2">
+                              {project.description}
+                            </p>
+                          )}
                         </div>
-                      )}
-                      
-                      {project.description && (
-                        <p className="text-sm text-gray-600 line-clamp-2">
-                          {project.description}
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div className="mt-4 pt-4 border-t">
-                      <Button variant="outline" size="sm" className="w-full">
-                        Start Design Work
-                        <ArrowRight className="h-3 w-3 ml-2" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                        
+                        <div className="mt-4 pt-4 border-t">
+                          <Button variant="outline" size="sm" className="w-full">
+                            Start Design Work
+                            <ArrowRight className="h-3 w-3 ml-2" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             </div>
           )}
         </CardContent>
