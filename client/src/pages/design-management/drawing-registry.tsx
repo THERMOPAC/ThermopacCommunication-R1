@@ -86,9 +86,9 @@ interface DrawingVersion {
 export default function DrawingRegistryPage() {
   const [selectedTab, setSelectedTab] = useState('drawings');
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
   const [selectedDrawing, setSelectedDrawing] = useState<DesignDrawing | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isVersionHistoryDialogOpen, setIsVersionHistoryDialogOpen] = useState(false);
@@ -102,9 +102,9 @@ export default function DrawingRegistryPage() {
     queryFn: async () => {
       const params = new URLSearchParams();
       if (searchTerm) params.append('search', searchTerm);
-      if (categoryFilter) params.append('category', categoryFilter);
-      if (statusFilter) params.append('status', statusFilter);
-      if (selectedProjectId) params.append('projectId', selectedProjectId);
+      if (categoryFilter && categoryFilter !== 'all') params.append('category', categoryFilter);
+      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+      if (selectedProjectId && selectedProjectId !== 'all') params.append('projectId', selectedProjectId);
       
       const response = await fetch(`/api/design/drawings?${params}`);
       if (!response.ok) throw new Error('Failed to fetch drawings');
@@ -316,7 +316,7 @@ export default function DrawingRegistryPage() {
                       <SelectValue placeholder="All Projects" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Projects</SelectItem>
+                      <SelectItem value="all">All Projects</SelectItem>
                       {designProjects.map((project: any) => (
                         <SelectItem key={project.id} value={project.id.toString()}>
                           {project.projectName} ({project.projectCode}) - {project.customerName}
@@ -329,7 +329,7 @@ export default function DrawingRegistryPage() {
                       <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Categories</SelectItem>
+                      <SelectItem value="all">All Categories</SelectItem>
                       <SelectItem value="P&ID">P&ID</SelectItem>
                       <SelectItem value="Equipment_Layout">Equipment Layout</SelectItem>
                       <SelectItem value="Piping">Piping</SelectItem>
@@ -342,7 +342,7 @@ export default function DrawingRegistryPage() {
                       <SelectValue placeholder="All Status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Status</SelectItem>
+                      <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="Active">Active</SelectItem>
                       <SelectItem value="Draft">Draft</SelectItem>
                       <SelectItem value="Under Review">Under Review</SelectItem>
@@ -351,9 +351,9 @@ export default function DrawingRegistryPage() {
                   </Select>
                   <Button variant="outline" onClick={() => { 
                     setSearchTerm(''); 
-                    setCategoryFilter(''); 
-                    setStatusFilter(''); 
-                    setSelectedProjectId(''); 
+                    setCategoryFilter('all'); 
+                    setStatusFilter('all'); 
+                    setSelectedProjectId('all'); 
                   }}>
                     Clear Filters
                   </Button>
@@ -366,7 +366,7 @@ export default function DrawingRegistryPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="w-5 h-5" />
-                  {selectedProjectId ? (() => {
+                  {selectedProjectId && selectedProjectId !== 'all' ? (() => {
                     const selectedProject = designProjects.find((p: any) => p.id.toString() === selectedProjectId);
                     return (
                       <>
@@ -396,7 +396,7 @@ export default function DrawingRegistryPage() {
                         <TableHead>Drawing Number</TableHead>
                         <TableHead>Title</TableHead>
                         <TableHead>Category</TableHead>
-                        {!selectedProjectId && <TableHead>Project</TableHead>}
+                        {(!selectedProjectId || selectedProjectId === 'all') && <TableHead>Project</TableHead>}
                         <TableHead>Status</TableHead>
                         <TableHead>Current Version</TableHead>
                         <TableHead>Updated</TableHead>
@@ -415,7 +415,7 @@ export default function DrawingRegistryPage() {
                               {drawing.category}
                             </Badge>
                           </TableCell>
-                          {!selectedProjectId && (
+                          {(!selectedProjectId || selectedProjectId === 'all') && (
                             <TableCell>
                               <div className="text-sm">
                                 <div className="font-medium">{drawing.project?.projectName || 'No Project'}</div>
