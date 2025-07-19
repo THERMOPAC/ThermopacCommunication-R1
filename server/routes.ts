@@ -2939,6 +2939,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up design transmittal routes
   app.use('/api/design', designTransmittalRoutes);
   console.log('Design Transmittal routes registered at /api/design');
+  
+  // Set up design project items routes
+  const designProjectItemsRoutes = (await import('./design-project-items-routes')).default;
+  app.use('/api/design/project-items', designProjectItemsRoutes);
+  console.log('Design Project Items routes registered at /api/design/project-items');
 
   // =============================================================================
   // SAP B1 INTEGRATION ROUTES

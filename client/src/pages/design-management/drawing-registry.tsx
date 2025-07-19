@@ -91,6 +91,204 @@ interface DrawingVersion {
   };
 }
 
+// Project Items Section Component for displaying parent and child items
+function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
+  selectedProjectId: number | null;
+  showAllRevisions: boolean;
+}) {
+  const { toast } = useToast();
+
+  // Fetch project items with parent-child relationships
+  const { data: projectItemsResponse, isLoading: itemsLoading } = useQuery({
+    queryKey: ['/api/design/project-items', selectedProjectId],
+    queryFn: async () => {
+      if (!selectedProjectId) return { success: true, data: { parentItems: [], childItems: [], allItems: [], stats: {} } };
+      const response = await fetch(`/api/design/project-items?projectId=${selectedProjectId}`);
+      if (!response.ok) throw new Error('Failed to fetch project items');
+      return response.json();
+    },
+    enabled: !!selectedProjectId
+  });
+
+  const projectItems = projectItemsResponse?.data || { parentItems: [], childItems: [], allItems: [], stats: {} };
+
+  if (!selectedProjectId) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center">
+          <FolderOpen className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Project</h3>
+          <p className="text-gray-500">Choose a project from the dropdown above to view project items and their relationships</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (itemsLoading) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-3"></div>
+          <p className="text-gray-500">Loading project items...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Project Items Statistics */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FolderOpen className="w-5 h-5 text-indigo-600" />
+            Project Items Overview
+          </CardTitle>
+          <CardDescription>
+            Comprehensive view of all project items including parent-child relationships
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">{projectItems.stats.totalItems || 0}</div>
+              <div className="text-sm text-gray-500">Total Items</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{projectItems.stats.parentItems || 0}</div>
+              <div className="text-sm text-gray-500">Parent Items</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">{projectItems.stats.childItems || 0}</div>
+              <div className="text-sm text-gray-500">Child Components</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-600">{projectItems.stats.relationships || 0}</div>
+              <div className="text-sm text-gray-500">Relationships</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Parent Items with Child Components */}
+      {projectItems.parentItems.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Cog className="w-5 h-5 text-green-600" />
+              Parent Items & Child Components
+            </CardTitle>
+            <CardDescription>
+              Main assemblies with their component relationships
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {projectItems.parentItems.map((parentItem: any) => (
+                <div key={parentItem.id} className="border border-gray-200 rounded-lg p-4">
+                  {/* Parent Item Header */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        Parent Item
+                      </Badge>
+                      <div>
+                        <div className="font-medium text-gray-900">{parentItem.itemCode}</div>
+                        <div className="text-sm text-gray-600">{parentItem.description}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-gray-500">Make/Buy</div>
+                      <div className="font-medium">{parentItem.makeOrBuy || 'N/A'}</div>
+                    </div>
+                  </div>
+
+                  {/* Child Components */}
+                  {parentItem.childComponents && parentItem.childComponents.length > 0 && (
+                    <div className="ml-6 border-l-2 border-gray-200 pl-4 space-y-2">
+                      <div className="text-sm font-medium text-gray-700 mb-2">
+                        Child Components ({parentItem.childComponents.length})
+                      </div>
+                      {parentItem.childComponents.map((child: any) => (
+                        <div key={child.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-xs">Component</Badge>
+                            <div>
+                              <div className="text-sm font-medium">{child.itemCode}</div>
+                              <div className="text-xs text-gray-600">{child.description}</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-500">Qty:</span> <span className="font-medium">{child.quantity || 1}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Make/Buy:</span> <span className="font-medium">{child.makeOrBuy || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Standalone Items (Neither parent nor child) */}
+      {projectItems.allItems.some((item: any) => !item.isParent && !item.isChild) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-blue-600" />
+              Standalone Project Items
+            </CardTitle>
+            <CardDescription>
+              Items that are not part of parent-child relationships
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-3">
+              {projectItems.allItems
+                .filter((item: any) => !item.isParent && !item.isChild)
+                .map((item: any) => (
+                  <div key={item.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                        Standalone
+                      </Badge>
+                      <div>
+                        <div className="font-medium text-gray-900">{item.itemCode}</div>
+                        <div className="text-sm text-gray-600">{item.description}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-gray-500">Make/Buy</div>
+                      <div className="font-medium">{item.makeOrBuy || 'N/A'}</div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Empty State */}
+      {projectItems.allItems.length === 0 && (
+        <Card>
+          <CardContent className="p-6 text-center">
+            <FolderOpen className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Project Items Found</h3>
+            <p className="text-gray-500">This project doesn't have any items assigned yet.</p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 // Discipline Section Component for individual discipline tabs
 function DisciplineSection({ disciplineName, disciplineKey, icon: IconComponent, color, types, selectedProjectId, showAllRevisions }: {
   disciplineName: string;
@@ -1205,37 +1403,9 @@ export default function DrawingRegistryPage() {
           </TabsContent>
 
           <TabsContent value="project-drawings" className="space-y-4">
-            <DisciplineSection 
-              disciplineName="Project Drawings"
-              disciplineKey="project"
-              icon={FolderOpen}
-              color="text-indigo-600"
+            <ProjectItemsSection 
               selectedProjectId={selectedProjectId}
               showAllRevisions={showAllRevisions}
-              types={[
-                "Column Skid Assembly Drawing",
-                "CPS System PLC Panel Drawing",
-                "Rotary Skid Assembly Drawing",
-                "Backend Skid Drawing",
-                "Connecting Piping Area Drawing",
-                "Control Panel Drawing",
-                "Expansion Tank Drawing",
-                "Hard-wired Control Panel Drawing",
-                "HMI Unloading Loading Drawing",
-                "Nitrogen Purging Systems Drawing",
-                "Thermal Oxidizer Drawing",
-                "Pipe Bridge Drawing",
-                "Power Motor Control Drawing",
-                "Pollution Skid Drawing",
-                "Refinery Structure Drawing",
-                "Separator Skid Drawing",
-                "Blending Plant Drawing",
-                "Activated Media Drawing",
-                "Project Item Assembly Drawing",
-                "Project Item Detail Drawing",
-                "Project Item Installation Drawing",
-                "Project Item As-Built Drawing"
-              ]}
             />
           </TabsContent>
 
