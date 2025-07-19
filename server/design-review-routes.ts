@@ -108,13 +108,19 @@ router.get('/', async (req, res) => {
     }
 
     if (reviewer) {
-      conditions.push(eq(designReviews.reviewerId, parseInt(reviewer)));
+      const reviewerId = parseInt(reviewer);
+      if (!isNaN(reviewerId)) {
+        conditions.push(eq(designReviews.reviewerId, reviewerId));
+      }
     }
 
     if (project) {
-      // Join with design projects to filter by project
-      query = query.leftJoin(designProjects, eq(designDrawings.designProjectId, designProjects.id));
-      conditions.push(eq(designProjects.projectId, parseInt(project)));
+      const projectId = parseInt(project);
+      if (!isNaN(projectId)) {
+        // Join with design projects to filter by project
+        query = query.leftJoin(designProjects, eq(designDrawings.designProjectId, designProjects.id));
+        conditions.push(eq(designProjects.projectId, projectId));
+      }
     }
 
     if (searchTerm) {

@@ -86,11 +86,11 @@ interface ReviewFilters {
 const ReviewsDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState("active");
   const [filters, setFilters] = useState<ReviewFilters>({
-    status: '',
-    priority: '',
-    discipline: '',
-    reviewer: '',
-    project: '',
+    status: 'all',
+    priority: 'all',
+    discipline: 'all',
+    reviewer: 'all',
+    project: 'all',
     searchTerm: ''
   });
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -104,7 +104,7 @@ const ReviewsDashboard: React.FC = () => {
     queryFn: async () => {
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value);
+        if (value && value !== 'all') params.append(key, value);
       });
       const response = await fetch(`/api/design/reviews?${params}`);
       if (!response.ok) throw new Error('Failed to fetch reviews');
@@ -157,11 +157,11 @@ const ReviewsDashboard: React.FC = () => {
   // Filter reset function
   const resetFilters = () => {
     setFilters({
-      status: '',
-      priority: '',
-      discipline: '',
-      reviewer: '',
-      project: '',
+      status: 'all',
+      priority: 'all',
+      discipline: 'all',
+      reviewer: 'all',
+      project: 'all',
       searchTerm: ''
     });
   };
@@ -200,7 +200,7 @@ const ReviewsDashboard: React.FC = () => {
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Status</SelectItem>
+                  <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="Pending">Pending</SelectItem>
                   <SelectItem value="In Progress">In Progress</SelectItem>
                   <SelectItem value="Under Review">Under Review</SelectItem>
@@ -217,7 +217,7 @@ const ReviewsDashboard: React.FC = () => {
                   <SelectValue placeholder="All Priorities" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Priorities</SelectItem>
+                  <SelectItem value="all">All Priorities</SelectItem>
                   <SelectItem value="High">High</SelectItem>
                   <SelectItem value="Medium">Medium</SelectItem>
                   <SelectItem value="Low">Low</SelectItem>
@@ -232,7 +232,7 @@ const ReviewsDashboard: React.FC = () => {
                   <SelectValue placeholder="All Disciplines" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Disciplines</SelectItem>
+                  <SelectItem value="all">All Disciplines</SelectItem>
                   <SelectItem value="P&ID">P&ID</SelectItem>
                   <SelectItem value="Equipment_Layout">Equipment Layout</SelectItem>
                   <SelectItem value="Piping">Piping</SelectItem>
@@ -249,7 +249,7 @@ const ReviewsDashboard: React.FC = () => {
                   <SelectValue placeholder="All Reviewers" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Reviewers</SelectItem>
+                  <SelectItem value="all">All Reviewers</SelectItem>
                   {users.map((user: any) => (
                     <SelectItem key={user.id} value={user.id.toString()}>
                       {user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.username}
