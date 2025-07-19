@@ -7580,6 +7580,31 @@ export const designAssignments = pgTable('design_assignments', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
+// Design Basic Drawings table
+export const designBasicDrawings = pgTable('design_basic_drawings', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  
+  // Drawing Classification
+  discipline: varchar('discipline', { length: 100 }).notNull(), // Process Engineering, Mechanical & Piping, etc.
+  drawingType: varchar('drawing_type', { length: 255 }).notNull(), // PFD, P&ID, Piping GA, etc.
+  
+  // File Details
+  fileName: varchar('file_name', { length: 255 }).notNull(),
+  version: varchar('version', { length: 50 }).default('v1.0'),
+  description: text('description'),
+  
+  // Storage Information
+  filePath: text('file_path').notNull(),
+  fileUrl: text('file_url'),
+  fileSize: integer('file_size'),
+  fileType: varchar('file_type', { length: 50 }),
+  
+  // Upload Information
+  uploadedBy: integer('uploaded_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
+});
+
 // Define relationships for Design Module
 export const designProjectsRelations = relations(designProjects, ({ one, many }) => ({
   project: one(projects, {
@@ -7724,6 +7749,17 @@ export const designAssignmentsRelations = relations(designAssignments, ({ one })
   }),
 }));
 
+export const designBasicDrawingsRelations = relations(designBasicDrawings, ({ one }) => ({
+  project: one(projects, {
+    fields: [designBasicDrawings.projectId],
+    references: [projects.id],
+  }),
+  uploadedByUser: one(users, {
+    fields: [designBasicDrawings.uploadedBy],
+    references: [users.id],
+  }),
+}));
+
 // Create Zod schemas for data validation
 export const insertDesignProjectSchema = createInsertSchema(designProjects)
   .omit({ id: true, createdAt: true, updatedAt: true })
@@ -7793,6 +7829,15 @@ export const insertDesignAssignmentSchema = createInsertSchema(designAssignments
     progressPercentage: z.number().min(0).max(100).default(0),
   });
 
+export const insertDesignBasicDrawingSchema = createInsertSchema(designBasicDrawings)
+  .omit({ id: true, uploadedAt: true })
+  .extend({
+    discipline: z.string().min(1, "Discipline is required"),
+    drawingType: z.string().min(1, "Drawing type is required"),
+    fileName: z.string().min(1, "File name is required"),
+    version: z.string().default('v1.0'),
+  });
+
 // Export types for Design Module
 export type DesignProject = typeof designProjects.$inferSelect;
 export type InsertDesignProject = z.infer<typeof insertDesignProjectSchema>;
@@ -7817,3 +7862,6 @@ export type InsertDrawingTransmittal = z.infer<typeof insertDrawingTransmittalSc
 
 export type DesignAssignment = typeof designAssignments.$inferSelect;
 export type InsertDesignAssignment = z.infer<typeof insertDesignAssignmentSchema>;
+
+export type DesignBasicDrawing = typeof designBasicDrawings.$inferSelect;
+export type InsertDesignBasicDrawing = z.infer<typeof insertDesignBasicDrawingSchema>;

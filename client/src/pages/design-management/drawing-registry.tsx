@@ -23,7 +23,12 @@ import {
   Plus,
   Calendar,
   User,
-  Edit
+  Edit,
+  Settings,
+  Zap,
+  Building,
+  Cog,
+  Trash2
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -81,6 +86,361 @@ interface DrawingVersion {
     firstName?: string;
     lastName?: string;
   };
+}
+
+// Project Basic Drawings Section Component
+function ProjectBasicDrawingsSection() {
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [uploadDialog, setUploadDialog] = useState<{ open: boolean, discipline: string, type: string }>({ 
+    open: false, 
+    discipline: '', 
+    type: '' 
+  });
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // Fetch design projects for project selection
+  const { data: designProjects = [] } = useQuery({
+    queryKey: ['/api/design/projects'],
+    queryFn: async () => {
+      const response = await fetch('/api/design/projects');
+      if (!response.ok) throw new Error('Failed to fetch design projects');
+      return response.json();
+    }
+  });
+
+  // Fetch basic drawings for selected project
+  const { data: basicDrawings = [], isLoading } = useQuery({
+    queryKey: ['/api/design/basic-drawings', selectedProjectId],
+    queryFn: async () => {
+      if (!selectedProjectId) return [];
+      const response = await fetch(`/api/design/basic-drawings?projectId=${selectedProjectId}`);
+      if (!response.ok) throw new Error('Failed to fetch basic drawings');
+      return response.json();
+    },
+    enabled: !!selectedProjectId
+  });
+
+  // Upload mutation
+  const uploadMutation = useMutation({
+    mutationFn: async (data: { formData: FormData, discipline: string, type: string }) => {
+      const response = await fetch('/api/design/basic-drawings/upload', {
+        method: 'POST',
+        body: data.formData,
+      });
+      if (!response.ok) throw new Error('Failed to upload drawing');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/design/basic-drawings'] });
+      setUploadDialog({ open: false, discipline: '', type: '' });
+      toast({ title: "Success", description: "Drawing uploaded successfully" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to upload drawing",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (drawingId: string) => {
+      const response = await fetch(`/api/design/basic-drawings/${drawingId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete drawing');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/design/basic-drawings'] });
+      toast({ title: "Success", description: "Drawing deleted successfully" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to delete drawing",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleUpload = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    formData.append('projectId', selectedProjectId);
+    formData.append('discipline', uploadDialog.discipline);
+    formData.append('drawingType', uploadDialog.type);
+    
+    uploadMutation.mutate({ 
+      formData, 
+      discipline: uploadDialog.discipline, 
+      type: uploadDialog.type 
+    });
+  };
+
+  const handleDownload = async (drawing: any) => {
+    try {
+      const response = await fetch(`/api/design/basic-drawings/${drawing.id}/download`);
+      if (!response.ok) throw new Error('Download failed');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = drawing.fileName || `${drawing.drawingType}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      toast({ 
+        title: "Error", 
+        description: "Failed to download drawing",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDelete = (drawingId: string) => {
+    if (confirm('Are you sure you want to delete this drawing?')) {
+      deleteMutation.mutate(drawingId);
+    }
+  };
+
+  // Drawing categories and types
+  const drawingCategories = [
+    {
+      name: "Process Engineering",
+      icon: Settings,
+      color: "bg-blue-50 border-blue-200",
+      iconColor: "text-blue-600",
+      types: [
+        "Process Flow Diagram (PFD)",
+        "Piping and Instrumentation Diagram (P&ID)"
+      ]
+    },
+    {
+      name: "Mechanical & Piping",
+      icon: Cog,
+      color: "bg-green-50 border-green-200",
+      iconColor: "text-green-600",
+      types: [
+        "Piping General Arrangement (GA) Drawing",
+        "Piping Isometric Drawings"
+      ]
+    },
+    {
+      name: "Civil & Structural",
+      icon: Building,
+      color: "bg-orange-50 border-orange-200",
+      iconColor: "text-orange-600",
+      types: [
+        "Plot Plan",
+        "Foundation Layout Drawings"
+      ]
+    },
+    {
+      name: "Electrical & Instrumentation",
+      icon: Zap,
+      color: "bg-purple-50 border-purple-200",
+      iconColor: "text-purple-600",
+      types: [
+        "Single Line Diagram (SLD)",
+        "Electrical Layout Drawings",
+        "Cable Tray & Conduit Layouts",
+        "Instrument Loop Diagrams",
+        "Instrument Hook-up Drawings"
+      ]
+    }
+  ];
+
+  // Get drawings for a specific discipline and type
+  const getDrawingsForType = (discipline: string, type: string) => {
+    return basicDrawings.filter((drawing: any) => 
+      drawing.discipline === discipline && drawing.drawingType === type
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            📘 Project Basic Drawing
+          </CardTitle>
+          <CardDescription>
+            Structured drawing management organized by engineering disciplines
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4">
+            <Label htmlFor="projectSelect">Select Project</Label>
+            <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a project to manage basic drawings" />
+              </SelectTrigger>
+              <SelectContent>
+                {designProjects.map((project: any) => (
+                  <SelectItem key={project.id} value={project.id.toString()}>
+                    {project.projectName} ({project.projectCode}) - {project.customerName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Drawing Categories */}
+      {selectedProjectId && (
+        <div className="grid gap-6">
+          {drawingCategories.map((category) => {
+            const IconComponent = category.icon;
+            return (
+              <Card key={category.name} className={`${category.color} border-2`}>
+                <CardHeader>
+                  <CardTitle className={`flex items-center gap-2 ${category.iconColor}`}>
+                    <IconComponent className="w-5 h-5" />
+                    {category.name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {category.types.map((type) => {
+                      const drawings = getDrawingsForType(category.name, type);
+                      return (
+                        <div key={type} className="bg-white p-4 rounded-lg border border-gray-200">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium text-gray-900">{type}</h4>
+                            <Button
+                              size="sm"
+                              onClick={() => setUploadDialog({ 
+                                open: true, 
+                                discipline: category.name, 
+                                type 
+                              })}
+                              className="bg-blue-600 hover:bg-blue-700"
+                            >
+                              <Upload className="w-4 h-4 mr-1" />
+                              Upload
+                            </Button>
+                          </div>
+                          
+                          {drawings.length > 0 ? (
+                            <div className="space-y-2">
+                              {drawings.map((drawing: any) => (
+                                <div key={drawing.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                                  <div className="flex items-center gap-2">
+                                    <FileText className="w-4 h-4 text-gray-500" />
+                                    <span className="text-sm font-medium">{drawing.fileName}</span>
+                                    <Badge variant="secondary" className="text-xs">
+                                      {drawing.version || 'v1.0'}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex gap-1">
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline"
+                                      onClick={() => handleDownload(drawing)}
+                                    >
+                                      <Download className="w-3 h-3" />
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline"
+                                      onClick={() => handleDelete(drawing.id)}
+                                      className="text-red-600 hover:text-red-700"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-500 text-center py-4">
+                              No drawings uploaded yet
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {!selectedProjectId && (
+        <Card>
+          <CardContent className="text-center py-8">
+            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500">Select a project to manage basic drawings</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Upload Dialog */}
+      <Dialog open={uploadDialog.open} onOpenChange={(open) => setUploadDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Upload Drawing</DialogTitle>
+            <DialogDescription>
+              Upload {uploadDialog.type} for {uploadDialog.discipline}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpload} className="space-y-4">
+            <div>
+              <Label htmlFor="file">Drawing File</Label>
+              <Input 
+                name="file" 
+                type="file" 
+                accept=".dwg,.pdf,.png,.jpg,.jpeg" 
+                required 
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Supported formats: DWG, PDF, PNG, JPG
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="version">Version</Label>
+              <Input 
+                name="version" 
+                placeholder="v1.0" 
+                defaultValue="v1.0"
+              />
+            </div>
+            <div>
+              <Label htmlFor="description">Description (Optional)</Label>
+              <Input 
+                name="description" 
+                placeholder="Brief description of the drawing"
+              />
+            </div>
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setUploadDialog({ open: false, discipline: '', type: '' })}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={uploadMutation.isPending}>
+                {uploadMutation.isPending ? 'Uploading...' : 'Upload'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }
 
 export default function DrawingRegistryPage() {
@@ -291,8 +651,9 @@ export default function DrawingRegistryPage() {
         </div>
 
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="drawings">All Drawings</TabsTrigger>
+            <TabsTrigger value="basic-drawings">Project Basic Drawings</TabsTrigger>
             <TabsTrigger value="categories">By Category</TabsTrigger>
             <TabsTrigger value="projects">By Project</TabsTrigger>
           </TabsList>
@@ -471,6 +832,10 @@ export default function DrawingRegistryPage() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="basic-drawings" className="space-y-4">
+            <ProjectBasicDrawingsSection />
           </TabsContent>
 
           <TabsContent value="categories" className="space-y-4">

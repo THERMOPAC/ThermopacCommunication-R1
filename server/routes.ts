@@ -76,6 +76,7 @@ import { default as googleCalendarRoutes } from "./google-calendar-routes";
 import { default as designManagementRoutes } from "./design-management-routes";
 import { default as designReviewRoutes } from "./design-review-routes";
 import { default as designDrawingRoutes } from "./design-drawing-routes";
+import { default as designBasicDrawingRoutes } from "./design-basic-drawings-routes";
 import { default as designStandardsRoutes } from "./design-standards-routes";
 import { default as designTransmittalRoutes } from "./design-transmittal-routes";
 import { vpnManager } from "./vpn/vpn-manager";
@@ -2926,6 +2927,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up design drawing routes
   app.use('/api/design', designDrawingRoutes);
   console.log('Design Drawing routes registered at /api/design');
+  
+  // Set up design basic drawings routes
+  app.use('/api/design/basic-drawings', designBasicDrawingRoutes);
+  console.log('Design Basic Drawing routes registered at /api/design/basic-drawings');
   
   // Set up design standards routes
   app.use('/api/design', designStandardsRoutes);
