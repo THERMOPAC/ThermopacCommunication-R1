@@ -73,6 +73,7 @@ import { default as visaManagementRoutes } from "./visa-management-routes";
 import { default as schengenRoutes } from "./schengen-routes";
 import { default as legalManagementRoutes } from "./legal-management-routes";
 import { default as googleCalendarRoutes } from "./google-calendar-routes";
+import { default as designManagementRoutes } from "./design-management-routes";
 import { vpnManager } from "./vpn/vpn-manager";
 import { detectTimezoneFromIP, getTimezoneOffset } from "./timezone-detection-service";
 import { 
@@ -2909,6 +2910,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const googleCalendarRoutes = (await import('./google-calendar-routes')).default;
   app.use('/api', googleCalendarRoutes);
   console.log('Google Calendar integration routes registered at /api');
+
+  // Set up Design Management routes
+  app.use('/api/design', designManagementRoutes);
+  console.log('Design Management routes registered at /api/design');
 
   // =============================================================================
   // SAP B1 INTEGRATION ROUTES
