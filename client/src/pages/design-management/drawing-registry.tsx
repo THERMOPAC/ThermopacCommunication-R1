@@ -1213,11 +1213,28 @@ export default function DrawingRegistryPage() {
               selectedProjectId={selectedProjectId}
               showAllRevisions={showAllRevisions}
               types={[
-                "Project Overview Drawing",
-                "Assembly Drawings",
-                "Detail Drawings",
-                "As-Built Drawings",
-                "Installation Drawings"
+                "Column Skid Assembly Drawing",
+                "CPS System PLC Panel Drawing",
+                "Rotary Skid Assembly Drawing",
+                "Backend Skid Drawing",
+                "Connecting Piping Area Drawing",
+                "Control Panel Drawing",
+                "Expansion Tank Drawing",
+                "Hard-wired Control Panel Drawing",
+                "HMI Unloading Loading Drawing",
+                "Nitrogen Purging Systems Drawing",
+                "Thermal Oxidizer Drawing",
+                "Pipe Bridge Drawing",
+                "Power Motor Control Drawing",
+                "Pollution Skid Drawing",
+                "Refinery Structure Drawing",
+                "Separator Skid Drawing",
+                "Blending Plant Drawing",
+                "Activated Media Drawing",
+                "Project Item Assembly Drawing",
+                "Project Item Detail Drawing",
+                "Project Item Installation Drawing",
+                "Project Item As-Built Drawing"
               ]}
             />
           </TabsContent>
