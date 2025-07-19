@@ -213,7 +213,6 @@ export default function DesignProjectsPage() {
                         <TableHead>UOM</TableHead>
                         <TableHead>Make/Buy</TableHead>
                         <TableHead>Category</TableHead>
-                        <TableHead>Specification</TableHead>
                         <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -233,9 +232,6 @@ export default function DesignProjectsPage() {
                             <Badge variant="outline">
                               {item.masterItem?.make_or_buy === 'Make' ? 'Manufacturing' : 'Procurement'}
                             </Badge>
-                          </TableCell>
-                          <TableCell className="max-w-xs truncate" title={item.masterItem?.specification || ''}>
-                            {item.masterItem?.specification || '-'}
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className="bg-yellow-100 text-yellow-800">

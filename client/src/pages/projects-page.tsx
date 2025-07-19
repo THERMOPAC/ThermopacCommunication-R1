@@ -194,7 +194,6 @@ export default function ProjectsPage() {
                           <TableHead>Quantity</TableHead>
                           <TableHead>UOM</TableHead>
                           <TableHead>Make/Buy</TableHead>
-                          <TableHead>Specification</TableHead>
                           <TableHead>Supplier</TableHead>
                           <TableHead>Status</TableHead>
                         </TableRow>
@@ -210,9 +209,6 @@ export default function ProjectsPage() {
                               <Badge className={getMakeOrBuyColor(item.masterItem?.make_or_buy || '')}>
                                 {item.masterItem?.make_or_buy || 'N/A'}
                               </Badge>
-                            </TableCell>
-                            <TableCell className="max-w-xs truncate" title={item.masterItem?.specification || ''}>
-                              {item.masterItem?.specification || '-'}
                             </TableCell>
                             <TableCell>{item.masterItem?.supplier || '-'}</TableCell>
                             <TableCell>
