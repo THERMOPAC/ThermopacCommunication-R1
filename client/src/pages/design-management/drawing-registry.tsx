@@ -110,10 +110,10 @@ function ProjectBasicDrawingsSection() {
   });
 
   // Fetch basic drawings for selected project
-  const { data: basicDrawings = [], isLoading } = useQuery({
+  const { data: basicDrawingsResponse, isLoading } = useQuery({
     queryKey: ['/api/design/basic-drawings', selectedProjectId],
     queryFn: async () => {
-      if (!selectedProjectId) return [];
+      if (!selectedProjectId) return { success: true, data: [] };
       const response = await fetch(`/api/design/basic-drawings?projectId=${selectedProjectId}`);
       if (!response.ok) throw new Error('Failed to fetch basic drawings');
       return response.json();
@@ -121,10 +121,12 @@ function ProjectBasicDrawingsSection() {
     enabled: !!selectedProjectId
   });
 
+  const basicDrawings = basicDrawingsResponse?.data || [];
+
   // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: async (data: { formData: FormData, discipline: string, type: string }) => {
-      const response = await fetch('/api/design/basic-drawings/upload', {
+      const response = await fetch('/api/design/basic-drawings', {
         method: 'POST',
         body: data.formData,
       });
