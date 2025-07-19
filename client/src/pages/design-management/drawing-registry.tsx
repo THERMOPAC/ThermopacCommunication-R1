@@ -91,15 +91,15 @@ interface DrawingVersion {
 }
 
 // Discipline Section Component for individual discipline tabs
-function DisciplineSection({ disciplineName, disciplineKey, icon: IconComponent, color, types }: {
+function DisciplineSection({ disciplineName, disciplineKey, icon: IconComponent, color, types, selectedProjectId, showAllRevisions }: {
   disciplineName: string;
   disciplineKey: string;
   icon: any;
   color: string;
   types: string[];
+  selectedProjectId: number | null;
+  showAllRevisions: boolean;
 }) {
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
-  const [showAllRevisions, setShowAllRevisions] = useState<boolean>(false);
   const [uploadDialog, setUploadDialog] = useState<{ open: boolean, type: string }>({ 
     open: false, 
     type: '' 
@@ -856,7 +856,8 @@ export default function DrawingRegistryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [showAllRevisions, setShowAllRevisions] = useState(false);
   const [selectedDrawing, setSelectedDrawing] = useState<DesignDrawing | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isVersionHistoryDialogOpen, setIsVersionHistoryDialogOpen] = useState(false);
@@ -1058,6 +1059,48 @@ export default function DrawingRegistryPage() {
           </Dialog>
         </div>
 
+        {/* Global Filters */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-6">
+              <div className="flex-1">
+                <Label htmlFor="project-filter" className="text-sm font-medium text-gray-700 mb-2 block">
+                  Select Project
+                </Label>
+                <Select 
+                  value={selectedProjectId || "all"} 
+                  onValueChange={(value) => setSelectedProjectId(value === "all" ? null : parseInt(value))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select project to filter drawings" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Projects</SelectItem>
+                    {designProjects.map((project: any) => (
+                      <SelectItem key={project.id} value={project.id.toString()}>
+                        {project.designProjectName} ({project.projectCode}) - {project.projectName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Label htmlFor="revision-toggle" className="text-sm font-medium text-gray-700">
+                  Show All Revisions
+                </Label>
+                <Switch 
+                  id="revision-toggle"
+                  checked={showAllRevisions} 
+                  onCheckedChange={setShowAllRevisions}
+                />
+                <span className="text-sm text-gray-500">
+                  {showAllRevisions ? "All Revisions" : "Current Only"}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="project-basic-drawings" className="flex items-center gap-1">
@@ -1083,7 +1126,20 @@ export default function DrawingRegistryPage() {
           </TabsList>
 
           <TabsContent value="project-basic-drawings" className="space-y-4">
-            <ProjectBasicDrawingsSection />
+            <DisciplineSection 
+              disciplineName="Project Basic Drawings"
+              disciplineKey="basic"
+              icon={FileText}
+              color="text-blue-600"
+              selectedProjectId={selectedProjectId}
+              showAllRevisions={showAllRevisions}
+              types={[
+                "General Arrangement Drawing",
+                "Process Flow Diagram",
+                "Equipment Layout",
+                "Site Plan"
+              ]}
+            />
           </TabsContent>
 
           <TabsContent value="process-engineering" className="space-y-4">
@@ -1092,6 +1148,8 @@ export default function DrawingRegistryPage() {
               disciplineKey="process"
               icon={Settings}
               color="text-blue-600"
+              selectedProjectId={selectedProjectId}
+              showAllRevisions={showAllRevisions}
               types={[
                 "Process Flow Diagram (PFD)",
                 "Piping and Instrumentation Diagram (P&ID)"
@@ -1105,6 +1163,8 @@ export default function DrawingRegistryPage() {
               disciplineKey="mechanical"
               icon={Cog}
               color="text-green-600"
+              selectedProjectId={selectedProjectId}
+              showAllRevisions={showAllRevisions}
               types={[
                 "Piping General Arrangement (GA) Drawing",
                 "Piping Isometric Drawings"
@@ -1118,6 +1178,8 @@ export default function DrawingRegistryPage() {
               disciplineKey="civil"
               icon={Building}
               color="text-orange-600"
+              selectedProjectId={selectedProjectId}
+              showAllRevisions={showAllRevisions}
               types={[
                 "Plot Plan",
                 "Foundation Layout Drawings"
@@ -1131,6 +1193,8 @@ export default function DrawingRegistryPage() {
               disciplineKey="electrical"
               icon={Zap}
               color="text-purple-600"
+              selectedProjectId={selectedProjectId}
+              showAllRevisions={showAllRevisions}
               types={[
                 "Single Line Diagram (SLD)",
                 "Electrical Layout Drawings",
