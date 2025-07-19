@@ -90,6 +90,351 @@ interface DrawingVersion {
   };
 }
 
+// Discipline Section Component for individual discipline tabs
+function DisciplineSection({ disciplineName, disciplineKey, icon: IconComponent, color, types }: {
+  disciplineName: string;
+  disciplineKey: string;
+  icon: any;
+  color: string;
+  types: string[];
+}) {
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [showAllRevisions, setShowAllRevisions] = useState<boolean>(false);
+  const [uploadDialog, setUploadDialog] = useState<{ open: boolean, type: string }>({ 
+    open: false, 
+    type: '' 
+  });
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // Fetch design projects for project selection
+  const { data: designProjects = [] } = useQuery({
+    queryKey: ['/api/design/projects'],
+    queryFn: async () => {
+      const response = await fetch('/api/design/projects');
+      if (!response.ok) throw new Error('Failed to fetch design projects');
+      return response.json();
+    }
+  });
+
+  // Fetch basic drawings for selected project
+  const { data: basicDrawingsResponse, isLoading } = useQuery({
+    queryKey: ['/api/design/basic-drawings', selectedProjectId, disciplineName],
+    queryFn: async () => {
+      if (!selectedProjectId) return { success: true, data: [] };
+      const response = await fetch(`/api/design/basic-drawings?projectId=${selectedProjectId}`);
+      if (!response.ok) throw new Error('Failed to fetch basic drawings');
+      return response.json();
+    },
+    enabled: !!selectedProjectId
+  });
+
+  const basicDrawings = basicDrawingsResponse?.data || [];
+  
+  // Filter drawings for this discipline
+  const filteredDrawings = React.useMemo(() => {
+    let drawings = basicDrawings.filter((drawing: any) => 
+      drawing.discipline === disciplineName
+    );
+    
+    if (!showAllRevisions) {
+      drawings = drawings.filter((drawing: any) => drawing.status === 'current');
+    }
+    
+    return drawings;
+  }, [basicDrawings, showAllRevisions, disciplineName]);
+
+  // Upload mutation
+  const uploadMutation = useMutation({
+    mutationFn: async (data: { formData: FormData, type: string }) => {
+      const response = await fetch('/api/design/basic-drawings', {
+        method: 'POST',
+        body: data.formData,
+      });
+      if (!response.ok) throw new Error('Failed to upload drawing');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/design/basic-drawings'] });
+      setUploadDialog({ open: false, type: '' });
+      toast({ title: "Success", description: "Drawing uploaded successfully" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to upload drawing",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (drawingId: string) => {
+      const response = await fetch(`/api/design/basic-drawings/${drawingId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete drawing');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/design/basic-drawings'] });
+      toast({ title: "Success", description: "Drawing deleted successfully" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to delete drawing",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleUpload = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    formData.append('projectId', selectedProjectId);
+    formData.append('discipline', disciplineName);
+    formData.append('drawingType', uploadDialog.type);
+    
+    uploadMutation.mutate({ 
+      formData, 
+      type: uploadDialog.type 
+    });
+  };
+
+  const handleDownload = async (drawing: any) => {
+    try {
+      const response = await fetch(`/api/design/basic-drawings/${drawing.id}/download`);
+      if (!response.ok) throw new Error('Download failed');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = drawing.fileName || `${drawing.drawingType}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      toast({ 
+        title: "Error", 
+        description: "Failed to download drawing",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDelete = (drawingId: string) => {
+    if (confirm('Are you sure you want to delete this drawing?')) {
+      deleteMutation.mutate(drawingId);
+    }
+  };
+
+  // Get drawings for a specific type
+  const getDrawingsForType = (type: string) => {
+    return filteredDrawings.filter((drawing: any) => 
+      drawing.drawingType === type
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Project Selection */}
+      <Card>
+        <CardHeader>
+          <CardTitle className={`flex items-center gap-2 ${color}`}>
+            <IconComponent className="w-5 h-5" />
+            {disciplineName}
+          </CardTitle>
+          <CardDescription>
+            Manage {disciplineName.toLowerCase()} drawings for your projects
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="projectSelect">Select Project</Label>
+              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a project to manage drawings" />
+                </SelectTrigger>
+                <SelectContent>
+                  {designProjects.map((project: any) => (
+                    <SelectItem key={project.id} value={project.id.toString()}>
+                      {project.projectName} ({project.projectCode}) - {project.customerName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {selectedProjectId && (
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="show-all-revisions"
+                  checked={showAllRevisions}
+                  onCheckedChange={setShowAllRevisions}
+                />
+                <Label htmlFor="show-all-revisions" className="cursor-pointer">
+                  Show all revisions (including superseded)
+                </Label>
+                {!showAllRevisions && (
+                  <Badge variant="secondary" className="text-xs">
+                    <Clock className="w-3 h-3 mr-1" />
+                    Current only
+                  </Badge>
+                )}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Drawing Types */}
+      {selectedProjectId && (
+        <div className="space-y-4">
+          {types.map((type) => {
+            const drawings = getDrawingsForType(type);
+            return (
+              <Card key={type}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium text-gray-900">{type}</h4>
+                    <Button
+                      size="sm"
+                      onClick={() => setUploadDialog({ 
+                        open: true, 
+                        type 
+                      })}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Upload className="w-4 h-4 mr-1" />
+                      Upload
+                    </Button>
+                  </div>
+                  
+                  {drawings.length > 0 ? (
+                    <div className="space-y-2">
+                      {drawings.map((drawing: any) => (
+                        <div key={drawing.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm font-medium">{drawing.fileName || drawing.originalFileName}</span>
+                            <Badge 
+                              variant={drawing.status === 'current' ? 'default' : 'secondary'} 
+                              className="text-xs"
+                            >
+                              {drawing.revision || 'R1'}
+                            </Badge>
+                            {drawing.status === 'superseded' && (
+                              <Badge variant="outline" className="text-xs text-orange-600">
+                                Superseded
+                              </Badge>
+                            )}
+                            {drawing.status === 'archived' && (
+                              <Badge variant="outline" className="text-xs text-gray-600">
+                                Archived
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleDownload(drawing)}
+                            >
+                              <Download className="w-3 h-3" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleDelete(drawing.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500 text-center py-4">
+                      No drawings uploaded yet
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {!selectedProjectId && (
+        <Card>
+          <CardContent className="text-center py-8">
+            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500">Select a project to manage {disciplineName.toLowerCase()} drawings</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Upload Dialog */}
+      <Dialog open={uploadDialog.open} onOpenChange={(open) => setUploadDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Upload {disciplineName} Drawing</DialogTitle>
+            <DialogDescription>
+              Upload {uploadDialog.type}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpload} className="space-y-4">
+            <div>
+              <Label htmlFor="file">Drawing File</Label>
+              <Input 
+                name="file" 
+                type="file" 
+                accept=".dwg,.pdf,.png,.jpg,.jpeg" 
+                required 
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Supported formats: DWG, PDF, PNG, JPG
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="revisionReason">Revision Reason (Optional)</Label>
+              <Input 
+                name="revisionReason" 
+                placeholder="Brief reason for new revision or changes made"
+              />
+            </div>
+            <div>
+              <Label htmlFor="description">Description (Optional)</Label>
+              <Input 
+                name="description" 
+                placeholder="Brief description of the drawing"
+              />
+            </div>
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setUploadDialog({ open: false, type: '' })}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={uploadMutation.isPending}>
+                {uploadMutation.isPending ? 'Uploading...' : 'Upload'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // Project Basic Drawings Section Component
 function ProjectBasicDrawingsSection() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
@@ -507,7 +852,7 @@ function ProjectBasicDrawingsSection() {
 }
 
 export default function DrawingRegistryPage() {
-  const [selectedTab, setSelectedTab] = useState('basic-drawings');
+  const [selectedTab, setSelectedTab] = useState('project-basic-drawings');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -714,15 +1059,87 @@ export default function DrawingRegistryPage() {
         </div>
 
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-1">
-            <TabsTrigger value="basic-drawings">Project Basic Drawings</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="project-basic-drawings" className="flex items-center gap-1">
+              <FileText className="w-4 h-4" />
+              Project Basic Drawings
+            </TabsTrigger>
+            <TabsTrigger value="process-engineering" className="flex items-center gap-1">
+              <Settings className="w-4 h-4" />
+              Process Engineering
+            </TabsTrigger>
+            <TabsTrigger value="mechanical-piping" className="flex items-center gap-1">
+              <Cog className="w-4 h-4" />
+              Mechanical & Piping
+            </TabsTrigger>
+            <TabsTrigger value="civil-structural" className="flex items-center gap-1">
+              <Building className="w-4 h-4" />
+              Civil & Structural
+            </TabsTrigger>
+            <TabsTrigger value="electrical-instrumentation" className="flex items-center gap-1">
+              <Zap className="w-4 h-4" />
+              Electrical & Instrumentation
+            </TabsTrigger>
           </TabsList>
 
-
-          <TabsContent value="basic-drawings" className="space-y-4">
+          <TabsContent value="project-basic-drawings" className="space-y-4">
             <ProjectBasicDrawingsSection />
           </TabsContent>
 
+          <TabsContent value="process-engineering" className="space-y-4">
+            <DisciplineSection 
+              disciplineName="Process Engineering"
+              disciplineKey="process"
+              icon={Settings}
+              color="text-blue-600"
+              types={[
+                "Process Flow Diagram (PFD)",
+                "Piping and Instrumentation Diagram (P&ID)"
+              ]}
+            />
+          </TabsContent>
+
+          <TabsContent value="mechanical-piping" className="space-y-4">
+            <DisciplineSection 
+              disciplineName="Mechanical & Piping"
+              disciplineKey="mechanical"
+              icon={Cog}
+              color="text-green-600"
+              types={[
+                "Piping General Arrangement (GA) Drawing",
+                "Piping Isometric Drawings"
+              ]}
+            />
+          </TabsContent>
+
+          <TabsContent value="civil-structural" className="space-y-4">
+            <DisciplineSection 
+              disciplineName="Civil & Structural"
+              disciplineKey="civil"
+              icon={Building}
+              color="text-orange-600"
+              types={[
+                "Plot Plan",
+                "Foundation Layout Drawings"
+              ]}
+            />
+          </TabsContent>
+
+          <TabsContent value="electrical-instrumentation" className="space-y-4">
+            <DisciplineSection 
+              disciplineName="Electrical & Instrumentation"
+              disciplineKey="electrical"
+              icon={Zap}
+              color="text-purple-600"
+              types={[
+                "Single Line Diagram (SLD)",
+                "Electrical Layout Drawings",
+                "Cable Tray & Conduit Layouts",
+                "Instrument Loop Diagrams",
+                "Instrument Hook-up Drawings"
+              ]}
+            />
+          </TabsContent>
 
         </Tabs>
 
