@@ -1097,7 +1097,7 @@ export default function DrawingRegistryPage() {
         </Card>
 
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="project-basic-drawings" className="flex items-center gap-1">
               <FileText className="w-4 h-4" />
               Project Basic Drawings
@@ -1117,6 +1117,10 @@ export default function DrawingRegistryPage() {
             <TabsTrigger value="electrical-instrumentation" className="flex items-center gap-1">
               <Zap className="w-4 h-4" />
               Electrical & Instrumentation
+            </TabsTrigger>
+            <TabsTrigger value="project-drawings" className="flex items-center gap-1">
+              <FolderOpen className="w-4 h-4" />
+              Project Drawings
             </TabsTrigger>
           </TabsList>
 
@@ -1196,6 +1200,24 @@ export default function DrawingRegistryPage() {
                 "Cable Tray & Conduit Layouts",
                 "Instrument Loop Diagrams",
                 "Instrument Hook-up Drawings"
+              ]}
+            />
+          </TabsContent>
+
+          <TabsContent value="project-drawings" className="space-y-4">
+            <DisciplineSection 
+              disciplineName="Project Drawings"
+              disciplineKey="project"
+              icon={FolderOpen}
+              color="text-indigo-600"
+              selectedProjectId={selectedProjectId}
+              showAllRevisions={showAllRevisions}
+              types={[
+                "Project Overview Drawing",
+                "Assembly Drawings",
+                "Detail Drawings",
+                "As-Built Drawings",
+                "Installation Drawings"
               ]}
             />
           </TabsContent>
