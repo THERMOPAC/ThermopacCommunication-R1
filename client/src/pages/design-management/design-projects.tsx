@@ -64,20 +64,11 @@ export default function DesignProjectsPage() {
     const urlParams = new URLSearchParams(window.location.search);
     const projectIdFromUrl = urlParams.get('id');
     
-    console.log('Auto-selection debug:', { 
-      location, 
-      windowLocationSearch: window.location.search,
-      projectIdFromUrl,
-      projectsLength: projects?.length 
-    });
-    
     if (projectIdFromUrl && projects && projects.length > 0) {
       // Verify the project exists before setting it
       const projectExists = projects.some(p => p.id.toString() === projectIdFromUrl);
-      console.log('Project exists check:', { projectExists, projectIdFromUrl });
       
       if (projectExists && selectedProjectId !== projectIdFromUrl) {
-        console.log('Auto-selecting project:', projectIdFromUrl);
         setSelectedProjectId(projectIdFromUrl);
       }
     }
