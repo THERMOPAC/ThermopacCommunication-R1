@@ -74,6 +74,7 @@ import { default as schengenRoutes } from "./schengen-routes";
 import { default as legalManagementRoutes } from "./legal-management-routes";
 import { default as googleCalendarRoutes } from "./google-calendar-routes";
 import { default as designManagementRoutes } from "./design-management-routes";
+import { default as designReviewRoutes } from "./design-review-routes";
 import { vpnManager } from "./vpn/vpn-manager";
 import { detectTimezoneFromIP, getTimezoneOffset } from "./timezone-detection-service";
 import { 
@@ -2914,6 +2915,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up Design Management routes
   app.use('/api/design', designManagementRoutes);
   console.log('Design Management routes registered at /api/design');
+  
+  // Set up design review routes
+  app.use('/api/design/reviews', designReviewRoutes);
+  console.log('Design Review routes registered at /api/design/reviews');
 
   // =============================================================================
   // SAP B1 INTEGRATION ROUTES

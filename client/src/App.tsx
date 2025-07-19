@@ -19,7 +19,7 @@ import MessagesPage from "@/pages/messages-page";
 import DesignDashboardPage from "@/pages/design-management/design-dashboard";
 import DesignProjectsPage from "@/pages/design-management/design-projects";
 import DrawingRegistryPage from "@/pages/design-management/drawing-registry";
-import ReviewApprovalPage from "@/pages/design-management/review-approval";
+import ReviewApprovalPage from "@/pages/design-management/design-reviews";
 import TransmittalsPage from "@/pages/design-management/transmittals";
 import StandardsTemplatesPage from "@/pages/design-management/standards-templates";
 import ReportsAnalyticsPage from "@/pages/design-management/reports-analytics";
