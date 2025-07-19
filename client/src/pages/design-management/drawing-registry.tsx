@@ -241,7 +241,7 @@ function DisciplineSection({ disciplineName, disciplineKey, icon: IconComponent,
 
   return (
     <div className="space-y-6">
-      {/* Project Selection */}
+      {/* Drawing Types Header */}
       <Card>
         <CardHeader>
           <CardTitle className={`flex items-center gap-2 ${color}`}>
@@ -252,44 +252,6 @@ function DisciplineSection({ disciplineName, disciplineKey, icon: IconComponent,
             Manage {disciplineName.toLowerCase()} drawings for your projects
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="projectSelect">Select Project</Label>
-              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a project to manage drawings" />
-                </SelectTrigger>
-                <SelectContent>
-                  {designProjects.map((project: any) => (
-                    <SelectItem key={project.id} value={project.id.toString()}>
-                      {project.projectName} ({project.projectCode}) - {project.customerName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {selectedProjectId && (
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="show-all-revisions"
-                  checked={showAllRevisions}
-                  onCheckedChange={setShowAllRevisions}
-                />
-                <Label htmlFor="show-all-revisions" className="cursor-pointer">
-                  Show all revisions (including superseded)
-                </Label>
-                {!showAllRevisions && (
-                  <Badge variant="secondary" className="text-xs">
-                    <Clock className="w-3 h-3 mr-1" />
-                    Current only
-                  </Badge>
-                )}
-              </div>
-            )}
-          </div>
-        </CardContent>
       </Card>
 
       {/* Drawing Types */}
