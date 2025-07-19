@@ -152,7 +152,7 @@ export default function DesignDashboard() {
                 Projects from Project Management available for design activities
               </CardDescription>
             </div>
-            <Link href="/design-management/design-projects">
+            <Link href="/design-management/projects">
               <Button variant="outline">
                 View All Projects
                 <ArrowRight className="h-4 w-4 ml-2" />
@@ -241,10 +241,12 @@ export default function DesignDashboard() {
                         
                         {/* Action Button */}
                         <div className="ml-6">
-                          <Button variant="outline" size="sm">
-                            Start Design Work
-                            <ArrowRight className="h-3 w-3 ml-2" />
-                          </Button>
+                          <Link href={`/design-management/projects?id=${project.id}`}>
+                            <Button variant="outline" size="sm">
+                              Start Design Work
+                              <ArrowRight className="h-3 w-3 ml-2" />
+                            </Button>
+                          </Link>
                         </div>
                       </div>
                       

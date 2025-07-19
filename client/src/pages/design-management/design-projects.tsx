@@ -15,8 +15,8 @@ import {
   Loader2
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { Link } from "wouter";
+import { useState, useEffect } from "react";
+import { Link, useLocation } from "wouter";
 
 interface Project {
   id: number;
@@ -51,11 +51,26 @@ interface ProjectItem {
 
 export default function DesignProjectsPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [location] = useLocation();
 
   // Fetch projects data
   const { data: projects, isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ['/api/design/projects'],
   });
+
+  // Auto-select project from URL parameter
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.split('?')[1] || '');
+    const projectIdFromUrl = urlParams.get('id');
+    
+    if (projectIdFromUrl && projects) {
+      // Verify the project exists before setting it
+      const projectExists = projects.some(p => p.id.toString() === projectIdFromUrl);
+      if (projectExists) {
+        setSelectedProjectId(projectIdFromUrl);
+      }
+    }
+  }, [location, projects]);
 
   // Fetch project items when a project is selected
   const { data: projectItems, isLoading: itemsLoading } = useQuery<ProjectItem[]>({
