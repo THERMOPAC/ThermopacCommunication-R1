@@ -60,17 +60,28 @@ export default function DesignProjectsPage() {
 
   // Auto-select project from URL parameter
   useEffect(() => {
-    const urlParams = new URLSearchParams(location.split('?')[1] || '');
+    // Parse URL parameters from window.location.search for more reliable results
+    const urlParams = new URLSearchParams(window.location.search);
     const projectIdFromUrl = urlParams.get('id');
     
-    if (projectIdFromUrl && projects) {
+    console.log('Auto-selection debug:', { 
+      location, 
+      windowLocationSearch: window.location.search,
+      projectIdFromUrl,
+      projectsLength: projects?.length 
+    });
+    
+    if (projectIdFromUrl && projects && projects.length > 0) {
       // Verify the project exists before setting it
       const projectExists = projects.some(p => p.id.toString() === projectIdFromUrl);
-      if (projectExists) {
+      console.log('Project exists check:', { projectExists, projectIdFromUrl });
+      
+      if (projectExists && selectedProjectId !== projectIdFromUrl) {
+        console.log('Auto-selecting project:', projectIdFromUrl);
         setSelectedProjectId(projectIdFromUrl);
       }
     }
-  }, [location, projects]);
+  }, [location, projects, selectedProjectId]);
 
   // Fetch project items when a project is selected
   const { data: projectItems, isLoading: itemsLoading } = useQuery<ProjectItem[]>({
