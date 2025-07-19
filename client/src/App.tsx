@@ -13,6 +13,15 @@ import LeaderboardPage from "@/pages/leaderboard-page";
 import RecurringTasksPage from "@/pages/recurring-tasks-page";
 import EmailsPage from "@/pages/emails-page";
 import MessagesPage from "@/pages/messages-page";
+
+// Design Management pages
+import DesignDashboardPage from "@/pages/design-management/design-dashboard";
+import DesignProjectsPage from "@/pages/design-management/design-projects";
+import DrawingRegistryPage from "@/pages/design-management/drawing-registry";
+import ReviewApprovalPage from "@/pages/design-management/review-approval";
+import TransmittalsPage from "@/pages/design-management/transmittals";
+import StandardsTemplatesPage from "@/pages/design-management/standards-templates";
+import ReportsAnalyticsPage from "@/pages/design-management/reports-analytics";
 import ProjectsPage from "@/pages/projects-page";
 import ProjectDetailPage from "@/pages/project-detail-page";
 import ProjectDashboardPage from "@/pages/project-dashboard-page";
@@ -236,7 +245,15 @@ function Router() {
       <ProtectedRoute path="/customers" component={CustomersPage} />
       <ProtectedRoute path="/item-master" component={ItemMasterPage} />
       <ProtectedRoute path="/design-tools" component={DesignToolsPage} />
-      <ProtectedRoute path="/design-management" component={DesignManagementPage} />
+      
+      {/* Design Management Module Routes */}
+      <ProtectedRoute path="/design-management" component={DesignDashboardPage} />
+      <ProtectedRoute path="/design-management/projects" component={DesignProjectsPage} />
+      <ProtectedRoute path="/design-management/drawings" component={DrawingRegistryPage} />
+      <ProtectedRoute path="/design-management/reviews" component={ReviewApprovalPage} />
+      <ProtectedRoute path="/design-management/transmittals" component={TransmittalsPage} />
+      <ProtectedRoute path="/design-management/standards" component={StandardsTemplatesPage} />
+      <ProtectedRoute path="/design-management/reports" component={ReportsAnalyticsPage} />
       <ProtectedRoute path="/procurement-planning" component={ProcurementPlanningPage} />
       <ProtectedRoute path="/procurement-tracking" component={ProcurementTrackingPage} />
       <ProtectedRoute path="/production-planning" component={ProductionPlanningPage} />
