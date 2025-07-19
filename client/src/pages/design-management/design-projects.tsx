@@ -34,14 +34,19 @@ interface Project {
 
 interface ProjectItem {
   id: number;
-  itemCode: string;
-  description: string;
-  specification: string;
+  projectId: number;
+  itemId: number;
   quantity: number;
-  uom: string;
-  makeOrBuy: string;
-  supplier: string;
-  drawingNo: string;
+  status: string;
+  masterItem?: {
+    id: number;
+    item_code: string;
+    description: string;
+    specification: string;
+    uom: string;
+    make_or_buy: string;
+    supplier: string;
+  };
 }
 
 export default function DesignProjectsPage() {
@@ -215,22 +220,22 @@ export default function DesignProjectsPage() {
                     <TableBody>
                       {projectItems.map((item) => (
                         <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.itemCode}</TableCell>
-                          <TableCell>{item.description}</TableCell>
+                          <TableCell className="font-medium">{item.masterItem?.item_code || 'N/A'}</TableCell>
+                          <TableCell>{item.masterItem?.description || 'N/A'}</TableCell>
                           <TableCell>{item.quantity.toLocaleString()}</TableCell>
-                          <TableCell>{item.uom}</TableCell>
+                          <TableCell>{item.masterItem?.uom || 'N/A'}</TableCell>
                           <TableCell>
-                            <Badge className={getMakeOrBuyColor(item.makeOrBuy)}>
-                              {item.makeOrBuy || 'N/A'}
+                            <Badge className={getMakeOrBuyColor(item.masterItem?.make_or_buy || '')}>
+                              {item.masterItem?.make_or_buy || 'N/A'}
                             </Badge>
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">
-                              {item.makeOrBuy === 'Make' ? 'Manufacturing' : 'Procurement'}
+                              {item.masterItem?.make_or_buy === 'Make' ? 'Manufacturing' : 'Procurement'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="max-w-xs truncate" title={item.specification}>
-                            {item.specification || '-'}
+                          <TableCell className="max-w-xs truncate" title={item.masterItem?.specification || ''}>
+                            {item.masterItem?.specification || '-'}
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className="bg-yellow-100 text-yellow-800">

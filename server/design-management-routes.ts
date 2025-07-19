@@ -33,7 +33,7 @@ router.get("/dashboard/stats", async (req, res) => {
 // Get all projects with customer information for design management
 router.get("/projects", async (req, res) => {
   try {
-    // Use simple SQL query without joins for now
+    // Use JOIN query to fetch customer names
     const result = await db.execute(`
       SELECT 
         p.id,
@@ -50,18 +50,14 @@ router.get("/projects", async (req, res) => {
         p.description,
         p.progress,
         p.priority,
-        p.financial_year as "financialYear"
+        p.financial_year as "financialYear",
+        c.bp_name as "customerName"
       FROM projects p
+      LEFT JOIN customers c ON p.customer_id = c.id
       ORDER BY p.created_at DESC
     `);
-    
-    // Add customerName as null for now (can be enhanced later)
-    const projectsWithDefaults = result.rows.map(project => ({
-      ...project,
-      customerName: null
-    }));
 
-    res.json(projectsWithDefaults || []);
+    res.json(result.rows || []);
   } catch (error) {
     console.error("Error fetching projects for design management:", error);
     res.status(500).json({ error: "Failed to fetch projects" });
