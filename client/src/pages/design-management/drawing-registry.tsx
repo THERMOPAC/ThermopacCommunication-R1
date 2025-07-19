@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
@@ -91,6 +92,7 @@ interface DrawingVersion {
 // Project Basic Drawings Section Component
 function ProjectBasicDrawingsSection() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [showAllRevisions, setShowAllRevisions] = useState<boolean>(false);
   const [uploadDialog, setUploadDialog] = useState<{ open: boolean, discipline: string, type: string }>({ 
     open: false, 
     discipline: '', 
@@ -122,6 +124,16 @@ function ProjectBasicDrawingsSection() {
   });
 
   const basicDrawings = basicDrawingsResponse?.data || [];
+  
+  // Filter drawings based on revision view mode
+  const filteredDrawings = React.useMemo(() => {
+    if (showAllRevisions) {
+      return basicDrawings;
+    } else {
+      // Show only current revisions
+      return basicDrawings.filter((drawing: any) => drawing.status === 'current');
+    }
+  }, [basicDrawings, showAllRevisions]);
 
   // Upload mutation
   const uploadMutation = useMutation({
@@ -261,7 +273,7 @@ function ProjectBasicDrawingsSection() {
 
   // Get drawings for a specific discipline and type
   const getDrawingsForType = (discipline: string, type: string) => {
-    return basicDrawings.filter((drawing: any) => 
+    return filteredDrawings.filter((drawing: any) => 
       drawing.discipline === discipline && drawing.drawingType === type
     );
   };
@@ -280,12 +292,13 @@ function ProjectBasicDrawingsSection() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
-            <Label htmlFor="projectSelect">Select Project</Label>
-            <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a project to manage basic drawings" />
-              </SelectTrigger>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="projectSelect">Select Project</Label>
+              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a project to manage basic drawings" />
+                </SelectTrigger>
               <SelectContent>
                 {designProjects.map((project: any) => (
                   <SelectItem key={project.id} value={project.id.toString()}>
@@ -294,6 +307,26 @@ function ProjectBasicDrawingsSection() {
                 ))}
               </SelectContent>
             </Select>
+            </div>
+            
+            {selectedProjectId && (
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="show-all-revisions"
+                  checked={showAllRevisions}
+                  onCheckedChange={setShowAllRevisions}
+                />
+                <Label htmlFor="show-all-revisions" className="cursor-pointer">
+                  Show all revisions (including superseded)
+                </Label>
+                {!showAllRevisions && (
+                  <Badge variant="secondary" className="text-xs">
+                    <Clock className="w-3 h-3 mr-1" />
+                    Current only
+                  </Badge>
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -339,10 +372,23 @@ function ProjectBasicDrawingsSection() {
                                 <div key={drawing.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                                   <div className="flex items-center gap-2">
                                     <FileText className="w-4 h-4 text-gray-500" />
-                                    <span className="text-sm font-medium">{drawing.fileName}</span>
-                                    <Badge variant="secondary" className="text-xs">
-                                      {drawing.version || 'v1.0'}
+                                    <span className="text-sm font-medium">{drawing.fileName || drawing.originalFileName}</span>
+                                    <Badge 
+                                      variant={drawing.status === 'current' ? 'default' : 'secondary'} 
+                                      className="text-xs"
+                                    >
+                                      {drawing.revision || 'R1'}
                                     </Badge>
+                                    {drawing.status === 'superseded' && (
+                                      <Badge variant="outline" className="text-xs text-orange-600">
+                                        Superseded
+                                      </Badge>
+                                    )}
+                                    {drawing.status === 'archived' && (
+                                      <Badge variant="outline" className="text-xs text-gray-600">
+                                        Archived
+                                      </Badge>
+                                    )}
                                   </div>
                                   <div className="flex gap-1">
                                     <Button 
@@ -412,11 +458,10 @@ function ProjectBasicDrawingsSection() {
               </p>
             </div>
             <div>
-              <Label htmlFor="version">Version</Label>
+              <Label htmlFor="revisionReason">Revision Reason (Optional)</Label>
               <Input 
-                name="version" 
-                placeholder="v1.0" 
-                defaultValue="v1.0"
+                name="revisionReason" 
+                placeholder="Brief reason for new revision or changes made"
               />
             </div>
             <div>

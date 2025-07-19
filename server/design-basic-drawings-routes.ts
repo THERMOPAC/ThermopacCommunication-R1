@@ -34,12 +34,19 @@ router.get('/', ensureAuthenticated, async (req, res) => {
         discipline: designBasicDrawings.discipline,
         drawingType: designBasicDrawings.drawingType,
         fileName: designBasicDrawings.fileName,
-        version: designBasicDrawings.version,
+        originalFileName: designBasicDrawings.originalFileName,
+        revision: designBasicDrawings.revision,
         description: designBasicDrawings.description,
         filePath: designBasicDrawings.filePath,
         fileUrl: designBasicDrawings.fileUrl,
         fileSize: designBasicDrawings.fileSize,
         fileType: designBasicDrawings.fileType,
+        status: designBasicDrawings.status,
+        isRevision: designBasicDrawings.isRevision,
+        revisionOf: designBasicDrawings.revisionOf,
+        revisionReason: designBasicDrawings.revisionReason,
+        supersededAt: designBasicDrawings.supersededAt,
+        supersededBy: designBasicDrawings.supersededBy,
         uploadedBy: designBasicDrawings.uploadedBy,
         uploadedAt: designBasicDrawings.uploadedAt,
       })
@@ -59,7 +66,7 @@ router.get('/', ensureAuthenticated, async (req, res) => {
 // POST /api/design/basic-drawings - Upload a basic drawing with automatic revision control
 router.post('/', ensureAuthenticated, upload.single('file'), async (req, res) => {
   try {
-    const { projectId, discipline, drawingType, description, version } = req.body;
+    const { projectId, discipline, drawingType, description, revisionReason } = req.body;
     const file = req.file;
     const userId = (req as any).user.id;
 
@@ -98,7 +105,7 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req, res) =>
     const existingDrawings = await db
       .select({ 
         id: designBasicDrawings.id,
-        version: designBasicDrawings.version,
+        revision: designBasicDrawings.revision,
         fileName: designBasicDrawings.fileName 
       })
       .from(designBasicDrawings)
@@ -109,40 +116,41 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req, res) =>
       ))
       .orderBy(desc(designBasicDrawings.uploadedAt));
 
-    let autoVersion = 'v1.0';
+    let autoRevision = 'R1';
     let isRevision = false;
     
     if (existingDrawings.length > 0) {
       isRevision = true;
-      // Extract version numbers and find the next version
-      const versions = existingDrawings
-        .map(d => d.version)
-        .filter(v => v && v.match(/^v\d+\.\d+$/))
-        .map(v => {
-          const match = v.match(/^v(\d+)\.(\d+)$/);
-          return match ? { major: parseInt(match[1]), minor: parseInt(match[2]) } : null;
+      // Extract revision numbers and find the next revision
+      const revisions = existingDrawings
+        .map(d => d.revision)
+        .filter(r => r && r.match(/^R\d+$/))
+        .map(r => {
+          const match = r.match(/^R(\d+)$/);
+          return match ? parseInt(match[1]) : null;
         })
-        .filter(v => v !== null)
-        .sort((a, b) => (b.major * 100 + b.minor) - (a.major * 100 + a.minor));
+        .filter(r => r !== null)
+        .sort((a, b) => b - a);
 
-      if (versions.length > 0) {
-        const latestVersion = versions[0];
-        // Auto-increment minor version (e.g., v1.0 → v1.1 → v1.2)
-        autoVersion = `v${latestVersion.major}.${latestVersion.minor + 1}`;
+      if (revisions.length > 0) {
+        const latestRevision = revisions[0];
+        // Auto-increment revision (R1 → R2 → R3)
+        autoRevision = `R${latestRevision + 1}`;
       } else {
-        autoVersion = 'v1.1'; // If no valid versions found, start at v1.1
+        autoRevision = 'R2'; // If no valid revisions found, start at R2
       }
     }
 
-    const finalVersion = version || autoVersion;
+    const finalRevision = autoRevision;
 
-    // **INTELLIGENT GCS PATH STRUCTURE**
-    // Structure: Design_Management/Basic_Drawings/{ProjectCode}/{Discipline}/{DrawingType}/{Version}_{OriginalFileName}
+
+
+    // **NEW GCS PATH STRUCTURE**
+    // Structure: Design_Management/{ProjectCode}/Basic_Drawings/{Discipline}/{DrawingType}_R{Revision}.{extension}
     const fileExtension = file.originalname.split('.').pop();
-    const baseFileName = file.originalname.replace(`.${fileExtension}`, '');
-    const versionedFileName = `${finalVersion}_${baseFileName}.${fileExtension}`;
+    const versionedFileName = `${drawingType}_${finalRevision}.${fileExtension}`;
     
-    const gcsPath = `Design_Management/Basic_Drawings/${projectCode}/${discipline.replace(/\s+/g, '_')}/${drawingType.replace(/\s+/g, '_')}/${versionedFileName}`;
+    const gcsPath = `Design_Management/${projectCode}/Basic_Drawings/${discipline.replace(/\s+/g, '_')}/${versionedFileName}`;
 
     // Upload file to GCS with versioned path
     const uploadResult = await uploadFileWithDiagnostics(file.buffer, gcsPath);
@@ -154,7 +162,7 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req, res) =>
       });
     }
 
-    // Archive previous versions (mark as superseded)
+    // Archive previous revisions (mark as superseded)
     if (isRevision && existingDrawings.length > 0) {
       await db
         .update(designBasicDrawings)
@@ -171,7 +179,7 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req, res) =>
         ));
     }
 
-    // Save new version to database
+    // Save new revision to database
     const [newDrawing] = await db
       .insert(designBasicDrawings)
       .values({
@@ -180,7 +188,7 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req, res) =>
         drawingType,
         fileName: versionedFileName,
         originalFileName: file.originalname,
-        version: finalVersion,
+        revision: finalRevision,
         description: description || null,
         filePath: gcsPath,
         fileUrl: uploadResult.fileUrl,
@@ -190,7 +198,7 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req, res) =>
         status: 'current',
         isRevision: isRevision,
         revisionOf: isRevision && existingDrawings.length > 0 ? existingDrawings[0].id : null,
-        revisionReason: isRevision ? (description || 'Updated version') : null
+        revisionReason: isRevision ? (revisionReason || 'Updated revision') : null
       })
       .returning();
 
@@ -198,12 +206,12 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req, res) =>
       success: true, 
       data: newDrawing,
       message: isRevision 
-        ? `Revision ${finalVersion} uploaded successfully (previous versions archived)` 
+        ? `Revision ${finalRevision} uploaded successfully (previous revisions archived)` 
         : 'Basic drawing uploaded successfully',
       revisionInfo: {
         isRevision,
-        version: finalVersion,
-        previousVersions: existingDrawings.length,
+        revision: finalRevision,
+        previousRevisions: existingDrawings.length,
         gcsPath
       }
     });

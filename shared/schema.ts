@@ -7592,7 +7592,7 @@ export const designBasicDrawings = pgTable('design_basic_drawings', {
   // File Details
   fileName: varchar('file_name', { length: 255 }).notNull(),
   originalFileName: varchar('original_file_name', { length: 255 }),
-  version: varchar('version', { length: 50 }).default('v1.0'),
+  revision: varchar('revision', { length: 50 }).default('R1'),
   description: text('description'),
   
   // Storage Information
