@@ -1,16 +1,18 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   FolderKanban, 
   Building2, 
   Calendar, 
   DollarSign, 
-  Search,
   ArrowRight,
   FolderOpen,
-  Eye
+  Eye,
+  Package,
+  Loader2
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -30,13 +32,33 @@ interface Project {
   description: string;
 }
 
+interface ProjectItem {
+  id: number;
+  itemCode: string;
+  description: string;
+  specification: string;
+  quantity: number;
+  uom: string;
+  makeOrBuy: string;
+  supplier: string;
+  drawingNo: string;
+}
+
 export default function DesignProjectsPage() {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
 
   // Fetch projects data
   const { data: projects, isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ['/api/design/projects'],
   });
+
+  // Fetch project items when a project is selected
+  const { data: projectItems, isLoading: itemsLoading } = useQuery<ProjectItem[]>({
+    queryKey: [`/api/projects/${selectedProjectId}/items`],
+    enabled: !!selectedProjectId,
+  });
+
+  const selectedProject = projects?.find(p => p.id.toString() === selectedProjectId);
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -48,11 +70,13 @@ export default function DesignProjectsPage() {
     }
   };
 
-  const filteredProjects = projects?.filter(project =>
-    project.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.projectCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.customerName.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const getMakeOrBuyColor = (makeOrBuy: string) => {
+    switch (makeOrBuy?.toLowerCase()) {
+      case 'make': return 'bg-blue-100 text-blue-800';
+      case 'buy': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -70,127 +94,155 @@ export default function DesignProjectsPage() {
         </Link>
       </div>
 
-      {/* Search and Filters */}
+      {/* Available Projects Section */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <FolderKanban className="w-5 h-5" />
+            <Package className="w-5 h-5" />
             Available Projects
           </CardTitle>
           <CardDescription>
-            Projects from Project Management available for design work
+            Select a project from the dropdown to view all associated items for design work
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search projects by name, code, or customer..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+        <CardContent className="space-y-6">
+          {/* Project Dropdown */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Select Project</label>
+            <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={projectsLoading ? "Loading projects..." : "Choose a project..."} />
+              </SelectTrigger>
+              <SelectContent>
+                {projectsLoading ? (
+                  <SelectItem value="loading" disabled>
+                    <div className="flex items-center">
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Loading projects...
+                    </div>
+                  </SelectItem>
+                ) : !projects || projects.length === 0 ? (
+                  <SelectItem value="no-projects" disabled>
+                    No projects available
+                  </SelectItem>
+                ) : (
+                  projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id.toString()}>
+                      {project.projectName} ({project.projectCode}) – {project.customerName}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
-          {projectsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              <span className="ml-2">Loading projects...</span>
-            </div>
-          ) : !projects || projects.length === 0 ? (
-            <div className="text-center py-12">
-              <FolderOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Projects Available</h3>
-              <p className="text-gray-600 mb-6">
-                Projects will appear here once created in the Project Management module.
-              </p>
-              <div className="space-y-2 text-sm text-gray-500">
-                <p>✓ Projects are sourced from Project Management</p>
-                <p>✓ No separate project creation needed here</p>
-                <p>✓ Design workflows link to existing projects</p>
-              </div>
-            </div>
-          ) : filteredProjects.length === 0 ? (
-            <div className="text-center py-12">
-              <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Results Found</h3>
-              <p className="text-gray-600">
-                Try adjusting your search terms to find projects.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProjects.map((project) => (
-                <Card key={project.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-blue-500">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg line-clamp-2">{project.projectName}</CardTitle>
-                        <CardDescription className="text-sm font-medium text-blue-600 mt-1">
-                          {project.projectCode}
-                        </CardDescription>
+          {/* Selected Project Info */}
+          {selectedProject && (
+            <Card className="bg-blue-50">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-lg">{selectedProject.projectName}</h3>
+                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <div className="flex items-center gap-1">
+                        <Building2 className="w-4 h-4" />
+                        <span>{selectedProject.customerName}</span>
                       </div>
-                      <Badge className={getStatusColor(project.status)}>
-                        {project.status}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-3">
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
-                        <span className="line-clamp-1">{project.customerName}</span>
-                      </div>
-                      
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
-                        <span className="text-xs">
-                          {new Date(project.startDate).toLocaleDateString()} - {new Date(project.endDate).toLocaleDateString()}
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        <span>
+                          {new Date(selectedProject.startDate).toLocaleDateString()} - 
+                          {selectedProject.endDate ? new Date(selectedProject.endDate).toLocaleDateString() : 'TBD'}
                         </span>
                       </div>
-                      
-                      <div className="flex items-center text-sm text-gray-600">
-                        <DollarSign className="h-4 w-4 mr-2 flex-shrink-0" />
-                        <span className="font-medium">
-                          {project.currency} {parseFloat(project.projectValue).toLocaleString()}
-                        </span>
+                      <div className="flex items-center gap-1">
+                        <DollarSign className="w-4 h-4" />
+                        <span>{selectedProject.currency} {parseFloat(selectedProject.projectValue).toLocaleString()}</span>
                       </div>
-                      
-                      {project.description && (
-                        <p className="text-sm text-gray-600 line-clamp-3 mt-2">
-                          {project.description}
-                        </p>
-                      )}
                     </div>
-                    
-                    <div className="mt-6 pt-4 border-t space-y-2">
-                      <Button variant="default" size="sm" className="w-full">
-                        <FolderKanban className="h-3 w-3 mr-2" />
-                        Start Design Work
-                      </Button>
-                      <Button variant="outline" size="sm" className="w-full">
-                        <Eye className="h-3 w-3 mr-2" />
-                        View Project Details
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    {selectedProject.description && (
+                      <p className="text-sm text-gray-600 mt-2">{selectedProject.description}</p>
+                    )}
+                  </div>
+                  <Badge className={getStatusColor(selectedProject.status)}>
+                    {selectedProject.status}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
-          {projects && projects.length > 0 && (
-            <div className="mt-6 pt-6 border-t">
-              <div className="flex items-center justify-between text-sm text-gray-600">
-                <span>
-                  Showing {filteredProjects.length} of {projects.length} projects
-                </span>
-                <span>
-                  Total Project Value: {projects.reduce((sum, project) => sum + parseFloat(project.projectValue), 0).toLocaleString()}
-                </span>
+          {/* Project Items Table */}
+          {selectedProjectId && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Project Items</h3>
+                {projectItems && (
+                  <Badge variant="outline" className="px-3 py-1">
+                    {projectItems.length} {projectItems.length === 1 ? 'item' : 'items'}
+                  </Badge>
+                )}
               </div>
+
+              {itemsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin mr-2" />
+                  <span>Loading project items...</span>
+                </div>
+              ) : !projectItems || projectItems.length === 0 ? (
+                <div className="text-center py-12 border rounded-lg">
+                  <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Items Found</h3>
+                  <p className="text-gray-600">
+                    This project doesn't have any items associated with it yet for design work.
+                  </p>
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item Code</TableHead>
+                        <TableHead>Item Name</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>UOM</TableHead>
+                        <TableHead>Make/Buy</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Specification</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {projectItems.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">{item.itemCode}</TableCell>
+                          <TableCell>{item.description}</TableCell>
+                          <TableCell>{item.quantity.toLocaleString()}</TableCell>
+                          <TableCell>{item.uom}</TableCell>
+                          <TableCell>
+                            <Badge className={getMakeOrBuyColor(item.makeOrBuy)}>
+                              {item.makeOrBuy || 'N/A'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {item.makeOrBuy === 'Make' ? 'Manufacturing' : 'Procurement'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-xs truncate" title={item.specification}>
+                            {item.specification || '-'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+                              Design Pending
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
