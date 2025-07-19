@@ -10,9 +10,9 @@ import { Helmet } from "react-helmet";
 
 interface Project {
   id: number;
-  name: string;
-  code: string;
-  clientName: string;
+  projectName: string;
+  projectCode: string;
+  customerName: string;
   customerId: number;
   status: string;
   startDate: string;
@@ -114,7 +114,7 @@ export default function ProjectsPage() {
                   ) : (
                     projects.map((project) => (
                       <SelectItem key={project.id} value={project.id.toString()}>
-                        {project.name} ({project.code}) – {project.clientName}
+                        {project.projectName} ({project.projectCode}) – {project.customerName || 'Customer TBD'}
                       </SelectItem>
                     ))
                   )}
@@ -128,11 +128,11 @@ export default function ProjectsPage() {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="space-y-2">
-                      <h3 className="font-semibold text-lg">{selectedProject.name}</h3>
+                      <h3 className="font-semibold text-lg">{selectedProject.projectName}</h3>
                       <div className="flex items-center gap-4 text-sm text-gray-600">
                         <div className="flex items-center gap-1">
                           <Building2 className="w-4 h-4" />
-                          <span>{selectedProject.clientName}</span>
+                          <span>{selectedProject.customerName || 'Customer TBD'}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
