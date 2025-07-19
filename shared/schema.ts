@@ -7591,6 +7591,7 @@ export const designBasicDrawings = pgTable('design_basic_drawings', {
   
   // File Details
   fileName: varchar('file_name', { length: 255 }).notNull(),
+  originalFileName: varchar('original_file_name', { length: 255 }),
   version: varchar('version', { length: 50 }).default('v1.0'),
   description: text('description'),
   
@@ -7599,6 +7600,14 @@ export const designBasicDrawings = pgTable('design_basic_drawings', {
   fileUrl: text('file_url'),
   fileSize: integer('file_size'),
   fileType: varchar('file_type', { length: 50 }),
+  
+  // Revision Control
+  status: varchar('status', { length: 50 }).notNull().default('current'), // current, superseded, archived
+  isRevision: boolean('is_revision').notNull().default(false),
+  revisionOf: integer('revision_of').references(() => designBasicDrawings.id, { onDelete: 'set null' }),
+  revisionReason: text('revision_reason'),
+  supersededAt: timestamp('superseded_at'),
+  supersededBy: integer('superseded_by').references(() => users.id, { onDelete: 'set null' }),
   
   // Upload Information
   uploadedBy: integer('uploaded_by').notNull().references(() => users.id, { onDelete: 'restrict' }),

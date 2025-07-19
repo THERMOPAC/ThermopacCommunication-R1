@@ -56,7 +56,7 @@ router.get('/', ensureAuthenticated, async (req, res) => {
   }
 });
 
-// POST /api/design/basic-drawings - Upload a basic drawing
+// POST /api/design/basic-drawings - Upload a basic drawing with automatic revision control
 router.post('/', ensureAuthenticated, upload.single('file'), async (req, res) => {
   try {
     const { projectId, discipline, drawingType, description, version } = req.body;
@@ -93,10 +93,58 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req, res) =>
 
     const projectCode = project[0].code;
 
-    // Create GCS file path
-    const gcsPath = `Design_Management/Basic_Drawings/${projectCode}/${discipline.replace(/\s+/g, '_')}/${file.originalname}`;
+    // **AUTOMATIC REVISION CONTROL LOGIC**
+    // Check if drawing with same type and discipline already exists
+    const existingDrawings = await db
+      .select({ 
+        id: designBasicDrawings.id,
+        version: designBasicDrawings.version,
+        fileName: designBasicDrawings.fileName 
+      })
+      .from(designBasicDrawings)
+      .where(and(
+        eq(designBasicDrawings.projectId, parseInt(projectId)),
+        eq(designBasicDrawings.discipline, discipline),
+        eq(designBasicDrawings.drawingType, drawingType)
+      ))
+      .orderBy(desc(designBasicDrawings.uploadedAt));
 
-    // Upload file to GCS
+    let autoVersion = 'v1.0';
+    let isRevision = false;
+    
+    if (existingDrawings.length > 0) {
+      isRevision = true;
+      // Extract version numbers and find the next version
+      const versions = existingDrawings
+        .map(d => d.version)
+        .filter(v => v && v.match(/^v\d+\.\d+$/))
+        .map(v => {
+          const match = v.match(/^v(\d+)\.(\d+)$/);
+          return match ? { major: parseInt(match[1]), minor: parseInt(match[2]) } : null;
+        })
+        .filter(v => v !== null)
+        .sort((a, b) => (b.major * 100 + b.minor) - (a.major * 100 + a.minor));
+
+      if (versions.length > 0) {
+        const latestVersion = versions[0];
+        // Auto-increment minor version (e.g., v1.0 → v1.1 → v1.2)
+        autoVersion = `v${latestVersion.major}.${latestVersion.minor + 1}`;
+      } else {
+        autoVersion = 'v1.1'; // If no valid versions found, start at v1.1
+      }
+    }
+
+    const finalVersion = version || autoVersion;
+
+    // **INTELLIGENT GCS PATH STRUCTURE**
+    // Structure: Design_Management/Basic_Drawings/{ProjectCode}/{Discipline}/{DrawingType}/{Version}_{OriginalFileName}
+    const fileExtension = file.originalname.split('.').pop();
+    const baseFileName = file.originalname.replace(`.${fileExtension}`, '');
+    const versionedFileName = `${finalVersion}_${baseFileName}.${fileExtension}`;
+    
+    const gcsPath = `Design_Management/Basic_Drawings/${projectCode}/${discipline.replace(/\s+/g, '_')}/${drawingType.replace(/\s+/g, '_')}/${versionedFileName}`;
+
+    // Upload file to GCS with versioned path
     const uploadResult = await uploadFileWithDiagnostics(file.buffer, gcsPath);
     
     if (!uploadResult.success) {
@@ -106,28 +154,58 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req, res) =>
       });
     }
 
-    // Save to database
+    // Archive previous versions (mark as superseded)
+    if (isRevision && existingDrawings.length > 0) {
+      await db
+        .update(designBasicDrawings)
+        .set({ 
+          status: 'superseded',
+          supersededAt: new Date(),
+          supersededBy: userId
+        })
+        .where(and(
+          eq(designBasicDrawings.projectId, parseInt(projectId)),
+          eq(designBasicDrawings.discipline, discipline),
+          eq(designBasicDrawings.drawingType, drawingType),
+          eq(designBasicDrawings.status, 'current')
+        ));
+    }
+
+    // Save new version to database
     const [newDrawing] = await db
       .insert(designBasicDrawings)
       .values({
         projectId: parseInt(projectId),
         discipline,
         drawingType,
-        fileName: file.originalname,
-        version: version || 'v1.0',
+        fileName: versionedFileName,
+        originalFileName: file.originalname,
+        version: finalVersion,
         description: description || null,
         filePath: gcsPath,
         fileUrl: uploadResult.fileUrl,
         fileSize: file.size,
         fileType: file.mimetype,
         uploadedBy: userId,
+        status: 'current',
+        isRevision: isRevision,
+        revisionOf: isRevision && existingDrawings.length > 0 ? existingDrawings[0].id : null,
+        revisionReason: isRevision ? (description || 'Updated version') : null
       })
       .returning();
 
     res.json({ 
       success: true, 
       data: newDrawing,
-      message: 'Basic drawing uploaded successfully' 
+      message: isRevision 
+        ? `Revision ${finalVersion} uploaded successfully (previous versions archived)` 
+        : 'Basic drawing uploaded successfully',
+      revisionInfo: {
+        isRevision,
+        version: finalVersion,
+        previousVersions: existingDrawings.length,
+        gcsPath
+      }
     });
   } catch (error) {
     console.error('Error uploading basic drawing:', error);
