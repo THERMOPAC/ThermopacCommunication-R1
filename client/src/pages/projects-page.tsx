@@ -201,13 +201,13 @@ export default function ProjectsPage() {
                       <TableBody>
                         {projectItems.map((item) => (
                           <TableRow key={item.id}>
-                            <TableCell className="font-medium">{item.masterItem?.item_code || 'N/A'}</TableCell>
+                            <TableCell className="font-medium">{item.masterItem?.itemCode || 'N/A'}</TableCell>
                             <TableCell>{item.masterItem?.description || 'N/A'}</TableCell>
                             <TableCell>{item.quantity.toLocaleString()}</TableCell>
                             <TableCell>{item.masterItem?.uom || 'N/A'}</TableCell>
                             <TableCell>
-                              <Badge className={getMakeOrBuyColor(item.masterItem?.make_or_buy || '')}>
-                                {item.masterItem?.make_or_buy || 'N/A'}
+                              <Badge className={getMakeOrBuyColor(item.masterItem?.makeOrBuy || '')}>
+                                {item.masterItem?.makeOrBuy || 'N/A'}
                               </Badge>
                             </TableCell>
                             <TableCell>{item.masterItem?.supplier || '-'}</TableCell>
