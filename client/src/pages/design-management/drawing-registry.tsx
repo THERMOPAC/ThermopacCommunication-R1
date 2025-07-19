@@ -94,6 +94,7 @@ interface DrawingVersion {
 function ProjectBasicDrawingsSection() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [showAllRevisions, setShowAllRevisions] = useState<boolean>(false);
+  const [selectedDiscipline, setSelectedDiscipline] = useState<string>('process');
   const [uploadDialog, setUploadDialog] = useState<{ open: boolean, discipline: string, type: string }>({ 
     open: false, 
     discipline: '', 
@@ -225,43 +226,39 @@ function ProjectBasicDrawingsSection() {
     }
   };
 
-  // Drawing categories and types
-  const drawingCategories = [
-    {
+  // Drawing disciplines and types
+  const drawingDisciplines = {
+    process: {
       name: "Process Engineering",
       icon: Settings,
-      color: "bg-blue-50 border-blue-200",
-      iconColor: "text-blue-600",
+      color: "text-blue-600",
       types: [
         "Process Flow Diagram (PFD)",
         "Piping and Instrumentation Diagram (P&ID)"
       ]
     },
-    {
+    mechanical: {
       name: "Mechanical & Piping",
       icon: Cog,
-      color: "bg-green-50 border-green-200",
-      iconColor: "text-green-600",
+      color: "text-green-600",
       types: [
         "Piping General Arrangement (GA) Drawing",
         "Piping Isometric Drawings"
       ]
     },
-    {
+    civil: {
       name: "Civil & Structural",
       icon: Building,
-      color: "bg-orange-50 border-orange-200",
-      iconColor: "text-orange-600",
+      color: "text-orange-600",
       types: [
         "Plot Plan",
         "Foundation Layout Drawings"
       ]
     },
-    {
+    electrical: {
       name: "Electrical & Instrumentation",
       icon: Zap,
-      color: "bg-purple-50 border-purple-200",
-      iconColor: "text-purple-600",
+      color: "text-purple-600",
       types: [
         "Single Line Diagram (SLD)",
         "Electrical Layout Drawings",
@@ -270,7 +267,7 @@ function ProjectBasicDrawingsSection() {
         "Instrument Hook-up Drawings"
       ]
     }
-  ];
+  };
 
   // Get drawings for a specific discipline and type
   const getDrawingsForType = (discipline: string, type: string) => {
@@ -332,23 +329,41 @@ function ProjectBasicDrawingsSection() {
         </CardContent>
       </Card>
 
-      {/* Drawing Categories */}
+      {/* Drawing Disciplines Tabs */}
       {selectedProjectId && (
-        <div className="grid gap-6">
-          {drawingCategories.map((category) => {
-            const IconComponent = category.icon;
-            return (
-              <Card key={category.name} className={`${category.color} border-2`}>
+        <Tabs value={selectedDiscipline} onValueChange={setSelectedDiscipline} className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="process" className="flex items-center gap-1">
+              <Settings className="w-4 h-4" />
+              Process Engineering
+            </TabsTrigger>
+            <TabsTrigger value="mechanical" className="flex items-center gap-1">
+              <Cog className="w-4 h-4" />
+              Mechanical & Piping
+            </TabsTrigger>
+            <TabsTrigger value="civil" className="flex items-center gap-1">
+              <Building className="w-4 h-4" />
+              Civil & Structural
+            </TabsTrigger>
+            <TabsTrigger value="electrical" className="flex items-center gap-1">
+              <Zap className="w-4 h-4" />
+              Electrical & Instrumentation
+            </TabsTrigger>
+          </TabsList>
+
+          {Object.entries(drawingDisciplines).map(([key, discipline]) => (
+            <TabsContent key={key} value={key} className="space-y-4">
+              <Card>
                 <CardHeader>
-                  <CardTitle className={`flex items-center gap-2 ${category.iconColor}`}>
-                    <IconComponent className="w-5 h-5" />
-                    {category.name}
+                  <CardTitle className={`flex items-center gap-2 ${discipline.color}`}>
+                    <discipline.icon className="w-5 h-5" />
+                    {discipline.name}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {category.types.map((type) => {
-                      const drawings = getDrawingsForType(category.name, type);
+                    {discipline.types.map((type) => {
+                      const drawings = getDrawingsForType(discipline.name, type);
                       return (
                         <div key={type} className="bg-white p-4 rounded-lg border border-gray-200">
                           <div className="flex items-center justify-between mb-3">
@@ -357,7 +372,7 @@ function ProjectBasicDrawingsSection() {
                               size="sm"
                               onClick={() => setUploadDialog({ 
                                 open: true, 
-                                discipline: category.name, 
+                                discipline: discipline.name, 
                                 type 
                               })}
                               className="bg-blue-600 hover:bg-blue-700"
@@ -422,9 +437,9 @@ function ProjectBasicDrawingsSection() {
                   </div>
                 </CardContent>
               </Card>
-            );
-          })}
-        </div>
+            </TabsContent>
+          ))}
+        </Tabs>
       )}
 
       {!selectedProjectId && (
