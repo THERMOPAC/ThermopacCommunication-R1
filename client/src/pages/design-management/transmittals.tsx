@@ -356,7 +356,7 @@ export default function TransmittalsPage() {
                       <SelectValue placeholder="All Status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Status</SelectItem>
+                      <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="Draft">Draft</SelectItem>
                       <SelectItem value="Pending">Pending</SelectItem>
                       <SelectItem value="Submitted">Submitted</SelectItem>

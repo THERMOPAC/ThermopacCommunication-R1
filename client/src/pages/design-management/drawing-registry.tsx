@@ -314,7 +314,7 @@ export default function DrawingRegistryPage() {
                       <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Categories</SelectItem>
+                      <SelectItem value="all">All Categories</SelectItem>
                       <SelectItem value="P&ID">P&ID</SelectItem>
                       <SelectItem value="Equipment_Layout">Equipment Layout</SelectItem>
                       <SelectItem value="Piping">Piping</SelectItem>
@@ -327,7 +327,7 @@ export default function DrawingRegistryPage() {
                       <SelectValue placeholder="All Status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Status</SelectItem>
+                      <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="Active">Active</SelectItem>
                       <SelectItem value="Draft">Draft</SelectItem>
                       <SelectItem value="Under Review">Under Review</SelectItem>
