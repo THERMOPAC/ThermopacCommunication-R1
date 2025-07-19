@@ -4,6 +4,7 @@ import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "./lib/protected-route";
+import Layout from "@/components/layout";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import ResetPasswordPage from "@/pages/reset-password-page";
@@ -120,7 +121,6 @@ import SapIntegrationPage from "@/pages/SapIntegrationPage";
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
 import { Loader2 } from "lucide-react";
-import Layout from "@/components/layout";
 
 // SuperuserRoute component to protect routes that only superusers should access
 function SuperuserRoute({
@@ -247,13 +247,19 @@ function Router() {
       <ProtectedRoute path="/design-tools" component={DesignToolsPage} />
       
       {/* Design Management Module Routes */}
-      <ProtectedRoute path="/design-management" component={DesignDashboardPage} />
-      <ProtectedRoute path="/design-management/projects" component={DesignProjectsPage} />
-      <ProtectedRoute path="/design-management/drawings" component={DrawingRegistryPage} />
-      <ProtectedRoute path="/design-management/reviews" component={ReviewApprovalPage} />
-      <ProtectedRoute path="/design-management/transmittals" component={TransmittalsPage} />
-      <ProtectedRoute path="/design-management/standards" component={StandardsTemplatesPage} />
-      <ProtectedRoute path="/design-management/reports" component={ReportsAnalyticsPage} />
+      <ProtectedRoute path="/design-management" component={() => <Layout><DesignDashboardPage /></Layout>} />
+      <ProtectedRoute path="/design-management/design-projects" component={() => <Layout><DesignProjectsPage /></Layout>} />
+      <ProtectedRoute path="/design-management/projects" component={() => <Layout><DesignProjectsPage /></Layout>} />
+      <ProtectedRoute path="/design-management/design-drawings" component={() => <Layout><DrawingRegistryPage /></Layout>} />
+      <ProtectedRoute path="/design-management/drawings" component={() => <Layout><DrawingRegistryPage /></Layout>} />
+      <ProtectedRoute path="/design-management/design-reviews" component={() => <Layout><ReviewApprovalPage /></Layout>} />
+      <ProtectedRoute path="/design-management/reviews" component={() => <Layout><ReviewApprovalPage /></Layout>} />
+      <ProtectedRoute path="/design-management/design-transmittals" component={() => <Layout><TransmittalsPage /></Layout>} />
+      <ProtectedRoute path="/design-management/transmittals" component={() => <Layout><TransmittalsPage /></Layout>} />
+      <ProtectedRoute path="/design-management/design-standards" component={() => <Layout><StandardsTemplatesPage /></Layout>} />
+      <ProtectedRoute path="/design-management/standards" component={() => <Layout><StandardsTemplatesPage /></Layout>} />
+      <ProtectedRoute path="/design-management/design-reports" component={() => <Layout><ReportsAnalyticsPage /></Layout>} />
+      <ProtectedRoute path="/design-management/reports" component={() => <Layout><ReportsAnalyticsPage /></Layout>} />
       <ProtectedRoute path="/procurement-planning" component={ProcurementPlanningPage} />
       <ProtectedRoute path="/procurement-tracking" component={ProcurementTrackingPage} />
       <ProtectedRoute path="/production-planning" component={ProductionPlanningPage} />

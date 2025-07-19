@@ -49,8 +49,7 @@ router.get("/projects", async (req, res) => {
         description: projects.description
       })
       .from(projects)
-      .leftJoin(customers, eq(projects.customerId, customers.id))
-      .orderBy(projects.createdAt);
+      .leftJoin(customers, eq(projects.customerId, customers.id));
 
     res.json(projectsWithCustomers);
   } catch (error) {
