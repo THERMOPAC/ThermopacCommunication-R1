@@ -30,7 +30,8 @@ import {
   Building,
   Cog,
   Trash2,
-  Clock
+  Clock,
+  RefreshCw
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -1030,17 +1031,27 @@ export default function DrawingRegistryPage() {
                   Select Project
                 </Label>
                 <Select 
-                  value={selectedProjectId || "all"} 
+                  value={selectedProjectId?.toString() || "all"} 
                   onValueChange={(value) => setSelectedProjectId(value === "all" ? null : parseInt(value))}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select project to filter drawings" />
+                    <SelectValue placeholder="Select project to filter drawings">
+                      {selectedProjectId ? 
+                        (() => {
+                          const selectedProject = designProjects.find((p: any) => p.id === selectedProjectId);
+                          return selectedProject ? 
+                            `${selectedProject.designProjectName || selectedProject.projectName} (${selectedProject.projectCode}) – ${selectedProject.customerName || selectedProject.projectName}` :
+                            "Select project to filter drawings";
+                        })() : 
+                        "Select project to filter drawings"
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Projects</SelectItem>
                     {designProjects.map((project: any) => (
                       <SelectItem key={project.id} value={project.id.toString()}>
-                        {project.designProjectName} ({project.projectCode}) - {project.projectName}
+                        {project.designProjectName || project.projectName} ({project.projectCode}) – {project.customerName || project.projectName}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1058,6 +1069,28 @@ export default function DrawingRegistryPage() {
                 <span className="text-sm text-gray-500">
                   {showAllRevisions ? "All Revisions" : "Current Only"}
                 </span>
+              </div>
+              <div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedProjectId(null);
+                    setShowAllRevisions(false);
+                    setSearchTerm('');
+                    setCategoryFilter('all');
+                    setStatusFilter('all');
+                    queryClient.invalidateQueries({ queryKey: ['/api/design/drawings'] });
+                    toast({
+                      title: "Filters Reset",
+                      description: "All filters have been cleared and data refreshed.",
+                    });
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Refresh
+                </Button>
               </div>
             </div>
           </CardContent>
