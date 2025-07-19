@@ -703,12 +703,285 @@ export default function DrawingRegistryPage() {
             <TabsTrigger value="basic-drawings">Project Basic Drawings</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="drawings" className="space-y-4">
+            {/* Filters */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+                    <Input
+                      placeholder="Search drawings..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Projects" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Projects</SelectItem>
+                      {designProjects.map((project: any) => (
+                        <SelectItem key={project.id} value={project.id.toString()}>
+                          {project.projectName} ({project.projectCode}) - {project.customerName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="P&ID">P&ID</SelectItem>
+                      <SelectItem value="Equipment_Layout">Equipment Layout</SelectItem>
+                      <SelectItem value="Piping">Piping</SelectItem>
+                      <SelectItem value="Electrical">Electrical</SelectItem>
+                      <SelectItem value="Civil">Civil</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="Active">Active</SelectItem>
+                      <SelectItem value="Draft">Draft</SelectItem>
+                      <SelectItem value="Under Review">Under Review</SelectItem>
+                      <SelectItem value="Archived">Archived</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" onClick={() => { 
+                    setSearchTerm(''); 
+                    setCategoryFilter('all'); 
+                    setStatusFilter('all'); 
+                    setSelectedProjectId('all'); 
+                  }}>
+                    Clear Filters
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Drawings Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  {selectedProjectId && selectedProjectId !== 'all' ? (() => {
+                    const selectedProject = designProjects.find((p: any) => p.id.toString() === selectedProjectId);
+                    return (
+                      <>
+                        Project Drawings ({drawings.length} drawings) - {
+                          selectedProject 
+                            ? `${selectedProject.projectName} (${selectedProject.projectCode}) - ${selectedProject.customerName}`
+                            : 'Selected Project'
+                        }
+                      </>
+                    );
+                  })() : (
+                    <>Drawing Registry ({drawings.length} drawings)</>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {drawingsLoading ? (
+                  <div className="text-center py-8">Loading drawings...</div>
+                ) : drawings.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No drawings found. Upload your first drawing to get started.
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Drawing Number</TableHead>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Category</TableHead>
+                        {(!selectedProjectId || selectedProjectId === 'all') && <TableHead>Project</TableHead>}
+                        <TableHead>Status</TableHead>
+                        <TableHead>Current Version</TableHead>
+                        <TableHead>Updated</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {drawings.map((drawing: DesignDrawing) => (
+                        <TableRow key={drawing.id}>
+                          <TableCell className="font-medium">
+                            {drawing.drawingNumber}
+                          </TableCell>
+                          <TableCell>{drawing.drawingTitle}</TableCell>
+                          <TableCell>
+                            <Badge className={getCategoryBadgeColor(drawing.category)}>
+                              {drawing.category}
+                            </Badge>
+                          </TableCell>
+                          {(!selectedProjectId || selectedProjectId === 'all') && (
+                            <TableCell>
+                              <div className="text-sm">
+                                <div className="font-medium">{drawing.project?.projectName || 'No Project'}</div>
+                                <div className="text-gray-500">{drawing.project?.clientName}</div>
+                              </div>
+                            </TableCell>
+                          )}
+                          <TableCell>
+                            <Badge className={getStatusBadgeColor(drawing.status)}>
+                              {drawing.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {drawing.currentVersion ? (
+                              <div className="text-sm">
+                                <div>v{drawing.currentVersion.version}.{drawing.currentVersion.revision}</div>
+                                <div className="text-gray-500">{drawing.currentVersion.fileName}</div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">No versions</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-500">
+                            {format(new Date(drawing.updatedAt), 'MMM dd, yyyy')}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {drawing.currentVersion && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => window.open(drawing.currentVersion!.fileUrl, '_blank')}
+                                >
+                                  <Eye className="w-3 h-3" />
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedDrawing(drawing);
+                                  setIsVersionHistoryDialogOpen(true);
+                                }}
+                              >
+                                <History className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="basic-drawings" className="space-y-4">
             <ProjectBasicDrawingsSection />
           </TabsContent>
 
+          <TabsContent value="categories" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {['P&ID', 'Equipment_Layout', 'Piping', 'Electrical', 'Civil'].map((category) => {
+                const categoryDrawings = drawings.filter((d: DesignDrawing) => d.category === category);
+                return (
+                  <Card key={category}>
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <FolderOpen className="w-5 h-5" />
+                          {category.replace('_', ' ')}
+                        </span>
+                        <Badge variant="secondary">{categoryDrawings.length}</Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {categoryDrawings.length === 0 ? (
+                        <p className="text-gray-500 text-sm">No drawings in this category</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {categoryDrawings.slice(0, 5).map((drawing: DesignDrawing) => (
+                            <div key={drawing.id} className="flex items-center justify-between text-sm">
+                              <div>
+                                <div className="font-medium">{drawing.drawingNumber}</div>
+                                <div className="text-gray-500 truncate">{drawing.drawingTitle}</div>
+                              </div>
+                              <Badge className={getStatusBadgeColor(drawing.status)} variant="outline">
+                                {drawing.status}
+                              </Badge>
+                            </div>
+                          ))}
+                          {categoryDrawings.length > 5 && (
+                            <div className="text-center">
+                              <Button variant="link" size="sm" onClick={() => {
+                                setCategoryFilter(category);
+                                setSelectedTab('drawings');
+                              }}>
+                                View all {categoryDrawings.length} drawings
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </TabsContent>
 
+          <TabsContent value="projects" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {designProjects.map((project: any) => {
+                const projectDrawings = drawings.filter((d: DesignDrawing) => d.designProjectId === project.id);
+                return (
+                  <Card key={project.id}>
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <FolderOpen className="w-5 h-5" />
+                          <div className="text-left">
+                            <div className="text-sm font-medium">{project.designProjectName}</div>
+                            <div className="text-xs text-gray-500">{project.projectName}</div>
+                          </div>
+                        </span>
+                        <Badge variant="secondary">{projectDrawings.length}</Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {projectDrawings.length === 0 ? (
+                        <p className="text-gray-500 text-sm">No drawings for this project</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {projectDrawings.slice(0, 3).map((drawing: DesignDrawing) => (
+                            <div key={drawing.id} className="flex items-center justify-between text-sm">
+                              <div>
+                                <div className="font-medium">{drawing.drawingNumber}</div>
+                                <div className="text-gray-500">{drawing.category}</div>
+                              </div>
+                              <Badge className={getStatusBadgeColor(drawing.status)} variant="outline">
+                                {drawing.status}
+                              </Badge>
+                            </div>
+                          ))}
+                          {projectDrawings.length > 3 && (
+                            <div className="text-center">
+                              <Button variant="link" size="sm">
+                                View all {projectDrawings.length} drawings
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </TabsContent>
         </Tabs>
 
         {/* Version History Dialog */}
