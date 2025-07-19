@@ -252,6 +252,7 @@ function Router() {
       <ProtectedRoute path="/design-management/projects" component={() => <Layout><DesignProjectsPage /></Layout>} />
       <ProtectedRoute path="/design-management/design-drawings" component={() => <Layout><DrawingRegistryPage /></Layout>} />
       <ProtectedRoute path="/design-management/drawings" component={() => <Layout><DrawingRegistryPage /></Layout>} />
+      <ProtectedRoute path="/design-management/drawing-registry" component={() => <Layout><DrawingRegistryPage /></Layout>} />
       <ProtectedRoute path="/design-management/design-reviews" component={() => <Layout><ReviewApprovalPage /></Layout>} />
       <ProtectedRoute path="/design-management/reviews" component={() => <Layout><ReviewApprovalPage /></Layout>} />
       <ProtectedRoute path="/design-management/design-transmittals" component={() => <Layout><TransmittalsPage /></Layout>} />

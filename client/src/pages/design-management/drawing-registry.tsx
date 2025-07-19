@@ -29,7 +29,8 @@ import {
   Zap,
   Building,
   Cog,
-  Trash2
+  Trash2,
+  Clock
 } from 'lucide-react';
 import { format } from 'date-fns';
 
