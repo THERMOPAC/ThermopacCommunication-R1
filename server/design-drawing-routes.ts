@@ -1,0 +1,409 @@
+import { Router } from 'express';
+import multer from 'multer';
+import { eq, and, like, desc, sql } from 'drizzle-orm';
+import { db } from './db';
+import { 
+  designDrawings, 
+  drawingVersions, 
+  designProjects, 
+  projects, 
+  users 
+} from '../shared/schema';
+import { ensureAuthenticated as authenticateUser } from './auth-middleware';
+import { uploadFileWithDiagnostics } from './utils/gcs-enhanced-upload';
+
+const router = Router();
+
+// Configure multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'application/octet-stream'];
+    const allowedExtensions = ['.dwg', '.pdf', '.png', '.jpg', '.jpeg'];
+    const fileExtension = file.originalname.toLowerCase().substring(file.originalname.lastIndexOf('.'));
+    
+    if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(fileExtension)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Allowed: DWG, PDF, PNG, JPG'));
+    }
+  }
+});
+
+// Get all drawings with filters and joins
+router.get('/drawings', authenticateUser, async (req, res) => {
+  try {
+    const { search, category, status, projectId } = req.query;
+    
+    let query = db
+      .select({
+        id: designDrawings.id,
+        designProjectId: designDrawings.designProjectId,
+        drawingNumber: designDrawings.drawingNumber,
+        drawingTitle: designDrawings.drawingTitle,
+        category: designDrawings.category,
+        disciplineCode: designDrawings.disciplineCode,
+        status: designDrawings.status,
+        currentVersionId: designDrawings.currentVersionId,
+        createdBy: designDrawings.createdBy,
+        createdAt: designDrawings.createdAt,
+        updatedAt: designDrawings.updatedAt,
+        // Project info
+        designProjectName: designProjects.designProjectName,
+        projectName: projects.name,
+        clientName: projects.clientName,
+        // Creator info
+        creatorUsername: users.username,
+        creatorFirstName: users.firstName,
+        creatorLastName: users.lastName,
+        // Current version info
+        currentVersion: drawingVersions.version,
+        currentRevision: drawingVersions.revision,
+        currentFileName: drawingVersions.fileName,
+        currentFileUrl: drawingVersions.fileUrl,
+        currentUploadDate: drawingVersions.uploadDate
+      })
+      .from(designDrawings)
+      .leftJoin(designProjects, eq(designDrawings.designProjectId, designProjects.id))
+      .leftJoin(projects, eq(designProjects.projectId, projects.id))
+      .leftJoin(users, eq(designDrawings.createdBy, users.id))
+      .leftJoin(drawingVersions, eq(designDrawings.currentVersionId, drawingVersions.id));
+
+    // Apply filters
+    const conditions = [];
+    
+    if (search) {
+      conditions.push(
+        sql`(${designDrawings.drawingNumber} ILIKE ${`%${search}%`} OR ${designDrawings.drawingTitle} ILIKE ${`%${search}%`})`
+      );
+    }
+    
+    if (category) {
+      conditions.push(eq(designDrawings.category, category as string));
+    }
+    
+    if (status) {
+      conditions.push(eq(designDrawings.status, status as string));
+    }
+    
+    if (projectId) {
+      conditions.push(eq(designDrawings.designProjectId, parseInt(projectId as string)));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    query = query.orderBy(desc(designDrawings.updatedAt));
+
+    const result = await query;
+
+    // Transform the result to match the expected frontend interface
+    const drawings = result.map(row => ({
+      id: row.id,
+      designProjectId: row.designProjectId,
+      drawingNumber: row.drawingNumber,
+      drawingTitle: row.drawingTitle,
+      category: row.category,
+      disciplineCode: row.disciplineCode,
+      status: row.status,
+      currentVersionId: row.currentVersionId,
+      createdBy: row.createdBy,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      project: {
+        designProjectName: row.designProjectName,
+        projectName: row.projectName,
+        clientName: row.clientName
+      },
+      currentVersion: row.currentVersion ? {
+        id: row.currentVersionId,
+        version: row.currentVersion,
+        revision: row.currentRevision,
+        fileName: row.currentFileName,
+        fileUrl: row.currentFileUrl,
+        uploadDate: row.currentUploadDate
+      } : null,
+      creator: {
+        username: row.creatorUsername,
+        firstName: row.creatorFirstName,
+        lastName: row.creatorLastName
+      }
+    }));
+
+    res.json(drawings);
+  } catch (error) {
+    console.error('Error fetching drawings:', error);
+    res.status(500).json({ error: 'Failed to fetch drawings' });
+  }
+});
+
+// Get versions for a specific drawing
+router.get('/drawings/:id/versions', authenticateUser, async (req, res) => {
+  try {
+    const drawingId = parseInt(req.params.id);
+    
+    const versions = await db
+      .select({
+        id: drawingVersions.id,
+        drawingId: drawingVersions.drawingId,
+        version: drawingVersions.version,
+        revision: drawingVersions.revision,
+        fileName: drawingVersions.fileName,
+        fileUrl: drawingVersions.fileUrl,
+        filePath: drawingVersions.filePath,
+        fileSize: drawingVersions.fileSize,
+        fileType: drawingVersions.fileType,
+        uploadedBy: drawingVersions.uploadedBy,
+        uploadDate: drawingVersions.uploadDate,
+        versionNotes: drawingVersions.versionNotes,
+        uploaderUsername: users.username,
+        uploaderFirstName: users.firstName,
+        uploaderLastName: users.lastName
+      })
+      .from(drawingVersions)
+      .leftJoin(users, eq(drawingVersions.uploadedBy, users.id))
+      .where(eq(drawingVersions.drawingId, drawingId))
+      .orderBy(desc(drawingVersions.uploadDate));
+
+    const formattedVersions = versions.map(version => ({
+      id: version.id,
+      drawingId: version.drawingId,
+      version: version.version,
+      revision: version.revision,
+      fileName: version.fileName,
+      fileUrl: version.fileUrl,
+      filePath: version.filePath,
+      fileSize: version.fileSize,
+      fileType: version.fileType,
+      uploadedBy: version.uploadedBy,
+      uploadDate: version.uploadDate,
+      versionNotes: version.versionNotes,
+      uploader: {
+        username: version.uploaderUsername,
+        firstName: version.uploaderFirstName,
+        lastName: version.uploaderLastName
+      }
+    }));
+
+    res.json(formattedVersions);
+  } catch (error) {
+    console.error('Error fetching drawing versions:', error);
+    res.status(500).json({ error: 'Failed to fetch drawing versions' });
+  }
+});
+
+// Upload new drawing with version
+router.post('/drawings/upload', authenticateUser, upload.single('file'), async (req, res) => {
+  try {
+    const {
+      designProjectId,
+      drawingNumber,
+      drawingTitle,
+      category,
+      disciplineCode,
+      versionNotes
+    } = req.body;
+
+    const file = req.file;
+    const userId = req.user!.id;
+
+    if (!file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Check if drawing number already exists
+    const existingDrawing = await db
+      .select()
+      .from(designDrawings)
+      .where(eq(designDrawings.drawingNumber, drawingNumber))
+      .limit(1);
+
+    if (existingDrawing.length > 0) {
+      return res.status(400).json({ error: 'Drawing number already exists' });
+    }
+
+    // Get design project info for GCS path
+    const designProject = await db
+      .select({
+        designProjectName: designProjects.designProjectName,
+        projectCode: projects.code,
+        projectName: projects.name
+      })
+      .from(designProjects)
+      .leftJoin(projects, eq(designProjects.projectId, projects.id))
+      .where(eq(designProjects.id, parseInt(designProjectId)))
+      .limit(1);
+
+    if (designProject.length === 0) {
+      return res.status(400).json({ error: 'Design project not found' });
+    }
+
+    const projectCode = designProject[0].projectCode || 'UNKNOWN';
+    
+    // Create GCS path: Design_Management/Drawings/{projectCode}/{drawingNumber}/
+    const gcsPath = `Design_Management/Drawings/${projectCode}/${drawingNumber}/${file.originalname}`;
+
+    // Upload to GCS
+    const uploadResult = await uploadFileWithDiagnostics(gcsPath, file.buffer, file.mimetype);
+    if (!uploadResult.successful) {
+      return res.status(500).json({ error: `Upload failed: ${uploadResult.error?.message || 'Unknown error'}` });
+    }
+
+    // Create drawing record
+    const [newDrawing] = await db
+      .insert(designDrawings)
+      .values({
+        designProjectId: parseInt(designProjectId),
+        drawingNumber,
+        drawingTitle,
+        category,
+        disciplineCode,
+        status: 'Draft',
+        createdBy: userId,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+
+    // Create initial version
+    const [newVersion] = await db
+      .insert(drawingVersions)
+      .values({
+        drawingId: newDrawing.id,
+        version: '1',
+        revision: '0',
+        fileName: file.originalname,
+        fileUrl: uploadResult.url,
+        filePath: uploadResult.path || gcsPath,
+        fileSize: file.size,
+        fileType: file.mimetype,
+        uploadedBy: userId,
+        uploadDate: new Date(),
+        versionNotes: versionNotes || 'Initial version'
+      })
+      .returning();
+
+    // Update drawing with current version ID
+    await db
+      .update(designDrawings)
+      .set({ 
+        currentVersionId: newVersion.id,
+        updatedAt: new Date()
+      })
+      .where(eq(designDrawings.id, newDrawing.id));
+
+    res.json({
+      success: true,
+      drawing: newDrawing,
+      version: newVersion
+    });
+  } catch (error) {
+    console.error('Error uploading drawing:', error);
+    res.status(500).json({ error: 'Failed to upload drawing' });
+  }
+});
+
+// Upload new version of existing drawing
+router.post('/drawings/:id/versions', authenticateUser, upload.single('file'), async (req, res) => {
+  try {
+    const drawingId = parseInt(req.params.id);
+    const { versionNotes } = req.body;
+    const file = req.file;
+    const userId = req.user!.id;
+
+    if (!file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Get drawing info
+    const drawing = await db
+      .select({
+        id: designDrawings.id,
+        drawingNumber: designDrawings.drawingNumber,
+        designProjectId: designDrawings.designProjectId,
+        projectCode: projects.code
+      })
+      .from(designDrawings)
+      .leftJoin(designProjects, eq(designDrawings.designProjectId, designProjects.id))
+      .leftJoin(projects, eq(designProjects.projectId, projects.id))
+      .where(eq(designDrawings.id, drawingId))
+      .limit(1);
+
+    if (drawing.length === 0) {
+      return res.status(404).json({ error: 'Drawing not found' });
+    }
+
+    // Get latest version number
+    const latestVersion = await db
+      .select({
+        version: drawingVersions.version,
+        revision: drawingVersions.revision
+      })
+      .from(drawingVersions)
+      .where(eq(drawingVersions.drawingId, drawingId))
+      .orderBy(desc(drawingVersions.uploadDate))
+      .limit(1);
+
+    let newVersion = '1';
+    let newRevision = '0';
+
+    if (latestVersion.length > 0) {
+      const currentVersion = parseInt(latestVersion[0].version);
+      const currentRevision = parseInt(latestVersion[0].revision);
+      newVersion = (currentVersion).toString();
+      newRevision = (currentRevision + 1).toString();
+    }
+
+    const projectCode = drawing[0].projectCode || 'UNKNOWN';
+    
+    // Create GCS path
+    const gcsPath = `Design_Management/Drawings/${projectCode}/${drawing[0].drawingNumber}/${file.originalname}`;
+
+    // Upload to GCS
+    const uploadResult = await uploadFileWithDiagnostics(gcsPath, file.buffer, file.mimetype);
+    if (!uploadResult.successful) {
+      return res.status(500).json({ error: `Upload failed: ${uploadResult.error?.message || 'Unknown error'}` });
+    }
+
+    // Create new version
+    const [newVersionRecord] = await db
+      .insert(drawingVersions)
+      .values({
+        drawingId,
+        version: newVersion,
+        revision: newRevision,
+        fileName: file.originalname,
+        fileUrl: uploadResult.url,
+        filePath: uploadResult.path || gcsPath,
+        fileSize: file.size,
+        fileType: file.mimetype,
+        uploadedBy: userId,
+        uploadDate: new Date(),
+        versionNotes: versionNotes || `Version ${newVersion}.${newRevision}`
+      })
+      .returning();
+
+    // Update drawing's current version and status
+    await db
+      .update(designDrawings)
+      .set({ 
+        currentVersionId: newVersionRecord.id,
+        status: 'Active',
+        updatedAt: new Date()
+      })
+      .where(eq(designDrawings.id, drawingId));
+
+    res.json({
+      success: true,
+      version: newVersionRecord
+    });
+  } catch (error) {
+    console.error('Error uploading drawing version:', error);
+    res.status(500).json({ error: 'Failed to upload drawing version' });
+  }
+});
+
+export default router;
