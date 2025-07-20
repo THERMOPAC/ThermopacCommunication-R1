@@ -3594,6 +3594,96 @@ export class DatabaseStorage implements IStorage {
     console.log('Updated BRC:', updatedBRC);
     return updatedBRC as BankRealizationCertificate;
   }
+
+  // Password Compliance Analysis
+  async getPasswordComplianceAnalysis() {
+    try {
+      const POLICY_ENFORCEMENT_DATE = '2025-07-15 00:00:00';
+      
+      const nonCompliantUsers = await this.db.execute(sql`
+        SELECT 
+          id,
+          username,
+          role,
+          last_password_change,
+          password_needs_update,
+          created_at,
+          CASE 
+            WHEN last_password_change IS NULL THEN 'Never updated password since policy'
+            WHEN last_password_change < ${POLICY_ENFORCEMENT_DATE}::timestamp THEN 'Password predates policy enforcement'
+            WHEN password_needs_update = true THEN 'Flagged for password update'
+            ELSE 'Unknown compliance issue'
+          END AS compliance_issue
+        FROM users 
+        WHERE is_active = true 
+          AND (
+            last_password_change IS NULL OR 
+            last_password_change < ${POLICY_ENFORCEMENT_DATE}::timestamp OR 
+            password_needs_update = true
+          )
+        ORDER BY 
+          CASE role 
+            WHEN 'Superuser' THEN 1
+            WHEN 'General Manager' THEN 2
+            WHEN 'Senior Manager' THEN 3
+            WHEN 'Manager' THEN 4
+            WHEN 'Employee' THEN 5
+            ELSE 6
+          END,
+          username
+      `);
+
+      const complianceSummary = await this.db.execute(sql`
+        WITH policy_enforcement AS (
+          SELECT ${POLICY_ENFORCEMENT_DATE}::timestamp AS enforcement_date
+        ),
+        compliance_analysis AS (
+          SELECT 
+            u.id,
+            u.username,
+            u.role,
+            u.last_password_change,
+            u.password_needs_update,
+            u.is_active,
+            p.enforcement_date,
+            CASE 
+              WHEN u.last_password_change IS NULL THEN 'No Password Change'
+              WHEN u.last_password_change < p.enforcement_date THEN 'Pre-Policy Password'
+              ELSE 'Compliant'
+            END AS compliance_status,
+            CASE 
+              WHEN u.last_password_change IS NULL OR 
+                   u.last_password_change < p.enforcement_date OR 
+                   u.password_needs_update = true THEN true 
+              ELSE false 
+            END AS non_compliant
+          FROM users u
+          CROSS JOIN policy_enforcement p
+          WHERE u.is_active = true
+        )
+        SELECT 
+          compliance_status,
+          COUNT(*) as user_count
+        FROM compliance_analysis
+        GROUP BY compliance_status
+      `);
+
+      const totalUsers = await this.db.execute(sql`
+        SELECT COUNT(*) as total FROM users WHERE is_active = true
+      `);
+
+      return {
+        policyEnforcementDate: POLICY_ENFORCEMENT_DATE,
+        nonCompliantUsers: nonCompliantUsers.rows,
+        complianceSummary: complianceSummary.rows,
+        totalActiveUsers: totalUsers.rows[0]?.total || 0,
+        totalNonCompliant: nonCompliantUsers.rows.length
+      };
+    } catch (error) {
+      console.error('Error getting password compliance analysis:', error);
+      throw error;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();

@@ -28,6 +28,7 @@ import {
   HeartPulse,
   Lock,
   Shield,
+  ShieldCheck,
   Settings,
   FileCheck,
   CalendarClock,
@@ -216,7 +217,8 @@ function Layout({ children }: LayoutProps) {
         { icon: FileText, label: "Visa Management", href: "/admin/visa-management" },
         { icon: Gavel, label: "Legal Management", href: "/admin/legal-management" },
         { icon: Calendar, label: "Workweek Policy Management", href: "/admin/workweek-policies" },
-        { icon: Shield, label: "Module Permissions", href: "/module-permissions" }
+        { icon: Shield, label: "Module Permissions", href: "/module-permissions" },
+        { icon: ShieldCheck, label: "Password Compliance", href: "/admin/password-compliance" }
       ]
     }] : []),
     ...(hasViewPermission("Sales and Marketing") ? [{ 

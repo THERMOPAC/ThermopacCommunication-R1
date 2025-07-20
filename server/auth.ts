@@ -632,4 +632,40 @@ export function setupAuth(app: Express) {
       });
     }
   });
+
+  // Password compliance analysis endpoint
+  app.get("/api/admin/password-compliance", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const currentUser = req.user as SelectUser;
+      
+      // Only allow admin users to access this endpoint
+      if (!['Superuser', 'General Manager'].includes(currentUser.role)) {
+        return res.status(403).json({ 
+          success: false, 
+          error: 'Access denied: Admin privileges required' 
+        });
+      }
+      
+      console.log(`Password compliance analysis requested by ${currentUser.username} (${currentUser.role})`);
+      
+      const compliance = await storage.getPasswordComplianceAnalysis();
+      
+      console.log(`Password compliance analysis completed: ${compliance.totalNonCompliant} of ${compliance.totalActiveUsers} users non-compliant`);
+      
+      res.json({ 
+        success: true, 
+        data: compliance 
+      });
+    } catch (error) {
+      console.error('Password compliance analysis error:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to analyze password compliance' 
+      });
+    }
+  });
 }

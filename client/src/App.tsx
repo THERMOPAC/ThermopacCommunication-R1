@@ -72,6 +72,7 @@ import VisaManagementPageNew from "@/pages/admin/visa-management-new";
 import LegalManagementPage from "@/pages/admin/legal-management";
 import MeetingsManagementPage from "@/pages/admin/meetings-management";
 import GoogleCalendarSettingsPage from "@/pages/google-calendar-settings";
+import PasswordCompliancePage from "@/pages/password-compliance-page";
 import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
 import OutstandingReportPage from "@/pages/finance/reports/outstanding-page";
 import RemittancesReportPage from "@/pages/finance/reports/remittances-page";
@@ -237,6 +238,7 @@ function Router() {
       <ProtectedRoute path="/admin/visa-management" component={VisaManagementWrapper} />
       <ProtectedRoute path="/admin/legal-management" component={LegalManagementPage} />
       <ProtectedRoute path="/admin/meetings-management" component={MeetingsManagementPage} />
+      <ProtectedRoute path="/admin/password-compliance" component={PasswordCompliancePage} />
       <ProtectedRoute path="/google-calendar-settings" component={GoogleCalendarSettingsPage} />
       
       <ProtectedRoute path="/project-dashboard" component={ProjectDashboardPage} />
