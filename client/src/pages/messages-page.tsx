@@ -5,7 +5,7 @@ import Layout from "@/components/layout";
 function MessagesPage() {
   return (
     <Layout>
-      <div className="container mx-auto py-6">
+      <div className="container py-6">
         <h1 className="text-3xl font-bold mb-6">Internal Messages</h1>
         <InternalMessages />
       </div>

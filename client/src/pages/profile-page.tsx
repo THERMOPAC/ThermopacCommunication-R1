@@ -12,7 +12,7 @@ export default function ProfilePage() {
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto">
+      <div className="container py-6">
         <div className="mb-6">
           <Link href="/">
             <Button variant="outline" className="gap-2">

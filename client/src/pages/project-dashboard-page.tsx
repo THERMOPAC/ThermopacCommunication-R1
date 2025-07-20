@@ -135,7 +135,7 @@ export default function ProjectDashboardPage() {
   if (isLoading) {
     return (
       <Layout>
-        <div className="container mx-auto p-6">
+        <div className="container py-6">
           <div className="flex items-center justify-center h-64">
             <div className="text-lg">Loading project dashboard...</div>
           </div>
@@ -146,7 +146,7 @@ export default function ProjectDashboardPage() {
 
   return (
     <Layout>
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="container py-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

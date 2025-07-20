@@ -36,7 +36,7 @@ export default function GcsDiagnosticPage() {
 
   return (
     <Layout>
-      <div className="container py-8 max-w-4xl mx-auto">
+      <div className="container py-6">
         <h1 className="text-3xl font-bold mb-2">GCS Diagnostic Tools</h1>
         <p className="text-muted-foreground mb-6">
           These tools help diagnose issues with Google Cloud Storage connectivity
