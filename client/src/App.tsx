@@ -222,23 +222,23 @@ function Router() {
       
       {/* Administration Module Routes */}
       <ProtectedRoute path="/admin" component={AdministrationPage} />
-      <ProtectedRoute path="/admin/administration" component={AdministrationPage} />
-      <ProtectedRoute path="/admin/users" component={UserManagementPage} />
-      <ProtectedRoute path="/admin/user-management" component={UserManagementPage} />
-      <ProtectedRoute path="/admin/attendance" component={AttendanceManagementPage} />
-      <ProtectedRoute path="/admin/attendance-management" component={AttendanceManagementPage} />
-      <ProtectedRoute path="/admin/leave" component={LeaveManagementPage} />
-      <ProtectedRoute path="/admin/leave-management" component={LeaveManagementPage} />
-      <ProtectedRoute path="/admin/payroll" component={PayrollManagementPage} />
-      <ProtectedRoute path="/admin/payroll-management" component={PayrollManagementPage} />
-      <ProtectedRoute path="/admin/workweek-policies" component={WorkweekPolicyManagementPage} />
-      <ProtectedRoute path="/admin/workweek-policy-management" component={WorkweekPolicyManagementPage} />
-      <ProtectedRoute path="/admin/business-trips" component={BusinessTripManagementPage} />
-      <ProtectedRoute path="/admin/business-trip-management" component={BusinessTripManagementPage} />
-      <ProtectedRoute path="/admin/visa-management" component={VisaManagementWrapper} />
-      <ProtectedRoute path="/admin/legal-management" component={LegalManagementPage} />
-      <ProtectedRoute path="/admin/meetings-management" component={MeetingsManagementPage} />
-      <ProtectedRoute path="/admin/password-compliance" component={PasswordCompliancePage} />
+      <ProtectedRoute path="/admin/administration" component={() => <Layout><AdministrationPage /></Layout>} />
+      <ProtectedRoute path="/admin/users" component={() => <Layout><UserManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/user-management" component={() => <Layout><UserManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/attendance" component={() => <Layout><AttendanceManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/attendance-management" component={() => <Layout><AttendanceManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/leave" component={() => <Layout><LeaveManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/leave-management" component={() => <Layout><LeaveManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/payroll" component={() => <Layout><PayrollManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/payroll-management" component={() => <Layout><PayrollManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/workweek-policies" component={() => <Layout><WorkweekPolicyManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/workweek-policy-management" component={() => <Layout><WorkweekPolicyManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/business-trips" component={() => <Layout><BusinessTripManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/business-trip-management" component={() => <Layout><BusinessTripManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/visa-management" component={() => <Layout><VisaManagementWrapper /></Layout>} />
+      <ProtectedRoute path="/admin/legal-management" component={() => <Layout><LegalManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/meetings-management" component={() => <Layout><MeetingsManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/password-compliance" component={() => <Layout><PasswordCompliancePage /></Layout>} />
       <ProtectedRoute path="/google-calendar-settings" component={GoogleCalendarSettingsPage} />
       
       <ProtectedRoute path="/project-dashboard" component={ProjectDashboardPage} />
