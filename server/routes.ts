@@ -149,6 +149,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api', callbackRouter);
   console.log('Google Calendar OAuth callback registered (pre-auth)');
   
+  // Register sample Excel download route BEFORE authentication to avoid middleware issues
+  app.get('/api/customers/sample-excel', async (req: any, res: any) => {
+    try {
+      console.log('Sample Excel download requested (pre-auth)');
+      
+      const XLSX = await import('xlsx');
+      
+      // Create sample data
+      const sampleData = [
+        {
+          'BP Code': 'C001',
+          'BP Name': 'ACME Corporation',
+          'Contact Person': 'John Smith',
+          'E-Mail': 'john.smith@acme.com',
+          'Bill_To_Address': '123 Business St, Suite 100, New York, NY 10001',
+          'Ship_To_Address': '456 Warehouse Ave, Brooklyn, NY 11201',
+          'Continent': 'North America',
+          'Country Name': 'United States'
+        },
+        {
+          'BP Code': 'C002',
+          'BP Name': 'Global Industries Ltd',
+          'Contact Person': 'Sarah Johnson',
+          'E-Mail': 'sarah.j@globalind.com',
+          'Bill_To_Address': '789 Corporate Blvd, London, UK SW1A 1AA',
+          'Ship_To_Address': '321 Distribution Center, Manchester, UK M1 1AA',
+          'Continent': 'Europe',
+          'Country Name': 'United Kingdom'
+        },
+        {
+          'BP Code': 'C003',
+          'BP Name': 'Tech Solutions Pvt Ltd',
+          'Contact Person': 'Raj Patel',
+          'E-Mail': 'raj.patel@techsol.in',
+          'Bill_To_Address': 'Plot 45, IT Park, Bangalore, Karnataka 560001',
+          'Ship_To_Address': 'Warehouse 12, Electronic City, Bangalore 560100',
+          'Continent': 'Asia',
+          'Country Name': 'India'
+        }
+      ];
+
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(sampleData);
+
+      // Set column widths for better readability
+      const columnWidths = [
+        { wch: 12 }, // BP Code
+        { wch: 30 }, // BP Name
+        { wch: 20 }, // Contact Person
+        { wch: 25 }, // E-Mail
+        { wch: 40 }, // Bill_To_Address
+        { wch: 40 }, // Ship_To_Address
+        { wch: 15 }, // Continent
+        { wch: 15 }  // Country Name
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Customer Data');
+
+      // Generate Excel buffer
+      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+      // Set response headers
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=customer_import_sample.xlsx');
+      res.setHeader('Content-Length', excelBuffer.length);
+
+      // Send the file
+      res.send(excelBuffer);
+    } catch (error) {
+      console.error('Error generating sample Excel file:', error);
+      return res.status(500).json({
+        message: "An error occurred while generating the sample file",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
   setupAuth(app);
   
   // Set up Gmail integration routes
