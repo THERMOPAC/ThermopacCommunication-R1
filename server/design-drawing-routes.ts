@@ -307,7 +307,7 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
       // Truncate fields to fit database constraints
       const truncatedDrawingNumber = drawingNumber.length > 100 ? drawingNumber.substring(0, 100) : drawingNumber;
       const truncatedDrawingTitle = drawingTitle.length > 255 ? drawingTitle.substring(0, 252) + '...' : drawingTitle;
-      const truncatedCategory = (category || 'Assembly_Drawing').length > 50 ? (category || 'Assembly_Drawing').substring(0, 50) : (category || 'Assembly_Drawing');
+      const truncatedCategory = (category || 'Assembly Drawing').length > 50 ? (category || 'Assembly Drawing').substring(0, 50) : (category || 'Assembly Drawing');
       const truncatedDisciplineCode = (disciplineCode || 'PD').length > 10 ? (disciplineCode || 'PD').substring(0, 10) : (disciplineCode || 'PD');
 
       const [newDrawing] = await db
