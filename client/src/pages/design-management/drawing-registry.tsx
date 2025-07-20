@@ -1679,8 +1679,8 @@ export default function DrawingRegistryPage() {
               types={[
                 "General Arrangement Drawing",
                 "Process Flow Diagram",
-                "3D Solid Works",
-                "3D eDrawings"
+                "3D Solid Works_A",
+                "3D eDrawings_A"
               ]}
             />
           </TabsContent>
