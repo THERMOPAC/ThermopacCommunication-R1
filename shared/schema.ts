@@ -3917,6 +3917,87 @@ export const sapPurchaseInvoicesRelations = relations(sapPurchaseInvoices, ({ on
   }),
 }));
 
+// Design Project Backups table
+export const designProjectBackups = pgTable('design_project_backups', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  
+  // Backup Classification
+  backupType: varchar('backup_type', { length: 100 }).notNull(), // 3D Model, PLC Program, SCADA
+  
+  // File Details
+  fileName: varchar('file_name', { length: 255 }).notNull(),
+  originalFileName: varchar('original_file_name', { length: 255 }),
+  revision: varchar('revision', { length: 50 }).default('R1'),
+  description: text('description'),
+  
+  // Storage Information
+  filePath: text('file_path').notNull(),
+  fileUrl: text('file_url'),
+  fileSize: integer('file_size'),
+  fileType: varchar('file_type', { length: 50 }),
+  
+  // Revision Control
+  status: varchar('status', { length: 50 }).notNull().default('current'), // current, superseded, archived
+  isRevision: boolean('is_revision').notNull().default(false),
+  revisionOf: integer('revision_of').references(() => designProjectBackups.id, { onDelete: 'set null' }),
+  revisionReason: text('revision_reason'),
+  supersededAt: timestamp('superseded_at'),
+  supersededBy: integer('superseded_by').references(() => users.id, { onDelete: 'set null' }),
+  
+  // Upload Information
+  uploadedBy: integer('uploaded_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Design Project Backups Relations
+export const designProjectBackupsRelations = relations(designProjectBackups, ({ one }) => ({
+  project: one(projects, {
+    fields: [designProjectBackups.projectId],
+    references: [projects.id],
+  }),
+  uploadedByUser: one(users, {
+    fields: [designProjectBackups.uploadedBy],
+    references: [users.id],
+  }),
+  supersededByUser: one(users, {
+    fields: [designProjectBackups.supersededBy],
+    references: [users.id],
+  }),
+  parentBackup: one(designProjectBackups, {
+    fields: [designProjectBackups.revisionOf],
+    references: [designProjectBackups.id],
+    relationName: "backup_revisions"
+  }),
+}));
+
+// Design Project Backups Zod Schemas
+export const insertDesignProjectBackupSchema = createInsertSchema(designProjectBackups)
+  .omit({ id: true, uploadedAt: true, updatedAt: true })
+  .extend({
+    projectId: z.number().min(1, "Project ID is required"),
+    backupType: z.string().min(1, "Backup type is required"),
+    fileName: z.string().min(1, "File name is required"),
+    originalFileName: z.string().optional(),
+    revision: z.string().default('R1'),
+    description: z.string().optional(),
+    filePath: z.string().min(1, "File path is required"),
+    fileUrl: z.string().optional(),
+    fileSize: z.number().optional(),
+    fileType: z.string().optional(),
+    status: z.string().default('current'),
+    isRevision: z.boolean().default(false),
+    revisionOf: z.number().optional(),
+    revisionReason: z.string().optional(),
+    supersededAt: z.date().optional(),
+    supersededBy: z.number().optional(),
+    uploadedBy: z.number().min(1, "Uploaded by user ID is required"),
+  });
+
+export type InsertDesignProjectBackup = z.infer<typeof insertDesignProjectBackupSchema>;
+export type SelectDesignProjectBackup = typeof designProjectBackups.$inferSelect;
+
 // SAP Purchase Zod Schemas
 export const insertSapPurchaseOrderSchema = createInsertSchema(sapPurchaseOrders)
   .omit({ id: true, createdAt: true, updatedAt: true })

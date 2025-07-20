@@ -79,6 +79,7 @@ import { default as designDrawingRoutes } from "./design-drawing-routes";
 import { default as designBasicDrawingRoutes } from "./design-basic-drawings-routes";
 import { default as designStandardsRoutes } from "./design-standards-routes";
 import { default as designTransmittalRoutes } from "./design-transmittal-routes";
+import { default as designBackupRoutes } from "./design-backup-routes";
 import { vpnManager } from "./vpn/vpn-manager";
 import { detectTimezoneFromIP, getTimezoneOffset } from "./timezone-detection-service";
 import { 
@@ -2944,6 +2945,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const designProjectItemsRoutes = (await import('./design-project-items-routes')).default;
   app.use('/api/design/project-items', designProjectItemsRoutes);
   console.log('Design Project Items routes registered at /api/design/project-items');
+
+  // Set up design backup routes
+  app.use('/api/design/backups', designBackupRoutes);
+  console.log('Design Backup routes registered at /api/design/backups');
 
   // =============================================================================
   // SAP B1 INTEGRATION ROUTES
