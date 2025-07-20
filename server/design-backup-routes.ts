@@ -8,7 +8,7 @@ import { uploadFileWithDiagnostics } from './utils/gcs-enhanced-upload';
 import path from 'path';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500 * 1024 * 1024 } }); // 500MB per file
 
 // Apply auth middleware to all routes
 router.use(ensureAuthenticated);
@@ -104,6 +104,28 @@ router.post('/', upload.array('file'), async (req, res) => {
         success: false,
         message: 'No files uploaded'
       });
+    }
+
+    // Validate file types and sizes
+    const allowedExtensions = ['.zip', '.rar', '.7z', '.tar', '.gz', '.step', '.stp', '.iges', '.igs', '.dwg', '.dxf'];
+    const maxFileSize = 500 * 1024 * 1024; // 500MB
+    
+    for (const file of files) {
+      const fileExtension = path.extname(file.originalname).toLowerCase();
+      
+      if (!allowedExtensions.includes(fileExtension)) {
+        return res.status(400).json({
+          success: false,
+          message: `File "${file.originalname}" has unsupported format. Allowed formats: ${allowedExtensions.join(', ')}`
+        });
+      }
+      
+      if (file.size > maxFileSize) {
+        return res.status(400).json({
+          success: false,
+          message: `File "${file.originalname}" exceeds 500MB size limit (${(file.size / 1024 / 1024).toFixed(1)}MB)`
+        });
+      }
     }
 
     const { projectId, backupType, description } = req.body;
