@@ -185,25 +185,13 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
       {/* Project Items Statistics */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <FolderOpen className="w-5 h-5 text-indigo-600" />
-                Project Items Overview
-              </CardTitle>
-              <CardDescription>
-                Comprehensive view of all project items including parent-child relationships
-              </CardDescription>
-            </div>
-            <Button 
-              onClick={() => setIsUploadDialogOpen(true)}
-              className="bg-indigo-600 hover:bg-indigo-700"
-              size="sm"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              Upload Drawing
-            </Button>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <FolderOpen className="w-5 h-5 text-indigo-600" />
+            Project Items Overview
+          </CardTitle>
+          <CardDescription>
+            Comprehensive view of all project items including parent-child relationships
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-4 gap-4">
@@ -265,7 +253,15 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                       <Button size="sm" variant="outline" title="Download Specifications">
                         <Download className="w-3 h-3" />
                       </Button>
-
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => setIsUploadDialogOpen(true)}
+                        title="Upload Drawing"
+                        className="bg-indigo-50 hover:bg-indigo-100 border-indigo-200"
+                      >
+                        <Upload className="w-3 h-3 text-indigo-600" />
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -299,7 +295,15 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                         <Button size="sm" variant="outline" title="Download Specifications">
                           <Download className="w-3 h-3" />
                         </Button>
-
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => setIsUploadDialogOpen(true)}
+                          title="Upload Drawing"
+                          className="bg-indigo-50 hover:bg-indigo-100 border-indigo-200"
+                        >
+                          <Upload className="w-3 h-3 text-indigo-600" />
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -332,7 +336,15 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                         <Button size="sm" variant="outline" title="Download Specifications">
                           <Download className="w-3 h-3" />
                         </Button>
-
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => setIsUploadDialogOpen(true)}
+                          title="Upload Drawing"
+                          className="bg-indigo-50 hover:bg-indigo-100 border-indigo-200"
+                        >
+                          <Upload className="w-3 h-3 text-indigo-600" />
+                        </Button>
                       </div>
                     </div>
                   </div>
