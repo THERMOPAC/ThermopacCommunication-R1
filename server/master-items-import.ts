@@ -25,6 +25,85 @@ export function setupMasterItemsImportRoutes(app: Router) {
     },
   });
 
+  // Route to download sample Excel file
+  app.get('/api/master-items/sample-excel', async (req: Request, res: Response) => {
+    try {
+      console.log('Master items sample Excel download requested');
+
+      // Create sample data
+      const sampleData = [
+        {
+          'Item Code': 'PUMP-001',
+          'Description': 'Centrifugal Pump 100HP',
+          'UOM': 'Nos',
+          'Make/Buy': 'Buy',
+          'Drawing No': 'DWG-PUMP-001'
+        },
+        {
+          'Item Code': 'VALVE-002',
+          'Description': 'Gate Valve DN150 PN16',
+          'UOM': 'Nos',
+          'Make/Buy': 'Buy',
+          'Drawing No': 'DWG-VALVE-002'
+        },
+        {
+          'Item Code': 'PIPE-003',
+          'Description': 'Carbon Steel Pipe 6" Sch40',
+          'UOM': 'Meter',
+          'Make/Buy': 'Buy',
+          'Drawing No': 'DWG-PIPE-003'
+        },
+        {
+          'Item Code': 'TANK-004',
+          'Description': 'Storage Tank 1000L SS316',
+          'UOM': 'Nos',
+          'Make/Buy': 'Make',
+          'Drawing No': 'DWG-TANK-004'
+        },
+        {
+          'Item Code': 'MOTOR-005',
+          'Description': 'Electric Motor 50HP 415V',
+          'UOM': 'Nos',
+          'Make/Buy': 'Buy',
+          'Drawing No': 'DWG-MOTOR-005'
+        }
+      ];
+
+      // Create a new workbook
+      const workbook = XLSX.utils.book_new();
+      
+      // Create worksheet
+      const worksheet = XLSX.utils.json_to_sheet(sampleData);
+
+      // Set column widths for better readability
+      worksheet['!cols'] = [
+        { wch: 15 }, // Item Code
+        { wch: 30 }, // Description
+        { wch: 10 }, // UOM
+        { wch: 12 }, // Make/Buy
+        { wch: 20 }  // Drawing No
+      ];
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Master Items');
+
+      // Generate Excel buffer
+      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+      // Set headers for file download
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename="master_items_sample.xlsx"');
+      
+      // Send the Excel file
+      res.send(excelBuffer);
+      
+      console.log('Master items sample Excel file sent successfully');
+    } catch (error) {
+      console.error('Error creating master items sample Excel file:', error);
+      res.status(500).json({ error: 'Failed to generate sample file' });
+    }
+  });
+
   app.post('/api/master-items/import-excel', ensureAuthenticated, upload.single('file'), async (req: any, res: Response) => {
     try {
       // Check authorization

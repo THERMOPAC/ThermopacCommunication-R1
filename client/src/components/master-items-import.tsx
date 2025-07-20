@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Upload, XCircle, FileSpreadsheet } from 'lucide-react';
+import { Upload, XCircle, FileSpreadsheet, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
@@ -71,6 +71,45 @@ const MasterItemsImport: React.FC = () => {
     }
     setUploadResults(null);
     setErrors(null);
+  };
+
+  const handleDownloadSample = async () => {
+    try {
+      const response = await fetch('/api/master-items/sample-excel', {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download sample file');
+      }
+
+      // Create blob from response
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'master_items_sample.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+
+      toast({
+        title: "Sample Downloaded",
+        description: "Master items sample file has been downloaded successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "Failed to download sample file. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
   
   const handleUpload = async () => {
@@ -149,12 +188,45 @@ const MasterItemsImport: React.FC = () => {
           <Upload className="h-4 w-4 mr-2" /> Import Items
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[525px]">
+      <DialogContent className="sm:max-w-[525px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Import Master Items</DialogTitle>
           <DialogDescription>
-            Upload an Excel file (.xlsx, .xls) or CSV file containing master items data.
+            Upload an Excel file containing master items data. The file must have these columns:
           </DialogDescription>
+          <div className="space-y-3">
+            <div className="text-sm space-y-1">
+              <div><strong>Item Code</strong> - Unique item identifier (required)</div>
+              <div><strong>Description</strong> - Item description or name (required)</div>
+              <div><strong>UOM</strong> - Unit of measurement (e.g., Nos, Kg, Meter)</div> 
+              <div><strong>Make/Buy</strong> - Make or Buy classification</div>
+              <div><strong>Drawing No</strong> - Associated drawing number</div>
+            </div>
+            <div className="p-2 bg-amber-50 text-amber-800 text-xs rounded border border-amber-200">
+              <strong>Important:</strong> All fields in the Excel file will be imported, including:
+              <div className="mt-1 space-y-1">
+                <div><code>Item Code</code> (required)</div>
+                <div><code>Description</code> (required)</div>
+                <div><code>UOM</code></div>
+                <div><code>Make/Buy</code></div>
+                <div><code>Drawing No</code></div>
+              </div>
+            </div>
+            <div className="mt-3 p-3 bg-blue-50 text-blue-800 text-sm rounded border border-blue-200">
+              <div className="flex items-center justify-between">
+                <span><strong>Need help?</strong> Download a sample Excel file with the correct format.</span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleDownloadSample}
+                  className="ml-2 flex items-center gap-1"
+                >
+                  <Download className="h-3 w-3" />
+                  Sample
+                </Button>
+              </div>
+            </div>
+          </div>
         </DialogHeader>
         
         <div className="space-y-4">

@@ -229,6 +229,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Register master items sample Excel download route BEFORE authentication
+  app.get('/api/master-items/sample-excel', async (req: any, res: any) => {
+    try {
+      console.log('Master items sample Excel download requested (pre-auth)');
+      
+      const XLSX = await import('xlsx');
+      
+      // Create sample data for master items
+      const sampleData = [
+        {
+          'Item Code': 'PUMP-001',
+          'Description': 'Centrifugal Pump 100HP',
+          'UOM': 'Nos',
+          'Make/Buy': 'Buy',
+          'Drawing No': 'DWG-PUMP-001'
+        },
+        {
+          'Item Code': 'VALVE-002',
+          'Description': 'Gate Valve DN150 PN16',
+          'UOM': 'Nos',
+          'Make/Buy': 'Buy',
+          'Drawing No': 'DWG-VALVE-002'
+        },
+        {
+          'Item Code': 'PIPE-003',
+          'Description': 'Carbon Steel Pipe 6" Sch40',
+          'UOM': 'Meter',
+          'Make/Buy': 'Buy',
+          'Drawing No': 'DWG-PIPE-003'
+        },
+        {
+          'Item Code': 'TANK-004',
+          'Description': 'Storage Tank 1000L SS316',
+          'UOM': 'Nos',
+          'Make/Buy': 'Make',
+          'Drawing No': 'DWG-TANK-004'
+        },
+        {
+          'Item Code': 'MOTOR-005',
+          'Description': 'Electric Motor 50HP 415V',
+          'UOM': 'Nos',
+          'Make/Buy': 'Buy',
+          'Drawing No': 'DWG-MOTOR-005'
+        }
+      ];
+
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(sampleData);
+
+      // Set column widths for better readability
+      const columnWidths = [
+        { wch: 15 }, // Item Code
+        { wch: 30 }, // Description
+        { wch: 10 }, // UOM
+        { wch: 12 }, // Make/Buy
+        { wch: 20 }  // Drawing No
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Master Items');
+
+      // Generate Excel buffer
+      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+      // Set response headers
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=master_items_sample.xlsx');
+      res.setHeader('Content-Length', excelBuffer.length);
+
+      // Send the file
+      res.send(excelBuffer);
+    } catch (error) {
+      console.error('Error generating master items sample Excel file:', error);
+      return res.status(500).json({
+        message: "An error occurred while generating the sample file",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
   setupAuth(app);
   
   // Set up Gmail integration routes
