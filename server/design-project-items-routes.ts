@@ -137,6 +137,7 @@ router.get('/', ensureAuthenticated, async (req, res) => {
         drawings.forEach(drawing => {
           const latestVersion = latestVersionsMap.get(drawing.id);
           if (latestVersion) {
+            console.log(`Found revision for drawing ${drawing.drawingNumber}: ${latestVersion.revision}`);
             drawingRevisions.set(drawing.drawingNumber, {
               revision: latestVersion.revision,
               fileName: latestVersion.fileName,
@@ -144,6 +145,8 @@ router.get('/', ensureAuthenticated, async (req, res) => {
             });
           }
         });
+        
+        console.log(`Total drawing revisions found: ${drawingRevisions.size}`);
       }
     }
 
