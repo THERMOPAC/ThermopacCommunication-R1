@@ -360,7 +360,10 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
         fileType: truncatedFileType,
         mimeType: truncatedMimeType,
         uploadedBy: userId,
+        createdBy: userId,
         uploadDate: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
         versionNotes: versionNotes || 'Initial version'
       })
       .returning();
