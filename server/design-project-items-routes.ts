@@ -9,7 +9,7 @@ const router = express.Router();
 // GET /api/design/project-items - Get all project items (both parent and child) with relationships
 router.get('/', ensureAuthenticated, async (req, res) => {
   try {
-    const { projectId } = req.query;
+    const { projectId, showAllRevisions } = req.query;
     
     if (!projectId) {
       return res.status(400).json({ 
@@ -92,61 +92,64 @@ router.get('/', ensureAuthenticated, async (req, res) => {
       }
     });
 
-    // Get drawing revision information for all project items
+    // Get drawing revision information for all project items (only if showAllRevisions is enabled)
     const drawingRevisions = new Map();
+    const shouldShowRevisions = showAllRevisions === 'true';
     
-    // Fetch drawing versions for all items that have drawing numbers
-    const itemsWithDrawingNumbers = Array.from(masterItemsMap.values())
-      .filter(item => item.drawingNo);
-    
-    if (itemsWithDrawingNumbers.length > 0) {
-      // Get design drawings for these drawing numbers
-      const drawingNumbers = itemsWithDrawingNumbers.map(item => item.drawingNo);
-      const drawings = await db.select({
-        id: designDrawings.id,
-        drawingNumber: designDrawings.drawingNumber,
-        drawingTitle: designDrawings.drawingTitle
-      })
-      .from(designDrawings)
-      .where(inArray(designDrawings.drawingNumber, drawingNumbers));
+    if (shouldShowRevisions) {
+      // Fetch drawing versions for all items that have drawing numbers
+      const itemsWithDrawingNumbers = Array.from(masterItemsMap.values())
+        .filter(item => item.drawingNo);
       
-      if (drawings.length > 0) {
-        const drawingIds = drawings.map(d => d.id);
-        
-        // Get latest version for each drawing
-        const versions = await db.select({
-          id: drawingVersions.id,
-          drawingId: drawingVersions.drawingId,
-          revision: drawingVersions.revision,
-          fileName: drawingVersions.fileName,
-          createdAt: drawingVersions.createdAt
+      if (itemsWithDrawingNumbers.length > 0) {
+        // Get design drawings for these drawing numbers
+        const drawingNumbers = itemsWithDrawingNumbers.map(item => item.drawingNo);
+        const drawings = await db.select({
+          id: designDrawings.id,
+          drawingNumber: designDrawings.drawingNumber,
+          drawingTitle: designDrawings.drawingTitle
         })
-        .from(drawingVersions)
-        .where(inArray(drawingVersions.drawingId, drawingIds))
-        .orderBy(desc(drawingVersions.createdAt));
+        .from(designDrawings)
+        .where(inArray(designDrawings.drawingNumber, drawingNumbers));
         
-        // Group versions by drawing and get latest
-        const latestVersionsMap = new Map();
-        versions.forEach(version => {
-          if (!latestVersionsMap.has(version.drawingId)) {
-            latestVersionsMap.set(version.drawingId, version);
-          }
-        });
-        
-        // Map drawing numbers to their latest revisions
-        drawings.forEach(drawing => {
-          const latestVersion = latestVersionsMap.get(drawing.id);
-          if (latestVersion) {
-            console.log(`Found revision for drawing ${drawing.drawingNumber}: ${latestVersion.revision}`);
-            drawingRevisions.set(drawing.drawingNumber, {
-              revision: latestVersion.revision,
-              fileName: latestVersion.fileName,
-              updatedAt: latestVersion.createdAt
-            });
-          }
-        });
-        
-        console.log(`Total drawing revisions found: ${drawingRevisions.size}`);
+        if (drawings.length > 0) {
+          const drawingIds = drawings.map(d => d.id);
+          
+          // Get latest version for each drawing
+          const versions = await db.select({
+            id: drawingVersions.id,
+            drawingId: drawingVersions.drawingId,
+            revision: drawingVersions.revision,
+            fileName: drawingVersions.fileName,
+            createdAt: drawingVersions.createdAt
+          })
+          .from(drawingVersions)
+          .where(inArray(drawingVersions.drawingId, drawingIds))
+          .orderBy(desc(drawingVersions.createdAt));
+          
+          // Group versions by drawing and get latest
+          const latestVersionsMap = new Map();
+          versions.forEach(version => {
+            if (!latestVersionsMap.has(version.drawingId)) {
+              latestVersionsMap.set(version.drawingId, version);
+            }
+          });
+          
+          // Map drawing numbers to their latest revisions
+          drawings.forEach(drawing => {
+            const latestVersion = latestVersionsMap.get(drawing.id);
+            if (latestVersion) {
+              console.log(`Found revision for drawing ${drawing.drawingNumber}: ${latestVersion.revision}`);
+              drawingRevisions.set(drawing.drawingNumber, {
+                revision: latestVersion.revision,
+                fileName: latestVersion.fileName,
+                updatedAt: latestVersion.createdAt
+              });
+            }
+          });
+          
+          console.log(`Total drawing revisions found: ${drawingRevisions.size}`);
+        }
       }
     }
 

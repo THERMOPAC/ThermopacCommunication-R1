@@ -125,10 +125,10 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
 
   // Fetch project items with parent-child relationships
   const { data: projectItemsResponse, isLoading: itemsLoading } = useQuery({
-    queryKey: ['/api/design/project-items', selectedProjectId],
+    queryKey: ['/api/design/project-items', selectedProjectId, showAllRevisions],
     queryFn: async () => {
       if (!selectedProjectId) return { success: true, data: { parentItems: [], childItems: [], allItems: [], stats: {} } };
-      const response = await fetch(`/api/design/project-items?projectId=${selectedProjectId}`);
+      const response = await fetch(`/api/design/project-items?projectId=${selectedProjectId}&showAllRevisions=${showAllRevisions}`);
       if (!response.ok) throw new Error('Failed to fetch project items');
       return response.json();
     },
@@ -153,7 +153,7 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
     });
   };
 
-  // Apply search filter to project items
+  // Apply search filter to project items (backend handles revision visibility)
   const filteredProjectItems = {
     ...projectItems,
     parentItems: filterItems(projectItems.parentItems || []).map((parent: any) => ({
