@@ -408,7 +408,7 @@ function DisciplineSection({ disciplineName, disciplineKey, icon: IconComponent,
   const handleUpload = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
-    formData.append('projectId', selectedProjectId);
+    formData.append('projectId', selectedProjectId?.toString() || '');
     formData.append('discipline', disciplineName);
     formData.append('drawingType', uploadDialog.type);
     

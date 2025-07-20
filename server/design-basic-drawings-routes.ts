@@ -2,7 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import { db } from './db';
 import { designBasicDrawings, projects } from '../shared/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { uploadFileWithDiagnostics } from './utils/gcs-enhanced-upload';
 import { ensureAuthenticated } from './auth-middleware';
 
@@ -65,12 +65,17 @@ router.get('/', ensureAuthenticated, async (req, res) => {
 
 // POST /api/design/basic-drawings - Upload a basic drawing with automatic revision control
 router.post('/', ensureAuthenticated, upload.single('file'), async (req, res) => {
+  console.log('=== BASIC DRAWINGS UPLOAD ROUTE HIT ===');
   try {
+    console.log('Upload request body:', req.body);
+    console.log('Upload file:', req.file ? { name: req.file.originalname, size: req.file.size } : 'No file');
+    
     const { projectId, discipline, drawingType, description, revisionReason } = req.body;
     const file = req.file;
     const userId = (req as any).user.id;
 
     if (!file) {
+      console.log('Error: No file uploaded');
       return res.status(400).json({ 
         success: false, 
         error: 'No file uploaded' 
@@ -78,6 +83,7 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req, res) =>
     }
 
     if (!projectId || !discipline || !drawingType) {
+      console.log('Error: Missing required fields:', { projectId, discipline, drawingType });
       return res.status(400).json({ 
         success: false, 
         error: 'Project ID, discipline, and drawing type are required' 
