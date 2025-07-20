@@ -411,95 +411,75 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                 ))
               )}
 
-              {/* Standalone Items */}
-              {filteredProjectItems.allItems
-                .filter((item: any) => !item.isParent && !item.isChild)
-                .map((item: any) => {
-                  // Debug log for each item being rendered
-                  if (item.isVersion) {
-                    console.log(`🎯 Rendering version item:`, {
-                      id: item.id,
-                      revision: item.revision,
-                      fileName: item.fileName,
-                      versionId: item.versionId,
-                      isVersion: item.isVersion
-                    });
+              {/* Group items by drawing number to show main item + individual version rows */}
+              {React.useMemo(() => {
+                const allItems = filteredProjectItems.allItems.filter((item: any) => !item.isParent && !item.isChild);
+                
+                // Group by drawing number
+                const grouped = new Map<string, { mainItem: any; versions: any[] }>();
+                
+                allItems.forEach((item: any) => {
+                  const drawingNo = item.drawingNo || item.itemCode || '';
+                  
+                  if (!grouped.has(drawingNo)) {
+                    grouped.set(drawingNo, { mainItem: null, versions: [] });
                   }
-                  return (
-                    <div key={item.isVersion ? `version-${item.versionId}-${item.revision}` : `standalone-${item.id}`} className={`flex items-center justify-between p-3 rounded border ${
-                    item.isVersion 
-                      ? (() => {
-                          switch(item.revision) {
-                            case 'R4': return 'bg-purple-50 border-purple-200';
-                            case 'R3': return 'bg-green-50 border-green-200'; 
-                            case 'R2': return 'bg-yellow-50 border-yellow-200';
-                            case 'R1': return 'bg-pink-50 border-pink-200';
-                            default: return 'bg-indigo-50 border-indigo-200';
-                          }
-                        })()
-                      : 'bg-blue-50 border-blue-200'
-                  }`}>
-                    <div className="flex items-center gap-3">
-                      <FileText className={`w-4 h-4 ${item.isVersion ? 'text-indigo-600' : 'text-blue-600'}`} />
-                      <Badge variant="outline" className={
-                        item.isVersion 
-                          ? `bg-indigo-100 text-indigo-700 border-indigo-300` 
-                          : 'bg-blue-100 text-blue-700 border-blue-300'
-                      }>
-                        {item.isVersion ? `${item.revision} (v${item.versionId})` : 'Standalone Item'}
-                      </Badge>
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {item.isVersion ? `${item.drawingNo} - ${item.revision} [ID: ${item.versionId}]` : item.itemCode}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {item.isVersion ? `Drawing File: ${item.fileName}` : item.description}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-sm">
-                        <span className="text-gray-500">Make/Buy:</span> <span className="font-medium">{item.makeOrBuy || 'N/A'}</span>
-                      </div>
-{item.revision && (
-                        <div className="text-sm">
-                          <span className="text-gray-500">{item.isVersion ? 'Revision:' : 'Revision:'}</span> 
-                          <span className={`font-medium ${item.isVersion ? 'text-indigo-600' : 'text-blue-600'}`}>
-                            {item.revision}
-                          </span>
-                          {item.isVersion && item.fileName && (
-                            <div className="text-xs text-gray-400 mt-1">
-                              File: {item.fileName}
+                  
+                  const group = grouped.get(drawingNo)!;
+                  
+                  if (item.isVersion) {
+                    group.versions.push(item);
+                  } else {
+                    group.mainItem = item;
+                  }
+                });
+                
+                // Sort versions by revision (R4, R3, R2, R1)
+                Array.from(grouped.values()).forEach(group => {
+                  group.versions.sort((a, b) => {
+                    const revisionOrder = { 'R4': 4, 'R3': 3, 'R2': 2, 'R1': 1 };
+                    return (revisionOrder[b.revision as keyof typeof revisionOrder] || 0) - 
+                           (revisionOrder[a.revision as keyof typeof revisionOrder] || 0);
+                  });
+                });
+                
+                return Array.from(grouped.entries()).map(([drawingNo, group]) => (
+                  <div key={`group-${drawingNo}`} className="space-y-2">
+                    {/* Main Item */}
+                    {group.mainItem && (
+                      <div className="flex items-center justify-between p-3 rounded border bg-blue-50 border-blue-200">
+                        <div className="flex items-center gap-3">
+                          <FileText className="w-4 h-4 text-blue-600" />
+                          <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                            Main Item
+                          </Badge>
+                          <div>
+                            <div className="font-medium text-gray-900">
+                              {group.mainItem.itemCode}
                             </div>
-                          )}
+                            <div className="text-sm text-gray-600">
+                              {group.mainItem.description}
+                            </div>
+                          </div>
                         </div>
-                      )}
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="outline" title="View Item Details">
-                          <Eye className="w-3 h-3" />
-                        </Button>
-                        {item.versionId ? (
-                          // If this is a version entry, show version download
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            title={`Download ${item.revision} - ${item.fileName}`}
-                            onClick={() => window.open(`/api/design/versions/${item.versionId}/download`, '_blank')}
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            title="View Item Details"
                           >
-                            <Download className="w-3 h-3" />
+                            <Eye className="w-3 h-3" />
                           </Button>
-                        ) : (
-                          // Regular download for non-version entries
-                          <Button size="sm" variant="outline" title="Download Specifications">
-                            <Download className="w-3 h-3" />
-                          </Button>
-                        )}
-                        {!item.isVersion && (
-                          <Button 
-                            size="sm" 
+                          <Button
+                            size="sm"
                             variant="outline"
                             onClick={() => {
-                              setSelectedItemForUpload(item);
+                              setSelectedItemForUpload(group.mainItem);
+                              setFormValues({
+                                drawingNumber: group.mainItem.drawingNo || '',
+                                drawingTitle: group.mainItem.description || '',
+                                discipline: 'Project_Drawings'
+                              });
                               setIsUploadDialogOpen(true);
                             }}
                             title="Upload Drawing"
@@ -507,12 +487,60 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                           >
                             <Upload className="w-3 h-3 text-indigo-600" />
                           </Button>
-                        )}
+                        </div>
                       </div>
-                    </div>
+                    )}
+                    
+                    {/* Individual Version Rows - Each version as separate row */}
+                    {group.versions.map((version: any) => {
+                      console.log(`🎯 Rendering version item:`, {
+                        id: version.id,
+                        revision: version.revision,
+                        fileName: version.fileName,
+                        versionId: version.versionId,
+                        isVersion: version.isVersion
+                      });
+                      
+                      return (
+                        <div key={`version-${version.versionId}`} className="flex items-center justify-between p-2 bg-gray-50 rounded border ml-6">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm font-medium">{version.fileName}</span>
+                            <Badge variant="outline" className={`
+                              ${version.revision === 'R4' ? 'bg-purple-100 text-purple-700 border-purple-300' :
+                                version.revision === 'R3' ? 'bg-green-100 text-green-700 border-green-300' :
+                                version.revision === 'R2' ? 'bg-yellow-100 text-yellow-700 border-yellow-300' :
+                                version.revision === 'R1' ? 'bg-pink-100 text-pink-700 border-pink-300' :
+                                'bg-indigo-100 text-indigo-700 border-indigo-300'}
+                            `}>
+                              {version.revision}
+                            </Badge>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              title="View Drawing"
+                            >
+                              <Eye className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                window.open(`/api/design/versions/${version.versionId}/download`, '_blank');
+                              }}
+                              title={`Download ${version.revision} - ${version.fileName}`}
+                            >
+                              <Download className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  );
-                })}
+                ));
+              }, [filteredProjectItems.allItems, setSelectedItemForUpload, setFormValues, setIsUploadDialogOpen])}
             </div>
           </CardContent>
         </Card>
