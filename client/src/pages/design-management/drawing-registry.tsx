@@ -185,13 +185,25 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
       {/* Project Items Statistics */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FolderOpen className="w-5 h-5 text-indigo-600" />
-            Project Items Overview
-          </CardTitle>
-          <CardDescription>
-            Comprehensive view of all project items including parent-child relationships
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <FolderOpen className="w-5 h-5 text-indigo-600" />
+                Project Items Overview
+              </CardTitle>
+              <CardDescription>
+                Comprehensive view of all project items including parent-child relationships
+              </CardDescription>
+            </div>
+            <Button 
+              onClick={() => setIsUploadDialogOpen(true)}
+              className="bg-indigo-600 hover:bg-indigo-700"
+              size="sm"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Upload Drawing
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-4 gap-4">
@@ -219,25 +231,13 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
       {projectItems.allItems.length > 0 && (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <FolderOpen className="w-5 h-5 text-indigo-600" />
-                  Project Items & Components
-                </CardTitle>
-                <CardDescription>
-                  All project items including parent assemblies and child components
-                </CardDescription>
-              </div>
-              <Button 
-                onClick={() => setIsUploadDialogOpen(true)}
-                className="bg-indigo-600 hover:bg-indigo-700"
-                size="sm"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Drawing
-              </Button>
-            </div>
+            <CardTitle className="flex items-center gap-2">
+              <FolderOpen className="w-5 h-5 text-indigo-600" />
+              Project Items & Components
+            </CardTitle>
+            <CardDescription>
+              All project items including parent assemblies and child components
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
