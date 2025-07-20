@@ -420,18 +420,8 @@ function DisciplineSection({ disciplineName, disciplineKey, icon: IconComponent,
 
   const handleDownload = async (drawing: any) => {
     try {
-      const response = await fetch(`/api/design/basic-drawings/${drawing.id}/download`);
-      if (!response.ok) throw new Error('Download failed');
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = drawing.fileName || `${drawing.drawingType}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      // Use direct URL navigation for downloads
+      window.open(`/api/design/basic-drawings/${drawing.id}/download`, '_blank');
     } catch (error) {
       toast({ 
         title: "Error", 
@@ -731,18 +721,8 @@ function ProjectBasicDrawingsSection() {
 
   const handleDownload = async (drawing: any) => {
     try {
-      const response = await fetch(`/api/design/basic-drawings/${drawing.id}/download`);
-      if (!response.ok) throw new Error('Download failed');
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = drawing.fileName || `${drawing.drawingType}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      // Use direct URL navigation for downloads
+      window.open(`/api/design/basic-drawings/${drawing.id}/download`, '_blank');
     } catch (error) {
       toast({ 
         title: "Error", 
