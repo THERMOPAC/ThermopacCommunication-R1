@@ -139,7 +139,7 @@ const CustomerImport: React.FC<CustomerImportProps> = ({ open, onOpenChange }) =
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Import Customers</DialogTitle>
           <DialogDescription>
