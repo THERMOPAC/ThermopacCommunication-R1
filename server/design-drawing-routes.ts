@@ -199,8 +199,7 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
           return res.status(400).json({ error: 'Project not found' });
         }
 
-        console.log('Project data for design project creation:', project[0]);
-        console.log('Project code:', project[0].code);
+
 
         const [newDesignProject] = await db
           .insert(designProjects)
@@ -253,7 +252,7 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
       .from(drawingVersions)
       .leftJoin(designDrawings, eq(drawingVersions.drawingId, designDrawings.id))
       .where(eq(designDrawings.drawingNumber, drawingNumber))
-      .orderBy(desc(drawingVersions.uploadDate));
+      .orderBy(desc(drawingVersions.createdAt));
 
     let autoRevision = 'R1';
     let isRevision = false;
