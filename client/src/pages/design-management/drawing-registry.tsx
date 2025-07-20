@@ -320,6 +320,11 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                     <div className="text-sm">
                       <span className="text-gray-500">Make/Buy:</span> <span className="font-medium">{parentItem.makeOrBuy || 'N/A'}</span>
                     </div>
+                    {parentItem.revision && (
+                      <div className="text-sm">
+                        <span className="text-gray-500">Revision:</span> <span className="font-medium text-indigo-600">{parentItem.revision}</span>
+                      </div>
+                    )}
                     <div className="flex gap-1">
                       <Button size="sm" variant="outline" title="View Item Details">
                         <Eye className="w-3 h-3" />
@@ -365,6 +370,11 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                       <div className="text-sm">
                         <span className="text-gray-500">Make/Buy:</span> <span className="font-medium">{child.makeOrBuy || 'N/A'}</span>
                       </div>
+                      {child.revision && (
+                        <div className="text-sm">
+                          <span className="text-gray-500">Revision:</span> <span className="font-medium text-purple-600">{child.revision}</span>
+                        </div>
+                      )}
                       <div className="flex gap-1">
                         <Button size="sm" variant="outline" title="View Component Details">
                           <Eye className="w-3 h-3" />
@@ -409,6 +419,11 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                       <div className="text-sm">
                         <span className="text-gray-500">Make/Buy:</span> <span className="font-medium">{item.makeOrBuy || 'N/A'}</span>
                       </div>
+                      {item.revision && (
+                        <div className="text-sm">
+                          <span className="text-gray-500">Revision:</span> <span className="font-medium text-blue-600">{item.revision}</span>
+                        </div>
+                      )}
                       <div className="flex gap-1">
                         <Button size="sm" variant="outline" title="View Item Details">
                           <Eye className="w-3 h-3" />
