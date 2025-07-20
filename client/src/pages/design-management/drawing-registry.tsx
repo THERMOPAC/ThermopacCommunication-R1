@@ -189,6 +189,28 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
       
       if (item.isVersion) {
         group.versions.push(item);
+        // If this is a version and we don't have a main item yet, create one from the version data
+        if (!group.mainItem) {
+          group.mainItem = {
+            id: item.originalId || item.projectItemId,
+            projectItemId: item.projectItemId,
+            itemCode: item.itemCode,
+            description: item.description,
+            makeOrBuy: item.makeOrBuy,
+            specification: item.specification,
+            unit: item.unit,
+            estimatedCost: item.estimatedCost,
+            supplier: item.supplier,
+            drawingNo: item.drawingNo,
+            revision: null,
+            fileName: null,
+            lastUpdated: null,
+            isParent: false,
+            isChild: false,
+            childComponents: [],
+            parentItemId: null
+          };
+        }
       } else {
         group.mainItem = item;
       }
