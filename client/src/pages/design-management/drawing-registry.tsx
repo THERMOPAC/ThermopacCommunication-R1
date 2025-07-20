@@ -1680,7 +1680,11 @@ export default function DrawingRegistryPage() {
                 "General Arrangement Drawing",
                 "Process Flow Diagram",
                 "3D STEP_A",
-                "3D eDrawings_A"
+                "3D eDrawings_A",
+                "3D STEP_B",
+                "3D eDrawings_B",
+                "3D STEP_C",
+                "3D eDrawings_C"
               ]}
             />
           </TabsContent>
