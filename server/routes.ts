@@ -1206,8 +1206,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Not authenticated' });
       }
       
-      const items = await storage.getAllMasterItems();
-      res.json(items);
+      const projectId = req.query.projectId as string;
+      
+      if (projectId && projectId !== 'all') {
+        // Filter items by project
+        console.log(`Filtering master items by project ID: ${projectId}`);
+        
+        // Get project items for the specified project
+        const projectItems = await storage.getProjectItems(parseInt(projectId));
+        console.log(`Found ${projectItems.length} project items for project ${projectId}`);
+        
+        if (projectItems.length === 0) {
+          return res.json([]);
+        }
+        
+        // Get the master items for these project items
+        const itemIds = projectItems.map(item => item.itemId);
+        const masterItems = await storage.getMasterItemsByIds(itemIds);
+        console.log(`Returning ${masterItems.length} master items for project ${projectId}`);
+        res.json(masterItems);
+      } else {
+        // Return all items
+        const items = await storage.getAllMasterItems();
+        res.json(items);
+      }
     } catch (error) {
       console.error("Error fetching master items:", error);
       res.status(500).json({ 

@@ -139,6 +139,7 @@ const ItemMasterManagement: React.FC = () => {
   
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState("all");
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -557,11 +558,26 @@ const ItemMasterManagement: React.FC = () => {
     },
   });
   
-  // Fetch all master items
-  const { data: items, isLoading, error, refetch } = useQuery({
-    queryKey: ['/api/master-items'],
+  // Fetch all projects for the filter dropdown
+  const { data: projects } = useQuery({
+    queryKey: ['/api/projects'],
     queryFn: async () => {
-      const response = await fetch('/api/master-items');
+      const response = await fetch('/api/projects');
+      if (!response.ok) {
+        throw new Error('Failed to fetch projects');
+      }
+      return response.json();
+    }
+  });
+
+  // Fetch master items (with optional project filter)
+  const { data: items, isLoading, error, refetch } = useQuery({
+    queryKey: ['/api/master-items', selectedProjectId],
+    queryFn: async () => {
+      const url = selectedProjectId === 'all' ? 
+        '/api/master-items' : 
+        `/api/master-items?projectId=${selectedProjectId}`;
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch master items');
       }
@@ -823,9 +839,27 @@ const ItemMasterManagement: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent>
-          {/* Search field */}
-          <div className="mb-4 flex">
-            <div className="relative w-full max-w-sm">
+          {/* Search and Filter fields */}
+          <div className="mb-4 flex gap-4 flex-wrap items-center">
+            {/* Project Filter */}
+            <div className="flex-shrink-0">
+              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Filter by Project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Projects</SelectItem>
+                  {projects?.map((project: any) => (
+                    <SelectItem key={project.id} value={project.id.toString()}>
+                      {project.name} ({project.code}) {project.customerName ? `- ${project.customerName}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Search field */}
+            <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
               <Input
                 type="search"
@@ -835,14 +869,19 @@ const ItemMasterManagement: React.FC = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            {searchQuery && (
+            
+            {/* Clear buttons */}
+            {(searchQuery || selectedProjectId !== 'all') && (
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="ml-2" 
-                onClick={() => setSearchQuery('')}
+                className="flex-shrink-0" 
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedProjectId('all');
+                }}
               >
-                Clear
+                Clear All Filters
               </Button>
             )}
           </div>

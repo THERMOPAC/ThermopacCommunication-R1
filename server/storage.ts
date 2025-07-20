@@ -2617,6 +2617,27 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getMasterItemsByIds(ids: number[]): Promise<MasterItem[]> {
+    console.log(`Getting master items by IDs: [${ids.join(', ')}]`);
+    try {
+      if (ids.length === 0) {
+        return [];
+      }
+      
+      const items = await db
+        .select()
+        .from(masterItemsTable)
+        .where(inArray(masterItemsTable.id, ids))
+        .orderBy(masterItemsTable.id);
+    
+      console.log(`Found ${items.length} master items for ${ids.length} IDs`);
+      return items as MasterItem[];
+    } catch (error) {
+      console.error("Error fetching master items by IDs, table might not exist:", error);
+      return [];
+    }
+  }
+
   async updateMasterItem(id: number, updateData: Partial<MasterItem>): Promise<MasterItem> {
     console.log(`Updating master item ${id} with data:`, updateData);
     
