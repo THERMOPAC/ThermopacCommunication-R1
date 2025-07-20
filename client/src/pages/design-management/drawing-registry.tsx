@@ -204,9 +204,9 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     
-    // Add the selected project ID to the form data
+    // Add the selected project ID as projectId (backend will handle design project lookup/creation)
     if (selectedProjectId) {
-      formData.append('designProjectId', selectedProjectId.toString());
+      formData.append('projectId', selectedProjectId.toString());
     }
     
     uploadProjectDrawingMutation.mutate(formData);

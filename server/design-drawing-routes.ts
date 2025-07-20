@@ -153,6 +153,7 @@ router.get('/drawings/:id/versions', authenticateUser, async (req, res) => {
 router.post('/drawings/upload', authenticateUser, upload.single('file'), async (req, res) => {
   try {
     const {
+      projectId,
       designProjectId,
       drawingNumber,
       drawingTitle,
@@ -168,6 +169,55 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    let actualDesignProjectId;
+    let projectCode;
+
+    // If designProjectId is provided, use it directly
+    if (designProjectId) {
+      actualDesignProjectId = parseInt(designProjectId);
+    } 
+    // If projectId is provided, find or create the design project
+    else if (projectId) {
+      // First, try to find existing design project for this project
+      const existingDesignProject = await db
+        .select({ id: designProjects.id })
+        .from(designProjects)
+        .where(eq(designProjects.projectId, parseInt(projectId)))
+        .limit(1);
+
+      if (existingDesignProject.length > 0) {
+        actualDesignProjectId = existingDesignProject[0].id;
+      } else {
+        // Create new design project for this project
+        const project = await db
+          .select({ name: projects.name, code: projects.code })
+          .from(projects)
+          .where(eq(projects.id, parseInt(projectId)))
+          .limit(1);
+
+        if (project.length === 0) {
+          return res.status(400).json({ error: 'Project not found' });
+        }
+
+        const [newDesignProject] = await db
+          .insert(designProjects)
+          .values({
+            projectId: parseInt(projectId),
+            designProjectName: `${project[0].name} - Design Phase`,
+            status: 'Active',
+            startDate: new Date(),
+            createdBy: userId,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .returning();
+
+        actualDesignProjectId = newDesignProject.id;
+      }
+    } else {
+      return res.status(400).json({ error: 'Either projectId or designProjectId is required' });
+    }
+
     // Get design project info for GCS path
     const designProject = await db
       .select({
@@ -177,14 +227,14 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
       })
       .from(designProjects)
       .leftJoin(projects, eq(designProjects.projectId, projects.id))
-      .where(eq(designProjects.id, parseInt(designProjectId)))
+      .where(eq(designProjects.id, actualDesignProjectId))
       .limit(1);
 
     if (designProject.length === 0) {
       return res.status(400).json({ error: 'Design project not found' });
     }
 
-    const projectCode = designProject[0].projectCode || 'UNKNOWN';
+    projectCode = designProject[0].projectCode || 'UNKNOWN';
     
     // **AUTOMATIC REVISION CONTROL LOGIC**
     // Check if drawing with same drawingNumber already exists for revision control
@@ -245,11 +295,11 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
       const [newDrawing] = await db
         .insert(designDrawings)
         .values({
-          designProjectId: parseInt(designProjectId),
+          designProjectId: actualDesignProjectId,
           drawingNumber,
           drawingTitle,
-          category,
-          disciplineCode,
+          category: category || 'Assembly_Drawing',
+          disciplineCode: disciplineCode || 'Project_Drawings',
           status: 'Draft',
           createdBy: userId,
           createdAt: new Date(),
