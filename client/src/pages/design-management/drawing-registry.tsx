@@ -170,103 +170,119 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
         </CardContent>
       </Card>
 
-      {/* Parent Items with Child Components */}
-      {projectItems.parentItems.length > 0 && (
+      {/* All Project Items in Single-Row Layout */}
+      {projectItems.allItems.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Cog className="w-5 h-5 text-green-600" />
-              Parent Items & Child Components
+              <FolderOpen className="w-5 h-5 text-indigo-600" />
+              Project Items & Components
             </CardTitle>
             <CardDescription>
-              Main assemblies with their component relationships
+              All project items including parent assemblies and child components
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-2">
+              {/* Parent Items */}
               {projectItems.parentItems.map((parentItem: any) => (
-                <div key={parentItem.id} className="border border-gray-200 rounded-lg p-4">
-                  {/* Parent Item Header */}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        Parent Item
-                      </Badge>
-                      <div>
-                        <div className="font-medium text-gray-900">{parentItem.itemCode}</div>
-                        <div className="text-sm text-gray-600">{parentItem.description}</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm text-gray-500">Make/Buy</div>
-                      <div className="font-medium">{parentItem.makeOrBuy || 'N/A'}</div>
+                <div key={`parent-${parentItem.id}`} className="flex items-center justify-between p-3 bg-green-50 rounded border border-green-200">
+                  <div className="flex items-center gap-3">
+                    <Cog className="w-4 h-4 text-green-600" />
+                    <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+                      Parent Assembly
+                    </Badge>
+                    <div>
+                      <div className="font-medium text-gray-900">{parentItem.itemCode}</div>
+                      <div className="text-sm text-gray-600">{parentItem.description}</div>
                     </div>
                   </div>
-
-                  {/* Child Components */}
-                  {parentItem.childComponents && parentItem.childComponents.length > 0 && (
-                    <div className="ml-6 border-l-2 border-gray-200 pl-4 space-y-2">
-                      <div className="text-sm font-medium text-gray-700 mb-2">
-                        Child Components ({parentItem.childComponents.length})
-                      </div>
-                      {parentItem.childComponents.map((child: any) => (
-                        <div key={child.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className="text-xs">Component</Badge>
-                            <div>
-                              <div className="text-sm font-medium">{child.itemCode}</div>
-                              <div className="text-xs text-gray-600">{child.description}</div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4 text-sm">
-                            <div>
-                              <span className="text-gray-500">Qty:</span> <span className="font-medium">{child.quantity || 1}</span>
-                            </div>
-                            <div>
-                              <span className="text-gray-500">Make/Buy:</span> <span className="font-medium">{child.makeOrBuy || 'N/A'}</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                  <div className="flex items-center gap-4">
+                    <div className="text-sm">
+                      <span className="text-gray-500">Make/Buy:</span> <span className="font-medium">{parentItem.makeOrBuy || 'N/A'}</span>
                     </div>
-                  )}
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="outline" title="View Item Details">
+                        <Eye className="w-3 h-3" />
+                      </Button>
+                      <Button size="sm" variant="outline" title="Download Specifications">
+                        <Download className="w-3 h-3" />
+                      </Button>
+                      <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700" title="Remove Item">
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Standalone Items (Neither parent nor child) */}
-      {projectItems.allItems.some((item: any) => !item.isParent && !item.isChild) && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-600" />
-              Standalone Project Items
-            </CardTitle>
-            <CardDescription>
-              Items that are not part of parent-child relationships
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-3">
+              {/* Child Components */}
+              {projectItems.parentItems.map((parentItem: any) => 
+                parentItem.childComponents && parentItem.childComponents.map((child: any) => (
+                  <div key={`child-${child.id}`} className="flex items-center justify-between p-3 bg-purple-50 rounded border border-purple-200 ml-6">
+                    <div className="flex items-center gap-3">
+                      <Cog className="w-4 h-4 text-purple-600" />
+                      <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
+                        Component
+                      </Badge>
+                      <div>
+                        <div className="font-medium text-gray-900">{child.itemCode}</div>
+                        <div className="text-sm text-gray-600">{child.description}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-sm">
+                        <span className="text-gray-500">Qty:</span> <span className="font-medium">{child.quantity || 1}</span>
+                      </div>
+                      <div className="text-sm">
+                        <span className="text-gray-500">Make/Buy:</span> <span className="font-medium">{child.makeOrBuy || 'N/A'}</span>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="outline" title="View Component Details">
+                          <Eye className="w-3 h-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" title="Download Specifications">
+                          <Download className="w-3 h-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700" title="Remove Component">
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {/* Standalone Items */}
               {projectItems.allItems
                 .filter((item: any) => !item.isParent && !item.isChild)
                 .map((item: any) => (
-                  <div key={item.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                  <div key={`standalone-${item.id}`} className="flex items-center justify-between p-3 bg-blue-50 rounded border border-blue-200">
                     <div className="flex items-center gap-3">
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                        Standalone
+                      <FileText className="w-4 h-4 text-blue-600" />
+                      <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                        Standalone Item
                       </Badge>
                       <div>
                         <div className="font-medium text-gray-900">{item.itemCode}</div>
                         <div className="text-sm text-gray-600">{item.description}</div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm text-gray-500">Make/Buy</div>
-                      <div className="font-medium">{item.makeOrBuy || 'N/A'}</div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-sm">
+                        <span className="text-gray-500">Make/Buy:</span> <span className="font-medium">{item.makeOrBuy || 'N/A'}</span>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="outline" title="View Item Details">
+                          <Eye className="w-3 h-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" title="Download Specifications">
+                          <Download className="w-3 h-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700" title="Remove Item">
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -504,7 +520,16 @@ function DisciplineSection({ disciplineName, disciplineKey, icon: IconComponent,
                             <Button 
                               size="sm" 
                               variant="outline"
+                              onClick={() => window.open(drawing.fileUrl, '_blank')}
+                              title="View Drawing"
+                            >
+                              <Eye className="w-3 h-3" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
                               onClick={() => handleDownload(drawing)}
+                              title="Download Drawing"
                             >
                               <Download className="w-3 h-3" />
                             </Button>
@@ -513,6 +538,7 @@ function DisciplineSection({ disciplineName, disciplineKey, icon: IconComponent,
                               variant="outline"
                               onClick={() => handleDelete(drawing.id)}
                               className="text-red-600 hover:text-red-700"
+                              title="Delete Drawing"
                             >
                               <Trash2 className="w-3 h-3" />
                             </Button>
