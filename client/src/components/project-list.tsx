@@ -715,7 +715,7 @@ export default function ProjectList() {
                           
                           {/* Project Item Dialog */}
                           <Dialog open={isItemDialogOpen} onOpenChange={setIsItemDialogOpen}>
-                            <DialogContent className="sm:max-w-[500px]">
+                            <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
                               <DialogHeader>
                                 <DialogTitle>{editingItem ? 'Edit Project Item' : 'Add Project Item'}</DialogTitle>
                                 <DialogDescription>

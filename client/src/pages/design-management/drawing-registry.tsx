@@ -642,7 +642,7 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
           setSelectedItemForUpload(null);
         }
       }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Upload className="w-5 h-5 text-indigo-600" />
@@ -1976,7 +1976,7 @@ export default function DrawingRegistryPage() {
                 Upload Drawing
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Upload New Drawing</DialogTitle>
                 <DialogDescription>

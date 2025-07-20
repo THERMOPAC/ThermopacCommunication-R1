@@ -967,7 +967,7 @@ const ItemMasterManagement: React.FC = () => {
       
       {/* Create Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Master Item</DialogTitle>
             <DialogDescription>
@@ -1184,7 +1184,7 @@ const ItemMasterManagement: React.FC = () => {
             setActiveTab("details");
           }
         }}>
-        <DialogContent className="sm:max-w-[95%]">
+        <DialogContent className="sm:max-w-[95%] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Master Item</DialogTitle>
             <DialogDescription>
@@ -1661,7 +1661,7 @@ const ItemMasterManagement: React.FC = () => {
                         <Plus className="h-4 w-4 mr-1" /> Upload Drawing
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
+                    <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>Upload Drawing</DialogTitle>
                         <DialogDescription>

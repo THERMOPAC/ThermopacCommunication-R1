@@ -741,7 +741,7 @@ export default function ProductionPlanningPage() {
 
       {/* Create Work Order Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Work Order</DialogTitle>
             <DialogDescription>
@@ -1086,7 +1086,7 @@ export default function ProductionPlanningPage() {
 
       {/* Work Order Confirmation Dialog */}
       <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-        <DialogContent className="max-w-6xl w-full">
+        <DialogContent className="max-w-6xl w-full max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Confirm Work Order Generation</DialogTitle>
             <DialogDescription>

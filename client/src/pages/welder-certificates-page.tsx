@@ -694,7 +694,7 @@ export default function WelderCertificatesPage() {
           open={isAddCertificateOpen}
           onOpenChange={setIsAddCertificateOpen}
         >
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add New Certificate</DialogTitle>
               <DialogDescription>
@@ -861,7 +861,7 @@ export default function WelderCertificatesPage() {
           open={isEditCertificateOpen}
           onOpenChange={setIsEditCertificateOpen}
         >
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Certificate</DialogTitle>
               <DialogDescription>

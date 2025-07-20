@@ -1926,7 +1926,7 @@ export default function InspectionsPage() {
         
         {/* Inspection Orders Preview Dialog */}
         <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-          <DialogContent className="max-w-5xl">
+          <DialogContent className="max-w-5xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Inspection Orders Preview</DialogTitle>
               <DialogDescription>

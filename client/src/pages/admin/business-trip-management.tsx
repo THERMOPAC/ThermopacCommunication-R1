@@ -1682,7 +1682,7 @@ const TripDashboard = () => {
       {/* View Trip Dialog */}
       {viewingTrip && (
         <Dialog open={!!viewingTrip} onOpenChange={() => setViewingTrip(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Trip Details</DialogTitle>
             </DialogHeader>
@@ -1743,7 +1743,7 @@ const TripDashboard = () => {
       {/* Edit Trip Dialog */}
       {editingTrip && (
         <Dialog open={!!editingTrip} onOpenChange={() => setEditingTrip(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Trip Request</DialogTitle>
             </DialogHeader>
@@ -2423,7 +2423,7 @@ const TripList = () => {
       {/* View Trip Dialog */}
       {viewingTrip && (
         <Dialog open={!!viewingTrip} onOpenChange={() => setViewingTrip(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Trip Request Details</DialogTitle>
             </DialogHeader>
@@ -2478,7 +2478,7 @@ const TripList = () => {
       {/* Edit Trip Dialog */}
       {editingTrip && (
         <Dialog open={!!editingTrip} onOpenChange={() => setEditingTrip(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Trip Request</DialogTitle>
             </DialogHeader>
@@ -3258,7 +3258,7 @@ const TripDetailsWithDocuments = ({ tripId }: { tripId: number }) => {
                   Upload Document
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Upload Trip Document</DialogTitle>
                 </DialogHeader>

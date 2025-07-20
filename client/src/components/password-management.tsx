@@ -191,7 +191,7 @@ export function PasswordManagement() {
       )}
 
       <Dialog open={selectedUser !== null} onOpenChange={(open) => !open && setSelectedUser(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Change Password for {selectedUser?.username}</DialogTitle>
             <DialogDescription>

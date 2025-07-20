@@ -308,7 +308,7 @@ function EU180DayTracker() {
                   Add Travel Entry
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Add EU Travel Entry</DialogTitle>
                   <DialogDescription>

@@ -839,7 +839,7 @@ export default function MaterialIdentificationCreatePage() {
           }
           setUploadDialogOpen(open);
         }}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Upload Document</DialogTitle>
               <DialogDescription>

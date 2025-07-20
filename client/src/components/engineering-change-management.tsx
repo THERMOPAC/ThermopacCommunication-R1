@@ -722,7 +722,7 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
       
       {/* Create ECR Dialog */}
       <Dialog open={createEcrDialogOpen} onOpenChange={setCreateEcrDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create Engineering Change Request</DialogTitle>
           </DialogHeader>
@@ -781,7 +781,7 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
       
       {/* Create ECN Dialog */}
       <Dialog open={createEcnDialogOpen} onOpenChange={setCreateEcnDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create Engineering Change Notice</DialogTitle>
           </DialogHeader>
@@ -870,7 +870,7 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
       
       {/* ECR Detail Dialog */}
       <Dialog open={!!selectedEcr} onOpenChange={(open) => !open && setSelectedEcr(null)}>
-        <DialogContent className="sm:max-w-[700px]">
+        <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Engineering Change Request Details</DialogTitle>
           </DialogHeader>
@@ -986,7 +986,7 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
       
       {/* ECN Detail Dialog */}
       <Dialog open={!!selectedEcn} onOpenChange={(open) => !open && setSelectedEcn(null)}>
-        <DialogContent className="sm:max-w-[700px]">
+        <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Engineering Change Notice Details</DialogTitle>
           </DialogHeader>
@@ -1113,7 +1113,7 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
       
       {/* Document Upload Dialog */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Upload Document</DialogTitle>
           </DialogHeader>
