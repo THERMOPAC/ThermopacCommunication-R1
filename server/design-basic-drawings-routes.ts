@@ -18,6 +18,7 @@ const upload = multer({
 
 // GET /api/design/basic-drawings - Get all basic drawings for a project
 router.get('/', ensureAuthenticated, async (req, res) => {
+  console.log('=== BASIC DRAWINGS GET ROUTE HIT ===');
   try {
     const { projectId } = req.query;
     
@@ -159,9 +160,9 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req, res) =>
     const gcsPath = `Design_Management/${projectCode}/Basic_Drawings/${discipline.replace(/\s+/g, '_')}/${versionedFileName}`;
 
     // Upload file to GCS with versioned path
-    const uploadResult = await uploadFileWithDiagnostics(file.buffer, gcsPath);
+    const uploadResult = await uploadFileWithDiagnostics(gcsPath, file.buffer, file.mimetype);
     
-    if (!uploadResult.success) {
+    if (!uploadResult.successful) {
       return res.status(500).json({ 
         success: false, 
         error: 'Failed to upload file to storage' 
@@ -197,7 +198,7 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req, res) =>
         revision: finalRevision,
         description: description || null,
         filePath: gcsPath,
-        fileUrl: uploadResult.fileUrl,
+        fileUrl: uploadResult.url,
         fileSize: file.size,
         fileType: file.mimetype,
         uploadedBy: userId,
