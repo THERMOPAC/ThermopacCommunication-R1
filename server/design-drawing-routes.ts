@@ -304,14 +304,20 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
     // Create drawing record (only if this is the first version)
     let drawingId;
     if (!isRevision) {
+      // Truncate fields to fit database constraints
+      const truncatedDrawingNumber = drawingNumber.length > 100 ? drawingNumber.substring(0, 100) : drawingNumber;
+      const truncatedDrawingTitle = drawingTitle.length > 255 ? drawingTitle.substring(0, 252) + '...' : drawingTitle;
+      const truncatedCategory = (category || 'Assembly_Drawing').length > 50 ? (category || 'Assembly_Drawing').substring(0, 50) : (category || 'Assembly_Drawing');
+      const truncatedDisciplineCode = (disciplineCode || 'PD').length > 10 ? (disciplineCode || 'PD').substring(0, 10) : (disciplineCode || 'PD');
+
       const [newDrawing] = await db
         .insert(designDrawings)
         .values({
           designProjectId: actualDesignProjectId,
-          drawingNumber,
-          drawingTitle,
-          category: category || 'Assembly_Drawing',
-          disciplineCode: disciplineCode || 'Project_Drawings',
+          drawingNumber: truncatedDrawingNumber,
+          drawingTitle: truncatedDrawingTitle,
+          category: truncatedCategory,
+          disciplineCode: truncatedDisciplineCode,
           status: 'Draft',
           createdBy: userId,
           createdAt: new Date(),
@@ -335,18 +341,24 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
       drawingId = existingDrawing[0].id;
     }
 
-    // Create new version
+    // Create new version with character length constraints
+    const truncatedRevision = finalRevision.length > 10 ? finalRevision.substring(0, 10) : finalRevision;
+    const truncatedFileName = versionedFileName.length > 255 ? versionedFileName.substring(0, 252) + '...' : versionedFileName;
+    const truncatedFileType = (file.mimetype || '').length > 50 ? (file.mimetype || '').substring(0, 50) : (file.mimetype || '');
+    const truncatedMimeType = (file.mimetype || '').length > 100 ? (file.mimetype || '').substring(0, 100) : (file.mimetype || '');
+
     const [newVersion] = await db
       .insert(drawingVersions)
       .values({
         drawingId: drawingId,
         version: '1',
-        revision: finalRevision,
-        fileName: versionedFileName,
+        revision: truncatedRevision,
+        fileName: truncatedFileName,
         fileUrl: uploadResult.url,
         filePath: uploadResult.path || gcsPath,
         fileSize: file.size,
-        fileType: file.mimetype,
+        fileType: truncatedFileType,
+        mimeType: truncatedMimeType,
         uploadedBy: userId,
         uploadDate: new Date(),
         versionNotes: versionNotes || 'Initial version'
