@@ -97,6 +97,7 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
 }) {
   const { toast } = useToast();
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const queryClient = useQueryClient();
 
   // Fetch project items with parent-child relationships
@@ -112,6 +113,37 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
   });
 
   const projectItems = projectItemsResponse?.data || { parentItems: [], childItems: [], allItems: [], stats: {} };
+
+  // Filter items based on search term (Item Code, Item Name/Description, Drawing Number)
+  const filterItems = (items: any[]) => {
+    if (!searchTerm.trim()) return items;
+    
+    const searchLower = searchTerm.toLowerCase().trim();
+    return items.filter((item: any) => {
+      const itemCode = item.itemCode?.toLowerCase() || '';
+      const description = item.description?.toLowerCase() || '';
+      const drawingNumber = item.drawingNumber?.toLowerCase() || '';
+      
+      return itemCode.includes(searchLower) || 
+             description.includes(searchLower) || 
+             drawingNumber.includes(searchLower);
+    });
+  };
+
+  // Apply search filter to project items
+  const filteredProjectItems = {
+    ...projectItems,
+    parentItems: filterItems(projectItems.parentItems || []).map((parent: any) => ({
+      ...parent,
+      childComponents: parent.childComponents ? filterItems(parent.childComponents) : []
+    })),
+    allItems: filterItems(projectItems.allItems || []),
+    stats: {
+      ...projectItems.stats,
+      totalItems: filterItems(projectItems.allItems || []).length,
+      parentItems: filterItems(projectItems.parentItems || []).length
+    }
+  };
 
   // Upload drawing mutation for Project Drawings
   const uploadProjectDrawingMutation = useMutation({
@@ -196,11 +228,11 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
         <CardContent>
           <div className="grid grid-cols-4 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{projectItems.stats.totalItems || 0}</div>
-              <div className="text-sm text-gray-500">Total Items</div>
+              <div className="text-2xl font-bold text-blue-600">{searchTerm ? filteredProjectItems.stats.totalItems : projectItems.stats.totalItems || 0}</div>
+              <div className="text-sm text-gray-500">{searchTerm ? 'Filtered Items' : 'Total Items'}</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{projectItems.stats.parentItems || 0}</div>
+              <div className="text-2xl font-bold text-green-600">{searchTerm ? filteredProjectItems.stats.parentItems : projectItems.stats.parentItems || 0}</div>
               <div className="text-sm text-gray-500">Parent Items</div>
             </div>
             <div className="text-center">
@@ -227,10 +259,29 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
               All project items including parent assemblies and child components
             </CardDescription>
           </CardHeader>
+          
+          {/* Search Field */}
+          <div className="px-6 pb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                type="text"
+                placeholder="Search by Item Code, Item Name, or Drawing Number..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            {searchTerm && (
+              <div className="mt-2 text-sm text-gray-500">
+                Showing {filteredProjectItems.allItems.length} of {projectItems.allItems.length} items
+              </div>
+            )}
+          </div>
           <CardContent>
             <div className="space-y-2">
               {/* Parent Items */}
-              {projectItems.parentItems.map((parentItem: any) => (
+              {filteredProjectItems.parentItems.map((parentItem: any) => (
                 <div key={`parent-${parentItem.id}`} className="flex items-center justify-between p-3 bg-green-50 rounded border border-green-200">
                   <div className="flex items-center gap-3">
                     <Cog className="w-4 h-4 text-green-600" />
@@ -311,7 +362,7 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
               )}
 
               {/* Standalone Items */}
-              {projectItems.allItems
+              {filteredProjectItems.allItems
                 .filter((item: any) => !item.isParent && !item.isChild)
                 .map((item: any) => (
                   <div key={`standalone-${item.id}`} className="flex items-center justify-between p-3 bg-blue-50 rounded border border-blue-200">
@@ -361,6 +412,26 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
             <FolderOpen className="w-12 h-12 text-gray-400 mx-auto mb-3" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Project Items Found</h3>
             <p className="text-gray-500">This project doesn't have any items assigned yet.</p>
+          </CardContent>
+        </Card>
+      )}
+      
+      {/* No Search Results State */}
+      {projectItems.allItems.length > 0 && filteredProjectItems.allItems.length === 0 && searchTerm && (
+        <Card>
+          <CardContent className="p-6 text-center">
+            <Search className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Results Found</h3>
+            <p className="text-gray-500">
+              No items match "{searchTerm}". Try searching by Item Code, Item Name, or Drawing Number.
+            </p>
+            <Button 
+              variant="ghost" 
+              onClick={() => setSearchTerm('')}
+              className="mt-3"
+            >
+              Clear Search
+            </Button>
           </CardContent>
         </Card>
       )}
