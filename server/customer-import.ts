@@ -32,7 +32,8 @@ export function setupCustomerImportRoutes(app: Router) {
   app.get('/api/customers/sample-excel', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       // Check if user has management privileges
-      if (!canManage(req.user?.role)) {
+      const user = req.user as any;
+      if (!canManage(user?.role)) {
         return res.status(403).json({ 
           message: "You don't have permission to download sample files" 
         });

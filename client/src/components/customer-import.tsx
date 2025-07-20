@@ -144,26 +144,28 @@ const CustomerImport: React.FC<CustomerImportProps> = ({ open, onOpenChange }) =
           <DialogTitle>Import Customers</DialogTitle>
           <DialogDescription>
             Upload an Excel file containing customer data. The file must have these columns:
-            <ul className="list-disc ml-5 mt-2 text-sm space-y-1">
-              <li><strong>BP Code</strong> - Unique business partner code (required)</li>
-              <li><strong>BP Name</strong> - Business partner name (required)</li>
-              <li><strong>Contact Person</strong> - Primary contact name</li> 
-              <li><strong>E-Mail</strong> - Contact email address</li>
-              <li><strong>Continent</strong> - Geographic location</li>
-              <li><strong>Country Name</strong> - Country of operation</li>
-            </ul>
-            <div className="mt-2 p-2 bg-amber-50 text-amber-800 text-xs rounded border border-amber-200">
+          </DialogDescription>
+          <div className="space-y-3">
+            <div className="text-sm space-y-1">
+              <div><strong>BP Code</strong> - Unique business partner code (required)</div>
+              <div><strong>BP Name</strong> - Business partner name (required)</div>
+              <div><strong>Contact Person</strong> - Primary contact name</div> 
+              <div><strong>E-Mail</strong> - Contact email address</div>
+              <div><strong>Continent</strong> - Geographic location</div>
+              <div><strong>Country Name</strong> - Country of operation</div>
+            </div>
+            <div className="p-2 bg-amber-50 text-amber-800 text-xs rounded border border-amber-200">
               <strong>Important:</strong> All fields in the Excel file will be imported, including:
-              <ul className="list-disc ml-5 mt-1">
-                <li><code>BP Code</code> (required)</li>
-                <li><code>BP Name</code> (required)</li>
-                <li><code>Contact Person</code></li>
-                <li><code>E-Mail</code></li>
-                <li><code>Bill_To_Address</code></li>
-                <li><code>Ship_To_Address</code></li>
-                <li><code>Continent</code></li>
-                <li><code>Country Name</code></li>
-              </ul>
+              <div className="mt-1 space-y-1">
+                <div><code>BP Code</code> (required)</div>
+                <div><code>BP Name</code> (required)</div>
+                <div><code>Contact Person</code></div>
+                <div><code>E-Mail</code></div>
+                <div><code>Bill_To_Address</code></div>
+                <div><code>Ship_To_Address</code></div>
+                <div><code>Continent</code></div>
+                <div><code>Country Name</code></div>
+              </div>
             </div>
             <div className="mt-3 p-3 bg-blue-50 text-blue-800 text-sm rounded border border-blue-200">
               <div className="flex items-center justify-between">
@@ -179,7 +181,7 @@ const CustomerImport: React.FC<CustomerImportProps> = ({ open, onOpenChange }) =
                 </Button>
               </div>
             </div>
-          </DialogDescription>
+          </div>
         </DialogHeader>
 
         <div className="flex flex-col gap-4 py-4">
