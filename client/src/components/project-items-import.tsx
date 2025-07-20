@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, FileSpreadsheet, Check, X } from "lucide-react";
+import { AlertCircle, FileSpreadsheet, Check, X, Download, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 
@@ -62,6 +62,45 @@ export function ProjectItemsImport({
     setErrorMessage(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDownloadSample = async () => {
+    try {
+      const response = await fetch('/api/projects/items/sample-excel', {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download sample file');
+      }
+
+      // Create blob from response
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'project_items_sample.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+
+      toast({
+        title: "Sample Downloaded",
+        description: "Project items sample file has been downloaded successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "Failed to download sample file. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -163,19 +202,62 @@ export function ProjectItemsImport({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px]">
+      <DialogContent className="sm:max-w-[550px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Import Project Items</DialogTitle>
           <DialogDescription>
-            Upload an Excel file to import project items. 
-            The file should include columns for Item Code, Description, Quantity, and UOM.
-            Optional columns include Make or Buy, Drawing No, and other specifications.
+            Upload an Excel file to import project items for project: <strong>{projectCode}</strong>
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            {errorMessage && (
+        <div className="space-y-4">
+          {/* Sample Download Section */}
+          <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">Need the correct format?</h4>
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                  Download our sample Excel file to see the required format and example data
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadSample}
+                className="ml-4 border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download Sample
+              </Button>
+            </div>
+          </div>
+
+          {/* Field Descriptions */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium">Required Excel columns:</h4>
+            <div className="grid grid-cols-1 gap-2 text-sm">
+              <div><strong>Item Code</strong> - Unique item identifier (required)</div>
+              <div><strong>Description</strong> - Detailed item description (required)</div>
+              <div><strong>Quantity</strong> - Numeric quantity value (required)</div>
+              <div><strong>UOM</strong> - Unit of measurement (required)</div>
+            </div>
+            <h4 className="text-sm font-medium mt-4">Optional Excel columns:</h4>
+            <div className="grid grid-cols-1 gap-2 text-sm">
+              <div><strong>Make or Buy</strong> - Manufacturing classification</div>
+              <div><strong>Drawing No</strong> - Associated drawing number</div>
+              <div><strong>Specification</strong> - Technical specifications</div>
+              <div><strong>Make</strong> - Manufacturer information</div>
+              <div><strong>Source Type</strong> - Sourcing classification</div>
+              <div><strong>Supplier</strong> - Supplier details</div>
+            </div>
+          </div>
+
+          <Separator />
+
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-4 py-4">
+              {errorMessage && (
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Error</AlertTitle>
@@ -243,52 +325,53 @@ export function ProjectItemsImport({
                 )}
               </div>
             )}
-          </div>
+            </div>
 
-          <div className="flex justify-end gap-2 mt-4">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={handleClose}
-              disabled={loading}
-            >
-              {results && results.imported > 0 ? "Done" : "Cancel"}
-            </Button>
-            
-            {(!results || results.imported === 0) && (
+            <div className="flex justify-end gap-2 mt-4">
               <Button 
-                type="submit"
-                disabled={!file || loading}
-              >
-                {loading ? "Importing..." : "Import Project Items"}
-              </Button>
-            )}
-            
-            {results && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={resetForm}
+                type="button" 
+                variant="outline" 
+                onClick={handleClose}
                 disabled={loading}
               >
-                Import Another File
+                {results && results.imported > 0 ? "Done" : "Cancel"}
               </Button>
-            )}
-          </div>
-        </form>
+              
+              {(!results || results.imported === 0) && (
+                <Button 
+                  type="submit"
+                  disabled={!file || loading}
+                >
+                  {loading ? "Importing..." : "Import Project Items"}
+                </Button>
+              )}
+              
+              {results && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={resetForm}
+                  disabled={loading}
+                >
+                  Import Another File
+                </Button>
+              )}
+            </div>
+          </form>
 
-        <div className="mt-4 p-4 bg-slate-50 rounded text-sm">
-          <h4 className="font-medium mb-2 flex items-center gap-2">
-            <FileSpreadsheet className="h-4 w-4" />
-            Excel Format Requirements
-          </h4>
-          <ul className="list-disc pl-5 space-y-1 text-slate-700">
-            <li>Required columns: Item Code, Description, Quantity, UOM</li>
-            <li>Optional columns: Specification, Make, Source Type, Supplier, Make or Buy, Drawing No</li>
-            <li>First row should be column headers</li>
-            <li>Item Code must be unique within the project</li>
-            <li>Make or Buy should be "Make" or "Buy" (or "M"/"B" abbreviations)</li>
-          </ul>
+          <div className="mt-4 p-4 bg-slate-50 rounded text-sm">
+            <h4 className="font-medium mb-2 flex items-center gap-2">
+              <FileSpreadsheet className="h-4 w-4" />
+              Excel Format Requirements
+            </h4>
+            <ul className="list-disc pl-5 space-y-1 text-slate-700">
+              <li>Required columns: Item Code, Description, Quantity, UOM</li>
+              <li>Optional columns: Specification, Make, Source Type, Supplier, Make or Buy, Drawing No</li>
+              <li>First row should be column headers</li>
+              <li>Item Code must be unique within the project</li>
+              <li>Make or Buy should be "Make" or "Buy" (or "M"/"B" abbreviations)</li>
+            </ul>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

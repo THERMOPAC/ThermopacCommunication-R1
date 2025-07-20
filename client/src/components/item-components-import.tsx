@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, FileText, AlertCircle, CheckCircle } from "lucide-react";
+import { Loader2, FileText, AlertCircle, CheckCircle, Download, Upload } from "lucide-react";
 import { apiRequest } from '@/lib/queryClient';
+import { useToast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/separator";
 
 interface ItemComponentsImportProps {
   parentItemId: number;
@@ -31,6 +33,7 @@ export function ItemComponentsImport({
   const [isUploading, setIsUploading] = useState(false);
   const [results, setResults] = useState<ImportResults | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,15 +106,93 @@ export function ItemComponentsImport({
     setError(null);
   };
 
+  const handleDownloadSample = async () => {
+    try {
+      const response = await fetch('/api/master-items/components/sample-excel', {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download sample file');
+      }
+
+      // Create blob from response
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'item_components_sample.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+
+      toast({
+        title: "Sample Downloaded",
+        description: "Item components sample file has been downloaded successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "Failed to download sample file. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
-    <Card className="w-full">
+    <Card className="w-full max-h-[80vh] overflow-y-auto">
       <CardHeader>
         <CardTitle>Import Sub-Assembly Components</CardTitle>
         <CardDescription>
-          Upload an Excel file with component item codes and quantities for parent item: {parentItemCode}
+          Upload an Excel file with component item codes and quantities for parent item: <strong>{parentItemCode}</strong>
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {/* Sample Download Section */}
+        <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">Need the correct format?</h4>
+              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                Download our sample Excel file to see the required format and example data
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadSample}
+              className="ml-4 border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download Sample
+            </Button>
+          </div>
+        </div>
+
+        {/* Field Descriptions */}
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium">Required Excel columns:</h4>
+          <div className="grid grid-cols-1 gap-2 text-sm">
+            <div><strong>Item Code</strong> - Component item identifier (required)</div>
+            <div><strong>Quantity</strong> - Numeric quantity per assembly (required)</div>
+          </div>
+          <h4 className="text-sm font-medium mt-4">Optional Excel columns:</h4>
+          <div className="grid grid-cols-1 gap-2 text-sm">
+            <div><strong>Description</strong> - Component description</div>
+            <div><strong>UOM</strong> - Unit of measurement</div>
+            <div><strong>Make/Buy</strong> - Manufacturing classification</div>
+            <div><strong>Drawing No</strong> - Associated drawing number</div>
+          </div>
+        </div>
+
+        <Separator />
         {error && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />

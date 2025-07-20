@@ -311,6 +311,206 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Register project items sample Excel download route BEFORE authentication
+  app.get('/api/projects/items/sample-excel', async (req: any, res: any) => {
+    try {
+      console.log('Project items sample Excel download requested (pre-auth)');
+      
+      const XLSX = await import('xlsx');
+      
+      // Create sample data for project items
+      const sampleData = [
+        {
+          'Item Code': 'PUMP-CPS-001',
+          'Description': 'Centrifugal Pump for CPS System 100HP',
+          'Quantity': 2,
+          'UOM': 'Nos',
+          'Make or Buy': 'Buy',
+          'Drawing No': 'DWG-CPS-PUMP-001',
+          'Specification': 'ANSI B73.1 End Suction Pump',
+          'Make': 'Grundfos',
+          'Source Type': 'Vendor',
+          'Supplier': 'Grundfos India Pvt Ltd'
+        },
+        {
+          'Item Code': 'VLV-GATE-002',
+          'Description': 'Gate Valve DN150 PN16 Carbon Steel',
+          'Quantity': 8,
+          'UOM': 'Nos',
+          'Make or Buy': 'Buy',
+          'Drawing No': 'DWG-CPS-VLV-002',
+          'Specification': 'API 600 Class 150',
+          'Make': 'L&T Valves',
+          'Source Type': 'Vendor',
+          'Supplier': 'L&T Valves Limited'
+        },
+        {
+          'Item Code': 'PIPE-CS-003',
+          'Description': 'Carbon Steel Pipe 6" Sch40 ASTM A106 Gr.B',
+          'Quantity': 120,
+          'UOM': 'Meter',
+          'Make or Buy': 'Buy',
+          'Drawing No': 'DWG-CPS-PIPE-003',
+          'Specification': 'ASTM A106 Grade B Seamless',
+          'Make': 'Jindal Steel',
+          'Source Type': 'Mill',
+          'Supplier': 'Jindal Steel & Power Ltd'
+        },
+        {
+          'Item Code': 'TANK-SS-004',
+          'Description': 'Storage Tank 2000L SS316L Vertical',
+          'Quantity': 1,
+          'UOM': 'Nos',
+          'Make or Buy': 'Make',
+          'Drawing No': 'DWG-CPS-TANK-004',
+          'Specification': 'ASME VIII Div 1 Design',
+          'Make': 'Thermopac',
+          'Source Type': 'In-house',
+          'Supplier': 'Internal Manufacturing'
+        },
+        {
+          'Item Code': 'MTR-ELEC-005',
+          'Description': 'Electric Motor 75HP 415V 50Hz IE3',
+          'Quantity': 3,
+          'UOM': 'Nos',
+          'Make or Buy': 'Buy',
+          'Drawing No': 'DWG-CPS-MTR-005',
+          'Specification': 'IE3 Efficiency TEFC Enclosure',
+          'Make': 'ABB',
+          'Source Type': 'OEM',
+          'Supplier': 'ABB India Limited'
+        }
+      ];
+
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(sampleData);
+
+      // Set column widths for better readability
+      const columnWidths = [
+        { wch: 18 }, // Item Code
+        { wch: 40 }, // Description
+        { wch: 10 }, // Quantity
+        { wch: 10 }, // UOM
+        { wch: 12 }, // Make or Buy
+        { wch: 20 }, // Drawing No
+        { wch: 30 }, // Specification
+        { wch: 15 }, // Make
+        { wch: 12 }, // Source Type
+        { wch: 25 }  // Supplier
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Project Items');
+
+      // Generate Excel buffer
+      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+      // Set response headers
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=project_items_sample.xlsx');
+      res.setHeader('Content-Length', excelBuffer.length);
+
+      // Send the file
+      res.send(excelBuffer);
+    } catch (error) {
+      console.error('Error generating project items sample Excel file:', error);
+      return res.status(500).json({
+        message: "An error occurred while generating the sample file",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  // Register item components sample Excel download route BEFORE authentication
+  app.get('/api/master-items/components/sample-excel', async (req: any, res: any) => {
+    try {
+      console.log('Item components sample Excel download requested (pre-auth)');
+      
+      const XLSX = await import('xlsx');
+      
+      // Create sample data for item components
+      const sampleData = [
+        {
+          'Item Code': 'BOLT-M12X40',
+          'Quantity': 8,
+          'Description': 'Hex Bolt M12x40 SS316',
+          'UOM': 'Nos',
+          'Make/Buy': 'Buy',
+          'Drawing No': 'STD-BOLT-M12'
+        },
+        {
+          'Item Code': 'GSKT-DN100-PTFE',
+          'Quantity': 2,
+          'Description': 'PTFE Gasket DN100 PN16',
+          'UOM': 'Nos',
+          'Make/Buy': 'Buy',
+          'Drawing No': 'STD-GSKT-100'
+        },
+        {
+          'Item Code': 'STUD-M16X60',
+          'Quantity': 12,
+          'Description': 'Threaded Stud M16x60 A2-70',
+          'UOM': 'Nos',
+          'Make/Buy': 'Buy',
+          'Drawing No': 'STD-STUD-M16'
+        },
+        {
+          'Item Code': 'NUT-M16-HEX',
+          'Quantity': 24,
+          'Description': 'Hex Nut M16 SS316',
+          'UOM': 'Nos',
+          'Make/Buy': 'Buy',
+          'Drawing No': 'STD-NUT-M16'
+        },
+        {
+          'Item Code': 'WSH-M16-SPRING',
+          'Quantity': 24,
+          'Description': 'Spring Washer M16 SS316',
+          'UOM': 'Nos',
+          'Make/Buy': 'Buy',
+          'Drawing No': 'STD-WSH-M16'
+        }
+      ];
+
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(sampleData);
+
+      // Set column widths for better readability
+      const columnWidths = [
+        { wch: 20 }, // Item Code
+        { wch: 10 }, // Quantity
+        { wch: 35 }, // Description
+        { wch: 8 },  // UOM
+        { wch: 12 }, // Make/Buy
+        { wch: 18 }  // Drawing No
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Component Items');
+
+      // Generate Excel buffer
+      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+      // Set response headers
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=item_components_sample.xlsx');
+      res.setHeader('Content-Length', excelBuffer.length);
+
+      // Send the file
+      res.send(excelBuffer);
+    } catch (error) {
+      console.error('Error generating item components sample Excel file:', error);
+      return res.status(500).json({
+        message: "An error occurred while generating the sample file",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
   setupAuth(app);
   
   // Set up Gmail integration routes
