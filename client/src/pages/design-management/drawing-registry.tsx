@@ -762,7 +762,8 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
   const [uploadForm, setUploadForm] = useState({
     backupType: '3D Model',
     backupName: '',
-    description: ''
+    description: '',
+    isPreFilled: false
   });
   const queryClient = useQueryClient();
 
@@ -795,20 +796,25 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
     return filtered;
   }, [backups, searchTerm]);
 
-  // Group backups by type and prepare for display
+  // Group backups by type and backup name for display
   const groupedBackups = React.useMemo(() => {
-    const groups: Record<string, any[]> = {};
+    const typeGroups: Record<string, Record<string, any[]>> = {};
     
     filteredBackups.forEach((backup: ProjectBackup) => {
-      const groupKey = backup.backupName; // Group by backup name for main items
+      const backupType = backup.backupType;
+      const backupName = backup.backupName;
       
-      if (!groups[groupKey]) {
-        groups[groupKey] = [];
+      if (!typeGroups[backupType]) {
+        typeGroups[backupType] = {};
+      }
+      
+      if (!typeGroups[backupType][backupName]) {
+        typeGroups[backupType][backupName] = [];
       }
       
       if (showAllRevisions) {
         // Show individual revisions
-        groups[groupKey].push({
+        typeGroups[backupType][backupName].push({
           ...backup,
           isVersion: true,
           versionId: backup.id,
@@ -817,9 +823,9 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
         });
       } else {
         // Show only latest version for each backup
-        const existing = groups[groupKey][0];
+        const existing = typeGroups[backupType][backupName][0];
         if (!existing || backup.revision > existing.revision) {
-          groups[groupKey] = [{
+          typeGroups[backupType][backupName] = [{
             ...backup,
             isVersion: false
           }];
@@ -827,7 +833,18 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
       }
     });
 
-    return groups;
+    // Sort revisions within each backup group (highest revision first)
+    Object.values(typeGroups).forEach(backupGroup => {
+      Object.values(backupGroup).forEach(revisions => {
+        revisions.sort((a, b) => {
+          const aNum = parseInt(a.revision.replace('R', ''));
+          const bNum = parseInt(b.revision.replace('R', ''));
+          return bNum - aNum; // Descending order (R4, R3, R2, R1)
+        });
+      });
+    });
+
+    return typeGroups;
   }, [filteredBackups, showAllRevisions]);
 
   // Upload mutation
@@ -843,7 +860,7 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/design/backups'] });
       setIsUploadDialogOpen(false);
-      setUploadForm({ backupType: '3D Model', backupName: '', description: '' });
+      setUploadForm({ backupType: '3D Model', backupName: '', description: '', isPreFilled: false });
       toast({ title: "Success", description: "Backup uploaded successfully" });
     },
     onError: (error: any) => {
@@ -875,6 +892,15 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
   };
 
   const backupTypes = ['3D Model', 'PLC Program', 'SCADA'];
+  
+  const getBackupTypeIcon = (backupType: string) => {
+    switch (backupType) {
+      case '3D Model': return <Building className="w-4 h-4" />;
+      case 'PLC Program': return <Cog className="w-4 h-4" />;
+      case 'SCADA': return <Zap className="w-4 h-4" />;
+      default: return <FileImage className="w-4 h-4" />;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -894,7 +920,10 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
               </div>
             </div>
             <Button
-              onClick={() => setIsUploadDialogOpen(true)}
+              onClick={() => {
+                setUploadForm({ backupType: '3D Model', backupName: '', description: '', isPreFilled: false });
+                setIsUploadDialogOpen(true);
+              }}
               disabled={!selectedProjectId}
               className="bg-purple-600 hover:bg-purple-700"
             >
@@ -926,68 +955,103 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
         </Card>
       )}
 
-      {/* Backup Groups Display */}
+      {/* Backup Groups Display by Type */}
       {selectedProjectId && !isLoading && Object.keys(groupedBackups).length > 0 && (
-        <Card>
-          <CardContent className="p-6">
-            <div className="space-y-4">
-              {Object.entries(groupedBackups).map(([backupName, items]) => (
-                <div key={backupName} className="space-y-2">
-                  {/* Main Backup Item Header */}
-                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="flex items-center gap-3">
-                      <FileImage className="w-5 h-5 text-blue-600" />
-                      <div>
-                        <h4 className="font-medium text-blue-900">{backupName}</h4>
-                        <p className="text-sm text-blue-700">
-                          {items[0].backupType} • {items.length} version{items.length !== 1 ? 's' : ''}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Individual Revisions */}
-                  {items.map((backup: any, index: number) => (
-                    <div key={backup.id} className={`flex items-center justify-between p-3 rounded-lg border ${
-                      backup.isVersion ? 'ml-8 bg-gray-50' : 'bg-white'
-                    }`}>
+        <div className="space-y-6">
+          {Object.entries(groupedBackups).map(([backupType, backupGroups]) => (
+            <Card key={backupType}>
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-purple-600">
+                  {getBackupTypeIcon(backupType)}
+                  {backupType}
+                </CardTitle>
+                <CardDescription>
+                  {Object.keys(backupGroups).length} backup{Object.keys(backupGroups).length !== 1 ? 's' : ''}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {Object.entries(backupGroups).map(([backupName, items]) => (
+                  <div key={backupName} className="space-y-2">
+                    {/* Main Backup Item Header */}
+                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2">
-                          <Badge className={getRevisionBadgeColor(backup.revision)}>
-                            {backup.revision}
-                          </Badge>
-                          <span className="font-medium">{backup.fileName}</span>
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {format(new Date(backup.uploadDate), 'MMM dd, yyyy')}
+                        <FileImage className="w-4 h-4 text-blue-600" />
+                        <div>
+                          <h4 className="font-medium text-blue-900">{backupName}</h4>
+                          <p className="text-sm text-blue-700">
+                            {items.length} version{items.length !== 1 ? 's' : ''} • Latest: {items[0].revision}
+                          </p>
                         </div>
                       </div>
                       <div className="flex gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          title="View Backup"
-                        >
-                          <Eye className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
                           onClick={() => {
-                            window.open(`/api/design/backups/${backup.id}/download`, '_blank');
+                            setUploadForm(prev => ({ 
+                              ...prev, 
+                              backupType: backupType, 
+                              backupName: backupName,
+                              isPreFilled: true
+                            }));
+                            setIsUploadDialogOpen(true);
                           }}
-                          title={`Download ${backup.revision} - ${backup.fileName}`}
+                          title={`Upload new version of ${backupName}`}
+                          className="bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
                         >
-                          <Download className="w-3 h-3" />
+                          <Upload className="w-3 h-3 mr-1" />
+                          Upload
                         </Button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+
+                    {/* Individual Revisions */}
+                    {items.map((backup: any, index: number) => (
+                      <div key={backup.id} className={`flex items-center justify-between p-3 rounded-lg border ${
+                        backup.isVersion ? 'ml-8 bg-gray-50' : 'bg-white'
+                      }`}>
+                        <div className="flex items-center gap-4">
+                          <Badge className={getRevisionBadgeColor(backup.revision)}>
+                            {backup.revision}
+                          </Badge>
+                          <div className="flex-1">
+                            <div className="font-medium">{backup.fileName}</div>
+                            <div className="text-sm text-gray-500">
+                              Uploaded {format(new Date(backup.uploadDate), 'MMM dd, yyyy')} by {
+                                backup.uploader?.firstName && backup.uploader?.lastName 
+                                  ? `${backup.uploader.firstName} ${backup.uploader.lastName}`
+                                  : backup.uploader?.username || 'Unknown'
+                              }
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            title="View Backup"
+                          >
+                            <Eye className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              window.open(`/api/design/backups/${backup.id}/download`, '_blank');
+                            }}
+                            title={`Download ${backup.revision} - ${backup.fileName}`}
+                          >
+                            <Download className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
 
       {/* Empty State */}
@@ -998,7 +1062,10 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Project Backups Found</h3>
             <p className="text-gray-500">This project doesn't have any backup files yet.</p>
             <Button
-              onClick={() => setIsUploadDialogOpen(true)}
+              onClick={() => {
+                setUploadForm({ backupType: '3D Model', backupName: '', description: '', isPreFilled: false });
+                setIsUploadDialogOpen(true);
+              }}
               className="mt-3 bg-purple-600 hover:bg-purple-700"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -1067,7 +1134,14 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
                 value={uploadForm.backupName}
                 onChange={(e) => setUploadForm(prev => ({ ...prev, backupName: e.target.value }))}
                 required
+                readOnly={uploadForm.isPreFilled}
+                className={uploadForm.isPreFilled ? 'bg-gray-100 cursor-not-allowed' : ''}
               />
+              {uploadForm.isPreFilled && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Pre-filled for next version upload (read-only)
+                </p>
+              )}
             </div>
             <div>
               <Label htmlFor="description">Description</Label>
@@ -1097,7 +1171,10 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsUploadDialogOpen(false)}
+                onClick={() => {
+                  setIsUploadDialogOpen(false);
+                  setUploadForm({ backupType: '3D Model', backupName: '', description: '', isPreFilled: false });
+                }}
                 className="flex-1"
               >
                 Cancel
