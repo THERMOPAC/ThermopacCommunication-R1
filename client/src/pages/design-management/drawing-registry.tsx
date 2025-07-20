@@ -956,125 +956,154 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
         </Card>
       )}
 
-      {/* Backup Groups Display by Type */}
-      {selectedProjectId && !isLoading && Object.keys(groupedBackups).length > 0 && (
+      {/* Backup Groups Display by Type - Always Show All Types */}
+      {selectedProjectId && !isLoading && (
         <div className="space-y-6">
-          {Object.entries(groupedBackups).map(([backupType, backupGroups]) => (
-            <Card key={backupType}>
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-purple-600">
-                  {getBackupTypeIcon(backupType)}
-                  {backupType}
-                </CardTitle>
-                <CardDescription>
-                  {Object.keys(backupGroups).length} backup{Object.keys(backupGroups).length !== 1 ? 's' : ''}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {Object.entries(backupGroups).map(([backupName, items]) => (
-                  <div key={backupName} className="space-y-2">
-                    {/* Main Backup Item Header */}
-                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+          {backupTypes.map((backupType) => {
+            const backupGroups = groupedBackups[backupType] || {};
+            const hasBackups = Object.keys(backupGroups).length > 0;
+            
+            return (
+              <Card key={backupType}>
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-purple-600">
+                    {getBackupTypeIcon(backupType)}
+                    {backupType}
+                  </CardTitle>
+                  <CardDescription>
+                    {hasBackups 
+                      ? `${Object.keys(backupGroups).length} backup${Object.keys(backupGroups).length !== 1 ? 's' : ''}`
+                      : 'No backups uploaded yet'
+                    }
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {hasBackups ? (
+                    // Show existing backups
+                    Object.entries(backupGroups).map(([backupName, items]) => (
+                      <div key={backupName} className="space-y-2">
+                        {/* Main Backup Item Header */}
+                        <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center gap-3">
+                            <FileImage className="w-4 h-4 text-blue-600" />
+                            <div>
+                              <h4 className="font-medium text-blue-900">{backupName}</h4>
+                              <p className="text-sm text-blue-700">
+                                {items.length} version{items.length !== 1 ? 's' : ''} • Latest: {items[0].revision}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setUploadForm(prev => ({ 
+                                  ...prev, 
+                                  backupType: backupType, 
+                                  backupName: backupName,
+                                  isPreFilled: true
+                                }));
+                                setIsUploadDialogOpen(true);
+                              }}
+                              title={`Upload new version of ${backupName}`}
+                              className="bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
+                            >
+                              <Upload className="w-3 h-3 mr-1" />
+                              Upload
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Individual Revisions */}
+                        {items.map((backup: any, index: number) => (
+                          <div key={backup.id} className={`flex items-center justify-between p-3 rounded-lg border ${
+                            backup.isVersion ? 'ml-8 bg-gray-50' : 'bg-white'
+                          }`}>
+                            <div className="flex items-center gap-4">
+                              <Badge className={getRevisionBadgeColor(backup.revision)}>
+                                {backup.revision}
+                              </Badge>
+                              <div className="flex-1">
+                                <div className="font-medium">{backup.fileName}</div>
+                                <div className="text-sm text-gray-500">
+                                  Uploaded {backup.uploadedAt ? format(new Date(backup.uploadedAt), 'MMM dd, yyyy') : 'Unknown date'} by {
+                                    backup.uploader?.firstName && backup.uploader?.lastName 
+                                      ? `${backup.uploader.firstName} ${backup.uploader.lastName}`
+                                      : backup.uploader?.username || 'Unknown'
+                                  }
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                title="View Backup"
+                              >
+                                <Eye className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  window.open(`/api/design/backups/${backup.id}/download`, '_blank');
+                                }}
+                                title={`Download ${backup.revision} - ${backup.fileName}`}
+                              >
+                                <Download className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ))
+                  ) : (
+                    // Show empty state for this backup type
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
                       <div className="flex items-center gap-3">
-                        <FileImage className="w-4 h-4 text-blue-600" />
+                        <FileImage className="w-4 h-4 text-gray-500" />
                         <div>
-                          <h4 className="font-medium text-blue-900">{backupName}</h4>
-                          <p className="text-sm text-blue-700">
-                            {items.length} version{items.length !== 1 ? 's' : ''} • Latest: {items[0].revision}
-                          </p>
+                          <h4 className="font-medium text-gray-700">No {backupType} backups</h4>
+                          <p className="text-sm text-gray-500">Upload your first {backupType.toLowerCase()} backup</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
                         <Button
                           size="sm"
-                          variant="outline"
                           onClick={() => {
-                            setUploadForm(prev => ({ 
-                              ...prev, 
+                            setUploadForm({ 
                               backupType: backupType, 
-                              backupName: backupName,
-                              isPreFilled: true
-                            }));
+                              backupName: '', 
+                              description: '', 
+                              isPreFilled: false 
+                            });
                             setIsUploadDialogOpen(true);
                           }}
-                          title={`Upload new version of ${backupName}`}
-                          className="bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
+                          className="bg-purple-600 hover:bg-purple-700"
                         >
                           <Upload className="w-3 h-3 mr-1" />
                           Upload
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled
+                          title="No files to download"
+                        >
+                          <Download className="w-3 h-3" />
+                        </Button>
                       </div>
                     </div>
-
-                    {/* Individual Revisions */}
-                    {items.map((backup: any, index: number) => (
-                      <div key={backup.id} className={`flex items-center justify-between p-3 rounded-lg border ${
-                        backup.isVersion ? 'ml-8 bg-gray-50' : 'bg-white'
-                      }`}>
-                        <div className="flex items-center gap-4">
-                          <Badge className={getRevisionBadgeColor(backup.revision)}>
-                            {backup.revision}
-                          </Badge>
-                          <div className="flex-1">
-                            <div className="font-medium">{backup.fileName}</div>
-                            <div className="text-sm text-gray-500">
-                              Uploaded {backup.uploadedAt ? format(new Date(backup.uploadedAt), 'MMM dd, yyyy') : 'Unknown date'} by {
-                                backup.uploader?.firstName && backup.uploader?.lastName 
-                                  ? `${backup.uploader.firstName} ${backup.uploader.lastName}`
-                                  : backup.uploader?.username || 'Unknown'
-                              }
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            title="View Backup"
-                          >
-                            <Eye className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              window.open(`/api/design/backups/${backup.id}/download`, '_blank');
-                            }}
-                            title={`Download ${backup.revision} - ${backup.fileName}`}
-                          >
-                            <Download className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          ))}
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
-      {/* Empty State */}
-      {selectedProjectId && !isLoading && Object.keys(groupedBackups).length === 0 && !searchTerm && (
-        <Card>
-          <CardContent className="p-6 text-center">
-            <FileImage className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Project Backups Found</h3>
-            <p className="text-gray-500">This project doesn't have any backup files yet.</p>
-            <Button
-              onClick={() => {
-                setUploadForm({ backupType: '3D Model', backupName: '', description: '', isPreFilled: false });
-                setIsUploadDialogOpen(true);
-              }}
-              className="mt-3 bg-purple-600 hover:bg-purple-700"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Upload First Backup
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+
 
       {/* No Search Results State */}
       {selectedProjectId && !isLoading && Object.keys(groupedBackups).length === 0 && searchTerm && (
