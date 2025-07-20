@@ -500,11 +500,12 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                 placeholder="e.g., DWG-001, P&ID-101"
                 value={formValues.drawingNumber}
                 onChange={(e) => setFormValues(prev => ({ ...prev, drawingNumber: e.target.value }))}
+                readOnly={!!selectedItemForUpload}
                 required
-                className="w-full"
+                className={`w-full ${selectedItemForUpload ? 'bg-gray-50 cursor-not-allowed' : ''}`}
               />
               {selectedItemForUpload && (
-                <p className="text-sm text-green-600 mt-1">Auto-populated from item data</p>
+                <p className="text-sm text-green-600 mt-1">Auto-populated from item data (read-only)</p>
               )}
             </div>
             <div>
@@ -515,11 +516,12 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                 placeholder="e.g., Process Flow Diagram"
                 value={formValues.drawingTitle}
                 onChange={(e) => setFormValues(prev => ({ ...prev, drawingTitle: e.target.value }))}
+                readOnly={!!selectedItemForUpload}
                 required
-                className="w-full"
+                className={`w-full ${selectedItemForUpload ? 'bg-gray-50 cursor-not-allowed' : ''}`}
               />
               {selectedItemForUpload && (
-                <p className="text-sm text-green-600 mt-1">Auto-populated from item description</p>
+                <p className="text-sm text-green-600 mt-1">Auto-populated from item description (read-only)</p>
               )}
             </div>
             <div>
@@ -545,8 +547,13 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
             </div>
             <div>
               <Label htmlFor="discipline">Discipline</Label>
-              <Select name="discipline" value={formValues.discipline} onValueChange={(value) => setFormValues(prev => ({ ...prev, discipline: value }))}>
-                <SelectTrigger>
+              <Select 
+                name="discipline" 
+                value={formValues.discipline} 
+                onValueChange={(value) => setFormValues(prev => ({ ...prev, discipline: value }))}
+                disabled={!!selectedItemForUpload}
+              >
+                <SelectTrigger className={selectedItemForUpload ? 'bg-gray-50 cursor-not-allowed' : ''}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -557,6 +564,9 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                   <SelectItem value="Electrical_Instrumentation">Electrical & Instrumentation</SelectItem>
                 </SelectContent>
               </Select>
+              {selectedItemForUpload && (
+                <p className="text-sm text-green-600 mt-1">Defaults to Project Drawings (read-only)</p>
+              )}
             </div>
             <div>
               <Label htmlFor="file">Drawing File *</Label>
