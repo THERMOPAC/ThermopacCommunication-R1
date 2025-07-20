@@ -9,9 +9,11 @@ const router = express.Router();
 // GET /api/design/project-items - Get all project items (both parent and child) with relationships
 router.get('/', ensureAuthenticated, async (req, res) => {
   try {
+    console.log('Design project items route hit with query:', req.query);
     const { projectId } = req.query;
     
     if (!projectId) {
+      console.log('Project ID missing from query:', req.query);
       return res.status(400).json({ 
         success: false, 
         error: 'Project ID is required' 
