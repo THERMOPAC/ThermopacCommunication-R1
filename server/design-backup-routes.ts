@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { db } from './db';
-import { designProjectBackups, projects } from '../shared/schema';
+import { designProjectBackups, projects, users } from '../shared/schema';
 import { desc, eq, and, or } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 import { uploadFileWithDiagnostics } from './utils/gcs-enhanced-upload';
@@ -38,8 +38,16 @@ router.get('/', async (req, res) => {
         revisionOf: designProjectBackups.revisionOf,
         uploadedBy: designProjectBackups.uploadedBy,
         uploadedAt: designProjectBackups.uploadedAt,
+        uploader: {
+          id: users.id,
+          username: users.username,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        }
       })
-      .from(designProjectBackups);
+      .from(designProjectBackups)
+      .leftJoin(users, eq(designProjectBackups.uploadedBy, users.id));
 
     const conditions = [];
 
