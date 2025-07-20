@@ -199,11 +199,14 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
           return res.status(400).json({ error: 'Project not found' });
         }
 
+        console.log('Project data for design project creation:', project[0]);
+        console.log('Project code:', project[0].code);
+
         const [newDesignProject] = await db
           .insert(designProjects)
           .values({
             projectId: parseInt(projectId),
-            projectCode: project[0].code,
+            projectCode: project[0].code || '2025-' + projectId,
             designProjectName: `${project[0].name} - Design Phase`,
             designPhase: 'Detailed',
             status: 'In Progress',
