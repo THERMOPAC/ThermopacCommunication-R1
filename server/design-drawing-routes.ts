@@ -249,7 +249,20 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
     projectCode = designProject[0].projectCode || 'UNKNOWN';
     
     // **AUTOMATIC REVISION CONTROL LOGIC**
-    // Check if drawing with same drawingNumber already exists for revision control
+    // First, check if drawing with same drawingNumber already exists
+    const existingDrawing = await db
+      .select({ 
+        id: designDrawings.id,
+        drawingNumber: designDrawings.drawingNumber
+      })
+      .from(designDrawings)
+      .where(eq(designDrawings.drawingNumber, drawingNumber))
+      .limit(1);
+
+    let isRevision = existingDrawing.length > 0;
+    let drawingId = isRevision ? existingDrawing[0].id : null;
+
+    // Check existing versions for revision control
     const existingVersions = await db
       .select({ 
         id: drawingVersions.id,
@@ -262,10 +275,8 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
       .orderBy(desc(drawingVersions.createdAt));
 
     let autoRevision = 'R1';
-    let isRevision = false;
     
     if (existingVersions.length > 0) {
-      isRevision = true;
       // Extract revision numbers and find the next revision
       const revisions = existingVersions
         .map(d => d.revision)
@@ -302,7 +313,6 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
     }
 
     // Create drawing record (only if this is the first version)
-    let drawingId;
     if (!isRevision) {
       // Truncate fields to fit database constraints
       const truncatedDrawingNumber = drawingNumber.length > 100 ? drawingNumber.substring(0, 100) : drawingNumber;
@@ -326,20 +336,8 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
         .returning();
       
       drawingId = newDrawing.id;
-    } else {
-      // Get existing drawing ID
-      const existingDrawing = await db
-        .select({ id: designDrawings.id })
-        .from(designDrawings)
-        .where(eq(designDrawings.drawingNumber, drawingNumber))
-        .limit(1);
-      
-      if (existingDrawing.length === 0) {
-        return res.status(400).json({ error: 'Drawing not found for revision' });
-      }
-      
-      drawingId = existingDrawing[0].id;
     }
+    // If it's a revision, drawingId is already set from the existingDrawing query above
 
     // Create new version with character length constraints
     const truncatedRevision = finalRevision.length > 10 ? finalRevision.substring(0, 10) : finalRevision;
