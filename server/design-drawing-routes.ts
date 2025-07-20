@@ -494,4 +494,43 @@ router.post('/drawings/:id/versions', authenticateUser, upload.single('file'), a
   }
 });
 
+// Download drawing version
+router.get('/versions/:versionId/download', authenticateUser, async (req, res) => {
+  try {
+    const versionId = parseInt(req.params.versionId);
+    
+    // Get version information including file path
+    const version = await db
+      .select({
+        id: drawingVersions.id,
+        fileName: drawingVersions.fileName,
+        fileUrl: drawingVersions.fileUrl,
+        filePath: drawingVersions.filePath,
+        fileSize: drawingVersions.fileSize,
+        mimeType: drawingVersions.mimeType,
+        revision: drawingVersions.revision,
+        drawingId: drawingVersions.drawingId
+      })
+      .from(drawingVersions)
+      .where(eq(drawingVersions.id, versionId))
+      .limit(1);
+
+    if (version.length === 0) {
+      return res.status(404).json({ error: 'Drawing version not found' });
+    }
+
+    const versionData = version[0];
+
+    // Redirect to the signed URL for direct download
+    if (versionData.fileUrl) {
+      return res.redirect(versionData.fileUrl);
+    }
+
+    return res.status(404).json({ error: 'File not accessible' });
+  } catch (error) {
+    console.error('Error downloading drawing version:', error);
+    res.status(500).json({ error: 'Failed to download drawing version' });
+  }
+});
+
 export default router;

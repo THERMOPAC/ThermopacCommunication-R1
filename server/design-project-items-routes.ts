@@ -116,7 +116,7 @@ router.get('/', ensureAuthenticated, async (req, res) => {
         if (drawings.length > 0) {
           const drawingIds = drawings.map(d => d.id);
           
-          // Get latest version for each drawing
+          // Get all versions for each drawing
           const versions = await db.select({
             id: drawingVersions.id,
             drawingId: drawingVersions.drawingId,
@@ -128,7 +128,7 @@ router.get('/', ensureAuthenticated, async (req, res) => {
           .where(inArray(drawingVersions.drawingId, drawingIds))
           .orderBy(desc(drawingVersions.createdAt));
           
-          // Group all versions by drawing (show all revisions info)
+          // Group all versions by drawing (return individual versions)
           const allVersionsMap = new Map();
           versions.forEach(version => {
             if (!allVersionsMap.has(version.drawingId)) {
@@ -137,24 +137,20 @@ router.get('/', ensureAuthenticated, async (req, res) => {
             allVersionsMap.get(version.drawingId).push(version);
           });
           
-          // Map drawing numbers to their revision information
+          // Map drawing numbers to their individual versions
           drawings.forEach(drawing => {
             const drawingVersions = allVersionsMap.get(drawing.id);
             if (drawingVersions && drawingVersions.length > 0) {
               // Sort versions by creation date (newest first)
               drawingVersions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
               
-              const latestVersion = drawingVersions[0];
-              const allRevisions = drawingVersions.map(v => v.revision).join(', ');
-              
-              console.log(`Found revisions for drawing ${drawing.drawingNumber}: ${allRevisions} (Latest: ${latestVersion.revision})`);
-              drawingRevisions.set(drawing.drawingNumber, {
-                revision: latestVersion.revision,
-                allRevisions: allRevisions,
-                totalVersions: drawingVersions.length,
-                fileName: latestVersion.fileName,
-                updatedAt: latestVersion.createdAt
-              });
+              // Store all individual versions
+              drawingRevisions.set(drawing.drawingNumber, drawingVersions.map(version => ({
+                revision: version.revision,
+                fileName: version.fileName,
+                versionId: version.id,
+                createdAt: version.createdAt
+              })));
             }
           });
           
@@ -173,12 +169,66 @@ router.get('/', ensureAuthenticated, async (req, res) => {
       if (!masterItem) return;
 
       // Get revision information for this item
-      const revisionInfo = drawingRevisions.get(masterItem.drawingNo);
+      const revisionVersions = drawingRevisions.get(masterItem.drawingNo);
       
-      if (revisionInfo) {
-        console.log(`=== ITEM ${masterItem.itemCode} HAS REVISION INFO:`, revisionInfo);
+      if (shouldShowRevisions && revisionVersions && revisionVersions.length > 0) {
+        // When showing all revisions, create separate entries for each version
+        console.log(`=== ITEM ${masterItem.itemCode} HAS ${revisionVersions.length} VERSIONS`);
+        
+        revisionVersions.forEach((version, index) => {
+          const itemData = {
+            id: `${masterItem.id}_v${index}`, // Unique ID for each version
+            originalId: masterItem.id,
+            projectItemId: projectItem.id,
+            itemCode: masterItem.itemCode,
+            description: masterItem.description,
+            makeOrBuy: masterItem.makeOrBuy,
+            specification: masterItem.specification,
+            unit: masterItem.unit,
+            estimatedCost: masterItem.estimatedCost,
+            supplier: masterItem.supplier,
+            drawingNo: masterItem.drawingNo,
+            revision: version.revision,
+            fileName: version.fileName,
+            versionId: version.versionId,
+            lastUpdated: version.createdAt,
+            isVersion: true,
+            versionIndex: index,
+            totalVersions: revisionVersions.length,
+            isParent: parentToChildMap.has(masterItem.id),
+            isChild: childToParentMap.has(masterItem.id),
+            childComponents: index === 0 ? parentToChildMap.get(masterItem.id) || [] : [], // Only show child components for first version
+            parentItemId: childToParentMap.get(masterItem.id) || null
+          };
+
+          // Add parent item info if this is a child
+          if (itemData.isChild) {
+            const parentItem = masterItemsMap.get(itemData.parentItemId!);
+            if (parentItem) {
+              itemData.parentItem = {
+                id: parentItem.id,
+                itemCode: parentItem.itemCode,
+                description: parentItem.description
+              };
+            }
+          }
+
+          // Categorize items
+          if (itemData.isParent) {
+            parentItems.push(itemData);
+          }
+          
+          if (itemData.isChild) {
+            childItems.push(itemData);
+          }
+          
+          allItems.push(itemData);
+        });
+        
+        return; // Skip normal processing for this item
       }
 
+      // Normal processing when not showing revisions or no revisions found
       const itemData = {
         id: masterItem.id,
         projectItemId: projectItem.id,
@@ -190,11 +240,9 @@ router.get('/', ensureAuthenticated, async (req, res) => {
         estimatedCost: masterItem.estimatedCost,
         supplier: masterItem.supplier,
         drawingNo: masterItem.drawingNo,
-        revision: revisionInfo?.revision || null,
-        allRevisions: revisionInfo?.allRevisions || null,
-        totalVersions: revisionInfo?.totalVersions || null,
-        fileName: revisionInfo?.fileName || null,
-        lastUpdated: revisionInfo?.updatedAt || null,
+        revision: null,
+        fileName: null,
+        lastUpdated: null,
         isParent: parentToChildMap.has(masterItem.id),
         isChild: childToParentMap.has(masterItem.id),
         childComponents: parentToChildMap.get(masterItem.id) || [],

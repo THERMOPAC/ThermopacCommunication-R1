@@ -434,8 +434,8 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                         <div className="text-sm">
                           <span className="text-gray-500">Revision:</span> 
                           <span className="font-medium text-blue-600">{item.revision}</span>
-                          {item.allRevisions && item.totalVersions > 1 && (
-                            <span className="text-gray-400 ml-1">({item.allRevisions})</span>
+                          {item.fileName && (
+                            <span className="text-gray-400 ml-2">({item.fileName})</span>
                           )}
                         </div>
                       )}
@@ -443,21 +443,36 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                         <Button size="sm" variant="outline" title="View Item Details">
                           <Eye className="w-3 h-3" />
                         </Button>
-                        <Button size="sm" variant="outline" title="Download Specifications">
-                          <Download className="w-3 h-3" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedItemForUpload(item);
-                            setIsUploadDialogOpen(true);
-                          }}
-                          title="Upload Drawing"
-                          className="bg-indigo-50 hover:bg-indigo-100 border-indigo-200"
-                        >
-                          <Upload className="w-3 h-3 text-indigo-600" />
-                        </Button>
+                        {item.versionId ? (
+                          // If this is a version entry, show version download
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            title={`Download ${item.revision} - ${item.fileName}`}
+                            onClick={() => window.open(`/api/design/versions/${item.versionId}/download`, '_blank')}
+                          >
+                            <Download className="w-3 h-3" />
+                          </Button>
+                        ) : (
+                          // Regular download for non-version entries
+                          <Button size="sm" variant="outline" title="Download Specifications">
+                            <Download className="w-3 h-3" />
+                          </Button>
+                        )}
+                        {!item.isVersion && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedItemForUpload(item);
+                              setIsUploadDialogOpen(true);
+                            }}
+                            title="Upload Drawing"
+                            className="bg-indigo-50 hover:bg-indigo-100 border-indigo-200"
+                          >
+                            <Upload className="w-3 h-3 text-indigo-600" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
