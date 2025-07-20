@@ -207,9 +207,7 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                       <Button size="sm" variant="outline" title="Download Specifications">
                         <Download className="w-3 h-3" />
                       </Button>
-                      <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700" title="Remove Item">
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+
                     </div>
                   </div>
                 </div>
@@ -243,9 +241,7 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                         <Button size="sm" variant="outline" title="Download Specifications">
                           <Download className="w-3 h-3" />
                         </Button>
-                        <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700" title="Remove Component">
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
+
                       </div>
                     </div>
                   </div>
@@ -278,9 +274,7 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                         <Button size="sm" variant="outline" title="Download Specifications">
                           <Download className="w-3 h-3" />
                         </Button>
-                        <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700" title="Remove Item">
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
+
                       </div>
                     </div>
                   </div>
