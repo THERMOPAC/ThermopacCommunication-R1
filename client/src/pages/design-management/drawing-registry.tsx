@@ -1144,8 +1144,9 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
                 name="backupType" 
                 value={uploadForm.backupType} 
                 onValueChange={(value) => setUploadForm(prev => ({ ...prev, backupType: value }))}
+                disabled
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-gray-50 cursor-not-allowed">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1154,34 +1155,9 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label htmlFor="backupName">Backup Name *</Label>
-              <Input
-                id="backupName"
-                name="backupName"
-                placeholder="e.g., Tank_Design_V2, Control_System_Main"
-                value={uploadForm.backupName}
-                onChange={(e) => setUploadForm(prev => ({ ...prev, backupName: e.target.value }))}
-                required
-                readOnly={uploadForm.isPreFilled}
-                className={uploadForm.isPreFilled ? 'bg-gray-100 cursor-not-allowed' : ''}
-              />
-              {uploadForm.isPreFilled && (
-                <p className="text-sm text-gray-500 mt-1">
-                  Pre-filled for next version upload (read-only)
-                </p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Input
-                id="description"
-                name="description"
-                placeholder="Brief description of this backup"
-                value={uploadForm.description}
-                onChange={(e) => setUploadForm(prev => ({ ...prev, description: e.target.value }))}
-              />
+              <p className="text-sm text-gray-500 mt-1">
+                Auto-populated from selected backup section (read-only)
+              </p>
             </div>
             <div>
               <Label htmlFor="file">Backup File *</Label>
