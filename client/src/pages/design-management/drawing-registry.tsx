@@ -858,11 +858,21 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
       if (!response.ok) throw new Error('Failed to upload backup');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['/api/design/backups'] });
       setIsUploadDialogOpen(false);
       setUploadForm({ backupType: '3D Model', backupName: '', description: '', isPreFilled: false });
-      toast({ title: "Success", description: "Backup uploaded successfully" });
+      
+      // Enhanced success message based on upload results
+      const { data } = response;
+      if (data && data.totalFiles > 1) {
+        toast({ 
+          title: "Success", 
+          description: `${data.successCount} of ${data.totalFiles} files uploaded to ${data.revision}` 
+        });
+      } else {
+        toast({ title: "Success", description: "Backup uploaded successfully" });
+      }
     },
     onError: (error: any) => {
       toast({ 
@@ -1160,16 +1170,17 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
               </p>
             </div>
             <div>
-              <Label htmlFor="file">Backup File *</Label>
+              <Label htmlFor="file">Backup Files *</Label>
               <Input
                 id="file"
                 name="file"
                 type="file"
                 accept=".zip,.rar,.7z,.tar,.gz,.step,.stp,.iges,.igs,.dwg,.dxf"
+                multiple
                 required
               />
               <p className="text-sm text-gray-500 mt-1">
-                Supports: ZIP, RAR, 7Z, STEP, IGES, DWG, DXF files (Max 500MB)
+                Select multiple files to upload together under one revision (ZIP, RAR, 7Z, STEP, IGES, DWG, DXF - Max 500MB each)
               </p>
             </div>
 

@@ -91,17 +91,18 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST upload project backup with version control
-router.post('/', upload.single('file'), async (req, res) => {
+// POST upload project backup with version control (multiple files with shared revision)
+router.post('/', upload.array('file'), async (req, res) => {
   try {
     console.log('=== PROJECT BACKUP UPLOAD ROUTE HIT ===');
     console.log('Request body:', req.body);
-    console.log('File:', req.file ? { name: req.file.originalname, size: req.file.size } : 'No file');
+    console.log('Files:', req.files ? (req.files as Express.Multer.File[]).map(f => ({ name: f.originalname, size: f.size })) : 'No files');
 
-    if (!req.file) {
+    const files = req.files as Express.Multer.File[];
+    if (!files || files.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'No file uploaded'
+        message: 'No files uploaded'
       });
     }
 
@@ -138,7 +139,7 @@ router.post('/', upload.single('file'), async (req, res) => {
       )
       .orderBy(desc(designProjectBackups.revision));
 
-    // Calculate next revision
+    // Calculate next revision (shared for all files in this upload session)
     let nextRevisionNumber = 1;
     if (existingBackups.length > 0) {
       const latestRevision = existingBackups[0].revision;
@@ -149,32 +150,7 @@ router.post('/', upload.single('file'), async (req, res) => {
     }
 
     const revision = `R${nextRevisionNumber}`;
-
-    // Generate GCS file path: Design_Management/{ProjectCode}/Backups/{BackupType}_R{Revision}/{OriginalFileName}.{ext}
-    const fileExtension = path.extname(req.file.originalname);
-    const baseFileName = path.basename(req.file.originalname, fileExtension);
-    const fileName = `${baseFileName}_${revision}${fileExtension}`;
-    const gcsPath = `Design_Management/${projectCode}/Backups/${backupType}_${revision}/${req.file.originalname}`;
-
-    console.log(`Uploading to GCS path: ${gcsPath}`);
-
-    // Upload to Google Cloud Storage
-    const uploadResult = await uploadFileWithDiagnostics(
-      gcsPath,
-      req.file.buffer,
-      req.file.mimetype || 'application/octet-stream'
-    );
-
-    if (!uploadResult.successful) {
-      console.error('GCS upload failed:', uploadResult.error);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to upload file to storage',
-        error: uploadResult.error
-      });
-    }
-
-    console.log('GCS upload successful:', uploadResult.url);
+    console.log(`Using shared revision ${revision} for ${files.length} files`);
 
     // Mark previous backups as superseded if this is a revision
     if (nextRevisionNumber > 1) {
@@ -193,37 +169,97 @@ router.post('/', upload.single('file'), async (req, res) => {
         );
     }
 
-    // Insert backup record
-    const [newBackup] = await db.insert(designProjectBackups).values({
-      projectId: parseInt(projectId),
-      backupType,
-      fileName,
-      originalFileName: req.file.originalname,
-      revision,
-      description: description || `${backupType} backup - ${revision}`,
-      filePath: gcsPath,
-      fileUrl: uploadResult.url,
-      fileSize: req.file.size,
-      fileType: req.file.mimetype || 'application/octet-stream',
-      status: 'current',
-      isRevision: nextRevisionNumber > 1,
-      revisionOf: nextRevisionNumber > 1 ? existingBackups[0]?.id || null : null,
-      uploadedBy: userId
-    }).returning();
+    // Process each file with shared revision
+    const uploadedBackups = [];
+    const uploadErrors = [];
 
-    console.log('Backup record created:', newBackup);
+    for (const file of files) {
+      try {
+        // Generate GCS file path: Design_Management/{ProjectCode}/Backups/{BackupType}_R{Revision}/{OriginalFileName}.{ext}
+        const gcsPath = `Design_Management/${projectCode}/Backups/${backupType}_${revision}/${file.originalname}`;
+        
+        console.log(`Uploading file ${file.originalname} to GCS path: ${gcsPath}`);
+
+        // Upload to Google Cloud Storage
+        const uploadResult = await uploadFileWithDiagnostics(
+          gcsPath,
+          file.buffer,
+          file.mimetype || 'application/octet-stream'
+        );
+
+        if (!uploadResult.successful) {
+          console.error(`GCS upload failed for ${file.originalname}:`, uploadResult.error);
+          uploadErrors.push({ fileName: file.originalname, error: uploadResult.error });
+          continue;
+        }
+
+        console.log(`GCS upload successful for ${file.originalname}:`, uploadResult.url);
+
+        // Insert backup record for this file
+        const [newBackup] = await db.insert(designProjectBackups).values({
+          projectId: parseInt(projectId),
+          backupType,
+          fileName: file.originalname, // Use original filename as fileName
+          originalFileName: file.originalname,
+          revision,
+          description: description || `${backupType} backup - ${revision}`,
+          filePath: gcsPath,
+          fileUrl: uploadResult.url,
+          fileSize: file.size,
+          fileType: file.mimetype || 'application/octet-stream',
+          status: 'current',
+          isRevision: nextRevisionNumber > 1,
+          revisionOf: nextRevisionNumber > 1 ? existingBackups[0]?.id || null : null,
+          uploadedBy: userId
+        }).returning();
+
+        uploadedBackups.push(newBackup);
+        console.log(`Backup record created for ${file.originalname}:`, newBackup.id);
+
+      } catch (fileError) {
+        console.error(`Error processing file ${file.originalname}:`, fileError);
+        uploadErrors.push({ 
+          fileName: file.originalname, 
+          error: fileError instanceof Error ? fileError.message : 'Unknown error' 
+        });
+      }
+    }
+
+    // Return results
+    const totalFiles = files.length;
+    const successCount = uploadedBackups.length;
+    const errorCount = uploadErrors.length;
+
+    if (successCount === 0) {
+      return res.status(500).json({
+        success: false,
+        message: 'All files failed to upload',
+        errors: uploadErrors
+      });
+    }
+
+    const responseMessage = successCount === totalFiles 
+      ? `All ${totalFiles} files uploaded successfully to ${backupType} ${revision}`
+      : `${successCount} of ${totalFiles} files uploaded successfully. ${errorCount} failed.`;
 
     res.json({
       success: true,
-      message: 'Project backup uploaded successfully',
-      data: newBackup
+      message: responseMessage,
+      data: {
+        revision,
+        uploadedFiles: uploadedBackups,
+        totalFiles,
+        successCount,
+        errorCount,
+        errors: uploadErrors
+      }
     });
 
   } catch (error) {
-    console.error('Error uploading project backup:', error);
+    console.error('Error uploading project backups:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to upload project backup',
+      message: 'Failed to upload project backups',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
