@@ -787,7 +787,7 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
     
     if (searchTerm) {
       filtered = filtered.filter((backup: ProjectBackup) =>
-        backup.backupName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (backup.backupName || backup.originalFileName || backup.fileName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         backup.backupType.toLowerCase().includes(searchTerm.toLowerCase()) ||
         backup.description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -802,7 +802,8 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
     
     filteredBackups.forEach((backup: ProjectBackup) => {
       const backupType = backup.backupType;
-      const backupName = backup.backupName;
+      // Handle both backupName and originalFileName fields for compatibility
+      const backupName = backup.backupName || backup.originalFileName || backup.fileName || 'Unknown';
       
       if (!typeGroups[backupType]) {
         typeGroups[backupType] = {};

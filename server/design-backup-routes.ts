@@ -26,6 +26,7 @@ router.get('/', async (req, res) => {
         backupType: designProjectBackups.backupType,
         fileName: designProjectBackups.fileName,
         originalFileName: designProjectBackups.originalFileName,
+        backupName: designProjectBackups.originalFileName, // Map originalFileName to backupName for frontend compatibility
         revision: designProjectBackups.revision,
         description: designProjectBackups.description,
         filePath: designProjectBackups.filePath,
@@ -43,6 +44,7 @@ router.get('/', async (req, res) => {
     const conditions = [];
 
     if (projectId && projectId !== 'all') {
+      console.log('Adding projectId condition:', projectId);
       conditions.push(eq(designProjectBackups.projectId, parseInt(projectId as string)));
     }
 
@@ -64,7 +66,8 @@ router.get('/', async (req, res) => {
       desc(designProjectBackups.revision)
     );
 
-    console.log(`Found ${backups.length} project backups`);
+    console.log(`Found ${backups.length} project backups for projectId: ${projectId}`);
+    console.log('Sample backup data:', backups.length > 0 ? backups[0] : 'No backups found');
 
     res.json({
       success: true,
