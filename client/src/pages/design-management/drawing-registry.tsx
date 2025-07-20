@@ -415,28 +415,39 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
               {filteredProjectItems.allItems
                 .filter((item: any) => !item.isParent && !item.isChild)
                 .map((item: any) => (
-                  <div key={`standalone-${item.id}`} className="flex items-center justify-between p-3 bg-blue-50 rounded border border-blue-200">
+                  <div key={`standalone-${item.id}`} className={`flex items-center justify-between p-3 rounded border ${
+                    item.isVersion 
+                      ? 'bg-indigo-50 border-indigo-200' 
+                      : 'bg-blue-50 border-blue-200'
+                  }`}>
                     <div className="flex items-center gap-3">
-                      <FileText className="w-4 h-4 text-blue-600" />
-                      <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
-                        Standalone Item
+                      <FileText className={`w-4 h-4 ${item.isVersion ? 'text-indigo-600' : 'text-blue-600'}`} />
+                      <Badge variant="outline" className={
+                        item.isVersion 
+                          ? 'bg-indigo-100 text-indigo-700 border-indigo-300' 
+                          : 'bg-blue-100 text-blue-700 border-blue-300'
+                      }>
+                        {item.isVersion ? `Version ${item.revision}` : 'Standalone Item'}
                       </Badge>
                       <div>
-                        <div className="font-medium text-gray-900">{item.itemCode}</div>
-                        <div className="text-sm text-gray-600">{item.description}</div>
+                        <div className="font-medium text-gray-900">
+                          {item.isVersion ? item.fileName : item.itemCode}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {item.isVersion ? `Drawing: ${item.drawingNo}` : item.description}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-sm">
                         <span className="text-gray-500">Make/Buy:</span> <span className="font-medium">{item.makeOrBuy || 'N/A'}</span>
                       </div>
-                      {item.revision && (
+{item.revision && (
                         <div className="text-sm">
-                          <span className="text-gray-500">Revision:</span> 
-                          <span className="font-medium text-blue-600">{item.revision}</span>
-                          {item.fileName && (
-                            <span className="text-gray-400 ml-2">({item.fileName})</span>
-                          )}
+                          <span className="text-gray-500">{item.isVersion ? 'File:' : 'Revision:'}</span> 
+                          <span className={`font-medium ${item.isVersion ? 'text-indigo-600' : 'text-blue-600'}`}>
+                            {item.isVersion ? item.fileName : item.revision}
+                          </span>
                         </div>
                       )}
                       <div className="flex gap-1">
