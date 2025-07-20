@@ -96,6 +96,8 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
   showAllRevisions: boolean;
 }) {
   const { toast } = useToast();
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   // Fetch project items with parent-child relationships
   const { data: projectItemsResponse, isLoading: itemsLoading } = useQuery({
@@ -110,6 +112,50 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
   });
 
   const projectItems = projectItemsResponse?.data || { parentItems: [], childItems: [], allItems: [], stats: {} };
+
+  // Upload drawing mutation for Project Drawings
+  const uploadProjectDrawingMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      const response = await fetch('/api/design/drawings/upload', {
+        method: 'POST',
+        body: formData
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to upload project drawing');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/design/drawings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/design/project-items'] });
+      setIsUploadDialogOpen(false);
+      toast({
+        title: "Project Drawing Uploaded",
+        description: data.message || "The project drawing has been successfully uploaded with automatic revision control.",
+        variant: "default"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Upload Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleProjectDrawingUpload = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    
+    // Add the selected project ID to the form data
+    if (selectedProjectId) {
+      formData.append('designProjectId', selectedProjectId.toString());
+    }
+    
+    uploadProjectDrawingMutation.mutate(formData);
+  };
 
   if (!selectedProjectId) {
     return (
@@ -173,13 +219,25 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
       {projectItems.allItems.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FolderOpen className="w-5 h-5 text-indigo-600" />
-              Project Items & Components
-            </CardTitle>
-            <CardDescription>
-              All project items including parent assemblies and child components
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <FolderOpen className="w-5 h-5 text-indigo-600" />
+                  Project Items & Components
+                </CardTitle>
+                <CardDescription>
+                  All project items including parent assemblies and child components
+                </CardDescription>
+              </div>
+              <Button 
+                onClick={() => setIsUploadDialogOpen(true)}
+                className="bg-indigo-600 hover:bg-indigo-700"
+                size="sm"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Upload Drawing
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -294,6 +352,116 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
           </CardContent>
         </Card>
       )}
+
+      {/* Upload Dialog for Project Drawings */}
+      <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="w-5 h-5 text-indigo-600" />
+              Upload Project Drawing
+            </DialogTitle>
+            <DialogDescription>
+              Upload a new drawing file for this project with automatic revision control
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleProjectDrawingUpload} className="space-y-4">
+            <div>
+              <Label htmlFor="drawingNumber">Drawing Number *</Label>
+              <Input
+                id="drawingNumber"
+                name="drawingNumber"
+                placeholder="e.g., DWG-001, P&ID-101"
+                required
+                className="w-full"
+              />
+            </div>
+            <div>
+              <Label htmlFor="drawingTitle">Drawing Title *</Label>
+              <Input
+                id="drawingTitle"
+                name="drawingTitle"
+                placeholder="e.g., Process Flow Diagram"
+                required
+                className="w-full"
+              />
+            </div>
+            <div>
+              <Label htmlFor="category">Category *</Label>
+              <Select name="category" required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="General_Arrangement_Drawing">General Arrangement Drawing</SelectItem>
+                  <SelectItem value="Process_Flow_Diagram">Process Flow Diagram</SelectItem>
+                  <SelectItem value="3D_Solid_Works">3D Solid Works</SelectItem>
+                  <SelectItem value="3D_eDrawings">3D eDrawings</SelectItem>
+                  <SelectItem value="Assembly_Drawing">Assembly Drawing</SelectItem>
+                  <SelectItem value="Detail_Drawing">Detail Drawing</SelectItem>
+                  <SelectItem value="Installation_Drawing">Installation Drawing</SelectItem>
+                  <SelectItem value="As_Built_Drawing">As-Built Drawing</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="discipline">Discipline</Label>
+              <Select name="discipline" defaultValue="Project_Drawings">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Project_Drawings">Project Drawings</SelectItem>
+                  <SelectItem value="Process_Engineering">Process Engineering</SelectItem>
+                  <SelectItem value="Mechanical_Piping">Mechanical & Piping</SelectItem>
+                  <SelectItem value="Civil_Structural">Civil & Structural</SelectItem>
+                  <SelectItem value="Electrical_Instrumentation">Electrical & Instrumentation</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="file">Drawing File *</Label>
+              <Input
+                id="file"
+                name="file"
+                type="file"
+                accept=".dwg,.dxf,.pdf,.png,.jpg,.jpeg"
+                required
+                className="w-full"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Supports: DWG, DXF, PDF, PNG, JPG (Max 50MB)
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="versionNotes">Version Notes</Label>
+              <Input
+                id="versionNotes"
+                name="versionNotes"
+                placeholder="Brief description of changes (optional)"
+                className="w-full"
+              />
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsUploadDialogOpen(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={uploadProjectDrawingMutation.isPending}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+              >
+                {uploadProjectDrawingMutation.isPending ? 'Uploading...' : 'Upload'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
