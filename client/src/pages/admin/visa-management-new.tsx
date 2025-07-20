@@ -1133,7 +1133,7 @@ function VisaRecordsTab() {
 
       {/* Create Visa Record Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Visa Record</DialogTitle>
             <DialogDescription>
@@ -1445,7 +1445,7 @@ function VisaRecordsTab() {
 
       {/* View Visa Record Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Visa Record Details</DialogTitle>
             <DialogDescription>
@@ -1558,7 +1558,7 @@ function VisaRecordsTab() {
 
       {/* Edit Visa Record Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Visa Record</DialogTitle>
             <DialogDescription>
