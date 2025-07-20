@@ -112,7 +112,7 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
   React.useEffect(() => {
     if (selectedItemForUpload && isUploadDialogOpen) {
       setFormValues({
-        drawingNumber: selectedItemForUpload.drawingNumber || '',
+        drawingNumber: selectedItemForUpload.drawingNo || '',
         drawingTitle: selectedItemForUpload.description || '',
         category: 'Assembly_Drawing', // Default category
         discipline: 'Project_Drawings',
