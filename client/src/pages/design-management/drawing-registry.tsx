@@ -803,6 +803,8 @@ function DisciplineSection({ disciplineName, disciplineKey, icon: IconComponent,
     formData.append('projectId', selectedProjectId?.toString() || '');
     formData.append('discipline', disciplineName);
     formData.append('drawingType', uploadDialog.type);
+    // Auto-populate description with "Project Basic Drawings"
+    formData.append('description', 'Project Basic Drawings');
     
     uploadMutation.mutate({ 
       formData, 
@@ -957,18 +959,14 @@ function DisciplineSection({ disciplineName, disciplineKey, icon: IconComponent,
               </p>
             </div>
             <div>
-              <Label htmlFor="revisionReason">Revision Reason (Optional)</Label>
-              <Input 
-                name="revisionReason" 
-                placeholder="Brief reason for new revision or changes made"
-              />
-            </div>
-            <div>
-              <Label htmlFor="description">Description (Optional)</Label>
+              <Label htmlFor="description">Description</Label>
               <Input 
                 name="description" 
-                placeholder="Brief description of the drawing"
+                value="Project Basic Drawings"
+                readOnly
+                className="bg-gray-50 cursor-not-allowed"
               />
+              <p className="text-sm text-green-600 mt-1">Auto-populated (read-only)</p>
             </div>
             <DialogFooter>
               <Button 
