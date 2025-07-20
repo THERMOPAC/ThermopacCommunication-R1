@@ -168,17 +168,6 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // Check if drawing number already exists
-    const existingDrawing = await db
-      .select()
-      .from(designDrawings)
-      .where(eq(designDrawings.drawingNumber, drawingNumber))
-      .limit(1);
-
-    if (existingDrawing.length > 0) {
-      return res.status(400).json({ error: 'Drawing number already exists' });
-    }
-
     // Get design project info for GCS path
     const designProject = await db
       .select({
@@ -197,8 +186,52 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
 
     const projectCode = designProject[0].projectCode || 'UNKNOWN';
     
-    // Create GCS path: Design_Management/Drawings/{projectCode}/{drawingNumber}/
-    const gcsPath = `Design_Management/Drawings/${projectCode}/${drawingNumber}/${file.originalname}`;
+    // **AUTOMATIC REVISION CONTROL LOGIC**
+    // Check if drawing with same drawingNumber already exists for revision control
+    const existingVersions = await db
+      .select({ 
+        id: drawingVersions.id,
+        revision: drawingVersions.revision,
+        fileName: drawingVersions.fileName 
+      })
+      .from(drawingVersions)
+      .leftJoin(designDrawings, eq(drawingVersions.drawingId, designDrawings.id))
+      .where(eq(designDrawings.drawingNumber, drawingNumber))
+      .orderBy(desc(drawingVersions.uploadDate));
+
+    let autoRevision = 'R1';
+    let isRevision = false;
+    
+    if (existingVersions.length > 0) {
+      isRevision = true;
+      // Extract revision numbers and find the next revision
+      const revisions = existingVersions
+        .map(d => d.revision)
+        .filter(r => r && r.match(/^R\d+$/))
+        .map(r => {
+          const match = r.match(/^R(\d+)$/);
+          return match ? parseInt(match[1]) : null;
+        })
+        .filter(r => r !== null)
+        .sort((a, b) => b - a);
+
+      if (revisions.length > 0) {
+        const latestRevision = revisions[0];
+        // Auto-increment revision (R1 → R2 → R3)
+        autoRevision = `R${latestRevision + 1}`;
+      } else {
+        autoRevision = 'R2'; // If no valid revisions found, start at R2
+      }
+    }
+
+    const finalRevision = autoRevision;
+
+    // **UPDATED GCS PATH STRUCTURE**
+    // Structure: Design_Management/Drawings/{ProjectCode}/{DrawingNumber}/{DrawingNumber}_R{Revision}.{extension}
+    const fileExtension = file.originalname.split('.').pop();
+    const versionedFileName = `${drawingNumber}_${finalRevision}.${fileExtension}`;
+    
+    const gcsPath = `Design_Management/Drawings/${projectCode}/${drawingNumber}/${versionedFileName}`;
 
     // Upload to GCS
     const uploadResult = await uploadFileWithDiagnostics(gcsPath, file.buffer, file.mimetype);
@@ -206,30 +239,48 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
       return res.status(500).json({ error: `Upload failed: ${uploadResult.error?.message || 'Unknown error'}` });
     }
 
-    // Create drawing record
-    const [newDrawing] = await db
-      .insert(designDrawings)
-      .values({
-        designProjectId: parseInt(designProjectId),
-        drawingNumber,
-        drawingTitle,
-        category,
-        disciplineCode,
-        status: 'Draft',
-        createdBy: userId,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      })
-      .returning();
+    // Create drawing record (only if this is the first version)
+    let drawingId;
+    if (!isRevision) {
+      const [newDrawing] = await db
+        .insert(designDrawings)
+        .values({
+          designProjectId: parseInt(designProjectId),
+          drawingNumber,
+          drawingTitle,
+          category,
+          disciplineCode,
+          status: 'Draft',
+          createdBy: userId,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+      
+      drawingId = newDrawing.id;
+    } else {
+      // Get existing drawing ID
+      const existingDrawing = await db
+        .select({ id: designDrawings.id })
+        .from(designDrawings)
+        .where(eq(designDrawings.drawingNumber, drawingNumber))
+        .limit(1);
+      
+      if (existingDrawing.length === 0) {
+        return res.status(400).json({ error: 'Drawing not found for revision' });
+      }
+      
+      drawingId = existingDrawing[0].id;
+    }
 
-    // Create initial version
+    // Create new version
     const [newVersion] = await db
       .insert(drawingVersions)
       .values({
-        drawingId: newDrawing.id,
+        drawingId: drawingId,
         version: '1',
-        revision: '0',
-        fileName: file.originalname,
+        revision: finalRevision,
+        fileName: versionedFileName,
         fileUrl: uploadResult.url,
         filePath: uploadResult.path || gcsPath,
         fileSize: file.size,
@@ -247,12 +298,20 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
         currentVersionId: newVersion.id,
         updatedAt: new Date()
       })
-      .where(eq(designDrawings.id, newDrawing.id));
+      .where(eq(designDrawings.id, drawingId));
+
+    // Get updated drawing info for response
+    const updatedDrawing = await db
+      .select()
+      .from(designDrawings)
+      .where(eq(designDrawings.id, drawingId))
+      .limit(1);
 
     res.json({
       success: true,
-      drawing: newDrawing,
-      version: newVersion
+      drawing: updatedDrawing[0],
+      version: newVersion,
+      message: `Drawing uploaded successfully with revision ${finalRevision}`
     });
   } catch (error) {
     console.error('Error uploading drawing:', error);
