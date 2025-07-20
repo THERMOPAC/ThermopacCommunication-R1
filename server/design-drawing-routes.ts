@@ -300,11 +300,11 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
     const finalRevision = autoRevision;
 
     // **UPDATED GCS PATH STRUCTURE**
-    // Structure: Design_Management/Drawings/{ProjectCode}/{DrawingNumber}/{DrawingNumber}_R{Revision}.{extension}
+    // Structure: Design_Management/{ProjectCode}/Drawings/{DrawingNumber}/{DrawingNumber}_R{Revision}.{extension}
     const fileExtension = file.originalname.split('.').pop();
     const versionedFileName = `${drawingNumber}_${finalRevision}.${fileExtension}`;
     
-    const gcsPath = `Design_Management/Drawings/${projectCode}/${drawingNumber}/${versionedFileName}`;
+    const gcsPath = `Design_Management/${projectCode}/Drawings/${drawingNumber}/${versionedFileName}`;
 
     // Upload to GCS
     const uploadResult = await uploadFileWithDiagnostics(gcsPath, file.buffer, file.mimetype);
