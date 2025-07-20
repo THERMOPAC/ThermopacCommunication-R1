@@ -455,10 +455,15 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                       </div>
 {item.revision && (
                         <div className="text-sm">
-                          <span className="text-gray-500">{item.isVersion ? 'File:' : 'Revision:'}</span> 
+                          <span className="text-gray-500">{item.isVersion ? 'Revision:' : 'Revision:'}</span> 
                           <span className={`font-medium ${item.isVersion ? 'text-indigo-600' : 'text-blue-600'}`}>
-                            {item.isVersion ? item.fileName : item.revision}
+                            {item.revision}
                           </span>
+                          {item.isVersion && item.fileName && (
+                            <div className="text-xs text-gray-400 mt-1">
+                              File: {item.fileName}
+                            </div>
+                          )}
                         </div>
                       )}
                       <div className="flex gap-1">
