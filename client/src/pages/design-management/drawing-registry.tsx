@@ -140,6 +140,37 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
 
   const projectItems = projectItemsResponse?.data || { parentItems: [], childItems: [], allItems: [], stats: {} };
 
+  // Filter items based on search term (Item Code, Item Name/Description, Drawing Number)
+  const filterItems = (items: any[]) => {
+    if (!searchTerm.trim()) return items;
+    
+    const searchLower = searchTerm.toLowerCase().trim();
+    return items.filter((item: any) => {
+      const itemCode = item.itemCode?.toLowerCase() || '';
+      const description = item.description?.toLowerCase() || '';
+      const drawingNumber = item.drawingNumber?.toLowerCase() || '';
+      
+      return itemCode.includes(searchLower) || 
+             description.includes(searchLower) || 
+             drawingNumber.includes(searchLower);
+    });
+  };
+
+  // Apply search filter to project items (backend handles revision visibility)
+  const filteredProjectItems = {
+    ...projectItems,
+    parentItems: filterItems(projectItems.parentItems || []).map((parent: any) => ({
+      ...parent,
+      childComponents: parent.childComponents ? filterItems(parent.childComponents) : []
+    })),
+    allItems: filterItems(projectItems.allItems || []),
+    stats: {
+      ...projectItems.stats,
+      totalItems: filterItems(projectItems.allItems || []).length,
+      parentItems: filterItems(projectItems.parentItems || []).length
+    }
+  };
+
   // Group items by drawing number for Project Drawings display
   const groupedStandaloneItems = React.useMemo(() => {
     const allItems = (searchTerm ? filteredProjectItems.allItems : projectItems.allItems || []).filter((item: any) => !item.isParent && !item.isChild);
@@ -174,37 +205,6 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
     
     return grouped;
   }, [searchTerm, filteredProjectItems.allItems, projectItems.allItems]);
-
-  // Filter items based on search term (Item Code, Item Name/Description, Drawing Number)
-  const filterItems = (items: any[]) => {
-    if (!searchTerm.trim()) return items;
-    
-    const searchLower = searchTerm.toLowerCase().trim();
-    return items.filter((item: any) => {
-      const itemCode = item.itemCode?.toLowerCase() || '';
-      const description = item.description?.toLowerCase() || '';
-      const drawingNumber = item.drawingNumber?.toLowerCase() || '';
-      
-      return itemCode.includes(searchLower) || 
-             description.includes(searchLower) || 
-             drawingNumber.includes(searchLower);
-    });
-  };
-
-  // Apply search filter to project items (backend handles revision visibility)
-  const filteredProjectItems = {
-    ...projectItems,
-    parentItems: filterItems(projectItems.parentItems || []).map((parent: any) => ({
-      ...parent,
-      childComponents: parent.childComponents ? filterItems(parent.childComponents) : []
-    })),
-    allItems: filterItems(projectItems.allItems || []),
-    stats: {
-      ...projectItems.stats,
-      totalItems: filterItems(projectItems.allItems || []).length,
-      parentItems: filterItems(projectItems.parentItems || []).length
-    }
-  };
 
   // Upload drawing mutation for Project Drawings
   const uploadProjectDrawingMutation = useMutation({
