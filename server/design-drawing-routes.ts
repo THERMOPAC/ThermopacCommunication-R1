@@ -201,12 +201,19 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
 
 
 
+        // Truncate design project name to fit database constraint (255 chars)
+        const baseProjectName = project[0].name || 'Unknown Project';
+        const designProjectName = `${baseProjectName} - Design Phase`;
+        const truncatedDesignProjectName = designProjectName.length > 255 
+          ? designProjectName.substring(0, 252) + '...' 
+          : designProjectName;
+
         const [newDesignProject] = await db
           .insert(designProjects)
           .values({
             projectId: parseInt(projectId),
             projectCode: project[0].code || '2025-' + projectId,
-            designProjectName: `${project[0].name} - Design Phase`,
+            designProjectName: truncatedDesignProjectName,
             designPhase: 'Detailed',
             status: 'In Progress',
             designManagerId: userId,
