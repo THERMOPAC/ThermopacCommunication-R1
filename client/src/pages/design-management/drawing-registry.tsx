@@ -325,7 +325,11 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                     </div>
                     {parentItem.revision && (
                       <div className="text-sm">
-                        <span className="text-gray-500">Revision:</span> <span className="font-medium text-indigo-600">{parentItem.revision}</span>
+                        <span className="text-gray-500">Revision:</span> 
+                        <span className="font-medium text-indigo-600">{parentItem.revision}</span>
+                        {parentItem.allRevisions && parentItem.totalVersions > 1 && (
+                          <span className="text-gray-400 ml-1">({parentItem.allRevisions})</span>
+                        )}
                       </div>
                     )}
                     <div className="flex gap-1">
@@ -375,7 +379,11 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                       </div>
                       {child.revision && (
                         <div className="text-sm">
-                          <span className="text-gray-500">Revision:</span> <span className="font-medium text-purple-600">{child.revision}</span>
+                          <span className="text-gray-500">Revision:</span> 
+                          <span className="font-medium text-purple-600">{child.revision}</span>
+                          {child.allRevisions && child.totalVersions > 1 && (
+                            <span className="text-gray-400 ml-1">({child.allRevisions})</span>
+                          )}
                         </div>
                       )}
                       <div className="flex gap-1">
@@ -424,7 +432,11 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                       </div>
                       {item.revision && (
                         <div className="text-sm">
-                          <span className="text-gray-500">Revision:</span> <span className="font-medium text-blue-600">{item.revision}</span>
+                          <span className="text-gray-500">Revision:</span> 
+                          <span className="font-medium text-blue-600">{item.revision}</span>
+                          {item.allRevisions && item.totalVersions > 1 && (
+                            <span className="text-gray-400 ml-1">({item.allRevisions})</span>
+                          )}
                         </div>
                       )}
                       <div className="flex gap-1">

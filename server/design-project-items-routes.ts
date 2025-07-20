@@ -128,21 +128,30 @@ router.get('/', ensureAuthenticated, async (req, res) => {
           .where(inArray(drawingVersions.drawingId, drawingIds))
           .orderBy(desc(drawingVersions.createdAt));
           
-          // Group versions by drawing and get latest
-          const latestVersionsMap = new Map();
+          // Group all versions by drawing (show all revisions info)
+          const allVersionsMap = new Map();
           versions.forEach(version => {
-            if (!latestVersionsMap.has(version.drawingId)) {
-              latestVersionsMap.set(version.drawingId, version);
+            if (!allVersionsMap.has(version.drawingId)) {
+              allVersionsMap.set(version.drawingId, []);
             }
+            allVersionsMap.get(version.drawingId).push(version);
           });
           
-          // Map drawing numbers to their latest revisions
+          // Map drawing numbers to their revision information
           drawings.forEach(drawing => {
-            const latestVersion = latestVersionsMap.get(drawing.id);
-            if (latestVersion) {
-              console.log(`Found revision for drawing ${drawing.drawingNumber}: ${latestVersion.revision}`);
+            const drawingVersions = allVersionsMap.get(drawing.id);
+            if (drawingVersions && drawingVersions.length > 0) {
+              // Sort versions by creation date (newest first)
+              drawingVersions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+              
+              const latestVersion = drawingVersions[0];
+              const allRevisions = drawingVersions.map(v => v.revision).join(', ');
+              
+              console.log(`Found revisions for drawing ${drawing.drawingNumber}: ${allRevisions} (Latest: ${latestVersion.revision})`);
               drawingRevisions.set(drawing.drawingNumber, {
                 revision: latestVersion.revision,
+                allRevisions: allRevisions,
+                totalVersions: drawingVersions.length,
                 fileName: latestVersion.fileName,
                 updatedAt: latestVersion.createdAt
               });
@@ -182,6 +191,8 @@ router.get('/', ensureAuthenticated, async (req, res) => {
         supplier: masterItem.supplier,
         drawingNo: masterItem.drawingNo,
         revision: revisionInfo?.revision || null,
+        allRevisions: revisionInfo?.allRevisions || null,
+        totalVersions: revisionInfo?.totalVersions || null,
         fileName: revisionInfo?.fileName || null,
         lastUpdated: revisionInfo?.updatedAt || null,
         isParent: parentToChildMap.has(masterItem.id),
