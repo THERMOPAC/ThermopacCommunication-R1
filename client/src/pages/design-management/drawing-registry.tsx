@@ -1018,7 +1018,7 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
                           <div className="flex-1">
                             <div className="font-medium">{backup.fileName}</div>
                             <div className="text-sm text-gray-500">
-                              Uploaded {format(new Date(backup.uploadDate), 'MMM dd, yyyy')} by {
+                              Uploaded {backup.uploadedAt ? format(new Date(backup.uploadedAt), 'MMM dd, yyyy') : 'Unknown date'} by {
                                 backup.uploader?.firstName && backup.uploader?.lastName 
                                   ? `${backup.uploader.firstName} ${backup.uploader.lastName}`
                                   : backup.uploader?.username || 'Unknown'
