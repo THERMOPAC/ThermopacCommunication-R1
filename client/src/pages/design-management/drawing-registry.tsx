@@ -98,7 +98,36 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
   const { toast } = useToast();
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedItemForUpload, setSelectedItemForUpload] = useState<any>(null);
+  const [formValues, setFormValues] = useState({
+    drawingNumber: '',
+    drawingTitle: '',
+    category: '',
+    discipline: 'Project_Drawings',
+    versionNotes: ''
+  });
   const queryClient = useQueryClient();
+
+  // Auto-populate form when selectedItemForUpload changes
+  React.useEffect(() => {
+    if (selectedItemForUpload && isUploadDialogOpen) {
+      setFormValues({
+        drawingNumber: selectedItemForUpload.drawingNumber || selectedItemForUpload.itemCode || '',
+        drawingTitle: selectedItemForUpload.description || '',
+        category: 'Assembly_Drawing', // Default category
+        discipline: 'Project_Drawings',
+        versionNotes: ''
+      });
+    } else {
+      setFormValues({
+        drawingNumber: '',
+        drawingTitle: '',
+        category: '',
+        discipline: 'Project_Drawings',
+        versionNotes: ''
+      });
+    }
+  }, [selectedItemForUpload, isUploadDialogOpen]);
 
   // Fetch project items with parent-child relationships
   const { data: projectItemsResponse, isLoading: itemsLoading } = useQuery({
@@ -307,7 +336,10 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                       <Button 
                         size="sm" 
                         variant="outline"
-                        onClick={() => setIsUploadDialogOpen(true)}
+                        onClick={() => {
+                          setSelectedItemForUpload(parentItem);
+                          setIsUploadDialogOpen(true);
+                        }}
                         title="Upload Drawing"
                         className="bg-indigo-50 hover:bg-indigo-100 border-indigo-200"
                       >
@@ -349,7 +381,10 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                         <Button 
                           size="sm" 
                           variant="outline"
-                          onClick={() => setIsUploadDialogOpen(true)}
+                          onClick={() => {
+                            setSelectedItemForUpload(child);
+                            setIsUploadDialogOpen(true);
+                          }}
                           title="Upload Drawing"
                           className="bg-indigo-50 hover:bg-indigo-100 border-indigo-200"
                         >
@@ -390,7 +425,10 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                         <Button 
                           size="sm" 
                           variant="outline"
-                          onClick={() => setIsUploadDialogOpen(true)}
+                          onClick={() => {
+                            setSelectedItemForUpload(item);
+                            setIsUploadDialogOpen(true);
+                          }}
                           title="Upload Drawing"
                           className="bg-indigo-50 hover:bg-indigo-100 border-indigo-200"
                         >
@@ -437,7 +475,12 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
       )}
 
       {/* Upload Dialog for Project Drawings */}
-      <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+      <Dialog open={isUploadDialogOpen} onOpenChange={(open) => {
+        setIsUploadDialogOpen(open);
+        if (!open) {
+          setSelectedItemForUpload(null);
+        }
+      }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -455,9 +498,14 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                 id="drawingNumber"
                 name="drawingNumber"
                 placeholder="e.g., DWG-001, P&ID-101"
+                value={formValues.drawingNumber}
+                onChange={(e) => setFormValues(prev => ({ ...prev, drawingNumber: e.target.value }))}
                 required
                 className="w-full"
               />
+              {selectedItemForUpload && (
+                <p className="text-sm text-green-600 mt-1">Auto-populated from item data</p>
+              )}
             </div>
             <div>
               <Label htmlFor="drawingTitle">Drawing Title *</Label>
@@ -465,13 +513,18 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                 id="drawingTitle"
                 name="drawingTitle"
                 placeholder="e.g., Process Flow Diagram"
+                value={formValues.drawingTitle}
+                onChange={(e) => setFormValues(prev => ({ ...prev, drawingTitle: e.target.value }))}
                 required
                 className="w-full"
               />
+              {selectedItemForUpload && (
+                <p className="text-sm text-green-600 mt-1">Auto-populated from item description</p>
+              )}
             </div>
             <div>
               <Label htmlFor="category">Category *</Label>
-              <Select name="category" required>
+              <Select name="category" value={formValues.category} onValueChange={(value) => setFormValues(prev => ({ ...prev, category: value }))} required>
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
@@ -486,10 +539,13 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                   <SelectItem value="As_Built_Drawing">As-Built Drawing</SelectItem>
                 </SelectContent>
               </Select>
+              {selectedItemForUpload && (
+                <p className="text-sm text-green-600 mt-1">Defaults to Assembly Drawing</p>
+              )}
             </div>
             <div>
               <Label htmlFor="discipline">Discipline</Label>
-              <Select name="discipline" defaultValue="Project_Drawings">
+              <Select name="discipline" value={formValues.discipline} onValueChange={(value) => setFormValues(prev => ({ ...prev, discipline: value }))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -522,6 +578,8 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                 id="versionNotes"
                 name="versionNotes"
                 placeholder="Brief description of changes (optional)"
+                value={formValues.versionNotes}
+                onChange={(e) => setFormValues(prev => ({ ...prev, versionNotes: e.target.value }))}
                 className="w-full"
               />
             </div>
@@ -529,7 +587,10 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsUploadDialogOpen(false)}
+                onClick={() => {
+                  setIsUploadDialogOpen(false);
+                  setSelectedItemForUpload(null);
+                }}
                 className="flex-1"
               >
                 Cancel
