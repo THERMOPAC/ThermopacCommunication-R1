@@ -426,7 +426,7 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                     });
                   }
                   return (
-                    <div key={`standalone-${item.id}`} className={`flex items-center justify-between p-3 rounded border ${
+                    <div key={item.isVersion ? `version-${item.versionId}-${item.revision}` : `standalone-${item.id}`} className={`flex items-center justify-between p-3 rounded border ${
                     item.isVersion 
                       ? 'bg-indigo-50 border-indigo-200' 
                       : 'bg-blue-50 border-blue-200'
@@ -442,10 +442,10 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                       </Badge>
                       <div>
                         <div className="font-medium text-gray-900">
-                          {item.isVersion ? item.fileName : item.itemCode}
+                          {item.isVersion ? `${item.drawingNo} - ${item.revision}` : item.itemCode}
                         </div>
                         <div className="text-sm text-gray-600">
-                          {item.isVersion ? `Drawing: ${item.drawingNo}` : item.description}
+                          {item.isVersion ? `Drawing File: ${item.fileName}` : item.description}
                         </div>
                       </div>
                     </div>
