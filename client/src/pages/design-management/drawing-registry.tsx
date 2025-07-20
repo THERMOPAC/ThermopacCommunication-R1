@@ -140,6 +140,41 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
 
   const projectItems = projectItemsResponse?.data || { parentItems: [], childItems: [], allItems: [], stats: {} };
 
+  // Group items by drawing number for Project Drawings display
+  const groupedStandaloneItems = React.useMemo(() => {
+    const allItems = (searchTerm ? filteredProjectItems.allItems : projectItems.allItems || []).filter((item: any) => !item.isParent && !item.isChild);
+    
+    // Group by drawing number
+    const grouped = new Map<string, { mainItem: any; versions: any[] }>();
+    
+    allItems.forEach((item: any) => {
+      const drawingNo = item.drawingNo || item.itemCode || '';
+      
+      if (!grouped.has(drawingNo)) {
+        grouped.set(drawingNo, { mainItem: null, versions: [] });
+      }
+      
+      const group = grouped.get(drawingNo)!;
+      
+      if (item.isVersion) {
+        group.versions.push(item);
+      } else {
+        group.mainItem = item;
+      }
+    });
+    
+    // Sort versions by revision (R4, R3, R2, R1)
+    Array.from(grouped.values()).forEach(group => {
+      group.versions.sort((a, b) => {
+        const revisionOrder = { 'R4': 4, 'R3': 3, 'R2': 2, 'R1': 1 };
+        return (revisionOrder[b.revision as keyof typeof revisionOrder] || 0) - 
+               (revisionOrder[a.revision as keyof typeof revisionOrder] || 0);
+      });
+    });
+    
+    return grouped;
+  }, [searchTerm, filteredProjectItems.allItems, projectItems.allItems]);
+
   // Filter items based on search term (Item Code, Item Name/Description, Drawing Number)
   const filterItems = (items: any[]) => {
     if (!searchTerm.trim()) return items;
@@ -412,61 +447,84 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
               )}
 
               {/* Group items by drawing number to show main item + individual version rows */}
-              {React.useMemo(() => {
-                const allItems = filteredProjectItems.allItems.filter((item: any) => !item.isParent && !item.isChild);
-                
-                // Group by drawing number
-                const grouped = new Map<string, { mainItem: any; versions: any[] }>();
-                
-                allItems.forEach((item: any) => {
-                  const drawingNo = item.drawingNo || item.itemCode || '';
-                  
-                  if (!grouped.has(drawingNo)) {
-                    grouped.set(drawingNo, { mainItem: null, versions: [] });
-                  }
-                  
-                  const group = grouped.get(drawingNo)!;
-                  
-                  if (item.isVersion) {
-                    group.versions.push(item);
-                  } else {
-                    group.mainItem = item;
-                  }
-                });
-                
-                // Sort versions by revision (R4, R3, R2, R1)
-                Array.from(grouped.values()).forEach(group => {
-                  group.versions.sort((a, b) => {
-                    const revisionOrder = { 'R4': 4, 'R3': 3, 'R2': 2, 'R1': 1 };
-                    return (revisionOrder[b.revision as keyof typeof revisionOrder] || 0) - 
-                           (revisionOrder[a.revision as keyof typeof revisionOrder] || 0);
-                  });
-                });
-                
-                return Array.from(grouped.entries()).map(([drawingNo, group]) => (
-                  <div key={`group-${drawingNo}`} className="space-y-2">
-                    {/* Main Item */}
-                    {group.mainItem && (
-                      <div className="flex items-center justify-between p-3 rounded border bg-blue-50 border-blue-200">
-                        <div className="flex items-center gap-3">
-                          <FileText className="w-4 h-4 text-blue-600" />
-                          <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
-                            Main Item
-                          </Badge>
-                          <div>
-                            <div className="font-medium text-gray-900">
-                              {group.mainItem.itemCode}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {group.mainItem.description}
-                            </div>
+              {Array.from(groupedStandaloneItems.entries()).map(([drawingNo, group]) => (
+                <div key={`group-${drawingNo}`} className="space-y-2">
+                  {/* Main Item */}
+                  {group.mainItem && (
+                    <div className="flex items-center justify-between p-3 rounded border bg-blue-50 border-blue-200">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-4 h-4 text-blue-600" />
+                        <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                          Main Item
+                        </Badge>
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {group.mainItem.itemCode}
                           </div>
+                          <div className="text-sm text-gray-600">
+                            {group.mainItem.description}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          title="View Item Details"
+                        >
+                          <Eye className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedItemForUpload(group.mainItem);
+                            setFormValues({
+                              drawingNumber: group.mainItem.drawingNo || '',
+                              drawingTitle: group.mainItem.description || '',
+                              discipline: 'Project_Drawings'
+                            });
+                            setIsUploadDialogOpen(true);
+                          }}
+                          title="Upload Drawing"
+                          className="bg-indigo-50 hover:bg-indigo-100 border-indigo-200"
+                        >
+                          <Upload className="w-3 h-3 text-indigo-600" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Individual Version Rows - Each version as separate row */}
+                  {group.versions.map((version: any) => {
+                    console.log(`🎯 Rendering version item:`, {
+                      id: version.id,
+                      revision: version.revision,
+                      fileName: version.fileName,
+                      versionId: version.versionId,
+                      isVersion: version.isVersion
+                    });
+                    
+                    return (
+                      <div key={`version-${version.versionId}`} className="flex items-center justify-between p-2 bg-gray-50 rounded border ml-6">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm font-medium">{version.fileName}</span>
+                          <Badge variant="outline" className={`
+                            ${version.revision === 'R4' ? 'bg-purple-100 text-purple-700 border-purple-300' :
+                              version.revision === 'R3' ? 'bg-green-100 text-green-700 border-green-300' :
+                              version.revision === 'R2' ? 'bg-yellow-100 text-yellow-700 border-yellow-300' :
+                              version.revision === 'R1' ? 'bg-pink-100 text-pink-700 border-pink-300' :
+                              'bg-indigo-100 text-indigo-700 border-indigo-300'}
+                          `}>
+                            {version.revision}
+                          </Badge>
                         </div>
                         <div className="flex gap-2">
                           <Button
                             size="sm"
                             variant="outline"
-                            title="View Item Details"
+                            title="View Drawing"
                           >
                             <Eye className="w-3 h-3" />
                           </Button>
@@ -474,73 +532,18 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                             size="sm"
                             variant="outline"
                             onClick={() => {
-                              setSelectedItemForUpload(group.mainItem);
-                              setFormValues({
-                                drawingNumber: group.mainItem.drawingNo || '',
-                                drawingTitle: group.mainItem.description || '',
-                                discipline: 'Project_Drawings'
-                              });
-                              setIsUploadDialogOpen(true);
+                              window.open(`/api/design/versions/${version.versionId}/download`, '_blank');
                             }}
-                            title="Upload Drawing"
-                            className="bg-indigo-50 hover:bg-indigo-100 border-indigo-200"
+                            title={`Download ${version.revision} - ${version.fileName}`}
                           >
-                            <Upload className="w-3 h-3 text-indigo-600" />
+                            <Download className="w-3 h-3" />
                           </Button>
                         </div>
                       </div>
-                    )}
-                    
-                    {/* Individual Version Rows - Each version as separate row */}
-                    {group.versions.map((version: any) => {
-                      console.log(`🎯 Rendering version item:`, {
-                        id: version.id,
-                        revision: version.revision,
-                        fileName: version.fileName,
-                        versionId: version.versionId,
-                        isVersion: version.isVersion
-                      });
-                      
-                      return (
-                        <div key={`version-${version.versionId}`} className="flex items-center justify-between p-2 bg-gray-50 rounded border ml-6">
-                          <div className="flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-gray-500" />
-                            <span className="text-sm font-medium">{version.fileName}</span>
-                            <Badge variant="outline" className={`
-                              ${version.revision === 'R4' ? 'bg-purple-100 text-purple-700 border-purple-300' :
-                                version.revision === 'R3' ? 'bg-green-100 text-green-700 border-green-300' :
-                                version.revision === 'R2' ? 'bg-yellow-100 text-yellow-700 border-yellow-300' :
-                                version.revision === 'R1' ? 'bg-pink-100 text-pink-700 border-pink-300' :
-                                'bg-indigo-100 text-indigo-700 border-indigo-300'}
-                            `}>
-                              {version.revision}
-                            </Badge>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              title="View Drawing"
-                            >
-                              <Eye className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                window.open(`/api/design/versions/${version.versionId}/download`, '_blank');
-                              }}
-                              title={`Download ${version.revision} - ${version.fileName}`}
-                            >
-                              <Download className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ));
-              }, [filteredProjectItems.allItems, setSelectedItemForUpload, setFormValues, setIsUploadDialogOpen])}
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
