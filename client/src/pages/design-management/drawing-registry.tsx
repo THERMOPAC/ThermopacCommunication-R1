@@ -29,7 +29,6 @@ import {
   Zap,
   Building,
   Cog,
-  Trash2,
   Clock,
   RefreshCw
 } from 'lucide-react';
@@ -383,27 +382,6 @@ function DisciplineSection({ disciplineName, disciplineKey, icon: IconComponent,
     }
   });
 
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (drawingId: string) => {
-      const response = await fetch(`/api/design/basic-drawings/${drawingId}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) throw new Error('Failed to delete drawing');
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/design/basic-drawings'] });
-      toast({ title: "Success", description: "Drawing deleted successfully" });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Error", 
-        description: error.message || "Failed to delete drawing",
-        variant: "destructive"
-      });
-    }
-  });
 
   const handleUpload = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -428,12 +406,6 @@ function DisciplineSection({ disciplineName, disciplineKey, icon: IconComponent,
         description: "Failed to download drawing",
         variant: "destructive"
       });
-    }
-  };
-
-  const handleDelete = (drawingId: string) => {
-    if (confirm('Are you sure you want to delete this drawing?')) {
-      deleteMutation.mutate(drawingId);
     }
   };
 
@@ -522,15 +494,6 @@ function DisciplineSection({ disciplineName, disciplineKey, icon: IconComponent,
                               title="Download Drawing"
                             >
                               <Download className="w-3 h-3" />
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => handleDelete(drawing.id)}
-                              className="text-red-600 hover:text-red-700"
-                              title="Delete Drawing"
-                            >
-                              <Trash2 className="w-3 h-3" />
                             </Button>
                           </div>
                         </div>
@@ -684,27 +647,6 @@ function ProjectBasicDrawingsSection() {
   });
 
   // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (drawingId: string) => {
-      const response = await fetch(`/api/design/basic-drawings/${drawingId}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) throw new Error('Failed to delete drawing');
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/design/basic-drawings'] });
-      toast({ title: "Success", description: "Drawing deleted successfully" });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Error", 
-        description: error.message || "Failed to delete drawing",
-        variant: "destructive"
-      });
-    }
-  });
-
   const handleUpload = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
@@ -729,12 +671,6 @@ function ProjectBasicDrawingsSection() {
         description: "Failed to download drawing",
         variant: "destructive"
       });
-    }
-  };
-
-  const handleDelete = (drawingId: string) => {
-    if (confirm('Are you sure you want to delete this drawing?')) {
-      deleteMutation.mutate(drawingId);
     }
   };
 
@@ -925,14 +861,6 @@ function ProjectBasicDrawingsSection() {
                                       onClick={() => handleDownload(drawing)}
                                     >
                                       <Download className="w-3 h-3" />
-                                    </Button>
-                                    <Button 
-                                      size="sm" 
-                                      variant="outline"
-                                      onClick={() => handleDelete(drawing.id)}
-                                      className="text-red-600 hover:text-red-700"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
                                     </Button>
                                   </div>
                                 </div>
