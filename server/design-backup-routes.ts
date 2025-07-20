@@ -81,7 +81,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST upload project backup with version control
-router.post('/upload', upload.single('file'), async (req, res) => {
+router.post('/', upload.single('file'), async (req, res) => {
   try {
     console.log('=== PROJECT BACKUP UPLOAD ROUTE HIT ===');
     console.log('Request body:', req.body);
@@ -247,6 +247,58 @@ router.get('/download/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to download project backup',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// GET download project backup by ID
+router.get('/:id/download', async (req, res) => {
+  try {
+    const backupId = parseInt(req.params.id);
+    if (isNaN(backupId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid backup ID'
+      });
+    }
+
+    // Get backup details from database
+    const backup = await db.select().from(designProjectBackups)
+      .where(eq(designProjectBackups.id, backupId))
+      .limit(1);
+
+    if (backup.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Backup not found'
+      });
+    }
+
+    const backupRecord = backup[0];
+
+    // Generate signed URL for download
+    const { generateSignedUrl } = await import('../utils/gcs-enhanced-upload.js');
+    
+    try {
+      const signedUrl = await generateSignedUrl(backupRecord.filePath);
+      console.log('Generated signed URL for backup download:', signedUrl);
+      
+      // Redirect to the signed URL
+      res.redirect(signedUrl);
+    } catch (error) {
+      console.error('Error generating signed URL:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to generate download link',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  } catch (error) {
+    console.error('Error downloading project backup:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to download backup',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
