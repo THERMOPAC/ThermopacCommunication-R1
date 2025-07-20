@@ -428,17 +428,25 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                   return (
                     <div key={item.isVersion ? `version-${item.versionId}-${item.revision}` : `standalone-${item.id}`} className={`flex items-center justify-between p-3 rounded border ${
                     item.isVersion 
-                      ? 'bg-indigo-50 border-indigo-200' 
+                      ? (() => {
+                          switch(item.revision) {
+                            case 'R4': return 'bg-purple-50 border-purple-200';
+                            case 'R3': return 'bg-green-50 border-green-200'; 
+                            case 'R2': return 'bg-yellow-50 border-yellow-200';
+                            case 'R1': return 'bg-pink-50 border-pink-200';
+                            default: return 'bg-indigo-50 border-indigo-200';
+                          }
+                        })()
                       : 'bg-blue-50 border-blue-200'
                   }`}>
                     <div className="flex items-center gap-3">
                       <FileText className={`w-4 h-4 ${item.isVersion ? 'text-indigo-600' : 'text-blue-600'}`} />
                       <Badge variant="outline" className={
                         item.isVersion 
-                          ? 'bg-indigo-100 text-indigo-700 border-indigo-300' 
+                          ? `bg-indigo-100 text-indigo-700 border-indigo-300` 
                           : 'bg-blue-100 text-blue-700 border-blue-300'
                       }>
-                        {item.isVersion ? `Version ${item.revision}` : 'Standalone Item'}
+                        {item.isVersion ? `${item.revision} (v${item.versionId})` : 'Standalone Item'}
                       </Badge>
                       <div>
                         <div className="font-medium text-gray-900">
