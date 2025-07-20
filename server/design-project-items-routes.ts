@@ -10,6 +10,7 @@ const router = express.Router();
 router.get('/', ensureAuthenticated, async (req, res) => {
   try {
     const { projectId, showAllRevisions } = req.query;
+    console.log(`=== PROJECT ITEMS API CALLED === projectId: ${projectId}, showAllRevisions: ${showAllRevisions}`);
     
     if (!projectId) {
       return res.status(400).json({ 
@@ -164,6 +165,10 @@ router.get('/', ensureAuthenticated, async (req, res) => {
 
       // Get revision information for this item
       const revisionInfo = drawingRevisions.get(masterItem.drawingNo);
+      
+      if (revisionInfo) {
+        console.log(`=== ITEM ${masterItem.itemCode} HAS REVISION INFO:`, revisionInfo);
+      }
 
       const itemData = {
         id: masterItem.id,

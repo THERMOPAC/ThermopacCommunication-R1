@@ -128,9 +128,12 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
     queryKey: ['/api/design/project-items', selectedProjectId, showAllRevisions],
     queryFn: async () => {
       if (!selectedProjectId) return { success: true, data: { parentItems: [], childItems: [], allItems: [], stats: {} } };
+      console.log(`🔍 ProjectItemsSection API Call: projectId=${selectedProjectId}, showAllRevisions=${showAllRevisions}`);
       const response = await fetch(`/api/design/project-items?projectId=${selectedProjectId}&showAllRevisions=${showAllRevisions}`);
       if (!response.ok) throw new Error('Failed to fetch project items');
-      return response.json();
+      const data = await response.json();
+      console.log(`📊 ProjectItemsSection API Response:`, data);
+      return data;
     },
     enabled: !!selectedProjectId
   });
