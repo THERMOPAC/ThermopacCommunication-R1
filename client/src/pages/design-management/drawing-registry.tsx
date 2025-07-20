@@ -414,8 +414,19 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
               {/* Standalone Items */}
               {filteredProjectItems.allItems
                 .filter((item: any) => !item.isParent && !item.isChild)
-                .map((item: any) => (
-                  <div key={`standalone-${item.id}`} className={`flex items-center justify-between p-3 rounded border ${
+                .map((item: any) => {
+                  // Debug log for each item being rendered
+                  if (item.isVersion) {
+                    console.log(`🎯 Rendering version item:`, {
+                      id: item.id,
+                      revision: item.revision,
+                      fileName: item.fileName,
+                      versionId: item.versionId,
+                      isVersion: item.isVersion
+                    });
+                  }
+                  return (
+                    <div key={`standalone-${item.id}`} className={`flex items-center justify-between p-3 rounded border ${
                     item.isVersion 
                       ? 'bg-indigo-50 border-indigo-200' 
                       : 'bg-blue-50 border-blue-200'
@@ -487,7 +498,8 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
             </div>
           </CardContent>
         </Card>
