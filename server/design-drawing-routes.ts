@@ -203,8 +203,11 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
           .insert(designProjects)
           .values({
             projectId: parseInt(projectId),
+            projectCode: project[0].code,
             designProjectName: `${project[0].name} - Design Phase`,
-            status: 'Active',
+            designPhase: 'Detailed',
+            status: 'In Progress',
+            designManagerId: userId,
             startDate: new Date(),
             createdBy: userId,
             createdAt: new Date(),
