@@ -102,9 +102,7 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
   const [formValues, setFormValues] = useState({
     drawingNumber: '',
     drawingTitle: '',
-    category: '',
-    discipline: 'Project_Drawings',
-    versionNotes: ''
+    discipline: 'Project_Drawings'
   });
   const queryClient = useQueryClient();
 
@@ -114,17 +112,13 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
       setFormValues({
         drawingNumber: selectedItemForUpload.drawingNo || '',
         drawingTitle: selectedItemForUpload.description || '',
-        category: 'Assembly_Drawing', // Default category
-        discipline: 'Project_Drawings',
-        versionNotes: ''
+        discipline: 'Project_Drawings'
       });
     } else {
       setFormValues({
         drawingNumber: '',
         drawingTitle: '',
-        category: '',
-        discipline: 'Project_Drawings',
-        versionNotes: ''
+        discipline: 'Project_Drawings'
       });
     }
   }, [selectedItemForUpload, isUploadDialogOpen]);
@@ -524,27 +518,7 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                 <p className="text-sm text-green-600 mt-1">Auto-populated from item description (read-only)</p>
               )}
             </div>
-            <div>
-              <Label htmlFor="category">Category *</Label>
-              <Select name="category" value={formValues.category} onValueChange={(value) => setFormValues(prev => ({ ...prev, category: value }))} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="General_Arrangement_Drawing">General Arrangement Drawing</SelectItem>
-                  <SelectItem value="Process_Flow_Diagram">Process Flow Diagram</SelectItem>
-                  <SelectItem value="3D_Solid_Works">3D Solid Works</SelectItem>
-                  <SelectItem value="3D_eDrawings">3D eDrawings</SelectItem>
-                  <SelectItem value="Assembly_Drawing">Assembly Drawing</SelectItem>
-                  <SelectItem value="Detail_Drawing">Detail Drawing</SelectItem>
-                  <SelectItem value="Installation_Drawing">Installation Drawing</SelectItem>
-                  <SelectItem value="As_Built_Drawing">As-Built Drawing</SelectItem>
-                </SelectContent>
-              </Select>
-              {selectedItemForUpload && (
-                <p className="text-sm text-green-600 mt-1">Defaults to Assembly Drawing</p>
-              )}
-            </div>
+
             <div>
               <Label htmlFor="discipline">Discipline</Label>
               <Select 
@@ -582,17 +556,7 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                 Supports: DWG, DXF, PDF, PNG, JPG (Max 50MB)
               </p>
             </div>
-            <div>
-              <Label htmlFor="versionNotes">Version Notes</Label>
-              <Input
-                id="versionNotes"
-                name="versionNotes"
-                placeholder="Brief description of changes (optional)"
-                value={formValues.versionNotes}
-                onChange={(e) => setFormValues(prev => ({ ...prev, versionNotes: e.target.value }))}
-                className="w-full"
-              />
-            </div>
+
             <div className="flex gap-2 pt-4">
               <Button
                 type="button"
