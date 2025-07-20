@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Upload, FileSpreadsheet, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -98,6 +98,45 @@ const CustomerImport: React.FC<CustomerImportProps> = ({ open, onOpenChange }) =
     onOpenChange(false);
   };
 
+  const handleDownloadSample = async () => {
+    try {
+      const response = await fetch('/api/customers/sample-excel', {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download sample file');
+      }
+
+      // Create blob from response
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'customer_import_sample.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+
+      toast({
+        title: "Sample Downloaded",
+        description: "Customer import sample file has been downloaded successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "Failed to download sample file. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]">
@@ -125,6 +164,20 @@ const CustomerImport: React.FC<CustomerImportProps> = ({ open, onOpenChange }) =
                 <li><code>Continent</code></li>
                 <li><code>Country Name</code></li>
               </ul>
+            </div>
+            <div className="mt-3 p-3 bg-blue-50 text-blue-800 text-sm rounded border border-blue-200">
+              <div className="flex items-center justify-between">
+                <span><strong>Need help?</strong> Download a sample Excel file with the correct format.</span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleDownloadSample}
+                  className="ml-2 flex items-center gap-1"
+                >
+                  <Download className="h-3 w-3" />
+                  Sample
+                </Button>
+              </div>
             </div>
           </DialogDescription>
         </DialogHeader>
