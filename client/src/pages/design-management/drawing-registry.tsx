@@ -450,7 +450,7 @@ function ProjectItemsSection({ selectedProjectId, showAllRevisions }: {
                       </Badge>
                       <div>
                         <div className="font-medium text-gray-900">
-                          {item.isVersion ? `${item.drawingNo} - ${item.revision}` : item.itemCode}
+                          {item.isVersion ? `${item.drawingNo} - ${item.revision} [ID: ${item.versionId}]` : item.itemCode}
                         </div>
                         <div className="text-sm text-gray-600">
                           {item.isVersion ? `Drawing File: ${item.fileName}` : item.description}
