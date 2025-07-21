@@ -318,6 +318,20 @@ export default function InspectionsPage() {
     inspectionDate: string;
     observations: string;
   } | null>(null);
+
+  // Hydrotest dialog states
+  const [isHydrotestDialogOpen, setIsHydrotestDialogOpen] = useState(false);
+  const [editingHydrotestRecord, setEditingHydrotestRecord] = useState<{
+    id: string;
+    pressure: string;
+    duration: string;
+    medium: string;
+    pressureGauge: string;
+    operator: string;
+    testDate: string;
+    result: string;
+    notes: string;
+  } | null>(null);
   const [shopInspectionRecords, setShopInspectionRecords] = useState<{
     id: string;
     inspectionType: string;
@@ -460,7 +474,7 @@ export default function InspectionsPage() {
     notes: string;
   };
   const [selectedHydrotestRecord, setSelectedHydrotestRecord] = useState<HydrotestRecord | null>(null);
-  const [editingHydrotestIndex, setEditingHydrotestIndex] = useState<number | null>(null);
+
   
   // Non-Conformance Report state
   const [ncrRecords, setNcrRecords] = useState<{
@@ -698,50 +712,57 @@ export default function InspectionsPage() {
     setEditingVisualRecord(record);
     setIsVisualDialogOpen(true);
   };
-  
-  // Add new hydrotest record
-  const addHydrotestRecord = () => {
-    const newHydrotestNumber = hydrotestRecords.length + 1;
-    setHydrotestRecords([
-      ...hydrotestRecords, 
-      {
-        id: `HT-${newHydrotestNumber}`,
-        pressure: '10.0',
-        duration: '30',
-        medium: 'water',
-        pressureGauge: '',
-        operator: '',
-        testDate: '',
-        result: 'Pass',
-        notes: ''
-      }
-    ]);
-    setSelectedHydrotestRecord(null);
+
+  // Add new Hydrotest record via dialog
+  const addHydrotestRecord = (recordData: {
+    id: string;
+    pressure: string;
+    duration: string;
+    medium: string;
+    pressureGauge: string;
+    operator: string;
+    testDate: string;
+    result: string;
+    notes: string;
+  }) => {
+    setHydrotestRecords([...hydrotestRecords, recordData]);
+    setIsHydrotestDialogOpen(false);
+    toast({
+      title: "Hydrotest Record Added",
+      description: `Hydrotest record ${recordData.id} has been added successfully.`
+    });
   };
-  
-  // Delete a hydrotest record
-  const deleteHydrotestRecord = (index: number) => {
-    const updatedRecords = [...hydrotestRecords];
-    updatedRecords.splice(index, 1);
-    
-    // Renumber hydrotest records after deletion
-    const renumberedRecords = updatedRecords.map((record, idx) => ({
-      ...record,
-      id: `HT-${idx + 1}`
-    }));
-    
-    setHydrotestRecords(renumberedRecords);
-    setSelectedHydrotestRecord(null);
-    
-    if (editingHydrotestIndex === index) {
-      setEditingHydrotestIndex(null);
-    }
+
+  // Edit Hydrotest record via dialog
+  const editHydrotestRecord = (recordData: {
+    id: string;
+    pressure: string;
+    duration: string;
+    medium: string;
+    pressureGauge: string;
+    operator: string;
+    testDate: string;
+    result: string;
+    notes: string;
+  }) => {
+    setHydrotestRecords(prev => prev.map(record => 
+      record.id === recordData.id ? recordData : record
+    ));
+    setIsHydrotestDialogOpen(false);
+    setEditingHydrotestRecord(null);
+    toast({
+      title: "Hydrotest Record Updated",
+      description: `Hydrotest record ${recordData.id} has been updated successfully.`
+    });
   };
-  
-  // Edit a hydrotest record
-  const startEditingHydrotest = (index: number) => {
-    setEditingHydrotestIndex(index);
+
+  // Start editing Hydrotest record
+  const startEditingHydrotestRecord = (record: any) => {
+    setEditingHydrotestRecord(record);
+    setIsHydrotestDialogOpen(true);
   };
+
+
   
   // Function to check if a final dossier already exists
   const checkExistingFinalDossier = async (inspectionOrderNumber: string) => {
@@ -833,16 +854,6 @@ export default function InspectionsPage() {
     } finally {
       setIsGeneratingDossier(false);
     }
-  };
-  
-  // Update a hydrotest field
-  const updateHydrotestField = (index: number, field: string, value: string) => {
-    const updatedRecords = [...hydrotestRecords];
-    updatedRecords[index] = {
-      ...updatedRecords[index],
-      [field]: value
-    };
-    setHydrotestRecords(updatedRecords);
   };
   
   // Add new NCR record
@@ -4496,178 +4507,46 @@ export default function InspectionsPage() {
                                   {record.id}
                                 </TableCell>
                                 <TableCell>
-                                  {editingHydrotestIndex === index ? (
-                                    <Input 
-                                      value={record.pressure} 
-                                      onChange={(e) => updateHydrotestField(index, 'pressure', e.target.value)}
-                                      type="number"
-                                      step="0.1"
-                                      min="0"
-                                      className="w-[100px]"
-                                    />
-                                  ) : (
-                                    record.pressure || "-"
-                                  )}
+                                  {record.pressure || "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingHydrotestIndex === index ? (
-                                    <Input 
-                                      value={record.duration} 
-                                      onChange={(e) => updateHydrotestField(index, 'duration', e.target.value)}
-                                      type="number"
-                                      min="0"
-                                      className="w-[100px]"
-                                    />
-                                  ) : (
-                                    record.duration || "-"
-                                  )}
+                                  {record.duration || "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingHydrotestIndex === index ? (
-                                    <Select 
-                                      value={record.medium}
-                                      onValueChange={(value) => updateHydrotestField(index, 'medium', value)}
-                                    >
-                                      <SelectTrigger className="w-[120px]">
-                                        <SelectValue placeholder="Select medium" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="water">Water</SelectItem>
-                                        <SelectItem value="air">Air</SelectItem>
-                                        <SelectItem value="nitrogen">Nitrogen</SelectItem>
-                                        <SelectItem value="other">Other</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    record.medium || "-"
-                                  )}
+                                  {record.medium || "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingHydrotestIndex === index ? (
-                                    <Select 
-                                      value={record.pressureGauge}
-                                      onValueChange={(value) => updateHydrotestField(index, 'pressureGauge', value)}
-                                    >
-                                      <SelectTrigger className="w-[150px]">
-                                        <SelectValue placeholder="Select pressure gauge" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {isLoadingInstruments ? (
-                                          <SelectItem value="" disabled>Loading gauges...</SelectItem>
-                                        ) : (() => {
-                                          const pressureGauges = calibrationInstruments.filter(instrument => 
-                                            instrument.instrument_type === 'Pressure Gauge' && 
-                                            instrument.in_use === 'In Use'
-                                          );
-                                          return pressureGauges.length === 0 ? (
-                                            <SelectItem value="" disabled>No active pressure gauges available</SelectItem>
-                                          ) : (
-                                            pressureGauges.map(instrument => (
-                                              <SelectItem 
-                                                key={instrument.instrument_id} 
-                                                value={instrument.instrument_id}
-                                              >
-                                                {instrument.instrument_name} ({instrument.instrument_id})
-                                              </SelectItem>
-                                            ))
-                                          );
-                                        })()}
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    record.pressureGauge ? 
-                                      calibrationInstruments.find(i => i.instrument_id === record.pressureGauge)?.instrument_name || 
-                                      record.pressureGauge : 
-                                      "-"
-                                  )}
+                                  {record.pressureGauge ? 
+                                    calibrationInstruments.find(i => i.instrument_id === record.pressureGauge)?.instrument_name || 
+                                    record.pressureGauge : 
+                                    "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingHydrotestIndex === index ? (
-                                    <Input 
-                                      value={record.operator} 
-                                      onChange={(e) => updateHydrotestField(index, 'operator', e.target.value)}
-                                      className="w-[120px]"
-                                    />
-                                  ) : (
-                                    record.operator || "-"
-                                  )}
+                                  {record.operator || "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingHydrotestIndex === index ? (
-                                    <Input 
-                                      type="date" 
-                                      value={record.testDate} 
-                                      onChange={(e) => updateHydrotestField(index, 'testDate', e.target.value)}
-                                      className="w-[130px]"
-                                    />
-                                  ) : (
-                                    record.testDate || "-"
-                                  )}
+                                  {record.testDate || "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingHydrotestIndex === index ? (
-                                    <Select 
-                                      value={record.result}
-                                      onValueChange={(value) => updateHydrotestField(index, 'result', value)}
-                                    >
-                                      <SelectTrigger className="w-[100px]">
-                                        <SelectValue placeholder="Select result" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="Pass">Pass</SelectItem>
-                                        <SelectItem value="Failed">Failed</SelectItem>
-                                        <SelectItem value="Conditional Pass">Conditional Pass</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    record.result || "-"
-                                  )}
+                                  {record.result || "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingHydrotestIndex === index ? (
-                                    <Input 
-                                      value={record.notes} 
-                                      onChange={(e) => updateHydrotestField(index, 'notes', e.target.value)}
-                                      className="w-[150px]"
-                                    />
-                                  ) : (
-                                    record.notes || "-"
-                                  )}
+                                  {record.notes || "-"}
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <div className="flex justify-end space-x-1">
-                                    {editingHydrotestIndex === index ? (
-                                      <Button 
-                                        type="button" 
-                                        variant="default" 
-                                        size="icon" 
-                                        onClick={() => setEditingHydrotestIndex(null)}
-                                        className="h-7 w-7"
-                                      >
-                                        <Check className="h-3.5 w-3.5" />
-                                      </Button>
-                                    ) : (
-                                      <>
-                                        <Button 
-                                          type="button" 
-                                          variant="ghost" 
-                                          size="icon" 
-                                          onClick={() => startEditingHydrotest(index)}
-                                          className="h-7 w-7"
-                                        >
-                                          <Pencil className="h-3.5 w-3.5" />
-                                        </Button>
-                                        <Button 
-                                          type="button" 
-                                          variant="ghost" 
-                                          size="icon" 
-                                          onClick={() => deleteHydrotestRecord(index)}
-                                          className="h-7 w-7 text-destructive"
-                                        >
-                                          <Trash2 className="h-3.5 w-3.5" />
-                                        </Button>
-                                      </>
-                                    )}
+                                    <Button 
+                                      type="button" 
+                                      variant="outline" 
+                                      size="icon" 
+                                      onClick={() => {
+                                        setEditingHydrotestRecord(record);
+                                        setIsHydrotestDialogOpen(true);
+                                      }}
+                                      className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                    >
+                                      <Edit2 className="h-3.5 w-3.5" />
+                                    </Button>
                                   </div>
                                 </TableCell>
                               </TableRow>
@@ -4683,11 +4562,21 @@ export default function InspectionsPage() {
                             type="button" 
                             variant="default" 
                             size="sm" 
-                            onClick={addHydrotestRecord}
+                            onClick={() => {
+                              if (editInspectionOrderDetails?.project_code === 'UNKNOWN') {
+                                toast({
+                                  title: "Cannot Add Hydrotest Record",
+                                  description: "Project code is UNKNOWN. Please update the inspection order with a valid project code first.",
+                                  variant: "destructive"
+                                });
+                                return;
+                              }
+                              setIsHydrotestDialogOpen(true);
+                            }}
                             className="mr-2"
                           >
                             <Plus className="h-4 w-4 mr-2" />
-                            Add Hydrotest
+                            Add Hydrotest Record
                           </Button>
                         </div>
                         <div className="flex items-center gap-2">
