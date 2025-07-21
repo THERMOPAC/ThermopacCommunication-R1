@@ -273,6 +273,17 @@ export default function InspectionsPage() {
   // Search functionality state
   const [searchQuery, setSearchQuery] = useState<string>("");
   
+  // Shop inspection state
+  const [isShopInspectionDialogOpen, setIsShopInspectionDialogOpen] = useState(false);
+  const [shopInspectionRecords, setShopInspectionRecords] = useState<{
+    id: string;
+    inspectionType: string;
+    inspector: string;
+    date: string;
+    status: string;
+    remarks: string;
+  }[]>([]);
+  
   // Load project selection and keep visible state from localStorage on component mount
   useEffect(() => {
     const savedProject = localStorage.getItem('inspections-selected-project');
@@ -1647,6 +1658,40 @@ export default function InspectionsPage() {
   // Helper function to sync material rows with form
   const syncMaterialRowsWithForm = () => {
     editForm.setValue('materials', materialRows);
+  };
+
+  // Helper function to generate shop inspection record ID
+  const generateShopInspectionId = () => {
+    const existingIds = shopInspectionRecords.map(record => record.id);
+    let newIdNumber = 1;
+    let newId = `SI-${newIdNumber}`;
+    
+    while (existingIds.includes(newId)) {
+      newIdNumber++;
+      newId = `SI-${newIdNumber}`;
+    }
+    
+    return newId;
+  };
+
+  // Function to add a new shop inspection record
+  const addShopInspectionRecord = (recordData: {
+    inspectionType: string;
+    inspector: string;
+    date: string;
+    status: string;
+    remarks: string;
+  }) => {
+    const newRecord = {
+      id: generateShopInspectionId(),
+      ...recordData
+    };
+    setShopInspectionRecords(prev => [...prev, newRecord]);
+    setIsShopInspectionDialogOpen(false);
+    toast({
+      title: "Success",
+      description: "Shop inspection record added successfully",
+    });
   };
 
   // Update form values when inspection order details are loaded
@@ -3670,6 +3715,7 @@ export default function InspectionsPage() {
                           variant="outline" 
                           size="sm"
                           className="flex items-center text-xs"
+                          onClick={() => setIsShopInspectionDialogOpen(true)}
                         >
                           <Plus className="h-3.5 w-3.5 mr-1" /> Add Shop Inspection Record
                         </Button>
@@ -3690,11 +3736,60 @@ export default function InspectionsPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            <TableRow>
-                              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                                No shop inspection records available. Click "Add Shop Inspection Record" to create a new record.
-                              </TableCell>
-                            </TableRow>
+                            {shopInspectionRecords.length > 0 ? (
+                              shopInspectionRecords.map((record) => (
+                                <TableRow key={record.id}>
+                                  <TableCell className="font-medium">{record.id}</TableCell>
+                                  <TableCell>{record.inspectionType}</TableCell>
+                                  <TableCell>{record.inspector}</TableCell>
+                                  <TableCell>{record.date}</TableCell>
+                                  <TableCell>
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      record.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                                      record.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
+                                      'bg-gray-100 text-gray-800'
+                                    }`}>
+                                      {record.status}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell>{record.remarks}</TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center space-x-1">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
+                                      >
+                                        <Eye className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
+                                      >
+                                        <Edit2 className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                  No shop inspection records available. Click "Add Shop Inspection Record" to create a new record.
+                                </TableCell>
+                              </TableRow>
+                            )}
                           </TableBody>
                         </Table>
                       </div>
@@ -5296,6 +5391,120 @@ export default function InspectionsPage() {
               }}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Shop Inspection Dialog */}
+      <Dialog open={isShopInspectionDialogOpen} onOpenChange={setIsShopInspectionDialogOpen}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Shop Inspection Record</DialogTitle>
+            <DialogDescription>
+              Add a new shop inspection record for this inspection order.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            const recordData = {
+              inspectionType: formData.get('inspectionType') as string,
+              inspector: formData.get('inspector') as string,
+              date: formData.get('date') as string,
+              status: formData.get('status') as string,
+              remarks: formData.get('remarks') as string,
+            };
+            addShopInspectionRecord(recordData);
+          }} className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="inspectionType" className="text-sm font-medium">
+                Inspection Type *
+              </label>
+              <select
+                id="inspectionType"
+                name="inspectionType"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select inspection type</option>
+                <option value="Dimensional Check">Dimensional Check</option>
+                <option value="Surface Finish">Surface Finish</option>
+                <option value="Assembly Check">Assembly Check</option>
+                <option value="Functional Test">Functional Test</option>
+                <option value="Quality Control">Quality Control</option>
+                <option value="Final Inspection">Final Inspection</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="inspector" className="text-sm font-medium">
+                Inspector *
+              </label>
+              <input
+                type="text"
+                id="inspector"
+                name="inspector"
+                required
+                placeholder="Enter inspector name"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="date" className="text-sm font-medium">
+                Inspection Date *
+              </label>
+              <input
+                type="date"
+                id="date"
+                name="date"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="status" className="text-sm font-medium">
+                Status *
+              </label>
+              <select
+                id="status"
+                name="status"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select status</option>
+                <option value="Pending">Pending</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+                <option value="On Hold">On Hold</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="remarks" className="text-sm font-medium">
+                Remarks
+              </label>
+              <textarea
+                id="remarks"
+                name="remarks"
+                rows={3}
+                placeholder="Enter any remarks or observations"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsShopInspectionDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Add Record</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </Layout>
