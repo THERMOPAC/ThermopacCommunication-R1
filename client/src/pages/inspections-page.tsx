@@ -228,6 +228,7 @@ export default function InspectionsPage() {
   const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
+  const [keepProjectVisible, setKeepProjectVisible] = useState(false);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isGeneratingOrders, setIsGeneratingOrders] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
@@ -271,6 +272,33 @@ export default function InspectionsPage() {
   
   // Search functionality state
   const [searchQuery, setSearchQuery] = useState<string>("");
+  
+  // Load project selection and keep visible state from localStorage on component mount
+  useEffect(() => {
+    const savedProject = localStorage.getItem('inspections-selected-project');
+    const savedKeepVisible = localStorage.getItem('inspections-keep-visible');
+    
+    if (savedProject && savedKeepVisible === 'true') {
+      const projectId = parseInt(savedProject);
+      if (!isNaN(projectId)) {
+        setSelectedProject(projectId);
+      }
+    }
+    
+    if (savedKeepVisible) {
+      setKeepProjectVisible(savedKeepVisible === 'true');
+    }
+  }, []);
+  
+  // Save project selection and keep visible state to localStorage when changed
+  useEffect(() => {
+    if (keepProjectVisible && selectedProject) {
+      localStorage.setItem('inspections-selected-project', selectedProject.toString());
+    } else {
+      localStorage.removeItem('inspections-selected-project');
+    }
+    localStorage.setItem('inspections-keep-visible', keepProjectVisible.toString());
+  }, [selectedProject, keepProjectVisible]);
   
   // Weld management state
   const [welds, setWelds] = useState<{
@@ -2130,6 +2158,7 @@ export default function InspectionsPage() {
               <div>
                 <Label htmlFor="project-filter">Select Project</Label>
                 <Select 
+                  value={selectedProject?.toString() || ""}
                   onValueChange={(value) => setSelectedProject(parseInt(value))}
                   disabled={isLoadingProjects}
                 >
@@ -2144,6 +2173,20 @@ export default function InspectionsPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="keep-project-visible"
+                  checked={keepProjectVisible}
+                  onCheckedChange={(checked) => setKeepProjectVisible(checked as boolean)}
+                />
+                <Label 
+                  htmlFor="keep-project-visible" 
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Keep Visible (Maintain project filter when returning from edit/view pages)
+                </Label>
               </div>
               
               {selectedProject && (
