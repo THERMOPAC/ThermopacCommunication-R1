@@ -306,6 +306,18 @@ export default function InspectionsPage() {
     ndtDate: string;
     ndtResults: string;
   } | null>(null);
+
+  // Visual Inspection dialog states
+  const [isVisualDialogOpen, setIsVisualDialogOpen] = useState(false);
+  const [editingVisualRecord, setEditingVisualRecord] = useState<{
+    id: string;
+    standard: string;
+    dimensionalChecks: string;
+    surfaceCondition: string;
+    inspector: string;
+    inspectionDate: string;
+    observations: string;
+  } | null>(null);
   const [shopInspectionRecords, setShopInspectionRecords] = useState<{
     id: string;
     inspectionType: string;
@@ -642,55 +654,49 @@ export default function InspectionsPage() {
   
 
   
-  // Add new visual inspection record
-  const addVisualRecord = () => {
-    const newVisualNumber = visualRecords.length + 1;
-    setVisualRecords([
-      ...visualRecords, 
-      {
-        id: `VI-${newVisualNumber}`,
-        standard: 'ASME',
-        inspector: '',
-        dimensionalChecks: 'acceptable',
-        surfaceCondition: 'acceptable',
-        inspectionDate: '',
-        observations: 'Pass'
-      }
-    ]);
+  // Add new Visual Inspection record via dialog
+  const addVisualRecord = (recordData: {
+    id: string;
+    standard: string;
+    dimensionalChecks: string;
+    surfaceCondition: string;
+    inspector: string;
+    inspectionDate: string;
+    observations: string;
+  }) => {
+    setVisualRecords([...visualRecords, recordData]);
+    setIsVisualDialogOpen(false);
+    toast({
+      title: "Visual Inspection Record Added",
+      description: `Visual inspection record ${recordData.id} has been added successfully.`
+    });
   };
-  
-  // Delete a visual inspection record
-  const deleteVisualRecord = (index: number) => {
-    const updatedRecords = [...visualRecords];
-    updatedRecords.splice(index, 1);
-    
-    // Renumber visual records after deletion
-    const renumberedRecords = updatedRecords.map((record, idx) => ({
-      ...record,
-      id: `VI-${idx + 1}`
-    }));
-    
-    setVisualRecords(renumberedRecords);
-    setSelectedVisualRecord(null);
-    
-    if (editingVisualIndex === index) {
-      setEditingVisualIndex(null);
-    }
+
+  // Edit Visual Inspection record via dialog
+  const editVisualRecord = (recordData: {
+    id: string;
+    standard: string;
+    dimensionalChecks: string;
+    surfaceCondition: string;
+    inspector: string;
+    inspectionDate: string;
+    observations: string;
+  }) => {
+    setVisualRecords(prev => prev.map(record => 
+      record.id === recordData.id ? recordData : record
+    ));
+    setIsVisualDialogOpen(false);
+    setEditingVisualRecord(null);
+    toast({
+      title: "Visual Inspection Record Updated",
+      description: `Visual inspection record ${recordData.id} has been updated successfully.`
+    });
   };
-  
-  // Edit a visual inspection record
-  const startEditingVisual = (index: number) => {
-    setEditingVisualIndex(index);
-  };
-  
-  // Update a visual inspection field
-  const updateVisualField = (index: number, field: string, value: string) => {
-    const updatedRecords = [...visualRecords];
-    updatedRecords[index] = {
-      ...updatedRecords[index],
-      [field]: value
-    };
-    setVisualRecords(updatedRecords);
+
+  // Start editing Visual Inspection record
+  const startEditingVisualRecord = (record: any) => {
+    setEditingVisualRecord(record);
+    setIsVisualDialogOpen(true);
   };
   
   // Add new hydrotest record
@@ -4338,139 +4344,34 @@ export default function InspectionsPage() {
                                   {record.id}
                                 </TableCell>
                                 <TableCell>
-                                  {editingVisualIndex === index ? (
-                                    <Select 
-                                      value={record.standard}
-                                      onValueChange={(value) => updateVisualField(index, 'standard', value)}
-                                    >
-                                      <SelectTrigger className="w-[150px]">
-                                        <SelectValue placeholder="Select standard" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="ASME">ASME</SelectItem>
-                                        <SelectItem value="API">API</SelectItem>
-                                        <SelectItem value="EN ISO">EN ISO</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    record.standard || "-"
-                                  )}
+                                  {record.standard || "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingVisualIndex === index ? (
-                                    <Select 
-                                      value={record.dimensionalChecks}
-                                      onValueChange={(value) => updateVisualField(index, 'dimensionalChecks', value)}
-                                    >
-                                      <SelectTrigger className="w-[150px]">
-                                        <SelectValue placeholder="Select result" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="acceptable">Acceptable</SelectItem>
-                                        <SelectItem value="notAcceptable">Not Acceptable</SelectItem>
-                                        <SelectItem value="conditionallyAcceptable">Conditionally Acceptable</SelectItem>
-                                        <SelectItem value="notApplicable">Not Applicable</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    record.dimensionalChecks || "-"
-                                  )}
+                                  {record.dimensionalChecks || "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingVisualIndex === index ? (
-                                    <Select 
-                                      value={record.surfaceCondition}
-                                      onValueChange={(value) => updateVisualField(index, 'surfaceCondition', value)}
-                                    >
-                                      <SelectTrigger className="w-[150px]">
-                                        <SelectValue placeholder="Select condition" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="acceptable">Acceptable</SelectItem>
-                                        <SelectItem value="notAcceptable">Not Acceptable</SelectItem>
-                                        <SelectItem value="conditionallyAcceptable">Conditionally Acceptable</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    record.surfaceCondition || "-"
-                                  )}
+                                  {record.surfaceCondition || "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingVisualIndex === index ? (
-                                    <Input 
-                                      value={record.inspector} 
-                                      onChange={(e) => updateVisualField(index, 'inspector', e.target.value)}
-                                      className="w-[120px]"
-                                    />
-                                  ) : (
-                                    record.inspector || "-"
-                                  )}
+                                  {record.inspector || "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingVisualIndex === index ? (
-                                    <Input 
-                                      type="date" 
-                                      value={record.inspectionDate} 
-                                      onChange={(e) => updateVisualField(index, 'inspectionDate', e.target.value)}
-                                      className="w-[130px]"
-                                    />
-                                  ) : (
-                                    record.inspectionDate || "-"
-                                  )}
+                                  {record.inspectionDate || "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingVisualIndex === index ? (
-                                    <Select 
-                                      value={record.observations}
-                                      onValueChange={(value) => updateVisualField(index, 'observations', value)}
-                                    >
-                                      <SelectTrigger className="w-[150px]">
-                                        <SelectValue placeholder="Select result" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="Pass">Pass</SelectItem>
-                                        <SelectItem value="Failed">Failed</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    record.observations || "-"
-                                  )}
+                                  {record.observations || "-"}
                                 </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex justify-end space-x-1">
-                                    {editingVisualIndex === index ? (
-                                      <Button 
-                                        type="button" 
-                                        variant="default" 
-                                        size="icon" 
-                                        onClick={() => setEditingVisualIndex(null)}
-                                        className="h-7 w-7"
-                                      >
-                                        <Check className="h-3.5 w-3.5" />
-                                      </Button>
-                                    ) : (
-                                      <>
-                                        <Button 
-                                          type="button" 
-                                          variant="ghost" 
-                                          size="icon" 
-                                          onClick={() => startEditingVisual(index)}
-                                          className="h-7 w-7"
-                                        >
-                                          <Pencil className="h-3.5 w-3.5" />
-                                        </Button>
-                                        <Button 
-                                          type="button" 
-                                          variant="ghost" 
-                                          size="icon" 
-                                          onClick={() => deleteVisualRecord(index)}
-                                          className="h-7 w-7 text-destructive"
-                                        >
-                                          <Trash2 className="h-3.5 w-3.5" />
-                                        </Button>
-                                      </>
-                                    )}
-                                  </div>
+                                <TableCell>
+                                  <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    onClick={() => startEditingVisualRecord(record)}
+                                    className="h-7 w-7 text-green-600 hover:text-green-800 hover:bg-green-50"
+                                    title="Edit Visual Inspection Record"
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5" />
+                                  </Button>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -4485,11 +4386,21 @@ export default function InspectionsPage() {
                             type="button" 
                             variant="default" 
                             size="sm" 
-                            onClick={addVisualRecord}
+                            onClick={() => {
+                              if (editInspectionOrderDetails?.projectCode === 'UNKNOWN') {
+                                toast({
+                                  title: "Project Code Required",
+                                  description: "Cannot add Visual Inspection record with UNKNOWN project code. Please update the project information first.",
+                                  variant: "destructive"
+                                });
+                                return;
+                              }
+                              setIsVisualDialogOpen(true);
+                            }}
                             className="mr-2"
                           >
                             <Plus className="h-4 w-4 mr-2" />
-                            Add Visual Inspection
+                            Add Visual Inspection Record
                           </Button>
                         </div>
                         <div className="flex items-center gap-2">
@@ -5906,6 +5817,163 @@ export default function InspectionsPage() {
               </Button>
               <Button type="submit">
                 {editingNdtRecord ? 'Update Record' : 'Add Record'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Visual Inspection Record Dialog */}
+      <Dialog open={isVisualDialogOpen} onOpenChange={(open) => {
+        setIsVisualDialogOpen(open);
+        if (!open) {
+          setEditingVisualRecord(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingVisualRecord ? 'Edit Visual Inspection Record' : 'Add Visual Inspection Record'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target as HTMLFormElement);
+            
+            const recordData = {
+              id: editingVisualRecord?.id || `VI-${visualRecords.length + 1}`,
+              standard: formData.get('visualStandard') as string,
+              dimensionalChecks: formData.get('visualDimensionalChecks') as string,
+              surfaceCondition: formData.get('visualSurfaceCondition') as string,
+              inspector: formData.get('visualInspector') as string,
+              inspectionDate: formData.get('visualDate') as string,
+              observations: formData.get('visualObservations') as string,
+            };
+
+            if (editingVisualRecord) {
+              editVisualRecord(recordData);
+            } else {
+              addVisualRecord(recordData);
+            }
+          }}>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="visualStandard" className="text-sm font-medium">
+                    Standard *
+                  </label>
+                  <select
+                    id="visualStandard"
+                    name="visualStandard"
+                    required
+                    defaultValue={editingVisualRecord?.standard || "ASME"}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="ASME">ASME</option>
+                    <option value="API">API</option>
+                    <option value="EN ISO">EN ISO</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="visualDimensionalChecks" className="text-sm font-medium">
+                    Dimensional Checks *
+                  </label>
+                  <select
+                    id="visualDimensionalChecks"
+                    name="visualDimensionalChecks"
+                    required
+                    defaultValue={editingVisualRecord?.dimensionalChecks || "acceptable"}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="acceptable">Acceptable</option>
+                    <option value="notAcceptable">Not Acceptable</option>
+                    <option value="conditionallyAcceptable">Conditionally Acceptable</option>
+                    <option value="notApplicable">Not Applicable</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="visualSurfaceCondition" className="text-sm font-medium">
+                    Surface Condition *
+                  </label>
+                  <select
+                    id="visualSurfaceCondition"
+                    name="visualSurfaceCondition"
+                    required
+                    defaultValue={editingVisualRecord?.surfaceCondition || "acceptable"}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="acceptable">Acceptable</option>
+                    <option value="notAcceptable">Not Acceptable</option>
+                    <option value="conditionallyAcceptable">Conditionally Acceptable</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="visualInspector" className="text-sm font-medium">
+                    Inspector *
+                  </label>
+                  <input
+                    type="text"
+                    id="visualInspector"
+                    name="visualInspector"
+                    required
+                    defaultValue={editingVisualRecord?.inspector || ""}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter inspector name"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="visualDate" className="text-sm font-medium">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    id="visualDate"
+                    name="visualDate"
+                    defaultValue={editingVisualRecord?.inspectionDate || ""}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="visualObservations" className="text-sm font-medium">
+                    Observations *
+                  </label>
+                  <select
+                    id="visualObservations"
+                    name="visualObservations"
+                    required
+                    defaultValue={editingVisualRecord?.observations || "Pass"}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Pass">Pass</option>
+                    <option value="Failed">Failed</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setIsVisualDialogOpen(false);
+                  setEditingVisualRecord(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingVisualRecord ? 'Update Record' : 'Add Record'}
               </Button>
             </DialogFooter>
           </form>
