@@ -3365,6 +3365,7 @@ export default function InspectionsPage() {
                   <ScrollArea className="w-full whitespace-nowrap">
                     <TabsList className="flex w-full space-x-2">
                       <TabsTrigger value="material">Material Traceability</TabsTrigger>
+                      <TabsTrigger value="shop">Shop Inspection</TabsTrigger>
                       <TabsTrigger value="welding">Welding & Weld Maps</TabsTrigger>
                       <TabsTrigger value="ndt">NDT</TabsTrigger>
                       <TabsTrigger value="visual">Visual Inspection</TabsTrigger>
@@ -3654,6 +3655,59 @@ export default function InspectionsPage() {
                         <Button type="button" variant="outline" size="sm" className="text-xs">
                           <Eye className="h-3.5 w-3.5 mr-1" />
                           View Attachments
+                        </Button>
+                      </div>
+                    </div>
+                  </TabsContent>
+                  
+                  {/* Shop Inspection Tab */}
+                  <TabsContent value="shop" className="p-4 border rounded-md mt-4">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-medium">Shop Inspection</h3>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          className="flex items-center text-xs"
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Add Shop Inspection Record
+                        </Button>
+                      </div>
+                      
+                      {/* Shop Inspection Records Table */}
+                      <div className="border rounded-md shadow-sm overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[100px]">Record ID</TableHead>
+                              <TableHead className="w-[150px]">Inspection Type</TableHead>
+                              <TableHead className="w-[120px]">Inspector</TableHead>
+                              <TableHead className="w-[120px]">Date</TableHead>
+                              <TableHead className="w-[100px]">Status</TableHead>
+                              <TableHead className="w-[200px]">Remarks</TableHead>
+                              <TableHead className="w-[100px]">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            <TableRow>
+                              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                No shop inspection records available. Click "Add Shop Inspection Record" to create a new record.
+                              </TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </div>
+                      
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-2 mt-4">
+                        <Button type="button" variant="outline" size="sm" className="text-xs">
+                          <FileText className="h-3.5 w-3.5 mr-1" />
+                          Upload Shop Inspection Document
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" className="text-xs">
+                          <Eye className="h-3.5 w-3.5 mr-1" />
+                          View Documents
                         </Button>
                       </div>
                     </div>
