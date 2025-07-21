@@ -1115,22 +1115,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
                   setUploadDialogOpen(open);
                 }}>
                   <DialogTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        // Check if project number is UNKNOWN before allowing upload
-                        if (!recordData?.project_number || recordData.project_number === 'UNKNOWN') {
-                          toast({
-                            title: "Cannot Upload Document",
-                            description: "Cannot upload documents: Project number is not available. Please ensure this material identification record has a valid project number assigned.",
-                            variant: "destructive"
-                          });
-                          return;
-                        }
-                        setUploadDialogOpen(true);
-                      }}
-                      disabled={!recordData?.project_number || recordData.project_number === 'UNKNOWN'}
-                    >
+                    <Button variant="outline" onClick={() => setUploadDialogOpen(true)}>
                       <FileUp className="h-4 w-4 mr-2" />
                       Upload Document
                     </Button>

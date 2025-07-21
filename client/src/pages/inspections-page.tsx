@@ -1683,9 +1683,7 @@ export default function InspectionsPage() {
     remarks: string;
   }) => {
     // Check if we have valid inspection order details with project code
-    // Handle both snake_case and camelCase field names for compatibility
-    const projectCode = editInspectionOrderDetails?.projectCode || editInspectionOrderDetails?.project_code;
-    if (!projectCode || projectCode === 'UNKNOWN') {
+    if (!editInspectionOrderDetails?.project_code || editInspectionOrderDetails.project_code === 'UNKNOWN') {
       toast({
         title: "Cannot Create Record",
         description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
@@ -1804,9 +1802,8 @@ export default function InspectionsPage() {
   const handleUpdateInspectionOrder = async (data: InspectionOrderEditFormValues) => {
     if (!editingInspectionOrder) return;
     
-    // Only validate hydrotest records if there are hydrotest records to validate
-    // This prevents validation errors when updating inspection orders that don't have hydrotest data
-    if (hydrotestRecords.length > 0 && !validateHydrotestRecords()) {
+    // Validate hydrotest records first
+    if (!validateHydrotestRecords()) {
       return; // Stop update process if validation fails
     }
     
@@ -5504,7 +5501,6 @@ export default function InspectionsPage() {
           
           <form onSubmit={(e) => {
             e.preventDefault();
-            e.stopPropagation(); // Prevent form submission from bubbling up
             const formData = new FormData(e.currentTarget);
             const recordData = {
               inspectionType: formData.get('inspectionType') as string,

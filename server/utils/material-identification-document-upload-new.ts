@@ -104,20 +104,11 @@ export const uploadMaterialIdentificationDocument = async (req: Request): Promis
       
       const miId = queryResult.rows[0].material_identification_id;
       const projectNumber = queryResult.rows[0].project_number || 'UNKNOWN';
-      console.log(`uploadMaterialIdentificationDocument: Using Material Identification ID: ${miId}`);
-      console.log(`uploadMaterialIdentificationDocument: Using Project Number: ${projectNumber}`);
-
-      // Prevent upload if project code is UNKNOWN
-      if (projectNumber === 'UNKNOWN') {
-        console.error('uploadMaterialIdentificationDocument: Project number is UNKNOWN, cannot upload document');
-        return {
-          error: 'Cannot upload document: Project number is not available. Please ensure the material identification record has a valid project number assigned.',
-          success: false
-        };
-      }
-      
-      // Format: QMS/Material_Identification/{projectNumber}/{MI ID}/{Document Type}.{extension}
-      const filePath = `QMS/Material_Identification/${projectNumber}/${miId}/${documentTypeName}.${fileExtension}`;
+    console.log(`uploadMaterialIdentificationDocument: Using Material Identification ID: ${miId}`);
+    console.log(`uploadMaterialIdentificationDocument: Using Project Number: ${projectNumber}`);
+    
+    // Format: QMS/Material_Identification/{projectNumber}/{MI ID}/{Document Type}.{extension}
+    const filePath = `QMS/Material_Identification/${projectNumber}/${miId}/${documentTypeName}.${fileExtension}`;
     console.log(`uploadMaterialIdentificationDocument: File path: ${filePath}`);
     
     // Create a new blob in the bucket and upload the file data
