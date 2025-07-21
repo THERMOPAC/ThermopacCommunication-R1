@@ -75,14 +75,30 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
           projectCode = result.rows[0].project_code || 'UNKNOWN';
           console.log(`uploadInspectionDocument: Found project code: ${projectCode}`);
         } else {
-          console.warn(`uploadInspectionDocument: No inspection order found for ${inspectionOrderNumber}, using UNKNOWN`);
+          console.warn(`uploadInspectionDocument: No inspection order found for ${inspectionOrderNumber}`);
+          return {
+            error: `Inspection order ${inspectionOrderNumber} not found. Cannot upload document without valid inspection order.`,
+            success: false
+          };
         }
       } finally {
         client.release();
       }
     } catch (dbError) {
       console.error('uploadInspectionDocument: Database error fetching project code:', dbError);
-      // Continue with UNKNOWN project code
+      return {
+        error: `Database error while fetching inspection order details: ${dbError instanceof Error ? dbError.message : 'Unknown error'}`,
+        success: false
+      };
+    }
+
+    // Prevent upload if project code is UNKNOWN
+    if (projectCode === 'UNKNOWN') {
+      console.error('uploadInspectionDocument: Project code is UNKNOWN, cannot upload document');
+      return {
+        error: 'Cannot upload document: Project code is not available. Please ensure the inspection order has a valid project code assigned.',
+        success: false
+      };
     }
     
     // Extract file extension from the original file name

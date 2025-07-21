@@ -1682,6 +1682,16 @@ export default function InspectionsPage() {
     status: string;
     remarks: string;
   }) => {
+    // Check if we have valid inspection order details with project code
+    if (!editInspectionOrderDetails?.project_code || editInspectionOrderDetails.project_code === 'UNKNOWN') {
+      toast({
+        title: "Cannot Create Record",
+        description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const newRecord = {
       id: generateShopInspectionId(),
       ...recordData
@@ -3715,7 +3725,18 @@ export default function InspectionsPage() {
                           variant="outline" 
                           size="sm"
                           className="flex items-center text-xs"
-                          onClick={() => setIsShopInspectionDialogOpen(true)}
+                          onClick={() => {
+                            // Check if we have valid project code before opening dialog
+                            if (!editInspectionOrderDetails?.project_code || editInspectionOrderDetails.project_code === 'UNKNOWN') {
+                              toast({
+                                title: "Cannot Create Record",
+                                description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            setIsShopInspectionDialogOpen(true);
+                          }}
                         >
                           <Plus className="h-3.5 w-3.5 mr-1" /> Add Shop Inspection Record
                         </Button>
