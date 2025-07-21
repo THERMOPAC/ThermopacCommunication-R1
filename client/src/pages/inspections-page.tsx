@@ -275,6 +275,14 @@ export default function InspectionsPage() {
   
   // Shop inspection state
   const [isShopInspectionDialogOpen, setIsShopInspectionDialogOpen] = useState(false);
+  const [editingShopRecord, setEditingShopRecord] = useState<{
+    id: string;
+    inspectionType: string;
+    inspector: string;
+    date: string;
+    status: string;
+    remarks: string;
+  } | null>(null);
   const [shopInspectionRecords, setShopInspectionRecords] = useState<{
     id: string;
     inspectionType: string;
@@ -1702,6 +1710,39 @@ export default function InspectionsPage() {
       title: "Success",
       description: "Shop inspection record added successfully",
     });
+  };
+
+  // Function to edit a shop inspection record
+  const editShopInspectionRecord = (recordData: {
+    inspectionType: string;
+    inspector: string;
+    date: string;
+    status: string;
+    remarks: string;
+  }) => {
+    if (!editingShopRecord) return;
+    
+    setShopInspectionRecords(prev => 
+      prev.map(record => 
+        record.id === editingShopRecord.id 
+          ? { ...record, ...recordData }
+          : record
+      )
+    );
+    
+    setIsShopInspectionDialogOpen(false);
+    setEditingShopRecord(null);
+    
+    toast({
+      title: "Success",
+      description: "Shop inspection record updated successfully",
+    });
+  };
+
+  // Function to start editing a shop inspection record
+  const startEditingShopRecord = (record: typeof shopInspectionRecords[0]) => {
+    setEditingShopRecord(record);
+    setIsShopInspectionDialogOpen(true);
   };
 
   // Update form values when inspection order details are loaded
@@ -3816,6 +3857,7 @@ export default function InspectionsPage() {
                                         size="icon"
                                         className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
                                         title="Edit Record"
+                                        onClick={() => startEditingShopRecord(record)}
                                       >
                                         <Edit2 className="h-3 w-3" />
                                       </Button>
@@ -5490,12 +5532,22 @@ export default function InspectionsPage() {
       </Dialog>
 
       {/* Shop Inspection Dialog */}
-      <Dialog open={isShopInspectionDialogOpen} onOpenChange={setIsShopInspectionDialogOpen}>
+      <Dialog open={isShopInspectionDialogOpen} onOpenChange={(open) => {
+        setIsShopInspectionDialogOpen(open);
+        if (!open) {
+          setEditingShopRecord(null);
+        }
+      }}>
         <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add Shop Inspection Record</DialogTitle>
+            <DialogTitle>
+              {editingShopRecord ? 'Edit Shop Inspection Record' : 'Add Shop Inspection Record'}
+            </DialogTitle>
             <DialogDescription>
-              Add a new shop inspection record for this inspection order.
+              {editingShopRecord 
+                ? `Edit shop inspection record ${editingShopRecord.id} for this inspection order.`
+                : 'Add a new shop inspection record for this inspection order.'
+              }
             </DialogDescription>
           </DialogHeader>
           
@@ -5509,7 +5561,11 @@ export default function InspectionsPage() {
               status: formData.get('status') as string,
               remarks: formData.get('remarks') as string,
             };
-            addShopInspectionRecord(recordData);
+            if (editingShopRecord) {
+              editShopInspectionRecord(recordData);
+            } else {
+              addShopInspectionRecord(recordData);
+            }
           }} className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="inspectionType" className="text-sm font-medium">
@@ -5519,6 +5575,7 @@ export default function InspectionsPage() {
                 id="inspectionType"
                 name="inspectionType"
                 required
+                defaultValue={editingShopRecord?.inspectionType || ""}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select inspection type</option>
@@ -5540,6 +5597,7 @@ export default function InspectionsPage() {
                 id="inspector"
                 name="inspector"
                 required
+                defaultValue={editingShopRecord?.inspector || ""}
                 placeholder="Enter inspector name"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -5554,6 +5612,7 @@ export default function InspectionsPage() {
                 id="date"
                 name="date"
                 required
+                defaultValue={editingShopRecord?.date || ""}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -5566,6 +5625,7 @@ export default function InspectionsPage() {
                 id="status"
                 name="status"
                 required
+                defaultValue={editingShopRecord?.status || ""}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select status</option>
@@ -5584,6 +5644,7 @@ export default function InspectionsPage() {
                 id="remarks"
                 name="remarks"
                 rows={3}
+                defaultValue={editingShopRecord?.remarks || ""}
                 placeholder="Enter any remarks or observations"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -5593,11 +5654,16 @@ export default function InspectionsPage() {
               <Button 
                 type="button" 
                 variant="outline" 
-                onClick={() => setIsShopInspectionDialogOpen(false)}
+                onClick={() => {
+                  setIsShopInspectionDialogOpen(false);
+                  setEditingShopRecord(null);
+                }}
               >
                 Cancel
               </Button>
-              <Button type="submit">Add Record</Button>
+              <Button type="submit">
+                {editingShopRecord ? 'Update Record' : 'Add Record'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
