@@ -319,6 +319,21 @@ export default function InspectionsPage() {
     observations: string;
   } | null>(null);
 
+  // Material Traceability dialog states
+  const [isMaterialDialogOpen, setIsMaterialDialogOpen] = useState(false);
+  const [editingMaterialRecord, setEditingMaterialRecord] = useState<{
+    id?: number;
+    materialId?: number;
+    materialIdentificationId?: string;
+    materialCertificateNumber?: string;
+    heatNumber?: string;
+    materialGrade?: string;
+    materialSpecification?: string;
+    allocatedQuantity?: string;
+    quantityUnit?: string;
+    description?: string;
+  } | null>(null);
+
   // Hydrotest dialog states
   const [isHydrotestDialogOpen, setIsHydrotestDialogOpen] = useState(false);
   const [editingHydrotestRecord, setEditingHydrotestRecord] = useState<{
@@ -510,69 +525,7 @@ export default function InspectionsPage() {
     description?: string;
   }[]>([]);
   
-  // Helper function to add a new material row
-  const addMaterialRow = () => {
-    const newRows = [...materialRows, {
-      materialId: undefined,
-      materialIdentificationId: '',
-      materialCertificateNumber: '',
-      heatNumber: '',
-      materialGrade: '',
-      materialSpecification: '',
-      allocatedQuantity: '',
-      quantityUnit: '',
-      description: ''
-    }];
-    setMaterialRows(newRows);
-    editForm.setValue('materials', newRows);
-  };
-  
-  // Helper function to remove a material row
-  const removeMaterialRow = (index: number) => {
-    const updatedRows = [...materialRows];
-    updatedRows.splice(index, 1);
-    setMaterialRows(updatedRows);
-    editForm.setValue('materials', updatedRows);
-  };
-  
-  // Helper function to update a material row with selected material data
-  const updateMaterialRow = (index: number, material: MaterialIdentification | null) => {
-    const updatedRows = [...materialRows];
-    
-    if (material) {
-      updatedRows[index] = {
-        ...updatedRows[index],
-        materialId: material.id,
-        materialIdentificationId: material.material_identification_id,
-        materialCertificateNumber: material.mill_test_certificate_number || '',
-        heatNumber: material.heat_number || '',
-        materialGrade: material.material_grade || '',
-        materialSpecification: material.specification || '',
-        // Keep user-editable fields
-        allocatedQuantity: updatedRows[index].allocatedQuantity || '',
-        quantityUnit: updatedRows[index].quantityUnit || '',
-        description: updatedRows[index].description || ''
-      };
-    } else {
-      // Reset the material selection
-      updatedRows[index] = {
-        ...updatedRows[index],
-        materialId: undefined,
-        materialIdentificationId: '',
-        materialCertificateNumber: '',
-        heatNumber: '',
-        materialGrade: '',
-        materialSpecification: '',
-        // Keep user-editable fields
-        allocatedQuantity: updatedRows[index].allocatedQuantity || '',
-        quantityUnit: updatedRows[index].quantityUnit || '',
-        description: updatedRows[index].description || ''
-      };
-    }
-    
-    setMaterialRows(updatedRows);
-    editForm.setValue('materials', updatedRows);
-  };
+
   
   // Helper function to get weld type display name
   const getWeldTypeName = (weldType: string): string => {
@@ -916,6 +869,69 @@ export default function InspectionsPage() {
     toast({
       title: "Success",
       description: "NCR record updated successfully",
+    });
+  };
+
+  // Add new Material Traceability record via dialog
+  const addMaterialRecord = (recordData: {
+    materialId?: number;
+    materialIdentificationId?: string;
+    materialCertificateNumber?: string;
+    heatNumber?: string;
+    materialGrade?: string;
+    materialSpecification?: string;
+    allocatedQuantity?: string;
+    quantityUnit?: string;
+    description?: string;
+  }) => {
+    const newRecord = {
+      id: Date.now(), // Generate unique ID
+      ...recordData
+    };
+    setMaterialRows(prev => [...prev, newRecord]);
+    editForm.setValue('materials', [...materialRows, newRecord]);
+    setIsMaterialDialogOpen(false);
+    toast({
+      title: "Success",
+      description: "Material record added successfully",
+    });
+  };
+
+  // Update Material Traceability record via dialog
+  const updateMaterialRecord = (recordData: {
+    materialId?: number;
+    materialIdentificationId?: string;
+    materialCertificateNumber?: string;
+    heatNumber?: string;
+    materialGrade?: string;
+    materialSpecification?: string;
+    allocatedQuantity?: string;
+    quantityUnit?: string;
+    description?: string;
+  }) => {
+    if (!editingMaterialRecord) return;
+    
+    setMaterialRows(prev => 
+      prev.map(record => 
+        record.id === editingMaterialRecord.id 
+          ? { ...record, ...recordData }
+          : record
+      )
+    );
+    
+    const updatedRows = materialRows.map(record => 
+      record.id === editingMaterialRecord.id 
+        ? { ...record, ...recordData }
+        : record
+    );
+    editForm.setValue('materials', updatedRows);
+    
+    setIsMaterialDialogOpen(false);
+    setEditingMaterialRecord(null);
+    
+    toast({
+      title: "Success",
+      description: "Material record updated successfully",
     });
   };
   
@@ -3580,266 +3596,101 @@ export default function InspectionsPage() {
                           type="button" 
                           variant="outline" 
                           size="sm"
-                          onClick={addMaterialRow}
+                          onClick={() => {
+                            // Check if we have valid project code before opening dialog
+                            if (!editInspectionOrderDetails?.project_code || editInspectionOrderDetails.project_code === 'UNKNOWN') {
+                              toast({
+                                title: "Cannot Create Record",
+                                description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            setEditingMaterialRecord(null);
+                            setIsMaterialDialogOpen(true);
+                          }}
                           className="flex items-center text-xs"
                         >
-                          <Plus className="h-3.5 w-3.5 mr-1" /> Add Material
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Add Material Record
                         </Button>
                       </div>
                       
-                      {/* Material rows with Excel-like layout - always show table format */}
+                      {/* Material rows table - display only format */}
                       <div className="border rounded-md overflow-hidden">
-                        {/* Table header - always shown */}
-                        <div className="flex flex-nowrap bg-gray-100 py-2 px-3 border-b text-[10px] font-semibold">
-                          <div className="me-2" style={{width: "240px"}}>Description</div>
-                          <div className="me-2" style={{width: "170px"}}>Material ID</div>
-                          <div className="me-2" style={{width: "170px"}}>Certificate #</div>
-                          <div className="me-2" style={{width: "150px"}}>Heat #</div>
-                          <div className="me-2" style={{width: "100px"}}>Grade</div>
-                          <div className="me-2" style={{width: "120px"}}>Spec</div>
-                          <div className="me-2" style={{width: "80px"}}>Qty</div>
-                          <div className="me-2" style={{width: "50px"}}>Unit</div>
-                          <div style={{width: "80px"}}>Actions</div>
-                        </div>
-                        
-                        {/* Material rows - compact layout without individual labels */}
-                        <div className="max-h-[500px] overflow-auto">
-                          {materialRows.length > 0 ? (
-                            materialRows.map((materialRow, index) => (
-                              <div key={index} className="flex flex-nowrap py-1 px-3 border-b hover:bg-gray-50">
-                                {/* Description - 240px */}
-                                <div className="me-2" style={{width: "240px"}}>
-                                  <Select
-                                    value={materialRow.materialId?.toString() || ""}
-                                    onValueChange={(value) => {
-                                      const selectedMaterial = availableMaterials.find(m => m.id === parseInt(value));
-                                      updateMaterialRow(index, selectedMaterial || null);
-                                    }}
-                                  >
-                                    <SelectTrigger id={`description-${index}`} className="h-8 w-full text-xs">
-                                      <SelectValue placeholder="Select by Description" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {isLoadingMaterials ? (
-                                        <div className="flex items-center justify-center p-2">
-                                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                          <span className="text-xs">Loading materials...</span>
-                                        </div>
-                                      ) : availableMaterials.length === 0 ? (
-                                        <div className="p-2 text-center text-xs text-muted-foreground">
-                                          No materials available
-                                        </div>
-                                      ) : (
-                                        availableMaterials
-                                          .sort((a, b) => (a.material_description || '').localeCompare(b.material_description || '', undefined, { numeric: true, sensitivity: 'base' }))
-                                          .map((material) => (
-                                          <SelectItem 
-                                            key={`desc-${material.id}`} 
-                                            value={material.id.toString()}
-                                            className="text-xs"
-                                          >
-                                            {material.material_description}
-                                          </SelectItem>
-                                        ))
-                                      )}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              
-                                {/* Material Identification (MI ID) - 170px */}
-                                <div className="me-2" style={{width: "170px"}}>
-                                  <Select
-                                    value={materialRow.materialId?.toString() || ""}
-                                    onValueChange={(value) => {
-                                      const selectedMaterial = availableMaterials.find(m => m.id === parseInt(value));
-                                      updateMaterialRow(index, selectedMaterial || null);
-                                    }}
-                                  >
-                                    <SelectTrigger id={`material-id-${index}`} className="h-8 w-full text-xs">
-                                      <SelectValue placeholder="Select MI ID" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {isLoadingMaterials ? (
-                                        <div className="flex items-center justify-center p-2">
-                                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                          <span className="text-xs">Loading materials...</span>
-                                        </div>
-                                      ) : availableMaterials.length === 0 ? (
-                                        <div className="p-2 text-center text-xs text-muted-foreground">
-                                          No materials available
-                                        </div>
-                                      ) : (
-                                        availableMaterials
-                                          .sort((a, b) => (a.material_identification_id || '').localeCompare(b.material_identification_id || '', undefined, { numeric: true, sensitivity: 'base' }))
-                                          .map((material) => (
-                                          <SelectItem 
-                                            key={material.id} 
-                                            value={material.id.toString()}
-                                            className="text-xs"
-                                          >
-                                            {material.material_identification_id}
-                                          </SelectItem>
-                                        ))
-                                      )}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                
-                                {/* Certificate Number - 120px */}
-                                <div className="me-2" style={{width: "120px"}}>
-                                  <Input
-                                    id={`certificate-number-${index}`}
-                                    value={materialRow.materialCertificateNumber || ''}
-                                    onChange={(e) => {
-                                      const updatedRows = [...materialRows];
-                                      updatedRows[index] = {
-                                        ...updatedRows[index],
-                                        materialCertificateNumber: e.target.value
-                                      };
-                                      setMaterialRows(updatedRows);
-                                    }}
-                                    placeholder="Certificate #"
-                                    className="bg-gray-50 h-8 w-full text-xs"
-                                    readOnly
-                                  />
-                                </div>
-                                
-                                {/* Heat Number - 100px */}
-                                <div className="me-2" style={{width: "100px"}}>
-                                  <Input
-                                    id={`heat-number-${index}`}
-                                    value={materialRow.heatNumber || ''}
-                                    onChange={(e) => {
-                                      const updatedRows = [...materialRows];
-                                      updatedRows[index] = {
-                                        ...updatedRows[index],
-                                        heatNumber: e.target.value
-                                      };
-                                      setMaterialRows(updatedRows);
-                                    }}
-                                    placeholder="Heat #"
-                                    className="bg-gray-50 h-8 w-full text-xs"
-                                    readOnly
-                                  />
-                                </div>
-                                
-                                {/* Material Grade - 100px */}
-                                <div className="me-2" style={{width: "100px"}}>
-                                  <Input
-                                    id={`material-grade-${index}`}
-                                    value={materialRow.materialGrade || ''}
-                                    onChange={(e) => {
-                                      const updatedRows = [...materialRows];
-                                      updatedRows[index] = {
-                                        ...updatedRows[index],
-                                        materialGrade: e.target.value
-                                      };
-                                      setMaterialRows(updatedRows);
-                                    }}
-                                    placeholder="Grade"
-                                    className="bg-gray-50 h-8 w-full text-xs"
-                                    readOnly
-                                  />
-                                </div>
-                                
-                                {/* Material Specification - 120px */}
-                                <div className="me-2" style={{width: "120px"}}>
-                                  <Input
-                                    id={`material-spec-${index}`}
-                                    value={materialRow.materialSpecification || ''}
-                                    onChange={(e) => {
-                                      const updatedRows = [...materialRows];
-                                      updatedRows[index] = {
-                                        ...updatedRows[index],
-                                        materialSpecification: e.target.value
-                                      };
-                                      setMaterialRows(updatedRows);
-                                    }}
-                                    placeholder="Specification"
-                                    className="bg-gray-50 h-8 w-full text-xs"
-                                    readOnly
-                                  />
-                                </div>
-                                
-                                {/* Allocated Quantity - 80px */}
-                                <div className="me-2" style={{width: "80px"}}>
-                                  <Input
-                                    id={`quantity-${index}`}
-                                    value={materialRow.allocatedQuantity || ''}
-                                    onChange={(e) => {
-                                      const updatedRows = [...materialRows];
-                                      updatedRows[index] = {
-                                        ...updatedRows[index],
-                                        allocatedQuantity: e.target.value
-                                      };
-                                      setMaterialRows(updatedRows);
-                                      editForm.setValue('materials', updatedRows);
-                                    }}
-                                    placeholder="Quantity"
-                                    className="h-8 w-full text-xs"
-                                    type="number"
-                                  />
-                                </div>
-                                
-                                {/* Unit - 50px */}
-                                <div className="me-2" style={{width: "50px"}}>
-                                  <Input
-                                    id={`unit-${index}`}
-                                    value={materialRow.quantityUnit || ''}
-                                    onChange={(e) => {
-                                      const updatedRows = [...materialRows];
-                                      updatedRows[index] = {
-                                        ...updatedRows[index],
-                                        quantityUnit: e.target.value
-                                      };
-                                      setMaterialRows(updatedRows);
-                                      editForm.setValue('materials', updatedRows);
-                                    }}
-                                    placeholder="Unit"
-                                    className="h-8 w-full text-xs"
-                                  />
-                                </div>
-                                
-                                {/* Actions - Edit/Delete */}
-                                <div style={{width: "80px"}}>
-                                  <div className="flex space-x-1 items-center">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs font-medium">Description</TableHead>
+                              <TableHead className="text-xs font-medium">Material ID</TableHead>
+                              <TableHead className="text-xs font-medium">Certificate #</TableHead>
+                              <TableHead className="text-xs font-medium">Heat #</TableHead>
+                              <TableHead className="text-xs font-medium">Grade</TableHead>
+                              <TableHead className="text-xs font-medium">Specification</TableHead>
+                              <TableHead className="text-xs font-medium">Quantity</TableHead>
+                              <TableHead className="text-xs font-medium">Unit</TableHead>
+                              <TableHead className="text-xs font-medium">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {materialRows.length > 0 ? (
+                              materialRows.map((materialRow, index) => (
+                                <TableRow key={index} className="hover:bg-gray-50">
+                                  <TableCell className="text-xs">
+                                    {materialRow.description || '-'}
+                                  </TableCell>
+                                  <TableCell className="text-xs">
+                                    {materialRow.materialIdentificationId || '-'}
+                                  </TableCell>
+                                  <TableCell className="text-xs">
+                                    {materialRow.materialCertificateNumber || '-'}
+                                  </TableCell>
+                                  <TableCell className="text-xs">
+                                    {materialRow.heatNumber || '-'}
+                                  </TableCell>
+                                  <TableCell className="text-xs">
+                                    {materialRow.materialGrade || '-'}
+                                  </TableCell>
+                                  <TableCell className="text-xs">
+                                    {materialRow.materialSpecification || '-'}
+                                  </TableCell>
+                                  <TableCell className="text-xs">
+                                    {materialRow.allocatedQuantity || '-'}
+                                  </TableCell>
+                                  <TableCell className="text-xs">
+                                    {materialRow.quantityUnit || '-'}
+                                  </TableCell>
+                                  <TableCell>
                                     <Button 
                                       type="button" 
                                       variant="ghost" 
                                       size="icon"
-                                      className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
+                                      className="h-7 w-7 text-green-600 hover:text-green-800 hover:bg-green-50"
                                       onClick={() => {
-                                        // Edit functionality can be added here if needed
-                                        // Currently, editing is already possible directly in the fields
+                                        setEditingMaterialRecord(materialRow);
+                                        setIsMaterialDialogOpen(true);
                                       }}
+                                      title="Edit Material Record"
                                     >
-                                      <Edit2 className="h-3 w-3" />
+                                      <Edit2 className="h-3.5 w-3.5" />
                                     </Button>
-                                    <Button 
-                                      type="button" 
-                                      variant="ghost" 
-                                      size="icon"
-                                      className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
-                                      onClick={() => removeMaterialRow(index)}
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="text-center py-10 border-b">
-                              <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
-                              <p className="mt-2 text-xs text-muted-foreground">
-                                No materials linked to this inspection order.
-                              </p>
-                              <p className="text-xs text-muted-foreground mb-2">
-                                Click "Add Material" to link materials from Material Identification module.
-                              </p>
-                            </div>
-                          )}
-                        </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={9} className="text-center py-10">
+                                  <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
+                                  <p className="mt-2 text-xs text-muted-foreground">
+                                    No materials linked to this inspection order.
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mb-2">
+                                    Click "Add Material Record" to link materials from Material Identification module.
+                                  </p>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
                       </div>
                       
                       {/* Certificate Upload/View Buttons */}
@@ -5941,6 +5792,187 @@ export default function InspectionsPage() {
               </Button>
               <Button type="submit">
                 {editingNcrRecord ? 'Update Record' : 'Add Record'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Material Traceability Dialog */}
+      <Dialog open={isMaterialDialogOpen} onOpenChange={(open) => {
+        setIsMaterialDialogOpen(open);
+        if (!open) {
+          setEditingMaterialRecord(null);
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingMaterialRecord ? 'Edit Material Record' : 'Add Material Record'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingMaterialRecord 
+                ? 'Edit material traceability record for this inspection order.'
+                : 'Add a new material traceability record linking materials from Material Identification module.'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            const materialId = formData.get('materialId') as string;
+            const selectedMaterial = availableMaterials.find(m => m.id === parseInt(materialId));
+            
+            const recordData = {
+              materialId: selectedMaterial?.id,
+              materialIdentificationId: selectedMaterial?.material_identification_id,
+              materialCertificateNumber: selectedMaterial?.mill_test_certificate_number || '',
+              heatNumber: selectedMaterial?.heat_number || '',
+              materialGrade: selectedMaterial?.material_grade || '',
+              materialSpecification: selectedMaterial?.specification || '',
+              allocatedQuantity: formData.get('allocatedQuantity') as string,
+              quantityUnit: formData.get('quantityUnit') as string,
+              description: selectedMaterial?.material_description || ''
+            };
+            
+            if (editingMaterialRecord) {
+              updateMaterialRecord(recordData);
+            } else {
+              addMaterialRecord(recordData);
+            }
+          }} className="space-y-4">
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="materialId" className="text-sm font-medium">Material *</label>
+                <select
+                  id="materialId"
+                  name="materialId"
+                  required
+                  defaultValue={editingMaterialRecord?.materialId?.toString() || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => {
+                    const selectedMaterial = availableMaterials.find(m => m.id === parseInt(e.target.value));
+                    if (selectedMaterial) {
+                      // Update other fields based on selected material
+                      const form = e.target.closest('form') as HTMLFormElement;
+                      const certificateField = form.querySelector('#materialCertificateNumber') as HTMLInputElement;
+                      const heatField = form.querySelector('#heatNumber') as HTMLInputElement;
+                      const gradeField = form.querySelector('#materialGrade') as HTMLInputElement;
+                      const specField = form.querySelector('#materialSpecification') as HTMLInputElement;
+                      
+                      if (certificateField) certificateField.value = selectedMaterial.mill_test_certificate_number || '';
+                      if (heatField) heatField.value = selectedMaterial.heat_number || '';
+                      if (gradeField) gradeField.value = selectedMaterial.material_grade || '';
+                      if (specField) specField.value = selectedMaterial.specification || '';
+                    }
+                  }}
+                >
+                  <option value="">Select a material...</option>
+                  {availableMaterials
+                    .sort((a, b) => (a.material_identification_id || '').localeCompare(b.material_identification_id || '', undefined, { numeric: true, sensitivity: 'base' }))
+                    .map((material) => (
+                    <option key={material.id} value={material.id}>
+                      {material.material_identification_id} - {material.material_description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="allocatedQuantity" className="text-sm font-medium">Allocated Quantity *</label>
+                <input
+                  type="number"
+                  id="allocatedQuantity"
+                  name="allocatedQuantity"
+                  required
+                  step="0.01"
+                  defaultValue={editingMaterialRecord?.allocatedQuantity || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter quantity"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="quantityUnit" className="text-sm font-medium">Unit *</label>
+                <input
+                  type="text"
+                  id="quantityUnit"
+                  name="quantityUnit"
+                  required
+                  defaultValue={editingMaterialRecord?.quantityUnit || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., kg, meters, pieces"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="materialCertificateNumber" className="text-sm font-medium">Certificate Number</label>
+                <input
+                  type="text"
+                  id="materialCertificateNumber"
+                  name="materialCertificateNumber"
+                  defaultValue={editingMaterialRecord?.materialCertificateNumber || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                  placeholder="Auto-filled from material"
+                  readOnly
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="heatNumber" className="text-sm font-medium">Heat Number</label>
+                <input
+                  type="text"
+                  id="heatNumber"
+                  name="heatNumber"
+                  defaultValue={editingMaterialRecord?.heatNumber || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                  placeholder="Auto-filled from material"
+                  readOnly
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="materialGrade" className="text-sm font-medium">Material Grade</label>
+                <input
+                  type="text"
+                  id="materialGrade"
+                  name="materialGrade"
+                  defaultValue={editingMaterialRecord?.materialGrade || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                  placeholder="Auto-filled from material"
+                  readOnly
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="materialSpecification" className="text-sm font-medium">Specification</label>
+                <input
+                  type="text"
+                  id="materialSpecification"
+                  name="materialSpecification"
+                  defaultValue={editingMaterialRecord?.materialSpecification || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                  placeholder="Auto-filled from material"
+                  readOnly
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setIsMaterialDialogOpen(false);
+                  setEditingMaterialRecord(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingMaterialRecord ? 'Update Record' : 'Add Record'}
               </Button>
             </div>
           </form>
