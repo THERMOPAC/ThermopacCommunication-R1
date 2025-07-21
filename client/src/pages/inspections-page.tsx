@@ -3367,25 +3367,43 @@ export default function InspectionsPage() {
                               <div key={index} className="flex flex-nowrap py-1 px-3 border-b hover:bg-gray-50">
                                 {/* Description - 240px */}
                                 <div className="me-2" style={{width: "240px"}}>
-                                  <Input
-                                    id={`description-${index}`}
-                                    value={materialRow.description || ''}
-                                    onChange={(e) => {
-                                      const updatedRows = [...materialRows];
-                                      updatedRows[index] = {
-                                        ...updatedRows[index],
-                                        description: e.target.value
-                                      };
-                                      setMaterialRows(updatedRows);
-                                      editForm.setValue('materials', updatedRows);
+                                  <Select
+                                    value={materialRow.materialId?.toString() || ""}
+                                    onValueChange={(value) => {
+                                      const selectedMaterial = availableMaterials.find(m => m.id === parseInt(value));
+                                      updateMaterialRow(index, selectedMaterial || null);
                                     }}
-                                    placeholder="Enter description"
-                                    className="h-8 w-full text-xs"
-                                  />
+                                  >
+                                    <SelectTrigger id={`description-${index}`} className="h-8 w-full text-xs">
+                                      <SelectValue placeholder="Select by Description" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {isLoadingMaterials ? (
+                                        <div className="flex items-center justify-center p-2">
+                                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                          <span className="text-xs">Loading materials...</span>
+                                        </div>
+                                      ) : availableMaterials.length === 0 ? (
+                                        <div className="p-2 text-center text-xs text-muted-foreground">
+                                          No materials available
+                                        </div>
+                                      ) : (
+                                        availableMaterials.map((material) => (
+                                          <SelectItem 
+                                            key={`desc-${material.id}`} 
+                                            value={material.id.toString()}
+                                            className="text-xs"
+                                          >
+                                            {material.materialDescription}
+                                          </SelectItem>
+                                        ))
+                                      )}
+                                    </SelectContent>
+                                  </Select>
                                 </div>
                               
-                                {/* Material Identification (MI ID) - 120px */}
-                                <div className="me-2" style={{width: "120px"}}>
+                                {/* Material Identification (MI ID) - 170px */}
+                                <div className="me-2" style={{width: "170px"}}>
                                   <Select
                                     value={materialRow.materialId?.toString() || ""}
                                     onValueChange={(value) => {
