@@ -3732,7 +3732,7 @@ export default function InspectionsPage() {
                               <TableHead className="w-[120px]">Date</TableHead>
                               <TableHead className="w-[100px]">Status</TableHead>
                               <TableHead className="w-[200px]">Remarks</TableHead>
-                              <TableHead className="w-[100px]">Actions</TableHead>
+                              <TableHead className="w-[140px]">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -3760,6 +3760,15 @@ export default function InspectionsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
+                                        title="View Documents"
+                                        onClick={() => {
+                                          setDocumentViewerConfig({
+                                            inspectionOrderNumber: editForm.getValues("inspectionOrderNumber") || "N/A",
+                                            tabName: "Shop Inspection",
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentViewer(true);
+                                        }}
                                       >
                                         <Eye className="h-3 w-3" />
                                       </Button>
@@ -3767,7 +3776,25 @@ export default function InspectionsPage() {
                                         type="button"
                                         variant="ghost"
                                         size="icon"
+                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
+                                        title="Upload Document"
+                                        onClick={() => {
+                                          setDocumentUploadConfig({
+                                            inspectionOrderNumber: editForm.getValues("inspectionOrderNumber") || "N/A",
+                                            tabName: "Shop Inspection",
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentUpload(true);
+                                        }}
+                                      >
+                                        <FileText className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
                                         className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
+                                        title="Edit Record"
                                       >
                                         <Edit2 className="h-3 w-3" />
                                       </Button>
@@ -3776,6 +3803,7 @@ export default function InspectionsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
+                                        title="Delete Record"
                                       >
                                         <Trash2 className="h-3 w-3" />
                                       </Button>
@@ -3796,11 +3824,57 @@ export default function InspectionsPage() {
                       
                       {/* Action buttons */}
                       <div className="flex items-center gap-2 mt-4">
-                        <Button type="button" variant="outline" size="sm" className="text-xs">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-xs"
+                          onClick={() => {
+                            if (shopInspectionRecords.length === 0) {
+                              toast({
+                                title: "No Records Available",
+                                description: "Please add a shop inspection record first before uploading documents.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            // Use the first record or let user select
+                            const recordId = shopInspectionRecords[0].id;
+                            setDocumentUploadConfig({
+                              inspectionOrderNumber: editForm.getValues("inspectionOrderNumber") || "N/A",
+                              tabName: "Shop Inspection",
+                              recordId: recordId
+                            });
+                            setShowDocumentUpload(true);
+                          }}
+                        >
                           <FileText className="h-3.5 w-3.5 mr-1" />
                           Upload Shop Inspection Document
                         </Button>
-                        <Button type="button" variant="outline" size="sm" className="text-xs">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-xs"
+                          onClick={() => {
+                            if (shopInspectionRecords.length === 0) {
+                              toast({
+                                title: "No Records Available",
+                                description: "Please add a shop inspection record first before viewing documents.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            // Use the first record or let user select
+                            const recordId = shopInspectionRecords[0].id;
+                            setDocumentViewerConfig({
+                              inspectionOrderNumber: editForm.getValues("inspectionOrderNumber") || "N/A",
+                              tabName: "Shop Inspection",
+                              recordId: recordId
+                            });
+                            setShowDocumentViewer(true);
+                          }}
+                        >
                           <Eye className="h-3.5 w-3.5 mr-1" />
                           View Documents
                         </Button>
