@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/use-auth';
-import Layout from '@/components/layout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1283,8 +1282,7 @@ export default function MeetingsManagement() {
   };
 
   return (
-    <Layout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">Meetings & Commitments</h1>
@@ -4575,7 +4573,6 @@ Suggested next steps
         </DialogContent>
       </Dialog>
 
-      </div>
-    </Layout>
+    </div>
   );
 }
