@@ -1802,8 +1802,9 @@ export default function InspectionsPage() {
   const handleUpdateInspectionOrder = async (data: InspectionOrderEditFormValues) => {
     if (!editingInspectionOrder) return;
     
-    // Validate hydrotest records first
-    if (!validateHydrotestRecords()) {
+    // Only validate hydrotest records if there are hydrotest records to validate
+    // This prevents validation errors when updating inspection orders that don't have hydrotest data
+    if (hydrotestRecords.length > 0 && !validateHydrotestRecords()) {
       return; // Stop update process if validation fails
     }
     
@@ -5501,6 +5502,7 @@ export default function InspectionsPage() {
           
           <form onSubmit={(e) => {
             e.preventDefault();
+            e.stopPropagation(); // Prevent form submission from bubbling up
             const formData = new FormData(e.currentTarget);
             const recordData = {
               inspectionType: formData.get('inspectionType') as string,
