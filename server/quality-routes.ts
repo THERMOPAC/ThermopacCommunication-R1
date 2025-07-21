@@ -135,6 +135,20 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       }
     }
     
+    // Parse Hydrotest data if it exists
+    let hydrotestRecords = [];
+    console.log('Checking for Hydrotest data in inspection order:', inspectionOrder.hydrotestData);
+    if (inspectionOrder.hydrotestData) {
+      try {
+        hydrotestRecords = JSON.parse(inspectionOrder.hydrotestData);
+        console.log('Successfully parsed Hydrotest data:', hydrotestRecords);
+      } catch (e) {
+        console.error('Error parsing Hydrotest data:', e);
+      }
+    } else {
+      console.log('No Hydrotest data found in inspection order.');
+    }
+    
     // Parse NCR data if it exists
     let ncrRecords = [];
     console.log('Checking for NCR data in inspection order:', inspectionOrder.ncrData);
@@ -149,7 +163,7 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       console.log('No NCR data found in inspection order.');
     }
     
-    // Return detailed inspection order with items, materials, NDT records, Visual Inspection records, Weld records, and NCR records
+    // Return detailed inspection order with items, materials, NDT records, Visual Inspection records, Weld records, Hydrotest records, and NCR records
     res.json({
       ...inspectionOrder,
       items: orderItems,
@@ -157,6 +171,7 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       ndtRecords: ndtRecords,
       visualRecords: visualRecords,
       welds: weldRecords,
+      hydrotestRecords: hydrotestRecords,
       ncrRecords: ncrRecords
     });
   } catch (error) {
@@ -186,8 +201,8 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       return res.status(404).json({ error: 'Inspection order not found' });
     }
 
-    // Extract materials, NDT records, Visual Inspection records, Weld records, and NCR records from the request body
-    const { materials, ndtRecords, visualRecords, welds, ncrRecords, ...orderData } = req.body;
+    // Extract materials, NDT records, Visual Inspection records, Weld records, Hydrotest records, and NCR records from the request body
+    const { materials, ndtRecords, visualRecords, welds, hydrotestRecords, ncrRecords, ...orderData } = req.body;
     
     // Store NDT records in the orderData as a JSON string if they exist
     if (ndtRecords && Array.isArray(ndtRecords)) {
@@ -202,6 +217,14 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
     // Store Weld records in the orderData as a JSON string if they exist
     if (welds && Array.isArray(welds)) {
       orderData.weldData = JSON.stringify(welds);
+    }
+    
+    // Store Hydrotest records in the orderData as a JSON string if they exist
+    if (hydrotestRecords && Array.isArray(hydrotestRecords)) {
+      console.log('Storing Hydrotest records in order update:', hydrotestRecords);
+      orderData.hydrotestData = JSON.stringify(hydrotestRecords);
+    } else {
+      console.log('No Hydrotest records to store in order update:', hydrotestRecords);
     }
     
     // Store NCR records in the orderData as a JSON string if they exist
@@ -281,6 +304,20 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       }
     }
     
+    // Parse Hydrotest data for the response
+    let parsedHydrotestRecords = [];
+    console.log('Checking for Hydrotest data in updated order response:', updatedOrder[0].hydrotestData);
+    if (updatedOrder[0].hydrotestData) {
+      try {
+        parsedHydrotestRecords = JSON.parse(updatedOrder[0].hydrotestData);
+        console.log('Successfully parsed Hydrotest data in response:', parsedHydrotestRecords);
+      } catch (e) {
+        console.error('Error parsing Hydrotest data in response:', e);
+      }
+    } else {
+      console.log('No Hydrotest data found in updated order response');
+    }
+    
     // Parse NCR data for the response
     let parsedNcrRecords = [];
     console.log('Checking for NCR data in updated order response:', updatedOrder[0].ncrData);
@@ -295,13 +332,14 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       console.log('No NCR data found in updated order response');
     }
     
-    // Return updated order with materials, NDT records, Visual Inspection records, Weld records, and NCR records
+    // Return updated order with materials, NDT records, Visual Inspection records, Weld records, Hydrotest records, and NCR records
     res.json({
       ...updatedOrder[0],
       materials: updatedMaterials,
       ndtRecords: parsedNdtRecords,
       visualRecords: parsedVisualRecords,
       welds: parsedWeldRecords,
+      hydrotestRecords: parsedHydrotestRecords,
       ncrRecords: parsedNcrRecords
     });
   } catch (error) {

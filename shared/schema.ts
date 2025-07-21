@@ -4169,6 +4169,9 @@ export const inspectionOrders = pgTable('inspection_orders', {
   // Welding & Weld Maps data - stored as JSON string
   weldData: text('weld_data'),
   
+  // Hydrotest data - stored as JSON string
+  hydrotestData: text('hydrotest_data'),
+  
   // Non-Conformance data - stored as JSON string
   ncrData: text('ncr_data'),
   
@@ -4249,6 +4252,7 @@ export const insertInspectionOrderSchema = createInsertSchema(inspectionOrders)
     ndtData: z.string().optional(),
     visualData: z.string().optional(),
     weldData: z.string().optional(),
+    hydrotestData: z.string().optional(),
     ncrData: z.string().optional(),
   });
 
