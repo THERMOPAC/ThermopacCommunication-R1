@@ -338,6 +338,7 @@ export default function InspectionsPage() {
   }]);
   const [editingNdtIndex, setEditingNdtIndex] = useState<number | null>(null);
   const [selectedNdtRecord, setSelectedNdtRecord] = useState<any | null>(null);
+  const [selectedWeldRecord, setSelectedWeldRecord] = useState<any | null>(null);
   
   // Visual Inspection management state
   const [visualRecords, setVisualRecords] = useState<{
@@ -1432,8 +1433,9 @@ export default function InspectionsPage() {
   // Update NDT records when inspection order details are loaded
   useEffect(() => {
     if (editInspectionOrderDetails) {
-      // Reset selected NDT record when loading a new inspection order
+      // Reset selected NDT and Weld records when loading a new inspection order
       setSelectedNdtRecord(null);
+      setSelectedWeldRecord(null);
       
       // Check if the response has NDT data in the expected format
       console.log("Checking for NDT data:", editInspectionOrderDetails);
@@ -3661,6 +3663,10 @@ export default function InspectionsPage() {
                   <TabsContent value="welding" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium">Welding & Weld Maps</h3>
+                      <div className="bg-muted/50 p-2 rounded-md text-sm flex items-center mb-2">
+                        <Info className="h-4 w-4 mr-2 text-blue-500" />
+                        Click on a row in the table below to select a Weld ID before uploading a weld map.
+                      </div>
                       
                       {/* Weld list */}
                       <div className="border rounded-md shadow-sm overflow-hidden">
@@ -3678,8 +3684,17 @@ export default function InspectionsPage() {
                           </TableHeader>
                           <TableBody>
                             {Array.isArray(welds) && welds.map((weld, index) => (
-                              <TableRow key={weld.id}>
-                                <TableCell className="font-medium">{weld.id}</TableCell>
+                              <TableRow 
+                                key={weld.id}
+                                className={selectedWeldRecord?.id === weld.id ? 'bg-primary/20 border-l-4 border-primary' : 'cursor-pointer hover:bg-muted/50'}
+                                onClick={() => setSelectedWeldRecord(weld)}>
+                                <TableCell className="font-medium flex items-center">
+                                  {selectedWeldRecord?.id === weld.id ? 
+                                    <Check className="h-4 w-4 mr-2 text-primary" /> : 
+                                    <div className="h-4 w-4 mr-2 rounded-full border border-muted-foreground/30"></div>
+                                  }
+                                  {weld.id}
+                                </TableCell>
                                 <TableCell>
                                   {editingWeldIndex === index ? (
                                     <Select 
@@ -3846,10 +3861,32 @@ export default function InspectionsPage() {
                           </Button>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button type="button" variant="outline" size="sm">
-                            <FileText className="h-4 w-4 mr-2" />
-                            Upload Weld Map
-                          </Button>
+                          {selectedWeldRecord ? (
+                            <InspectionDocumentUpload
+                              inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                              tabName="Welding"
+                              recordId={selectedWeldRecord.id}
+                              variant="outline"
+                              size="sm"
+                              onSuccess={() => {
+                                toast({
+                                  title: "Weld map uploaded successfully",
+                                  description: `Weld map for ${selectedWeldRecord.id} has been uploaded.`,
+                                });
+                              }}
+                            />
+                          ) : (
+                            <Button type="button" variant="outline" size="sm" onClick={() => {
+                              toast({
+                                title: "No weld record selected",
+                                description: "Please select a weld record to upload a weld map.",
+                                variant: "destructive"
+                              });
+                            }}>
+                              <FileText className="h-4 w-4 mr-2" />
+                              Upload Weld Map
+                            </Button>
+                          )}
                           <Button type="button" variant="outline" size="sm">
                             <Eye className="h-4 w-4 mr-2" />
                             View Attachments
