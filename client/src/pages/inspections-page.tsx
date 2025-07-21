@@ -283,6 +283,17 @@ export default function InspectionsPage() {
     status: string;
     remarks: string;
   } | null>(null);
+
+  // Welding dialog state
+  const [isWeldingDialogOpen, setIsWeldingDialogOpen] = useState(false);
+  const [editingWeldRecord, setEditingWeldRecord] = useState<{
+    id: string;
+    weldType: string;
+    weldProcess: string;
+    wpqrDocument: string;
+    welderId: string;
+    weldStatus: string;
+  } | null>(null);
   const [shopInspectionRecords, setShopInspectionRecords] = useState<{
     id: string;
     inspectionType: string;
@@ -1743,6 +1754,59 @@ export default function InspectionsPage() {
   const startEditingShopRecord = (record: typeof shopInspectionRecords[0]) => {
     setEditingShopRecord(record);
     setIsShopInspectionDialogOpen(true);
+  };
+
+  // Add new weld record via dialog
+  const addWeldRecord = (recordData: {
+    id: string;
+    weldType: string;
+    weldProcess: string;
+    wpqrDocument: string;
+    welderId: string;
+    weldStatus: string;
+  }) => {
+    const newRecord = {
+      ...recordData
+    };
+    setWelds(prev => [...prev, newRecord]);
+    setIsWeldingDialogOpen(false);
+    toast({
+      title: "Success",
+      description: "Weld record added successfully",
+    });
+  };
+
+  // Edit weld record via dialog
+  const editWeldRecord = (recordData: {
+    weldType: string;
+    weldProcess: string;
+    wpqrDocument: string;
+    welderId: string;
+    weldStatus: string;
+  }) => {
+    if (!editingWeldRecord) return;
+    
+    setWelds(prev => 
+      prev.map(record => 
+        record.id === editingWeldRecord.id 
+          ? { ...record, ...recordData }
+          : record
+      )
+    );
+    
+    setIsWeldingDialogOpen(false);
+    setEditingWeldRecord(null);
+    
+    toast({
+      title: "Success",
+      description: "Weld record updated successfully",
+    });
+  };
+
+  // Function to start editing a weld record
+  const startEditingWeldRecord = (record: typeof welds[0]) => {
+    setEditingWeldRecord(record);
+    setIsWeldingDialogOpen(true);
   };
 
   // Update form values when inspection order details are loaded
@@ -3982,127 +4046,19 @@ export default function InspectionsPage() {
                                   {weld.id}
                                 </TableCell>
                                 <TableCell>
-                                  {editingWeldIndex === index ? (
-                                    <Select 
-                                      value={weld.weldType}
-                                      onValueChange={(value) => updateWeldField(index, 'weldType', value)}
-                                    >
-                                      <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Select type" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="butt">Butt Weld</SelectItem>
-                                        <SelectItem value="fillet">Fillet Weld</SelectItem>
-                                        <SelectItem value="spot">Spot Weld</SelectItem>
-                                        <SelectItem value="seam">Seam Weld</SelectItem>
-                                        <SelectItem value="lap">Lap Weld</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    weld.weldType ? getWeldTypeName(weld.weldType) : "-"
-                                  )}
+                                  {weld.weldType ? getWeldTypeName(weld.weldType) : "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingWeldIndex === index ? (
-                                    <Select 
-                                      value={weld.weldProcess}
-                                      onValueChange={(value) => updateWeldField(index, 'weldProcess', value)}
-                                    >
-                                      <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Select process" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="smaw">SMAW (Shielded Metal Arc Welding)</SelectItem>
-                                        <SelectItem value="gtaw">GTAW (TIG Welding)</SelectItem>
-                                        <SelectItem value="gmaw">GMAW (MIG Welding)</SelectItem>
-                                        <SelectItem value="fcaw">FCAW (Flux-Cored Arc Welding)</SelectItem>
-                                        <SelectItem value="saw">SAW (Submerged Arc Welding)</SelectItem>
-                                        <SelectItem value="gtaw_smaw">GTAW (141) + SMAW (111)</SelectItem>
-                                        <SelectItem value="gtaw_gmaw">GTAW (141) + GMAW (135)</SelectItem>
-                                        <SelectItem value="gtaw_fcaw">GTAW (141) + FCAW (136/137)</SelectItem>
-                                        <SelectItem value="smaw_gmaw">SMAW (111) + GMAW (135)</SelectItem>
-                                        <SelectItem value="smaw_fcaw">SMAW (111) + FCAW (136/137)</SelectItem>
-                                        <SelectItem value="smaw_saw">SMAW (111) + SAW (121)</SelectItem>
-                                        <SelectItem value="gtaw_saw">GTAW (141) + SAW (121)</SelectItem>
-                                        <SelectItem value="gmaw_fcaw">GMAW (135) + FCAW (136/137)</SelectItem>
-                                        <SelectItem value="gmaw_saw">GMAW (135) + SAW (121)</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    weld.weldProcess ? getWeldProcessName(weld.weldProcess) : "-"
-                                  )}
+                                  {weld.weldProcess ? getWeldProcessName(weld.weldProcess) : "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingWeldIndex === index ? (
-                                    <Select 
-                                      value={weld.wpqrDocument}
-                                      onValueChange={(value) => updateWeldField(index, 'wpqrDocument', value)}
-                                    >
-                                      <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Select WPQR" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {isLoadingWpqr ? (
-                                          <SelectItem value="" disabled>Loading WPQR documents...</SelectItem>
-                                        ) : wpqrDocuments.length > 0 ? (
-                                          wpqrDocuments.map((doc: any) => (
-                                            <SelectItem key={doc.id} value={doc.documentNumber || doc.id.toString()}>
-                                              {doc.documentNumber || `WPQR-${doc.id}`}
-                                            </SelectItem>
-                                          ))
-                                        ) : (
-                                          <SelectItem value="" disabled>No WPQR documents available</SelectItem>
-                                        )}
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    weld.wpqrDocument || "-"
-                                  )}
+                                  {weld.wpqrDocument || "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingWeldIndex === index ? (
-                                    <Select 
-                                      value={weld.welderId}
-                                      onValueChange={(value) => updateWeldField(index, 'welderId', value)}
-                                    >
-                                      <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Select welder" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {isLoadingWelders ? (
-                                          <SelectItem value="" disabled>Loading welders...</SelectItem>
-                                        ) : welders.length > 0 ? (
-                                          welders.map((welder: any) => (
-                                            <SelectItem key={welder.id} value={welder.welderId}>
-                                              {welder.welderId}
-                                            </SelectItem>
-                                          ))
-                                        ) : (
-                                          <SelectItem value="" disabled>No welders available</SelectItem>
-                                        )}
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    weld.welderId || "-"
-                                  )}
+                                  {weld.welderId || "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingWeldIndex === index ? (
-                                    <Select 
-                                      value={weld.weldStatus}
-                                      onValueChange={(value) => updateWeldField(index, 'weldStatus', value)}
-                                    >
-                                      <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Select status" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="Pass">Pass</SelectItem>
-                                        <SelectItem value="Failed">Failed</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    weld.weldStatus || "-"
-                                  )}
+                                  {weld.weldStatus || "-"}
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex items-center space-x-1">
@@ -4110,7 +4066,7 @@ export default function InspectionsPage() {
                                       type="button" 
                                       variant="ghost" 
                                       size="icon" 
-                                      onClick={() => startEditingWeld(index)}
+                                      onClick={() => startEditingWeldRecord(weld)}
                                       className="h-7 w-7"
                                     >
                                       <Pencil className="h-3.5 w-3.5" />
@@ -4139,11 +4095,21 @@ export default function InspectionsPage() {
                             type="button" 
                             variant="default" 
                             size="sm" 
-                            onClick={addWeld}
+                            onClick={() => {
+                              if (editInspectionOrderDetails?.project_code === 'UNKNOWN') {
+                                toast({
+                                  title: "Project Code Required",
+                                  description: "Cannot add weld records when project code is UNKNOWN. Please set a valid project code first.",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+                              setIsWeldingDialogOpen(true);
+                            }}
                             className="mr-2"
                           >
                             <Plus className="h-4 w-4 mr-2" />
-                            Add Weld
+                            Add Weld Record
                           </Button>
                         </div>
                         <div className="flex items-center gap-2">
@@ -5663,6 +5629,184 @@ export default function InspectionsPage() {
               </Button>
               <Button type="submit">
                 {editingShopRecord ? 'Update Record' : 'Add Record'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Welding Dialog */}
+      <Dialog open={isWeldingDialogOpen} onOpenChange={(open) => {
+        setIsWeldingDialogOpen(open);
+        if (!open) {
+          setEditingWeldRecord(null);
+        }
+      }}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingWeldRecord ? 'Edit Weld Record' : 'Add Weld Record'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingWeldRecord 
+                ? `Edit weld record ${editingWeldRecord.id} for this inspection order.`
+                : 'Add a new weld record for this inspection order.'
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            const recordData = {
+              id: editingWeldRecord ? editingWeldRecord.id : `W-${Date.now()}`,
+              weldType: formData.get('weldType') as string,
+              weldProcess: formData.get('weldProcess') as string,
+              wpqrDocument: formData.get('wpqrDocument') as string,
+              welderId: formData.get('welderId') as string,
+              weldStatus: formData.get('weldStatus') as string,
+            };
+            if (editingWeldRecord) {
+              editWeldRecord(recordData);
+            } else {
+              addWeldRecord(recordData);
+            }
+          }}>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="weldType" className="text-sm font-medium">
+                    Weld Type *
+                  </label>
+                  <select
+                    id="weldType"
+                    name="weldType"
+                    required
+                    defaultValue={editingWeldRecord?.weldType || ""}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select weld type</option>
+                    <option value="butt">Butt Weld</option>
+                    <option value="fillet">Fillet Weld</option>
+                    <option value="spot">Spot Weld</option>
+                    <option value="seam">Seam Weld</option>
+                    <option value="lap">Lap Weld</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="weldProcess" className="text-sm font-medium">
+                    Weld Process *
+                  </label>
+                  <select
+                    id="weldProcess"
+                    name="weldProcess"
+                    required
+                    defaultValue={editingWeldRecord?.weldProcess || ""}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select weld process</option>
+                    <option value="smaw">SMAW (Shielded Metal Arc Welding)</option>
+                    <option value="gtaw">GTAW (TIG Welding)</option>
+                    <option value="gmaw">GMAW (MIG Welding)</option>
+                    <option value="fcaw">FCAW (Flux-Cored Arc Welding)</option>
+                    <option value="saw">SAW (Submerged Arc Welding)</option>
+                    <option value="gtaw_smaw">GTAW (141) + SMAW (111)</option>
+                    <option value="gtaw_gmaw">GTAW (141) + GMAW (135)</option>
+                    <option value="gtaw_fcaw">GTAW (141) + FCAW (136/137)</option>
+                    <option value="smaw_gmaw">SMAW (111) + GMAW (135)</option>
+                    <option value="smaw_fcaw">SMAW (111) + FCAW (136/137)</option>
+                    <option value="smaw_saw">SMAW (111) + SAW (121)</option>
+                    <option value="gtaw_saw">GTAW (141) + SAW (121)</option>
+                    <option value="gmaw_fcaw">GMAW (135) + FCAW (136/137)</option>
+                    <option value="gmaw_saw">GMAW (135) + SAW (121)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="wpqrDocument" className="text-sm font-medium">
+                    WPQR Document
+                  </label>
+                  <select
+                    id="wpqrDocument"
+                    name="wpqrDocument"
+                    defaultValue={editingWeldRecord?.wpqrDocument || ""}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select WPQR document</option>
+                    {isLoadingWpqr ? (
+                      <option value="" disabled>Loading WPQR documents...</option>
+                    ) : wpqrDocuments.length > 0 ? (
+                      wpqrDocuments.map((doc: any) => (
+                        <option key={doc.id} value={doc.documentNumber || doc.id.toString()}>
+                          {doc.documentNumber || `WPQR-${doc.id}`}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No WPQR documents available</option>
+                    )}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="welderId" className="text-sm font-medium">
+                    Welder ID
+                  </label>
+                  <select
+                    id="welderId"
+                    name="welderId"
+                    defaultValue={editingWeldRecord?.welderId || ""}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select welder</option>
+                    {isLoadingWelders ? (
+                      <option value="" disabled>Loading welders...</option>
+                    ) : welders.length > 0 ? (
+                      welders.map((welder: any) => (
+                        <option key={welder.id} value={welder.welderId}>
+                          {welder.welderId}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No welders available</option>
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="weldStatus" className="text-sm font-medium">
+                  Weld Status *
+                </label>
+                <select
+                  id="weldStatus"
+                  name="weldStatus"
+                  required
+                  defaultValue={editingWeldRecord?.weldStatus || "Pass"}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Pass">Pass</option>
+                  <option value="Failed">Failed</option>
+                </select>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setIsWeldingDialogOpen(false);
+                  setEditingWeldRecord(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingWeldRecord ? 'Update Record' : 'Add Record'}
               </Button>
             </DialogFooter>
           </form>
