@@ -351,7 +351,7 @@ router.get("/project/:projectId", async (req, res) => {
     const materialIdentifications = await db.execute(sql`
       SELECT * FROM material_identification
       WHERE project_id = ${projectId}
-      ORDER BY created_at DESC
+      ORDER BY CAST(SPLIT_PART(material_identification_id, '-', 3) AS INTEGER) ASC
     `) as any;
     
     res.json(materialIdentifications.rows || []);
