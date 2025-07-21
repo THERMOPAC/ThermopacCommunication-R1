@@ -492,7 +492,9 @@ export default function InspectionsPage() {
     ncrDisposition: 'rework',
     ncrCorrectiveAction: ''
   }]);
-  const [editingNcrIndex, setEditingNcrIndex] = useState<number | null>(null);
+  // NCR dialog state
+  const [isNcrDialogOpen, setIsNcrDialogOpen] = useState(false);
+  const [editingNcrRecord, setEditingNcrRecord] = useState<any>(null);
   
   // Material rows state
   const [materialRows, setMaterialRows] = useState<{
@@ -856,65 +858,65 @@ export default function InspectionsPage() {
     }
   };
   
-  // Add new NCR record
-  const addNcrRecord = () => {
-    const newNcrNumber = ncrRecords.length + 1;
-    const newRecord = {
-      id: `NCR-${newNcrNumber}`,
-      ncrDate: '',
-      ncrStatus: 'open',
-      ncrDescription: '',
-      ncrDisposition: 'rework',
-      ncrCorrectiveAction: ''
-    };
-    console.log('Adding new NCR record:', newRecord);
-    console.log('Current NCR records before adding:', ncrRecords);
+  // Helper function to generate NCR record ID
+  const generateNcrId = () => {
+    const existingIds = ncrRecords.map(record => record.id);
+    let newIdNumber = 1;
+    let newId = `NCR-${newIdNumber}`;
     
-    const updatedRecords = [...ncrRecords, newRecord];
-    setNcrRecords(updatedRecords);
-    console.log('Updated NCR records after adding:', updatedRecords);
-  };
-  
-  // Delete an NCR record
-  const deleteNcrRecord = (index: number) => {
-    console.log('Deleting NCR record at index:', index);
-    console.log('Current NCR records before deletion:', ncrRecords);
-    
-    const updatedRecords = [...ncrRecords];
-    updatedRecords.splice(index, 1);
-    
-    // Renumber NCR records after deletion
-    const renumberedRecords = updatedRecords.map((record, idx) => ({
-      ...record,
-      id: `NCR-${idx + 1}`
-    }));
-    
-    console.log('Updated NCR records after deletion and renumbering:', renumberedRecords);
-    setNcrRecords(renumberedRecords);
-    
-    if (editingNcrIndex === index) {
-      setEditingNcrIndex(null);
+    while (existingIds.includes(newId)) {
+      newIdNumber++;
+      newId = `NCR-${newIdNumber}`;
     }
-  };
-  
-  // Edit an NCR record
-  const startEditingNcr = (index: number) => {
-    setEditingNcrIndex(index);
-  };
-  
-  // Update an NCR field
-  const updateNcrField = (index: number, field: string, value: string) => {
-    console.log(`Updating NCR field "${field}" at index ${index} with value "${value}"`);
-    console.log('Current NCR record before update:', ncrRecords[index]);
     
-    const updatedRecords = [...ncrRecords];
-    updatedRecords[index] = {
-      ...updatedRecords[index],
-      [field]: value
+    return newId;
+  };
+
+  // Add new NCR record via dialog
+  const addNcrRecord = (recordData: {
+    id: string;
+    ncrDate: string;
+    ncrStatus: string;
+    ncrDescription: string;
+    ncrDisposition: string;
+    ncrCorrectiveAction: string;
+  }) => {
+    const newRecord = {
+      ...recordData
     };
+    setNcrRecords(prev => [...prev, newRecord]);
+    setIsNcrDialogOpen(false);
+    toast({
+      title: "Success",
+      description: "NCR record added successfully",
+    });
+  };
+
+  // Update NCR record via dialog
+  const updateNcrRecord = (recordData: {
+    ncrDate: string;
+    ncrStatus: string;
+    ncrDescription: string;
+    ncrDisposition: string;
+    ncrCorrectiveAction: string;
+  }) => {
+    if (!editingNcrRecord) return;
     
-    console.log('Updated NCR record after change:', updatedRecords[index]);
-    setNcrRecords(updatedRecords);
+    setNcrRecords(prev => 
+      prev.map(record => 
+        record.id === editingNcrRecord.id 
+          ? { ...record, ...recordData }
+          : record
+      )
+    );
+    
+    setIsNcrDialogOpen(false);
+    setEditingNcrRecord(null);
+    
+    toast({
+      title: "Success",
+      description: "NCR record updated successfully",
+    });
   };
   
   // Fetch projects for dropdown
@@ -4670,129 +4672,48 @@ export default function InspectionsPage() {
                               <TableRow key={record.id}>
                                 <TableCell className="font-medium">{record.id}</TableCell>
                                 <TableCell>
-                                  {editingNcrIndex === index ? (
-                                    <Input 
-                                      type="date" 
-                                      value={record.ncrDate} 
-                                      onChange={(e) => updateNcrField(index, 'ncrDate', e.target.value)}
-                                      className="w-[130px]"
-                                    />
-                                  ) : (
-                                    record.ncrDate || "-"
-                                  )}
+                                  {record.ncrDate || "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingNcrIndex === index ? (
-                                    <Select 
-                                      value={record.ncrStatus}
-                                      onValueChange={(value) => updateNcrField(index, 'ncrStatus', value)}
-                                    >
-                                      <SelectTrigger className="w-[100px]">
-                                        <SelectValue placeholder="Select status" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="open">Open</SelectItem>
-                                        <SelectItem value="closed">Closed</SelectItem>
-                                        <SelectItem value="pending">Pending</SelectItem>
-                                        <SelectItem value="void">Void</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    <Badge variant={
-                                      record.ncrStatus === 'open' ? 'outline' : 
-                                      record.ncrStatus === 'closed' ? 'default' : 
-                                      record.ncrStatus === 'pending' ? 'secondary' : 
-                                      'destructive'
-                                    }>
-                                      {record.ncrStatus.charAt(0).toUpperCase() + record.ncrStatus.slice(1)}
-                                    </Badge>
-                                  )}
+                                  <Badge variant={
+                                    record.ncrStatus === 'open' ? 'outline' : 
+                                    record.ncrStatus === 'closed' ? 'default' : 
+                                    record.ncrStatus === 'pending' ? 'secondary' : 
+                                    'destructive'
+                                  }>
+                                    {record.ncrStatus.charAt(0).toUpperCase() + record.ncrStatus.slice(1)}
+                                  </Badge>
                                 </TableCell>
                                 <TableCell>
-                                  {editingNcrIndex === index ? (
-                                    <Textarea 
-                                      value={record.ncrDescription} 
-                                      onChange={(e) => updateNcrField(index, 'ncrDescription', e.target.value)}
-                                      className="w-[250px] h-[80px]"
-                                    />
-                                  ) : (
-                                    <div className="max-w-[250px] truncate" title={record.ncrDescription}>
-                                      {record.ncrDescription || "-"}
-                                    </div>
-                                  )}
+                                  <div className="max-w-[250px] truncate" title={record.ncrDescription}>
+                                    {record.ncrDescription || "-"}
+                                  </div>
                                 </TableCell>
                                 <TableCell>
-                                  {editingNcrIndex === index ? (
-                                    <Select 
-                                      value={record.ncrDisposition}
-                                      onValueChange={(value) => updateNcrField(index, 'ncrDisposition', value)}
-                                    >
-                                      <SelectTrigger className="w-[100px]">
-                                        <SelectValue placeholder="Select disposition" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="rework">Rework</SelectItem>
-                                        <SelectItem value="repair">Repair</SelectItem>
-                                        <SelectItem value="useAsIs">Use As Is</SelectItem>
-                                        <SelectItem value="scrap">Scrap / Reject</SelectItem>
-                                        <SelectItem value="return">Return to Vendor</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    <div className="capitalize">
-                                      {record.ncrDisposition === 'useAsIs' ? 'Use As Is' : 
-                                       record.ncrDisposition.replace(/([A-Z])/g, ' $1').trim() || "-"}
-                                    </div>
-                                  )}
+                                  <div className="capitalize">
+                                    {record.ncrDisposition === 'useAsIs' ? 'Use As Is' : 
+                                     record.ncrDisposition.replace(/([A-Z])/g, ' $1').trim() || "-"}
+                                  </div>
                                 </TableCell>
                                 <TableCell>
-                                  {editingNcrIndex === index ? (
-                                    <Textarea 
-                                      value={record.ncrCorrectiveAction} 
-                                      onChange={(e) => updateNcrField(index, 'ncrCorrectiveAction', e.target.value)}
-                                      className="w-[250px] h-[80px]"
-                                    />
-                                  ) : (
-                                    <div className="max-w-[250px] truncate" title={record.ncrCorrectiveAction}>
-                                      {record.ncrCorrectiveAction || "-"}
-                                    </div>
-                                  )}
+                                  <div className="max-w-[250px] truncate" title={record.ncrCorrectiveAction}>
+                                    {record.ncrCorrectiveAction || "-"}
+                                  </div>
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  <div className="flex justify-end space-x-1">
-                                    {editingNcrIndex === index ? (
-                                      <Button 
-                                        type="button" 
-                                        variant="default" 
-                                        size="icon" 
-                                        onClick={() => setEditingNcrIndex(null)}
-                                        className="h-7 w-7"
-                                      >
-                                        <Check className="h-3.5 w-3.5" />
-                                      </Button>
-                                    ) : (
-                                      <>
-                                        <Button 
-                                          type="button" 
-                                          variant="ghost" 
-                                          size="icon" 
-                                          onClick={() => startEditingNcr(index)}
-                                          className="h-7 w-7"
-                                        >
-                                          <Pencil className="h-3.5 w-3.5" />
-                                        </Button>
-                                        <Button 
-                                          type="button" 
-                                          variant="ghost" 
-                                          size="icon" 
-                                          onClick={() => deleteNcrRecord(index)}
-                                          className="h-7 w-7 text-destructive"
-                                        >
-                                          <Trash2 className="h-3.5 w-3.5" />
-                                        </Button>
-                                      </>
-                                    )}
-                                  </div>
+                                  <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    onClick={() => {
+                                      setEditingNcrRecord(record);
+                                      setIsNcrDialogOpen(true);
+                                    }}
+                                    className="h-7 w-7 text-green-600 hover:text-green-800 hover:bg-green-50"
+                                    title="Edit NCR Record"
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5" />
+                                  </Button>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -4807,11 +4728,22 @@ export default function InspectionsPage() {
                             type="button" 
                             variant="default" 
                             size="sm" 
-                            onClick={addNcrRecord}
+                            onClick={() => {
+                              if (editInspectionOrderDetails?.project_code === 'UNKNOWN') {
+                                toast({
+                                  title: "Project Code Required",
+                                  description: "Cannot add NCR records when project code is UNKNOWN. Please set a valid project code first.",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+                              setEditingNcrRecord(null);
+                              setIsNcrDialogOpen(true);
+                            }}
                             className="mr-2"
                           >
                             <Plus className="h-4 w-4 mr-2" />
-                            Add NCR
+                            Add NCR Record
                           </Button>
                         </div>
                         <div className="flex items-center gap-2">
@@ -5865,6 +5797,152 @@ export default function InspectionsPage() {
                 {editingVisualRecord ? 'Update Record' : 'Add Record'}
               </Button>
             </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* NCR Dialog */}
+      <Dialog open={isNcrDialogOpen} onOpenChange={(open) => {
+        setIsNcrDialogOpen(open);
+        if (!open) {
+          setEditingNcrRecord(null);
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingNcrRecord ? 'Edit NCR Record' : 'Add NCR Record'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingNcrRecord 
+                ? `Edit non-conformance record ${editingNcrRecord.id} for this inspection order.`
+                : 'Add a new non-conformance record for this inspection order.'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            const recordData = {
+              id: editingNcrRecord ? (formData.get('id') as string) : generateNcrId(),
+              ncrDate: formData.get('ncrDate') as string,
+              ncrStatus: formData.get('ncrStatus') as string,
+              ncrDescription: formData.get('ncrDescription') as string,
+              ncrDisposition: formData.get('ncrDisposition') as string,
+              ncrCorrectiveAction: formData.get('ncrCorrectiveAction') as string,
+            };
+            if (editingNcrRecord) {
+              updateNcrRecord(recordData);
+            } else {
+              addNcrRecord(recordData);
+            }
+          }} className="space-y-4">
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="id" className="text-sm font-medium">NCR ID *</label>
+                <input
+                  type="text"
+                  id="id"
+                  name="id"
+                  required
+                  defaultValue={editingNcrRecord?.id || "Auto-generated"}
+                  readOnly={!editingNcrRecord}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    !editingNcrRecord ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
+                  placeholder="NCR-001"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="ncrDate" className="text-sm font-medium">Date *</label>
+                <input
+                  type="date"
+                  id="ncrDate"
+                  name="ncrDate"
+                  required
+                  defaultValue={editingNcrRecord?.ncrDate || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="ncrStatus" className="text-sm font-medium">Status *</label>
+                <select
+                  id="ncrStatus"
+                  name="ncrStatus"
+                  required
+                  defaultValue={editingNcrRecord?.ncrStatus || "open"}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="open">Open</option>
+                  <option value="closed">Closed</option>
+                  <option value="pending">Pending</option>
+                  <option value="void">Void</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="ncrDisposition" className="text-sm font-medium">Disposition *</label>
+                <select
+                  id="ncrDisposition"
+                  name="ncrDisposition"
+                  required
+                  defaultValue={editingNcrRecord?.ncrDisposition || "rework"}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="rework">Rework</option>
+                  <option value="repair">Repair</option>
+                  <option value="useAsIs">Use As Is</option>
+                  <option value="scrap">Scrap / Reject</option>
+                  <option value="return">Return to Vendor</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="ncrDescription" className="text-sm font-medium">Description *</label>
+              <textarea
+                id="ncrDescription"
+                name="ncrDescription"
+                required
+                rows={3}
+                defaultValue={editingNcrRecord?.ncrDescription || ""}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Describe the non-conformance..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="ncrCorrectiveAction" className="text-sm font-medium">Corrective Action *</label>
+              <textarea
+                id="ncrCorrectiveAction"
+                name="ncrCorrectiveAction"
+                required
+                rows={3}
+                defaultValue={editingNcrRecord?.ncrCorrectiveAction || ""}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Describe the corrective action taken..."
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setIsNcrDialogOpen(false);
+                  setEditingNcrRecord(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingNcrRecord ? 'Update Record' : 'Add Record'}
+              </Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
