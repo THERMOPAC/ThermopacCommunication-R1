@@ -4458,18 +4458,24 @@ export default function InspectionsPage() {
                                       <SelectContent>
                                         {isLoadingInstruments ? (
                                           <SelectItem value="" disabled>Loading gauges...</SelectItem>
-                                        ) : calibrationInstruments.length === 0 ? (
-                                          <SelectItem value="" disabled>No pressure gauges available</SelectItem>
-                                        ) : (
-                                          calibrationInstruments.map(instrument => (
-                                            <SelectItem 
-                                              key={instrument.instrument_id} 
-                                              value={instrument.instrument_id}
-                                            >
-                                              {instrument.instrument_name} ({instrument.instrument_id})
-                                            </SelectItem>
-                                          ))
-                                        )}
+                                        ) : (() => {
+                                          const pressureGauges = calibrationInstruments.filter(instrument => 
+                                            instrument.instrument_type === 'Pressure Gauge' && 
+                                            instrument.in_use === 'In Use'
+                                          );
+                                          return pressureGauges.length === 0 ? (
+                                            <SelectItem value="" disabled>No active pressure gauges available</SelectItem>
+                                          ) : (
+                                            pressureGauges.map(instrument => (
+                                              <SelectItem 
+                                                key={instrument.instrument_id} 
+                                                value={instrument.instrument_id}
+                                              >
+                                                {instrument.instrument_name} ({instrument.instrument_id})
+                                              </SelectItem>
+                                            ))
+                                          );
+                                        })()}
                                       </SelectContent>
                                     </Select>
                                   ) : (
