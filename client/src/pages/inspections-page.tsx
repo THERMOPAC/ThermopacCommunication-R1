@@ -1683,7 +1683,7 @@ export default function InspectionsPage() {
     remarks: string;
   }) => {
     // Check if we have valid inspection order details with project code
-    if (!editInspectionOrderDetails?.project_code || editInspectionOrderDetails.project_code === 'UNKNOWN') {
+    if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
       toast({
         title: "Cannot Create Record",
         description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
@@ -3727,7 +3727,7 @@ export default function InspectionsPage() {
                           className="flex items-center text-xs"
                           onClick={() => {
                             // Check if we have valid project code before opening dialog
-                            if (!editInspectionOrderDetails?.project_code || editInspectionOrderDetails.project_code === 'UNKNOWN') {
+                            if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
                               toast({
                                 title: "Cannot Create Record",
                                 description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
