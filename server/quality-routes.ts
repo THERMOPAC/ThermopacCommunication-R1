@@ -100,9 +100,16 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       orderBy: (items) => [items.sequenceNumber]
     });
     
-    // Fetch material links for this inspection order
+    // Fetch material links for this inspection order with material description
     const materials = await db.query.materialInspectionLinks.findMany({
-      where: eq(materialInspectionLinks.inspectionOrderId, orderId)
+      where: eq(materialInspectionLinks.inspectionOrderId, orderId),
+      with: {
+        material: {
+          columns: {
+            materialDescription: true
+          }
+        }
+      }
     });
     
     // Parse NDT data if it exists

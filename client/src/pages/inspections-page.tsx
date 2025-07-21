@@ -1445,7 +1445,8 @@ export default function InspectionsPage() {
         materialSpecification: material.materialSpecification,
         allocatedQuantity: material.allocatedQuantity || '',
         quantityUnit: material.quantityUnit || '',
-        description: material.description || ''
+        // Extract description from nested material relationship or fallback to direct description field
+        description: material.material?.materialDescription || material.description || ''
       }));
       
       setMaterialRows(materials);
