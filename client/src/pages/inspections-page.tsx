@@ -3388,7 +3388,9 @@ export default function InspectionsPage() {
                                           No materials available
                                         </div>
                                       ) : (
-                                        availableMaterials.map((material) => (
+                                        availableMaterials
+                                          .sort((a, b) => (a.material_description || '').localeCompare(b.material_description || '', undefined, { numeric: true, sensitivity: 'base' }))
+                                          .map((material) => (
                                           <SelectItem 
                                             key={`desc-${material.id}`} 
                                             value={material.id.toString()}
@@ -3425,7 +3427,9 @@ export default function InspectionsPage() {
                                           No materials available
                                         </div>
                                       ) : (
-                                        availableMaterials.map((material) => (
+                                        availableMaterials
+                                          .sort((a, b) => (a.material_identification_id || '').localeCompare(b.material_identification_id || '', undefined, { numeric: true, sensitivity: 'base' }))
+                                          .map((material) => (
                                           <SelectItem 
                                             key={material.id} 
                                             value={material.id.toString()}
