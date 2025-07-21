@@ -3394,7 +3394,7 @@ export default function InspectionsPage() {
                                             value={material.id.toString()}
                                             className="text-xs"
                                           >
-                                            {material.materialDescription}
+                                            {material.material_description}
                                           </SelectItem>
                                         ))
                                       )}
