@@ -1683,7 +1683,9 @@ export default function InspectionsPage() {
     remarks: string;
   }) => {
     // Check if we have valid inspection order details with project code
-    if (!editInspectionOrderDetails?.project_code || editInspectionOrderDetails.project_code === 'UNKNOWN') {
+    // Handle both snake_case and camelCase field names for compatibility
+    const projectCode = editInspectionOrderDetails?.projectCode || editInspectionOrderDetails?.project_code;
+    if (!projectCode || projectCode === 'UNKNOWN') {
       toast({
         title: "Cannot Create Record",
         description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
