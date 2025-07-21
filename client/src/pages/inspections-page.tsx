@@ -294,6 +294,18 @@ export default function InspectionsPage() {
     welderId: string;
     weldStatus: string;
   } | null>(null);
+
+  // NDT dialog state
+  const [isNdtDialogOpen, setIsNdtDialogOpen] = useState(false);
+  const [editingNdtRecord, setEditingNdtRecord] = useState<{
+    id: string;
+    ndtMethod: string;
+    ndtStandard: string;
+    ndtExtent: string;
+    ndtTechnician: string;
+    ndtDate: string;
+    ndtResults: string;
+  } | null>(null);
   const [shopInspectionRecords, setShopInspectionRecords] = useState<{
     id: string;
     inspectionType: string;
@@ -628,57 +640,7 @@ export default function InspectionsPage() {
     return ndtMethods[method] || method;
   };
   
-  // Add new NDT record
-  const addNdtRecord = () => {
-    const newNdtNumber = ndtRecords.length + 1;
-    setNdtRecords([
-      ...ndtRecords, 
-      {
-        id: `NDT-${newNdtNumber}`,
-        ndtMethod: 'rt',
-        ndtStandard: 'ASME',
-        ndtExtent: '10',
-        ndtTechnician: '',
-        ndtDate: '',
-        ndtResults: 'Pass'
-      }
-    ]);
-    setSelectedNdtRecord(null);
-  };
-  
-  // Delete an NDT record
-  const deleteNdtRecord = (index: number) => {
-    const updatedRecords = [...ndtRecords];
-    updatedRecords.splice(index, 1);
-    
-    // Renumber NDT records after deletion
-    const renumberedRecords = updatedRecords.map((record, idx) => ({
-      ...record,
-      id: `NDT-${idx + 1}`
-    }));
-    
-    setNdtRecords(renumberedRecords);
-    setSelectedNdtRecord(null);
-    
-    if (editingNdtIndex === index) {
-      setEditingNdtIndex(null);
-    }
-  };
-  
-  // Edit an NDT record
-  const startEditingNdt = (index: number) => {
-    setEditingNdtIndex(index);
-  };
-  
-  // Update an NDT field
-  const updateNdtField = (index: number, field: string, value: string) => {
-    const updatedRecords = [...ndtRecords];
-    updatedRecords[index] = {
-      ...updatedRecords[index],
-      [field]: value
-    };
-    setNdtRecords(updatedRecords);
-  };
+
   
   // Add new visual inspection record
   const addVisualRecord = () => {
@@ -1807,6 +1769,61 @@ export default function InspectionsPage() {
   const startEditingWeldRecord = (record: typeof welds[0]) => {
     setEditingWeldRecord(record);
     setIsWeldingDialogOpen(true);
+  };
+
+  // Add new NDT record via dialog
+  const addNdtRecord = (recordData: {
+    id: string;
+    ndtMethod: string;
+    ndtStandard: string;
+    ndtExtent: string;
+    ndtTechnician: string;
+    ndtDate: string;
+    ndtResults: string;
+  }) => {
+    const newRecord = {
+      ...recordData
+    };
+    setNdtRecords(prev => [...prev, newRecord]);
+    setIsNdtDialogOpen(false);
+    toast({
+      title: "Success",
+      description: "NDT record added successfully",
+    });
+  };
+
+  // Edit NDT record via dialog
+  const editNdtRecord = (recordData: {
+    ndtMethod: string;
+    ndtStandard: string;
+    ndtExtent: string;
+    ndtTechnician: string;
+    ndtDate: string;
+    ndtResults: string;
+  }) => {
+    if (!editingNdtRecord) return;
+    
+    setNdtRecords(prev => 
+      prev.map(record => 
+        record.id === editingNdtRecord.id 
+          ? { ...record, ...recordData }
+          : record
+      )
+    );
+    
+    setIsNdtDialogOpen(false);
+    setEditingNdtRecord(null);
+    
+    toast({
+      title: "Success",
+      description: "NDT record updated successfully",
+    });
+  };
+
+  // Function to start editing an NDT record
+  const startEditingNdtRecord = (record: typeof ndtRecords[0]) => {
+    setEditingNdtRecord(record);
+    setIsNdtDialogOpen(true);
   };
 
   // Update form values when inspection order details are loaded
@@ -4186,128 +4203,34 @@ export default function InspectionsPage() {
                                   {record.id}
                                 </TableCell>
                                 <TableCell>
-                                  {editingNdtIndex === index ? (
-                                    <Select 
-                                      value={record.ndtMethod}
-                                      onValueChange={(value) => updateNdtField(index, 'ndtMethod', value)}
-                                    >
-                                      <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Select method" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="rt">RT (Radiographic Testing)</SelectItem>
-                                        <SelectItem value="ut">UT (Ultrasonic Testing)</SelectItem>
-                                        <SelectItem value="mt">MT (Magnetic Particle Testing)</SelectItem>
-                                        <SelectItem value="pt">PT (Penetrant Testing)</SelectItem>
-                                        <SelectItem value="et">ET (Eddy Current Testing)</SelectItem>
-                                        <SelectItem value="vt">VT (Visual Testing)</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    record.ndtMethod ? getNdtMethodName(record.ndtMethod) : "-"
-                                  )}
+                                  {record.ndtMethod ? getNdtMethodName(record.ndtMethod) : "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingNdtIndex === index ? (
-                                    <Select 
-                                      value={record.ndtStandard}
-                                      onValueChange={(value) => updateNdtField(index, 'ndtStandard', value)}
-                                    >
-                                      <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Select standard" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="ASME">ASME</SelectItem>
-                                        <SelectItem value="API">API</SelectItem>
-                                        <SelectItem value="EN ISO">EN ISO</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    record.ndtStandard || "-"
-                                  )}
+                                  {record.ndtStandard || "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingNdtIndex === index ? (
-                                    <Select 
-                                      value={record.ndtExtent}
-                                      onValueChange={(value) => updateNdtField(index, 'ndtExtent', value)}
-                                    >
-                                      <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Select %" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="5">5%</SelectItem>
-                                        <SelectItem value="10">10%</SelectItem>
-                                        <SelectItem value="100">100%</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    record.ndtExtent ? `${record.ndtExtent}%` : "-"
-                                  )}
+                                  {record.ndtExtent ? `${record.ndtExtent}%` : "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingNdtIndex === index ? (
-                                    <Input 
-                                      value={record.ndtTechnician} 
-                                      onChange={(e) => updateNdtField(index, 'ndtTechnician', e.target.value)}
-                                      placeholder="Enter name"
-                                      className="w-full"
-                                    />
-                                  ) : (
-                                    record.ndtTechnician || "-"
-                                  )}
+                                  {record.ndtTechnician || "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingNdtIndex === index ? (
-                                    <Input 
-                                      type="date"
-                                      value={record.ndtDate} 
-                                      onChange={(e) => updateNdtField(index, 'ndtDate', e.target.value)}
-                                      className="w-full"
-                                    />
-                                  ) : (
-                                    record.ndtDate || "-"
-                                  )}
+                                  {record.ndtDate || "-"}
                                 </TableCell>
                                 <TableCell>
-                                  {editingNdtIndex === index ? (
-                                    <Select 
-                                      value={record.ndtResults}
-                                      onValueChange={(value) => updateNdtField(index, 'ndtResults', value)}
-                                    >
-                                      <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Select result" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="Pass">Pass</SelectItem>
-                                        <SelectItem value="Failed">Failed</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    record.ndtResults || "-"
-                                  )}
+                                  {record.ndtResults || "-"}
                                 </TableCell>
                                 <TableCell>
-                                  <div className="flex items-center space-x-1">
-                                    <Button 
-                                      type="button" 
-                                      variant="ghost" 
-                                      size="icon" 
-                                      onClick={() => startEditingNdt(index)}
-                                      className="h-7 w-7"
-                                    >
-                                      <Pencil className="h-3.5 w-3.5" />
-                                    </Button>
-                                    <Button 
-                                      type="button" 
-                                      variant="ghost" 
-                                      size="icon" 
-                                      onClick={() => deleteNdtRecord(index)}
-                                      className="h-7 w-7 text-destructive"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </div>
+                                  <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    onClick={() => startEditingNdtRecord(record)}
+                                    className="h-7 w-7 text-green-600 hover:text-green-800 hover:bg-green-50"
+                                    title="Edit NDT Record"
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5" />
+                                  </Button>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -4322,11 +4245,21 @@ export default function InspectionsPage() {
                             type="button" 
                             variant="default" 
                             size="sm" 
-                            onClick={addNdtRecord}
+                            onClick={() => {
+                              if (editInspectionOrderDetails?.project_code === 'UNKNOWN') {
+                                toast({
+                                  title: "Project Code Required",
+                                  description: "Cannot add NDT record with UNKNOWN project code. Please update the project information first.",
+                                  variant: "destructive"
+                                });
+                                return;
+                              }
+                              setIsNdtDialogOpen(true);
+                            }}
                             className="mr-2"
                           >
                             <Plus className="h-4 w-4 mr-2" />
-                            Add NDT
+                            Add NDT Record
                           </Button>
                         </div>
                         <div className="flex items-center gap-2">
@@ -5807,6 +5740,172 @@ export default function InspectionsPage() {
               </Button>
               <Button type="submit">
                 {editingWeldRecord ? 'Update Record' : 'Add Record'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* NDT Dialog */}
+      <Dialog open={isNdtDialogOpen} onOpenChange={(open) => {
+        setIsNdtDialogOpen(open);
+        if (!open) {
+          setEditingNdtRecord(null);
+        }
+      }}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingNdtRecord ? 'Edit NDT Record' : 'Add NDT Record'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingNdtRecord 
+                ? `Edit NDT record ${editingNdtRecord.id} for this inspection order.`
+                : 'Add a new NDT record for this inspection order.'
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            const recordData = {
+              id: editingNdtRecord ? editingNdtRecord.id : `NDT-${Date.now()}`,
+              ndtMethod: formData.get('ndtMethod') as string,
+              ndtStandard: formData.get('ndtStandard') as string,
+              ndtExtent: formData.get('ndtExtent') as string,
+              ndtTechnician: formData.get('ndtTechnician') as string,
+              ndtDate: formData.get('ndtDate') as string,
+              ndtResults: formData.get('ndtResults') as string,
+            };
+            if (editingNdtRecord) {
+              editNdtRecord(recordData);
+            } else {
+              addNdtRecord(recordData);
+            }
+          }}>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="ndtMethod" className="text-sm font-medium">
+                    NDT Method *
+                  </label>
+                  <select
+                    id="ndtMethod"
+                    name="ndtMethod"
+                    required
+                    defaultValue={editingNdtRecord?.ndtMethod || ""}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select method</option>
+                    <option value="rt">RT (Radiographic Testing)</option>
+                    <option value="ut">UT (Ultrasonic Testing)</option>
+                    <option value="mt">MT (Magnetic Particle Testing)</option>
+                    <option value="pt">PT (Penetrant Testing)</option>
+                    <option value="et">ET (Eddy Current Testing)</option>
+                    <option value="vt">VT (Visual Testing)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="ndtStandard" className="text-sm font-medium">
+                    Standard *
+                  </label>
+                  <select
+                    id="ndtStandard"
+                    name="ndtStandard"
+                    required
+                    defaultValue={editingNdtRecord?.ndtStandard || ""}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select standard</option>
+                    <option value="ASME">ASME</option>
+                    <option value="API">API</option>
+                    <option value="EN ISO">EN ISO</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="ndtExtent" className="text-sm font-medium">
+                    Extent (%) *
+                  </label>
+                  <select
+                    id="ndtExtent"
+                    name="ndtExtent"
+                    required
+                    defaultValue={editingNdtRecord?.ndtExtent || ""}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select extent</option>
+                    <option value="5">5%</option>
+                    <option value="10">10%</option>
+                    <option value="100">100%</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="ndtTechnician" className="text-sm font-medium">
+                    Technician
+                  </label>
+                  <input
+                    type="text"
+                    id="ndtTechnician"
+                    name="ndtTechnician"
+                    defaultValue={editingNdtRecord?.ndtTechnician || ""}
+                    placeholder="Enter technician name"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="ndtDate" className="text-sm font-medium">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    id="ndtDate"
+                    name="ndtDate"
+                    defaultValue={editingNdtRecord?.ndtDate || ""}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="ndtResults" className="text-sm font-medium">
+                    Results *
+                  </label>
+                  <select
+                    id="ndtResults"
+                    name="ndtResults"
+                    required
+                    defaultValue={editingNdtRecord?.ndtResults || "Pass"}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Pass">Pass</option>
+                    <option value="Failed">Failed</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setIsNdtDialogOpen(false);
+                  setEditingNdtRecord(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingNdtRecord ? 'Update Record' : 'Add Record'}
               </Button>
             </DialogFooter>
           </form>
