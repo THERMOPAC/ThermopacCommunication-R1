@@ -1,3 +1,4 @@
+import Layout from '@/components/layout';
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
@@ -224,7 +225,8 @@ export default function TestProceduresPage() {
   };
 
   return (
-    <div className="container py-6">
+    <Layout>
+      <div className="container py-6">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">Test Procedures</h1>
@@ -535,6 +537,7 @@ export default function TestProceduresPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </Layout>
   );
 }
