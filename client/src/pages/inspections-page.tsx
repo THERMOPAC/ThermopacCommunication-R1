@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
-import { Check, Edit, Trash, Eye, Plus, ClipboardCheck, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Edit2, Pencil, Trash2, X, FileCheck, BarChart3, ListChecks, FileOutput, Download, Upload, Filter, Search, Info } from "lucide-react";
+import { Check, Edit, Trash, Eye, Plus, ClipboardCheck, ClipboardList, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Edit2, Pencil, Trash2, X, FileCheck, BarChart3, ListChecks, FileOutput, Download, Upload, Filter, Search, Info } from "lucide-react";
 import InspectionDocumentUpload from "@/components/inspection-document-upload";
 import InspectionDocumentViewer from "@/components/inspection-document-viewer";
 import { FinalDossierDebugButton } from "@/components/final-dossier-debug-button";
@@ -401,6 +401,29 @@ export default function InspectionsPage() {
     revision: string;
     verifiedBy: string;
     verificationDate: string;
+    status: string;
+    remarks: string;
+  } | null>(null);
+
+  // ITP Records state
+  const [itpRecords, setItpRecords] = useState<{
+    id: string;
+    itpNumber: string;
+    itemDescription: string;
+    inspectionStage: string;
+    inspector: string;
+    inspectionDate: string;
+    status: string;
+    remarks: string;
+  }[]>([]);
+  const [isItpDialogOpen, setIsItpDialogOpen] = useState(false);
+  const [editingItpRecord, setEditingItpRecord] = useState<{
+    id: string;
+    itpNumber: string;
+    itemDescription: string;
+    inspectionStage: string;
+    inspector: string;
+    inspectionDate: string;
     status: string;
     remarks: string;
   } | null>(null);
@@ -2120,6 +2143,74 @@ export default function InspectionsPage() {
   const startEditingDvrRecord = (record: typeof dvrRecords[0]) => {
     setEditingDvrRecord(record);
     setIsDvrDialogOpen(true);
+  };
+
+  // ITP Helper Functions
+  const generateItpId = () => {
+    const maxId = itpRecords.reduce((max, record) => {
+      const num = parseInt(record.id.replace('ITP-', ''));
+      return num > max ? num : max;
+    }, 0);
+    return `ITP-${maxId + 1}`;
+  };
+
+  const addItpRecord = (recordData: {
+    itpNumber: string;
+    itemDescription: string;
+    inspectionStage: string;
+    inspector: string;
+    inspectionDate: string;
+    status: string;
+    remarks?: string;
+  }) => {
+    const newRecord = {
+      id: generateItpId(),
+      ...recordData,
+      remarks: recordData.remarks || ''
+    };
+    
+    setItpRecords(prev => [...prev, newRecord]);
+    setIsItpDialogOpen(false);
+    
+    toast({
+      title: "Success",
+      description: "ITP record added successfully",
+    });
+  };
+
+  const editItpRecord = (recordData: {
+    itpNumber: string;
+    itemDescription: string;
+    inspectionStage: string;
+    inspector: string;
+    inspectionDate: string;
+    status: string;
+    remarks?: string;
+  }) => {
+    if (!editingItpRecord) return;
+
+    const updatedRecord = {
+      ...editingItpRecord,
+      ...recordData,
+      remarks: recordData.remarks || ''
+    };
+    
+    setItpRecords(prev => prev.map(record => 
+      record.id === editingItpRecord.id ? updatedRecord : record
+    ));
+    
+    setIsItpDialogOpen(false);
+    setEditingItpRecord(null);
+    
+    toast({
+      title: "Success",
+      description: "ITP record updated successfully",
+    });
+  };
+
+  const startEditingItpRecord = (record: typeof itpRecords[0]) => {
+    setEditingItpRecord(record);
+    setIsItpDialogOpen(true);
   };
 
   // Add new weld record via dialog
@@ -3947,6 +4038,7 @@ export default function InspectionsPage() {
                     <TabsList className="flex w-full space-x-2">
                       <TabsTrigger value="approved-drawing">Approved Drawing</TabsTrigger>
                       <TabsTrigger value="dvr">DVR</TabsTrigger>
+                      <TabsTrigger value="itp">ITP</TabsTrigger>
                       <TabsTrigger value="material">Material Traceability</TabsTrigger>
                       <TabsTrigger value="shop">Shop Inspection</TabsTrigger>
                       <TabsTrigger value="welding">Welding & Weld Maps</TabsTrigger>
@@ -4215,6 +4307,142 @@ export default function InspectionsPage() {
                                   </p>
                                   <p className="text-xs text-muted-foreground mb-2">
                                     Click "Add DVR Record" to create a new record.
+                                  </p>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </TabsContent>
+                  
+                  {/* ITP Tab */}
+                  <TabsContent value="itp" className="p-4 border rounded-md mt-4">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-medium">ITP (Inspection and Test Plan)</h3>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            // Check if we have valid project code before opening dialog
+                            if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
+                              toast({
+                                title: "Cannot Create Record",
+                                description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            setEditingItpRecord(null);
+                            setIsItpDialogOpen(true);
+                          }}
+                          className="flex items-center text-xs"
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Add ITP Record
+                        </Button>
+                      </div>
+                      
+                      {/* ITP records table - display only format */}
+                      <div className="border rounded-md overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-gray-50">
+                              <TableHead className="text-xs w-20">ITP ID</TableHead>
+                              <TableHead className="text-xs w-32">ITP Number</TableHead>
+                              <TableHead className="text-xs w-48">Item Description</TableHead>
+                              <TableHead className="text-xs w-32">Inspection Stage</TableHead>
+                              <TableHead className="text-xs w-32">Inspector</TableHead>
+                              <TableHead className="text-xs w-24">Date</TableHead>
+                              <TableHead className="text-xs w-20">Status</TableHead>
+                              <TableHead className="text-xs w-48">Remarks</TableHead>
+                              <TableHead className="text-xs w-36">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {itpRecords && itpRecords.length > 0 ? (
+                              itpRecords.map((record) => (
+                                <TableRow key={record.id} className="hover:bg-gray-50">
+                                  <TableCell className="text-xs font-mono text-blue-600">{record.id}</TableCell>
+                                  <TableCell className="text-xs">{record.itpNumber || '-'}</TableCell>
+                                  <TableCell className="text-xs">{record.itemDescription || '-'}</TableCell>
+                                  <TableCell className="text-xs">{record.inspectionStage || '-'}</TableCell>
+                                  <TableCell className="text-xs">{record.inspector || '-'}</TableCell>
+                                  <TableCell className="text-xs">{record.inspectionDate || '-'}</TableCell>
+                                  <TableCell className="text-xs">
+                                    <Badge 
+                                      variant={
+                                        record.status === 'Pass' ? 'default' : 
+                                        record.status === 'Failed' ? 'destructive' : 
+                                        record.status === 'Pending' ? 'secondary' : 'outline'
+                                      }
+                                      className="text-xs"
+                                    >
+                                      {record.status || '-'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-xs">{record.remarks || '-'}</TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-1">
+                                      <Button 
+                                        type="button" 
+                                        variant="ghost" 
+                                        size="icon"
+                                        className="h-7 w-7 text-green-600 hover:text-green-800 hover:bg-green-50"
+                                        onClick={() => startEditingItpRecord(record)}
+                                        title="Edit ITP Record"
+                                      >
+                                        <Edit2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        type="button" 
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-xs px-2 py-1 h-7 bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                        onClick={() => {
+                                          setDocumentUploadConfig({
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || '',
+                                            tabName: 'ITP',
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentUpload(true);
+                                        }}
+                                      >
+                                        <Upload className="h-3 w-3 mr-1" />
+                                        Upload
+                                      </Button>
+                                      <Button
+                                        type="button" 
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-xs px-2 py-1 h-7 bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
+                                        onClick={() => {
+                                          setDocumentViewerConfig({
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || '',
+                                            tabName: 'ITP',
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentViewer(true);
+                                        }}
+                                      >
+                                        <Eye className="h-3 w-3 mr-1" />
+                                        View
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={9} className="text-center py-10">
+                                  <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
+                                  <p className="mt-2 text-xs text-muted-foreground">
+                                    No ITP records found.
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mb-2">
+                                    Click "Add ITP Record" to create a new record.
                                   </p>
                                 </TableCell>
                               </TableRow>
@@ -6918,6 +7146,168 @@ export default function InspectionsPage() {
               </Button>
               <Button type="submit">
                 {editingDvrRecord ? 'Update Record' : 'Add Record'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ITP Dialog */}
+      <Dialog open={isItpDialogOpen} onOpenChange={(open) => {
+        setIsItpDialogOpen(open);
+        if (!open) {
+          setEditingItpRecord(null);
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingItpRecord ? 'Edit ITP Record' : 'Add ITP Record'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingItpRecord 
+                ? `Edit ITP record ${editingItpRecord.id} for this inspection order.`
+                : 'Add a new Inspection and Test Plan (ITP) record for this inspection order.'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            const recordData = {
+              itpNumber: formData.get('itpNumber') as string,
+              itemDescription: formData.get('itemDescription') as string,
+              inspectionStage: formData.get('inspectionStage') as string,
+              inspector: formData.get('inspector') as string,
+              inspectionDate: formData.get('inspectionDate') as string,
+              status: formData.get('status') as string,
+              remarks: formData.get('remarks') as string,
+            };
+            if (editingItpRecord) {
+              editItpRecord(recordData);
+            } else {
+              addItpRecord(recordData);
+            }
+          }} className="space-y-4">
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="itpNumber" className="text-sm font-medium">ITP Number *</label>
+                <input
+                  type="text"
+                  id="itpNumber"
+                  name="itpNumber"
+                  required
+                  defaultValue={editingItpRecord?.itpNumber || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter ITP number (e.g., ITP-001-2025)"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="itemDescription" className="text-sm font-medium">Item Description *</label>
+                <input
+                  type="text"
+                  id="itemDescription"
+                  name="itemDescription"
+                  required
+                  defaultValue={editingItpRecord?.itemDescription || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter item description"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="inspectionStage" className="text-sm font-medium">Inspection Stage *</label>
+                <select
+                  id="inspectionStage"
+                  name="inspectionStage"
+                  required
+                  defaultValue={editingItpRecord?.inspectionStage || "incoming"}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="incoming">Incoming Inspection</option>
+                  <option value="inprocess">In-Process Inspection</option>
+                  <option value="final">Final Inspection</option>
+                  <option value="predelivery">Pre-Delivery Inspection</option>
+                  <option value="witness">Witness Point</option>
+                  <option value="hold">Hold Point</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="inspector" className="text-sm font-medium">Inspector *</label>
+                <input
+                  type="text"
+                  id="inspector"
+                  name="inspector"
+                  required
+                  defaultValue={editingItpRecord?.inspector || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter inspector name"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="inspectionDate" className="text-sm font-medium">Inspection Date *</label>
+                <input
+                  type="date"
+                  id="inspectionDate"
+                  name="inspectionDate"
+                  required
+                  defaultValue={editingItpRecord?.inspectionDate || new Date().toISOString().split('T')[0]}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="status" className="text-sm font-medium">Status *</label>
+                <select
+                  id="status"
+                  name="status"
+                  required
+                  defaultValue={editingItpRecord?.status || "Pending"}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Pending">Pending</option>
+                  <option value="Pass">Pass</option>
+                  <option value="Failed">Failed</option>
+                  <option value="Conditional">Conditional Pass</option>
+                  <option value="Waived">Waived</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="remarks" className="text-sm font-medium">Remarks</label>
+              <textarea
+                id="remarks"
+                name="remarks"
+                rows={3}
+                defaultValue={editingItpRecord?.remarks || ""}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter any additional remarks or observations..."
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setIsItpDialogOpen(false);
+                  setEditingItpRecord(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingItpRecord ? 'Update Record' : 'Add Record'}
               </Button>
             </div>
           </form>
