@@ -5064,12 +5064,12 @@ export default function InspectionsPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select inspection type</option>
-                <option value="Dimensional Check">Dimensional Check</option>
-                <option value="Surface Finish">Surface Finish</option>
                 <option value="Assembly Check">Assembly Check</option>
-                <option value="Functional Test">Functional Test</option>
-                <option value="Quality Control">Quality Control</option>
-                <option value="Final Inspection">Final Inspection</option>
+                <option value="Dimensional Check">Dimensional Check</option>
+                <option value="Formed Parts">Formed Parts</option>
+                <option value="Nozzle Setup">Nozzle Setup</option>
+                <option value="Painting">Painting</option>
+                <option value="Seam Setup">Seam Setup</option>
               </select>
             </div>
 
