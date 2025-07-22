@@ -6795,7 +6795,7 @@ export default function InspectionsPage() {
                   {calibrationInstruments && calibrationInstruments.length > 0 ? (
                     calibrationInstruments.map((instrument) => (
                       <option key={instrument.id} value={instrument.instrument_id}>
-                        {instrument.instrument_id} - {instrument.instrument_type}
+                        [{instrument.instrument_id}] - [{instrument.instrument_name}]
                       </option>
                     ))
                   ) : (
