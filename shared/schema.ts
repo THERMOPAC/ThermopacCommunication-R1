@@ -5001,12 +5001,7 @@ export const pmaDocumentSchema = createInsertSchema(pmaDocuments)
     ]),
     status: z.enum(['Draft', 'Active', 'Inactive']).default('Draft'),
     issueDate: z.string().min(1, 'Issue Date is required'),
-    expiryDate: z.string().refine((date) => {
-      const inputDate = new Date(date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      return inputDate >= today;
-    }, 'Expiry date cannot be in the past'),
+    expiryDate: z.string().min(1, 'Expiry Date is required'),
     remarks: z.string().optional(),
     createdBy: z.number(),
   });
