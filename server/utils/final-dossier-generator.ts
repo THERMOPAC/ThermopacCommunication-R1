@@ -393,18 +393,20 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     let yPosition = 650;
     const sections = [
-      '1. Approved Drawing',
-      '2. Design Verification Report (DVR)',
-      '3. ITP (Inspection Test Plan)',
-      '4. Material Traceability',
-      '5. Shop Inspection',
-      '6. Welding & Weld Maps',
-      '7. NDT Reports',
-      '8. Visual Inspection Records',
-      '9. Hydrotest Reports',
-      '10. Non-Conformance Reports',
-      '11. Calibration Certificates',
-      '12. Appendices'
+      '1. Appendices',
+      '2. Approved Drawing',
+      '3. Design Verification Report (DVR)',
+      '4. ITP (Inspection Test Plan)',
+      '5. Material Traceability',
+      '6. PMA',
+      '7. Procedures',
+      '8. Shop Inspection',
+      '9. Welding & Weld Maps',
+      '10. NDT Reports',
+      '11. Visual Inspection Records',
+      '12. Hydrotest Reports',
+      '13. Non-Conformance Reports',
+      '14. Calibration Certificates'
     ];
     
     for (const section of sections) {
@@ -421,9 +423,57 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Add footer to table of contents page
     addFooterToPage(tocPage);
     
-    // Add approved drawing section (now section 1)
+    // Add a separate APPENDICES title page (now section 1)
+    const appendicesTitlePage = pdfDoc.addPage([612, 792]);
+    
+    // Calculate the width of the text to center it horizontally
+    const titleText = '1. APPENDICES';
+    const titleFont = helveticaBold;
+    const titleSize = 24;
+    
+    // Calculate width of text and center position
+    const titleWidth = titleSize * titleText.length * 0.5; // approximate width
+    const centerX = (612 - titleWidth) / 2;
+    
+    appendicesTitlePage.drawText(titleText, {
+      x: centerX,
+      y: 400, // Centered vertically in the page
+      size: titleSize, // Larger font for the title page
+      font: titleFont,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Add footer to the appendices title page
+    addFooterToPage(appendicesTitlePage);
+    
+    // Add appendices content on a new page
+    let appendicesPage = pdfDoc.addPage([612, 792]);
+    
+    // Consistent header for appendices content page
+    appendicesPage.drawText('1. APPENDICES (Contents)', {
+      x: pageMargin,
+      y: 700,
+      size: 16,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    yPosition = 650;
+    appendicesPage.drawText('The following documents are included as appendices:', {
+      x: 70,
+      y: yPosition,
+      size: 12,
+      font: helvetica,
+      color: rgb(0, 0, 0),
+    });
+    yPosition -= 25;
+    
+    // Add footer to the appendices page (will be completed later with actual content)
+    addFooterToPage(appendicesPage);
+    
+    // Add approved drawing section (now section 2)
     const approvedDrawingPage = pdfDoc.addPage([612, 792]);
-    approvedDrawingPage.drawText('1. APPROVED DRAWING', {
+    approvedDrawingPage.drawText('2. APPROVED DRAWING', {
       x: pageMargin,
       y: 700,
       size: 16,
@@ -442,9 +492,9 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     addFooterToPage(approvedDrawingPage);
     
-    // Add DVR section (now section 2)
+    // Add DVR section (now section 3)
     const dvrPage = pdfDoc.addPage([612, 792]);
-    dvrPage.drawText('2. DESIGN VERIFICATION REPORT (DVR)', {
+    dvrPage.drawText('3. DESIGN VERIFICATION REPORT (DVR)', {
       x: pageMargin,
       y: 700,
       size: 16,
@@ -463,9 +513,9 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     addFooterToPage(dvrPage);
     
-    // Add ITP section (now section 3)
+    // Add ITP section (now section 4)
     const itpPage = pdfDoc.addPage([612, 792]);
-    itpPage.drawText('3. ITP (INSPECTION TEST PLAN)', {
+    itpPage.drawText('4. ITP (INSPECTION TEST PLAN)', {
       x: pageMargin,
       y: 700,
       size: 16,
@@ -484,9 +534,9 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     addFooterToPage(itpPage);
     
-    // Add material traceability section (now section 4)
+    // Add material traceability section (now section 5)
     const materialPage = pdfDoc.addPage([612, 792]);
-    materialPage.drawText('4. MATERIAL TRACEABILITY', {
+    materialPage.drawText('5. MATERIAL TRACEABILITY', {
       x: pageMargin,
       y: 700,
       size: 16,
@@ -643,9 +693,294 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       });
     }
     
-    // Add shop inspection section (now section 5)
+    // Add PMA section (now section 6)
+    const pmaPage = pdfDoc.addPage([612, 792]);
+    pmaPage.drawText('6. PMA (PARTICULAR MATERIAL APPRAISAL)', {
+      x: pageMargin,
+      y: 700,
+      size: 16,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Parse PMA records from the inspection order
+    let pmaRecords: any[] = [];
+    try {
+      if (inspectionOrder.pmaRecords && typeof inspectionOrder.pmaRecords === 'string') {
+        pmaRecords = JSON.parse(inspectionOrder.pmaRecords);
+        console.log(`Found ${pmaRecords.length} PMA records in inspection order`);
+      }
+    } catch (error) {
+      console.error('Error parsing PMA records:', error);
+    }
+    
+    // Draw table headers
+    yPosition = 650;
+    
+    pmaPage.drawText('PMA ID', {
+      x: 70,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    pmaPage.drawText('PMA Number', {
+      x: 140,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    pmaPage.drawText('Material Spec', {
+      x: 230,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    pmaPage.drawText('Grade', {
+      x: 340,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    pmaPage.drawText('Certified By', {
+      x: 410,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    pmaPage.drawText('Status', {
+      x: 500,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Draw a line under headers
+    pmaPage.drawLine({
+      start: { x: 70, y: yPosition - 5 },
+      end: { x: 540, y: yPosition - 5 },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+    
+    yPosition -= 20;
+    
+    if (pmaRecords.length > 0) {
+      for (const pma of pmaRecords) {
+        // Draw PMA data in single-line tabular format
+        pmaPage.drawText(pma.id || 'N/A', {
+          x: 70,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        
+        pmaPage.drawText(pma.pmaNumber || 'N/A', {
+          x: 140,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        
+        pmaPage.drawText(pma.materialSpecification || 'N/A', {
+          x: 230,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        
+        pmaPage.drawText(pma.materialGrade || 'N/A', {
+          x: 340,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        
+        pmaPage.drawText(pma.certifiedBy || 'N/A', {
+          x: 410,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        
+        pmaPage.drawText(pma.status || 'N/A', {
+          x: 500,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        
+        yPosition -= 20;
+      }
+    } else {
+      pmaPage.drawText('No PMA records found.', {
+        x: 70,
+        y: yPosition,
+        size: 10,
+        font: helvetica,
+        color: rgb(0, 0, 0),
+      });
+    }
+    
+    addFooterToPage(pmaPage);
+    
+    // Add Procedures section (now section 7)
+    const proceduresPage = pdfDoc.addPage([612, 792]);
+    proceduresPage.drawText('7. PROCEDURES', {
+      x: pageMargin,
+      y: 700,
+      size: 16,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Parse Procedures records from the inspection order
+    let procedureRecords: any[] = [];
+    try {
+      if (inspectionOrder.procedureRecords && typeof inspectionOrder.procedureRecords === 'string') {
+        procedureRecords = JSON.parse(inspectionOrder.procedureRecords);
+        console.log(`Found ${procedureRecords.length} Procedure records in inspection order`);
+      }
+    } catch (error) {
+      console.error('Error parsing Procedure records:', error);
+    }
+    
+    // Draw table headers
+    yPosition = 650;
+    
+    proceduresPage.drawText('Procedure ID', {
+      x: 70,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    proceduresPage.drawText('Procedure Number', {
+      x: 170,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    proceduresPage.drawText('Procedure Name', {
+      x: 280,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    proceduresPage.drawText('NDT Method', {
+      x: 420,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    proceduresPage.drawText('Standard', {
+      x: 500,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Draw a line under headers
+    proceduresPage.drawLine({
+      start: { x: 70, y: yPosition - 5 },
+      end: { x: 540, y: yPosition - 5 },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+    
+    yPosition -= 20;
+    
+    if (procedureRecords.length > 0) {
+      for (const procedure of procedureRecords) {
+        // Draw Procedure data in single-line tabular format
+        proceduresPage.drawText(procedure.id || 'N/A', {
+          x: 70,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        
+        proceduresPage.drawText(procedure.procedureNumber || 'N/A', {
+          x: 170,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        
+        // Truncate procedure name if too long
+        const procedureName = procedure.procedureName || 'N/A';
+        const maxNameLength = 15;
+        const displayProcedureName = procedureName.length > maxNameLength 
+          ? procedureName.substring(0, maxNameLength) + '...' 
+          : procedureName;
+        
+        proceduresPage.drawText(displayProcedureName, {
+          x: 280,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        
+        proceduresPage.drawText(procedure.ndtMethod || 'N/A', {
+          x: 420,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        
+        proceduresPage.drawText(procedure.applicableStandard || 'N/A', {
+          x: 500,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        
+        yPosition -= 20;
+      }
+    } else {
+      proceduresPage.drawText('No procedure records found.', {
+        x: 70,
+        y: yPosition,
+        size: 10,
+        font: helvetica,
+        color: rgb(0, 0, 0),
+      });
+    }
+    
+    addFooterToPage(proceduresPage);
+    
+    // Add shop inspection section (now section 8)
     const shopInspectionPage = pdfDoc.addPage([612, 792]);
-    shopInspectionPage.drawText('5. SHOP INSPECTION', {
+    shopInspectionPage.drawText('8. SHOP INSPECTION', {
       x: pageMargin,
       y: 700,
       size: 16,
@@ -664,9 +999,9 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     addFooterToPage(shopInspectionPage);
     
-    // Add welding section (now section 6)
+    // Add welding section (now section 9)
     const weldingPage = pdfDoc.addPage([612, 792]);
-    weldingPage.drawText('6. WELDING & WELD MAPS', {
+    weldingPage.drawText('9. WELDING & WELD MAPS', {
       x: pageMargin,
       y: 700,
       size: 16,
@@ -817,9 +1152,9 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       });
     }
     
-    // Add NDT section (now section 7)
+    // Add NDT section (now section 10)
     const ndtPage = pdfDoc.addPage([612, 792]);
-    ndtPage.drawText('7. NDT REPORTS', {
+    ndtPage.drawText('10. NDT REPORTS', {
       x: pageMargin,
       y: 700,
       size: 16,
@@ -978,9 +1313,9 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       });
     }
     
-    // Add Visual Inspection section
+    // Add Visual Inspection section (now section 11)
     const visualPage = pdfDoc.addPage([612, 792]);
-    visualPage.drawText('8. VISUAL INSPECTION RECORDS', {
+    visualPage.drawText('11. VISUAL INSPECTION RECORDS', {
       x: pageMargin,
       y: 700,
       size: 16,
@@ -1146,9 +1481,9 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       });
     }
     
-    // Add Hydrotest section (now section 9)
+    // Add Hydrotest section (now section 12)
     const hydrotestPage = pdfDoc.addPage([612, 792]);
-    hydrotestPage.drawText('9. HYDROTEST REPORTS', {
+    hydrotestPage.drawText('12. HYDROTEST REPORTS', {
       x: pageMargin,
       y: 700,
       size: 16,
@@ -1167,9 +1502,9 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     addFooterToPage(hydrotestPage);
     
-    // Add NCR section (now section 10)
+    // Add NCR section (now section 13)
     const ncrPage = pdfDoc.addPage([612, 792]);
-    ncrPage.drawText('10. NON-CONFORMANCE REPORTS', {
+    ncrPage.drawText('13. NON-CONFORMANCE REPORTS', {
       x: pageMargin,
       y: 700,
       size: 16,
@@ -1328,7 +1663,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     // Add calibration certificates section - for pressure gauge instruments from hydrotest records
     const calibrationCertificatesPage = pdfDoc.addPage([612, 792]);
-    calibrationCertificatesPage.drawText('7. Calibration Certificates', {
+    calibrationCertificatesPage.drawText('14. CALIBRATION CERTIFICATES', {
       x: pageMargin,
       y: 700,
       size: 16,
@@ -1536,53 +1871,46 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Add footer to the calibration certificates page
     addFooterToPage(calibrationCertificatesPage);
     
-    // Add a separate APPENDICES title page
-    const appendicesTitlePage = pdfDoc.addPage([612, 792]);
-    
-    // Calculate the width of the text to center it horizontally
-    const titleText = '12. APPENDICES';
-    const titleFont = helveticaBold;
-    const titleSize = 24;
-    
-    // Calculate width of text and center position
-    const titleWidth = titleSize * titleText.length * 0.5; // approximate width
-    const centerX = (612 - titleWidth) / 2;
-    
-    appendicesTitlePage.drawText(titleText, {
-      x: centerX,
-      y: 400, // Centered vertically in the page
-      size: titleSize, // Larger font for the title page
-      font: titleFont,
-      color: rgb(0, 0, 0),
-    });
-    
-    // Add footer to the appendices title page
-    addFooterToPage(appendicesTitlePage);
-    
-    // Add appendices content on a new page
-    let appendicesPage = pdfDoc.addPage([612, 792]);
-    
-    // Consistent header for appendices content page
-    appendicesPage.drawText('12. APPENDICES (Contents)', {
-      x: pageMargin,
-      y: 700,
-      size: 16,
-      font: helveticaBold,
-      color: rgb(0, 0, 0),
-    });
-    
-    yPosition = 650;
-    appendicesPage.drawText('The following documents are included as appendices:', {
-      x: 70,
-      y: yPosition,
-      size: 12,
-      font: helvetica,
-      color: rgb(0, 0, 0),
-    });
-    yPosition -= 25;
-    
-    // Collect and list document references
+    // Merge additional PDF documents into the final dossier
     try {
+      // Add Appendices title page and content
+      const appendicesTitlePage = pdfDoc.addPage([612, 792]);
+      const titleText = '14. APPENDICES';
+      const titleFont = helveticaBold;
+      const titleSize = 24;
+      const titleWidth = titleSize * titleText.length * 0.5;
+      const centerX = (612 - titleWidth) / 2;
+      
+      appendicesTitlePage.drawText(titleText, {
+        x: centerX,
+        y: 400,
+        size: titleSize,
+        font: titleFont,
+        color: rgb(0, 0, 0),
+      });
+      addFooterToPage(appendicesTitlePage);
+      
+      // Add appendices content page
+      const appendicesPage = pdfDoc.addPage([612, 792]);
+      appendicesPage.drawText('14. APPENDICES (Contents)', {
+        x: pageMargin,
+        y: 700,
+        size: 16,
+        font: helveticaBold,
+        color: rgb(0, 0, 0),
+      });
+      
+      let yPosition = 650;
+      appendicesPage.drawText('The following documents are included as appendices:', {
+        x: 70,
+        y: yPosition,
+        size: 12,
+        font: helvetica,
+        color: rgb(0, 0, 0),
+      });
+      addFooterToPage(appendicesPage);
+      
+      // Collect all documents from various tabs and merge them
       // 1. List material certificates
       if (materials.length > 0) {
         appendicesPage.drawText('Material Certificates:', {
@@ -2095,426 +2423,127 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       const materialDocTypes: Record<string, Set<string>> = {};
       
       // Collect material certificate PDFs, using the same filtered materials list
-      console.log(`Collecting material documents for ${materials.length} selected materials`);
-      
-      // Group all material documents by material ID first
-      const materialDocMap: Record<string, string[]> = {};
-      
-      // Phase 1: Gather all documents for all materials and sort them
-      for (const material of materials) {
-        const materialId = material.materialIdentificationId;
-        if (!materialId) continue;
+      if (materials.length > 0) {
+        console.log(`Collecting documents from ${materials.length} materials for PDF merging...`);
         
-        console.log(`Looking for documents for Material ID: ${materialId}`);
-        
-        // Initialize tracking for this material
-        materialDocTypes[materialId] = new Set<string>();
-        
-        // Get all documents for this material - try new hierarchical path first, then fallback
-        let materialDocs: string[] = [];
-        try {
-          // Try new project-based path first
-          const newPath = `QMS/Material_Identification/${inspectionOrder.projectCode}/${materialId}`;
+        for (const material of materials) {
+          const materialId = material.materialIdentificationId;
+          if (!materialId) continue;
+          
+          // Initialize material doc type tracking
+          if (!materialDocTypes[materialId]) {
+            materialDocTypes[materialId] = new Set<string>();
+          }
+          
+          // Get all documents for this material
+          let materialDocs: string[] = [];
           try {
-            materialDocs = await listFiles(newPath);
-            console.log(`Found ${materialDocs.length} documents for Material ID: ${materialId} using new path structure (${newPath})`);
-          } catch (newPathError) {
-            // Fallback to old path structure
-            const oldPath = `QMS/Material_Identification/${materialId}`;
-            materialDocs = await listFiles(oldPath);
-            console.log(`Found ${materialDocs.length} documents for Material ID: ${materialId} using old path structure (${oldPath})`);
+            // Try new project-based path first
+            const newPath = `QMS/Material_Identification/${inspectionOrder.projectCode}/${materialId}`;
+            try {
+              materialDocs = await listFiles(newPath);
+            } catch (newPathError) {
+              // Fallback to old path structure
+              const oldPath = `QMS/Material_Identification/${materialId}`;
+              materialDocs = await listFiles(oldPath);
+            }
+            
+            // Filter for PDF documents
+            const pdfDocs = materialDocs.filter(path => path.toLowerCase().endsWith('.pdf'));
+            
+            // Add to our collection, avoiding duplicates
+            for (const docPath of pdfDocs) {
+              if (!uniquePdfPaths.has(docPath)) {
+                uniquePdfPaths.add(docPath);
+                pdfPaths.push(docPath);
+              }
+            }
+          } catch (error) {
+            console.error(`Error collecting documents for material ${materialId}:`, error);
           }
-          
-          // Filter for PDFs only and sort (newest first)
-          const pdfDocs = materialDocs
-            .filter(path => path.toLowerCase().endsWith('.pdf'))
-            .sort()
-            .reverse();
-          
-          materialDocMap[materialId] = pdfDocs;
-        } catch (error) {
-          console.error(`Error listing files for material ${materialId}:`, error);
-          materialDocMap[materialId] = [];
         }
       }
       
-      // Phase 2: Process each material's documents, avoiding duplicates
-      for (const materialId in materialDocMap) {
-        console.log(`Processing ${materialDocMap[materialId].length} documents for Material ID: ${materialId}`);
-        
-        // Process each document
-        for (const docPath of materialDocMap[materialId]) {
-          // Skip if we've already added this exact path
-          if (uniquePdfPaths.has(docPath)) {
-            console.log(`Skipping already included document: ${docPath}`);
-            continue;
-          }
-          
-          // Extract the document type from the filename
-          const docName = docPath.split('/').pop() || '';
-          const docType = docName.replace('.pdf', '').trim();
-          
-          // Check if we've already added a document of this type for this material
-          if (materialDocTypes[materialId].has(docType)) {
-            console.log(`Skipping duplicate document type for ${materialId}: ${docType}`);
-            continue;
-          }
-          
-          console.log(`Adding document to dossier: ${docPath} (type: ${docType}, material: ${materialId})`);
-          materialDocTypes[materialId].add(docType);
-          uniquePdfPaths.add(docPath);
-          pdfPaths.push(docPath);
-        }
-      }
-      
-      // Collect inspection document PDFs by section - aligned with UI tab sequence
-      const sections = [
-        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ApprovedDrawing`,
-        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/DVR`,
-        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ITP`,
-        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/MaterialTraceability`,
-        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ShopInspection`,
-        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Welding`,
-        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NDT`,
-        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Visual`,
-        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Hydrotest`,
-        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NCR`
+      // Collect inspection documents from all tabs
+      const inspectionSections = [
+        { name: 'Approved Drawing', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ApprovedDrawing` },
+        { name: 'DVR', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/DVR` },
+        { name: 'ITP', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ITP` },
+        { name: 'Material Traceability', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/MaterialTraceability` },
+        { name: 'Shop Inspection', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ShopInspection` },
+        { name: 'Welding', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Welding` },
+        { name: 'NDT', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NDT` },
+        { name: 'Visual Inspection', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Visual` },
+        { name: 'Hydrotest', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Hydrotest` },
+        { name: 'NCR', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NCR` }
       ];
       
-      for (const sectionPath of sections) {
+      // Collect inspection documents
+      for (const section of inspectionSections) {
         try {
-          const sectionDocs = await listFiles(sectionPath);
-          console.log(`Found ${sectionDocs.length} documents in section: ${sectionPath}`);
+          const sectionDocs = await listFiles(section.path);
+          const pdfDocs = sectionDocs.filter(path => path.toLowerCase().endsWith('.pdf'));
           
-          for (const docPath of sectionDocs) {
-            if (docPath.toLowerCase().endsWith('.pdf')) {
-              // Skip if we've already added this exact path
-              if (uniquePdfPaths.has(docPath)) {
-                console.log(`Skipping already included inspection document: ${docPath}`);
-                continue;
-              }
-              
-              console.log(`Adding inspection document to dossier: ${docPath}`);
+          for (const docPath of pdfDocs) {
+            if (!uniquePdfPaths.has(docPath)) {
               uniquePdfPaths.add(docPath);
               pdfPaths.push(docPath);
             }
           }
         } catch (error) {
-          console.error(`Error listing files in section ${sectionPath}:`, error);
+          console.log(`No documents found in ${section.path}: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
       
-      // Extract WPQR document IDs and welder IDs from weld records
-      console.log('Checking for WPQR documents and welder certificates in weld records...');
-      console.log('Weld Records:', JSON.stringify(weldRecords, null, 2));
-      const wpqrDocumentIds: number[] = [];
-      const welderIds: string[] = []; // Array to store unique welder IDs
+      // Merge all collected PDFs
+      console.log(`Attempting to merge ${pdfPaths.length} PDF documents into the final dossier`);
       
-      // Extract WPQR document IDs and welder IDs from weld records
-      if (weldRecords && weldRecords.length > 0) {
-        for (const weld of weldRecords) {
-          // Extract WPQR document IDs
-          if (weld.wpqrDocument) {
-            console.log(`Found WPQR reference: ${weld.wpqrDocument} (type: ${typeof weld.wpqrDocument})`);
-            
-            try {
-              const wpqrId = parseInt(weld.wpqrDocument);
-              if (!isNaN(wpqrId)) {
-                if (!wpqrDocumentIds.includes(wpqrId)) {
-                  wpqrDocumentIds.push(wpqrId);
-                  console.log(`Extracted WPQR document ID: ${wpqrId}`);
-                }
-              } else {
-                console.log(`Could not parse WPQR document ID: ${weld.wpqrDocument}`);
-              }
-            } catch (error) {
-              console.error(`Error parsing WPQR document ID: ${weld.wpqrDocument}`, error);
-            }
-          }
-          
-          // Extract welder IDs
-          if (weld.welderId) {
-            console.log(`Found welder reference: ${weld.welderId}`);
-            if (!welderIds.includes(weld.welderId)) {
-              welderIds.push(weld.welderId);
-              console.log(`Extracted welder ID: ${weld.welderId}`);
-            }
-          }
-        }
-      }
-      
-      console.log(`Collected WPQR document IDs: ${wpqrDocumentIds.join(', ')}`);
-      console.log(`Collected welder IDs: ${welderIds.join(', ')}`);
-      
-      // If we have WPQR document IDs, retrieve them from the database and add their file paths
-      if (wpqrDocumentIds.length > 0) {
-        console.log(`Retrieving ${wpqrDocumentIds.length} WPQR documents from database...`);
-        
+      for (const pdfPath of pdfPaths) {
         try {
-          const wpqrDocs = await db.select({
-            id: wpqrDocuments.id,
-            documentId: wpqrDocuments.documentId,
-            filePath: wpqrDocuments.filePath
-          })
-          .from(wpqrDocuments)
-          .where(inArray(wpqrDocuments.id, wpqrDocumentIds));
+          console.log(`Processing PDF: ${pdfPath}`);
           
-          console.log(`Found ${wpqrDocs.length} WPQR documents in the database:`, JSON.stringify(wpqrDocs, null, 2));
-          
-          // Try to get directly from the standard WPQR path if no file path is saved
-          for (const doc of wpqrDocs) {
-            if (doc.filePath) {
-              // Skip if we've already added this exact path
-              if (uniquePdfPaths.has(doc.filePath)) {
-                console.log(`Skipping already included WPQR document: ${doc.filePath}`);
-                continue;
+          // Check if file exists
+          try {
+            const file = bucket.file(pdfPath);
+            const [exists] = await file.exists();
+            
+            if (exists) {
+              try {
+                // Download the file
+                const [fileContents] = await file.download();
+                
+                try {
+                  // Parse the PDF
+                  const externalPdf = await PDFDocument.load(fileContents);
+                  const copiedPages = await pdfDoc.copyPages(externalPdf, externalPdf.getPageIndices());
+                  
+                  // Add pages to main document
+                  for (const copiedPage of copiedPages) {
+                    const page = pdfDoc.addPage(copiedPage);
+                    
+                    // Add our footer to each imported page
+                    try {
+                      addFooterToPage(page);
+                    } catch (footerError) {
+                      console.error('Error adding footer to imported page:', footerError);
+                    }
+                  }
+                  
+                  console.log(`Successfully merged PDF: ${pdfPath}`);
+                } catch (pdfError) {
+                  console.error(`Error processing PDF ${pdfPath}:`, pdfError);
+                }
+              } catch (downloadError) {
+                console.error(`Error downloading file ${pdfPath}:`, downloadError);
               }
-              
-              console.log(`Adding WPQR document with saved path: ${doc.filePath}`);
-              uniquePdfPaths.add(doc.filePath);
-              pdfPaths.push(doc.filePath);
             } else {
-              // Try standard path
-              const standardPath = `QMS/WPQR/${doc.documentId}.pdf`;
-              
-              // Skip if we've already added this exact path
-              if (uniquePdfPaths.has(standardPath)) {
-                console.log(`Skipping already included WPQR document: ${standardPath}`);
-                continue;
-              }
-              
-              console.log(`WPQR document ${doc.documentId} (ID: ${doc.id}) has no file path, trying standard path: ${standardPath}`);
-              uniquePdfPaths.add(standardPath);
-              pdfPaths.push(standardPath);
+              console.log(`File does not exist in GCS: ${pdfPath}`);
             }
-          }
-          
-          // Add a fallback approach to check standard locations for WPQR documents
-          for (const wpqrId of wpqrDocumentIds) {
-            // Check if there's a document with format WPQR-{id}.pdf in the standard location
-            const wpqrStandardPath = `QMS/WPQR/WPQR-${wpqrId}.pdf`;
-            
-            // Skip if we've already added this exact path
-            if (uniquePdfPaths.has(wpqrStandardPath)) {
-              console.log(`Skipping already included WPQR document: ${wpqrStandardPath}`);
-              continue;
-            }
-            
-            console.log(`Adding fallback WPQR path: ${wpqrStandardPath}`);
-            uniquePdfPaths.add(wpqrStandardPath);
-            pdfPaths.push(wpqrStandardPath);
-          }
-        } catch (dbError) {
-          console.error('Error retrieving WPQR documents from database:', dbError);
-        }
-      }
-      
-      // Add calibration certificates for pressure gauges from hydrotest records
-      if (pressureGaugeIds.size > 0) {
-        console.log(`Retrieving calibration certificates for ${pressureGaugeIds.size} pressure gauges...`);
-        
-        try {
-          // Get instrument details from database
-          const instrumentsQueryResult = await pool.query(
-            `SELECT 
-              instrument_id, 
-              instrument_type, 
-              certificate_file_path 
-            FROM 
-              calibration_instruments 
-            WHERE 
-              instrument_id = ANY($1)`,
-            [Array.from(pressureGaugeIds)]
-          );
-          
-          const instruments = instrumentsQueryResult.rows;
-          
-          if (instruments.length > 0) {
-            for (const instrument of instruments) {
-              // If we have a certificate file path, add it to the PDF paths
-              if (instrument.certificate_file_path) {
-                console.log(`Adding calibration certificate for ${instrument.instrument_id} (${instrument.instrument_type}) to final dossier`);
-                
-                // Skip if we've already added this file
-                if (uniquePdfPaths.has(instrument.certificate_file_path)) {
-                  console.log(`Skipping duplicate certificate path: ${instrument.certificate_file_path}`);
-                  continue;
-                }
-                
-                uniquePdfPaths.add(instrument.certificate_file_path);
-                pdfPaths.push(instrument.certificate_file_path);
-              } else {
-                // Try both standard paths for calibration certificates (singular and plural forms)
-                // First try the singular form (which matches our database records)
-                const singularCertPath = `QMS/Instrument/${instrument.instrument_id}.pdf`;
-                console.log(`Checking singular path for calibration certificate: ${singularCertPath}`);
-                
-                if (!uniquePdfPaths.has(singularCertPath)) {
-                  uniquePdfPaths.add(singularCertPath);
-                  pdfPaths.push(singularCertPath);
-                  console.log(`Adding singular path certificate: ${singularCertPath}`);
-                } else {
-                  console.log(`Skipping duplicate singular certificate path: ${singularCertPath}`);
-                }
-                
-                // We only use the singular path now
-                // No need to check for a plural form backup
-              }
-            }
-          } else {
-            console.log('No calibration instruments found for pressure gauges');
+          } catch (existsError) {
+            console.error(`Error checking if file exists ${pdfPath}:`, existsError);
           }
         } catch (error) {
-          console.error('Error retrieving calibration certificates:', error);
-        }
-      }
-      
-      // If we have welder IDs, retrieve their certificates and add them to the PDF
-      if (welderIds.length > 0) {
-        console.log(`Retrieving certificates for ${welderIds.length} welders...`);
-        
-        try {
-          // First, get the actual welder database IDs from their welder IDs (e.g., W-001)
-          const welderRecords = await db.select({
-            id: welders.id,
-            welderId: welders.welderId,
-            name: welders.name
-          })
-          .from(welders)
-          .where(inArray(welders.welderId, welderIds));
-          
-          console.log(`Found ${welderRecords.length} welders in the database:`, JSON.stringify(welderRecords, null, 2));
-          
-          if (welderRecords.length > 0) {
-            const welderDbIds = welderRecords.map(w => w.id);
-            
-            // Now get the active certificates for these welders
-            const welderCertificateRecords = await db.select({
-              id: welderCertificates.id,
-              welderId: welderCertificates.welderId,
-              certificateNo: welderCertificates.certificateNo,
-              filePath: welderCertificates.filePath,
-              status: welderCertificates.status
-            })
-            .from(welderCertificates)
-            .where(and(
-              inArray(welderCertificates.welderId, welderDbIds),
-              eq(welderCertificates.status, 'Active')
-            ));
-            
-            console.log(`Found ${welderCertificateRecords.length} active certificates:`, JSON.stringify(welderCertificateRecords, null, 2));
-            
-            // Add certificate file paths to the PDF paths
-            for (const cert of welderCertificateRecords) {
-              if (cert.filePath) {
-                // Skip if we've already added this exact path
-                if (uniquePdfPaths.has(cert.filePath)) {
-                  console.log(`Skipping already included welder certificate: ${cert.filePath}`);
-                  continue;
-                }
-                
-                // Get the corresponding welder record for logging
-                const welder = welderRecords.find(w => w.id === cert.welderId);
-                console.log(`Adding certificate for welder ${welder?.name} (${welder?.welderId}): ${cert.filePath}`);
-                uniquePdfPaths.add(cert.filePath);
-                pdfPaths.push(cert.filePath);
-              }
-            }
-            
-            // Add a fallback approach to check standard locations for welder certificates
-            for (const welder of welderRecords) {
-              const welderCertPath = `QMS/WELDERS/${welder.welderId}/certificates`;
-              console.log(`Checking for certificates in standard path: ${welderCertPath}`);
-              
-              try {
-                const files = await listFiles(welderCertPath);
-                for (const file of files) {
-                  if (file.toLowerCase().endsWith('.pdf')) {
-                    // Skip if we've already added this exact path
-                    if (uniquePdfPaths.has(file)) {
-                      console.log(`Skipping already included welder certificate: ${file}`);
-                      continue;
-                    }
-                    
-                    console.log(`Found certificate in standard path: ${file}`);
-                    uniquePdfPaths.add(file);
-                    pdfPaths.push(file);
-                  }
-                }
-              } catch (error: any) {
-                console.log(`No certificates found in standard path ${welderCertPath}: ${error?.message || 'Unknown error'}`);
-              }
-            }
-          }
-        } catch (dbError) {
-          console.error('Error retrieving welder certificates from database:', dbError);
-        }
-      }
-      
-      // Merge PDFs
-      if (pdfPaths.length > 0) {
-        console.log(`Attempting to merge ${pdfPaths.length} PDFs into the final dossier`);
-        
-        for (const pdfPath of pdfPaths) {
-          try {
-            // Download the PDF from GCS
-            const file = bucket.file(pdfPath);
-            
-            // Check if the file exists with detailed logging
-            try {
-              console.log(`Checking if file exists: ${pdfPath}`);
-              const [exists] = await file.exists();
-              console.log(`File ${pdfPath} exists: ${exists}`);
-              
-              if (exists) {
-                try {
-                  console.log(`Downloading file: ${pdfPath}`);
-                  const [fileBuffer] = await file.download();
-                  console.log(`Successfully downloaded file: ${pdfPath}, size: ${fileBuffer.length} bytes`);
-                  
-                  // Merge the PDF
-                  try {
-                    console.log(`Loading PDF: ${pdfPath}`);
-                    const externalPdfDoc = await PDFDocument.load(fileBuffer);
-                    console.log(`PDF loaded, copying pages from: ${pdfPath}`);
-                    
-                    const pageCount = externalPdfDoc.getPageCount();
-                    console.log(`PDF has ${pageCount} pages`);
-                    
-                    const pageIndices = externalPdfDoc.getPageIndices();
-                    console.log(`Getting ${pageIndices.length} page indices`);
-                    
-                    const copiedPages = await pdfDoc.copyPages(externalPdfDoc, pageIndices);
-                    console.log(`Copied ${copiedPages.length} pages from: ${pdfPath}`);
-                    
-                    // Add each page to the main document
-                    for (const copiedPage of copiedPages) {
-                      const page = pdfDoc.addPage(copiedPage);
-                      
-                      // Add our footer to each imported page
-                      try {
-                        addFooterToPage(page);
-                      } catch (footerError) {
-                        console.error('Error adding footer to imported page:', footerError);
-                      }
-                    }
-                    
-                    console.log(`Successfully merged PDF: ${pdfPath}`);
-                  } catch (pdfError) {
-                    console.error(`Error processing PDF ${pdfPath}:`, pdfError);
-                  }
-                } catch (downloadError) {
-                  console.error(`Error downloading file ${pdfPath}:`, downloadError);
-                }
-              } else {
-                console.log(`File does not exist in GCS: ${pdfPath}`);
-              }
-            } catch (existsError) {
-              console.error(`Error checking if file exists ${pdfPath}:`, existsError);
-            }
-          } catch (error) {
-            console.error(`General error processing file ${pdfPath}:`, error);
-          }
+          console.error(`General error processing file ${pdfPath}:`, error);
         }
       }
     } catch (error) {
@@ -2524,101 +2553,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Save the dossier
     const pdfBytes = await pdfDoc.save();
     
-    // Define the path for the final dossier in GCS with consistent naming
-    // With proper delete permissions we can use a consistent name without timestamps
-    const gcsPath = `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Final Dossier/FD_${inspectionOrder.inspectionOrderNumber}.pdf`;
-    
-    // Check if file already exists and delete it to ensure clean overwrite
-    try {
-      const existingFile = bucket.file(gcsPath);
-      const [exists] = await existingFile.exists();
-      if (exists) {
-        console.log(`Existing Final Dossier found at ${gcsPath}, will replace it`);
-        await existingFile.delete();
-        console.log(`Successfully deleted existing Final Dossier at ${gcsPath}`);
-      }
-    } catch (error) {
-      // Handle error with safe type checking to avoid typing issues
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.warn(`Error checking or deleting existing Final Dossier: ${errorMessage}. Will continue with upload.`);
-    }
-    
-    // Check if GCS bucket is available
-    if (!bucket) {
-      console.error('Cannot upload Final Dossier: GCS bucket not initialized');
-      throw new Error('Storage not available - cannot upload Final Dossier');
-    }
-    
-    // Log the file path we're using
-    console.log(`Creating/updating Final Dossier at path: ${gcsPath}`);
-    
-    try {
-      // Upload to GCS - set resumable: true to avoid checking if the file exists
-      const file = bucket.file(gcsPath);
-      
-      // Create write stream with error handling
-      // Don't use any precondition for overwrite - will replace if exists
-      const stream = file.createWriteStream({
-        metadata: {
-          contentType: 'application/pdf',
-        },
-        resumable: false, // Use non-resumable for better compatibility with direct upload
-      });
-      
-      // Upload the PDF buffer with detailed error logging
-      await new Promise<void>((resolve, reject) => {
-        const readable = new Readable();
-        readable._read = () => {}; // _read is required but you can noop it
-        readable.push(Buffer.from(pdfBytes));
-        readable.push(null);
-        
-        // More detailed error handling during stream processing
-        stream.on('error', (err: any) => {
-          console.error('Error during file upload stream:', err);
-          reject(new Error(`Upload stream error: ${err.message}`));
-        });
-        
-        readable.on('error', (err: any) => {
-          console.error('Error in readable stream:', err);
-          reject(new Error(`Readable stream error: ${err.message}`));
-        });
-        
-        readable
-          .pipe(stream)
-          .on('finish', () => {
-            console.log(`Successfully uploaded Final Dossier to ${gcsPath}`);
-            resolve();
-          });
-      });
-      
-      // Generate signed URL for download with error handling
-      let signedUrl = '';
-      try {
-        const [urlResult] = await file.getSignedUrl({
-          action: 'read',
-          expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // URL expires in 7 days
-        });
-        signedUrl = urlResult;
-        console.log('Successfully generated signed URL for Final Dossier');
-      } catch (signedUrlError) {
-        console.error('Error generating signed URL:', signedUrlError);
-        console.log('File was uploaded but signed URL could not be generated');
-        // Return file path only without URL
-        return {
-          url: '',
-          path: gcsPath
-        };
-      }
-      
-      // Return successful result with URL and path
-      return { 
-        url: signedUrl, 
-        path: gcsPath 
-      };
-    } catch (uploadError: any) {
-      console.error('Error uploading Final Dossier file:', uploadError);
-      throw new Error(`Failed to upload Final Dossier: ${uploadError.message || 'Unknown error'}`);
-    }
+    return pdfBytes;
   } catch (error) {
     console.error('Error generating final dossier:', error);
     throw error;
