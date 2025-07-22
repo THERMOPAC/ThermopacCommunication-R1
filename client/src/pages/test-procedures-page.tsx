@@ -27,9 +27,14 @@ export default function TestProceduresPage() {
     queryKey: ["/api/quality/test-procedures"],
   });
 
+  // Fetch next procedure ID
+  const { data: nextProcedureNumber } = useQuery({
+    queryKey: ["/api/quality/test-procedures/next-number"],
+  });
+
   // Create procedure mutation
   const createMutation = useMutation({
-    mutationFn: async (data: TestProcedureInsert) => {
+    mutationFn: async (data: any) => {
       const response = await fetch("/api/quality/test-procedures", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -58,7 +63,7 @@ export default function TestProceduresPage() {
 
   // Update procedure mutation
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: TestProcedureInsert }) => {
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
       const response = await fetch(`/api/quality/test-procedures/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -111,71 +116,167 @@ export default function TestProceduresPage() {
   });
 
   // Form state
-  const [formData, setFormData] = useState<TestProcedureInsert>({
-    procedureId: "",
-    testMethod: "LPT",
-    title: "",
-    description: "",
-    applicableStandards: "",
-    equipmentRequired: "",
+  const [formData, setFormData] = useState({
+    procedureNumber: "",
+    procedureName: "",
+    ndtMethod: "LPT",
+    applicableStandard: "",
+    procedureRevision: "R1",
+    scope: "",
+    technique: "",
+    equipment: "",
+    materials: "",
+    sensitivity: "",
+    preparation: "",
     procedureSteps: "",
+    evaluation: "",
+    documentation: "",
+    personnelQualification: "",
+    calibrationRequirements: "",
     acceptanceCriteria: "",
-    calibrationFrequency: "",
+    limitations: "",
     safetyPrecautions: "",
-    revision: "R1",
-    approvedBy: "",
-    approvalDate: new Date().toISOString().split('T')[0],
-    effectiveDate: new Date().toISOString().split('T')[0],
-    status: "draft"
+    environmentalConditions: "",
+    status: "Draft" as const,
+    approvalLevel: "",
+    remarks: "",
+    tags: ""
   });
+
+  // File upload state
+  const [fileUpload, setFileUpload] = useState<File | null>(null);
 
   const resetForm = () => {
     setFormData({
-      procedureId: "",
-      testMethod: "LPT",
-      title: "",
-      description: "",
-      applicableStandards: "",
-      equipmentRequired: "",
+      procedureNumber: nextProcedureNumber?.procedureNumber || "",
+      procedureName: "",
+      ndtMethod: "LPT",
+      applicableStandard: "",
+      procedureRevision: "R1",
+      scope: "",
+      technique: "",
+      equipment: "",
+      materials: "",
+      sensitivity: "",
+      preparation: "",
       procedureSteps: "",
+      evaluation: "",
+      documentation: "",
+      personnelQualification: "",
+      calibrationRequirements: "",
       acceptanceCriteria: "",
-      calibrationFrequency: "",
+      limitations: "",
       safetyPrecautions: "",
-      revision: "R1",
-      approvedBy: "",
-      approvalDate: new Date().toISOString().split('T')[0],
-      effectiveDate: new Date().toISOString().split('T')[0],
-      status: "draft"
+      environmentalConditions: "",
+      status: "Draft" as const,
+      approvalLevel: "",
+      remarks: "",
+      tags: ""
     });
+    setFileUpload(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingProcedure) {
-      updateMutation.mutate({ id: editingProcedure.id, data: formData });
-    } else {
-      createMutation.mutate(formData);
+    
+    // Validate required fields
+    if (!formData.procedureName || !formData.ndtMethod) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // For create, require file upload
+    if (!editingProcedure && !fileUpload) {
+      toast({
+        title: "Error",
+        description: "Please upload a procedure document",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      if (editingProcedure) {
+        // Update existing procedure
+        const updateData = { ...formData };
+        updateMutation.mutate({ id: editingProcedure.id, data: updateData });
+      } else {
+        // Create new procedure with file upload
+        const createFormData = new FormData();
+        
+        // Auto-populate procedure number from API
+        const finalFormData = {
+          ...formData,
+          procedureNumber: nextProcedureNumber?.procedureNumber || formData.procedureNumber
+        };
+        
+        // Append form fields
+        Object.entries(finalFormData).forEach(([key, value]) => {
+          createFormData.append(key, value);
+        });
+        
+        // Append file
+        if (fileUpload) {
+          createFormData.append('file', fileUpload);
+        }
+
+        // Call mutation with FormData
+        const response = await fetch("/api/quality/test-procedures", {
+          method: "POST",
+          body: createFormData,
+        });
+        
+        if (!response.ok) throw new Error("Failed to create procedure");
+        
+        queryClient.invalidateQueries({ queryKey: ["/api/quality/test-procedures"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/quality/test-procedures/next-number"] });
+        setIsDialogOpen(false);
+        resetForm();
+        toast({
+          title: "Success",
+          description: "Test procedure created successfully",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
-  const handleEdit = (procedure: TestProcedure) => {
+  const handleEdit = (procedure: any) => {
     setEditingProcedure(procedure);
     setFormData({
-      procedureId: procedure.procedureId,
-      testMethod: procedure.testMethod,
-      title: procedure.title,
-      description: procedure.description || "",
-      applicableStandards: procedure.applicableStandards || "",
-      equipmentRequired: procedure.equipmentRequired || "",
+      procedureNumber: procedure.procedureNumber || "",
+      procedureName: procedure.procedureName || "",
+      ndtMethod: procedure.ndtMethod || "LPT",
+      applicableStandard: procedure.applicableStandard || "",
+      procedureRevision: procedure.procedureRevision || "R1",
+      scope: procedure.scope || "",
+      technique: procedure.technique || "",
+      equipment: procedure.equipment || "",
+      materials: procedure.materials || "",
+      sensitivity: procedure.sensitivity || "",
+      preparation: procedure.preparation || "",
       procedureSteps: procedure.procedureSteps || "",
+      evaluation: procedure.evaluation || "",
+      documentation: procedure.documentation || "",
+      personnelQualification: procedure.personnelQualification || "",
+      calibrationRequirements: procedure.calibrationRequirements || "",
       acceptanceCriteria: procedure.acceptanceCriteria || "",
-      calibrationFrequency: procedure.calibrationFrequency || "",
+      limitations: procedure.limitations || "",
       safetyPrecautions: procedure.safetyPrecautions || "",
-      revision: procedure.revision,
-      approvedBy: procedure.approvedBy || "",
-      approvalDate: procedure.approvalDate || new Date().toISOString().split('T')[0],
-      effectiveDate: procedure.effectiveDate || new Date().toISOString().split('T')[0],
-      status: procedure.status
+      environmentalConditions: procedure.environmentalConditions || "",
+      status: procedure.status || "Draft",
+      approvalLevel: procedure.approvalLevel || "",
+      remarks: procedure.remarks || "",
+      tags: procedure.tags || ""
     });
     setIsDialogOpen(true);
   };
@@ -251,18 +352,20 @@ export default function TestProceduresPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="procedureId">Procedure ID *</Label>
+                  <Label htmlFor="procedureNumber">Procedure ID *</Label>
                   <Input
-                    id="procedureId"
-                    value={formData.procedureId}
-                    onChange={(e) => setFormData({ ...formData, procedureId: e.target.value })}
-                    placeholder="e.g., TP-LPT-001"
-                    required
+                    id="procedureNumber"
+                    value={formData.procedureNumber}
+                    onChange={(e) => setFormData({ ...formData, procedureNumber: e.target.value })}
+                    placeholder={nextProcedureNumber?.procedureNumber || "Auto-generated"}
+                    className="bg-gray-50 text-gray-600"
+                    readOnly={!editingProcedure}
+                    title={editingProcedure ? "Procedure ID can be edited" : "Auto-generated (read-only)"}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="testMethod">Test Method *</Label>
-                  <Select value={formData.testMethod} onValueChange={(value) => setFormData({ ...formData, testMethod: value as any })}>
+                  <Label htmlFor="ndtMethod">NDT Method *</Label>
+                  <Select value={formData.ndtMethod} onValueChange={(value) => setFormData({ ...formData, ndtMethod: value as any })}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -279,57 +382,80 @@ export default function TestProceduresPage() {
               </div>
 
               <div>
-                <Label htmlFor="title">Title *</Label>
+                <Label htmlFor="procedureName">Procedure Name *</Label>
                 <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Enter procedure title"
+                  id="procedureName"
+                  value={formData.procedureName}
+                  onChange={(e) => setFormData({ ...formData, procedureName: e.target.value })}
+                  placeholder="Enter procedure name"
                   required
                 />
               </div>
 
               <div>
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="scope">Scope</Label>
                 <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Enter procedure description"
-                  rows={3}
+                  id="scope"
+                  value={formData.scope}
+                  onChange={(e) => setFormData({ ...formData, scope: e.target.value })}
+                  placeholder="Define the scope and application of this procedure"
+                  rows={2}
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="applicableStandards">Applicable Standards</Label>
-                  <Input
-                    id="applicableStandards"
-                    value={formData.applicableStandards}
-                    onChange={(e) => setFormData({ ...formData, applicableStandards: e.target.value })}
-                    placeholder="e.g., ASME V, ASTM E165"
-                  />
+                  <Label htmlFor="applicableStandard">Applicable Standards</Label>
+                  <Select value={formData.applicableStandard} onValueChange={(value) => setFormData({ ...formData, applicableStandard: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select applicable standard" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ASME SEC V">ASME Section V</SelectItem>
+                      <SelectItem value="ASTM E165">ASTM E165 - Liquid Penetrant</SelectItem>
+                      <SelectItem value="ASTM E709">ASTM E709 - Magnetic Particle</SelectItem>
+                      <SelectItem value="ASTM E1444">ASTM E1444 - Magnetic Particle</SelectItem>
+                      <SelectItem value="ASTM E1417">ASTM E1417 - Liquid Penetrant</SelectItem>
+                      <SelectItem value="EN ISO 3452">EN ISO 3452 - Penetrant Testing</SelectItem>
+                      <SelectItem value="EN ISO 9934">EN ISO 9934 - Magnetic Particle Testing</SelectItem>
+                      <SelectItem value="API 5L">API 5L - Line Pipe</SelectItem>
+                      <SelectItem value="AWS D1.1">AWS D1.1 - Structural Welding Code</SelectItem>
+                      <SelectItem value="Other">Other (specify in remarks)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
-                  <Label htmlFor="calibrationFrequency">Calibration Frequency</Label>
+                  <Label htmlFor="calibrationRequirements">Calibration Requirements</Label>
                   <Input
-                    id="calibrationFrequency"
-                    value={formData.calibrationFrequency}
-                    onChange={(e) => setFormData({ ...formData, calibrationFrequency: e.target.value })}
-                    placeholder="e.g., Annual, 6 months"
+                    id="calibrationRequirements"
+                    value={formData.calibrationRequirements}
+                    onChange={(e) => setFormData({ ...formData, calibrationRequirements: e.target.value })}
+                    placeholder="e.g., Annual, 6 months (optional)"
                   />
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="equipmentRequired">Equipment Required</Label>
-                <Textarea
-                  id="equipmentRequired"
-                  value={formData.equipmentRequired}
-                  onChange={(e) => setFormData({ ...formData, equipmentRequired: e.target.value })}
-                  placeholder="List required equipment and materials"
-                  rows={2}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="equipment">Equipment Required</Label>
+                  <Textarea
+                    id="equipment"
+                    value={formData.equipment}
+                    onChange={(e) => setFormData({ ...formData, equipment: e.target.value })}
+                    placeholder="List required equipment"
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="materials">Materials Required</Label>
+                  <Textarea
+                    id="materials"
+                    value={formData.materials}
+                    onChange={(e) => setFormData({ ...formData, materials: e.target.value })}
+                    placeholder="List required materials and chemicals"
+                    rows={3}
+                  />
+                </div>
               </div>
 
               <div>
@@ -365,13 +491,28 @@ export default function TestProceduresPage() {
                 />
               </div>
 
+              <div>
+                <Label htmlFor="fileUpload">Procedure Document * (Required)</Label>
+                <Input
+                  id="fileUpload"
+                  type="file"
+                  onChange={(e) => setFileUpload(e.target.files?.[0] || null)}
+                  accept=".pdf,.doc,.docx"
+                  className="mb-2"
+                />
+                <p className="text-sm text-gray-600">Upload procedure document (PDF, DOC, DOCX formats only)</p>
+                {fileUpload && (
+                  <p className="text-sm text-green-600 mt-1">Selected: {fileUpload.name}</p>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="revision">Revision</Label>
+                  <Label htmlFor="procedureRevision">Revision</Label>
                   <Input
-                    id="revision"
-                    value={formData.revision}
-                    onChange={(e) => setFormData({ ...formData, revision: e.target.value })}
+                    id="procedureRevision"
+                    value={formData.procedureRevision}
+                    onChange={(e) => setFormData({ ...formData, procedureRevision: e.target.value })}
                     placeholder="e.g., R1, R2"
                   />
                 </div>
@@ -382,42 +523,24 @@ export default function TestProceduresPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="archived">Archived</SelectItem>
+                      <SelectItem value="Draft">Draft</SelectItem>
+                      <SelectItem value="Under Review">Under Review</SelectItem>
+                      <SelectItem value="Approved">Approved</SelectItem>
+                      <SelectItem value="Superseded">Superseded</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="approvedBy">Approved By</Label>
-                  <Input
-                    id="approvedBy"
-                    value={formData.approvedBy}
-                    onChange={(e) => setFormData({ ...formData, approvedBy: e.target.value })}
-                    placeholder="Approver name"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="approvalDate">Approval Date</Label>
-                  <Input
-                    id="approvalDate"
-                    type="date"
-                    value={formData.approvalDate}
-                    onChange={(e) => setFormData({ ...formData, approvalDate: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="effectiveDate">Effective Date</Label>
-                  <Input
-                    id="effectiveDate"
-                    type="date"
-                    value={formData.effectiveDate}
-                    onChange={(e) => setFormData({ ...formData, effectiveDate: e.target.value })}
-                  />
-                </div>
+              <div>
+                <Label htmlFor="remarks">Remarks</Label>
+                <Textarea
+                  id="remarks"
+                  value={formData.remarks}
+                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                  placeholder="Additional remarks or comments"
+                  rows={2}
+                />
               </div>
 
               <div className="flex justify-end space-x-2 pt-4">

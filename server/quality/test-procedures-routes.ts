@@ -1,10 +1,60 @@
 import express, { Request, Response } from 'express';
+import multer from 'multer';
 import { db } from '../db';
 import { testProcedures, users } from '@shared/schema';
 import { eq, and, desc, like, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { uploadFileWithDiagnostics } from '../utils/gcs-enhanced-upload';
+
+// Setup multer for handling file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept only PDF, DOC, DOCX files
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF, DOC, and DOCX files are allowed'));
+    }
+  },
+});
 
 const router = express.Router();
+
+// GET /api/quality/test-procedures/next-number - Get next procedure ID
+router.get('/next-number', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const currentYear = new Date().getFullYear();
+    
+    // Get the highest procedure number for current year
+    const lastProcedure = await db
+      .select({ procedureNumber: testProcedures.procedureNumber })
+      .from(testProcedures)
+      .where(like(testProcedures.procedureNumber, `TP-${currentYear}-%`))
+      .orderBy(desc(testProcedures.procedureNumber))
+      .limit(1);
+
+    let nextNumber = 1;
+    if (lastProcedure.length > 0) {
+      const lastNumber = lastProcedure[0].procedureNumber;
+      const match = lastNumber.match(/TP-\d{4}-(\d+)/);
+      if (match) {
+        nextNumber = parseInt(match[1]) + 1;
+      }
+    }
+
+    const procedureNumber = `TP-${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
+
+    res.json({ procedureNumber });
+  } catch (error) {
+    console.error('Error generating next procedure number:', error);
+    res.status(500).json({ error: 'Failed to generate next procedure number' });
+  }
+});
 
 // Define ensureAuthenticated middleware
 function ensureAuthenticated(req: Request, res: Response, next: any) {
@@ -196,12 +246,22 @@ router.get('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/quality/test-procedures - Create new test procedure
-router.post('/', ensureAuthenticated, async (req: Request, res: Response) => {
+// POST /api/quality/test-procedures - Create new test procedure with file upload
+router.post('/', ensureAuthenticated, upload.single('file'), async (req: Request, res: Response) => {
   try {
+    console.log('Creating test procedure with file upload');
+    console.log('Request body:', req.body);
+    console.log('File info:', req.file ? { name: req.file.originalname, size: req.file.size, type: req.file.mimetype } : 'No file');
+
+    // Validate that file is provided
+    if (!req.file) {
+      return res.status(400).json({ error: 'Procedure document file is required' });
+    }
+
     const validation = testProcedureSchema.safeParse(req.body);
     
     if (!validation.success) {
+      console.log('Validation errors:', validation.error.issues);
       return res.status(400).json({
         error: 'Validation failed',
         details: validation.error.issues
@@ -225,16 +285,43 @@ router.post('/', ensureAuthenticated, async (req: Request, res: Response) => {
     if (existingProcedure.length > 0) {
       return res.status(409).json({ error: 'Procedure number already exists' });
     }
+
+    // Upload file to GCS
+    const fileExtension = req.file.originalname.split('.').pop();
+    const fileName = `${data.procedureNumber}.${fileExtension}`;
+    const gcsPath = `QMS/Test_Procedures/${data.procedureNumber}/${fileName}`;
     
+    console.log('Uploading file to GCS path:', gcsPath);
+    const uploadResult = await uploadFileWithDiagnostics(
+      gcsPath,
+      req.file.buffer,
+      req.file.mimetype
+    );
+
+    if (!uploadResult.successful) {
+      console.error('File upload failed:', uploadResult.error);
+      return res.status(500).json({ error: 'Failed to upload procedure document' });
+    }
+
+    console.log('File uploaded successfully:', uploadResult.fileUrl);
+    
+    // Create procedure record with file information
     const [newProcedure] = await db
       .insert(testProcedures)
       .values({
         ...data,
+        attachments: JSON.stringify([{
+          fileName: req.file.originalname,
+          fileUrl: uploadResult.fileUrl,
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: userId
+        }]),
         createdBy: userId,
         updatedBy: userId,
       })
       .returning();
-    
+
+    console.log('Test procedure created successfully:', newProcedure.id);
     res.status(201).json(newProcedure);
   } catch (error) {
     console.error('Error creating test procedure:', error);
