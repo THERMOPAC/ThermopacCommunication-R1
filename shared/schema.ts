@@ -4536,7 +4536,7 @@ export const wpsDocuments = pgTable('wps_documents', {
   wpsId: varchar('wps_id', { length: 50 }).notNull().unique(),
   pqrId: varchar('pqr_id', { length: 50 }).notNull().unique(),
   revisionNo: varchar('revision_no', { length: 10 }).notNull().default('0'),
-  welderProcess: varchar('welder_process', { length: 20 }).notNull(),
+  welderProcess: varchar('welder_process', { length: 50 }).notNull(),
   baseMetalGrade: varchar('base_metal_grade', { length: 100 }).notNull(),
   baseMetalThickness: varchar('base_metal_thickness', { length: 50 }).notNull(),
   fillerMaterial: varchar('filler_material', { length: 100 }).notNull(),
@@ -4565,7 +4565,7 @@ export const wpqrDocuments = pgTable('wpqr_documents', {
   documentId: varchar('document_id', { length: 50 }).notNull().unique(),
   title: varchar('title', { length: 100 }).notNull(),
   description: text('description'),
-  welderProcess: varchar('welder_process', { length: 20 }).notNull(),
+  welderProcess: varchar('welder_process', { length: 50 }).notNull(),
   baseMetalGrade: varchar('base_metal_grade', { length: 100 }).notNull(),
   jointType: varchar('joint_type', { length: 50 }).notNull(),
   certificateNo: varchar('certificate_no', { length: 100 }),
@@ -4590,7 +4590,22 @@ export const wpqrDocumentsRelations = relations(wpqrDocuments, ({ one }) => ({
 export const wpqrDocumentSchema = createInsertSchema(wpqrDocuments)
   .omit({ id: true, createdAt: true, updatedAt: true, fileUrl: true, filePath: true })
   .extend({
-    welderProcess: z.enum(['SMAW', 'GMAW', 'GTAW', 'FCAW', 'SAW']),
+    welderProcess: z.enum([
+      'SMAW', 
+      'GMAW', 
+      'GTAW', 
+      'FCAW', 
+      'SAW',
+      'GTAW (141) + SMAW (111)',
+      'GTAW (141) + GMAW (135)',
+      'GTAW (141) + FCAW (136/137)',
+      'SMAW (111) + GMAW (135)',
+      'SMAW (111) + FCAW (136/137)',
+      'SMAW (111) + SAW (121)',
+      'GTAW (141) + SAW (121)',
+      'GMAW (135) + FCAW (136/137)',
+      'GMAW (135) + SAW (121)'
+    ]),
     inspectionAuthority: z.enum(['TUV NORD', 'SGS']).optional(),
     certificateNo: z.string().optional(),
     status: z.enum(['Active', 'Obsolete']).default('Active'),
@@ -4616,7 +4631,22 @@ export const wpsDocumentsRelations = relations(wpsDocuments, ({ one }) => ({
 export const wpsDocumentSchema = createInsertSchema(wpsDocuments)
   .omit({ id: true, createdAt: true, updatedAt: true })
   .extend({
-    welderProcess: z.enum(['SMAW', 'GMAW', 'GTAW', 'FCAW', 'SAW']),
+    welderProcess: z.enum([
+      'SMAW', 
+      'GMAW', 
+      'GTAW', 
+      'FCAW', 
+      'SAW',
+      'GTAW (141) + SMAW (111)',
+      'GTAW (141) + GMAW (135)',
+      'GTAW (141) + FCAW (136/137)',
+      'SMAW (111) + GMAW (135)',
+      'SMAW (111) + FCAW (136/137)',
+      'SMAW (111) + SAW (121)',
+      'GTAW (141) + SAW (121)',
+      'GMAW (135) + FCAW (136/137)',
+      'GMAW (135) + SAW (121)'
+    ]),
     status: z.enum(['Draft', 'Pending Approval', 'Approved', 'Obsolete']).default('Draft'),
   });
 

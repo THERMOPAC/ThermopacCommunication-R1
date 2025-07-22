@@ -299,9 +299,11 @@ export default function WpqrPage() {
 
   // Handle edit document
   const handleEditDocument = (document: WpqrDocument) => {
+    console.log("WPQR Document being edited:", document);
+    console.log("welderProcess value:", document.welderProcess);
     setEditingDocument(document);
     // Populate the edit form with the document data
-    editForm.reset({
+    const formData = {
       title: document.title,
       description: document.description || "",
       welderProcess: document.welderProcess,
@@ -309,7 +311,9 @@ export default function WpqrPage() {
       jointType: document.jointType,
       certificateNo: document.certificateNo || "",
       inspectionAuthority: document.inspectionAuthority || "",
-    });
+    };
+    console.log("Form data being set:", formData);
+    editForm.reset(formData);
     setIsEditOpen(true);
   };
 
