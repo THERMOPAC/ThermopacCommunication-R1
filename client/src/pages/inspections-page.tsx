@@ -5896,11 +5896,15 @@ export default function InspectionsPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select pressure gauge...</option>
-                  {calibrationInstruments && calibrationInstruments.map((instrument) => (
-                    <option key={instrument.id} value={instrument.instrumentId}>
-                      {instrument.instrumentId} - {instrument.instrumentType}
-                    </option>
-                  ))}
+                  {calibrationInstruments && calibrationInstruments.length > 0 ? (
+                    calibrationInstruments.map((instrument) => (
+                      <option key={instrument.id} value={instrument.instrument_id}>
+                        {instrument.instrument_id} - {instrument.instrument_type}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="" disabled>Loading pressure gauges...</option>
+                  )}
                 </select>
               </div>
 
