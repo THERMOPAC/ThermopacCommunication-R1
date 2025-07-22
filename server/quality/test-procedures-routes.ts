@@ -84,10 +84,13 @@ const testProcedureSchema = z.object({
   limitations: z.string().optional(),
   environmentalConditions: z.string().optional(),
   status: z.enum(['Draft', 'Under Review', 'Approved', 'Superseded']).default('Draft'),
-  approvalLevel: z.enum(['Level 1', 'Level 2', 'Level 3']).optional(),
+  approvalLevel: z.enum(['Level 1', 'Level 2', 'Level 3']).optional().or(z.literal('')),
   remarks: z.string().optional(),
   tags: z.string().optional(),
-});
+}).transform((data) => ({
+  ...data,
+  approvalLevel: data.approvalLevel === '' ? undefined : data.approvalLevel
+}));
 
 // GET /api/quality/test-procedures - Get all test procedures
 router.get('/', ensureAuthenticated, async (req: Request, res: Response) => {
