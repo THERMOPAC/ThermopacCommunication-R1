@@ -476,10 +476,17 @@ export default function InspectionsPage() {
       return [];
     }
     
+    // Debug logging
+    console.log("selectedWpqrForDialog:", selectedWpqrForDialog);
+    console.log("wpqrAssociatedWeldersData:", wpqrAssociatedWeldersData);
+    console.log("isLoadingWpqrWelders:", isLoadingWpqrWelders);
+    
     // If WPQR is selected and we have the data, show only associated active welders
     const associatedWelders = wpqrAssociatedWeldersData.filter((welder: any) => 
       welder.status === 'Active'
     );
+    
+    console.log("associatedWelders after filter:", associatedWelders);
     
     return associatedWelders.length > 0 ? associatedWelders : [];
   };
@@ -1191,6 +1198,8 @@ export default function InspectionsPage() {
   } = useQuery({
     queryKey: ['/api/quality/wpqr', selectedWpqrForDialog, 'welders'],
     queryFn: async () => {
+      console.log("[WPQR Welders Query] Starting fetch for:", selectedWpqrForDialog);
+      
       if (!selectedWpqrForDialog) return [];
       
       // Find the WPQR document ID from the document number
@@ -1198,16 +1207,38 @@ export default function InspectionsPage() {
         (doc.documentNumber || doc.id.toString()) === selectedWpqrForDialog
       );
       
+      console.log("[WPQR Welders Query] Selected WPQR:", selectedWpqr);
+      
       if (!selectedWpqr) return [];
       
-      const response = await fetch(`/api/quality/wpqr/${selectedWpqr.id}/welders`);
+      const url = `/api/quality/wpqr/${selectedWpqr.id}/welders`;
+      console.log("[WPQR Welders Query] Fetching from URL:", url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+      
+      console.log("[WPQR Welders Query] Response status:", response.status);
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to fetch WPQR welders");
+        const errorText = await response.text();
+        console.error("[WPQR Welders Query] Error response:", errorText);
+        throw new Error(`Failed to fetch WPQR welders: ${response.status} ${errorText}`);
       }
-      return response.json();
+      
+      const data = await response.json();
+      console.log("[WPQR Welders Query] Success data:", data);
+      
+      return data;
     },
     enabled: !!selectedWpqrForDialog && wpqrDocuments.length > 0,
+    staleTime: 0, // Always fetch fresh data
+    cacheTime: 0, // Don't cache the results
   });
 
   // Fetch work orders for the selected project

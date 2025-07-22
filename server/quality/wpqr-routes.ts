@@ -272,19 +272,27 @@ router.get('/:id/welders', ensureAuthenticated, async (req: Request, res: Respon
     const { id } = req.params;
     const documentId = parseInt(id);
     
+    console.log(`[WPQR Welders] Fetching welders for WPQR document ID: ${documentId}`);
+    
     if (isNaN(documentId)) {
       return res.status(400).json({ error: 'Invalid document ID' });
     }
     
-    // Get linked welders for this document
+    // Get linked welders for this document with additional fields for filtering
     const linkedWelders = await db.select({
-      welderId: welders.id,
-      welderCode: welders.welderId,
-      welderName: welders.name
+      id: welders.id,
+      welderId: welders.welderId,
+      name: welders.name,
+      welderCode: welders.welderId, // Keep backward compatibility
+      welderName: welders.name,     // Keep backward compatibility
+      certification: welders.certification,
+      status: welders.status
     })
     .from(wpqrWelders)
     .leftJoin(welders, eq(wpqrWelders.welderId, welders.id))
     .where(eq(wpqrWelders.wpqrDocumentId, documentId));
+    
+    console.log(`[WPQR Welders] Found ${linkedWelders.length} welders for WPQR ${documentId}:`, linkedWelders);
     
     res.json(linkedWelders);
   } catch (error) {
