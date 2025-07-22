@@ -4175,6 +4175,15 @@ export const inspectionOrders = pgTable('inspection_orders', {
   // Non-Conformance data - stored as JSON string
   ncrData: text('ncr_data'),
   
+  // Approved Drawing data - stored as JSON string
+  approvedDrawingData: text('approved_drawing_data'),
+  
+  // DVR (Design Verification Records) data - stored as JSON string
+  dvrData: text('dvr_data'),
+  
+  // ITP (Inspection Test Plan) data - stored as JSON string
+  itpData: text('itp_data'),
+  
   // Timing
   plannedDate: timestamp('planned_date'),
   completedDate: timestamp('completed_date'),
@@ -4254,6 +4263,9 @@ export const insertInspectionOrderSchema = createInsertSchema(inspectionOrders)
     weldData: z.string().optional(),
     hydrotestData: z.string().optional(),
     ncrData: z.string().optional(),
+    approvedDrawingData: z.string().optional(),
+    dvrData: z.string().optional(),
+    itpData: z.string().optional(),
   });
 
 export const insertInspectionOrderItemSchema = createInsertSchema(inspectionOrderItems)

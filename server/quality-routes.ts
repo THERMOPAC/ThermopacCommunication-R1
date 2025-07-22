@@ -170,7 +170,49 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       console.log('No NCR data found in inspection order.');
     }
     
-    // Return detailed inspection order with items, materials, NDT records, Visual Inspection records, Weld records, Hydrotest records, and NCR records
+    // Parse Approved Drawing data if it exists
+    let approvedDrawingRecords = [];
+    console.log('Checking for Approved Drawing data in inspection order:', inspectionOrder.approvedDrawingData);
+    if (inspectionOrder.approvedDrawingData) {
+      try {
+        approvedDrawingRecords = JSON.parse(inspectionOrder.approvedDrawingData);
+        console.log('Successfully parsed Approved Drawing data:', approvedDrawingRecords);
+      } catch (e) {
+        console.error('Error parsing Approved Drawing data:', e);
+      }
+    } else {
+      console.log('No Approved Drawing data found in inspection order.');
+    }
+    
+    // Parse DVR data if it exists
+    let dvrRecords = [];
+    console.log('Checking for DVR data in inspection order:', inspectionOrder.dvrData);
+    if (inspectionOrder.dvrData) {
+      try {
+        dvrRecords = JSON.parse(inspectionOrder.dvrData);
+        console.log('Successfully parsed DVR data:', dvrRecords);
+      } catch (e) {
+        console.error('Error parsing DVR data:', e);
+      }
+    } else {
+      console.log('No DVR data found in inspection order.');
+    }
+    
+    // Parse ITP data if it exists
+    let itpRecords = [];
+    console.log('Checking for ITP data in inspection order:', inspectionOrder.itpData);
+    if (inspectionOrder.itpData) {
+      try {
+        itpRecords = JSON.parse(inspectionOrder.itpData);
+        console.log('Successfully parsed ITP data:', itpRecords);
+      } catch (e) {
+        console.error('Error parsing ITP data:', e);
+      }
+    } else {
+      console.log('No ITP data found in inspection order.');
+    }
+    
+    // Return detailed inspection order with items, materials, NDT records, Visual Inspection records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, and ITP records
     res.json({
       ...inspectionOrder,
       items: orderItems,
@@ -179,7 +221,10 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       visualRecords: visualRecords,
       welds: weldRecords,
       hydrotestRecords: hydrotestRecords,
-      ncrRecords: ncrRecords
+      ncrRecords: ncrRecords,
+      approvedDrawingRecords: approvedDrawingRecords,
+      dvrRecords: dvrRecords,
+      itpRecords: itpRecords
     });
   } catch (error) {
     console.error('Error fetching inspection order details:', error);
@@ -208,8 +253,8 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       return res.status(404).json({ error: 'Inspection order not found' });
     }
 
-    // Extract materials, NDT records, Visual Inspection records, Weld records, Hydrotest records, and NCR records from the request body
-    const { materials, ndtRecords, visualRecords, welds, hydrotestRecords, ncrRecords, ...orderData } = req.body;
+    // Extract materials, NDT records, Visual Inspection records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, and ITP records from the request body
+    const { materials, ndtRecords, visualRecords, welds, hydrotestRecords, ncrRecords, approvedDrawingRecords, dvrRecords, itpRecords, ...orderData } = req.body;
     
     // Store NDT records in the orderData as a JSON string if they exist
     if (ndtRecords && Array.isArray(ndtRecords)) {
@@ -240,6 +285,30 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       orderData.ncrData = JSON.stringify(ncrRecords);
     } else {
       console.log('No NCR records to store in order update:', ncrRecords);
+    }
+    
+    // Store Approved Drawing records in the orderData as a JSON string if they exist
+    if (approvedDrawingRecords && Array.isArray(approvedDrawingRecords)) {
+      console.log('Storing Approved Drawing records in order update:', approvedDrawingRecords);
+      orderData.approvedDrawingData = JSON.stringify(approvedDrawingRecords);
+    } else {
+      console.log('No Approved Drawing records to store in order update:', approvedDrawingRecords);
+    }
+    
+    // Store DVR records in the orderData as a JSON string if they exist
+    if (dvrRecords && Array.isArray(dvrRecords)) {
+      console.log('Storing DVR records in order update:', dvrRecords);
+      orderData.dvrData = JSON.stringify(dvrRecords);
+    } else {
+      console.log('No DVR records to store in order update:', dvrRecords);
+    }
+    
+    // Store ITP records in the orderData as a JSON string if they exist
+    if (itpRecords && Array.isArray(itpRecords)) {
+      console.log('Storing ITP records in order update:', itpRecords);
+      orderData.itpData = JSON.stringify(itpRecords);
+    } else {
+      console.log('No ITP records to store in order update:', itpRecords);
     }
 
     // Update inspection order

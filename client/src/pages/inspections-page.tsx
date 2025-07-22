@@ -1931,6 +1931,224 @@ export default function InspectionsPage() {
       }]);
     }
   }, [editInspectionOrderDetails]);
+
+  // Load Hydrotest records from the inspection order data
+  useEffect(() => {
+    if (editInspectionOrderDetails) {
+      // Check if the response has Hydrotest data in the expected format
+      console.log("Checking for Hydrotest data:", editInspectionOrderDetails);
+      
+      const hydrotestData = (editInspectionOrderDetails as any).hydrotestData || (editInspectionOrderDetails as any).hydrotest_data;
+      
+      if (hydrotestData) {
+        try {
+          // If the data is already parsed as an object, use it directly
+          // Otherwise, try to parse it from JSON string
+          const parsedHydrotestRecords = Array.isArray(hydrotestData) 
+            ? hydrotestData 
+            : typeof hydrotestData === 'string' 
+              ? JSON.parse(hydrotestData) 
+              : null;
+          
+          if (parsedHydrotestRecords && Array.isArray(parsedHydrotestRecords) && parsedHydrotestRecords.length > 0) {
+            console.log("Found Hydrotest records:", parsedHydrotestRecords);
+            
+            // Map the Hydrotest records to match our state format
+            const formattedRecords = parsedHydrotestRecords.map((record, index) => ({
+              id: record.id || `HT-${index + 1}`,
+              pressure: record.pressure || '',
+              duration: record.duration || '',
+              medium: record.medium || 'water',
+              pressureGauge: record.pressureGauge || '',
+              operator: record.operator || '',
+              testDate: record.testDate || '',
+              result: record.result || 'Pass',
+              notes: record.notes || ''
+            }));
+            
+            setHydrotestRecords(formattedRecords);
+            return;
+          }
+        } catch (error) {
+          console.error("Error parsing Hydrotest records:", error);
+        }
+      }
+      
+      // If no valid Hydrotest records were found, initialize with a default record
+      setHydrotestRecords([{
+        id: 'HT-1',
+        pressure: '',
+        duration: '',
+        medium: 'water',
+        pressureGauge: '',
+        operator: '',
+        testDate: '',
+        result: 'Pass',
+        notes: ''
+      }]);
+    }
+  }, [editInspectionOrderDetails]);
+
+  // Load Approved Drawing records from the inspection order data
+  useEffect(() => {
+    if (editInspectionOrderDetails) {
+      // Check if the response has Approved Drawing data in the expected format
+      console.log("Checking for Approved Drawing data:", editInspectionOrderDetails);
+      
+      const approvedDrawingData = (editInspectionOrderDetails as any).approvedDrawingData || (editInspectionOrderDetails as any).approved_drawing_data;
+      
+      if (approvedDrawingData) {
+        try {
+          // If the data is already parsed as an object, use it directly
+          // Otherwise, try to parse it from JSON string
+          const parsedApprovedDrawingRecords = Array.isArray(approvedDrawingData) 
+            ? approvedDrawingData 
+            : typeof approvedDrawingData === 'string' 
+              ? JSON.parse(approvedDrawingData) 
+              : null;
+          
+          if (parsedApprovedDrawingRecords && Array.isArray(parsedApprovedDrawingRecords) && parsedApprovedDrawingRecords.length > 0) {
+            console.log("Found Approved Drawing records:", parsedApprovedDrawingRecords);
+            
+            // Map the Approved Drawing records to match our state format
+            const formattedRecords = parsedApprovedDrawingRecords.map((record, index) => ({
+              id: record.id || `AD-${index + 1}`,
+              drawingNumber: record.drawingNumber || '',
+              drawingTitle: record.drawingTitle || '',
+              revision: record.revision || 'A',
+              approvalDate: record.approvalDate || '',
+              approvedBy: record.approvedBy || '',
+              notes: record.notes || ''
+            }));
+            
+            setApprovedDrawingRecords(formattedRecords);
+            return;
+          }
+        } catch (error) {
+          console.error("Error parsing Approved Drawing records:", error);
+        }
+      }
+      
+      // If no valid Approved Drawing records were found, initialize with a default record
+      setApprovedDrawingRecords([{
+        id: 'AD-1',
+        drawingNumber: '',
+        drawingTitle: '',
+        revision: 'A',
+        approvalDate: '',
+        approvedBy: '',
+        notes: ''
+      }]);
+    }
+  }, [editInspectionOrderDetails]);
+
+  // Load DVR records from the inspection order data
+  useEffect(() => {
+    if (editInspectionOrderDetails) {
+      // Check if the response has DVR data in the expected format
+      console.log("Checking for DVR data:", editInspectionOrderDetails);
+      
+      const dvrData = (editInspectionOrderDetails as any).dvrData || (editInspectionOrderDetails as any).dvr_data;
+      
+      if (dvrData) {
+        try {
+          // If the data is already parsed as an object, use it directly
+          // Otherwise, try to parse it from JSON string
+          const parsedDvrRecords = Array.isArray(dvrData) 
+            ? dvrData 
+            : typeof dvrData === 'string' 
+              ? JSON.parse(dvrData) 
+              : null;
+          
+          if (parsedDvrRecords && Array.isArray(parsedDvrRecords) && parsedDvrRecords.length > 0) {
+            console.log("Found DVR records:", parsedDvrRecords);
+            
+            // Map the DVR records to match our state format
+            const formattedRecords = parsedDvrRecords.map((record, index) => ({
+              id: record.id || `DVR-${index + 1}`,
+              designDocument: record.designDocument || '',
+              reviewType: record.reviewType || 'design_review',
+              reviewer: record.reviewer || '',
+              reviewDate: record.reviewDate || '',
+              status: record.status || 'pending',
+              comments: record.comments || ''
+            }));
+            
+            setDvrRecords(formattedRecords);
+            return;
+          }
+        } catch (error) {
+          console.error("Error parsing DVR records:", error);
+        }
+      }
+      
+      // If no valid DVR records were found, initialize with a default record
+      setDvrRecords([{
+        id: 'DVR-1',
+        designDocument: '',
+        reviewType: 'design_review',
+        reviewer: '',
+        reviewDate: '',
+        status: 'pending',
+        comments: ''
+      }]);
+    }
+  }, [editInspectionOrderDetails]);
+
+  // Load ITP records from the inspection order data
+  useEffect(() => {
+    if (editInspectionOrderDetails) {
+      // Check if the response has ITP data in the expected format
+      console.log("Checking for ITP data:", editInspectionOrderDetails);
+      
+      const itpData = (editInspectionOrderDetails as any).itpData || (editInspectionOrderDetails as any).itp_data;
+      
+      if (itpData) {
+        try {
+          // If the data is already parsed as an object, use it directly
+          // Otherwise, try to parse it from JSON string
+          const parsedItpRecords = Array.isArray(itpData) 
+            ? itpData 
+            : typeof itpData === 'string' 
+              ? JSON.parse(itpData) 
+              : null;
+          
+          if (parsedItpRecords && Array.isArray(parsedItpRecords) && parsedItpRecords.length > 0) {
+            console.log("Found ITP records:", parsedItpRecords);
+            
+            // Map the ITP records to match our state format
+            const formattedRecords = parsedItpRecords.map((record, index) => ({
+              id: record.id || `ITP-${index + 1}`,
+              testItem: record.testItem || '',
+              testProcedure: record.testProcedure || '',
+              acceptanceCriteria: record.acceptanceCriteria || '',
+              inspector: record.inspector || '',
+              testDate: record.testDate || '',
+              result: record.result || 'pending',
+              remarks: record.remarks || ''
+            }));
+            
+            setItpRecords(formattedRecords);
+            return;
+          }
+        } catch (error) {
+          console.error("Error parsing ITP records:", error);
+        }
+      }
+      
+      // If no valid ITP records were found, initialize with a default record
+      setItpRecords([{
+        id: 'ITP-1',
+        testItem: '',
+        testProcedure: '',
+        acceptanceCriteria: '',
+        inspector: '',
+        testDate: '',
+        result: 'pending',
+        remarks: ''
+      }]);
+    }
+  }, [editInspectionOrderDetails]);
   
   // Helper function to sync material rows with form
   const syncMaterialRowsWithForm = () => {
@@ -2460,7 +2678,7 @@ export default function InspectionsPage() {
       let materialRows = data.materials || [];
       const validMaterialRows = materialRows.filter(row => row.materialId);
       
-      // Combine the form data with the NDT records, Visual records, Weld records, Hydrotest records, and NCR records from the state
+      // Combine the form data with the NDT records, Visual records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, and ITP records from the state
       const updateData = {
         ...data,
         materials: validMaterialRows,
@@ -2468,7 +2686,10 @@ export default function InspectionsPage() {
         visualRecords: visualRecords,
         hydrotestRecords: hydrotestRecords,
         welds: welds,
-        ncrRecords: ncrRecords
+        ncrRecords: ncrRecords,
+        approvedDrawingRecords: approvedDrawingRecords,
+        dvrRecords: dvrRecords,
+        itpRecords: itpRecords
       };
       
       console.log("Updating inspection order with data:", updateData);
