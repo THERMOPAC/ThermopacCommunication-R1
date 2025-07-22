@@ -113,6 +113,8 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
       formattedTabName = 'NCR';
     } else if (tabName === 'Visual') {
       formattedTabName = 'Visual'; // Update to match observed file path structure
+    } else if (tabName === 'Shop Inspection') {
+      formattedTabName = 'ShopInspection'; // Format for GCS path consistency
     }
     
     // Use consistent naming without timestamps to enable file overwriting
