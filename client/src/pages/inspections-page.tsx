@@ -4425,6 +4425,7 @@ export default function InspectionsPage() {
                                 });
                                 return;
                               }
+                              setEditingHydrotestRecord(null);
                               setIsHydrotestDialogOpen(true);
                             }}
                             className="mr-2"
@@ -5793,6 +5794,181 @@ export default function InspectionsPage() {
               </Button>
               <Button type="submit">
                 {editingNcrRecord ? 'Update Record' : 'Add Record'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Hydrotest Dialog */}
+      <Dialog open={isHydrotestDialogOpen} onOpenChange={(open) => {
+        setIsHydrotestDialogOpen(open);
+        if (!open) {
+          setEditingHydrotestRecord(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingHydrotestRecord ? 'Edit Hydrotest Record' : 'Add Hydrotest Record'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingHydrotestRecord 
+                ? 'Edit hydrotest record for this inspection order.'
+                : 'Add a new hydrotest record for this inspection order.'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            const recordData = {
+              id: editingHydrotestRecord?.id || `HT-${hydrotestRecords.length + 1}`,
+              pressure: formData.get('pressure') as string,
+              duration: formData.get('duration') as string,
+              medium: formData.get('medium') as string,
+              pressureGauge: formData.get('pressureGauge') as string,
+              operator: formData.get('operator') as string,
+              testDate: formData.get('testDate') as string,
+              result: formData.get('result') as string,
+              notes: formData.get('notes') as string,
+            };
+            
+            if (editingHydrotestRecord) {
+              editHydrotestRecord(recordData);
+            } else {
+              addHydrotestRecord(recordData);
+            }
+          }} className="space-y-4">
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="pressure" className="text-sm font-medium">Pressure (bar) *</label>
+                <input
+                  type="number"
+                  id="pressure"
+                  name="pressure"
+                  required
+                  step="0.1"
+                  defaultValue={editingHydrotestRecord?.pressure || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter test pressure"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="duration" className="text-sm font-medium">Duration (min) *</label>
+                <input
+                  type="number"
+                  id="duration"
+                  name="duration"
+                  required
+                  defaultValue={editingHydrotestRecord?.duration || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter test duration"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="medium" className="text-sm font-medium">Medium *</label>
+                <select
+                  id="medium"
+                  name="medium"
+                  required
+                  defaultValue={editingHydrotestRecord?.medium || "water"}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="water">Water</option>
+                  <option value="nitrogen">Nitrogen</option>
+                  <option value="air">Air</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="pressureGauge" className="text-sm font-medium">Pressure Gauge *</label>
+                <select
+                  id="pressureGauge"
+                  name="pressureGauge"
+                  required
+                  defaultValue={editingHydrotestRecord?.pressureGauge || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select pressure gauge...</option>
+                  {calibrationInstruments && calibrationInstruments.map((instrument) => (
+                    <option key={instrument.id} value={instrument.instrumentId}>
+                      {instrument.instrumentId} - {instrument.instrumentType}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="operator" className="text-sm font-medium">Inspector/Operator *</label>
+                <input
+                  type="text"
+                  id="operator"
+                  name="operator"
+                  required
+                  defaultValue={editingHydrotestRecord?.operator || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter inspector/operator name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="testDate" className="text-sm font-medium">Test Date *</label>
+                <input
+                  type="date"
+                  id="testDate"
+                  name="testDate"
+                  required
+                  defaultValue={editingHydrotestRecord?.testDate || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="result" className="text-sm font-medium">Result *</label>
+                <select
+                  id="result"
+                  name="result"
+                  required
+                  defaultValue={editingHydrotestRecord?.result || "Pass"}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Pass">Pass</option>
+                  <option value="Failed">Failed</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="notes" className="text-sm font-medium">Notes</label>
+              <textarea
+                id="notes"
+                name="notes"
+                rows={3}
+                defaultValue={editingHydrotestRecord?.notes || ""}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter any additional notes or observations..."
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setIsHydrotestDialogOpen(false);
+                  setEditingHydrotestRecord(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingHydrotestRecord ? 'Update Record' : 'Add Record'}
               </Button>
             </div>
           </form>
