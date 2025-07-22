@@ -530,10 +530,9 @@ export default function InspectionsPage() {
   // Helper function to get weld type display name
   const getWeldTypeName = (weldType: string): string => {
     const weldTypes: Record<string, string> = {
-      'butt': 'Butt Weld',
+      'butt_circ': 'Butt Weld Circ seam',
+      'butt_long': 'Butt Weld Long seam',
       'fillet': 'Fillet Weld',
-      'spot': 'Spot Weld',
-      'seam': 'Seam Weld',
       'lap': 'Lap Weld'
     };
     return weldTypes[weldType] || weldType;
@@ -5206,10 +5205,9 @@ export default function InspectionsPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select weld type</option>
-                    <option value="butt">Butt Weld</option>
+                    <option value="butt_circ">Butt Weld Circ seam</option>
+                    <option value="butt_long">Butt Weld Long seam</option>
                     <option value="fillet">Fillet Weld</option>
-                    <option value="spot">Spot Weld</option>
-                    <option value="seam">Seam Weld</option>
                     <option value="lap">Lap Weld</option>
                   </select>
                 </div>
