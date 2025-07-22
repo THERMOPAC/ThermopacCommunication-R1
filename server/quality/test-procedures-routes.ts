@@ -23,6 +23,15 @@ const upload = multer({
   },
 });
 
+// Define ensureAuthenticated middleware
+const ensureAuthenticated = (req: Request, res: Response, next: Function) => {
+  if (req.user) {
+    next();
+  } else {
+    res.status(401).json({ error: 'Authentication required' });
+  }
+};
+
 const router = express.Router();
 
 // GET /api/quality/test-procedures/next-number - Get next procedure ID
@@ -56,15 +65,7 @@ router.get('/next-number', ensureAuthenticated, async (req: Request, res: Respon
   }
 });
 
-// Define ensureAuthenticated middleware
-function ensureAuthenticated(req: Request, res: Response, next: any) {
-  if (req.isAuthenticated()) {
-    return next();
-  }
-  res.status(401).json({ error: 'Not authenticated' });
-}
-
-// Form validation schema
+// Updated validation schema without removed fields
 const testProcedureSchema = z.object({
   procedureNumber: z.string().min(1, 'Procedure number is required'),
   procedureName: z.string().min(1, 'Procedure name is required'),
@@ -103,18 +104,14 @@ router.get('/', ensureAuthenticated, async (req: Request, res: Response) => {
         procedureRevision: testProcedures.procedureRevision,
         scope: testProcedures.scope,
         technique: testProcedures.technique,
-        equipment: testProcedures.equipment,
-        materials: testProcedures.materials,
         sensitivity: testProcedures.sensitivity,
         preparation: testProcedures.preparation,
         procedureSteps: testProcedures.procedureSteps,
         evaluation: testProcedures.evaluation,
         documentation: testProcedures.documentation,
         personnelQualification: testProcedures.personnelQualification,
-        calibrationRequirements: testProcedures.calibrationRequirements,
         acceptanceCriteria: testProcedures.acceptanceCriteria,
         limitations: testProcedures.limitations,
-        safetyPrecautions: testProcedures.safetyPrecautions,
         environmentalConditions: testProcedures.environmentalConditions,
         status: testProcedures.status,
         approvalLevel: testProcedures.approvalLevel,
@@ -195,18 +192,14 @@ router.get('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
         procedureRevision: testProcedures.procedureRevision,
         scope: testProcedures.scope,
         technique: testProcedures.technique,
-        equipment: testProcedures.equipment,
-        materials: testProcedures.materials,
         sensitivity: testProcedures.sensitivity,
         preparation: testProcedures.preparation,
         procedureSteps: testProcedures.procedureSteps,
         evaluation: testProcedures.evaluation,
         documentation: testProcedures.documentation,
         personnelQualification: testProcedures.personnelQualification,
-        calibrationRequirements: testProcedures.calibrationRequirements,
         acceptanceCriteria: testProcedures.acceptanceCriteria,
         limitations: testProcedures.limitations,
-        safetyPrecautions: testProcedures.safetyPrecautions,
         environmentalConditions: testProcedures.environmentalConditions,
         status: testProcedures.status,
         approvalLevel: testProcedures.approvalLevel,
@@ -285,7 +278,7 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req: Request
     // Upload file to GCS
     const fileExtension = req.file.originalname.split('.').pop();
     const fileName = `${data.procedureNumber}.${fileExtension}`;
-    const gcsPath = `QMS/Test_Procedures/${data.procedureNumber}/${fileName}`;
+    const gcsPath = `QMS/Test_Procedures/${data.ndtMethod}/${fileName}`;
     
     console.log('Uploading file to GCS path:', gcsPath);
     const uploadResult = await uploadFileWithDiagnostics(
@@ -405,20 +398,14 @@ router.delete('/:id', ensureAuthenticated, async (req: Request, res: Response) =
       return res.status(400).json({ error: 'Invalid procedure ID' });
     }
     
-    // Check if procedure exists
-    const existingProcedure = await db
-      .select({ id: testProcedures.id })
-      .from(testProcedures)
+    const deletedProcedure = await db
+      .delete(testProcedures)
       .where(eq(testProcedures.id, id))
-      .limit(1);
+      .returning();
     
-    if (existingProcedure.length === 0) {
+    if (deletedProcedure.length === 0) {
       return res.status(404).json({ error: 'Test procedure not found' });
     }
-    
-    await db
-      .delete(testProcedures)
-      .where(eq(testProcedures.id, id));
     
     res.json({ message: 'Test procedure deleted successfully' });
   } catch (error) {
