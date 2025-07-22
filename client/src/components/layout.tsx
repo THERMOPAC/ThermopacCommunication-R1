@@ -326,6 +326,7 @@ function Layout({ children }: LayoutProps) {
         { icon: CalendarClock, label: "Calibration Management", href: "/calibration-management" },
         { icon: FileCheck, label: "WPQR Documents", href: "/wpqr" },
         { icon: ClipboardCheck, label: "PMA Documents", href: "/quality/pma" },
+        { icon: FileCheck, label: "Test Procedures", href: "/quality/test-procedures" },
         { icon: UserCheck, label: "Welder Management", href: "/welder-management" },
         { icon: CheckSquare, label: "Material Identification", href: "/quality/material-identification" },
         { icon: CheckSquare, label: "Inspections", href: "/inspections" },
