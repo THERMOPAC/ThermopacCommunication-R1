@@ -47,6 +47,12 @@ export default function PMAPage() {
     queryKey: ['/api/quality/pma'],
   });
 
+  // Fetch next available PMA number
+  const { data: nextPmaNumber } = useQuery({
+    queryKey: ['/api/quality/pma/next-number'],
+    enabled: isAddDialogOpen, // Only fetch when dialog is open
+  });
+
   // Fixed specification options matching Material Identification page
   const availableSpecifications = [
     'API', 'ASME', 'ASTM', 'ATEX', 'BS', 'DIN', 'EN', 'IECEx', 'ISO'
@@ -65,12 +71,6 @@ export default function PMAPage() {
     // Other grades
     'A105', 'A350 LF2', 'A182 F304', 'A182 F316L'
   ];
-
-  // Get next PMA number from server
-  const { data: nextPmaNumber } = useQuery({
-    queryKey: ['/api/quality/pma/next-number'],
-    enabled: isAddDialogOpen, // Only fetch when dialog is open
-  });
 
   // Form setup
   const form = useForm<PMAFormData>({
