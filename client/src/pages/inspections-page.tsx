@@ -1173,8 +1173,9 @@ export default function InspectionsPage() {
       
       const data = await response.json();
       return data.filter((instrument: any) => 
-        instrument.instrument_type.toLowerCase().includes('pressure') || 
-        instrument.instrument_type.toLowerCase().includes('gauge')
+        instrument.calibration_status === 'Calibrated' &&
+        instrument.instrument_type === 'Pressure Gauge' &&
+        instrument.in_use === 'In Use'
       );
     },
   });
