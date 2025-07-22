@@ -679,10 +679,28 @@ export async function checkExistingFinalDossier(inspectionOrderId: number): Prom
     
     try {
       const existingFiles = await listFilesInDirectory(basePath);
-      if (existingFiles.length > 0) {
+      
+      // Filter out .keep files and get only PDF files
+      const pdfFiles = existingFiles.filter(file => 
+        file.name && 
+        file.name.endsWith('.pdf') && 
+        !file.name.endsWith('/.keep')
+      );
+      
+      console.log('Found PDF files:', pdfFiles.map(f => f.name));
+      
+      if (pdfFiles.length > 0) {
         // Get the latest file (assuming files are sorted by date in filename)
-        const latestFile = existingFiles[existingFiles.length - 1]; 
+        const latestFile = pdfFiles[pdfFiles.length - 1]; 
         const filePath = latestFile.name;
+        
+        console.log('Using file path for signed URL:', filePath);
+        
+        // Validate file path
+        if (!filePath || typeof filePath !== 'string') {
+          console.error('Invalid file path:', filePath);
+          return { exists: false };
+        }
         
         // Generate signed URL for the existing file
         try {
