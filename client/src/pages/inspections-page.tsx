@@ -294,6 +294,7 @@ export default function InspectionsPage() {
     welderId: string;
     weldStatus: string;
   } | null>(null);
+  const [selectedWpqrForDialog, setSelectedWpqrForDialog] = useState<string>("");
 
   // NDT dialog state
   const [isNdtDialogOpen, setIsNdtDialogOpen] = useState(false);
@@ -382,6 +383,117 @@ export default function InspectionsPage() {
     }
     localStorage.setItem('inspections-keep-visible', keepProjectVisible.toString());
   }, [selectedProject, keepProjectVisible]);
+
+  // Initialize WPQR selection when editing a weld record
+  useEffect(() => {
+    if (editingWeldRecord?.wpqrDocument) {
+      setSelectedWpqrForDialog(editingWeldRecord.wpqrDocument);
+    } else {
+      setSelectedWpqrForDialog("");
+    }
+  }, [editingWeldRecord]);
+
+  // Function to get filtered weld process options based on selected WPQR document
+  const getFilteredWeldProcessOptions = () => {
+    if (!selectedWpqrForDialog || !wpqrDocuments.length) {
+      // If no WPQR selected, show all options
+      return [
+        { value: "smaw", label: "SMAW (Shielded Metal Arc Welding)" },
+        { value: "gtaw", label: "GTAW (TIG Welding)" },
+        { value: "gmaw", label: "GMAW (MIG Welding)" },
+        { value: "fcaw", label: "FCAW (Flux-Cored Arc Welding)" },
+        { value: "saw", label: "SAW (Submerged Arc Welding)" },
+        { value: "gtaw_smaw", label: "GTAW (141) + SMAW (111)" },
+        { value: "gtaw_gmaw", label: "GTAW (141) + GMAW (135)" },
+        { value: "gtaw_fcaw", label: "GTAW (141) + FCAW (136/137)" },
+        { value: "smaw_gmaw", label: "SMAW (111) + GMAW (135)" },
+        { value: "smaw_fcaw", label: "SMAW (111) + FCAW (136/137)" },
+        { value: "smaw_saw", label: "SMAW (111) + SAW (121)" },
+        { value: "gtaw_saw", label: "GTAW (141) + SAW (121)" },
+        { value: "gmaw_fcaw", label: "GMAW (135) + FCAW (136/137)" },
+        { value: "gmaw_saw", label: "GMAW (135) + SAW (121)" }
+      ];
+    }
+
+    // Find the selected WPQR document
+    const selectedWpqr = wpqrDocuments.find((doc: any) => 
+      (doc.documentNumber || doc.id.toString()) === selectedWpqrForDialog
+    );
+
+    if (!selectedWpqr || !selectedWpqr.welderProcess) {
+      // If WPQR not found or no weld process, show all options
+      return [
+        { value: "smaw", label: "SMAW (Shielded Metal Arc Welding)" },
+        { value: "gtaw", label: "GTAW (TIG Welding)" },
+        { value: "gmaw", label: "GMAW (MIG Welding)" },
+        { value: "fcaw", label: "FCAW (Flux-Cored Arc Welding)" },
+        { value: "saw", label: "SAW (Submerged Arc Welding)" },
+        { value: "gtaw_smaw", label: "GTAW (141) + SMAW (111)" },
+        { value: "gtaw_gmaw", label: "GTAW (141) + GMAW (135)" },
+        { value: "gtaw_fcaw", label: "GTAW (141) + FCAW (136/137)" },
+        { value: "smaw_gmaw", label: "SMAW (111) + GMAW (135)" },
+        { value: "smaw_fcaw", label: "SMAW (111) + FCAW (136/137)" },
+        { value: "smaw_saw", label: "SMAW (111) + SAW (121)" },
+        { value: "gtaw_saw", label: "GTAW (141) + SAW (121)" },
+        { value: "gmaw_fcaw", label: "GMAW (135) + FCAW (136/137)" },
+        { value: "gmaw_saw", label: "GMAW (135) + SAW (121)" }
+      ];
+    }
+
+    // Create a map of all possible weld processes
+    const allProcesses = {
+      "smaw": "SMAW (Shielded Metal Arc Welding)",
+      "gtaw": "GTAW (TIG Welding)",
+      "gmaw": "GMAW (MIG Welding)",
+      "fcaw": "FCAW (Flux-Cored Arc Welding)",
+      "saw": "SAW (Submerged Arc Welding)",
+      "gtaw_smaw": "GTAW (141) + SMAW (111)",
+      "gtaw_gmaw": "GTAW (141) + GMAW (135)",
+      "gtaw_fcaw": "GTAW (141) + FCAW (136/137)",
+      "smaw_gmaw": "SMAW (111) + GMAW (135)",
+      "smaw_fcaw": "SMAW (111) + FCAW (136/137)",
+      "smaw_saw": "SMAW (111) + SAW (121)",
+      "gtaw_saw": "GTAW (141) + SAW (121)",
+      "gmaw_fcaw": "GMAW (135) + FCAW (136/137)",
+      "gmaw_saw": "GMAW (135) + SAW (121)"
+    };
+
+    // Filter options based on the WPQR document's weld process
+    const wpqrProcess = selectedWpqr.welderProcess.toLowerCase();
+    
+    // If the WPQR process matches exactly, return just that option
+    if (allProcesses[wpqrProcess as keyof typeof allProcesses]) {
+      return [{ 
+        value: wpqrProcess, 
+        label: allProcesses[wpqrProcess as keyof typeof allProcesses] 
+      }];
+    }
+
+    // If it's a combination process, return all relevant processes
+    const filteredOptions = Object.entries(allProcesses)
+      .filter(([value, label]) => {
+        // If WPQR contains multiple processes, show matching ones
+        return wpqrProcess.includes(value) || value.includes(wpqrProcess);
+      })
+      .map(([value, label]) => ({ value, label }));
+
+    return filteredOptions.length > 0 ? filteredOptions : [
+      { value: "smaw", label: "SMAW (Shielded Metal Arc Welding)" },
+      { value: "gtaw", label: "GTAW (TIG Welding)" },
+      { value: "gmaw", label: "GMAW (MIG Welding)" },
+      { value: "fcaw", label: "FCAW (Flux-Cored Arc Welding)" },
+      { value: "saw", label: "SAW (Submerged Arc Welding)" },
+      { value: "gtaw_smaw", label: "GTAW (141) + SMAW (111)" },
+      { value: "gtaw_gmaw", label: "GTAW (141) + GMAW (135)" },
+      { value: "gtaw_fcaw", label: "GTAW (141) + FCAW (136/137)" },
+      { value: "smaw_gmaw", label: "SMAW (111) + GMAW (135)" },
+      { value: "smaw_fcaw", label: "SMAW (111) + FCAW (136/137)" },
+      { value: "smaw_saw", label: "SMAW (111) + SAW (121)" },
+      { value: "gtaw_saw", label: "GTAW (141) + SAW (121)" },
+      { value: "gmaw_fcaw", label: "GMAW (135) + FCAW (136/137)" },
+      { value: "gmaw_saw", label: "GMAW (135) + SAW (121)" }
+    ];
+  };
   
   // Weld management state
   const [welds, setWelds] = useState<{
@@ -5158,6 +5270,7 @@ export default function InspectionsPage() {
         setIsWeldingDialogOpen(open);
         if (!open) {
           setEditingWeldRecord(null);
+          setSelectedWpqrForDialog("");
         }
       }}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
@@ -5219,7 +5332,8 @@ export default function InspectionsPage() {
                   <select
                     id="wpqrDocument"
                     name="wpqrDocument"
-                    defaultValue={editingWeldRecord?.wpqrDocument || ""}
+                    value={selectedWpqrForDialog || editingWeldRecord?.wpqrDocument || ""}
+                    onChange={(e) => setSelectedWpqrForDialog(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select WPQR document</option>
@@ -5251,20 +5365,11 @@ export default function InspectionsPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select weld process</option>
-                    <option value="smaw">SMAW (Shielded Metal Arc Welding)</option>
-                    <option value="gtaw">GTAW (TIG Welding)</option>
-                    <option value="gmaw">GMAW (MIG Welding)</option>
-                    <option value="fcaw">FCAW (Flux-Cored Arc Welding)</option>
-                    <option value="saw">SAW (Submerged Arc Welding)</option>
-                    <option value="gtaw_smaw">GTAW (141) + SMAW (111)</option>
-                    <option value="gtaw_gmaw">GTAW (141) + GMAW (135)</option>
-                    <option value="gtaw_fcaw">GTAW (141) + FCAW (136/137)</option>
-                    <option value="smaw_gmaw">SMAW (111) + GMAW (135)</option>
-                    <option value="smaw_fcaw">SMAW (111) + FCAW (136/137)</option>
-                    <option value="smaw_saw">SMAW (111) + SAW (121)</option>
-                    <option value="gtaw_saw">GTAW (141) + SAW (121)</option>
-                    <option value="gmaw_fcaw">GMAW (135) + FCAW (136/137)</option>
-                    <option value="gmaw_saw">GMAW (135) + SAW (121)</option>
+                    {getFilteredWeldProcessOptions().map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
