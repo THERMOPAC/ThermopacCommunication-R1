@@ -256,18 +256,14 @@ export default function TestProceduresPage() {
       procedureRevision: procedure.procedureRevision || "R1",
       scope: procedure.scope || "",
       technique: procedure.technique || "",
-      equipment: procedure.equipment || "",
-      materials: procedure.materials || "",
       sensitivity: procedure.sensitivity || "",
       preparation: procedure.preparation || "",
       procedureSteps: procedure.procedureSteps || "",
       evaluation: procedure.evaluation || "",
       documentation: procedure.documentation || "",
       personnelQualification: procedure.personnelQualification || "",
-      calibrationRequirements: procedure.calibrationRequirements || "",
       acceptanceCriteria: procedure.acceptanceCriteria || "",
       limitations: procedure.limitations || "",
-      safetyPrecautions: procedure.safetyPrecautions || "",
       environmentalConditions: procedure.environmentalConditions || "",
       status: procedure.status || "Draft",
       approvalLevel: procedure.approvalLevel || "",
@@ -286,11 +282,11 @@ export default function TestProceduresPage() {
   // Filter procedures
   const filteredProcedures = procedures.filter((procedure: TestProcedure) => {
     const matchesSearch = 
-      procedure.procedureId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      procedure.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      procedure.testMethod.toLowerCase().includes(searchTerm.toLowerCase());
+      procedure.procedureNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      procedure.procedureName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      procedure.ndtMethod?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesMethod = filterMethod === "all" || procedure.testMethod === filterMethod;
+    const matchesMethod = filterMethod === "all" || procedure.ndtMethod === filterMethod;
     
     return matchesSearch && matchesMethod;
   });
@@ -577,15 +573,15 @@ export default function TestProceduresPage() {
                 <TableBody>
                   {filteredProcedures.map((procedure: TestProcedure) => (
                     <TableRow key={procedure.id}>
-                      <TableCell className="font-medium">{procedure.procedureId}</TableCell>
-                      <TableCell>{getMethodBadge(procedure.testMethod)}</TableCell>
-                      <TableCell>{procedure.title}</TableCell>
+                      <TableCell className="font-medium">{procedure.procedureNumber}</TableCell>
+                      <TableCell>{getMethodBadge(procedure.ndtMethod)}</TableCell>
+                      <TableCell>{procedure.procedureName}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">{procedure.revision}</Badge>
+                        <Badge variant="outline">{procedure.procedureRevision || "R1"}</Badge>
                       </TableCell>
                       <TableCell>{getStatusBadge(procedure.status)}</TableCell>
-                      <TableCell>{procedure.approvedBy || "-"}</TableCell>
-                      <TableCell>{procedure.effectiveDate || "-"}</TableCell>
+                      <TableCell>{procedure.approvedByUser || "-"}</TableCell>
+                      <TableCell>{procedure.approvedAt ? new Date(procedure.approvedAt).toLocaleDateString() : "-"}</TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
                           <Button
