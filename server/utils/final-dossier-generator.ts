@@ -1594,7 +1594,8 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         { name: 'NDT', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NDT` },
         { name: 'Visual Inspection', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Visual` },
         { name: 'Hydrotest', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Hydrotest` },
-        { name: 'NCR', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NCR` }
+        { name: 'NCR', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NCR` },
+        { name: 'Approved Drawing', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ApprovedDrawing` }
       ];
       
       // First process inspection document sections
@@ -2062,7 +2063,8 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NDT`,
         `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Visual`,
         `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Hydrotest`,
-        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NCR`
+        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NCR`,
+        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ApprovedDrawing`
       ];
       
       for (const sectionPath of sections) {

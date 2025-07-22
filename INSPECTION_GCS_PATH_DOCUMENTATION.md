@@ -127,7 +127,8 @@ const inspectionSections = [
   { name: 'NDT', path: `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/NDT` },
   { name: 'Visual Inspection', path: `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/Visual` },
   { name: 'Hydrotest', path: `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/Hydrotest` },
-  { name: 'NCR', path: `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/NCR` }
+  { name: 'NCR', path: `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/NCR` },
+  { name: 'Approved Drawing', path: `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/ApprovedDrawing` }
 ];
 ```
 
@@ -135,7 +136,7 @@ const inspectionSections = [
 
 ✅ **ALL INSPECTION TABS FULLY SUPPORTED**
 
-All seven inspection tabs are now properly integrated with:
+All eight inspection tabs are now properly integrated with:
 - Upload functionality
 - Download functionality  
 - Delete functionality
@@ -143,4 +144,4 @@ All seven inspection tabs are now properly integrated with:
 - Consistent GCS path structure
 - Project-based hierarchical organization
 
-Last updated: July 22, 2025
+Last updated: July 22, 202525

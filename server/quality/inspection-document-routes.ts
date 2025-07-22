@@ -92,6 +92,8 @@ router.post("/upload", ensureAuthenticated, upload.single('file'), async (req: R
       formattedTabName = 'NCR';
     } else if (tabName === 'Shop Inspection') {
       formattedTabName = 'ShopInspection'; // Format for GCS path consistency
+    } else if (tabName === 'Approved Drawing') {
+      formattedTabName = 'ApprovedDrawing'; // Format for GCS path consistency
     }
     
     console.log(`Using formatted tab name "${formattedTabName}" (original: "${tabName}") for database record`);
@@ -196,6 +198,8 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId", ensureAuthenticated, as
       formattedTabName = 'Visual'; // Update to match observed file path structure
     } else if (tabName === 'Shop Inspection') {
       formattedTabName = 'ShopInspection'; // Format for GCS path consistency
+    } else if (tabName === 'Approved Drawing') {
+      formattedTabName = 'ApprovedDrawing'; // Format for GCS path consistency
     }
     
     console.log(`Getting documents for inspection: ${inspectionOrderNumber}, tab: ${tabName} (formatted as: ${formattedTabName}), record: ${recordId}`);
@@ -258,6 +262,8 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId/dow
       formattedTabName = 'Visual';
     } else if (tabName === 'Shop Inspection') {
       formattedTabName = 'ShopInspection'; // Format for GCS path consistency
+    } else if (tabName === 'Approved Drawing') {
+      formattedTabName = 'ApprovedDrawing'; // Format for GCS path consistency
     }
     
     // Try multiple path formats for file detection
@@ -375,6 +381,8 @@ router.delete("/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId"
       formattedTabName = 'Visual';
     } else if (tabName === 'Shop Inspection') {
       formattedTabName = 'ShopInspection'; // Format for GCS path consistency
+    } else if (tabName === 'Approved Drawing') {
+      formattedTabName = 'ApprovedDrawing'; // Format for GCS path consistency
     }
     
     // Try multiple path formats for file detection
