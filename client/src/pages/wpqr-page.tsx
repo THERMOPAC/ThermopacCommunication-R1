@@ -61,13 +61,22 @@ type WpqrDocument = {
   }>;
 };
 
-// Welder type for the dropdown
+// Welder type for the dropdown (matching the API response from /api/quality/welders)
 type Welder = {
   id: number;
   welderId: string;
   name: string;
-  certification?: string;
+  trade?: string;
   status: string;
+  remarks?: string;
+  photoPath?: string;
+  dateOfBirth?: string;
+  contactNumber?: string;
+  hireDate?: string;
+  identificationType?: string;
+  identificationNumber?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export default function WpqrPage() {
@@ -87,7 +96,7 @@ export default function WpqrPage() {
 
   // Fetch all welders for dropdown
   const { data: welders = [] } = useQuery<Welder[]>({
-    queryKey: ['/api/quality/wpqr/welders'],
+    queryKey: ['/api/quality/welders'],
     retry: 1,
   });
   
