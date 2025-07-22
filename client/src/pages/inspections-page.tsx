@@ -376,6 +376,19 @@ export default function InspectionsPage() {
     status: string;
     remarks: string;
   } | null>(null);
+
+  // Procedures dialog states
+  const [isProceduresDialogOpen, setIsProceduresDialogOpen] = useState(false);
+  const [editingProcedureRecord, setEditingProcedureRecord] = useState<{
+    id: string;
+    procedureNumber: string;
+    procedureName: string;
+    ndtMethod: string;
+    applicableStandard: string;
+    linkedDate: string;
+    linkedBy: string;
+    notes: string;
+  } | null>(null);
   const [shopInspectionRecords, setShopInspectionRecords] = useState<{
     id: string;
     inspectionType: string;
@@ -410,6 +423,18 @@ export default function InspectionsPage() {
   }[]>([]);
   const [selectedPmaDocument, setSelectedPmaDocument] = useState<string>("");
   const [selectedPmaStatus, setSelectedPmaStatus] = useState<string>("");
+
+  // Procedures Records state
+  const [procedureRecords, setProcedureRecords] = useState<{
+    id: string;
+    procedureNumber: string;
+    procedureName: string;
+    ndtMethod: string;
+    applicableStandard: string;
+    linkedDate: string;
+    linkedBy: string;
+    notes: string;
+  }[]>([]);
 
   // DVR Records state
   const [dvrRecords, setDvrRecords] = useState<{
@@ -1320,6 +1345,22 @@ export default function InspectionsPage() {
     enabled: !!selectedProject,
     staleTime: 0, // Force fresh data
     gcTime: 0, // Don't cache
+  });
+  
+  // Fetch active Test Procedures
+  const {
+    data: testProcedures = [],
+    isLoading: isLoadingTestProcedures
+  } = useQuery({
+    queryKey: ['/api/quality/test-procedures'],
+    queryFn: async () => {
+      const response = await fetch('/api/quality/test-procedures?status=active');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch test procedures");
+      }
+      return response.json();
+    }
   });
   
   // Define an interface for Material Identification records
@@ -2459,6 +2500,84 @@ export default function InspectionsPage() {
   const startEditingPmaRecord = (record: typeof pmaRecords[0]) => {
     setEditingPmaRecord(record);
     setIsPmaDialogOpen(true);
+  };
+
+  // Procedures helper functions
+  const generateProcedureId = () => {
+    const existingIds = procedureRecords.map(record => {
+      const match = record.id.match(/PROC-(\d+)/);
+      return match ? parseInt(match[1]) : 0;
+    });
+    const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0;
+    return `PROC-${maxId + 1}`;
+  };
+
+  const addProcedureRecord = (recordData: {
+    procedureNumber: string;
+    procedureName: string;
+    ndtMethod: string;
+    applicableStandard: string;
+    notes: string;
+  }) => {
+    // Check if project code is valid
+    if (editInspectionOrderDetails?.project_code === 'UNKNOWN') {
+      toast({
+        title: "Cannot Link Procedure",
+        description: "Project code is UNKNOWN. Please update the inspection order with a valid project code first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const newRecord = {
+      ...recordData,
+      id: generateProcedureId(),
+      linkedDate: new Date().toLocaleDateString(),
+      linkedBy: 'Current User' // In a real app, this would be the logged-in user
+    };
+    
+    setProcedureRecords([...procedureRecords, newRecord]);
+    setIsProceduresDialogOpen(false);
+    
+    toast({
+      title: "Success",
+      description: "Test procedure linked successfully",
+    });
+  };
+
+  const editProcedureRecord = (recordData: {
+    procedureNumber: string;
+    procedureName: string;
+    ndtMethod: string;
+    applicableStandard: string;
+    notes: string;
+  }) => {
+    if (!editingProcedureRecord) return;
+
+    const updatedRecord = {
+      ...editingProcedureRecord,
+      ...recordData
+    };
+    
+    setProcedureRecords(prev => prev.map(record => 
+      record.id === editingProcedureRecord.id ? updatedRecord : record
+    ));
+    
+    setIsProceduresDialogOpen(false);
+    setEditingProcedureRecord(null);
+    
+    toast({
+      title: "Success",
+      description: "Test procedure link updated successfully",
+    });
+  };
+
+  const removeProcedureRecord = (index: number) => {
+    setProcedureRecords(prev => prev.filter((_, i) => i !== index));
+    toast({
+      title: "Success",
+      description: "Test procedure unlinked successfully",
+    });
   };
 
   // DVR helper functions
@@ -4438,6 +4557,7 @@ export default function InspectionsPage() {
                       <TabsTrigger value="itp" className="shrink-0">ITP</TabsTrigger>
                       <TabsTrigger value="material" className="shrink-0">Material Traceability</TabsTrigger>
                       <TabsTrigger value="pma" className="shrink-0">PMA</TabsTrigger>
+                      <TabsTrigger value="procedures" className="shrink-0">Procedures</TabsTrigger>
                       <TabsTrigger value="shop" className="shrink-0">Shop Inspection</TabsTrigger>
                       <TabsTrigger value="welding" className="shrink-0">Welding & Weld Maps</TabsTrigger>
                       <TabsTrigger value="ndt" className="shrink-0">NDT</TabsTrigger>
@@ -4960,6 +5080,104 @@ export default function InspectionsPage() {
                                   </p>
                                   <p className="text-xs text-muted-foreground mb-2">
                                     Click "Add PMA Record" to create a new record.
+                                  </p>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </TabsContent>
+                  
+                  {/* Procedures Tab */}
+                  <TabsContent value="procedures" className="p-4 border rounded-md mt-4">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-medium">Test Procedures</h3>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            // Check if we have valid project code before opening dialog
+                            if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
+                              toast({
+                                title: "Cannot Link Procedure",
+                                description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            setEditingProcedureRecord(null);
+                            setIsProceduresDialogOpen(true);
+                          }}
+                          className="flex items-center text-xs"
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Link Test Procedure
+                        </Button>
+                      </div>
+                      
+                      {/* Procedures Records Table */}
+                      <div className="border rounded-md shadow-sm overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs font-medium">Procedure Number</TableHead>
+                              <TableHead className="text-xs font-medium">Procedure Name</TableHead>
+                              <TableHead className="text-xs font-medium">NDT Method</TableHead>
+                              <TableHead className="text-xs font-medium">Applicable Standard</TableHead>
+                              <TableHead className="text-xs font-medium">Linked Date</TableHead>
+                              <TableHead className="text-xs font-medium">Linked By</TableHead>
+                              <TableHead className="text-xs font-medium">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {procedureRecords.length > 0 ? (
+                              procedureRecords.map((record, index) => (
+                                <TableRow key={index} className="hover:bg-gray-50">
+                                  <TableCell className="text-xs">{record.procedureNumber || '-'}</TableCell>
+                                  <TableCell className="text-xs">{record.procedureName || '-'}</TableCell>
+                                  <TableCell className="text-xs">{record.ndtMethod || '-'}</TableCell>
+                                  <TableCell className="text-xs">{record.applicableStandard || '-'}</TableCell>
+                                  <TableCell className="text-xs">{record.linkedDate || '-'}</TableCell>
+                                  <TableCell className="text-xs">{record.linkedBy || '-'}</TableCell>
+                                  <TableCell className="text-xs">
+                                    <div className="flex items-center space-x-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-xs px-2 py-1 h-7 text-green-600 hover:bg-green-50"
+                                        onClick={() => {
+                                          setEditingProcedureRecord(record);
+                                          setIsProceduresDialogOpen(true);
+                                        }}
+                                      >
+                                        <Edit2 className="h-3 w-3 mr-1" />
+                                        Edit
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-xs px-2 py-1 h-7 bg-red-50 text-red-600 hover:bg-red-100"
+                                        onClick={() => removeProcedureRecord(index)}
+                                      >
+                                        <Trash2 className="h-3 w-3 mr-1" />
+                                        Remove
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={7} className="text-center py-10">
+                                  <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
+                                  <p className="mt-2 text-xs text-muted-foreground">
+                                    No test procedures linked.
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mb-2">
+                                    Click "Link Test Procedure" to add a procedure to this inspection order.
                                   </p>
                                 </TableCell>
                               </TableRow>
@@ -7731,6 +7949,155 @@ export default function InspectionsPage() {
               </Button>
               <Button type="submit">
                 {editingPmaRecord ? 'Update Record' : 'Add Record'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Procedures Dialog */}
+      <Dialog open={isProceduresDialogOpen} onOpenChange={(open) => {
+        setIsProceduresDialogOpen(open);
+        if (!open) {
+          setEditingProcedureRecord(null);
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingProcedureRecord ? 'Edit Test Procedure Link' : 'Link Test Procedure'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingProcedureRecord 
+                ? `Edit test procedure link ${editingProcedureRecord.id} for this inspection order.`
+                : 'Link an active test procedure to this inspection order.'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            
+            const procedureData = {
+              procedureNumber: formData.get('procedureNumber') as string,
+              procedureName: formData.get('procedureName') as string,
+              ndtMethod: formData.get('ndtMethod') as string,
+              applicableStandard: formData.get('applicableStandard') as string,
+              notes: formData.get('notes') as string
+            };
+            
+            if (editingProcedureRecord) {
+              editProcedureRecord(procedureData);
+            } else {
+              addProcedureRecord(procedureData);
+            }
+          }} className="space-y-4">
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="procedureNumber" className="text-sm font-medium">Procedure Number *</label>
+                <select
+                  id="procedureNumber"
+                  name="procedureNumber"
+                  required
+                  defaultValue={editingProcedureRecord?.procedureNumber || ""}
+                  onChange={(e) => {
+                    const selectedProcedure = testProcedures.find(proc => proc.procedureNumber === e.target.value);
+                    if (selectedProcedure) {
+                      // Auto-populate fields when procedure is selected
+                      const form = e.target.closest('form');
+                      if (form) {
+                        (form.elements.namedItem('procedureName') as HTMLInputElement).value = selectedProcedure.procedureName || '';
+                        (form.elements.namedItem('ndtMethod') as HTMLSelectElement).value = selectedProcedure.ndtMethod || '';
+                        (form.elements.namedItem('applicableStandard') as HTMLInputElement).value = selectedProcedure.applicableStandards || '';
+                      }
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select a test procedure...</option>
+                  {testProcedures.map((procedure) => (
+                    <option key={procedure.id} value={procedure.procedureNumber}>
+                      {procedure.procedureNumber} - {procedure.procedureName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="procedureName" className="text-sm font-medium">Procedure Name *</label>
+                <input
+                  type="text"
+                  id="procedureName"
+                  name="procedureName"
+                  required
+                  defaultValue={editingProcedureRecord?.procedureName || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                  placeholder="Auto-populated from selection"
+                  readOnly
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="ndtMethod" className="text-sm font-medium">NDT Method *</label>
+                <select
+                  id="ndtMethod"
+                  name="ndtMethod"
+                  required
+                  defaultValue={editingProcedureRecord?.ndtMethod || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                  disabled
+                >
+                  <option value="">Select NDT method...</option>
+                  <option value="Visual Testing">Visual Testing</option>
+                  <option value="Liquid Penetrant Testing">Liquid Penetrant Testing</option>
+                  <option value="Magnetic Particle Testing">Magnetic Particle Testing</option>
+                  <option value="Ultrasonic Testing">Ultrasonic Testing</option>
+                  <option value="Radiographic Testing">Radiographic Testing</option>
+                  <option value="Eddy Current Testing">Eddy Current Testing</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="applicableStandard" className="text-sm font-medium">Applicable Standard</label>
+                <input
+                  type="text"
+                  id="applicableStandard"
+                  name="applicableStandard"
+                  defaultValue={editingProcedureRecord?.applicableStandard || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                  placeholder="Auto-populated from selection"
+                  readOnly
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="notes" className="text-sm font-medium">Notes</label>
+              <textarea
+                id="notes"
+                name="notes"
+                rows={3}
+                defaultValue={editingProcedureRecord?.notes || ""}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter any additional notes about this procedure link..."
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setIsProceduresDialogOpen(false);
+                  setEditingProcedureRecord(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingProcedureRecord ? 'Update Link' : 'Link Procedure'}
               </Button>
             </div>
           </form>
