@@ -1701,6 +1701,8 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         { name: 'DVR', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/DVR` },
         { name: 'ITP', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ITP` },
         { name: 'Material Traceability', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/MaterialTraceability` },
+        { name: 'PMA', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/PMA` },
+        { name: 'Procedures', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Procedures` },
         { name: 'Shop Inspection', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ShopInspection` },
         { name: 'Welding', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Welding` },
         { name: 'NDT', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NDT` },

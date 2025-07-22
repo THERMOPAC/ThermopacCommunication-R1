@@ -5054,6 +5054,22 @@ export default function InspectionsPage() {
                                       <Button
                                         variant="ghost"
                                         size="sm"
+                                        className="text-xs px-2 py-1 h-7 bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                        onClick={() => {
+                                          setDocumentUploadConfig({
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || '',
+                                            tabName: 'PMA',
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentUpload(true);
+                                        }}
+                                      >
+                                        <Upload className="h-3 w-3 mr-1" />
+                                        Upload
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
                                         className="text-xs px-2 py-1 h-7 bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
                                         onClick={() => {
                                           setDocumentViewerConfig({
@@ -5155,6 +5171,38 @@ export default function InspectionsPage() {
                                       >
                                         <Edit2 className="h-3 w-3 mr-1" />
                                         Edit
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-xs px-2 py-1 h-7 bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                        onClick={() => {
+                                          setDocumentUploadConfig({
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || '',
+                                            tabName: 'Procedures',
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentUpload(true);
+                                        }}
+                                      >
+                                        <Upload className="h-3 w-3 mr-1" />
+                                        Upload
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-xs px-2 py-1 h-7 bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
+                                        onClick={() => {
+                                          setDocumentViewerConfig({
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || '',
+                                            tabName: 'Procedures',
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentViewer(true);
+                                        }}
+                                      >
+                                        <Eye className="h-3 w-3 mr-1" />
+                                        View
                                       </Button>
                                       <Button
                                         variant="ghost"
