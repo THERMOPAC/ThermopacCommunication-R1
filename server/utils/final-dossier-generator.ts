@@ -54,16 +54,49 @@ export async function checkExistingFinalDossier(inspectionOrderNumber: string): 
       };
     }
 
-    // Define the exact path for the final dossier with consistent naming
-    const dossierPath = `QMS/Inspections_Records/${inspectionOrderNumber}/Final Dossier/FD_${inspectionOrderNumber}.pdf`;
+    // Get the project code from the inspection order
+    let projectCode = 'UNKNOWN';
+    try {
+      const inspectionOrder = await db.query.inspectionOrders.findFirst({
+        where: eq(inspectionOrders.inspectionOrderNumber, inspectionOrderNumber),
+      });
+      
+      if (inspectionOrder && inspectionOrder.projectCode) {
+        projectCode = inspectionOrder.projectCode;
+      }
+    } catch (dbError) {
+      console.error('Error fetching inspection order for project code:', dbError);
+    }
+
+    // Define paths to check (try both new project-based and old formats)
+    const newDossierPath = `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/Final Dossier/FD_${inspectionOrderNumber}.pdf`;
+    const oldDossierPath = `QMS/Inspections_Records/${inspectionOrderNumber}/Final Dossier/FD_${inspectionOrderNumber}.pdf`;
     
-    console.log(`Checking for existing dossier at path: ${dossierPath}`);
+    console.log(`Checking for existing dossier at new path: ${newDossierPath}`);
+    console.log(`Fallback to old path if needed: ${oldDossierPath}`);
     
-    // Check if the specific file exists
+    // Try new path first, fallback to old path
+    let dossierPath = newDossierPath;
+    let fileExists = false;
+    
     try {
       const [exists] = await bucket.file(dossierPath).exists();
+      fileExists = exists;
       
-      if (exists) {
+      // If not found in new path, try old path
+      if (!exists) {
+        console.log(`File not found at new path, trying old path: ${oldDossierPath}`);
+        dossierPath = oldDossierPath;
+        const [oldExists] = await bucket.file(dossierPath).exists();
+        fileExists = oldExists;
+      }
+    } catch (error) {
+      console.error('Error checking file existence:', error);
+      fileExists = false;
+    }
+    
+    // Process the result if file exists
+    if (fileExists) {
         console.log(`Found existing Final Dossier at ${dossierPath}`);
         
         // Generate signed URL for download
@@ -96,15 +129,6 @@ export async function checkExistingFinalDossier(inspectionOrderNumber: string): 
         url: '',
         path: dossierPath // Return the path for consistency
       };
-    } catch (error) {
-      console.error('Error checking if file exists:', error);
-      console.log('Continuing with assumption that no dossier exists');
-      return {
-        exists: false,
-        url: '',
-        path: dossierPath
-      };
-    }
   } catch (error) {
     console.error('Error checking for existing final dossier:', error);
     console.log('Continuing with assumption that no dossier exists');
@@ -2553,7 +2577,98 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Save the dossier
     const pdfBytes = await pdfDoc.save();
     
-    return pdfBytes;
+    // Define the path for the final dossier in GCS with project code hierarchy
+    const gcsPath = `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Final Dossier/FD_${inspectionOrder.inspectionOrderNumber}.pdf`;
+    
+    // Check if file already exists and delete it to ensure clean overwrite
+    try {
+      const existingFile = bucket.file(gcsPath);
+      const [exists] = await existingFile.exists();
+      if (exists) {
+        console.log(`Existing Final Dossier found at ${gcsPath}, will replace it`);
+        await existingFile.delete();
+        console.log(`Successfully deleted existing Final Dossier at ${gcsPath}`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`Error checking or deleting existing Final Dossier: ${errorMessage}. Will continue with upload.`);
+    }
+    
+    // Check if GCS bucket is available
+    if (!bucket) {
+      console.error('Cannot upload Final Dossier: GCS bucket not initialized');
+      throw new Error('Storage not available - cannot upload Final Dossier');
+    }
+    
+    // Log the file path we're using
+    console.log(`Creating/updating Final Dossier at path: ${gcsPath}`);
+    
+    try {
+      // Upload to GCS
+      const file = bucket.file(gcsPath);
+      
+      // Create write stream with error handling
+      const stream = file.createWriteStream({
+        metadata: {
+          contentType: 'application/pdf',
+        },
+        resumable: false,
+      });
+      
+      // Upload the PDF buffer
+      await new Promise<void>((resolve, reject) => {
+        const { Readable } = require('stream');
+        const readable = new Readable();
+        readable._read = () => {};
+        readable.push(Buffer.from(pdfBytes));
+        readable.push(null);
+        
+        stream.on('error', (err: any) => {
+          console.error('Error during file upload stream:', err);
+          reject(new Error(`Upload stream error: ${err.message}`));
+        });
+        
+        readable.on('error', (err: any) => {
+          console.error('Error in readable stream:', err);
+          reject(new Error(`Readable stream error: ${err.message}`));
+        });
+        
+        readable
+          .pipe(stream)
+          .on('finish', () => {
+            console.log(`Successfully uploaded Final Dossier to ${gcsPath}`);
+            resolve();
+          });
+      });
+      
+      // Generate signed URL for download with error handling
+      let signedUrl = '';
+      try {
+        const [urlResult] = await file.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // URL expires in 7 days
+        });
+        signedUrl = urlResult;
+        console.log('Successfully generated signed URL for Final Dossier');
+      } catch (signedUrlError) {
+        console.error('Error generating signed URL:', signedUrlError);
+        console.log('File was uploaded but signed URL could not be generated');
+        // Return file path only without URL
+        return {
+          url: '',
+          path: gcsPath
+        };
+      }
+      
+      // Return successful result with URL and path
+      return { 
+        url: signedUrl, 
+        path: gcsPath 
+      };
+    } catch (uploadError: any) {
+      console.error('Error uploading Final Dossier file:', uploadError);
+      throw new Error(`Failed to upload Final Dossier: ${uploadError.message || 'Unknown error'}`);
+    }
   } catch (error) {
     console.error('Error generating final dossier:', error);
     throw error;
