@@ -279,6 +279,7 @@ router.get('/:id/welders', ensureAuthenticated, async (req: Request, res: Respon
     }
     
     // Get linked welders for this document with additional fields for filtering
+    // Use INNER JOIN to avoid null welder records
     const linkedWelders = await db.select({
       id: welders.id,
       welderId: welders.welderId,
@@ -289,7 +290,7 @@ router.get('/:id/welders', ensureAuthenticated, async (req: Request, res: Respon
       status: welders.status
     })
     .from(wpqrWelders)
-    .leftJoin(welders, eq(wpqrWelders.welderId, welders.id))
+    .innerJoin(welders, eq(wpqrWelders.welderId, welders.id))
     .where(eq(wpqrWelders.wpqrDocumentId, documentId));
     
     console.log(`[WPQR Welders] Found ${linkedWelders.length} welders for WPQR ${documentId}:`, linkedWelders);
