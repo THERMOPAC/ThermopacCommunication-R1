@@ -50,9 +50,11 @@ export default function PMAPage() {
   });
 
   // Fetch available materials
-  const { data: availableMaterials = [] } = useQuery({
+  const { data: materialsResponse } = useQuery({
     queryKey: ['/api/quality/material-identification'],
   });
+  
+  const availableMaterials = materialsResponse?.data || [];
 
   // Create PMA mutation
   const createPMAMutation = useMutation({
