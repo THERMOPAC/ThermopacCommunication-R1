@@ -1,5 +1,5 @@
 import Layout from '@/components/layout';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,26 +11,23 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit2, Trash2, Search, Eye, Download, FileIcon, ExternalLink } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Eye, Download, FileIcon, Upload } from 'lucide-react';
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
-import { apiRequest } from '@/lib/queryClient';
 
-// Form validation schemas
+// Form validation schema for new simplified PMA structure
 const pmaFormSchema = z.object({
   pmaNumber: z.string().min(1, 'PMA Number is required'),
-  materialType: z.string().min(1, 'Material Type is required'),
   specification: z.string().min(1, 'Specification is required'),
   grade: z.string().min(1, 'Grade is required'),
-  approvalLevel: z.enum(['Level 1', 'Level 2', 'Level 3']),
-  status: z.enum(['Draft', 'Under Review', 'Approved', 'Rejected']),
+  status: z.enum(['Draft', 'Active', 'Inactive']),
   remarks: z.string().optional(),
+  expiryDate: z.string().min(1, 'Expiry Date is required'),
 });
 
 type PMAFormData = z.infer<typeof pmaFormSchema>;
@@ -39,9 +36,9 @@ export default function PMAPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedPMA, setSelectedPMA] = useState<any>(null);
-  const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
+  const [fileUpload, setFileUpload] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
   // Fetch PMA documents
@@ -49,34 +46,74 @@ export default function PMAPage() {
     queryKey: ['/api/quality/pma'],
   });
 
-  // Fetch available materials
-  const { data: materialsResponse } = useQuery({
+  // Get available specifications and grades from material identification
+  const { data: materialData } = useQuery({
     queryKey: ['/api/quality/material-identification'],
   });
-  
-  const availableMaterials = materialsResponse?.data || [];
+
+  const availableSpecifications = [...new Set(
+    materialData?.data?.map((item: any) => item.specification).filter(Boolean) || []
+  )].sort();
+
+  const availableGrades = [...new Set(
+    materialData?.data?.map((item: any) => item.materialGrade || item.material_grade).filter(Boolean) || []
+  )].sort();
+
+  // Form setup
+  const form = useForm<PMAFormData>({
+    resolver: zodResolver(pmaFormSchema),
+    defaultValues: {
+      pmaNumber: '',
+      specification: '',
+      grade: '',
+      status: 'Draft',
+      remarks: '',
+      expiryDate: '',
+    },
+  });
 
   // Create PMA mutation
   const createPMAMutation = useMutation({
-    mutationFn: async (data: PMAFormData & { materials: string[] }) => {
-      return apiRequest('/api/quality/pma', {
+    mutationFn: async (data: PMAFormData) => {
+      if (!fileUpload) {
+        throw new Error('File upload is required');
+      }
+
+      const formData = new FormData();
+      formData.append('pmaNumber', data.pmaNumber);
+      formData.append('specification', data.specification);
+      formData.append('grade', data.grade);
+      formData.append('status', data.status);
+      formData.append('remarks', data.remarks || '');
+      formData.append('expiryDate', data.expiryDate);
+      formData.append('file', fileUpload);
+
+      const response = await fetch('/api/quality/pma', {
         method: 'POST',
-        body: data,
+        body: formData,
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create PMA document');
+      }
+
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/quality/pma'] });
       setIsAddDialogOpen(false);
-      setSelectedMaterials([]);
+      setFileUpload(null);
+      form.reset();
       toast({
         title: 'Success',
         description: 'PMA document created successfully',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to create PMA document',
+        description: error.message,
         variant: 'destructive',
       });
     },
@@ -84,27 +121,46 @@ export default function PMAPage() {
 
   // Update PMA mutation
   const updatePMAMutation = useMutation({
-    mutationFn: async (data: { id: string } & Partial<PMAFormData> & { materials?: string[] }) => {
-      const { id, ...updateData } = data;
-      return apiRequest(`/api/quality/pma/${id}`, {
+    mutationFn: async (data: PMAFormData & { id: number }) => {
+      const formData = new FormData();
+      formData.append('pmaNumber', data.pmaNumber);
+      formData.append('specification', data.specification);
+      formData.append('grade', data.grade);
+      formData.append('status', data.status);
+      formData.append('remarks', data.remarks || '');
+      formData.append('expiryDate', data.expiryDate);
+      
+      if (fileUpload) {
+        formData.append('file', fileUpload);
+      }
+
+      const response = await fetch(`/api/quality/pma/${data.id}`, {
         method: 'PUT',
-        body: updateData,
+        body: formData,
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update PMA document');
+      }
+
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/quality/pma'] });
       setIsEditDialogOpen(false);
       setSelectedPMA(null);
-      setSelectedMaterials([]);
+      setFileUpload(null);
+      form.reset();
       toast({
         title: 'Success',
         description: 'PMA document updated successfully',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update PMA document',
+        description: error.message,
         variant: 'destructive',
       });
     },
@@ -112,10 +168,17 @@ export default function PMAPage() {
 
   // Delete PMA mutation
   const deletePMAMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return apiRequest(`/api/quality/pma/${id}`, {
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/quality/pma/${id}`, {
         method: 'DELETE',
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete PMA document');
+      }
+
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/quality/pma'] });
@@ -124,384 +187,351 @@ export default function PMAPage() {
         description: 'PMA document deleted successfully',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to delete PMA document',
+        description: error.message,
         variant: 'destructive',
       });
     },
   });
 
-  // Add form
-  const addForm = useForm<PMAFormData>({
-    resolver: zodResolver(pmaFormSchema),
-    defaultValues: {
-      pmaNumber: '',
-      materialType: '',
-      specification: '',
-      grade: '',
-      approvalLevel: 'Level 1',
-      status: 'Draft',
-      remarks: '',
-    },
-  });
-
-  // Edit form
-  const editForm = useForm<PMAFormData>({
-    resolver: zodResolver(pmaFormSchema),
-    defaultValues: {
-      pmaNumber: '',
-      materialType: '',
-      specification: '',
-      grade: '',
-      approvalLevel: 'Level 1',
-      status: 'Draft',
-      remarks: '',
-    },
-  });
-
-  // Filter PMA documents based on search term
-  const filteredPMADocuments = pmaDocuments.filter((pma: any) =>
-    pma.pmaNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    pma.materialType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    pma.specification?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    pma.grade?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
+  // Handlers
   const handleAddPMA = (data: PMAFormData) => {
-    createPMAMutation.mutate({
-      ...data,
-      materials: selectedMaterials,
-    });
+    createPMAMutation.mutate(data);
   };
 
-  const handleEditPMA = (data: PMAFormData) => {
-    if (!selectedPMA) return;
-    updatePMAMutation.mutate({
-      id: selectedPMA.id,
-      ...data,
-      materials: selectedMaterials,
-    });
-  };
-
-  const handleDeletePMA = (id: string) => {
-    if (confirm('Are you sure you want to delete this PMA document?')) {
-      deletePMAMutation.mutate(id);
-    }
-  };
-
-  const openEditDialog = (pma: any) => {
+  const handleEditPMA = (pma: any) => {
     setSelectedPMA(pma);
-    setSelectedMaterials(pma.materials?.map((m: any) => m.materialId) || []);
-    editForm.reset({
-      pmaNumber: pma.pmaNumber || '',
-      materialType: pma.materialType || '',
-      specification: pma.specification || '',
-      grade: pma.grade || '',
-      approvalLevel: pma.approvalLevel || 'Level 1',
-      status: pma.status || 'Draft',
+    form.reset({
+      pmaNumber: pma.pmaNumber || pma.pma_number,
+      specification: pma.specification,
+      grade: pma.grade,
+      status: pma.status,
       remarks: pma.remarks || '',
+      expiryDate: pma.expiryDate ? format(new Date(pma.expiryDate), 'yyyy-MM-dd') : '',
     });
     setIsEditDialogOpen(true);
   };
 
-  const openViewDialog = (pma: any) => {
-    setSelectedPMA(pma);
-    setIsViewDialogOpen(true);
+  const handleUpdatePMA = (data: PMAFormData) => {
+    if (selectedPMA) {
+      updatePMAMutation.mutate({ ...data, id: selectedPMA.id });
+    }
   };
 
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case 'Approved':
-        return 'bg-green-100 text-green-800';
-      case 'Under Review':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Rejected':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+  const handleDeletePMA = (id: number) => {
+    if (window.confirm('Are you sure you want to delete this PMA document?')) {
+      deletePMAMutation.mutate(id);
     }
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: 'Invalid File Type',
+          description: 'Only PDF and DOCX files are allowed',
+          variant: 'destructive',
+        });
+        return;
+      }
+      setFileUpload(file);
+    }
+  };
+
+  const handleDownload = (fileUrl: string, fileName: string) => {
+    window.open(fileUrl, '_blank');
+  };
+
+  // Filter documents based on search
+  const filteredDocuments = pmaDocuments.filter((doc: any) =>
+    (doc.pmaNumber || doc.pma_number || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (doc.specification || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (doc.grade || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getStatusBadge = (status: string) => {
+    const statusColors = {
+      Draft: 'bg-yellow-100 text-yellow-800',
+      Active: 'bg-green-100 text-green-800',
+      Inactive: 'bg-red-100 text-red-800',
+    };
+    return statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800';
   };
 
   return (
     <Layout>
       <div className="container py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold">PMA Documents</h1>
-          <p className="text-muted-foreground">
-            Manage Particular Material Appraisal (PMA) documents for quality control
-          </p>
-        </div>
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle>PMA (Particular Material Appraisal) Documents</CardTitle>
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add PMA Document
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Create New PMA Document</DialogTitle>
+                  </DialogHeader>
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleAddPMA)} className="space-y-4">
+                      {/* PMA Number */}
+                      <FormField
+                        control={form.control}
+                        name="pmaNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>PMA Number *</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Enter PMA Number" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-        {/* Header Actions */}
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center space-x-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      {/* Specification */}
+                      <FormField
+                        control={form.control}
+                        name="specification"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Specification *</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select specification" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {availableSpecifications.map((spec) => (
+                                  <SelectItem key={spec} value={spec}>
+                                    {spec}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Grade */}
+                      <FormField
+                        control={form.control}
+                        name="grade"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Grade *</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select grade" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {availableGrades.map((grade) => (
+                                  <SelectItem key={grade} value={grade}>
+                                    {grade}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Status */}
+                      <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Status *</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="Draft">Draft</SelectItem>
+                                <SelectItem value="Active">Active</SelectItem>
+                                <SelectItem value="Inactive">Inactive</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Remarks */}
+                      <FormField
+                        control={form.control}
+                        name="remarks"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Remarks</FormLabel>
+                            <FormControl>
+                              <Textarea {...field} rows={3} placeholder="Enter remarks" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Expiry Date */}
+                      <FormField
+                        control={form.control}
+                        name="expiryDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Expiry Date *</FormLabel>
+                            <FormControl>
+                              <Input 
+                                {...field} 
+                                type="date" 
+                                min={format(new Date(), 'yyyy-MM-dd')}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* File Upload */}
+                      <div className="space-y-2">
+                        <Label>File Upload * (PDF or DOCX only)</Label>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".pdf,.docx"
+                          onChange={handleFileUpload}
+                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        />
+                        {fileUpload && (
+                          <p className="text-sm text-green-600">Selected: {fileUpload.name}</p>
+                        )}
+                      </div>
+
+                      <div className="flex justify-end space-x-2">
+                        <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={createPMAMutation.isPending || !fileUpload}>
+                          {createPMAMutation.isPending ? 'Creating...' : 'Create PMA Document'}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {/* Search */}
+            <div className="flex items-center space-x-2">
+              <Search className="w-4 h-4 text-gray-400" />
               <Input
                 placeholder="Search PMA documents..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-64"
+                className="max-w-sm"
               />
             </div>
-          </div>
-          
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add PMA Document
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Add New PMA Document</DialogTitle>
-              </DialogHeader>
-              <Form {...addForm}>
-                <form onSubmit={addForm.handleSubmit(handleAddPMA)} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={addForm.control}
-                      name="pmaNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>PMA Number</FormLabel>
-                          <FormControl>
-                            <Input placeholder="PMA-2025-001" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={addForm.control}
-                      name="materialType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Material Type</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Steel, Aluminum, etc." {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={addForm.control}
-                      name="specification"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Specification</FormLabel>
-                          <FormControl>
-                            <Input placeholder="ASTM A516 Gr 70" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={addForm.control}
-                      name="grade"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Grade</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Grade 70" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={addForm.control}
-                      name="approvalLevel"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Approval Level</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select approval level" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Level 1">Level 1</SelectItem>
-                              <SelectItem value="Level 2">Level 2</SelectItem>
-                              <SelectItem value="Level 3">Level 3</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={addForm.control}
-                      name="status"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Status</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select status" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Draft">Draft</SelectItem>
-                              <SelectItem value="Under Review">Under Review</SelectItem>
-                              <SelectItem value="Approved">Approved</SelectItem>
-                              <SelectItem value="Rejected">Rejected</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={addForm.control}
-                    name="remarks"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Remarks</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Additional remarks or notes"
-                            className="resize-none"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Material Selection */}
-                  <div className="space-y-2">
-                    <Label>Associated Materials</Label>
-                    <div className="border rounded-md p-3 max-h-32 overflow-y-auto">
-                      {availableMaterials.map((material: any) => (
-                        <div key={material.id} className="flex items-center space-x-2 py-1">
-                          <Checkbox
-                            id={`material-${material.id}`}
-                            checked={selectedMaterials.includes(material.id)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedMaterials([...selectedMaterials, material.id]);
-                              } else {
-                                setSelectedMaterials(selectedMaterials.filter(id => id !== material.id));
-                              }
-                            }}
-                          />
-                          <Label htmlFor={`material-${material.id}`} className="text-sm">
-                            {material.material_identification_id} - {material.material_description || 'No description'}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end space-x-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsAddDialogOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={createPMAMutation.isPending}>
-                      {createPMAMutation.isPending ? 'Creating...' : 'Create PMA Document'}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        {/* PMA Documents Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>PMA Documents ({filteredPMADocuments.length})</CardTitle>
           </CardHeader>
+
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-4">Loading PMA documents...</div>
-            ) : filteredPMADocuments.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                {searchTerm ? 'No PMA documents found matching your search.' : 'No PMA documents found. Create your first PMA document to get started.'}
-              </div>
+              <div className="text-center py-8">Loading PMA documents...</div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>PMA Number</TableHead>
+                    <TableHead>Specification</TableHead>
+                    <TableHead>Grade</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Expiry Date</TableHead>
+                    <TableHead>File</TableHead>
+                    <TableHead>Created By</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredDocuments.length === 0 ? (
                     <TableRow>
-                      <TableHead>PMA Number</TableHead>
-                      <TableHead>Material Type</TableHead>
-                      <TableHead>Specification</TableHead>
-                      <TableHead>Grade</TableHead>
-                      <TableHead>Approval Level</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created Date</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                        No PMA documents found
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredPMADocuments.map((pma: any) => (
-                      <TableRow key={pma.id}>
-                        <TableCell className="font-medium">{pma.pmaNumber}</TableCell>
-                        <TableCell>{pma.materialType}</TableCell>
-                        <TableCell>{pma.specification}</TableCell>
-                        <TableCell>{pma.grade}</TableCell>
-                        <TableCell>{pma.approvalLevel}</TableCell>
+                  ) : (
+                    filteredDocuments.map((doc: any) => (
+                      <TableRow key={doc.id}>
+                        <TableCell className="font-medium">
+                          {doc.pmaNumber || doc.pma_number}
+                        </TableCell>
+                        <TableCell>{doc.specification}</TableCell>
+                        <TableCell>{doc.grade}</TableCell>
                         <TableCell>
-                          <Badge className={getStatusBadgeColor(pma.status)}>
-                            {pma.status}
+                          <Badge className={getStatusBadge(doc.status)}>
+                            {doc.status}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {pma.createdAt ? format(new Date(pma.createdAt), 'MMM dd, yyyy') : '-'}
+                          {doc.expiryDate || doc.expiry_date 
+                            ? format(new Date(doc.expiryDate || doc.expiry_date), 'MMM dd, yyyy')
+                            : '-'
+                          }
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center space-x-2">
+                          {(doc.fileUrl || doc.file_url) && (
                             <Button
-                              size="sm"
                               variant="ghost"
-                              onClick={() => openViewDialog(pma)}
+                              size="sm"
+                              onClick={() => handleDownload(
+                                doc.fileUrl || doc.file_url, 
+                                doc.originalFileName || doc.original_file_name || 'document'
+                              )}
                             >
-                              <Eye className="h-4 w-4" />
+                              <FileIcon className="w-4 h-4 mr-1" />
+                              Download
+                            </Button>
+                          )}
+                        </TableCell>
+                        <TableCell>{doc.creatorName || doc.creator_name || '-'}</TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditPMA(doc)}
+                            >
+                              <Edit2 className="w-4 h-4" />
                             </Button>
                             <Button
-                              size="sm"
                               variant="ghost"
-                              onClick={() => openEditDialog(pma)}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button
                               size="sm"
-                              variant="ghost"
-                              onClick={() => handleDeletePMA(pma.id)}
-                              disabled={deletePMAMutation.isPending}
+                              onClick={() => handleDeletePMA(doc.id)}
+                              className="text-red-600 hover:text-red-800"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>
@@ -512,125 +542,121 @@ export default function PMAPage() {
             <DialogHeader>
               <DialogTitle>Edit PMA Document</DialogTitle>
             </DialogHeader>
-            <Form {...editForm}>
-              <form onSubmit={editForm.handleSubmit(handleEditPMA)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={editForm.control}
-                    name="pmaNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>PMA Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="PMA-2025-001" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="materialType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Material Type</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Steel, Aluminum, etc." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={editForm.control}
-                    name="specification"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Specification</FormLabel>
-                        <FormControl>
-                          <Input placeholder="ASTM A516 Gr 70" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="grade"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Grade</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Grade 70" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={editForm.control}
-                    name="approvalLevel"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Approval Level</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select approval level" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Level 1">Level 1</SelectItem>
-                            <SelectItem value="Level 2">Level 2</SelectItem>
-                            <SelectItem value="Level 3">Level 3</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Status</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Draft">Draft</SelectItem>
-                            <SelectItem value="Under Review">Under Review</SelectItem>
-                            <SelectItem value="Approved">Approved</SelectItem>
-                            <SelectItem value="Rejected">Rejected</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleUpdatePMA)} className="space-y-4">
+                {/* Same form fields as add dialog */}
+                <FormField
+                  control={form.control}
+                  name="pmaNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>PMA Number *</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Enter PMA Number" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
-                  control={editForm.control}
+                  control={form.control}
+                  name="specification"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Specification *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select specification" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {availableSpecifications.map((spec) => (
+                            <SelectItem key={spec} value={spec}>
+                              {spec}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="grade"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Grade *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select grade" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {availableGrades.map((grade) => (
+                            <SelectItem key={grade} value={grade}>
+                              {grade}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Draft">Draft</SelectItem>
+                          <SelectItem value="Active">Active</SelectItem>
+                          <SelectItem value="Inactive">Inactive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="remarks"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Remarks</FormLabel>
                       <FormControl>
-                        <Textarea
-                          placeholder="Additional remarks or notes"
-                          className="resize-none"
-                          {...field}
+                        <Textarea {...field} rows={3} placeholder="Enter remarks" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="expiryDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Expiry Date *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          type="date" 
+                          min={format(new Date(), 'yyyy-MM-dd')}
                         />
                       </FormControl>
                       <FormMessage />
@@ -638,36 +664,28 @@ export default function PMAPage() {
                   )}
                 />
 
-                {/* Material Selection for Edit */}
                 <div className="space-y-2">
-                  <Label>Associated Materials</Label>
-                  <div className="border rounded-md p-3 max-h-32 overflow-y-auto">
-                    {availableMaterials.map((material: any) => (
-                      <div key={material.id} className="flex items-center space-x-2 py-1">
-                        <Checkbox
-                          id={`edit-material-${material.id}`}
-                          checked={selectedMaterials.includes(material.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedMaterials([...selectedMaterials, material.id]);
-                            } else {
-                              setSelectedMaterials(selectedMaterials.filter(id => id !== material.id));
-                            }
-                          }}
-                        />
-                        <Label htmlFor={`edit-material-${material.id}`} className="text-sm">
-                          {material.material_identification_id} - {material.material_description || 'No description'}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
+                  <Label>File Upload (PDF or DOCX only)</Label>
+                  <p className="text-sm text-gray-500">Leave empty to keep existing file</p>
+                  <input
+                    type="file"
+                    accept=".pdf,.docx"
+                    onChange={handleFileUpload}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  {fileUpload && (
+                    <p className="text-sm text-green-600">New file selected: {fileUpload.name}</p>
+                  )}
                 </div>
 
                 <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsEditDialogOpen(false)}
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => {
+                      setIsEditDialogOpen(false);
+                      setFileUpload(null);
+                    }}
                   >
                     Cancel
                   </Button>
@@ -677,90 +695,6 @@ export default function PMAPage() {
                 </div>
               </form>
             </Form>
-          </DialogContent>
-        </Dialog>
-
-        {/* View Dialog */}
-        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>PMA Document Details</DialogTitle>
-            </DialogHeader>
-            {selectedPMA && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium">PMA Number</Label>
-                    <p className="text-sm text-muted-foreground">{selectedPMA.pmaNumber}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Material Type</Label>
-                    <p className="text-sm text-muted-foreground">{selectedPMA.materialType}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium">Specification</Label>
-                    <p className="text-sm text-muted-foreground">{selectedPMA.specification}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Grade</Label>
-                    <p className="text-sm text-muted-foreground">{selectedPMA.grade}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium">Approval Level</Label>
-                    <p className="text-sm text-muted-foreground">{selectedPMA.approvalLevel}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Status</Label>
-                    <Badge className={getStatusBadgeColor(selectedPMA.status)}>
-                      {selectedPMA.status}
-                    </Badge>
-                  </div>
-                </div>
-
-                {selectedPMA.remarks && (
-                  <div>
-                    <Label className="text-sm font-medium">Remarks</Label>
-                    <p className="text-sm text-muted-foreground">{selectedPMA.remarks}</p>
-                  </div>
-                )}
-
-                <Separator />
-
-                <div>
-                  <Label className="text-sm font-medium">Associated Materials</Label>
-                  {selectedPMA.materials && selectedPMA.materials.length > 0 ? (
-                    <div className="mt-2 space-y-2">
-                      {selectedPMA.materials.map((material: any) => (
-                        <div key={material.materialId} className="flex items-center justify-between p-2 border rounded">
-                          <span className="text-sm">
-                            {material.material?.material_identification_id} - {material.material?.material_description || 'No description'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground mt-2">No materials associated</p>
-                  )}
-                </div>
-
-                <Separator />
-
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>
-                    Created: {selectedPMA.createdAt ? format(new Date(selectedPMA.createdAt), 'MMM dd, yyyy HH:mm') : '-'}
-                  </span>
-                  <span>
-                    Updated: {selectedPMA.updatedAt ? format(new Date(selectedPMA.updatedAt), 'MMM dd, yyyy HH:mm') : '-'}
-                  </span>
-                </div>
-              </div>
-            )}
           </DialogContent>
         </Dialog>
       </div>

@@ -4936,59 +4936,33 @@ export type InsertWpsDocument = z.infer<typeof wpsDocumentSchema>;
 // PMA (Particular Material Appraisal) Documents schema
 export const pmaDocuments = pgTable('pma_documents', {
   id: serial('id').primaryKey(),
-  documentId: varchar('document_id', { length: 50 }).notNull().unique(),
-  title: varchar('title', { length: 100 }).notNull(),
-  description: text('description'),
-  materialType: varchar('material_type', { length: 100 }).notNull(),
-  materialGrade: varchar('material_grade', { length: 100 }).notNull(),
+  pmaNumber: varchar('pma_number', { length: 50 }).notNull().unique(),
   specification: varchar('specification', { length: 100 }).notNull(),
-  testMethods: varchar('test_methods', { length: 200 }).notNull(),
-  acceptanceCriteria: text('acceptance_criteria').notNull(),
-  certificateNo: varchar('certificate_no', { length: 100 }),
-  inspectionAuthority: varchar('inspection_authority', { length: 50 }),
+  grade: varchar('grade', { length: 100 }).notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('Draft'),
+  remarks: text('remarks'),
+  expiryDate: date('expiry_date').notNull(),
   filePath: varchar('file_path', { length: 255 }),
   fileUrl: text('file_url'),
-  status: varchar('status', { length: 20 }).notNull().default('Active'),
+  originalFileName: varchar('original_file_name', { length: 255 }),
   createdBy: integer('created_by').notNull().references(() => users.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-// PMA-Material junction table for many-to-many relationship
-export const pmaMaterials = pgTable('pma_materials', {
-  id: serial('id').primaryKey(),
-  pmaDocumentId: integer('pma_document_id').notNull().references(() => pmaDocuments.id),
-  materialId: integer('material_id').notNull().references(() => materialIdentification.id),
-  linkedAt: timestamp('linked_at').notNull().defaultNow(),
-  linkedBy: integer('linked_by').notNull().references(() => users.id),
-});
+
 
 // PMA Documents relations
-export const pmaDocumentsRelations = relations(pmaDocuments, ({ one, many }) => ({
+export const pmaDocumentsRelations = relations(pmaDocuments, ({ one }) => ({
   creator: one(users, {
     fields: [pmaDocuments.createdBy],
     references: [users.id],
   }),
-  pmaMaterials: many(pmaMaterials),
 }));
 
-// PMA-Material junction table relations
-export const pmaMaterialsRelations = relations(pmaMaterials, ({ one }) => ({
-  pmaDocument: one(pmaDocuments, {
-    fields: [pmaMaterials.pmaDocumentId],
-    references: [pmaDocuments.id],
-  }),
-  material: one(materialIdentification, {
-    fields: [pmaMaterials.materialId],
-    references: [materialIdentification.id],
-  }),
-  linkedByUser: one(users, {
-    fields: [pmaMaterials.linkedBy],
-    references: [users.id],
-  }),
-}));
 
-// Material Identification relations (updated to include PMA)
+
+// Material Identification relations
 export const materialIdentificationRelations = relations(materialIdentification, ({ one, many }) => ({
   project: one(projects, {
     fields: [materialIdentification.projectId],
@@ -5002,52 +4976,125 @@ export const materialIdentificationRelations = relations(materialIdentification,
     fields: [materialIdentification.createdBy],
     references: [users.id],
   }),
-  pmaMaterials: many(pmaMaterials),
 }));
 
 // PMA Document schema for validation
 export const pmaDocumentSchema = createInsertSchema(pmaDocuments)
-  .omit({ id: true, createdAt: true, updatedAt: true, fileUrl: true, filePath: true })
+  .omit({ id: true, createdAt: true, updatedAt: true, fileUrl: true, filePath: true, originalFileName: true })
   .extend({
-    materialType: z.enum([
-      'Carbon Steel',
-      'Stainless Steel',
-      'Alloy Steel',
-      'Aluminum',
-      'Copper Alloy',
-      'Nickel Alloy',
-      'Titanium',
-      'Duplex Steel',
-      'Super Duplex Steel',
-      'Inconel',
-      'Hastelloy',
-      'Monel'
+    pmaNumber: z.string().min(1, 'PMA Number is required'),
+    specification: z.enum([
+      'ASTM A105',
+      'ASTM A106 Grade B',
+      'ASTM A182 F304',
+      'ASTM A182 F316L',
+      'ASTM A193 B7',
+      'ASTM A194 2H',
+      'ASTM A276 304',
+      'ASTM A312 TP304',
+      'ASTM A312 TP316L',
+      'ASTM A350 LF2',
+      'ASTM A479 316L',
+      'ASME SA105',
+      'ASME SA182 F304',
+      'ASME SA182 F316L',
+      'ASME SA193 B7',
+      'ASME SA194 2H',
+      'ASME SA240 304',
+      'ASME SA312 TP304',
+      'ASME SA479 316L',
+      'API 5L Grade B',
+      'API 5L X52',
+      'API 5L X65',
+      'EN 10216-2 P235GH',
+      'EN 10216-5 1.4301',
+      'EN 10216-5 1.4404',
+      'EN 10217-7 1.4301',
+      'EN 10217-7 1.4404',
+      'BS 1501-161 Grade 430',
+      'BS 1501-224 Grade 460',
+      'JIS G3115 SPV355',
+      'JIS G3456 STPG370',
+      'JIS G3459 SUS304TP',
+      'JIS G3463 SUS304',
+      'DIN 17175 St45.8',
+      'DIN 2391 St37',
+      'DIN 2448 St37',
+      'IS 2062 Grade A',
+      'IS 2062 Grade B',
+      'IS 3589 Grade 304',
+      'IS 3589 Grade 316L',
+      'IS 4923 Grade 1',
+      'IS 4923 Grade 2',
+      'Other'
     ]),
-    testMethods: z.enum([
-      'Chemical Analysis',
-      'Mechanical Testing',
-      'Hardness Testing',
-      'Impact Testing',
-      'Corrosion Testing',
-      'NDT - UT',
-      'NDT - RT',
-      'NDT - PT',
-      'NDT - MT',
-      'Metallographic Examination',
-      'Combined Testing'
+    grade: z.enum([
+      'Grade A',
+      'Grade B',
+      'Grade C',
+      'Grade 1',
+      'Grade 2',
+      'Grade 3',
+      'Class 1',
+      'Class 2',
+      'Class 3',
+      '304',
+      '304L',
+      '316',
+      '316L',
+      '321',
+      '347',
+      '410',
+      '420',
+      '430',
+      'A105',
+      'A106',
+      'A182',
+      'A193',
+      'A194',
+      'A276',
+      'A312',
+      'A350',
+      'A479',
+      'F304',
+      'F316L',
+      'F321',
+      'F347',
+      'B7',
+      '2H',
+      'LF2',
+      'P235GH',
+      'P265GH',
+      'P355GH',
+      '1.4301',
+      '1.4404',
+      '1.4541',
+      '1.4550',
+      'X52',
+      'X65',
+      'X70',
+      'St37',
+      'St45.8',
+      'SPV355',
+      'STPG370',
+      'SUS304',
+      'SUS304TP',
+      'SUS316L',
+      'Other'
     ]),
-    inspectionAuthority: z.enum(['TUV NORD', 'SGS', 'Bureau Veritas', 'DNV GL', 'Lloyd\'s Register']).optional(),
-    certificateNo: z.string().optional(),
-    status: z.enum(['Active', 'Obsolete']).default('Active'),
+    status: z.enum(['Draft', 'Active', 'Inactive']).default('Draft'),
+    expiryDate: z.string().refine((date) => {
+      const inputDate = new Date(date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return inputDate >= today;
+    }, 'Expiry date cannot be in the past'),
+    remarks: z.string().optional(),
   });
 
 // Export PMA document types
 export type PmaDocument = typeof pmaDocuments.$inferSelect;
 export type InsertPmaDocument = z.infer<typeof pmaDocumentSchema>;
-
-// Export PMA-Material junction table types
-export type PmaMaterial = typeof pmaMaterials.$inferSelect;
-export type InsertPmaMaterial = typeof pmaMaterials.$inferInsert;
 
 // Inspection Documents table for storing uploaded files associated with inspection records
 export const inspectionDocuments = pgTable('inspection_documents', {

@@ -1,10 +1,13 @@
 import express, { Request, Response } from 'express';
 import { db } from '../db';
-import { pmaDocuments, pmaMaterials, materialIdentification, users } from '@shared/schema';
+import { pmaDocuments, users } from '@shared/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 import { pmaDocumentSchema, InsertPmaDocument } from '@shared/schema';
+import { uploadFileWithDiagnostics } from '../utils/gcs-enhanced-upload';
+import multer from 'multer';
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Get all PMA documents
 router.get('/', async (req: Request, res: Response) => {
@@ -12,19 +15,15 @@ router.get('/', async (req: Request, res: Response) => {
     const documents = await db
       .select({
         id: pmaDocuments.id,
-        documentId: pmaDocuments.documentId,
-        title: pmaDocuments.title,
-        description: pmaDocuments.description,
-        materialType: pmaDocuments.materialType,
-        materialGrade: pmaDocuments.materialGrade,
+        pmaNumber: pmaDocuments.pmaNumber,
         specification: pmaDocuments.specification,
-        testMethods: pmaDocuments.testMethods,
-        acceptanceCriteria: pmaDocuments.acceptanceCriteria,
-        certificateNo: pmaDocuments.certificateNo,
-        inspectionAuthority: pmaDocuments.inspectionAuthority,
+        grade: pmaDocuments.grade,
+        status: pmaDocuments.status,
+        remarks: pmaDocuments.remarks,
+        expiryDate: pmaDocuments.expiryDate,
         filePath: pmaDocuments.filePath,
         fileUrl: pmaDocuments.fileUrl,
-        status: pmaDocuments.status,
+        originalFileName: pmaDocuments.originalFileName,
         createdBy: pmaDocuments.createdBy,
         createdAt: pmaDocuments.createdAt,
         updatedAt: pmaDocuments.updatedAt,
@@ -52,19 +51,15 @@ router.get('/:id', async (req: Request, res: Response) => {
     const document = await db
       .select({
         id: pmaDocuments.id,
-        documentId: pmaDocuments.documentId,
-        title: pmaDocuments.title,
-        description: pmaDocuments.description,
-        materialType: pmaDocuments.materialType,
-        materialGrade: pmaDocuments.materialGrade,
+        pmaNumber: pmaDocuments.pmaNumber,
         specification: pmaDocuments.specification,
-        testMethods: pmaDocuments.testMethods,
-        acceptanceCriteria: pmaDocuments.acceptanceCriteria,
-        certificateNo: pmaDocuments.certificateNo,
-        inspectionAuthority: pmaDocuments.inspectionAuthority,
+        grade: pmaDocuments.grade,
+        status: pmaDocuments.status,
+        remarks: pmaDocuments.remarks,
+        expiryDate: pmaDocuments.expiryDate,
         filePath: pmaDocuments.filePath,
         fileUrl: pmaDocuments.fileUrl,
-        status: pmaDocuments.status,
+        originalFileName: pmaDocuments.originalFileName,
         createdBy: pmaDocuments.createdBy,
         createdAt: pmaDocuments.createdAt,
         updatedAt: pmaDocuments.updatedAt,
@@ -86,40 +81,55 @@ router.get('/:id', async (req: Request, res: Response) => {
   }
 });
 
-// Create new PMA document
-router.post('/', async (req: Request, res: Response) => {
+// Create new PMA document with file upload
+router.post('/', upload.single('file'), async (req: Request, res: Response) => {
   try {
     const user = req.user as any;
     if (!user?.id) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    // Validate input data
-    const validationResult = pmaDocumentSchema.safeParse(req.body);
-    if (!validationResult.success) {
-      return res.status(400).json({ 
-        error: 'Validation failed', 
-        details: validationResult.error.errors 
-      });
+    const validatedData = pmaDocumentSchema.parse(req.body);
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ error: 'File upload is required' });
     }
 
-    const data = validationResult.data;
+    // Validate file type (PDF or DOCX only)
+    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      return res.status(400).json({ error: 'Only PDF and DOCX files are allowed' });
+    }
 
-    // Generate PMA document ID (format: PMA-YYYY-NNN)
-    const year = new Date().getFullYear();
-    const countResult = await db.execute(
-      sql`SELECT COUNT(*) as count FROM pma_documents WHERE document_id LIKE ${`PMA-${year}-%`}`
+    // Create GCS path: QMS/PMA_Records/{pma_number}.{extension}
+    const fileExtension = file.originalname.split('.').pop();
+    const gcsPath = `QMS/PMA_Records/${validatedData.pmaNumber}.${fileExtension}`;
+
+    // Upload file to GCS
+    const uploadResult = await uploadFileWithDiagnostics(
+      gcsPath,
+      file.buffer,
+      file.mimetype
     );
-    const count = parseInt((countResult as any)[0]?.count || '0');
-    const sequence = (count + 1).toString().padStart(3, '0');
-    const documentId = `PMA-${year}-${sequence}`;
 
-    // Insert the new PMA document
+    if (!uploadResult.successful) {
+      return res.status(500).json({ error: 'Failed to upload file to cloud storage' });
+    }
+
+    // Create PMA document record
     const newDocument = await db
       .insert(pmaDocuments)
       .values({
-        ...data,
-        documentId,
+        pmaNumber: validatedData.pmaNumber,
+        specification: validatedData.specification,
+        grade: validatedData.grade,
+        status: validatedData.status || 'Draft',
+        remarks: validatedData.remarks,
+        expiryDate: validatedData.expiryDate,
+        filePath: gcsPath,
+        fileUrl: uploadResult.url,
+        originalFileName: file.originalname,
         createdBy: user.id,
       })
       .returning();
@@ -131,8 +141,10 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
+
+
 // Update PMA document
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', upload.single('file'), async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
@@ -144,24 +156,51 @@ router.put('/:id', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    // Validate input data
-    const validationResult = pmaDocumentSchema.safeParse(req.body);
-    if (!validationResult.success) {
-      return res.status(400).json({ 
-        error: 'Validation failed', 
-        details: validationResult.error.errors 
-      });
+    const validatedData = pmaDocumentSchema.parse(req.body);
+    const file = req.file;
+
+    let updateData: any = {
+      pmaNumber: validatedData.pmaNumber,
+      specification: validatedData.specification,
+      grade: validatedData.grade,
+      status: validatedData.status || 'Draft',
+      remarks: validatedData.remarks,
+      expiryDate: validatedData.expiryDate,
+      updatedAt: new Date(),
+    };
+
+    // If new file is uploaded, handle file replacement
+    if (file) {
+      // Validate file type (PDF or DOCX only)
+      const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (!allowedTypes.includes(file.mimetype)) {
+        return res.status(400).json({ error: 'Only PDF and DOCX files are allowed' });
+      }
+
+      // Create new GCS path
+      const fileExtension = file.originalname.split('.').pop();
+      const gcsPath = `QMS/PMA_Records/${validatedData.pmaNumber}.${fileExtension}`;
+
+      // Upload new file to GCS
+      const uploadResult = await uploadFileWithDiagnostics(
+        gcsPath,
+        file.buffer,
+        file.mimetype
+      );
+
+      if (!uploadResult.successful) {
+        return res.status(500).json({ error: 'Failed to upload file to cloud storage' });
+      }
+
+      updateData.filePath = gcsPath;
+      updateData.fileUrl = uploadResult.url;
+      updateData.originalFileName = file.originalname;
     }
 
-    const data = validationResult.data;
-
-    // Update the PMA document
+    // Update PMA document record
     const updatedDocument = await db
       .update(pmaDocuments)
-      .set({
-        ...data,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(pmaDocuments.id, id))
       .returning();
 
@@ -184,9 +223,6 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid PMA document ID' });
     }
 
-    // Delete associated material links first
-    await db.delete(pmaMaterials).where(eq(pmaMaterials.pmaDocumentId, id));
-
     // Delete the PMA document
     const deletedDocument = await db
       .delete(pmaDocuments)
@@ -204,78 +240,46 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
 });
 
-// Get materials linked to a PMA document
-router.get('/:id/materials', async (req: Request, res: Response) => {
+
+
+// Get PMA document by ID
+router.get('/:id', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
       return res.status(400).json({ error: 'Invalid PMA document ID' });
     }
 
-    const linkedMaterials = await db
+    const document = await db
       .select({
-        id: pmaMaterials.id,
-        materialId: pmaMaterials.materialId,
-        linkedAt: pmaMaterials.linkedAt,
-        linkedBy: pmaMaterials.linkedBy,
-        linkedByName: users.username,
-        materialIdentificationId: materialIdentification.materialIdentificationId,
-        materialDescription: materialIdentification.materialDescription,
-        materialCode: materialIdentification.materialCode,
-        specification: materialIdentification.specification,
-        materialGrade: materialIdentification.materialGrade,
-        heatNumber: materialIdentification.heatNumber,
+        id: pmaDocuments.id,
+        pmaNumber: pmaDocuments.pmaNumber,
+        specification: pmaDocuments.specification,
+        grade: pmaDocuments.grade,
+        status: pmaDocuments.status,
+        remarks: pmaDocuments.remarks,
+        expiryDate: pmaDocuments.expiryDate,
+        filePath: pmaDocuments.filePath,
+        fileUrl: pmaDocuments.fileUrl,
+        originalFileName: pmaDocuments.originalFileName,
+        createdBy: pmaDocuments.createdBy,
+        createdAt: pmaDocuments.createdAt,
+        updatedAt: pmaDocuments.updatedAt,
+        creatorName: users.username,
       })
-      .from(pmaMaterials)
-      .leftJoin(materialIdentification, eq(pmaMaterials.materialId, materialIdentification.id))
-      .leftJoin(users, eq(pmaMaterials.linkedBy, users.id))
-      .where(eq(pmaMaterials.pmaDocumentId, id))
-      .orderBy(desc(pmaMaterials.linkedAt));
+      .from(pmaDocuments)
+      .leftJoin(users, eq(pmaDocuments.createdBy, users.id))
+      .where(eq(pmaDocuments.id, id))
+      .limit(1);
 
-    res.json(linkedMaterials);
+    if (document.length === 0) {
+      return res.status(404).json({ error: 'PMA document not found' });
+    }
+
+    res.json(document[0]);
   } catch (error) {
-    console.error('Error fetching PMA materials:', error);
-    res.status(500).json({ error: 'Failed to fetch PMA materials' });
-  }
-});
-
-// Link materials to PMA document
-router.post('/:id/materials', async (req: Request, res: Response) => {
-  try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      return res.status(400).json({ error: 'Invalid PMA document ID' });
-    }
-
-    const user = req.user as any;
-    if (!user?.id) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
-
-    const { materialIds } = req.body;
-    if (!Array.isArray(materialIds) || materialIds.length === 0) {
-      return res.status(400).json({ error: 'Material IDs array is required' });
-    }
-
-    // Remove existing links for this PMA document
-    await db.delete(pmaMaterials).where(eq(pmaMaterials.pmaDocumentId, id));
-
-    // Create new links
-    const newLinks = materialIds.map(materialId => ({
-      pmaDocumentId: id,
-      materialId: parseInt(materialId),
-      linkedBy: user.id,
-    }));
-
-    const createdLinks = await db
-      .insert(pmaMaterials)
-      .values(newLinks)
-      .returning();
-
-    res.status(201).json(createdLinks);
-  } catch (error) {
-    console.error('Error linking materials to PMA:', error);
-    res.status(500).json({ error: 'Failed to link materials to PMA' });
+    console.error('Error fetching PMA document:', error);
+    res.status(500).json({ error: 'Failed to fetch PMA document' });
   }
 });
 
