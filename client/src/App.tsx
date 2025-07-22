@@ -91,6 +91,7 @@ import MaterialIdentificationEditNewPage from "@/pages/material-identification-e
 import MaterialIdentificationDirectUpdate from "@/pages/material-identification-direct-update";
 import WpsPqrPage from "@/pages/wps-pqr-page";
 import WpqrPage from "@/pages/wpqr-page";
+import PMAPage from "@/pages/pma-page";
 import WelderManagementPage from "@/pages/welder-management-page";
 import WelderCertificatesPage from "@/pages/welder-certificates-page";
 import WelderTestPage from "@/pages/welder-test-page";
@@ -274,6 +275,7 @@ function Router() {
       <ProtectedRoute path="/daily-production-report" component={DailyProductionReportPage} />
       <ProtectedRoute path="/wps-pqr" component={WpsPqrPage} />
       <ProtectedRoute path="/wpqr" component={WpqrPage} />
+      <ProtectedRoute path="/quality/pma" component={PMAPage} />
       <ProtectedRoute path="/welder-management" component={WelderManagementPage} />
       <ProtectedRoute path="/quality/welder-certificates/:welderId" component={WelderCertificatesPage} />
       <ProtectedRoute path="/welder-test" component={WelderTestPage} />
