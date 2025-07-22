@@ -119,11 +119,17 @@ export default function CalibrationManagementPage() {
   const [selectedInstrument, setSelectedInstrument] = useState<CalibrationInstrument | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [instrumentTypeFilter, setInstrumentTypeFilter] = useState<string | null>(null);
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
   
   // Handle status filter selection
   const handleStatusFilterChange = (value: string) => {
     setStatusFilter(value === "all_statuses" ? null : value);
+  };
+  
+  // Handle instrument type filter selection
+  const handleInstrumentTypeFilterChange = (value: string) => {
+    setInstrumentTypeFilter(value === "all_types" ? null : value);
   };
   
   // Fetch instruments data - using direct endpoint to avoid middleware issues
@@ -431,7 +437,10 @@ export default function CalibrationManagementPage() {
     const matchesStatusFilter = statusFilter === null || 
       safeStr(instrument.calibration_status) === (statusFilter ? statusFilter.toLowerCase() : '');
     
-    return matchesSearch && matchesStatusFilter;
+    const matchesTypeFilter = instrumentTypeFilter === null || 
+      safeStr(instrument.instrument_type) === (instrumentTypeFilter ? instrumentTypeFilter.toLowerCase() : '');
+    
+    return matchesSearch && matchesStatusFilter && matchesTypeFilter;
   }) : [];
   
   // Direct upload function to bypass mutation
@@ -1212,6 +1221,22 @@ export default function CalibrationManagementPage() {
                 {calibrationStatusOptions.map((status) => (
                   <SelectItem key={status} value={status}>
                     {status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={instrumentTypeFilter || "all_types"}
+              onValueChange={handleInstrumentTypeFilterChange}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filter by instrument type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all_types">All Types</SelectItem>
+                {instrumentTypeOptions.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
                   </SelectItem>
                 ))}
               </SelectContent>
