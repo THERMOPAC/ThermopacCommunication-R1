@@ -4657,10 +4657,14 @@ export type InsertWpqrDocument = z.infer<typeof wpqrDocumentSchema>;
 export type WpqrWelder = typeof wpqrWelders.$inferSelect;
 export type InsertWpqrWelder = typeof wpqrWelders.$inferInsert;
 
+
+
 // Welders relations
 export const weldersRelations = relations(welders, ({ many }) => ({
   wpqrWelders: many(wpqrWelders),
 }));
+
+
 
 // Export Welder types
 export type Welder = typeof welders.$inferSelect;
@@ -4778,21 +4782,7 @@ export const materialIdentificationCounter = pgTable('material_identification_co
   sequenceNumber: integer('sequence_number').notNull().default(0),
 });
 
-// Relations for material identification
-export const materialIdentificationRelations = relations(materialIdentification, ({ one }) => ({
-  project: one(projects, {
-    fields: [materialIdentification.projectId],
-    references: [projects.id],
-  }),
-  inspectionOrder: one(inspectionOrders, {
-    fields: [materialIdentification.inspectionOrderId],
-    references: [inspectionOrders.id],
-  }),
-  creator: one(users, {
-    fields: [materialIdentification.createdBy],
-    references: [users.id],
-  }),
-}));
+
 
 // Insert schemas for Material Identification
 export const insertMaterialIdentificationSchema = createInsertSchema(materialIdentification)
@@ -4807,6 +4797,122 @@ export const insertMaterialIdentificationCounterSchema = createInsertSchema(mate
 export type MaterialIdentification = typeof materialIdentification.$inferSelect;
 export type InsertMaterialIdentification = z.infer<typeof insertMaterialIdentificationSchema>;
 export type InsertWpsDocument = z.infer<typeof wpsDocumentSchema>;
+
+// PMA (Particular Material Appraisal) Documents schema
+export const pmaDocuments = pgTable('pma_documents', {
+  id: serial('id').primaryKey(),
+  documentId: varchar('document_id', { length: 50 }).notNull().unique(),
+  title: varchar('title', { length: 100 }).notNull(),
+  description: text('description'),
+  materialType: varchar('material_type', { length: 100 }).notNull(),
+  materialGrade: varchar('material_grade', { length: 100 }).notNull(),
+  specification: varchar('specification', { length: 100 }).notNull(),
+  testMethods: varchar('test_methods', { length: 200 }).notNull(),
+  acceptanceCriteria: text('acceptance_criteria').notNull(),
+  certificateNo: varchar('certificate_no', { length: 100 }),
+  inspectionAuthority: varchar('inspection_authority', { length: 50 }),
+  filePath: varchar('file_path', { length: 255 }),
+  fileUrl: text('file_url'),
+  status: varchar('status', { length: 20 }).notNull().default('Active'),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// PMA-Material junction table for many-to-many relationship
+export const pmaMaterials = pgTable('pma_materials', {
+  id: serial('id').primaryKey(),
+  pmaDocumentId: integer('pma_document_id').notNull().references(() => pmaDocuments.id),
+  materialId: integer('material_id').notNull().references(() => materialIdentification.id),
+  linkedAt: timestamp('linked_at').notNull().defaultNow(),
+  linkedBy: integer('linked_by').notNull().references(() => users.id),
+});
+
+// PMA Documents relations
+export const pmaDocumentsRelations = relations(pmaDocuments, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [pmaDocuments.createdBy],
+    references: [users.id],
+  }),
+  pmaMaterials: many(pmaMaterials),
+}));
+
+// PMA-Material junction table relations
+export const pmaMaterialsRelations = relations(pmaMaterials, ({ one }) => ({
+  pmaDocument: one(pmaDocuments, {
+    fields: [pmaMaterials.pmaDocumentId],
+    references: [pmaDocuments.id],
+  }),
+  material: one(materialIdentification, {
+    fields: [pmaMaterials.materialId],
+    references: [materialIdentification.id],
+  }),
+  linkedByUser: one(users, {
+    fields: [pmaMaterials.linkedBy],
+    references: [users.id],
+  }),
+}));
+
+// Material Identification relations (updated to include PMA)
+export const materialIdentificationRelations = relations(materialIdentification, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [materialIdentification.projectId],
+    references: [projects.id],
+  }),
+  inspectionOrder: one(inspectionOrders, {
+    fields: [materialIdentification.inspectionOrderId],
+    references: [inspectionOrders.id],
+  }),
+  creator: one(users, {
+    fields: [materialIdentification.createdBy],
+    references: [users.id],
+  }),
+  pmaMaterials: many(pmaMaterials),
+}));
+
+// PMA Document schema for validation
+export const pmaDocumentSchema = createInsertSchema(pmaDocuments)
+  .omit({ id: true, createdAt: true, updatedAt: true, fileUrl: true, filePath: true })
+  .extend({
+    materialType: z.enum([
+      'Carbon Steel',
+      'Stainless Steel',
+      'Alloy Steel',
+      'Aluminum',
+      'Copper Alloy',
+      'Nickel Alloy',
+      'Titanium',
+      'Duplex Steel',
+      'Super Duplex Steel',
+      'Inconel',
+      'Hastelloy',
+      'Monel'
+    ]),
+    testMethods: z.enum([
+      'Chemical Analysis',
+      'Mechanical Testing',
+      'Hardness Testing',
+      'Impact Testing',
+      'Corrosion Testing',
+      'NDT - UT',
+      'NDT - RT',
+      'NDT - PT',
+      'NDT - MT',
+      'Metallographic Examination',
+      'Combined Testing'
+    ]),
+    inspectionAuthority: z.enum(['TUV NORD', 'SGS', 'Bureau Veritas', 'DNV GL', 'Lloyd\'s Register']).optional(),
+    certificateNo: z.string().optional(),
+    status: z.enum(['Active', 'Obsolete']).default('Active'),
+  });
+
+// Export PMA document types
+export type PmaDocument = typeof pmaDocuments.$inferSelect;
+export type InsertPmaDocument = z.infer<typeof pmaDocumentSchema>;
+
+// Export PMA-Material junction table types
+export type PmaMaterial = typeof pmaMaterials.$inferSelect;
+export type InsertPmaMaterial = typeof pmaMaterials.$inferInsert;
 
 // Inspection Documents table for storing uploaded files associated with inspection records
 export const inspectionDocuments = pgTable('inspection_documents', {
