@@ -4981,7 +4981,7 @@ export const materialIdentificationRelations = relations(materialIdentification,
 
 // PMA Document schema for validation
 export const pmaDocumentSchema = createInsertSchema(pmaDocuments)
-  .omit({ id: true, createdAt: true, updatedAt: true, fileUrl: true, filePath: true, originalFileName: true })
+  .omit({ id: true, createdAt: true, updatedAt: true, fileUrl: true, filePath: true, originalFileName: true, createdBy: true })
   .extend({
     pmaNumber: z.string().min(1, 'PMA Number is required'),
     specification: z.enum([
@@ -5003,7 +5003,6 @@ export const pmaDocumentSchema = createInsertSchema(pmaDocuments)
     issueDate: z.string().min(1, 'Issue Date is required'),
     expiryDate: z.string().min(1, 'Expiry Date is required'),
     remarks: z.string().optional(),
-    createdBy: z.number(),
   });
 
 // Export PMA document types
