@@ -295,6 +295,7 @@ export default function InspectionsPage() {
     weldStatus: string;
   } | null>(null);
   const [selectedWpqrForDialog, setSelectedWpqrForDialog] = useState<string>("");
+  const [wpqrAssociatedWelders, setWpqrAssociatedWelders] = useState<any[]>([]);
 
   // NDT dialog state
   const [isNdtDialogOpen, setIsNdtDialogOpen] = useState(false);
@@ -392,6 +393,26 @@ export default function InspectionsPage() {
       setSelectedWpqrForDialog("");
     }
   }, [editingWeldRecord]);
+
+  // Function to get filtered welders based on selected WPQR document
+  const getFilteredWelders = () => {
+    // If no WPQR is selected, show all active welders
+    if (!selectedWpqrForDialog) {
+      return welders.filter((welder: any) => welder.status === 'Active');
+    }
+    
+    // If WPQR is selected but we don't have the associated welders data yet, show loading
+    if (isLoadingWpqrWelders) {
+      return [];
+    }
+    
+    // If WPQR is selected and we have the data, show only associated active welders
+    const associatedWelders = wpqrAssociatedWeldersData.filter((welder: any) => 
+      welder.status === 'Active'
+    );
+    
+    return associatedWelders.length > 0 ? associatedWelders : [];
+  };
 
   // Function to get filtered weld process options based on selected WPQR document
   const getFilteredWeldProcessOptions = () => {
@@ -1091,6 +1112,32 @@ export default function InspectionsPage() {
       }
       return response.json();
     }
+  });
+  
+  // Fetch welders associated with selected WPQR document
+  const {
+    data: wpqrAssociatedWeldersData = [],
+    isLoading: isLoadingWpqrWelders
+  } = useQuery({
+    queryKey: ['/api/quality/wpqr', selectedWpqrForDialog, 'welders'],
+    queryFn: async () => {
+      if (!selectedWpqrForDialog) return [];
+      
+      // Find the WPQR document ID from the document number
+      const selectedWpqr = wpqrDocuments.find((doc: any) => 
+        (doc.documentNumber || doc.id.toString()) === selectedWpqrForDialog
+      );
+      
+      if (!selectedWpqr) return [];
+      
+      const response = await fetch(`/api/quality/wpqr/${selectedWpqr.id}/welders`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch WPQR welders");
+      }
+      return response.json();
+    },
+    enabled: !!selectedWpqrForDialog && wpqrDocuments.length > 0,
   });
 
   // Fetch work orders for the selected project
@@ -5384,17 +5431,25 @@ export default function InspectionsPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select welder</option>
-                    {isLoadingWelders ? (
+                    {isLoadingWelders || isLoadingWpqrWelders ? (
                       <option value="" disabled>Loading welders...</option>
-                    ) : welders.length > 0 ? (
-                      welders.map((welder: any) => (
+                    ) : (() => {
+                      const filteredWelders = getFilteredWelders();
+                      
+                      if (filteredWelders.length === 0) {
+                        return selectedWpqrForDialog ? (
+                          <option value="" disabled>No welders associated with selected WPQR</option>
+                        ) : (
+                          <option value="" disabled>No active welders available</option>
+                        );
+                      }
+                      
+                      return filteredWelders.map((welder: any) => (
                         <option key={welder.id} value={welder.welderId}>
                           {welder.welderId}
                         </option>
-                      ))
-                    ) : (
-                      <option value="" disabled>No welders available</option>
-                    )}
+                      ));
+                    })()}
                   </select>
                 </div>
               </div>
