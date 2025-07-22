@@ -3599,7 +3599,7 @@ export default function InspectionsPage() {
                           size="sm"
                           onClick={() => {
                             // Check if we have valid project code before opening dialog
-                            if (!editInspectionOrderDetails?.project_code || editInspectionOrderDetails.project_code === 'UNKNOWN') {
+                            if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
                               toast({
                                 title: "Cannot Create Record",
                                 description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
@@ -3984,7 +3984,7 @@ export default function InspectionsPage() {
                             variant="default" 
                             size="sm" 
                             onClick={() => {
-                              if (editInspectionOrderDetails?.project_code === 'UNKNOWN') {
+                              if (editInspectionOrderDetails?.projectCode === 'UNKNOWN') {
                                 toast({
                                   title: "Project Code Required",
                                   description: "Cannot add weld records when project code is UNKNOWN. Please set a valid project code first.",
@@ -4117,7 +4117,7 @@ export default function InspectionsPage() {
                             variant="default" 
                             size="sm" 
                             onClick={() => {
-                              if (editInspectionOrderDetails?.project_code === 'UNKNOWN') {
+                              if (editInspectionOrderDetails?.projectCode === 'UNKNOWN') {
                                 toast({
                                   title: "Project Code Required",
                                   description: "Cannot add NDT record with UNKNOWN project code. Please update the project information first.",
@@ -4417,7 +4417,7 @@ export default function InspectionsPage() {
                             variant="default" 
                             size="sm" 
                             onClick={() => {
-                              if (editInspectionOrderDetails?.project_code === 'UNKNOWN') {
+                              if (editInspectionOrderDetails?.projectCode === 'UNKNOWN') {
                                 toast({
                                   title: "Cannot Add Hydrotest Record",
                                   description: "Project code is UNKNOWN. Please update the inspection order with a valid project code first.",
@@ -4581,7 +4581,7 @@ export default function InspectionsPage() {
                             variant="default" 
                             size="sm" 
                             onClick={() => {
-                              if (editInspectionOrderDetails?.project_code === 'UNKNOWN') {
+                              if (editInspectionOrderDetails?.projectCode === 'UNKNOWN') {
                                 toast({
                                   title: "Project Code Required",
                                   description: "Cannot add NCR records when project code is UNKNOWN. Please set a valid project code first.",
