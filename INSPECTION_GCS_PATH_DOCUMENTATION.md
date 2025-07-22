@@ -25,6 +25,8 @@ The following tab names from the frontend are mapped to specific folder names in
 | Visual | Visual | Visual inspection records |
 | Hydrotest | Hydrotest | Hydrostatic test records |
 | NonConformance | NCR | Non-conformance reports |
+| Approved Drawing | ApprovedDrawing | Approved engineering drawings |
+| DVR | DVR | Design Verification Records |
 
 ## Example Paths
 
@@ -70,6 +72,18 @@ QMS/Inspections_Records/2025-1/IO-2025-1-M-1/NCR/NCR-001.pdf
 QMS/Inspections_Records/2025-1/IO-2025-1-M-1/NCR/NCR-002.pdf
 ```
 
+### Approved Drawing Documents
+```
+QMS/Inspections_Records/2025-1/IO-2025-1-M-1/ApprovedDrawing/AD-001.pdf
+QMS/Inspections_Records/2025-1/IO-2025-1-M-1/ApprovedDrawing/AD-002.pdf
+```
+
+### DVR Documents
+```
+QMS/Inspections_Records/2025-1/IO-2025-1-M-1/DVR/DVR-001.pdf
+QMS/Inspections_Records/2025-1/IO-2025-1-M-1/DVR/DVR-002.pdf
+```
+
 ## Path Components
 
 ### Project Code
@@ -112,6 +126,10 @@ if (tabName === 'Visual') {
   formattedTabName = 'NCR';
 } else if (tabName === 'Shop Inspection') {
   formattedTabName = 'ShopInspection'; // Format for GCS path consistency
+} else if (tabName === 'Approved Drawing') {
+  formattedTabName = 'ApprovedDrawing'; // Format for GCS path consistency
+} else if (tabName === 'DVR') {
+  formattedTabName = 'DVR'; // DVR tab maintains same name for GCS path consistency
 }
 ```
 
@@ -128,15 +146,16 @@ const inspectionSections = [
   { name: 'Visual Inspection', path: `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/Visual` },
   { name: 'Hydrotest', path: `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/Hydrotest` },
   { name: 'NCR', path: `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/NCR` },
-  { name: 'Approved Drawing', path: `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/ApprovedDrawing` }
+  { name: 'Approved Drawing', path: `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/ApprovedDrawing` },
+  { name: 'DVR', path: `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/DVR` }
 ];
 ```
 
 ## Status
 
-✅ **ALL INSPECTION TABS FULLY SUPPORTED**
+✅ **ALL 9 INSPECTION TABS FULLY SUPPORTED**
 
-All eight inspection tabs are now properly integrated with:
+All nine inspection tabs are now properly integrated with:
 - Upload functionality
 - Download functionality  
 - Delete functionality
@@ -144,4 +163,15 @@ All eight inspection tabs are now properly integrated with:
 - Consistent GCS path structure
 - Project-based hierarchical organization
 
-Last updated: July 22, 202525
+Complete tab integration includes:
+1. Material Traceability
+2. Shop Inspection  
+3. Welding & Weld Maps
+4. NDT (Non-Destructive Testing)
+5. Visual Inspection
+6. Hydrotest
+7. NCR (Non-Conformance Reports)
+8. Approved Drawing
+9. DVR (Design Verification Records)
+
+Last updated: July 22, 2025

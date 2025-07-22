@@ -1595,7 +1595,8 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         { name: 'Visual Inspection', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Visual` },
         { name: 'Hydrotest', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Hydrotest` },
         { name: 'NCR', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NCR` },
-        { name: 'Approved Drawing', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ApprovedDrawing` }
+        { name: 'Approved Drawing', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ApprovedDrawing` },
+        { name: 'DVR', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/DVR` }
       ];
       
       // First process inspection document sections
