@@ -5213,6 +5213,33 @@ export default function InspectionsPage() {
                 </div>
 
                 <div className="space-y-2">
+                  <label htmlFor="wpqrDocument" className="text-sm font-medium">
+                    WPQR Document
+                  </label>
+                  <select
+                    id="wpqrDocument"
+                    name="wpqrDocument"
+                    defaultValue={editingWeldRecord?.wpqrDocument || ""}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select WPQR document</option>
+                    {isLoadingWpqr ? (
+                      <option value="" disabled>Loading WPQR documents...</option>
+                    ) : wpqrDocuments.length > 0 ? (
+                      wpqrDocuments.map((doc: any) => (
+                        <option key={doc.id} value={doc.documentNumber || doc.id.toString()}>
+                          {doc.documentNumber || `WPQR-${doc.id}`}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>No WPQR documents available</option>
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <label htmlFor="weldProcess" className="text-sm font-medium">
                     Weld Process *
                   </label>
@@ -5238,33 +5265,6 @@ export default function InspectionsPage() {
                     <option value="gtaw_saw">GTAW (141) + SAW (121)</option>
                     <option value="gmaw_fcaw">GMAW (135) + FCAW (136/137)</option>
                     <option value="gmaw_saw">GMAW (135) + SAW (121)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label htmlFor="wpqrDocument" className="text-sm font-medium">
-                    WPQR Document
-                  </label>
-                  <select
-                    id="wpqrDocument"
-                    name="wpqrDocument"
-                    defaultValue={editingWeldRecord?.wpqrDocument || ""}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select WPQR document</option>
-                    {isLoadingWpqr ? (
-                      <option value="" disabled>Loading WPQR documents...</option>
-                    ) : wpqrDocuments.length > 0 ? (
-                      wpqrDocuments.map((doc: any) => (
-                        <option key={doc.id} value={doc.documentNumber || doc.id.toString()}>
-                          {doc.documentNumber || `WPQR-${doc.id}`}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="" disabled>No WPQR documents available</option>
-                    )}
                   </select>
                 </div>
 
