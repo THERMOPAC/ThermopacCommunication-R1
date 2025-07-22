@@ -28,7 +28,7 @@ const wpqrFormSchema = z.object({
   jointType: z.string().min(1, "Joint type is required"),
   certificateNo: z.string().max(100, "Certificate Number must be 100 characters or less").optional(),
   inspectionAuthority: z.string().max(50, "Inspection Authority must be 50 characters or less").optional(),
-  welderIds: z.array(z.number()).optional(),
+  welderIds: z.array(z.number()).min(1, "At least one welder must be associated with the WPQR document"),
   document: z.instanceof(FileList).refine(files => files.length > 0, {
     message: "Document file is required",
   }),
@@ -107,6 +107,7 @@ export default function WpqrPage() {
       jointType: "",
       certificateNo: "",
       inspectionAuthority: "",
+      welderIds: [],
     },
   });
 
@@ -124,6 +125,7 @@ export default function WpqrPage() {
       jointType: "",
       certificateNo: "",
       inspectionAuthority: "",
+      welderIds: [],
     },
   });
 
@@ -730,40 +732,52 @@ export default function WpqrPage() {
                 />
                 
                 {/* Welder Selection */}
-                <div className="space-y-3">
-                  <FormLabel>Associated Welders (Optional)</FormLabel>
-                  <FormDescription>
-                    Select welders who are qualified for this WPQR document
-                  </FormDescription>
-                  <div className="grid grid-cols-2 gap-3 max-h-32 overflow-y-auto border rounded-md p-3">
-                    {welders.map((welder) => (
-                      <div key={welder.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`welder-${welder.id}`}
-                          checked={selectedWelders.includes(welder.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedWelders([...selectedWelders, welder.id]);
-                            } else {
-                              setSelectedWelders(selectedWelders.filter(id => id !== welder.id));
-                            }
-                          }}
-                        />
-                        <label
-                          htmlFor={`welder-${welder.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        >
-                          {welder.welderId} - {welder.name}
-                        </label>
+                <FormField
+                  control={form.control}
+                  name="welderIds"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Associated Welders *</FormLabel>
+                      <FormDescription>
+                        Select welders who are qualified for this WPQR document
+                      </FormDescription>
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-3 max-h-32 overflow-y-auto border rounded-md p-3">
+                          {welders.map((welder) => (
+                            <div key={welder.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`welder-${welder.id}`}
+                                checked={selectedWelders.includes(welder.id)}
+                                onCheckedChange={(checked) => {
+                                  let newSelectedWelders;
+                                  if (checked) {
+                                    newSelectedWelders = [...selectedWelders, welder.id];
+                                  } else {
+                                    newSelectedWelders = selectedWelders.filter(id => id !== welder.id);
+                                  }
+                                  setSelectedWelders(newSelectedWelders);
+                                  field.onChange(newSelectedWelders);
+                                }}
+                              />
+                              <label
+                                htmlFor={`welder-${welder.id}`}
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                              >
+                                {welder.welderId} - {welder.name}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                        {selectedWelders.length > 0 && (
+                          <p className="text-sm text-muted-foreground">
+                            {selectedWelders.length} welder(s) selected
+                          </p>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                  {selectedWelders.length > 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      {selectedWelders.length} welder(s) selected
-                    </p>
+                      <FormMessage />
+                    </FormItem>
                   )}
-                </div>
+                />
 
                 <FormField
                   control={form.control}
@@ -1084,40 +1098,52 @@ export default function WpqrPage() {
                 />
                 
                 {/* Welder Selection for Edit */}
-                <div className="space-y-3">
-                  <FormLabel>Associated Welders (Optional)</FormLabel>
-                  <FormDescription>
-                    Select welders who are qualified for this WPQR document
-                  </FormDescription>
-                  <div className="grid grid-cols-2 gap-3 max-h-32 overflow-y-auto border rounded-md p-3">
-                    {welders.map((welder) => (
-                      <div key={welder.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`edit-welder-${welder.id}`}
-                          checked={editSelectedWelders.includes(welder.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setEditSelectedWelders([...editSelectedWelders, welder.id]);
-                            } else {
-                              setEditSelectedWelders(editSelectedWelders.filter(id => id !== welder.id));
-                            }
-                          }}
-                        />
-                        <label
-                          htmlFor={`edit-welder-${welder.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        >
-                          {welder.welderId} - {welder.name}
-                        </label>
+                <FormField
+                  control={editForm.control}
+                  name="welderIds"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Associated Welders *</FormLabel>
+                      <FormDescription>
+                        Select welders who are qualified for this WPQR document
+                      </FormDescription>
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-3 max-h-32 overflow-y-auto border rounded-md p-3">
+                          {welders.map((welder) => (
+                            <div key={welder.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`edit-welder-${welder.id}`}
+                                checked={editSelectedWelders.includes(welder.id)}
+                                onCheckedChange={(checked) => {
+                                  let newSelectedWelders;
+                                  if (checked) {
+                                    newSelectedWelders = [...editSelectedWelders, welder.id];
+                                  } else {
+                                    newSelectedWelders = editSelectedWelders.filter(id => id !== welder.id);
+                                  }
+                                  setEditSelectedWelders(newSelectedWelders);
+                                  field.onChange(newSelectedWelders);
+                                }}
+                              />
+                              <label
+                                htmlFor={`edit-welder-${welder.id}`}
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                              >
+                                {welder.welderId} - {welder.name}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                        {editSelectedWelders.length > 0 && (
+                          <p className="text-sm text-muted-foreground">
+                            {editSelectedWelders.length} welder(s) selected
+                          </p>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                  {editSelectedWelders.length > 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      {editSelectedWelders.length} welder(s) selected
-                    </p>
+                      <FormMessage />
+                    </FormItem>
                   )}
-                </div>
+                />
 
                 <FormField
                   control={editForm.control}
