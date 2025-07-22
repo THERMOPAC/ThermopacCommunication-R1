@@ -119,6 +119,8 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
       formattedTabName = 'ApprovedDrawing'; // Format for GCS path consistency
     } else if (tabName === 'DVR') {
       formattedTabName = 'DVR'; // DVR tab maintains same name for GCS path consistency
+    } else if (tabName === 'ITP') {
+      formattedTabName = 'ITP'; // ITP tab maintains same name for GCS path consistency
     }
     
     // Use consistent naming without timestamps to enable file overwriting

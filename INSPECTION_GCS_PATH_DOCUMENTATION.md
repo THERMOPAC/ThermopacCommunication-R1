@@ -27,6 +27,7 @@ The following tab names from the frontend are mapped to specific folder names in
 | NonConformance | NCR | Non-conformance reports |
 | Approved Drawing | ApprovedDrawing | Approved engineering drawings |
 | DVR | DVR | Design Verification Records |
+| ITP | ITP | Inspection Test Plan |
 
 ## Example Paths
 
@@ -84,6 +85,12 @@ QMS/Inspections_Records/2025-1/IO-2025-1-M-1/DVR/DVR-001.pdf
 QMS/Inspections_Records/2025-1/IO-2025-1-M-1/DVR/DVR-002.pdf
 ```
 
+### ITP Documents
+```
+QMS/Inspections_Records/2025-1/IO-2025-1-M-1/ITP/ITP-001.pdf
+QMS/Inspections_Records/2025-1/IO-2025-1-M-1/ITP/ITP-002.pdf
+```
+
 ## Path Components
 
 ### Project Code
@@ -130,6 +137,8 @@ if (tabName === 'Visual') {
   formattedTabName = 'ApprovedDrawing'; // Format for GCS path consistency
 } else if (tabName === 'DVR') {
   formattedTabName = 'DVR'; // DVR tab maintains same name for GCS path consistency
+} else if (tabName === 'ITP') {
+  formattedTabName = 'ITP'; // ITP tab maintains same name for GCS path consistency
 }
 ```
 

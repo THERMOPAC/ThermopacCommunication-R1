@@ -2065,7 +2065,9 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Visual`,
         `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Hydrotest`,
         `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NCR`,
-        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ApprovedDrawing`
+        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ApprovedDrawing`,
+        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/DVR`,
+        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ITP`
       ];
       
       for (const sectionPath of sections) {
