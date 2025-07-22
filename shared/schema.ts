@@ -3998,6 +3998,141 @@ export const insertDesignProjectBackupSchema = createInsertSchema(designProjectB
 export type InsertDesignProjectBackup = z.infer<typeof insertDesignProjectBackupSchema>;
 export type SelectDesignProjectBackup = typeof designProjectBackups.$inferSelect;
 
+// Test Procedures table for NDT testing standards and procedures
+export const testProcedures = pgTable('test_procedures', {
+  id: serial('id').primaryKey(),
+  
+  // Procedure Identification
+  procedureNumber: varchar('procedure_number', { length: 100 }).notNull().unique(),
+  procedureName: varchar('procedure_name', { length: 255 }).notNull(),
+  ndtMethod: varchar('ndt_method', { length: 50 }).notNull(), // LPT, MPT, RT, PT, UT, MT
+  
+  // Standard and Specification
+  applicableStandard: varchar('applicable_standard', { length: 255 }), // ASME SEC V, ASTM, EN ISO, etc.
+  procedureRevision: varchar('procedure_revision', { length: 20 }).default('R1'),
+  
+  // Technical Details
+  scope: text('scope'), // Application scope
+  technique: varchar('technique', { length: 255 }), // Specific technique within method
+  equipment: text('equipment'), // Required equipment list
+  materials: text('materials'), // Required materials/chemicals
+  sensitivity: varchar('sensitivity', { length: 100 }), // Sensitivity requirements
+  
+  // Procedure Steps
+  preparation: text('preparation'), // Surface preparation requirements
+  procedureSteps: text('procedure_steps'), // Detailed testing steps
+  evaluation: text('evaluation'), // Evaluation criteria
+  documentation: text('documentation'), // Documentation requirements
+  
+  // Quality Requirements
+  personnelQualification: varchar('personnel_qualification', { length: 255 }), // Required personnel level
+  calibrationRequirements: text('calibration_requirements'), // Equipment calibration needs
+  acceptanceCriteria: text('acceptance_criteria'), // Pass/fail criteria
+  
+  // Limitations and Notes
+  limitations: text('limitations'), // Method limitations
+  safetyPrecautions: text('safety_precautions'), // Safety requirements
+  environmentalConditions: text('environmental_conditions'), // Temperature, humidity, etc.
+  
+  // Status and Approval
+  status: varchar('status', { length: 50 }).notNull().default('Draft'), // Draft, Under Review, Approved, Superseded
+  approvalLevel: varchar('approval_level', { length: 50 }), // Level 1, Level 2, Level 3
+  approvedBy: integer('approved_by').references(() => users.id, { onDelete: 'set null' }),
+  approvedAt: timestamp('approved_at'),
+  
+  // Revision Control
+  isRevision: boolean('is_revision').notNull().default(false),
+  revisionOf: integer('revision_of').references(() => testProcedures.id, { onDelete: 'set null' }),
+  revisionReason: text('revision_reason'),
+  supersededAt: timestamp('superseded_at'),
+  supersededBy: integer('superseded_by').references(() => users.id, { onDelete: 'set null' }),
+  
+  // Metadata
+  remarks: text('remarks'),
+  tags: text('tags'), // Searchable tags
+  attachments: jsonb('attachments'), // File attachments metadata
+  
+  // Audit Trail
+  createdBy: integer('created_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedBy: integer('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Test Procedures Relations
+export const testProceduresRelations = relations(testProcedures, ({ one }) => ({
+  createdByUser: one(users, {
+    fields: [testProcedures.createdBy],
+    references: [users.id],
+    relationName: "test_procedure_creator"
+  }),
+  updatedByUser: one(users, {
+    fields: [testProcedures.updatedBy],
+    references: [users.id],
+    relationName: "test_procedure_updater"
+  }),
+  approvedByUser: one(users, {
+    fields: [testProcedures.approvedBy],
+    references: [users.id],
+    relationName: "test_procedure_approver"
+  }),
+  supersededByUser: one(users, {
+    fields: [testProcedures.supersededBy],
+    references: [users.id],
+    relationName: "test_procedure_superseder"
+  }),
+  parentProcedure: one(testProcedures, {
+    fields: [testProcedures.revisionOf],
+    references: [testProcedures.id],
+    relationName: "procedure_revisions"
+  }),
+}));
+
+// Test Procedures Zod Schemas
+export const insertTestProcedureSchema = createInsertSchema(testProcedures)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    procedureNumber: z.string().min(1, "Procedure number is required"),
+    procedureName: z.string().min(1, "Procedure name is required"),
+    ndtMethod: z.enum(['LPT', 'MPT', 'RT', 'PT', 'UT', 'MT'], {
+      errorMap: () => ({ message: "NDT method must be one of: LPT, MPT, RT, PT, UT, MT" })
+    }),
+    applicableStandard: z.string().optional(),
+    procedureRevision: z.string().default('R1'),
+    scope: z.string().optional(),
+    technique: z.string().optional(),
+    equipment: z.string().optional(),
+    materials: z.string().optional(),
+    sensitivity: z.string().optional(),
+    preparation: z.string().optional(),
+    procedureSteps: z.string().optional(),
+    evaluation: z.string().optional(),
+    documentation: z.string().optional(),
+    personnelQualification: z.string().optional(),
+    calibrationRequirements: z.string().optional(),
+    acceptanceCriteria: z.string().optional(),
+    limitations: z.string().optional(),
+    safetyPrecautions: z.string().optional(),
+    environmentalConditions: z.string().optional(),
+    status: z.enum(['Draft', 'Under Review', 'Approved', 'Superseded']).default('Draft'),
+    approvalLevel: z.enum(['Level 1', 'Level 2', 'Level 3']).optional(),
+    approvedBy: z.number().optional(),
+    approvedAt: z.date().optional(),
+    isRevision: z.boolean().default(false),
+    revisionOf: z.number().optional(),
+    revisionReason: z.string().optional(),
+    supersededAt: z.date().optional(),
+    supersededBy: z.number().optional(),
+    remarks: z.string().optional(),
+    tags: z.string().optional(),
+    attachments: z.any().optional(),
+    createdBy: z.number().min(1, "Created by user ID is required"),
+    updatedBy: z.number().optional(),
+  });
+
+export type InsertTestProcedure = z.infer<typeof insertTestProcedureSchema>;
+export type SelectTestProcedure = typeof testProcedures.$inferSelect;
+
 // SAP Purchase Zod Schemas
 export const insertSapPurchaseOrderSchema = createInsertSchema(sapPurchaseOrders)
   .omit({ id: true, createdAt: true, updatedAt: true })

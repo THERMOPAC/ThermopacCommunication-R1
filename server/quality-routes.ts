@@ -2,6 +2,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import wpsPqrRoutes from './quality/wps-pqr-routes';
 import wpqrRoutes from './quality/wpqr-routes';
 import pmaRoutes from './quality/pma-routes';
+import testProceduresRoutes from './quality/test-procedures-routes';
 import materialIdentificationRoutes from './quality/material-identification-routes';
 import inspectionDocumentRoutes from './quality/inspection-document-routes';
 import finalDossierRoutes from './quality/final-dossier-routes';
@@ -38,6 +39,9 @@ router.use('/wpqr', wpqrRoutes);
 
 // Register new PMA document routes
 router.use('/pma', pmaRoutes);
+
+// Register Test Procedures routes
+router.use('/test-procedures', testProceduresRoutes);
 
 // Register Material Identification routes
 router.use('/material-identification', materialIdentificationRoutes);

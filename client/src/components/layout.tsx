@@ -106,7 +106,9 @@ function Layout({ children }: LayoutProps) {
                         location.startsWith('/quality-reports') ||
                         location === '/quality-assurance-plan' ||
                         location === '/calibration-management' ||
-                        location === '/template-management';
+                        location === '/template-management' ||
+                        location === '/quality/pma' ||
+                        location === '/quality/test-procedures';
 
   // Check if we're on any finance-related page
   const isOnFinancePage = location === '/finance' ||
