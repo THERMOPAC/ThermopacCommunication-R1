@@ -1,5 +1,5 @@
 import Layout from '@/components/layout';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,18 +47,30 @@ export default function PMAPage() {
     queryKey: ['/api/quality/pma'],
   });
 
-  // Get available specifications and grades from material identification
-  const { data: materialData } = useQuery({
-    queryKey: ['/api/quality/material-identification'],
+  // Fixed specification options matching Material Identification page
+  const availableSpecifications = [
+    'API', 'ASME', 'ASTM', 'ATEX', 'BS', 'DIN', 'EN', 'IECEx', 'ISO'
+  ];
+
+  // Fixed grade options matching Material Identification page
+  const availableGrades = [
+    // Carbon Steel
+    'SA-516 Gr 60', 'SA-516 Gr 70', 'SA-106 Gr B', 'SA-106 Gr C', 
+    'SA-36', 'SA-537 Cl 1', 'SA-537 Cl 2', 'SA-53 Gr B',
+    // Stainless Steel
+    'SA-240 TP 304', 'SA-240 TP 304L', 'SA-240 TP 316', 'SA-240 TP 316L',
+    'SA-240 TP 321', 'SA-240 TP 347', 'SA-312 TP 304', 'SA-312 TP 316L',
+    // Alloy Steel
+    'SA-335 P11', 'SA-335 P22', 'SA-335 P91', 'SA-213 T11', 'SA-213 T22',
+    // Other grades
+    'A105', 'A350 LF2', 'A182 F304', 'A182 F316L'
+  ];
+
+  // Get next PMA number from server
+  const { data: nextPmaNumber } = useQuery({
+    queryKey: ['/api/quality/pma/next-number'],
+    enabled: isAddDialogOpen, // Only fetch when dialog is open
   });
-
-  const availableSpecifications = [...new Set(
-    materialData?.data?.map((item: any) => item.specification).filter(Boolean) || []
-  )].sort();
-
-  const availableGrades = [...new Set(
-    materialData?.data?.map((item: any) => item.materialGrade || item.material_grade).filter(Boolean) || []
-  )].sort();
 
   // Form setup
   const form = useForm<PMAFormData>({
@@ -73,6 +85,13 @@ export default function PMAPage() {
       expiryDate: '',
     },
   });
+
+  // Auto-populate PMA number when it's available
+  useEffect(() => {
+    if (nextPmaNumber?.pmaNumber && isAddDialogOpen) {
+      form.setValue('pmaNumber', nextPmaNumber.pmaNumber);
+    }
+  }, [nextPmaNumber, isAddDialogOpen, form]);
 
   // Create PMA mutation
   const createPMAMutation = useMutation({
@@ -288,15 +307,21 @@ export default function PMAPage() {
                   </DialogHeader>
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleAddPMA)} className="space-y-4">
-                      {/* PMA Number */}
+                      {/* PMA Number - Auto-generated */}
                       <FormField
                         control={form.control}
                         name="pmaNumber"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>PMA Number *</FormLabel>
+                            <FormLabel>PMA Number (Auto-generated) *</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Enter PMA Number" />
+                              <Input 
+                                {...field} 
+                                placeholder={nextPmaNumber?.pmaNumber || "Generating..."}
+                                value={field.value || nextPmaNumber?.pmaNumber || ""}
+                                readOnly
+                                className="bg-gray-50 cursor-not-allowed"
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

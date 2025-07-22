@@ -9,6 +9,40 @@ import multer from 'multer';
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
+// Get next available PMA number
+router.get('/next-number', async (req: Request, res: Response) => {
+  try {
+    const currentYear = new Date().getFullYear();
+    
+    // Get the highest sequence number for current year
+    const latestPma = await db
+      .select({
+        pmaNumber: pmaDocuments.pmaNumber
+      })
+      .from(pmaDocuments)
+      .where(sql`${pmaDocuments.pmaNumber} LIKE ${'PMA-' + currentYear + '-%'}`)
+      .orderBy(desc(pmaDocuments.pmaNumber))
+      .limit(1);
+
+    let nextSequence = 1;
+    if (latestPma.length > 0) {
+      // Extract sequence number from PMA-YYYY-XXX format
+      const match = latestPma[0].pmaNumber.match(/PMA-\d{4}-(\d{3})/);
+      if (match) {
+        nextSequence = parseInt(match[1]) + 1;
+      }
+    }
+
+    // Format as PMA-YYYY-XXX (3 digits with leading zeros)
+    const nextPmaNumber = `PMA-${currentYear}-${nextSequence.toString().padStart(3, '0')}`;
+    
+    res.json({ pmaNumber: nextPmaNumber });
+  } catch (error) {
+    console.error('Error generating next PMA number:', error);
+    res.status(500).json({ error: 'Failed to generate next PMA number' });
+  }
+});
+
 // Get all PMA documents
 router.get('/', async (req: Request, res: Response) => {
   try {
