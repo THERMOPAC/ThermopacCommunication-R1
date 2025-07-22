@@ -127,6 +127,7 @@ router.get('/download/:inspectionOrderId', ensureAuthenticated, async (req: Requ
     
     // Check if final dossier exists
     const result = await checkExistingFinalDossier(inspectionOrderId);
+    console.log('Check result:', result);
     
     if (!result.exists || !result.url) {
       return res.status(404).json({ error: 'Final dossier not found' });
