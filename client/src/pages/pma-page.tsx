@@ -430,7 +430,6 @@ export default function PMAPage() {
                               <Input 
                                 {...field} 
                                 type="date" 
-                                min={format(new Date(), 'yyyy-MM-dd')}
                               />
                             </FormControl>
                             <FormMessage />
@@ -449,7 +448,6 @@ export default function PMAPage() {
                               <Input 
                                 {...field} 
                                 type="date" 
-                                min={format(new Date(), 'yyyy-MM-dd')}
                               />
                             </FormControl>
                             <FormMessage />
@@ -704,6 +702,23 @@ export default function PMAPage() {
 
                 <FormField
                   control={form.control}
+                  name="issueDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Issue Date *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          type="date" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="expiryDate"
                   render={({ field }) => (
                     <FormItem>
@@ -712,7 +727,6 @@ export default function PMAPage() {
                         <Input 
                           {...field} 
                           type="date" 
-                          min={format(new Date(), 'yyyy-MM-dd')}
                         />
                       </FormControl>
                       <FormMessage />
