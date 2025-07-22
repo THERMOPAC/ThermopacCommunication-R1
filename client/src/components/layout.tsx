@@ -48,7 +48,8 @@ import {
   Plane,
   Gavel,
   Database,
-  Compass
+  Compass,
+  ClipboardCheck
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -322,6 +323,7 @@ function Layout({ children }: LayoutProps) {
       children: [
         { icon: CalendarClock, label: "Calibration Management", href: "/calibration-management" },
         { icon: FileCheck, label: "WPQR Documents", href: "/wpqr" },
+        { icon: ClipboardCheck, label: "PMA Documents", href: "/quality/pma" },
         { icon: UserCheck, label: "Welder Management", href: "/welder-management" },
         { icon: CheckSquare, label: "Material Identification", href: "/quality/material-identification" },
         { icon: CheckSquare, label: "Inspections", href: "/inspections" },
