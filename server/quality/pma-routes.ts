@@ -43,6 +43,35 @@ router.get('/next-number', async (req: Request, res: Response) => {
   }
 });
 
+// Get active PMA documents (non-expired) - MUST be before /:id route
+router.get('/active', async (req: Request, res: Response) => {
+  try {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    
+    const activePMADocuments = await db
+      .select({
+        id: pmaDocuments.id,
+        pmaNumber: pmaDocuments.pmaNumber,
+        specification: pmaDocuments.specification,
+        grade: pmaDocuments.grade,
+        certifiedBy: pmaDocuments.certifiedBy,
+        status: pmaDocuments.status,
+        issueDate: pmaDocuments.issueDate,
+        expiryDate: pmaDocuments.expiryDate,
+      })
+      .from(pmaDocuments)
+      .where(
+        sql`${pmaDocuments.status} = 'Active' AND ${pmaDocuments.expiryDate} >= ${today}`
+      )
+      .orderBy(pmaDocuments.pmaNumber);
+
+    res.json(activePMADocuments);
+  } catch (error) {
+    console.error('Error fetching active PMA documents:', error);
+    res.status(500).json({ error: 'Failed to fetch active PMA documents' });
+  }
+});
+
 // Get all PMA documents
 router.get('/', async (req: Request, res: Response) => {
   try {

@@ -408,6 +408,7 @@ export default function InspectionsPage() {
     status: string;
     remarks: string;
   }[]>([]);
+  const [selectedPmaDocument, setSelectedPmaDocument] = useState<string>("");
 
   // DVR Records state
   const [dvrRecords, setDvrRecords] = useState<{
@@ -1463,6 +1464,38 @@ export default function InspectionsPage() {
         instrument.instrument_type === 'Pressure Gauge' &&
         instrument.in_use === 'In Use'
       );
+    },
+  });
+
+  // Fetch active PMA documents for the dropdown
+  const {
+    data: activePmaDocuments = [],
+    isLoading: isLoadingActivePma,
+  } = useQuery<{
+    id: number;
+    pmaNumber: string;
+    specification: string;
+    grade: string;
+    certifiedBy: string;
+    status: string;
+    issueDate: string;
+    expiryDate: string;
+  }[]>({
+    queryKey: ['/api/quality/pma/active'],
+    queryFn: async () => {
+      const response = await fetch('/api/quality/pma/active', {
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch active PMA documents");
+      }
+      
+      return response.json();
     },
   });
 
@@ -7522,15 +7555,60 @@ export default function InspectionsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label htmlFor="pmaNumber" className="text-sm font-medium">PMA Number *</label>
-                <input
-                  type="text"
+                <select
                   id="pmaNumber"
                   name="pmaNumber"
                   required
-                  defaultValue={editingPmaRecord?.pmaNumber || ""}
+                  value={selectedPmaDocument || editingPmaRecord?.pmaNumber || ""}
+                  onChange={(e) => {
+                    const pmaNumber = e.target.value;
+                    setSelectedPmaDocument(pmaNumber);
+                    
+                    // Auto-populate other fields when a PMA document is selected
+                    if (pmaNumber && activePmaDocuments && !editingPmaRecord) {
+                      const selectedPma = activePmaDocuments.find((pma: any) => pma.pmaNumber === pmaNumber);
+                      if (selectedPma) {
+                        // Update form fields by setting their values
+                        const specField = document.getElementById('materialSpecification') as HTMLInputElement;
+                        const gradeField = document.getElementById('materialGrade') as HTMLInputElement;
+                        const certifiedByField = document.getElementById('certifiedBy') as HTMLInputElement;
+                        const issueDateField = document.getElementById('issueDate') as HTMLInputElement;
+                        const expiryDateField = document.getElementById('expiryDate') as HTMLInputElement;
+                        const statusField = document.getElementById('status') as HTMLSelectElement;
+                        
+                        if (specField) specField.value = selectedPma.specification || '';
+                        if (gradeField) gradeField.value = selectedPma.grade || '';
+                        if (certifiedByField) certifiedByField.value = selectedPma.certifiedBy || '';
+                        if (issueDateField) issueDateField.value = selectedPma.issueDate || '';
+                        if (expiryDateField) expiryDateField.value = selectedPma.expiryDate || '';
+                        if (statusField) statusField.value = selectedPma.status || '';
+                      }
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter PMA number"
-                />
+                >
+                  <option value="">
+                    {editingPmaRecord ? "Select or keep current PMA" : "Select PMA Number"}
+                  </option>
+                  {activePmaDocuments
+                    ?.filter((pma: any) => {
+                      // Filter to only show active PMA documents that haven't expired
+                      const today = new Date().toISOString().split('T')[0];
+                      return pma.status === 'Active' && pma.expiryDate >= today;
+                    })
+                    ?.map((pma: any) => (
+                      <option key={pma.id} value={pma.pmaNumber}>
+                        {pma.pmaNumber} - {pma.specification} {pma.grade}
+                      </option>
+                    ))
+                  }
+                  {isLoadingActivePma && (
+                    <option disabled>Loading active PMA documents...</option>
+                  )}
+                  {!isLoadingActivePma && (!activePmaDocuments || activePmaDocuments.length === 0) && (
+                    <option disabled>No active PMA documents available</option>
+                  )}
+                </select>
               </div>
 
               <div className="space-y-2">
