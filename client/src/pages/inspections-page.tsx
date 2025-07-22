@@ -4552,19 +4552,19 @@ export default function InspectionsPage() {
                 >
                   <ScrollArea className="w-full whitespace-nowrap pb-2">
                     <TabsList className="inline-flex w-max min-w-full space-x-1 px-1">
-                      <TabsTrigger value="approved-drawing" className="shrink-0">Approved Drawing</TabsTrigger>
+                      <TabsTrigger value="approved-drawing" className="shrink-0">Drawing</TabsTrigger>
                       <TabsTrigger value="dvr" className="shrink-0">DVR</TabsTrigger>
                       <TabsTrigger value="itp" className="shrink-0">ITP</TabsTrigger>
-                      <TabsTrigger value="material" className="shrink-0">Material Traceability</TabsTrigger>
+                      <TabsTrigger value="material" className="shrink-0">Material</TabsTrigger>
                       <TabsTrigger value="pma" className="shrink-0">PMA</TabsTrigger>
                       <TabsTrigger value="procedures" className="shrink-0">Procedures</TabsTrigger>
-                      <TabsTrigger value="shop" className="shrink-0">Shop Inspection</TabsTrigger>
-                      <TabsTrigger value="welding" className="shrink-0">Welding & Weld Maps</TabsTrigger>
+                      <TabsTrigger value="shop" className="shrink-0">Shop</TabsTrigger>
+                      <TabsTrigger value="welding" className="shrink-0">Welding</TabsTrigger>
                       <TabsTrigger value="ndt" className="shrink-0">NDT</TabsTrigger>
-                      <TabsTrigger value="visual" className="shrink-0">Visual Inspection</TabsTrigger>
+                      <TabsTrigger value="visual" className="shrink-0">Visual</TabsTrigger>
                       <TabsTrigger value="hydrotest" className="shrink-0">Hydrotest</TabsTrigger>
-                      <TabsTrigger value="non-conformance" className="shrink-0">Non-Conformance</TabsTrigger>
-                      <TabsTrigger value="final-dossier" className="shrink-0">Final Dossier</TabsTrigger>
+                      <TabsTrigger value="non-conformance" className="shrink-0">NCR</TabsTrigger>
+                      <TabsTrigger value="final-dossier" className="shrink-0">Dossier</TabsTrigger>
                     </TabsList>
                   </ScrollArea>
                   
