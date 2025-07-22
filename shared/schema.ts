@@ -4014,8 +4014,6 @@ export const testProcedures = pgTable('test_procedures', {
   // Technical Details
   scope: text('scope'), // Application scope
   technique: varchar('technique', { length: 255 }), // Specific technique within method
-  equipment: text('equipment'), // Required equipment list
-  materials: text('materials'), // Required materials/chemicals
   sensitivity: varchar('sensitivity', { length: 100 }), // Sensitivity requirements
   
   // Procedure Steps
@@ -4026,12 +4024,10 @@ export const testProcedures = pgTable('test_procedures', {
   
   // Quality Requirements
   personnelQualification: varchar('personnel_qualification', { length: 255 }), // Required personnel level
-  calibrationRequirements: text('calibration_requirements'), // Equipment calibration needs
   acceptanceCriteria: text('acceptance_criteria'), // Pass/fail criteria
   
   // Limitations and Notes
   limitations: text('limitations'), // Method limitations
-  safetyPrecautions: text('safety_precautions'), // Safety requirements
   environmentalConditions: text('environmental_conditions'), // Temperature, humidity, etc.
   
   // Status and Approval
@@ -4101,18 +4097,14 @@ export const insertTestProcedureSchema = createInsertSchema(testProcedures)
     procedureRevision: z.string().default('R1'),
     scope: z.string().optional(),
     technique: z.string().optional(),
-    equipment: z.string().optional(),
-    materials: z.string().optional(),
     sensitivity: z.string().optional(),
     preparation: z.string().optional(),
     procedureSteps: z.string().optional(),
     evaluation: z.string().optional(),
     documentation: z.string().optional(),
     personnelQualification: z.string().optional(),
-    calibrationRequirements: z.string().optional(),
     acceptanceCriteria: z.string().optional(),
     limitations: z.string().optional(),
-    safetyPrecautions: z.string().optional(),
     environmentalConditions: z.string().optional(),
     status: z.enum(['Draft', 'Under Review', 'Approved', 'Superseded']).default('Draft'),
     approvalLevel: z.enum(['Level 1', 'Level 2', 'Level 3']).optional(),

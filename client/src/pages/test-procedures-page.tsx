@@ -155,18 +155,14 @@ export default function TestProceduresPage() {
       procedureRevision: "R1",
       scope: "",
       technique: "",
-      equipment: "",
-      materials: "",
       sensitivity: "",
       preparation: "",
       procedureSteps: "",
       evaluation: "",
       documentation: "",
       personnelQualification: "",
-      calibrationRequirements: "",
       acceptanceCriteria: "",
       limitations: "",
-      safetyPrecautions: "",
       environmentalConditions: "",
       status: "Draft" as const,
       approvalLevel: "",
@@ -403,59 +399,25 @@ export default function TestProceduresPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="applicableStandard">Applicable Standards</Label>
-                  <Select value={formData.applicableStandard} onValueChange={(value) => setFormData({ ...formData, applicableStandard: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select applicable standard" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ASME SEC V">ASME Section V</SelectItem>
-                      <SelectItem value="ASTM E165">ASTM E165 - Liquid Penetrant</SelectItem>
-                      <SelectItem value="ASTM E709">ASTM E709 - Magnetic Particle</SelectItem>
-                      <SelectItem value="ASTM E1444">ASTM E1444 - Magnetic Particle</SelectItem>
-                      <SelectItem value="ASTM E1417">ASTM E1417 - Liquid Penetrant</SelectItem>
-                      <SelectItem value="EN ISO 3452">EN ISO 3452 - Penetrant Testing</SelectItem>
-                      <SelectItem value="EN ISO 9934">EN ISO 9934 - Magnetic Particle Testing</SelectItem>
-                      <SelectItem value="API 5L">API 5L - Line Pipe</SelectItem>
-                      <SelectItem value="AWS D1.1">AWS D1.1 - Structural Welding Code</SelectItem>
-                      <SelectItem value="Other">Other (specify in remarks)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="calibrationRequirements">Calibration Requirements</Label>
-                  <Input
-                    id="calibrationRequirements"
-                    value={formData.calibrationRequirements}
-                    onChange={(e) => setFormData({ ...formData, calibrationRequirements: e.target.value })}
-                    placeholder="e.g., Annual, 6 months (optional)"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="equipment">Equipment Required</Label>
-                  <Textarea
-                    id="equipment"
-                    value={formData.equipment}
-                    onChange={(e) => setFormData({ ...formData, equipment: e.target.value })}
-                    placeholder="List required equipment"
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="materials">Materials Required</Label>
-                  <Textarea
-                    id="materials"
-                    value={formData.materials}
-                    onChange={(e) => setFormData({ ...formData, materials: e.target.value })}
-                    placeholder="List required materials and chemicals"
-                    rows={3}
-                  />
-                </div>
+              <div>
+                <Label htmlFor="applicableStandard">Applicable Standards</Label>
+                <Select value={formData.applicableStandard} onValueChange={(value) => setFormData({ ...formData, applicableStandard: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select applicable standard" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ASME SEC V">ASME Section V</SelectItem>
+                    <SelectItem value="ASTM E165">ASTM E165 - Liquid Penetrant</SelectItem>
+                    <SelectItem value="ASTM E709">ASTM E709 - Magnetic Particle</SelectItem>
+                    <SelectItem value="ASTM E1444">ASTM E1444 - Magnetic Particle</SelectItem>
+                    <SelectItem value="ASTM E1417">ASTM E1417 - Liquid Penetrant</SelectItem>
+                    <SelectItem value="EN ISO 3452">EN ISO 3452 - Penetrant Testing</SelectItem>
+                    <SelectItem value="EN ISO 9934">EN ISO 9934 - Magnetic Particle Testing</SelectItem>
+                    <SelectItem value="API 5L">API 5L - Line Pipe</SelectItem>
+                    <SelectItem value="AWS D1.1">AWS D1.1 - Structural Welding Code</SelectItem>
+                    <SelectItem value="Other">Other (specify in remarks)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
@@ -480,16 +442,7 @@ export default function TestProceduresPage() {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="safetyPrecautions">Safety Precautions</Label>
-                <Textarea
-                  id="safetyPrecautions"
-                  value={formData.safetyPrecautions}
-                  onChange={(e) => setFormData({ ...formData, safetyPrecautions: e.target.value })}
-                  placeholder="Safety requirements and precautions"
-                  rows={2}
-                />
-              </div>
+
 
               <div>
                 <Label htmlFor="fileUpload">Procedure Document * (Required)</Label>
