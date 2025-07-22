@@ -2327,13 +2327,12 @@ export default function InspectionsPage() {
   };
 
   const addDvrRecord = (recordData: {
-    documentTitle: string;
-    documentNumber: string;
-    revision: string;
-    verifiedBy: string;
-    verificationDate: string;
+    designDocument: string;
+    reviewType: string;
+    reviewer: string;
+    reviewDate: string;
     status: string;
-    remarks?: string;
+    comments?: string;
   }) => {
     // Check if project code is valid
     if (editInspectionOrderDetails?.project_code === 'UNKNOWN') {
@@ -2348,7 +2347,7 @@ export default function InspectionsPage() {
     const newRecord = {
       ...recordData,
       id: generateDvrId(),
-      remarks: recordData.remarks || ''
+      comments: recordData.comments || ''
     };
     
     setDvrRecords([...dvrRecords, newRecord]);
@@ -2361,20 +2360,19 @@ export default function InspectionsPage() {
   };
 
   const editDvrRecord = (recordData: {
-    documentTitle: string;
-    documentNumber: string;
-    revision: string;
-    verifiedBy: string;
-    verificationDate: string;
+    designDocument: string;
+    reviewType: string;
+    reviewer: string;
+    reviewDate: string;
     status: string;
-    remarks?: string;
+    comments?: string;
   }) => {
     if (!editingDvrRecord) return;
 
     const updatedRecord = {
       ...editingDvrRecord,
       ...recordData,
-      remarks: recordData.remarks || ''
+      comments: recordData.comments || ''
     };
     
     setDvrRecords(prev => prev.map(record => 
@@ -4472,13 +4470,12 @@ export default function InspectionsPage() {
                           <TableHeader>
                             <TableRow>
                               <TableHead className="w-[100px]">Record ID</TableHead>
-                              <TableHead className="w-[200px]">Document Title</TableHead>
-                              <TableHead className="w-[150px]">Document Number</TableHead>
-                              <TableHead className="w-[100px]">Revision</TableHead>
-                              <TableHead className="w-[150px]">Verified By</TableHead>
-                              <TableHead className="w-[120px]">Verification Date</TableHead>
+                              <TableHead className="w-[200px]">Design Document</TableHead>
+                              <TableHead className="w-[150px]">Review Type</TableHead>
+                              <TableHead className="w-[150px]">Reviewer</TableHead>
+                              <TableHead className="w-[120px]">Review Date</TableHead>
                               <TableHead className="w-[100px]">Status</TableHead>
-                              <TableHead className="w-[150px]">Remarks</TableHead>
+                              <TableHead className="w-[150px]">Comments</TableHead>
                               <TableHead className="w-[200px]">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -4487,21 +4484,26 @@ export default function InspectionsPage() {
                               dvrRecords.map((record) => (
                                 <TableRow key={record.id} className="hover:bg-gray-50">
                                   <TableCell className="text-xs font-medium">{record.id}</TableCell>
-                                  <TableCell className="text-xs">{record.documentTitle}</TableCell>
-                                  <TableCell className="text-xs">{record.documentNumber}</TableCell>
-                                  <TableCell className="text-xs">{record.revision}</TableCell>
-                                  <TableCell className="text-xs">{record.verifiedBy}</TableCell>
-                                  <TableCell className="text-xs">{record.verificationDate}</TableCell>
+                                  <TableCell className="text-xs">{record.designDocument || '-'}</TableCell>
                                   <TableCell className="text-xs">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                      record.status === 'Verified' ? 'bg-green-100 text-green-700' :
-                                      record.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                                      'bg-red-100 text-red-700'
-                                    }`}>
-                                      {record.status}
+                                    <span className="capitalize">
+                                      {record.reviewType ? record.reviewType.replace('_', ' ') : '-'}
                                     </span>
                                   </TableCell>
-                                  <TableCell className="text-xs">{record.remarks || '-'}</TableCell>
+                                  <TableCell className="text-xs">{record.reviewer || '-'}</TableCell>
+                                  <TableCell className="text-xs">{record.reviewDate || '-'}</TableCell>
+                                  <TableCell className="text-xs">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      record.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                      record.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                      record.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                      record.status === 'requires_revision' ? 'bg-orange-100 text-orange-700' :
+                                      'bg-gray-100 text-gray-700'
+                                    }`}>
+                                      {record.status ? record.status.replace('_', ' ').toUpperCase() : 'PENDING'}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="text-xs">{record.comments || '-'}</TableCell>
                                   <TableCell>
                                     <div className="flex items-center gap-1">
                                       <Button 
@@ -7274,13 +7276,12 @@ export default function InspectionsPage() {
             e.preventDefault();
             const formData = new FormData(e.currentTarget);
             const recordData = {
-              documentTitle: formData.get('documentTitle') as string,
-              documentNumber: formData.get('documentNumber') as string,
-              revision: formData.get('revision') as string,
-              verifiedBy: formData.get('verifiedBy') as string,
-              verificationDate: formData.get('verificationDate') as string,
+              designDocument: formData.get('designDocument') as string,
+              reviewType: formData.get('reviewType') as string,
+              reviewer: formData.get('reviewer') as string,
+              reviewDate: formData.get('reviewDate') as string,
               status: formData.get('status') as string,
-              remarks: formData.get('remarks') as string,
+              comments: formData.get('comments') as string,
             };
             if (editingDvrRecord) {
               editDvrRecord(recordData);
@@ -7291,99 +7292,89 @@ export default function InspectionsPage() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label htmlFor="documentTitle" className="text-sm font-medium">Document Title *</label>
+                <label htmlFor="designDocument" className="text-sm font-medium">Design Document *</label>
                 <input
                   type="text"
-                  id="documentTitle"
-                  name="documentTitle"
+                  id="designDocument"
+                  name="designDocument"
                   required
-                  defaultValue={editingDvrRecord?.documentTitle || ""}
+                  defaultValue={editingDvrRecord?.designDocument || ""}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter document title"
+                  placeholder="Enter design document reference"
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="documentNumber" className="text-sm font-medium">Document Number *</label>
-                <input
-                  type="text"
-                  id="documentNumber"
-                  name="documentNumber"
+                <label htmlFor="reviewType" className="text-sm font-medium">Review Type *</label>
+                <select
+                  id="reviewType"
+                  name="reviewType"
                   required
-                  defaultValue={editingDvrRecord?.documentNumber || ""}
+                  defaultValue={editingDvrRecord?.reviewType || "design_review"}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter document number"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label htmlFor="revision" className="text-sm font-medium">Revision *</label>
-                <input
-                  type="text"
-                  id="revision"
-                  name="revision"
-                  required
-                  defaultValue={editingDvrRecord?.revision || "Rev 0"}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., Rev 0, Rev A"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="verifiedBy" className="text-sm font-medium">Verified By *</label>
-                <input
-                  type="text"
-                  id="verifiedBy"
-                  name="verifiedBy"
-                  required
-                  defaultValue={editingDvrRecord?.verifiedBy || ""}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter verifier name"
-                />
+                >
+                  <option value="design_review">Design Review</option>
+                  <option value="document_verification">Document Verification</option>
+                  <option value="compliance_check">Compliance Check</option>
+                  <option value="technical_review">Technical Review</option>
+                </select>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label htmlFor="verificationDate" className="text-sm font-medium">Verification Date *</label>
+                <label htmlFor="reviewer" className="text-sm font-medium">Reviewer *</label>
+                <input
+                  type="text"
+                  id="reviewer"
+                  name="reviewer"
+                  required
+                  defaultValue={editingDvrRecord?.reviewer || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter reviewer name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="reviewDate" className="text-sm font-medium">Review Date *</label>
                 <input
                   type="date"
-                  id="verificationDate"
-                  name="verificationDate"
+                  id="reviewDate"
+                  name="reviewDate"
                   required
-                  defaultValue={editingDvrRecord?.verificationDate || new Date().toISOString().split('T')[0]}
+                  defaultValue={editingDvrRecord?.reviewDate || new Date().toISOString().split('T')[0]}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label htmlFor="status" className="text-sm font-medium">Status *</label>
                 <select
                   id="status"
                   name="status"
                   required
-                  defaultValue={editingDvrRecord?.status || "verified"}
+                  defaultValue={editingDvrRecord?.status || "pending"}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="verified">Verified</option>
-                  <option value="pending">Pending Verification</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
                   <option value="rejected">Rejected</option>
-                  <option value="conditional">Conditionally Verified</option>
+                  <option value="requires_revision">Requires Revision</option>
                 </select>
               </div>
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="remarks" className="text-sm font-medium">Remarks</label>
+              <label htmlFor="comments" className="text-sm font-medium">Comments</label>
               <textarea
-                id="remarks"
-                name="remarks"
+                id="comments"
+                name="comments"
                 rows={3}
-                defaultValue={editingDvrRecord?.remarks || ""}
+                defaultValue={editingDvrRecord?.comments || ""}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter any additional remarks or observations..."
+                placeholder="Enter any additional comments or observations..."
               />
             </div>
 
