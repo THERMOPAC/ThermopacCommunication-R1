@@ -4939,6 +4939,7 @@ export const pmaDocuments = pgTable('pma_documents', {
   pmaNumber: varchar('pma_number', { length: 50 }).notNull().unique(),
   specification: varchar('specification', { length: 100 }).notNull(),
   grade: varchar('grade', { length: 100 }).notNull(),
+  certifiedBy: varchar('certified_by', { length: 100 }).notNull(),
   status: varchar('status', { length: 20 }).notNull().default('Draft'),
   remarks: text('remarks'),
   issueDate: date('issue_date').notNull(),
@@ -4999,6 +5000,7 @@ export const pmaDocumentSchema = createInsertSchema(pmaDocuments)
       // Other grades
       'A105', 'A350 LF2', 'A182 F304', 'A182 F316L'
     ]),
+    certifiedBy: z.string().min(1, 'Certified By is required'),
     status: z.enum(['Draft', 'Active', 'Inactive']).default('Draft'),
     issueDate: z.string().min(1, 'Issue Date is required'),
     expiryDate: z.string().min(1, 'Expiry Date is required'),

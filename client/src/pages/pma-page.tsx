@@ -25,6 +25,7 @@ const pmaFormSchema = z.object({
   pmaNumber: z.string().min(1, 'PMA Number is required'),
   specification: z.string().min(1, 'Specification is required'),
   grade: z.string().min(1, 'Grade is required'),
+  certifiedBy: z.string().min(1, 'Certified By is required'),
   status: z.enum(['Draft', 'Active', 'Inactive']),
   remarks: z.string().optional(),
   issueDate: z.string().min(1, 'Issue Date is required'),
@@ -79,6 +80,7 @@ export default function PMAPage() {
       pmaNumber: '',
       specification: '',
       grade: '',
+      certifiedBy: '',
       status: 'Draft',
       remarks: '',
       issueDate: '',
@@ -104,6 +106,7 @@ export default function PMAPage() {
       formData.append('pmaNumber', data.pmaNumber);
       formData.append('specification', data.specification);
       formData.append('grade', data.grade);
+      formData.append('certifiedBy', data.certifiedBy);
       formData.append('status', data.status);
       formData.append('remarks', data.remarks || '');
       formData.append('issueDate', data.issueDate);
@@ -148,6 +151,7 @@ export default function PMAPage() {
       formData.append('pmaNumber', data.pmaNumber);
       formData.append('specification', data.specification);
       formData.append('grade', data.grade);
+      formData.append('certifiedBy', data.certifiedBy);
       formData.append('status', data.status);
       formData.append('remarks', data.remarks || '');
       formData.append('issueDate', data.issueDate);
@@ -230,6 +234,7 @@ export default function PMAPage() {
       pmaNumber: pma.pmaNumber || pma.pma_number,
       specification: pma.specification,
       grade: pma.grade,
+      certifiedBy: pma.certifiedBy || pma.certified_by || '',
       status: pma.status,
       remarks: pma.remarks || '',
       issueDate: pma.issueDate ? format(new Date(pma.issueDate), 'yyyy-MM-dd') : '',
@@ -380,6 +385,24 @@ export default function PMAPage() {
                         )}
                       />
 
+                      {/* Certified By */}
+                      <FormField
+                        control={form.control}
+                        name="certifiedBy"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Certified By *</FormLabel>
+                            <FormControl>
+                              <Input 
+                                {...field} 
+                                placeholder="Enter certifying authority/person" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
                       {/* Status */}
                       <FormField
                         control={form.control}
@@ -506,6 +529,7 @@ export default function PMAPage() {
                     <TableHead>PMA Number</TableHead>
                     <TableHead>Specification</TableHead>
                     <TableHead>Grade</TableHead>
+                    <TableHead>Certified By</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Issue Date</TableHead>
                     <TableHead>Expiry Date</TableHead>
@@ -517,7 +541,7 @@ export default function PMAPage() {
                 <TableBody>
                   {filteredDocuments.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={10} className="text-center py-8 text-gray-500">
                         No PMA documents found
                       </TableCell>
                     </TableRow>
@@ -529,6 +553,7 @@ export default function PMAPage() {
                         </TableCell>
                         <TableCell>{doc.specification}</TableCell>
                         <TableCell>{doc.grade}</TableCell>
+                        <TableCell>{doc.certifiedBy || doc.certified_by || '-'}</TableCell>
                         <TableCell>
                           <Badge className={getStatusBadge(doc.status)}>
                             {doc.status}
@@ -658,6 +683,23 @@ export default function PMAPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="certifiedBy"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Certified By *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          placeholder="Enter certifying authority/person" 
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
