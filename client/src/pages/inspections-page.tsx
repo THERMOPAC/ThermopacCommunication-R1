@@ -349,11 +349,35 @@ export default function InspectionsPage() {
     result: string;
     notes: string;
   } | null>(null);
+
+  // Approved Drawing dialog states
+  const [isApprovedDrawingDialogOpen, setIsApprovedDrawingDialogOpen] = useState(false);
+  const [editingApprovedDrawingRecord, setEditingApprovedDrawingRecord] = useState<{
+    id: string;
+    drawingTitle: string;
+    drawingNumber: string;
+    revision: string;
+    approvedBy: string;
+    approvalDate: string;
+    status: string;
+    remarks: string;
+  } | null>(null);
   const [shopInspectionRecords, setShopInspectionRecords] = useState<{
     id: string;
     inspectionType: string;
     inspector: string;
     date: string;
+    status: string;
+    remarks: string;
+  }[]>([]);
+  
+  const [approvedDrawingRecords, setApprovedDrawingRecords] = useState<{
+    id: string;
+    drawingTitle: string;
+    drawingNumber: string;
+    revision: string;
+    approvedBy: string;
+    approvalDate: string;
     status: string;
     remarks: string;
   }[]>([]);
@@ -1911,6 +1935,88 @@ export default function InspectionsPage() {
   const startEditingShopRecord = (record: typeof shopInspectionRecords[0]) => {
     setEditingShopRecord(record);
     setIsShopInspectionDialogOpen(true);
+  };
+
+  // Helper function to generate approved drawing record ID
+  const generateApprovedDrawingId = () => {
+    const existingIds = approvedDrawingRecords.map(record => record.id);
+    let newIdNumber = 1;
+    let newId = `AD-${newIdNumber}`;
+    
+    while (existingIds.includes(newId)) {
+      newIdNumber++;
+      newId = `AD-${newIdNumber}`;
+    }
+    
+    return newId;
+  };
+
+  // Function to add a new approved drawing record
+  const addApprovedDrawingRecord = (recordData: {
+    drawingTitle: string;
+    drawingNumber: string;
+    revision: string;
+    approvedBy: string;
+    approvalDate: string;
+    status: string;
+    remarks: string;
+  }) => {
+    // Check if we have valid inspection order details with project code
+    if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
+      toast({
+        title: "Cannot Create Record",
+        description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newRecord = {
+      id: generateApprovedDrawingId(),
+      ...recordData
+    };
+    setApprovedDrawingRecords(prev => [...prev, newRecord]);
+    setIsApprovedDrawingDialogOpen(false);
+    setEditingApprovedDrawingRecord(null);
+    toast({
+      title: "Success",
+      description: "Approved drawing record added successfully",
+    });
+  };
+
+  // Function to edit an approved drawing record
+  const editApprovedDrawingRecord = (recordData: {
+    drawingTitle: string;
+    drawingNumber: string;
+    revision: string;
+    approvedBy: string;
+    approvalDate: string;
+    status: string;
+    remarks: string;
+  }) => {
+    if (!editingApprovedDrawingRecord) return;
+    
+    setApprovedDrawingRecords(prev => 
+      prev.map(record => 
+        record.id === editingApprovedDrawingRecord.id 
+          ? { ...record, ...recordData }
+          : record
+      )
+    );
+    
+    setIsApprovedDrawingDialogOpen(false);
+    setEditingApprovedDrawingRecord(null);
+    
+    toast({
+      title: "Success",
+      description: "Approved drawing record updated successfully",
+    });
+  };
+
+  // Function to start editing an approved drawing record
+  const startEditingApprovedDrawingRecord = (record: typeof approvedDrawingRecords[0]) => {
+    setEditingApprovedDrawingRecord(record);
+    setIsApprovedDrawingDialogOpen(true);
   };
 
   // Add new weld record via dialog
@@ -3736,6 +3842,7 @@ export default function InspectionsPage() {
                 >
                   <ScrollArea className="w-full whitespace-nowrap">
                     <TabsList className="flex w-full space-x-2">
+                      <TabsTrigger value="approved-drawing">Approved Drawing</TabsTrigger>
                       <TabsTrigger value="material">Material Traceability</TabsTrigger>
                       <TabsTrigger value="shop">Shop Inspection</TabsTrigger>
                       <TabsTrigger value="welding">Welding & Weld Maps</TabsTrigger>
@@ -3746,6 +3853,140 @@ export default function InspectionsPage() {
                       <TabsTrigger value="final-dossier">Final Dossier</TabsTrigger>
                     </TabsList>
                   </ScrollArea>
+                  
+                  {/* Approved Drawing Tab */}
+                  <TabsContent value="approved-drawing" className="p-4 border rounded-md mt-4">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-medium">Approved Drawing</h3>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          className="flex items-center text-xs"
+                          onClick={() => {
+                            // Check if we have valid project code before opening dialog
+                            if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
+                              toast({
+                                title: "Cannot Create Record",
+                                description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            setIsApprovedDrawingDialogOpen(true);
+                          }}
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Add Approved Drawing Record
+                        </Button>
+                      </div>
+                      
+                      {/* Approved Drawing Records Table */}
+                      <div className="border rounded-md shadow-sm overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[100px]">Record ID</TableHead>
+                              <TableHead className="w-[200px]">Drawing Title</TableHead>
+                              <TableHead className="w-[150px]">Drawing Number</TableHead>
+                              <TableHead className="w-[100px]">Revision</TableHead>
+                              <TableHead className="w-[120px]">Approved By</TableHead>
+                              <TableHead className="w-[120px]">Approval Date</TableHead>
+                              <TableHead className="w-[100px]">Status</TableHead>
+                              <TableHead className="w-[140px]">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {approvedDrawingRecords.length > 0 ? (
+                              approvedDrawingRecords.map((record) => (
+                                <TableRow key={record.id}>
+                                  <TableCell className="font-medium">{record.id}</TableCell>
+                                  <TableCell>{record.drawingTitle}</TableCell>
+                                  <TableCell>{record.drawingNumber}</TableCell>
+                                  <TableCell>{record.revision}</TableCell>
+                                  <TableCell>{record.approvedBy}</TableCell>
+                                  <TableCell>{record.approvalDate}</TableCell>
+                                  <TableCell>
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      record.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                                      record.status === 'Under Review' ? 'bg-yellow-100 text-yellow-800' :
+                                      record.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                                      'bg-gray-100 text-gray-800'
+                                    }`}>
+                                      {record.status}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <Button 
+                                        type="button" 
+                                        variant="ghost" 
+                                        size="icon"
+                                        className="h-7 w-7 text-green-600 hover:text-green-800 hover:bg-green-50"
+                                        onClick={() => {
+                                          setEditingApprovedDrawingRecord(record);
+                                          setIsApprovedDrawingDialogOpen(true);
+                                        }}
+                                        title="Edit Approved Drawing Record"
+                                      >
+                                        <Edit2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        type="button" 
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-xs px-2 py-1 h-7 bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                        onClick={() => {
+                                          setDocumentUploadConfig({
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || '',
+                                            tabName: 'Approved Drawing',
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentUpload(true);
+                                        }}
+                                      >
+                                        <Upload className="h-3 w-3 mr-1" />
+                                        Upload
+                                      </Button>
+                                      <Button
+                                        type="button" 
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-xs px-2 py-1 h-7 bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
+                                        onClick={() => {
+                                          setDocumentViewerConfig({
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || '',
+                                            tabName: 'Approved Drawing',
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentViewer(true);
+                                        }}
+                                      >
+                                        <Eye className="h-3 w-3 mr-1" />
+                                        View
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={8} className="text-center py-10">
+                                  <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
+                                  <p className="mt-2 text-xs text-muted-foreground">
+                                    No approved drawing records found.
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mb-2">
+                                    Click "Add Approved Drawing Record" to create a new record.
+                                  </p>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </TabsContent>
                   
                   {/* Material Traceability Tab */}
                   <TabsContent value="material" className="p-4 border rounded-md mt-4">
@@ -6132,6 +6373,158 @@ export default function InspectionsPage() {
               </Button>
               <Button type="submit">
                 {editingHydrotestRecord ? 'Update Record' : 'Add Record'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approved Drawing Dialog */}
+      <Dialog open={isApprovedDrawingDialogOpen} onOpenChange={(open) => {
+        setIsApprovedDrawingDialogOpen(open);
+        if (!open) {
+          setEditingApprovedDrawingRecord(null);
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingApprovedDrawingRecord ? 'Edit Approved Drawing Record' : 'Add Approved Drawing Record'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingApprovedDrawingRecord 
+                ? `Edit approved drawing record ${editingApprovedDrawingRecord.id} for this inspection order.`
+                : 'Add a new approved drawing record for this inspection order.'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            const recordData = {
+              drawingTitle: formData.get('drawingTitle') as string,
+              drawingNumber: formData.get('drawingNumber') as string,
+              revision: formData.get('revision') as string,
+              approvedBy: formData.get('approvedBy') as string,
+              approvalDate: formData.get('approvalDate') as string,
+              status: formData.get('status') as string,
+              remarks: formData.get('remarks') as string,
+            };
+            if (editingApprovedDrawingRecord) {
+              editApprovedDrawingRecord(recordData);
+            } else {
+              addApprovedDrawingRecord(recordData);
+            }
+          }} className="space-y-4">
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="drawingTitle" className="text-sm font-medium">Drawing Title *</label>
+                <input
+                  type="text"
+                  id="drawingTitle"
+                  name="drawingTitle"
+                  required
+                  defaultValue={editingApprovedDrawingRecord?.drawingTitle || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter drawing title"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="drawingNumber" className="text-sm font-medium">Drawing Number *</label>
+                <input
+                  type="text"
+                  id="drawingNumber"
+                  name="drawingNumber"
+                  required
+                  defaultValue={editingApprovedDrawingRecord?.drawingNumber || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter drawing number"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="revision" className="text-sm font-medium">Revision *</label>
+                <input
+                  type="text"
+                  id="revision"
+                  name="revision"
+                  required
+                  defaultValue={editingApprovedDrawingRecord?.revision || "R0"}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="R0"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="approvedBy" className="text-sm font-medium">Approved By *</label>
+                <input
+                  type="text"
+                  id="approvedBy"
+                  name="approvedBy"
+                  required
+                  defaultValue={editingApprovedDrawingRecord?.approvedBy || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter approver name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="approvalDate" className="text-sm font-medium">Approval Date *</label>
+                <input
+                  type="date"
+                  id="approvalDate"
+                  name="approvalDate"
+                  required
+                  defaultValue={editingApprovedDrawingRecord?.approvalDate || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="status" className="text-sm font-medium">Status *</label>
+                <select
+                  id="status"
+                  name="status"
+                  required
+                  defaultValue={editingApprovedDrawingRecord?.status || "approved"}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="approved">Approved</option>
+                  <option value="conditional">Conditionally Approved</option>
+                  <option value="review">Under Review</option>
+                  <option value="superseded">Superseded</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="remarks" className="text-sm font-medium">Remarks</label>
+              <textarea
+                id="remarks"
+                name="remarks"
+                rows={3}
+                defaultValue={editingApprovedDrawingRecord?.remarks || ""}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter any additional remarks..."
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setIsApprovedDrawingDialogOpen(false);
+                  setEditingApprovedDrawingRecord(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingApprovedDrawingRecord ? 'Update Record' : 'Add Record'}
               </Button>
             </div>
           </form>
