@@ -114,4 +114,33 @@ router.get('/list-directory/:inspectionOrderNumber', ensureAuthenticated, async 
   }
 });
 
+// Download/view a final dossier PDF
+router.get('/download/:inspectionOrderId', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const inspectionOrderId = parseInt(req.params.inspectionOrderId);
+    
+    if (isNaN(inspectionOrderId)) {
+      return res.status(400).json({ error: 'Invalid inspection order ID' });
+    }
+
+    console.log(`Downloading final dossier for inspection order ID: ${inspectionOrderId}`);
+    
+    // Check if final dossier exists
+    const result = await checkExistingFinalDossier(inspectionOrderId);
+    
+    if (!result.exists || !result.url) {
+      return res.status(404).json({ error: 'Final dossier not found' });
+    }
+
+    // Redirect to the signed URL
+    res.redirect(result.url);
+  } catch (error) {
+    console.error('Error downloading final dossier:', error);
+    res.status(500).json({ 
+      error: 'Failed to download final dossier', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
 export default router;

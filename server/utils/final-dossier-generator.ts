@@ -6,6 +6,11 @@ import { db } from '../db';
 import { inspectionOrders } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { listFilesInDirectory } from './list-gcs-files';
+import { Storage } from '@google-cloud/storage';
+
+// Initialize GCS
+const storage = new Storage();
+const bucket = storage.bucket(process.env.GOOGLE_CLOUD_BUCKET || 'thermopac_storage');
 
 export async function generateFinalDossierPDF(
   inspectionOrder: InspectionOrder,
@@ -593,7 +598,19 @@ export async function generateFinalDossierPDF(
 
       if (uploadResult.successful) {
         console.log('Final Dossier PDF uploaded successfully to:', filePath);
-        return filePath;
+        
+        // Generate signed URL for immediate viewing
+        try {
+          const [signedUrl] = await bucket.file(filePath).getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+          });
+          
+          return { path: filePath, url: signedUrl };
+        } catch (signedUrlError) {
+          console.error('Error generating signed URL:', signedUrlError);
+          return { path: filePath, url: null };
+        }
       } else {
         console.error('Failed to upload Final Dossier PDF:', uploadResult.error);
         return null;
@@ -629,13 +646,13 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     const documents: { [key: string]: any[] } = {};
 
     // Generate the PDF
-    const filePath = await generateFinalDossierPDF(inspectionOrder, documents);
+    const uploadResult = await generateFinalDossierPDF(inspectionOrder, documents);
     
-    if (filePath) {
-      console.log(`Final Dossier generated successfully at: ${filePath}`);
+    if (uploadResult && uploadResult.path) {
+      console.log(`Final Dossier generated successfully at: ${uploadResult.path}`);
       return {
-        path: filePath,
-        url: filePath // For now, return the path as URL
+        path: uploadResult.path,
+        url: uploadResult.url || uploadResult.path
       };
     } else {
       throw new Error('Failed to generate Final Dossier PDF');
@@ -663,12 +680,30 @@ export async function checkExistingFinalDossier(inspectionOrderId: number): Prom
     try {
       const existingFiles = await listFilesInDirectory(basePath);
       if (existingFiles.length > 0) {
-        const latestFile = existingFiles[0]; // Assume first file is the latest
-        return {
-          exists: true,
-          path: latestFile.name,
-          url: latestFile.name
-        };
+        // Get the latest file (assuming files are sorted by date in filename)
+        const latestFile = existingFiles[existingFiles.length - 1]; 
+        const filePath = latestFile.name;
+        
+        // Generate signed URL for the existing file
+        try {
+          const [signedUrl] = await bucket.file(filePath).getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+          });
+          
+          return {
+            exists: true,
+            path: filePath,
+            url: signedUrl
+          };
+        } catch (signedUrlError) {
+          console.error('Error generating signed URL for existing file:', signedUrlError);
+          return {
+            exists: true,
+            path: filePath,
+            url: filePath // Fallback to path if signed URL fails
+          };
+        }
       }
     } catch (error) {
       console.log('No existing final dossier found or error checking:', error);

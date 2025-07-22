@@ -6414,7 +6414,11 @@ export default function InspectionsPage() {
                                   <Button 
                                     type="button"
                                     variant="default"
-                                    onClick={() => window.open(dossierUrl, '_blank')}
+                                    onClick={() => {
+                                      if (editInspectionOrderDetails?.id) {
+                                        window.open(`/api/quality/final-dossier/download/${editInspectionOrderDetails.id}`, '_blank');
+                                      }
+                                    }}
                                     className="w-full"
                                   >
                                     <FileText className="h-4 w-4 mr-2" />
