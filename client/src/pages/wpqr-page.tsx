@@ -752,7 +752,7 @@ export default function WpqrPage() {
                       </FormDescription>
                       <div className="space-y-2">
                         <div className="grid grid-cols-2 gap-3 max-h-32 overflow-y-auto border rounded-md p-3">
-                          {welders.map((welder) => (
+                          {welders.filter(welder => welder.status === 'Active').map((welder) => (
                             <div key={welder.id} className="flex items-center space-x-2">
                               <Checkbox
                                 id={`welder-${welder.id}`}
@@ -1118,7 +1118,7 @@ export default function WpqrPage() {
                       </FormDescription>
                       <div className="space-y-2">
                         <div className="grid grid-cols-2 gap-3 max-h-32 overflow-y-auto border rounded-md p-3">
-                          {welders.map((welder) => (
+                          {welders.filter(welder => welder.status === 'Active').map((welder) => (
                             <div key={welder.id} className="flex items-center space-x-2">
                               <Checkbox
                                 id={`edit-welder-${welder.id}`}
