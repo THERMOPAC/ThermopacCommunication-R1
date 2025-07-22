@@ -10,6 +10,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -27,6 +28,7 @@ const wpqrFormSchema = z.object({
   jointType: z.string().min(1, "Joint type is required"),
   certificateNo: z.string().max(100, "Certificate Number must be 100 characters or less").optional(),
   inspectionAuthority: z.string().max(50, "Inspection Authority must be 50 characters or less").optional(),
+  welderIds: z.array(z.number()).optional(),
   document: z.instanceof(FileList).refine(files => files.length > 0, {
     message: "Document file is required",
   }),
@@ -52,6 +54,20 @@ type WpqrDocument = {
   createdAt: string;
   updatedAt: string;
   createdByUser?: string;
+  linkedWelders?: Array<{
+    welderId: number;
+    welderCode: string;
+    welderName: string;
+  }>;
+};
+
+// Welder type for the dropdown
+type Welder = {
+  id: number;
+  welderId: string;
+  name: string;
+  certification?: string;
+  status: string;
 };
 
 export default function WpqrPage() {
@@ -60,10 +76,18 @@ export default function WpqrPage() {
   const [selectedDocument, setSelectedDocument] = useState<WpqrDocument | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingDocument, setEditingDocument] = useState<WpqrDocument | null>(null);
+  const [selectedWelders, setSelectedWelders] = useState<number[]>([]);
+  const [editSelectedWelders, setEditSelectedWelders] = useState<number[]>([]);
 
   // Fetch WPQR documents
   const { data: wpqrDocuments, isLoading, error } = useQuery<WpqrDocument[]>({
     queryKey: ['/api/quality/wpqr'],
+    retry: 1,
+  });
+
+  // Fetch all welders for dropdown
+  const { data: welders = [] } = useQuery<Welder[]>({
+    queryKey: ['/api/quality/wpqr/welders'],
     retry: 1,
   });
   
@@ -115,6 +139,11 @@ export default function WpqrPage() {
       if (values.certificateNo) formData.append("certificateNo", values.certificateNo);
       if (values.inspectionAuthority) formData.append("inspectionAuthority", values.inspectionAuthority);
       
+      // Append selected welders
+      if (selectedWelders.length > 0) {
+        formData.append("welderIds", JSON.stringify(selectedWelders));
+      }
+      
       // Append the document file
       if (values.document && values.document.length > 0) {
         formData.append("document", values.document[0]);
@@ -139,6 +168,7 @@ export default function WpqrPage() {
       });
       setIsCreateOpen(false);
       form.reset();
+      setSelectedWelders([]);
       queryClient.invalidateQueries({ queryKey: ['/api/quality/wpqr'] });
     },
     onError: (error) => {
@@ -164,6 +194,11 @@ export default function WpqrPage() {
         formData.append("jointType", data.values.jointType);
         if (data.values.certificateNo) formData.append("certificateNo", data.values.certificateNo);
         if (data.values.inspectionAuthority) formData.append("inspectionAuthority", data.values.inspectionAuthority);
+        
+        // Append selected welders for edit
+        if (editSelectedWelders.length > 0) {
+          formData.append("welderIds", JSON.stringify(editSelectedWelders));
+        }
         
         // Append the new document file
         formData.append("document", data.values.document[0]);
@@ -197,7 +232,8 @@ export default function WpqrPage() {
           baseMetalGrade: data.values.baseMetalGrade,
           jointType: data.values.jointType,
           certificateNo: data.values.certificateNo,
-          inspectionAuthority: data.values.inspectionAuthority
+          inspectionAuthority: data.values.inspectionAuthority,
+          welderIds: editSelectedWelders
         };
         
         // Use fetch with JSON
@@ -232,6 +268,7 @@ export default function WpqrPage() {
       });
       setIsEditOpen(false);
       editForm.reset();
+      setEditSelectedWelders([]);
       queryClient.invalidateQueries({ queryKey: ['/api/quality/wpqr'] });
     },
     onError: (error) => {
@@ -298,10 +335,26 @@ export default function WpqrPage() {
   };
 
   // Handle edit document
-  const handleEditDocument = (document: WpqrDocument) => {
+  const handleEditDocument = async (document: WpqrDocument) => {
     console.log("WPQR Document being edited:", document);
     console.log("welderProcess value:", document.welderProcess);
     setEditingDocument(document);
+    
+    // Fetch current welders for this WPQR document
+    try {
+      const response = await fetch(`/api/quality/wpqr/${document.id}/welders`);
+      if (response.ok) {
+        const linkedWelders = await response.json();
+        const welderIds = linkedWelders.map((w: any) => w.welderId);
+        setEditSelectedWelders(welderIds);
+      } else {
+        setEditSelectedWelders([]);
+      }
+    } catch (error) {
+      console.error("Error fetching WPQR welders:", error);
+      setEditSelectedWelders([]);
+    }
+    
     // Populate the edit form with the document data
     const formData = {
       title: document.title,
@@ -675,6 +728,43 @@ export default function WpqrPage() {
                     </FormItem>
                   )}
                 />
+                
+                {/* Welder Selection */}
+                <div className="space-y-3">
+                  <FormLabel>Associated Welders (Optional)</FormLabel>
+                  <FormDescription>
+                    Select welders who are qualified for this WPQR document
+                  </FormDescription>
+                  <div className="grid grid-cols-2 gap-3 max-h-32 overflow-y-auto border rounded-md p-3">
+                    {welders.map((welder) => (
+                      <div key={welder.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`welder-${welder.id}`}
+                          checked={selectedWelders.includes(welder.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedWelders([...selectedWelders, welder.id]);
+                            } else {
+                              setSelectedWelders(selectedWelders.filter(id => id !== welder.id));
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={`welder-${welder.id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          {welder.welderId} - {welder.name}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  {selectedWelders.length > 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      {selectedWelders.length} welder(s) selected
+                    </p>
+                  )}
+                </div>
+
                 <FormField
                   control={form.control}
                   name="document"
@@ -992,6 +1082,43 @@ export default function WpqrPage() {
                     </FormItem>
                   )}
                 />
+                
+                {/* Welder Selection for Edit */}
+                <div className="space-y-3">
+                  <FormLabel>Associated Welders (Optional)</FormLabel>
+                  <FormDescription>
+                    Select welders who are qualified for this WPQR document
+                  </FormDescription>
+                  <div className="grid grid-cols-2 gap-3 max-h-32 overflow-y-auto border rounded-md p-3">
+                    {welders.map((welder) => (
+                      <div key={welder.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`edit-welder-${welder.id}`}
+                          checked={editSelectedWelders.includes(welder.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setEditSelectedWelders([...editSelectedWelders, welder.id]);
+                            } else {
+                              setEditSelectedWelders(editSelectedWelders.filter(id => id !== welder.id));
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={`edit-welder-${welder.id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          {welder.welderId} - {welder.name}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  {editSelectedWelders.length > 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      {editSelectedWelders.length} welder(s) selected
+                    </p>
+                  )}
+                </div>
+
                 <FormField
                   control={editForm.control}
                   name="document"

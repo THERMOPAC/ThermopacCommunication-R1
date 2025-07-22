@@ -1,6 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { db } from '../db';
-import { wpqrDocuments, wpqrDocumentSchema, users } from '@shared/schema';
+import { wpqrDocuments, wpqrDocumentSchema, users, wpqrWelders, welders } from '@shared/schema';
 import { Storage } from '@google-cloud/storage';
 import multer from 'multer';
 import { eq, desc, sql } from 'drizzle-orm';
@@ -122,6 +122,7 @@ function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
 router.get('/', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     // Join with users table to get creator names
+    // Get all WPQR documents with their basic info
     const documents = await db.select({
       id: wpqrDocuments.id,
       documentId: wpqrDocuments.documentId,
@@ -144,7 +145,26 @@ router.get('/', ensureAuthenticated, async (req: Request, res: Response) => {
     .leftJoin(users, eq(wpqrDocuments.createdBy, users.id))
     .orderBy(desc(wpqrDocuments.createdAt));
     
-    res.json(documents);
+    // Get linked welders for each document
+    const documentsWithWelders = await Promise.all(
+      documents.map(async (doc) => {
+        const linkedWelders = await db.select({
+          welderId: welders.id,
+          welderCode: welders.welderId,
+          welderName: welders.name
+        })
+        .from(wpqrWelders)
+        .leftJoin(welders, eq(wpqrWelders.welderId, welders.id))
+        .where(eq(wpqrWelders.wpqrDocumentId, doc.id));
+        
+        return {
+          ...doc,
+          linkedWelders
+        };
+      })
+    );
+    
+    res.json(documentsWithWelders);
   } catch (error) {
     console.error('Error fetching WPQR documents:', error);
     res.status(500).json({ 
@@ -191,7 +211,22 @@ router.get('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Document not found' });
     }
     
-    res.json(document[0]);
+    // Get linked welders for this document
+    const linkedWelders = await db.select({
+      welderId: welders.id,
+      welderCode: welders.welderId,
+      welderName: welders.name
+    })
+    .from(wpqrWelders)
+    .leftJoin(welders, eq(wpqrWelders.welderId, welders.id))
+    .where(eq(wpqrWelders.wpqrDocumentId, documentId));
+    
+    const documentWithWelders = {
+      ...document[0],
+      linkedWelders
+    };
+    
+    res.json(documentWithWelders);
   } catch (error) {
     console.error('Error fetching WPQR document:', error);
     res.status(500).json({ 
@@ -231,6 +266,36 @@ router.get('/next-document-id', async (req: Request, res: Response) => {
   }
 });
 
+// Get welders linked to a specific WPQR document
+router.get('/:id/welders', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const documentId = parseInt(id);
+    
+    if (isNaN(documentId)) {
+      return res.status(400).json({ error: 'Invalid document ID' });
+    }
+    
+    // Get linked welders for this document
+    const linkedWelders = await db.select({
+      welderId: welders.id,
+      welderCode: welders.welderId,
+      welderName: welders.name
+    })
+    .from(wpqrWelders)
+    .leftJoin(welders, eq(wpqrWelders.welderId, welders.id))
+    .where(eq(wpqrWelders.wpqrDocumentId, documentId));
+    
+    res.json(linkedWelders);
+  } catch (error) {
+    console.error('Error fetching WPQR welders:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch WPQR welders',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Create a new WPQR document
 router.post('/', ensureAuthenticated, upload.single('document'), async (req: Request, res: Response) => {
   try {
@@ -251,7 +316,8 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
       jointType,
       certificateNo = null,
       inspectionAuthority = null,
-      status = 'Active'
+      status = 'Active',
+      welderIds = []
     } = req.body;
     
     // Log the input values for debugging
@@ -355,6 +421,21 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
     
     const insertedDocument = insertedDocuments[0];
     
+    // Handle welder linking if welderIds are provided
+    if (welderIds && Array.isArray(welderIds) && welderIds.length > 0) {
+      console.log(`Linking ${welderIds.length} welders to WPQR document ${insertedDocument.id}`);
+      
+      // Insert welder links in batch
+      const welderLinkData = welderIds.map((welderId: number) => ({
+        wpqrDocumentId: insertedDocument.id,
+        welderId: welderId,
+        linkedBy: userId
+      }));
+      
+      await db.insert(wpqrWelders).values(welderLinkData);
+      console.log('Successfully linked welders to WPQR document');
+    }
+    
     res.status(201).json(insertedDocument);
   } catch (error) {
     console.error('Error creating WPQR document:', error);
@@ -428,6 +509,7 @@ router.patch('/:id', ensureAuthenticated, upload.single('document'), async (req:
     let certificateNo = req.body.certificateNo !== undefined ? req.body.certificateNo : document.certificateNo;
     let inspectionAuthority = req.body.inspectionAuthority !== undefined ? req.body.inspectionAuthority : document.inspectionAuthority;
     let status = req.body.status || document.status;
+    let welderIds = req.body.welderIds || [];
 
     // Log the input values for debugging
     console.log('WPQR document update values:', {
@@ -525,6 +607,27 @@ router.patch('/:id', ensureAuthenticated, upload.single('document'), async (req:
       .set(updateData)
       .where(eq(wpqrDocuments.id, documentId))
       .returning();
+    
+    // Handle welder linking if welderIds are provided
+    if (welderIds && Array.isArray(welderIds)) {
+      console.log(`Updating welder links for WPQR document ${documentId}`);
+      
+      // First, remove existing welder links
+      await db.delete(wpqrWelders)
+        .where(eq(wpqrWelders.wpqrDocumentId, documentId));
+      
+      // Then, add new welder links if any
+      if (welderIds.length > 0) {
+        const welderLinkData = welderIds.map((welderId: number) => ({
+          wpqrDocumentId: documentId,
+          welderId: welderId,
+          linkedBy: userId
+        }));
+        
+        await db.insert(wpqrWelders).values(welderLinkData);
+        console.log(`Successfully linked ${welderIds.length} welders to WPQR document`);
+      }
+    }
     
     res.json(updatedDocuments[0]);
   } catch (error) {
@@ -1041,6 +1144,27 @@ router.get('/download/:id', async (req: Request, res: Response) => {
         details: error instanceof Error ? error.message : 'Unknown error'
       });
     }
+  }
+});
+
+// Get all welders for the frontend dropdown
+router.get('/welders', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const allWelders = await db.select({
+      id: welders.id,
+      welderId: welders.welderId,
+      name: welders.name,
+      certification: welders.certification,
+      status: welders.status
+    })
+    .from(welders)
+    .where(eq(welders.status, 'Active'))
+    .orderBy(welders.welderId);
+    
+    res.json(allWelders);
+  } catch (error) {
+    console.error('Error fetching welders:', error);
+    res.status(500).json({ error: 'Failed to fetch welders' });
   }
 });
 

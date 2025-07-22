@@ -4578,10 +4578,36 @@ export const wpqrDocuments = pgTable('wpqr_documents', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
+// WPQR-Welder junction table for many-to-many relationship
+export const wpqrWelders = pgTable('wpqr_welders', {
+  id: serial('id').primaryKey(),
+  wpqrDocumentId: integer('wpqr_document_id').notNull().references(() => wpqrDocuments.id),
+  welderId: integer('welder_id').notNull().references(() => welders.id),
+  linkedAt: timestamp('linked_at').notNull().defaultNow(),
+  linkedBy: integer('linked_by').notNull().references(() => users.id),
+});
+
 // WPQR Documents relations
-export const wpqrDocumentsRelations = relations(wpqrDocuments, ({ one }) => ({
+export const wpqrDocumentsRelations = relations(wpqrDocuments, ({ one, many }) => ({
   creator: one(users, {
     fields: [wpqrDocuments.createdBy],
+    references: [users.id],
+  }),
+  wpqrWelders: many(wpqrWelders),
+}));
+
+// WPQR-Welder junction table relations
+export const wpqrWeldersRelations = relations(wpqrWelders, ({ one }) => ({
+  wpqrDocument: one(wpqrDocuments, {
+    fields: [wpqrWelders.wpqrDocumentId],
+    references: [wpqrDocuments.id],
+  }),
+  welder: one(welders, {
+    fields: [wpqrWelders.welderId],
+    references: [welders.id],
+  }),
+  linkedByUser: one(users, {
+    fields: [wpqrWelders.linkedBy],
     references: [users.id],
   }),
 }));
@@ -4614,6 +4640,19 @@ export const wpqrDocumentSchema = createInsertSchema(wpqrDocuments)
 // Export WPQR document types
 export type WpqrDocument = typeof wpqrDocuments.$inferSelect;
 export type InsertWpqrDocument = z.infer<typeof wpqrDocumentSchema>;
+
+// Export WPQR-Welder junction table types
+export type WpqrWelder = typeof wpqrWelders.$inferSelect;
+export type InsertWpqrWelder = typeof wpqrWelders.$inferInsert;
+
+// Welders relations
+export const weldersRelations = relations(welders, ({ many }) => ({
+  wpqrWelders: many(wpqrWelders),
+}));
+
+// Export Welder types
+export type Welder = typeof welders.$inferSelect;
+export type InsertWelder = typeof welders.$inferInsert;
 
 // WPS Documents relations
 export const wpsDocumentsRelations = relations(wpsDocuments, ({ one }) => ({
