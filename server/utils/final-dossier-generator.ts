@@ -2,7 +2,9 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { uploadFileWithDiagnostics } from './gcs-enhanced-upload';
 import type { InspectionOrder } from '../../shared/schema';
 
-import { storage } from '../storage';
+import { db } from '../db';
+import { inspectionOrders } from '../../shared/schema';
+import { eq } from 'drizzle-orm';
 import { listFilesInDirectory } from './list-gcs-files';
 
 export async function generateFinalDossierPDF(
@@ -613,7 +615,10 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     console.log(`Starting Final Dossier generation for inspection order ID: ${inspectionOrderId}`);
     
     // Get inspection order from database
-    const inspectionOrder = await storage.getInspectionOrderById(inspectionOrderId);
+    const inspectionOrder = await db.query.inspectionOrders.findFirst({
+      where: eq(inspectionOrders.id, inspectionOrderId)
+    });
+    
     if (!inspectionOrder) {
       throw new Error(`Inspection order with ID ${inspectionOrderId} not found`);
     }
@@ -644,7 +649,10 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
 // Function to check if final dossier already exists
 export async function checkExistingFinalDossier(inspectionOrderId: number): Promise<{ exists: boolean; path?: string; url?: string }> {
   try {
-    const inspectionOrder = await storage.getInspectionOrderById(inspectionOrderId);
+    const inspectionOrder = await db.query.inspectionOrders.findFirst({
+      where: eq(inspectionOrders.id, inspectionOrderId)
+    });
+    
     if (!inspectionOrder) {
       return { exists: false };
     }
