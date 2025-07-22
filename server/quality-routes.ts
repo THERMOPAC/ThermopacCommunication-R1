@@ -408,7 +408,49 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       console.log('No NCR data found in updated order response');
     }
     
-    // Return updated order with materials, NDT records, Visual Inspection records, Weld records, Hydrotest records, and NCR records
+    // Parse Approved Drawing data for the response
+    let parsedApprovedDrawingRecords = [];
+    console.log('Checking for Approved Drawing data in updated order response:', updatedOrder[0].approvedDrawingData);
+    if (updatedOrder[0].approvedDrawingData) {
+      try {
+        parsedApprovedDrawingRecords = JSON.parse(updatedOrder[0].approvedDrawingData);
+        console.log('Successfully parsed Approved Drawing data in response:', parsedApprovedDrawingRecords);
+      } catch (e) {
+        console.error('Error parsing Approved Drawing data in response:', e);
+      }
+    } else {
+      console.log('No Approved Drawing data found in updated order response');
+    }
+    
+    // Parse DVR data for the response
+    let parsedDvrRecords = [];
+    console.log('Checking for DVR data in updated order response:', updatedOrder[0].dvrData);
+    if (updatedOrder[0].dvrData) {
+      try {
+        parsedDvrRecords = JSON.parse(updatedOrder[0].dvrData);
+        console.log('Successfully parsed DVR data in response:', parsedDvrRecords);
+      } catch (e) {
+        console.error('Error parsing DVR data in response:', e);
+      }
+    } else {
+      console.log('No DVR data found in updated order response');
+    }
+    
+    // Parse ITP data for the response
+    let parsedItpRecords = [];
+    console.log('Checking for ITP data in updated order response:', updatedOrder[0].itpData);
+    if (updatedOrder[0].itpData) {
+      try {
+        parsedItpRecords = JSON.parse(updatedOrder[0].itpData);
+        console.log('Successfully parsed ITP data in response:', parsedItpRecords);
+      } catch (e) {
+        console.error('Error parsing ITP data in response:', e);
+      }
+    } else {
+      console.log('No ITP data found in updated order response');
+    }
+    
+    // Return updated order with all records including Approved Drawing, DVR, and ITP records
     res.json({
       ...updatedOrder[0],
       materials: updatedMaterials,
@@ -416,7 +458,10 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       visualRecords: parsedVisualRecords,
       welds: parsedWeldRecords,
       hydrotestRecords: parsedHydrotestRecords,
-      ncrRecords: parsedNcrRecords
+      ncrRecords: parsedNcrRecords,
+      approvedDrawingRecords: parsedApprovedDrawingRecords,
+      dvrRecords: parsedDvrRecords,
+      itpRecords: parsedItpRecords
     });
   } catch (error) {
     console.error('Error updating inspection order:', error);
