@@ -27,6 +27,7 @@ const pmaFormSchema = z.object({
   grade: z.string().min(1, 'Grade is required'),
   status: z.enum(['Draft', 'Active', 'Inactive']),
   remarks: z.string().optional(),
+  issueDate: z.string().min(1, 'Issue Date is required'),
   expiryDate: z.string().min(1, 'Expiry Date is required'),
 });
 
@@ -68,6 +69,7 @@ export default function PMAPage() {
       grade: '',
       status: 'Draft',
       remarks: '',
+      issueDate: '',
       expiryDate: '',
     },
   });
@@ -85,6 +87,7 @@ export default function PMAPage() {
       formData.append('grade', data.grade);
       formData.append('status', data.status);
       formData.append('remarks', data.remarks || '');
+      formData.append('issueDate', data.issueDate);
       formData.append('expiryDate', data.expiryDate);
       formData.append('file', fileUpload);
 
@@ -128,6 +131,7 @@ export default function PMAPage() {
       formData.append('grade', data.grade);
       formData.append('status', data.status);
       formData.append('remarks', data.remarks || '');
+      formData.append('issueDate', data.issueDate);
       formData.append('expiryDate', data.expiryDate);
       
       if (fileUpload) {
@@ -209,6 +213,7 @@ export default function PMAPage() {
       grade: pma.grade,
       status: pma.status,
       remarks: pma.remarks || '',
+      issueDate: pma.issueDate ? format(new Date(pma.issueDate), 'yyyy-MM-dd') : '',
       expiryDate: pma.expiryDate ? format(new Date(pma.expiryDate), 'yyyy-MM-dd') : '',
     });
     setIsEditDialogOpen(true);
@@ -389,6 +394,25 @@ export default function PMAPage() {
                         )}
                       />
 
+                      {/* Issue Date */}
+                      <FormField
+                        control={form.control}
+                        name="issueDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Issue Date *</FormLabel>
+                            <FormControl>
+                              <Input 
+                                {...field} 
+                                type="date" 
+                                min={format(new Date(), 'yyyy-MM-dd')}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
                       {/* Expiry Date */}
                       <FormField
                         control={form.control}
@@ -460,6 +484,7 @@ export default function PMAPage() {
                     <TableHead>Specification</TableHead>
                     <TableHead>Grade</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Issue Date</TableHead>
                     <TableHead>Expiry Date</TableHead>
                     <TableHead>File</TableHead>
                     <TableHead>Created By</TableHead>
@@ -469,7 +494,7 @@ export default function PMAPage() {
                 <TableBody>
                   {filteredDocuments.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                         No PMA documents found
                       </TableCell>
                     </TableRow>
@@ -485,6 +510,12 @@ export default function PMAPage() {
                           <Badge className={getStatusBadge(doc.status)}>
                             {doc.status}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {doc.issueDate || doc.issue_date 
+                            ? format(new Date(doc.issueDate || doc.issue_date), 'MMM dd, yyyy')
+                            : '-'
+                          }
                         </TableCell>
                         <TableCell>
                           {doc.expiryDate || doc.expiry_date 

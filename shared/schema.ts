@@ -4941,6 +4941,7 @@ export const pmaDocuments = pgTable('pma_documents', {
   grade: varchar('grade', { length: 100 }).notNull(),
   status: varchar('status', { length: 20 }).notNull().default('Draft'),
   remarks: text('remarks'),
+  issueDate: date('issue_date').notNull(),
   expiryDate: date('expiry_date').notNull(),
   filePath: varchar('file_path', { length: 255 }),
   fileUrl: text('file_url'),
