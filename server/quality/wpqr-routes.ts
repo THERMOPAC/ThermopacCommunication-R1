@@ -286,7 +286,7 @@ router.get('/:id/welders', ensureAuthenticated, async (req: Request, res: Respon
       name: welders.name,
       welderCode: welders.welderId, // Keep backward compatibility
       welderName: welders.name,     // Keep backward compatibility
-      certification: welders.certification,
+      trade: welders.trade,         // Use available field instead of certification
       status: welders.status
     })
     .from(wpqrWelders)
