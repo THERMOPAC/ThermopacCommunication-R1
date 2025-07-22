@@ -666,19 +666,26 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
 // Function to check if final dossier already exists
 export async function checkExistingFinalDossier(inspectionOrderId: number): Promise<{ exists: boolean; path?: string; url?: string }> {
   try {
+    console.log(`Checking existing final dossier for inspection order ID: ${inspectionOrderId}`);
+    
     const inspectionOrder = await db.query.inspectionOrders.findFirst({
       where: eq(inspectionOrders.id, inspectionOrderId)
     });
     
     if (!inspectionOrder) {
+      console.log('Inspection order not found in database');
       return { exists: false };
     }
 
+    console.log(`Found inspection order: ${inspectionOrder.inspectionOrderNumber} with project code: ${inspectionOrder.projectCode}`);
+
     // Check for existing final dossier in GCS
     const basePath = `QMS/Inspections_Records/${inspectionOrder.projectCode || 'UNKNOWN'}/${inspectionOrder.inspectionOrderNumber}/Final_Dossier/`;
+    console.log(`Checking GCS path: ${basePath}`);
     
     try {
       const existingFiles = await listFilesInDirectory(basePath);
+      console.log(`Found ${existingFiles.length} files in directory`);
       
       // Filter out .keep files and get only PDF files
       const pdfFiles = existingFiles.filter(file => 
@@ -709,6 +716,7 @@ export async function checkExistingFinalDossier(inspectionOrderId: number): Prom
             expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
           });
           
+          console.log('Successfully generated signed URL for existing file');
           return {
             exists: true,
             path: filePath,
@@ -722,11 +730,14 @@ export async function checkExistingFinalDossier(inspectionOrderId: number): Prom
             url: filePath // Fallback to path if signed URL fails
           };
         }
+      } else {
+        console.log('No PDF files found in directory');
       }
     } catch (error) {
-      console.log('No existing final dossier found or error checking:', error);
+      console.log('Error listing files in directory:', error);
     }
 
+    console.log('Returning exists: false');
     return { exists: false };
   } catch (error) {
     console.error('Error checking existing final dossier:', error);
