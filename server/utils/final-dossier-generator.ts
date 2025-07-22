@@ -393,14 +393,18 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     let yPosition = 650;
     const sections = [
-      '1. Material Traceability',
-      '2. Welding & Weld Maps',
-      '3. NDT Reports',
-      '4. Visual Inspection Records',
-      '5. Hydrotest Reports',
-      '6. Non-Conformance Reports',
-      '7. Calibration Certificates',
-      '8. Appendices'
+      '1. Approved Drawing',
+      '2. Design Verification Report (DVR)',
+      '3. ITP (Inspection Test Plan)',
+      '4. Material Traceability',
+      '5. Shop Inspection',
+      '6. Welding & Weld Maps',
+      '7. NDT Reports',
+      '8. Visual Inspection Records',
+      '9. Hydrotest Reports',
+      '10. Non-Conformance Reports',
+      '11. Calibration Certificates',
+      '12. Appendices'
     ];
     
     for (const section of sections) {
@@ -417,9 +421,72 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Add footer to table of contents page
     addFooterToPage(tocPage);
     
-    // Add material traceability section
+    // Add approved drawing section (now section 1)
+    const approvedDrawingPage = pdfDoc.addPage([612, 792]);
+    approvedDrawingPage.drawText('1. APPROVED DRAWING', {
+      x: pageMargin,
+      y: 700,
+      size: 16,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Add basic content for approved drawing section
+    approvedDrawingPage.drawText('Approved drawings and design documents are stored in the QMS system.', {
+      x: pageMargin,
+      y: 650,
+      size: 12,
+      font: helvetica,
+      color: rgb(0, 0, 0),
+    });
+    
+    addFooterToPage(approvedDrawingPage);
+    
+    // Add DVR section (now section 2)
+    const dvrPage = pdfDoc.addPage([612, 792]);
+    dvrPage.drawText('2. DESIGN VERIFICATION REPORT (DVR)', {
+      x: pageMargin,
+      y: 700,
+      size: 16,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Add basic content for DVR section
+    dvrPage.drawText('Design verification records and reports are maintained in the QMS system.', {
+      x: pageMargin,
+      y: 650,
+      size: 12,
+      font: helvetica,
+      color: rgb(0, 0, 0),
+    });
+    
+    addFooterToPage(dvrPage);
+    
+    // Add ITP section (now section 3)
+    const itpPage = pdfDoc.addPage([612, 792]);
+    itpPage.drawText('3. ITP (INSPECTION TEST PLAN)', {
+      x: pageMargin,
+      y: 700,
+      size: 16,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Add basic content for ITP section
+    itpPage.drawText('Inspection test plans and procedures are documented in the QMS system.', {
+      x: pageMargin,
+      y: 650,
+      size: 12,
+      font: helvetica,
+      color: rgb(0, 0, 0),
+    });
+    
+    addFooterToPage(itpPage);
+    
+    // Add material traceability section (now section 4)
     const materialPage = pdfDoc.addPage([612, 792]);
-    materialPage.drawText('1. MATERIAL TRACEABILITY', {
+    materialPage.drawText('4. MATERIAL TRACEABILITY', {
       x: pageMargin,
       y: 700,
       size: 16,
@@ -576,9 +643,30 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       });
     }
     
-    // Add welding section
+    // Add shop inspection section (now section 5)
+    const shopInspectionPage = pdfDoc.addPage([612, 792]);
+    shopInspectionPage.drawText('5. SHOP INSPECTION', {
+      x: pageMargin,
+      y: 700,
+      size: 16,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Add basic content for shop inspection section
+    shopInspectionPage.drawText('Shop inspection records and reports are maintained in the QMS system.', {
+      x: pageMargin,
+      y: 650,
+      size: 12,
+      font: helvetica,
+      color: rgb(0, 0, 0),
+    });
+    
+    addFooterToPage(shopInspectionPage);
+    
+    // Add welding section (now section 6)
     const weldingPage = pdfDoc.addPage([612, 792]);
-    weldingPage.drawText('2. WELDING & WELD MAPS', {
+    weldingPage.drawText('6. WELDING & WELD MAPS', {
       x: pageMargin,
       y: 700,
       size: 16,
@@ -729,9 +817,9 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       });
     }
     
-    // Add NDT section
+    // Add NDT section (now section 7)
     const ndtPage = pdfDoc.addPage([612, 792]);
-    ndtPage.drawText('3. NDT REPORTS', {
+    ndtPage.drawText('7. NDT REPORTS', {
       x: pageMargin,
       y: 700,
       size: 16,
@@ -892,7 +980,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     // Add Visual Inspection section
     const visualPage = pdfDoc.addPage([612, 792]);
-    visualPage.drawText('4. VISUAL INSPECTION RECORDS', {
+    visualPage.drawText('8. VISUAL INSPECTION RECORDS', {
       x: pageMargin,
       y: 700,
       size: 16,
@@ -1058,9 +1146,30 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       });
     }
     
-    // Add NCR section
+    // Add Hydrotest section (now section 9)
+    const hydrotestPage = pdfDoc.addPage([612, 792]);
+    hydrotestPage.drawText('9. HYDROTEST REPORTS', {
+      x: pageMargin,
+      y: 700,
+      size: 16,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Add basic content for hydrotest section
+    hydrotestPage.drawText('Hydrotest records and reports are maintained in the QMS system.', {
+      x: pageMargin,
+      y: 650,
+      size: 12,
+      font: helvetica,
+      color: rgb(0, 0, 0),
+    });
+    
+    addFooterToPage(hydrotestPage);
+    
+    // Add NCR section (now section 10)
     const ncrPage = pdfDoc.addPage([612, 792]);
-    ncrPage.drawText('6. NON-CONFORMANCE REPORTS', {
+    ncrPage.drawText('10. NON-CONFORMANCE REPORTS', {
       x: pageMargin,
       y: 700,
       size: 16,
@@ -1431,7 +1540,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     const appendicesTitlePage = pdfDoc.addPage([612, 792]);
     
     // Calculate the width of the text to center it horizontally
-    const titleText = '8. APPENDICES';
+    const titleText = '12. APPENDICES';
     const titleFont = helveticaBold;
     const titleSize = 24;
     
@@ -1454,7 +1563,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     let appendicesPage = pdfDoc.addPage([612, 792]);
     
     // Consistent header for appendices content page
-    appendicesPage.drawText('8. APPENDICES (Contents)', {
+    appendicesPage.drawText('12. APPENDICES (Contents)', {
       x: pageMargin,
       y: 700,
       size: 16,
@@ -1570,7 +1679,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
             // If page is full, add a new appendices page
             if (yPosition < 100) {
               const newPage = pdfDoc.addPage([612, 792]);
-              newPage.drawText('8. APPENDICES (CONTINUED)', {
+              newPage.drawText('12. APPENDICES (CONTINUED)', {
                 x: pageMargin,
                 y: 700,
                 size: 16,
@@ -1586,17 +1695,18 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       }
       
       // 2. List inspection documents by tab
-      // Inspection document sections - updated to include project code in path structure
+      // Inspection document sections - aligned with UI tab sequence
       const inspectionSections = [
+        { name: 'Approved Drawing', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ApprovedDrawing` },
+        { name: 'DVR', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/DVR` },
+        { name: 'ITP', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ITP` },
         { name: 'Material Traceability', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/MaterialTraceability` },
         { name: 'Shop Inspection', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ShopInspection` },
         { name: 'Welding', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Welding` },
         { name: 'NDT', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NDT` },
         { name: 'Visual Inspection', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Visual` },
         { name: 'Hydrotest', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Hydrotest` },
-        { name: 'NCR', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NCR` },
-        { name: 'Approved Drawing', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ApprovedDrawing` },
-        { name: 'DVR', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/DVR` }
+        { name: 'NCR', path: `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NCR` }
       ];
       
       // First process inspection document sections
@@ -1629,7 +1739,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
             // Skip if we're getting low on vertical space
             if (yPosition < 100) {
               appendicesPage = pdfDoc.addPage([612, 792]);
-              appendicesPage.drawText('8. APPENDICES (Contents)', {
+              appendicesPage.drawText('12. APPENDICES (Contents)', {
                 x: pageMargin,
                 y: 700,
                 size: 16,
@@ -1772,7 +1882,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
               // Add a new page if needed
               if (yPosition < 100) {
                 appendicesPage = pdfDoc.addPage([612, 792]);
-                appendicesPage.drawText('8. APPENDICES (Contents)', {
+                appendicesPage.drawText('12. APPENDICES (Contents)', {
                   x: pageMargin,
                   y: 700,
                   size: 16,
@@ -1798,7 +1908,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       // Add page break detection for appendices if needed
       if (yPosition < 100) {
         appendicesPage = pdfDoc.addPage([612, 792]);
-        appendicesPage.drawText('8. APPENDICES (Contents)', {
+        appendicesPage.drawText('12. APPENDICES (Contents)', {
           x: pageMargin,
           y: 700,
           size: 16,
@@ -1890,7 +2000,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
                 // If page is full, add a new appendices page
                 if (yPosition < 100) {
                   const newPage = pdfDoc.addPage([612, 792]);
-                  newPage.drawText('8. APPENDICES (CONTINUED)', {
+                  newPage.drawText('12. APPENDICES (CONTINUED)', {
                     x: pageMargin,
                     y: 700,
                     size: 16,
@@ -2057,17 +2167,18 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         }
       }
       
-      // Collect inspection document PDFs by section - updated to include project code
+      // Collect inspection document PDFs by section - aligned with UI tab sequence
       const sections = [
+        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ApprovedDrawing`,
+        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/DVR`,
+        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ITP`,
         `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/MaterialTraceability`,
+        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ShopInspection`,
         `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Welding`,
         `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NDT`,
         `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Visual`,
         `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/Hydrotest`,
-        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NCR`,
-        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ApprovedDrawing`,
-        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/DVR`,
-        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/ITP`
+        `QMS/Inspections_Records/${inspectionOrder.projectCode}/${inspectionOrder.inspectionOrderNumber}/NCR`
       ];
       
       for (const sectionPath of sections) {
