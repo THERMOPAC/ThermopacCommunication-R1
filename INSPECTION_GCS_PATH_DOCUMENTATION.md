@@ -19,8 +19,6 @@ The following tab names from the frontend are mapped to specific folder names in
 | Frontend Tab Name | GCS Folder Name | Description |
 |-------------------|----------------|-------------|
 | Material Traceability | MaterialTraceability | Material identification and traceability records |
-| PMA | PMA | Particular Material Appraisal records |
-| Procedures | Procedures | Test Procedures for NDT methods |
 | Shop Inspection | ShopInspection | Shop floor inspection records |
 | Welding | Welding | Welding inspection records and weld maps |
 | NDT | NDT | Non-destructive testing records |
@@ -37,18 +35,6 @@ The following tab names from the frontend are mapped to specific folder names in
 ```
 QMS/Inspections_Records/2025-1/IO-2025-1-M-1/MaterialTraceability/MT-001.pdf
 QMS/Inspections_Records/2025-1/IO-2025-1-M-1/MaterialTraceability/MT-002.pdf
-```
-
-### PMA Documents
-```
-QMS/Inspections_Records/2025-1/IO-2025-1-M-1/PMA/PMA-001.pdf
-QMS/Inspections_Records/2025-1/IO-2025-1-M-1/PMA/PMA-002.pdf
-```
-
-### Procedures Documents
-```
-QMS/Inspections_Records/2025-1/IO-2025-1-M-1/Procedures/PROC-001.pdf
-QMS/Inspections_Records/2025-1/IO-2025-1-M-1/Procedures/PROC-002.pdf
 ```
 
 ### Shop Inspection Documents
