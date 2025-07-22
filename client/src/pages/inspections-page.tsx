@@ -2048,7 +2048,7 @@ export default function InspectionsPage() {
       // Check if the response has DVR data in the expected format
       console.log("Checking for DVR data:", editInspectionOrderDetails);
       
-      const dvrData = (editInspectionOrderDetails as any).dvrData || (editInspectionOrderDetails as any).dvr_data;
+      const dvrData = (editInspectionOrderDetails as any).dvrRecords || (editInspectionOrderDetails as any).dvrData || (editInspectionOrderDetails as any).dvr_data;
       
       if (dvrData) {
         try {
@@ -2075,14 +2075,15 @@ export default function InspectionsPage() {
             }));
             
             setDvrRecords(formattedRecords);
-            return;
+            return; // Exit here, don't run fallback
           }
         } catch (error) {
           console.error("Error parsing DVR records:", error);
         }
       }
       
-      // If no valid DVR records were found, initialize with a default record
+      // If no valid DVR records were found, initialize with a default record (only once when details first load)
+      console.log("No DVR records found, initializing with defaults");
       setDvrRecords([{
         id: 'DVR-1',
         designDocument: '',
@@ -2101,7 +2102,7 @@ export default function InspectionsPage() {
       // Check if the response has ITP data in the expected format
       console.log("Checking for ITP data:", editInspectionOrderDetails);
       
-      const itpData = (editInspectionOrderDetails as any).itpData || (editInspectionOrderDetails as any).itp_data;
+      const itpData = (editInspectionOrderDetails as any).itpRecords || (editInspectionOrderDetails as any).itpData || (editInspectionOrderDetails as any).itp_data;
       
       if (itpData) {
         try {
@@ -2129,14 +2130,15 @@ export default function InspectionsPage() {
             }));
             
             setItpRecords(formattedRecords);
-            return;
+            return; // Exit here, don't run fallback
           }
         } catch (error) {
           console.error("Error parsing ITP records:", error);
         }
       }
       
-      // If no valid ITP records were found, initialize with a default record
+      // If no valid ITP records were found, initialize with a default record (only once when details first load)
+      console.log("No ITP records found, initializing with defaults");
       setItpRecords([{
         id: 'ITP-1',
         testItem: '',
