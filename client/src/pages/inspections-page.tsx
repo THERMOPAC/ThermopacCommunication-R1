@@ -409,6 +409,7 @@ export default function InspectionsPage() {
     remarks: string;
   }[]>([]);
   const [selectedPmaDocument, setSelectedPmaDocument] = useState<string>("");
+  const [selectedPmaStatus, setSelectedPmaStatus] = useState<string>("");
 
   // DVR Records state
   const [dvrRecords, setDvrRecords] = useState<{
@@ -7517,6 +7518,8 @@ export default function InspectionsPage() {
         setIsPmaDialogOpen(open);
         if (!open) {
           setEditingPmaRecord(null);
+          setSelectedPmaDocument("");
+          setSelectedPmaStatus("");
         }
       }}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -7581,7 +7584,16 @@ export default function InspectionsPage() {
                         if (certifiedByField) certifiedByField.value = selectedPma.certifiedBy || '';
                         if (issueDateField) issueDateField.value = selectedPma.issueDate || '';
                         if (expiryDateField) expiryDateField.value = selectedPma.expiryDate || '';
-                        if (statusField) statusField.value = selectedPma.status || '';
+                        
+                        // For the status field, we need to map the PMA status to the form options
+                        // PMA status might be "Active" but form expects lowercase "active"
+                        const statusValue = selectedPma.status ? selectedPma.status.toLowerCase() : 'active';
+                        setSelectedPmaStatus(statusValue);
+                        if (statusField) {
+                          statusField.value = statusValue;
+                          // Trigger change event to ensure any listeners are notified
+                          statusField.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
                       }
                     }
                   }}
@@ -7680,7 +7692,8 @@ export default function InspectionsPage() {
                   id="status"
                   name="status"
                   required
-                  defaultValue={editingPmaRecord?.status || "active"}
+                  value={selectedPmaStatus || editingPmaRecord?.status || "active"}
+                  onChange={(e) => setSelectedPmaStatus(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="active">Active</option>
@@ -7710,6 +7723,8 @@ export default function InspectionsPage() {
                 onClick={() => {
                   setIsPmaDialogOpen(false);
                   setEditingPmaRecord(null);
+                  setSelectedPmaDocument("");
+                  setSelectedPmaStatus("");
                 }}
               >
                 Cancel
