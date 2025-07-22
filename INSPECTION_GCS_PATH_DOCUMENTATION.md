@@ -156,15 +156,16 @@ const inspectionSections = [
   { name: 'Hydrotest', path: `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/Hydrotest` },
   { name: 'NCR', path: `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/NCR` },
   { name: 'Approved Drawing', path: `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/ApprovedDrawing` },
-  { name: 'DVR', path: `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/DVR` }
+  { name: 'DVR', path: `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/DVR` },
+  { name: 'ITP', path: `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/ITP` }
 ];
 ```
 
 ## Status
 
-✅ **ALL 9 INSPECTION TABS FULLY SUPPORTED**
+✅ **ALL 10 INSPECTION TABS FULLY SUPPORTED**
 
-All nine inspection tabs are now properly integrated with:
+All ten inspection tabs are now properly integrated with:
 - Upload functionality
 - Download functionality  
 - Delete functionality
@@ -182,5 +183,6 @@ Complete tab integration includes:
 7. NCR (Non-Conformance Reports)
 8. Approved Drawing
 9. DVR (Design Verification Records)
+10. ITP (Inspection Test Plan)
 
 Last updated: July 22, 2025
