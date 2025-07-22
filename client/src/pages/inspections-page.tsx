@@ -3799,7 +3799,7 @@ export default function InspectionsPage() {
       
       {/* Edit Inspection Order Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-7xl w-11/12 max-h-[95vh]">
+        <DialogContent className="min-w-[1280px] max-w-[95vw] w-[90vw] max-h-[95vh]">
           <DialogHeader>
             <DialogTitle>Edit Inspection Order</DialogTitle>
             <DialogDescription>
@@ -4065,19 +4065,19 @@ export default function InspectionsPage() {
                     }
                   }}
                 >
-                  <ScrollArea className="w-full whitespace-nowrap">
-                    <TabsList className="flex w-full space-x-2">
-                      <TabsTrigger value="approved-drawing">Approved Drawing</TabsTrigger>
-                      <TabsTrigger value="dvr">DVR</TabsTrigger>
-                      <TabsTrigger value="itp">ITP</TabsTrigger>
-                      <TabsTrigger value="material">Material Traceability</TabsTrigger>
-                      <TabsTrigger value="shop">Shop Inspection</TabsTrigger>
-                      <TabsTrigger value="welding">Welding & Weld Maps</TabsTrigger>
-                      <TabsTrigger value="ndt">NDT</TabsTrigger>
-                      <TabsTrigger value="visual">Visual Inspection</TabsTrigger>
-                      <TabsTrigger value="hydrotest">Hydrotest</TabsTrigger>
-                      <TabsTrigger value="non-conformance">Non-Conformance</TabsTrigger>
-                      <TabsTrigger value="final-dossier">Final Dossier</TabsTrigger>
+                  <ScrollArea className="w-full whitespace-nowrap pb-2">
+                    <TabsList className="inline-flex w-max min-w-full space-x-1 px-1">
+                      <TabsTrigger value="approved-drawing" className="shrink-0">Approved Drawing</TabsTrigger>
+                      <TabsTrigger value="dvr" className="shrink-0">DVR</TabsTrigger>
+                      <TabsTrigger value="itp" className="shrink-0">ITP</TabsTrigger>
+                      <TabsTrigger value="material" className="shrink-0">Material Traceability</TabsTrigger>
+                      <TabsTrigger value="shop" className="shrink-0">Shop Inspection</TabsTrigger>
+                      <TabsTrigger value="welding" className="shrink-0">Welding & Weld Maps</TabsTrigger>
+                      <TabsTrigger value="ndt" className="shrink-0">NDT</TabsTrigger>
+                      <TabsTrigger value="visual" className="shrink-0">Visual Inspection</TabsTrigger>
+                      <TabsTrigger value="hydrotest" className="shrink-0">Hydrotest</TabsTrigger>
+                      <TabsTrigger value="non-conformance" className="shrink-0">Non-Conformance</TabsTrigger>
+                      <TabsTrigger value="final-dossier" className="shrink-0">Final Dossier</TabsTrigger>
                     </TabsList>
                   </ScrollArea>
                   
