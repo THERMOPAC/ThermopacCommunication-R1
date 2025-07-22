@@ -362,6 +362,20 @@ export default function InspectionsPage() {
     status: string;
     remarks: string;
   } | null>(null);
+
+  // PMA dialog states
+  const [isPmaDialogOpen, setIsPmaDialogOpen] = useState(false);
+  const [editingPmaRecord, setEditingPmaRecord] = useState<{
+    id: string;
+    pmaNumber: string;
+    materialSpecification: string;
+    materialGrade: string;
+    certifiedBy: string;
+    issueDate: string;
+    expiryDate: string;
+    status: string;
+    remarks: string;
+  } | null>(null);
   const [shopInspectionRecords, setShopInspectionRecords] = useState<{
     id: string;
     inspectionType: string;
@@ -378,6 +392,19 @@ export default function InspectionsPage() {
     revision: string;
     approvedBy: string;
     approvalDate: string;
+    status: string;
+    remarks: string;
+  }[]>([]);
+
+  // PMA Records state
+  const [pmaRecords, setPmaRecords] = useState<{
+    id: string;
+    pmaNumber: string;
+    materialSpecification: string;
+    materialGrade: string;
+    certifiedBy: string;
+    issueDate: string;
+    expiryDate: string;
     status: string;
     remarks: string;
   }[]>([]);
@@ -2314,6 +2341,90 @@ export default function InspectionsPage() {
   const startEditingApprovedDrawingRecord = (record: typeof approvedDrawingRecords[0]) => {
     setEditingApprovedDrawingRecord(record);
     setIsApprovedDrawingDialogOpen(true);
+  };
+
+  // PMA helper functions
+  const generatePmaId = () => {
+    const existingIds = pmaRecords.map(record => record.id);
+    let newIdNumber = 1;
+    let newId = `PMA-${newIdNumber}`;
+    
+    while (existingIds.includes(newId)) {
+      newIdNumber++;
+      newId = `PMA-${newIdNumber}`;
+    }
+    
+    return newId;
+  };
+
+  // Function to add a new PMA record
+  const addPmaRecord = (recordData: {
+    pmaNumber: string;
+    materialSpecification: string;
+    materialGrade: string;
+    certifiedBy: string;
+    issueDate: string;
+    expiryDate: string;
+    status: string;
+    remarks: string;
+  }) => {
+    // Check if we have valid inspection order details with project code
+    if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
+      toast({
+        title: "Cannot Create Record",
+        description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newRecord = {
+      id: generatePmaId(),
+      ...recordData
+    };
+    setPmaRecords(prev => [...prev, newRecord]);
+    setIsPmaDialogOpen(false);
+    setEditingPmaRecord(null);
+    toast({
+      title: "Success",
+      description: "PMA record added successfully",
+    });
+  };
+
+  // Function to edit a PMA record
+  const editPmaRecord = (recordData: {
+    pmaNumber: string;
+    materialSpecification: string;
+    materialGrade: string;
+    certifiedBy: string;
+    issueDate: string;
+    expiryDate: string;
+    status: string;
+    remarks: string;
+  }) => {
+    if (!editingPmaRecord) return;
+    
+    setPmaRecords(prev => 
+      prev.map(record => 
+        record.id === editingPmaRecord.id 
+          ? { ...record, ...recordData }
+          : record
+      )
+    );
+    
+    setIsPmaDialogOpen(false);
+    setEditingPmaRecord(null);
+    
+    toast({
+      title: "Success",
+      description: "PMA record updated successfully",
+    });
+  };
+
+  // Function to start editing a PMA record
+  const startEditingPmaRecord = (record: typeof pmaRecords[0]) => {
+    setEditingPmaRecord(record);
+    setIsPmaDialogOpen(true);
   };
 
   // DVR helper functions
@@ -4292,6 +4403,7 @@ export default function InspectionsPage() {
                       <TabsTrigger value="dvr" className="shrink-0">DVR</TabsTrigger>
                       <TabsTrigger value="itp" className="shrink-0">ITP</TabsTrigger>
                       <TabsTrigger value="material" className="shrink-0">Material Traceability</TabsTrigger>
+                      <TabsTrigger value="pma" className="shrink-0">PMA</TabsTrigger>
                       <TabsTrigger value="shop" className="shrink-0">Shop Inspection</TabsTrigger>
                       <TabsTrigger value="welding" className="shrink-0">Welding & Weld Maps</TabsTrigger>
                       <TabsTrigger value="ndt" className="shrink-0">NDT</TabsTrigger>
@@ -4699,6 +4811,121 @@ export default function InspectionsPage() {
                                   </p>
                                   <p className="text-xs text-muted-foreground mb-2">
                                     Click "Add ITP Record" to create a new record.
+                                  </p>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </TabsContent>
+                  
+                  {/* PMA Tab */}
+                  <TabsContent value="pma" className="p-4 border rounded-md mt-4">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-medium">PMA (Particular Material Appraisal)</h3>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            // Check if we have valid project code before opening dialog
+                            if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
+                              toast({
+                                title: "Cannot Create Record",
+                                description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            setEditingPmaRecord(null);
+                            setIsPmaDialogOpen(true);
+                          }}
+                          className="flex items-center text-xs"
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Add PMA Record
+                        </Button>
+                      </div>
+                      
+                      {/* PMA Records Table */}
+                      <div className="border rounded-md shadow-sm overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs font-medium">PMA Number</TableHead>
+                              <TableHead className="text-xs font-medium">Material Specification</TableHead>
+                              <TableHead className="text-xs font-medium">Grade</TableHead>
+                              <TableHead className="text-xs font-medium">Certified By</TableHead>
+                              <TableHead className="text-xs font-medium">Issue Date</TableHead>
+                              <TableHead className="text-xs font-medium">Expiry Date</TableHead>
+                              <TableHead className="text-xs font-medium">Status</TableHead>
+                              <TableHead className="text-xs font-medium">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {pmaRecords.length > 0 ? (
+                              pmaRecords.map((record, index) => (
+                                <TableRow key={index} className="hover:bg-gray-50">
+                                  <TableCell className="text-xs">{record.pmaNumber || '-'}</TableCell>
+                                  <TableCell className="text-xs">{record.materialSpecification || '-'}</TableCell>
+                                  <TableCell className="text-xs">{record.materialGrade || '-'}</TableCell>
+                                  <TableCell className="text-xs">{record.certifiedBy || '-'}</TableCell>
+                                  <TableCell className="text-xs">{record.issueDate || '-'}</TableCell>
+                                  <TableCell className="text-xs">{record.expiryDate || '-'}</TableCell>
+                                  <TableCell className="text-xs">
+                                    <Badge 
+                                      variant={record.status === 'active' ? 'default' : 
+                                              record.status === 'expired' ? 'destructive' : 'secondary'}
+                                      className="text-xs"
+                                    >
+                                      {record.status || 'draft'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-xs">
+                                    <div className="flex items-center space-x-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-xs px-2 py-1 h-7 text-green-600 hover:bg-green-50"
+                                        onClick={() => {
+                                          setEditingPmaRecord(record);
+                                          setIsPmaDialogOpen(true);
+                                        }}
+                                      >
+                                        <Edit2 className="h-3 w-3 mr-1" />
+                                        Edit
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-xs px-2 py-1 h-7 bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
+                                        onClick={() => {
+                                          setDocumentViewerConfig({
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || '',
+                                            tabName: 'PMA',
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentViewer(true);
+                                        }}
+                                      >
+                                        <Eye className="h-3 w-3 mr-1" />
+                                        View
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={8} className="text-center py-10">
+                                  <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
+                                  <p className="mt-2 text-xs text-muted-foreground">
+                                    No PMA records found.
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mb-2">
+                                    Click "Add PMA Record" to create a new record.
                                   </p>
                                 </TableCell>
                               </TableRow>
@@ -7246,6 +7473,171 @@ export default function InspectionsPage() {
               </Button>
               <Button type="submit">
                 {editingApprovedDrawingRecord ? 'Update Record' : 'Add Record'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* PMA Dialog */}
+      <Dialog open={isPmaDialogOpen} onOpenChange={(open) => {
+        setIsPmaDialogOpen(open);
+        if (!open) {
+          setEditingPmaRecord(null);
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingPmaRecord ? 'Edit PMA Record' : 'Add PMA Record'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingPmaRecord 
+                ? `Edit PMA record ${editingPmaRecord.id} for this inspection order.`
+                : 'Add a new PMA (Particular Material Appraisal) record for this inspection order.'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            const recordData = {
+              pmaNumber: formData.get('pmaNumber') as string,
+              materialSpecification: formData.get('materialSpecification') as string,
+              materialGrade: formData.get('materialGrade') as string,
+              certifiedBy: formData.get('certifiedBy') as string,
+              issueDate: formData.get('issueDate') as string,
+              expiryDate: formData.get('expiryDate') as string,
+              status: formData.get('status') as string,
+              remarks: formData.get('remarks') as string,
+            };
+            if (editingPmaRecord) {
+              editPmaRecord(recordData);
+            } else {
+              addPmaRecord(recordData);
+            }
+          }} className="space-y-4">
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="pmaNumber" className="text-sm font-medium">PMA Number *</label>
+                <input
+                  type="text"
+                  id="pmaNumber"
+                  name="pmaNumber"
+                  required
+                  defaultValue={editingPmaRecord?.pmaNumber || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter PMA number"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="materialSpecification" className="text-sm font-medium">Material Specification *</label>
+                <input
+                  type="text"
+                  id="materialSpecification"
+                  name="materialSpecification"
+                  required
+                  defaultValue={editingPmaRecord?.materialSpecification || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter material specification"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="materialGrade" className="text-sm font-medium">Material Grade *</label>
+                <input
+                  type="text"
+                  id="materialGrade"
+                  name="materialGrade"
+                  required
+                  defaultValue={editingPmaRecord?.materialGrade || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter material grade"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="certifiedBy" className="text-sm font-medium">Certified By *</label>
+                <input
+                  type="text"
+                  id="certifiedBy"
+                  name="certifiedBy"
+                  required
+                  defaultValue={editingPmaRecord?.certifiedBy || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter certifying authority"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="issueDate" className="text-sm font-medium">Issue Date *</label>
+                <input
+                  type="date"
+                  id="issueDate"
+                  name="issueDate"
+                  required
+                  defaultValue={editingPmaRecord?.issueDate || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="expiryDate" className="text-sm font-medium">Expiry Date *</label>
+                <input
+                  type="date"
+                  id="expiryDate"
+                  name="expiryDate"
+                  required
+                  defaultValue={editingPmaRecord?.expiryDate || ""}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="status" className="text-sm font-medium">Status *</label>
+                <select
+                  id="status"
+                  name="status"
+                  required
+                  defaultValue={editingPmaRecord?.status || "active"}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="active">Active</option>
+                  <option value="expired">Expired</option>
+                  <option value="pending">Pending</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="remarks" className="text-sm font-medium">Remarks</label>
+              <textarea
+                id="remarks"
+                name="remarks"
+                rows={3}
+                defaultValue={editingPmaRecord?.remarks || ""}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter any additional remarks..."
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setIsPmaDialogOpen(false);
+                  setEditingPmaRecord(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingPmaRecord ? 'Update Record' : 'Add Record'}
               </Button>
             </div>
           </form>
