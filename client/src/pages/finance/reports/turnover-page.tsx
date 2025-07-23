@@ -26,10 +26,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { formatRupees, formatUSD } from "@/lib/utils";
 import { format } from "date-fns";
-import { Loader2, Download, Filter } from "lucide-react";
+import { Loader2, Download, Filter, FileSpreadsheet } from "lucide-react";
+import * as XLSX from 'xlsx';
 
 export default function TurnoverReportPage() {
   // Helper function to get current financial year dates (April 1 - March 31) using Indian Financial Year
@@ -110,6 +124,12 @@ export default function TurnoverReportPage() {
   
   const [selectedCurrency, setSelectedCurrency] = useState<string>("all");
   
+  // Download dialog state
+  const [isDownloadDialogOpen, setIsDownloadDialogOpen] = useState(false);
+  const [downloadType, setDownloadType] = useState<'dateRange' | 'financialYear'>('financialYear');
+  const [downloadDateRange, setDownloadDateRange] = useState<DateRange>({ from: undefined, to: undefined });
+  const [downloadFinancialYear, setDownloadFinancialYear] = useState<string>('current');
+  
   // Query for turnover report data
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['/api/finance/reports/turnover', dateRange, selectedCurrency],
@@ -146,9 +166,118 @@ export default function TurnoverReportPage() {
     enabled: true
   });
   
-  const handleDownload = () => {
-    // Placeholder for download functionality
-    alert('Download functionality will be implemented in a future update.');
+  const handleDownload = async () => {
+    try {
+      let startDate: string, endDate: string, reportTitle: string;
+      
+      if (downloadType === 'financialYear') {
+        const fyData = financialYearPresets.find(fy => fy.value === downloadFinancialYear);
+        if (!fyData?.dateRange.from || !fyData?.dateRange.to) {
+          alert('Please select a valid financial year');
+          return;
+        }
+        startDate = format(fyData.dateRange.from, 'yyyy-MM-dd');
+        endDate = format(fyData.dateRange.to, 'yyyy-MM-dd');
+        reportTitle = `Turnover Report - ${fyData.label}`;
+      } else {
+        if (!downloadDateRange.from || !downloadDateRange.to) {
+          alert('Please select both start and end dates');
+          return;
+        }
+        startDate = format(downloadDateRange.from, 'yyyy-MM-dd');
+        endDate = format(downloadDateRange.to, 'yyyy-MM-dd');
+        reportTitle = `Turnover Report - ${format(downloadDateRange.from, 'MMM dd, yyyy')} to ${format(downloadDateRange.to, 'MMM dd, yyyy')}`;
+      }
+      
+      // Fetch data for the selected date range
+      const params = new URLSearchParams();
+      params.append('startDate', startDate);
+      params.append('endDate', endDate);
+      if (selectedCurrency !== 'all') params.append('currency', selectedCurrency);
+      
+      const response = await fetch(`/api/finance/reports/turnover-direct?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch turnover data');
+      }
+      
+      const reportData = await response.json();
+      
+      // Create Excel workbook
+      const workbook = XLSX.utils.book_new();
+      
+      // Summary Sheet
+      const summaryData = [
+        ['THERMOPAC TURNOVER REPORT'],
+        [`Report Period: ${downloadType === 'financialYear' ? financialYearPresets.find(fy => fy.value === downloadFinancialYear)?.label : format(downloadDateRange.from!, 'MMM dd, yyyy') + ' to ' + format(downloadDateRange.to!, 'MMM dd, yyyy')}`],
+        [`Generated on: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`],
+        [''],
+        ['SUMMARY'],
+        ['Metric', 'USD Amount', 'INR Amount'],
+        ['Total Invoiced', reportData.totalInvoiced?.toFixed(2) || '0.00', reportData.totalInvoicedINR?.toFixed(2) || '0.00'],
+        ['Total Received', reportData.totalReceived?.toFixed(2) || '0.00', reportData.totalReceivedINR?.toFixed(2) || '0.00'],
+        ['Total Outstanding', reportData.totalOutstanding?.toFixed(2) || '0.00', reportData.totalOutstandingINR?.toFixed(2) || '0.00'],
+        [''],
+        ['Collection Rate', `${reportData.totalInvoiced > 0 ? ((reportData.totalReceived / reportData.totalInvoiced) * 100).toFixed(2) : '0.00'}%`]
+      ];
+      
+      const summaryWorksheet = XLSX.utils.aoa_to_sheet(summaryData);
+      
+      // Set column widths
+      summaryWorksheet['!cols'] = [
+        { width: 20 },
+        { width: 15 },
+        { width: 18 }
+      ];
+      
+      XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Summary');
+      
+      // Monthly Details Sheet (if available)
+      if (reportData.monthlyData && reportData.monthlyData.length > 0) {
+        const monthlyHeader = [
+          ['MONTHLY BREAKDOWN'],
+          [''],
+          ['Month', 'Invoiced (USD)', 'Received (USD)', 'Outstanding (USD)', 'Collection %', 'Invoiced (INR)', 'Received (INR)', 'Outstanding (INR)']
+        ];
+        
+        const monthlyDetails = reportData.monthlyData.map((month: any) => [
+          month.month,
+          month.invoicedAmount?.toFixed(2) || '0.00',
+          month.receivedAmount?.toFixed(2) || '0.00', 
+          month.outstanding?.toFixed(2) || '0.00',
+          `${month.percentCollected?.toFixed(2) || '0.00'}%`,
+          month.invoicedAmountINR?.toFixed(2) || '0.00',
+          month.receivedAmountINR?.toFixed(2) || '0.00',
+          month.outstandingINR?.toFixed(2) || '0.00'
+        ]);
+        
+        const monthlyData = [...monthlyHeader, ...monthlyDetails];
+        const monthlyWorksheet = XLSX.utils.aoa_to_sheet(monthlyData);
+        
+        // Set column widths
+        monthlyWorksheet['!cols'] = [
+          { width: 15 },
+          { width: 15 },
+          { width: 15 },
+          { width: 15 },
+          { width: 12 },
+          { width: 18 },
+          { width: 18 },
+          { width: 18 }
+        ];
+        
+        XLSX.utils.book_append_sheet(workbook, monthlyWorksheet, 'Monthly Details');
+      }
+      
+      // Generate and download file
+      const fileName = `Turnover_Report_${downloadType === 'financialYear' ? downloadFinancialYear : format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+      
+      setIsDownloadDialogOpen(false);
+      
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to download report. Please try again.');
+    }
   };
   
   if (isLoading) {
@@ -171,10 +300,97 @@ export default function TurnoverReportPage() {
       <div className="container mx-auto py-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Turnover Report</h1>
-          <Button onClick={handleDownload}>
-            <Download className="mr-2 h-4 w-4" />
-            Export Report
-          </Button>
+          <Dialog open={isDownloadDialogOpen} onOpenChange={setIsDownloadDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-green-600 hover:bg-green-700">
+                <Download className="mr-2 h-4 w-4" />
+                Download Turnover Report
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-5 w-5 text-green-600" />
+                  Download Turnover Report
+                </DialogTitle>
+                <DialogDescription>
+                  Select date range or financial year for the report
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-6">
+                {/* Selection Type */}
+                <RadioGroup value={downloadType} onValueChange={(value) => setDownloadType(value as 'dateRange' | 'financialYear')}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="financialYear" id="fy" />
+                    <Label htmlFor="fy">Financial Year</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="dateRange" id="dateRange" />
+                    <Label htmlFor="dateRange">Custom Date Range</Label>
+                  </div>
+                </RadioGroup>
+                
+                {/* Financial Year Selection */}
+                {downloadType === 'financialYear' && (
+                  <div className="space-y-2">
+                    <Label>Select Financial Year</Label>
+                    <Select value={downloadFinancialYear} onValueChange={setDownloadFinancialYear}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {financialYearPresets.filter(fy => fy.value !== 'custom').map((fy) => (
+                          <SelectItem key={fy.value} value={fy.value}>
+                            {fy.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
+                {/* Date Range Selection */}
+                {downloadType === 'dateRange' && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>From Date</Label>
+                      <DatePicker
+                        date={downloadDateRange.from}
+                        onDateChange={(date) => setDownloadDateRange({ ...downloadDateRange, from: date })}
+                        placeholder="Select start date"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>To Date</Label>
+                      <DatePicker
+                        date={downloadDateRange.to}
+                        onDateChange={(date) => setDownloadDateRange({ ...downloadDateRange, to: date })}
+                        placeholder="Select end date"
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setIsDownloadDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleDownload}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download Excel
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
         
         <Card className="mb-6">
