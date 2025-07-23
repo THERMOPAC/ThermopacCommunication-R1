@@ -316,7 +316,7 @@ export default function TestProceduresPage() {
 
     const displayNames: Record<string, string> = {
       LPT: "HT",
-      MPT: "Pneumatic Test",
+      MPT: "Pneumatic Test (PNT)",
       RT: "RT",
       PT: "PT", 
       UT: "UT",
@@ -373,7 +373,7 @@ export default function TestProceduresPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="LPT">Hydraulic Testing (HT)</SelectItem>
-                      <SelectItem value="MPT">Pneumatic Test</SelectItem>
+                      <SelectItem value="MPT">Pneumatic Test (PNT)</SelectItem>
                       <SelectItem value="RT">Radiographic Testing (RT)</SelectItem>
                       <SelectItem value="PT">Penetrant Testing (PT)</SelectItem>
                       <SelectItem value="UT">Ultrasonic Testing (UT)</SelectItem>
@@ -548,7 +548,7 @@ export default function TestProceduresPage() {
                 <SelectContent>
                   <SelectItem value="all">All Methods</SelectItem>
                   <SelectItem value="LPT">HT</SelectItem>
-                  <SelectItem value="MPT">Pneumatic Test</SelectItem>
+                  <SelectItem value="MPT">Pneumatic Test (PNT)</SelectItem>
                   <SelectItem value="RT">RT</SelectItem>
                   <SelectItem value="PT">PT</SelectItem>
                   <SelectItem value="UT">UT</SelectItem>
