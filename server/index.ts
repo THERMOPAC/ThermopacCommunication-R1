@@ -122,6 +122,34 @@ app.post('/api/quality/final-dossier/generate/:inspectionOrderId', async (req: a
   }
 });
 
+app.get('/api/quality/final-dossier/download/*', async (req: any, res: any) => {
+  try {
+    const filePath = req.params[0]; // This captures the entire path after /download/
+    console.log(`🎯 PRIORITY: Downloading final dossier file: ${filePath}`);
+    
+    const { Storage } = await import('@google-cloud/storage');
+    const storage = new Storage();
+    const bucketName = process.env.GOOGLE_CLOUD_BUCKET || 'thermopac_storage';
+    const bucket = storage.bucket(bucketName);
+    const file = bucket.file(filePath);
+    
+    // Generate signed URL for download
+    const [signedUrl] = await file.getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+    });
+    
+    console.log(`✅ Generated signed URL for final dossier download: ${filePath}`);
+    res.redirect(signedUrl);
+  } catch (error: any) {
+    console.error('🚨 Priority final dossier download error:', error);
+    res.status(500).json({ 
+      error: 'Failed to download final dossier',
+      message: error.message 
+    });
+  }
+});
+
 console.log('🔥 PRIORITY: Final Dossier endpoints registered before Vite catch-all');
 
 // Add missing write-offs by invoice endpoint that frontend needs
