@@ -559,7 +559,7 @@ export async function generateFinalDossierPDF(
 
     // Upload to GCS with standardized path structure
     const fileName = `FD_${inspectionOrder.inspectionOrderNumber}.pdf`;
-    const filePath = `QMS/Inspections_Records/${inspectionOrder.projectCode || 'UNKNOWN'}/${inspectionOrder.inspectionOrderNumber}/Final Dossier/${fileName}`;
+    const filePath = `QMS/Inspections_Records/${inspectionOrder.projectCode || 'UNKNOWN'}/${inspectionOrder.inspectionOrderNumber}/Final_Dossier/${fileName}`;
 
     try {
       const uploadResult = await uploadFileWithDiagnostics(
@@ -662,7 +662,7 @@ export async function checkExistingFinalDossier(inspectionOrderIdOrNumber: numbe
     console.log(`Found inspection order: ${inspectionOrder.inspectionOrderNumber} with project code: ${inspectionOrder.projectCode}`);
 
     // Check for existing final dossier in GCS using standardized path
-    const basePath = `QMS/Inspections_Records/${inspectionOrder.projectCode || 'UNKNOWN'}/${inspectionOrder.inspectionOrderNumber}/Final Dossier/`;
+    const basePath = `QMS/Inspections_Records/${inspectionOrder.projectCode || 'UNKNOWN'}/${inspectionOrder.inspectionOrderNumber}/Final_Dossier/`;
     const expectedFileName = `FD_${inspectionOrder.inspectionOrderNumber}.pdf`;
     const expectedFilePath = `${basePath}${expectedFileName}`;
     
