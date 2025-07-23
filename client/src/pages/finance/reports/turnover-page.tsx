@@ -263,7 +263,14 @@ export default function TurnoverReportPage() {
         detailedInvoiceData.push([]);
         detailedInvoiceData.push(headers);
         
-        for (const invoice of invoiceDetails) {
+        // Sort invoices by Invoice Number in ascending order
+        const sortedInvoices = [...invoiceDetails].sort((a, b) => {
+          const invoiceA = (a.invoiceNumber || '').toString();
+          const invoiceB = (b.invoiceNumber || '').toString();
+          return invoiceA.localeCompare(invoiceB, undefined, { numeric: true });
+        });
+
+        for (const invoice of sortedInvoices) {
           try {
             // Fetch invoice items for each invoice
             const itemsResponse = await fetch(`/api/simple-finance/invoice-items/${invoice.id}`);
@@ -275,7 +282,7 @@ export default function TurnoverReportPage() {
                 detailedInvoiceData.push([
                   invoice.invoiceNumber || '',
                   invoice.currency || '',
-                  invoice.exchangeRate || '',
+                  parseFloat(invoice.exchangeRate) || 0, // Convert to number for formatting
                   invoice.sapInvoiceNo || '',
                   invoice.invoiceType || '',
                   invoice.shippingBillNumber || '',
@@ -285,8 +292,8 @@ export default function TurnoverReportPage() {
                   invoice.dueDate ? format(new Date(invoice.dueDate), 'yyyy-MM-dd') : '',
                   invoice.notes || '',
                   item.description || '',
-                  item.amount || '',
-                  item.amountLC || ''
+                  parseFloat(item.amount) || 0, // Convert to number for formatting
+                  parseFloat(item.amountLC) || 0 // Convert to number for formatting
                 ]);
               });
             } else {
@@ -294,7 +301,7 @@ export default function TurnoverReportPage() {
               detailedInvoiceData.push([
                 invoice.invoiceNumber || '',
                 invoice.currency || '',
-                invoice.exchangeRate || '',
+                parseFloat(invoice.exchangeRate) || 0, // Convert to number for formatting
                 invoice.sapInvoiceNo || '',
                 invoice.invoiceType || '',
                 invoice.shippingBillNumber || '',
@@ -304,8 +311,8 @@ export default function TurnoverReportPage() {
                 invoice.dueDate ? format(new Date(invoice.dueDate), 'yyyy-MM-dd') : '',
                 invoice.notes || '',
                 'No item details available',
-                invoice.totalAmount || '',
-                ''
+                parseFloat(invoice.totalAmount) || 0, // Convert to number for formatting
+                0 // Amount LC not available for invoice-level data
               ]);
             }
           } catch (error) {
@@ -314,7 +321,7 @@ export default function TurnoverReportPage() {
             detailedInvoiceData.push([
               invoice.invoiceNumber || '',
               invoice.currency || '',
-              invoice.exchangeRate || '',
+              parseFloat(invoice.exchangeRate) || 0, // Convert to number for formatting
               invoice.sapInvoiceNo || '',
               invoice.invoiceType || '',
               invoice.shippingBillNumber || '',
@@ -324,8 +331,8 @@ export default function TurnoverReportPage() {
               invoice.dueDate ? format(new Date(invoice.dueDate), 'yyyy-MM-dd') : '',
               invoice.notes || '',
               'Error loading item details',
-              invoice.totalAmount || '',
-              ''
+              parseFloat(invoice.totalAmount) || 0, // Convert to number for formatting
+              0 // Amount LC not available for invoice-level data
             ]);
           }
         }
@@ -349,6 +356,33 @@ export default function TurnoverReportPage() {
           { width: 15 }, // Amount
           { width: 18 }  // Amount LC
         ];
+        
+        // Apply number formatting to specific columns
+        const range = XLSX.utils.decode_range(detailedWorksheet['!ref'] || 'A1');
+        
+        // Format Exchange Rate column (column C, index 2)
+        for (let row = 3; row <= range.e.r; row++) { // Start from row 3 (after headers)
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: 2 });
+          if (detailedWorksheet[cellAddress] && typeof detailedWorksheet[cellAddress].v === 'number') {
+            detailedWorksheet[cellAddress].z = '#,##0.0000'; // 4 decimal places for exchange rate
+          }
+        }
+        
+        // Format Amount column (column M, index 12)
+        for (let row = 3; row <= range.e.r; row++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: 12 });
+          if (detailedWorksheet[cellAddress] && typeof detailedWorksheet[cellAddress].v === 'number') {
+            detailedWorksheet[cellAddress].z = '#,##0.00'; // 2 decimal places with comma separator
+          }
+        }
+        
+        // Format Amount LC column (column N, index 13)
+        for (let row = 3; row <= range.e.r; row++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: 13 });
+          if (detailedWorksheet[cellAddress] && typeof detailedWorksheet[cellAddress].v === 'number') {
+            detailedWorksheet[cellAddress].z = '#,##0.00'; // 2 decimal places with comma separator
+          }
+        }
         
         XLSX.utils.book_append_sheet(workbook, detailedWorksheet, 'Invoice Details');
       }
