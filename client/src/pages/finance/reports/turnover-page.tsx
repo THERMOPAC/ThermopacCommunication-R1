@@ -208,6 +208,14 @@ export default function TurnoverReportPage() {
       
       const reportData = await response.json();
       
+      // Debug: Log the report data to check credit note fields
+      console.log('📊 EXCEL EXPORT - Report Data:', reportData);
+      console.log('📊 EXCEL EXPORT - Credit Notes:', {
+        totalCreditNotes: reportData.totalCreditNotes,
+        totalCreditNotesINR: reportData.totalCreditNotesINR,
+        monthlyDataSample: reportData.monthlyData?.[0]
+      });
+      
       // Use the same date range for detailed invoice data as selected by user
       const detailResponse = await fetch(`/api/simple-finance/invoices?startDate=${startDate}&endDate=${endDate}${selectedCurrency !== 'all' ? `&currency=${selectedCurrency}` : ''}`);
       const invoiceDetails = detailResponse.ok ? await detailResponse.json() : [];
@@ -456,6 +464,12 @@ export default function TurnoverReportPage() {
       
       // Generate and download file
       const fileName = `Turnover_Report_${downloadType === 'financialYear' ? downloadFinancialYear : format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+      
+      // Debug: Log workbook structure before download
+      console.log('📊 EXCEL EXPORT - Workbook SheetNames:', workbook.SheetNames);
+      console.log('📊 EXCEL EXPORT - Summary Sheet data sample:', workbook.Sheets['Summary'] ? Object.keys(workbook.Sheets['Summary']).slice(0, 10) : 'No Summary sheet');
+      console.log('📊 EXCEL EXPORT - Monthly Details Sheet exists:', !!workbook.Sheets['Monthly Details']);
+      
       XLSX.writeFile(workbook, fileName);
       
       setIsDownloadDialogOpen(false);
