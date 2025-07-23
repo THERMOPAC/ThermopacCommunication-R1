@@ -414,7 +414,7 @@ export default function TestProceduresPage() {
                     </SelectGroup>
                     <SelectGroup>
                       <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">EN Standards</SelectLabel>
-                      <SelectItem value="EN 13445">EN 13445 - Unfired Pressure Vessels (LPT, MPT, RT, etc.)</SelectItem>
+                      <SelectItem value="EN 13445-5">EN 13445-5 - Unfired Pressure Vessels (LPT, MPT, RT, etc.)</SelectItem>
                       <SelectItem value="EN ISO 3452">EN ISO 3452 - Penetrant Testing</SelectItem>
                       <SelectItem value="EN ISO 9934">EN ISO 9934 - Magnetic Particle Testing</SelectItem>
                     </SelectGroup>
