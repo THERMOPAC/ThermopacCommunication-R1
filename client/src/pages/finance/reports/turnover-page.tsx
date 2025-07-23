@@ -40,9 +40,15 @@ import {
 } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
-import { formatRupees, formatUSD } from "@/lib/utils";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { formatRupees, formatUSD, cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { Loader2, Download, Filter, FileSpreadsheet } from "lucide-react";
+import { Loader2, Download, Filter, FileSpreadsheet, CalendarIcon } from "lucide-react";
 import * as XLSX from 'xlsx';
 
 export default function TurnoverReportPage() {
@@ -511,19 +517,61 @@ export default function TurnoverReportPage() {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label>From Date</Label>
-                      <DatePicker
-                        date={downloadDateRange.from}
-                        onDateChange={(date) => setDownloadDateRange({ ...downloadDateRange, from: date })}
-                        placeholder="Select start date"
-                      />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !downloadDateRange.from && "text-muted-foreground"
+                            )}
+                          >
+                            {downloadDateRange.from ? (
+                              format(downloadDateRange.from, "PPP")
+                            ) : (
+                              <span>Select start date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={downloadDateRange.from}
+                            onSelect={(date) => setDownloadDateRange({ ...downloadDateRange, from: date })}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <div className="space-y-2">
                       <Label>To Date</Label>
-                      <DatePicker
-                        date={downloadDateRange.to}
-                        onDateChange={(date) => setDownloadDateRange({ ...downloadDateRange, to: date })}
-                        placeholder="Select end date"
-                      />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !downloadDateRange.to && "text-muted-foreground"
+                            )}
+                          >
+                            {downloadDateRange.to ? (
+                              format(downloadDateRange.to, "PPP")
+                            ) : (
+                              <span>Select end date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={downloadDateRange.to}
+                            onSelect={(date) => setDownloadDateRange({ ...downloadDateRange, to: date })}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </div>
                 )}
