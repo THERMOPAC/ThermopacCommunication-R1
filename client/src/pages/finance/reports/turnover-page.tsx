@@ -340,6 +340,27 @@ export default function TurnoverReportPage() {
           }
         }
         
+        // Calculate totals for Amount and Amount LC columns
+        let totalAmount = 0;
+        let totalAmountLC = 0;
+        
+        // Skip the header rows (first 3 rows) and sum the amount columns
+        for (let i = 3; i < detailedInvoiceData.length; i++) {
+          const row = detailedInvoiceData[i];
+          if (row && row.length >= 14) {
+            totalAmount += parseFloat(row[12]) || 0; // Amount column (index 12)
+            totalAmountLC += parseFloat(row[13]) || 0; // Amount LC column (index 13)
+          }
+        }
+        
+        // Add totals row
+        detailedInvoiceData.push([
+          '', '', '', '', '', '', '', '', '', '', '',
+          'TOTAL:', // Description column
+          totalAmount, // Amount total
+          totalAmountLC // Amount LC total
+        ]);
+        
         const detailedWorksheet = XLSX.utils.aoa_to_sheet(detailedInvoiceData);
         
         // Set column widths for detailed sheet
