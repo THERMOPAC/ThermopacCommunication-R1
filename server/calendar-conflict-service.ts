@@ -115,7 +115,7 @@ export class CalendarConflictService {
       ])
     );
 
-    // Query for conflicting meetings
+    // Query for all meetings on the same date first, then filter in memory
     let conflictQuery = db
       .select({
         id: businessMeetings.id,
@@ -132,31 +132,27 @@ export class CalendarConflictService {
         and(
           eq(businessMeetings.meetingDate, meetingDate),
           // Only check active meetings
-          sql`${businessMeetings.status} NOT IN ('Cancelled', 'Completed')`,
-          // Check if any participant is involved
-          or(
-            inArray(businessMeetings.organizerId, participantIds),
-            sql`${businessMeetings.attendeeIds} && ARRAY[${participantIds.map(id => `${id}`).join(',')}]::integer[]`
-          )
+          sql`${businessMeetings.status} NOT IN ('Cancelled', 'Completed')`
         )
       );
 
     // Exclude the meeting being updated
     if (excludeMeetingId) {
       conflictQuery = conflictQuery.where(
-        and(
-          eq(businessMeetings.meetingDate, meetingDate),
-          sql`${businessMeetings.status} NOT IN ('Cancelled', 'Completed')`,
-          or(
-            inArray(businessMeetings.organizerId, participantIds),
-            sql`${businessMeetings.attendeeIds} && ARRAY[${participantIds.map(id => `${id}`).join(',')}]::integer[]`
-          ),
-          sql`${businessMeetings.id} != ${excludeMeetingId}`
-        )
+        sql`${businessMeetings.id} != ${excludeMeetingId}`
       );
     }
 
-    const existingMeetings = await conflictQuery;
+    const allMeetings = await conflictQuery;
+    
+    // Filter meetings to only include those where any participant is involved
+    const existingMeetings = allMeetings.filter(meeting => {
+      const isOrganizerInvolved = participantIds.includes(meeting.organizerId);
+      const isAttendeeInvolved = Array.isArray(meeting.attendeeIds) && 
+        meeting.attendeeIds.some(attendeeId => participantIds.includes(attendeeId));
+      
+      return isOrganizerInvolved || isAttendeeInvolved;
+    });
 
     const conflicts: ConflictDetails[] = [];
     const warnings: ConflictDetails[] = [];
