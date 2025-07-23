@@ -4,6 +4,15 @@ import { listFilesInDirectory } from '../utils/list-gcs-files';
 
 const router = express.Router();
 
+// Test endpoint to verify API routing is working
+router.get('/test', (req: Request, res: Response) => {
+  console.log('Final Dossier test endpoint hit!');
+  res.json({ 
+    message: 'Final Dossier API routes are working correctly',
+    timestamp: new Date().toISOString() 
+  });
+});
+
 // Middleware to ensure user is authenticated
 function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
   // More flexible authentication check that handles different session states

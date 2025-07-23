@@ -994,8 +994,21 @@ export default function InspectionsPage() {
         }
       });
       
+      console.log('Final Dossier API Response:', response.status, response.statusText);
+      
       if (!response.ok) {
-        throw new Error("Failed to check for existing final dossier");
+        console.error('Final Dossier API Error:', response.status, response.statusText);
+        throw new Error(`Failed to check for existing final dossier: ${response.status} ${response.statusText}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      console.log('Response Content Type:', contentType);
+      
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Received HTML instead of JSON:', text.substring(0, 200) + '...');
+        console.error('Error parsing response:', {});
+        throw new Error('Received HTML instead of JSON response from server');
       }
       
       const data = await response.json();
