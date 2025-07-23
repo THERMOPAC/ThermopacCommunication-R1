@@ -301,11 +301,14 @@ app.use((req, res, next) => {
     try {
       // Extract the file path from the remaining URL path after /download/
       const fullPath = req.path;
-      const filePath = fullPath.replace('/api/quality/final-dossier/download/', '');
+      const encodedFilePath = fullPath.replace('/api/quality/final-dossier/download/', '');
+      // Decode URL encoding to handle spaces and special characters
+      const filePath = decodeURIComponent(encodedFilePath);
       
       console.log(`🎯 PRIORITY DOWNLOAD: Final Dossier download endpoint hit!`);
       console.log(`🎯 PRIORITY DOWNLOAD: Full path: ${fullPath}`);
-      console.log(`🎯 PRIORITY DOWNLOAD: Downloading file: ${filePath}`);
+      console.log(`🎯 PRIORITY DOWNLOAD: Encoded file path: ${encodedFilePath}`);
+      console.log(`🎯 PRIORITY DOWNLOAD: Decoded file path: ${filePath}`);
       
       const { Storage } = await import('@google-cloud/storage');
       
@@ -334,8 +337,19 @@ app.use((req, res, next) => {
       const bucket = storage.bucket(bucketName);
       const file = bucket.file(filePath);
       
-      // Generate signed URL for download
+      // Check if file exists first
+      const [exists] = await file.exists();
+      if (!exists) {
+        console.error(`❌ File does not exist: ${filePath}`);
+        return res.status(404).json({ 
+          error: 'File not found',
+          path: filePath 
+        });
+      }
+      
+      // Generate signed URL for download with v4 signing
       const [signedUrl] = await file.getSignedUrl({
+        version: 'v4',
         action: 'read',
         expires: Date.now() + 15 * 60 * 1000, // 15 minutes
       });
