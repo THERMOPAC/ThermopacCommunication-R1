@@ -5,6 +5,7 @@ import { testProcedures, users } from '@shared/schema';
 import { eq, and, desc, like, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { uploadFileWithDiagnostics } from '../utils/gcs-enhanced-upload';
+import { initializeGCS } from '../utils/gcs-operations';
 
 // Setup multer for handling file uploads
 const upload = multer({
@@ -509,6 +510,103 @@ router.post('/:id/approve', ensureAuthenticated, async (req: Request, res: Respo
   } catch (error) {
     console.error('Error approving test procedure:', error);
     res.status(500).json({ error: 'Failed to approve test procedure' });
+  }
+});
+
+// GET /api/quality/test-procedures/:id/download - Download test procedure file
+router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid procedure ID' });
+    }
+    
+    // Get the test procedure details
+    const procedure = await db
+      .select({
+        procedureNumber: testProcedures.procedureNumber,
+        ndtMethod: testProcedures.ndtMethod,
+        applicableStandard: testProcedures.applicableStandard,
+        attachments: testProcedures.attachments
+      })
+      .from(testProcedures)
+      .where(eq(testProcedures.id, id))
+      .limit(1);
+    
+    if (procedure.length === 0) {
+      return res.status(404).json({ error: 'Test procedure not found' });
+    }
+    
+    const procedureData = procedure[0];
+    
+    // Determine standard type from applicableStandard field
+    const getStandardType = (standard: string | undefined): string => {
+      if (!standard) return 'Other';
+      
+      // ASME Standards
+      if (standard.includes('ASME') || standard.includes('ASTM') || 
+          standard.includes('API') || standard.includes('AWS')) {
+        return 'ASME';
+      }
+      
+      // EN Standards  
+      if (standard.includes('EN')) {
+        return 'EN';
+      }
+      
+      return 'Other';
+    };
+    
+    const standardType = getStandardType(procedureData.applicableStandard);
+    
+    // Parse attachments to get file extension
+    let fileExtension = 'pdf';
+    if (procedureData.attachments) {
+      try {
+        const attachments = JSON.parse(procedureData.attachments);
+        if (attachments.length > 0) {
+          const fileName = attachments[0].filename || attachments[0].originalName;
+          if (fileName) {
+            const ext = fileName.split('.').pop();
+            if (ext) fileExtension = ext;
+          }
+        }
+      } catch (e) {
+        console.warn('Could not parse attachments:', e);
+      }
+    }
+    
+    // Construct file path using new three-level structure
+    const filePath = `QMS/Test_Procedures/${procedureData.ndtMethod}/${standardType}/${procedureData.procedureNumber}.${fileExtension}`;
+    
+    try {
+      const { bucket } = await initializeGCS();
+      const file = bucket.file(filePath);
+      
+      // Check if file exists
+      const [exists] = await file.exists();
+      if (!exists) {
+        return res.status(404).json({ error: 'File not found in storage' });
+      }
+      
+      // Generate signed URL for download
+      const [signedUrl] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+      });
+      
+      // Redirect to signed URL
+      res.redirect(signedUrl);
+      
+    } catch (gcsError) {
+      console.error('GCS error:', gcsError);
+      res.status(500).json({ error: 'Failed to generate download link' });
+    }
+    
+  } catch (error) {
+    console.error('Error downloading test procedure:', error);
+    res.status(500).json({ error: 'Failed to download test procedure' });
   }
 });
 

@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit2, Trash2, FileText, Search } from "lucide-react";
+import { Plus, Edit2, Trash2, FileText, Search, Download } from "lucide-react";
 import type { TestProcedure, TestProcedureInsert } from "@/shared/schema";
 
 export default function TestProceduresPage() {
@@ -272,6 +272,19 @@ export default function TestProceduresPage() {
   const handleDelete = (id: number) => {
     if (confirm("Are you sure you want to delete this test procedure?")) {
       deleteMutation.mutate(id);
+    }
+  };
+
+  const handleDownload = async (procedure: TestProcedure) => {
+    try {
+      // Use window.open for direct download
+      window.open(`/api/quality/test-procedures/${procedure.id}/download`, '_blank');
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to download procedure file",
+        variant: "destructive",
+      });
     }
   };
 
@@ -606,6 +619,14 @@ export default function TestProceduresPage() {
                             onClick={() => handleEdit(procedure)}
                           >
                             <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDownload(procedure)}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            <Download className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="outline"
