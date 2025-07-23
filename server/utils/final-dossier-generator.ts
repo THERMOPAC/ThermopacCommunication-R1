@@ -6,11 +6,7 @@ import { db } from '../db';
 import { inspectionOrders, materialIdentification, testProcedures, calibrationInstruments } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { listFilesInDirectory } from './list-gcs-files';
-import { Storage } from '@google-cloud/storage';
-
-// Initialize GCS
-const storage = new Storage();
-const bucket = storage.bucket(process.env.GOOGLE_CLOUD_BUCKET || 'thermopac_storage');
+import { initializeGCS } from './gcs-operations';
 
 export async function generateFinalDossierPDF(
   inspectionOrder: InspectionOrder,
@@ -28,6 +24,14 @@ export async function generateFinalDossierPDF(
     const downloadPDFFromGCS = async (filePath: string): Promise<Buffer | null> => {
       try {
         console.log(`📥 Downloading PDF from: ${filePath}`);
+        
+        // Get properly initialized GCS bucket
+        const { bucket } = await initializeGCS();
+        if (!bucket) {
+          console.error('❌ Failed to initialize GCS bucket for PDF download');
+          return null;
+        }
+        
         const [fileBuffer] = await bucket.file(filePath).download();
         console.log(`✅ Successfully downloaded PDF: ${filePath.split('/').pop()}`);
         return fileBuffer;
@@ -81,9 +85,12 @@ export async function generateFinalDossierPDF(
             if (testProcedure?.ndtMethod) {
               const procedurePath = `QMS/Test_Procedures/${testProcedure.ndtMethod}/${procedure.procedureNumber}.pdf`;
               try {
-                const [exists] = await bucket.file(procedurePath).exists();
-                if (exists) {
-                  additionalDocs.push(procedurePath);
+                const { bucket } = await initializeGCS();
+                if (bucket) {
+                  const [exists] = await bucket.file(procedurePath).exists();
+                  if (exists) {
+                    additionalDocs.push(procedurePath);
+                  }
                 }
               } catch (e) {
                 console.log(`Procedure file not found: ${procedurePath}`);
@@ -98,9 +105,12 @@ export async function generateFinalDossierPDF(
           if (hydrotest.pressureGauge) {
             const calibrationPath = `QMS/Instrument/${hydrotest.pressureGauge}.pdf`;
             try {
-              const [exists] = await bucket.file(calibrationPath).exists();
-              if (exists) {
-                additionalDocs.push(calibrationPath);
+              const { bucket } = await initializeGCS();
+              if (bucket) {
+                const [exists] = await bucket.file(calibrationPath).exists();
+                if (exists) {
+                  additionalDocs.push(calibrationPath);
+                }
               }
             } catch (e) {
               console.log(`Calibration file not found: ${calibrationPath}`);
