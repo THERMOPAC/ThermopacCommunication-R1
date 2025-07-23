@@ -251,11 +251,12 @@ export default function TurnoverReportPage() {
       
       XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Summary');
       
-      // Detailed Invoice Sheet
+      // Detailed Invoice Sheet with Credit Notes Integration
       if (invoiceDetails && invoiceDetails.length > 0) {
         // Fetch invoice items for each invoice
         const detailedInvoiceData = [];
         const headers = [
+          'Document Type',
           'Invoice Number',
           'Currency', 
           'Exchange Rate',
@@ -292,10 +293,14 @@ export default function TurnoverReportPage() {
             if (items.length > 0) {
               // Add row for each invoice item
               items.forEach((item: any) => {
+                const amount = parseFloat(item.amount) || 0;
+                const amountLC = parseFloat(item.amountLC) || 0;
+                
                 detailedInvoiceData.push([
+                  'Invoice',
                   invoice.invoiceNumber || '',
                   invoice.currency || '',
-                  parseFloat(invoice.exchangeRate) || 0, // Convert to number for formatting
+                  parseFloat(invoice.exchangeRate) || 0,
                   invoice.sapInvoiceNo || '',
                   invoice.invoiceType || '',
                   invoice.shippingBillNumber || '',
@@ -305,16 +310,19 @@ export default function TurnoverReportPage() {
                   invoice.dueDate ? format(new Date(invoice.dueDate), 'yyyy-MM-dd') : '',
                   invoice.notes || '',
                   item.description || '',
-                  parseFloat(item.amount) || 0, // Convert to number for formatting
-                  parseFloat(item.amountLC) || 0 // Convert to number for formatting
+                  amount,
+                  amountLC
                 ]);
               });
             } else {
               // Add row for invoice without items
+              const amount = parseFloat(invoice.totalAmount) || 0;
+              
               detailedInvoiceData.push([
+                'Invoice',
                 invoice.invoiceNumber || '',
                 invoice.currency || '',
-                parseFloat(invoice.exchangeRate) || 0, // Convert to number for formatting
+                parseFloat(invoice.exchangeRate) || 0,
                 invoice.sapInvoiceNo || '',
                 invoice.invoiceType || '',
                 invoice.shippingBillNumber || '',
@@ -324,17 +332,45 @@ export default function TurnoverReportPage() {
                 invoice.dueDate ? format(new Date(invoice.dueDate), 'yyyy-MM-dd') : '',
                 invoice.notes || '',
                 'No item details available',
-                parseFloat(invoice.totalAmount) || 0, // Convert to number for formatting
+                amount,
                 0 // Amount LC not available for invoice-level data
               ]);
             }
+            
+            // Add Credit Note rows for invoices with credit notes
+            if (invoice.creditNoteAmount && parseFloat(invoice.creditNoteAmount) > 0) {
+              const creditAmount = -Math.abs(parseFloat(invoice.creditNoteAmount)); // Negative value
+              const creditAmountLC = invoice.exchangeRate ? creditAmount * parseFloat(invoice.exchangeRate) : 0;
+              
+              console.log(`📊 CREDIT NOTE FOUND: ${invoice.invoiceNumber} - Amount: ${creditAmount}, Amount LC: ${creditAmountLC}`);
+              
+              detailedInvoiceData.push([
+                'Credit Note',
+                `CN-${invoice.invoiceNumber || ''}`,
+                invoice.currency || '',
+                parseFloat(invoice.exchangeRate) || 0,
+                invoice.sapInvoiceNo || '',
+                'Credit Note',
+                invoice.shippingBillNumber || '',
+                invoice.customerName || '',
+                invoice.projectName || '',
+                invoice.issueDate ? format(new Date(invoice.issueDate), 'yyyy-MM-dd') : '',
+                invoice.dueDate ? format(new Date(invoice.dueDate), 'yyyy-MM-dd') : '',
+                `Credit note for ${invoice.invoiceNumber}`,
+                'Credit Note Adjustment',
+                creditAmount,
+                creditAmountLC
+              ]);
+            }
+            
           } catch (error) {
             console.error(`Error fetching items for invoice ${invoice.id}:`, error);
             // Add row for invoice with error
             detailedInvoiceData.push([
+              'Invoice',
               invoice.invoiceNumber || '',
               invoice.currency || '',
-              parseFloat(invoice.exchangeRate) || 0, // Convert to number for formatting
+              parseFloat(invoice.exchangeRate) || 0,
               invoice.sapInvoiceNo || '',
               invoice.invoiceType || '',
               invoice.shippingBillNumber || '',
@@ -344,37 +380,43 @@ export default function TurnoverReportPage() {
               invoice.dueDate ? format(new Date(invoice.dueDate), 'yyyy-MM-dd') : '',
               invoice.notes || '',
               'Error loading item details',
-              parseFloat(invoice.totalAmount) || 0, // Convert to number for formatting
-              0 // Amount LC not available for invoice-level data
+              parseFloat(invoice.totalAmount) || 0,
+              0
             ]);
           }
         }
         
-        // Calculate totals for Amount and Amount LC columns
+        // Calculate totals for Amount and Amount LC columns (including negative credit notes)
         let totalAmount = 0;
         let totalAmountLC = 0;
         
         // Skip the header rows (first 3 rows) and sum the amount columns
         for (let i = 3; i < detailedInvoiceData.length; i++) {
           const row = detailedInvoiceData[i];
-          if (row && row.length >= 14) {
-            totalAmount += parseFloat(row[12]) || 0; // Amount column (index 12)
-            totalAmountLC += parseFloat(row[13]) || 0; // Amount LC column (index 13)
+          if (row && row.length >= 15) {
+            const amountValue = parseFloat(row[13]) || 0; // Amount column (index 13 - shifted due to Document Type)
+            const amountLCValue = parseFloat(row[14]) || 0; // Amount LC column (index 14 - shifted due to Document Type)
+            totalAmount += amountValue;
+            totalAmountLC += amountLCValue;
+            console.log(`📊 TOTALS CALCULATION: Row ${i} - Document Type: ${row[0]}, Amount: ${amountValue}, Amount LC: ${amountLCValue}`);
           }
         }
         
-        // Add totals row
+        console.log(`📊 FINAL TOTALS: Amount: ${totalAmount}, Amount LC: ${totalAmountLC}`);
+        
+        // Add totals row with proper column count for Document Type inclusion
         detailedInvoiceData.push([
-          '', '', '', '', '', '', '', '', '', '', '',
+          '', '', '', '', '', '', '', '', '', '', '', '',
           'TOTAL:', // Description column
-          totalAmount, // Amount total
-          totalAmountLC // Amount LC total
+          totalAmount, // Amount total (net of credit notes)
+          totalAmountLC // Amount LC total (net of credit notes)
         ]);
         
         const detailedWorksheet = XLSX.utils.aoa_to_sheet(detailedInvoiceData);
         
-        // Set column widths for detailed sheet
+        // Set column widths for detailed sheet with Document Type column
         detailedWorksheet['!cols'] = [
+          { width: 15 }, // Document Type
           { width: 18 }, // Invoice Number
           { width: 10 }, // Currency
           { width: 12 }, // Exchange Rate
@@ -391,28 +433,28 @@ export default function TurnoverReportPage() {
           { width: 18 }  // Amount LC
         ];
         
-        // Apply number formatting to specific columns
+        // Apply number formatting to specific columns (adjusted for Document Type column)
         const range = XLSX.utils.decode_range(detailedWorksheet['!ref'] || 'A1');
         
-        // Format Exchange Rate column (column C, index 2)
+        // Format Exchange Rate column (column D, index 3 - shifted due to Document Type)
         for (let row = 3; row <= range.e.r; row++) { // Start from row 3 (after headers)
-          const cellAddress = XLSX.utils.encode_cell({ r: row, c: 2 });
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: 3 });
           if (detailedWorksheet[cellAddress] && typeof detailedWorksheet[cellAddress].v === 'number') {
             detailedWorksheet[cellAddress].z = '#,##0.0000'; // 4 decimal places for exchange rate
           }
         }
         
-        // Format Amount column (column M, index 12)
+        // Format Amount column (column N, index 13 - shifted due to Document Type)
         for (let row = 3; row <= range.e.r; row++) {
-          const cellAddress = XLSX.utils.encode_cell({ r: row, c: 12 });
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: 13 });
           if (detailedWorksheet[cellAddress] && typeof detailedWorksheet[cellAddress].v === 'number') {
             detailedWorksheet[cellAddress].z = '#,##0.00'; // 2 decimal places with comma separator
           }
         }
         
-        // Format Amount LC column (column N, index 13)
+        // Format Amount LC column (column O, index 14 - shifted due to Document Type)
         for (let row = 3; row <= range.e.r; row++) {
-          const cellAddress = XLSX.utils.encode_cell({ r: row, c: 13 });
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: 14 });
           if (detailedWorksheet[cellAddress] && typeof detailedWorksheet[cellAddress].v === 'number') {
             detailedWorksheet[cellAddress].z = '#,##0.00'; // 2 decimal places with comma separator
           }
