@@ -376,6 +376,18 @@ export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
       const autoAssignedIds = await getAutoAssignedParticipants(template.title);
       const attendeeIds = Array.from(new Set([user.id, ...autoAssignedIds]));
       
+      // Fetch participant details for display
+      const participants = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          role: users.role
+        })
+        .from(users)
+        .where(inArray(users.id, attendeeIds));
+      
       console.log(`Preview: "${template.title}" will have ${attendeeIds.length} participants: [${attendeeIds.join(', ')}]`);
       
       previewMeetings.push({
@@ -396,6 +408,7 @@ export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
         originalTimeSlot: template.timeSlot, // Track original for debugging
         wasAdjusted: template.timeSlot !== adjustedTimes.startTime,
         attendeeIds: attendeeIds, // Include auto-assigned participants for edit dialog
+        participants: participants, // Include participant details for display
         participantCount: attendeeIds.length
       });
     }
