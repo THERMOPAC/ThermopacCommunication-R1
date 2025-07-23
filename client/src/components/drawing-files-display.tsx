@@ -9,6 +9,7 @@ interface DrawingFilesDisplayProps {
   inspectionOrderNumber: string;
   recordId: string;
   recordTitle: string;
+  tabName?: string;
 }
 
 interface UploadedDocument {
@@ -26,13 +27,17 @@ interface UploadedDocument {
 const DrawingFilesDisplay: React.FC<DrawingFilesDisplayProps> = ({
   inspectionOrderNumber,
   recordId,
-  recordTitle
+  recordTitle,
+  tabName = 'Approved Drawing'
 }) => {
+  // URL encode the tab name for API calls
+  const encodedTabName = encodeURIComponent(tabName);
+  
   // Fetch uploaded documents for this specific record
   const { data: documents, isLoading, error } = useQuery({
-    queryKey: ['/api/quality/inspection-documents', inspectionOrderNumber, 'Approved Drawing', recordId],
+    queryKey: ['/api/quality/inspection-documents', inspectionOrderNumber, tabName, recordId],
     queryFn: async (): Promise<UploadedDocument[]> => {
-      const response = await fetch(`/api/quality/inspection-documents/${inspectionOrderNumber}/Approved%20Drawing/${recordId}/documents`);
+      const response = await fetch(`/api/quality/inspection-documents/${inspectionOrderNumber}/${encodedTabName}/${recordId}/documents`);
       if (!response.ok) {
         throw new Error('Failed to fetch documents');
       }
@@ -61,7 +66,7 @@ const DrawingFilesDisplay: React.FC<DrawingFilesDisplayProps> = ({
 
   const handleDownload = async (documentId: number) => {
     try {
-      const downloadUrl = `/api/quality/inspection-documents/${inspectionOrderNumber}/Approved%20Drawing/${recordId}/documents/${documentId}/download`;
+      const downloadUrl = `/api/quality/inspection-documents/${inspectionOrderNumber}/${encodedTabName}/${recordId}/documents/${documentId}/download`;
       window.open(downloadUrl, '_blank');
     } catch (error) {
       console.error('Error downloading file:', error);
