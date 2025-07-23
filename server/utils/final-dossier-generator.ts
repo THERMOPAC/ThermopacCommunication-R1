@@ -549,10 +549,19 @@ export async function generateFinalDossierPDF(
         font: helveticaBold,
         color: rgb(0, 0, 0),
       });
-      yPos -= 20;
+      yPos -= 30;
       
       for (const weld of weldingRecords) {
-        weldPage.drawText(`- Weld Type: ${weld.weldType || 'N/A'}`, {
+        weldPage.drawText(`Weld ID: ${weld.id || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helveticaBold,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        weldPage.drawText(`Weld Type: ${weld.weldType || 'N/A'}`, {
           x: pageMargin + 20,
           y: yPos,
           size: 10,
@@ -561,7 +570,34 @@ export async function generateFinalDossierPDF(
         });
         yPos -= 15;
         
-        weldPage.drawText(`- Welder ID: ${weld.welderId || 'N/A'}`, {
+        weldPage.drawText(`Weld Process: ${weld.weldProcess || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        weldPage.drawText(`WPQR Document: ${weld.wpqrDocument || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        weldPage.drawText(`Welder ID: ${weld.welderId || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        weldPage.drawText(`Status: ${weld.weldStatus || 'N/A'}`, {
           x: pageMargin + 20,
           y: yPos,
           size: 10,
@@ -583,10 +619,19 @@ export async function generateFinalDossierPDF(
         font: helveticaBold,
         color: rgb(0, 0, 0),
       });
-      yPos -= 20;
+      yPos -= 30;
       
       for (const ndt of ndtRecords) {
-        ndtPage.drawText(`- NDT Method: ${ndt.ndtMethod || 'N/A'}`, {
+        ndtPage.drawText(`NDT ID: ${ndt.id || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helveticaBold,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        ndtPage.drawText(`NDT Method: ${ndt.ndtMethod || 'N/A'}`, {
           x: pageMargin + 20,
           y: yPos,
           size: 10,
@@ -595,7 +640,43 @@ export async function generateFinalDossierPDF(
         });
         yPos -= 15;
         
-        ndtPage.drawText(`- Results: ${ndt.ndtResults || 'N/A'}`, {
+        ndtPage.drawText(`NDT Standard: ${ndt.ndtStandard || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        ndtPage.drawText(`NDT Extent: ${ndt.ndtExtent || 'N/A'}%`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        ndtPage.drawText(`NDT Technician: ${ndt.ndtTechnician || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        ndtPage.drawText(`Test Date: ${ndt.ndtDate || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        ndtPage.drawText(`Results: ${ndt.ndtResults || 'N/A'}`, {
           x: pageMargin + 20,
           y: yPos,
           size: 10,
@@ -617,10 +698,19 @@ export async function generateFinalDossierPDF(
         font: helveticaBold,
         color: rgb(0, 0, 0),
       });
-      yPos -= 20;
+      yPos -= 30;
       
       for (const visual of visualRecords) {
-        visualPage.drawText(`- Standard: ${visual.standard || 'N/A'}`, {
+        visualPage.drawText(`Visual ID: ${visual.id || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helveticaBold,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        visualPage.drawText(`Standard: ${visual.standard || 'N/A'}`, {
           x: pageMargin + 20,
           y: yPos,
           size: 10,
@@ -629,7 +719,43 @@ export async function generateFinalDossierPDF(
         });
         yPos -= 15;
         
-        visualPage.drawText(`- Inspector: ${visual.inspector || 'N/A'}`, {
+        visualPage.drawText(`Inspector: ${visual.inspector || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        visualPage.drawText(`Dimensional Checks: ${visual.dimensionalChecks || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        visualPage.drawText(`Surface Condition: ${visual.surfaceCondition || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        visualPage.drawText(`Inspection Date: ${visual.inspectionDate || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        visualPage.drawText(`Observations: ${visual.observations || 'N/A'}`, {
           x: pageMargin + 20,
           y: yPos,
           size: 10,
@@ -651,10 +777,19 @@ export async function generateFinalDossierPDF(
         font: helveticaBold,
         color: rgb(0, 0, 0),
       });
-      yPos -= 20;
+      yPos -= 30;
       
       for (const hydrotest of hydrotestRecords) {
-        hydrotestPage.drawText(`- Pressure: ${hydrotest.pressure || 'N/A'}`, {
+        hydrotestPage.drawText(`Hydrotest ID: ${hydrotest.id || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helveticaBold,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        hydrotestPage.drawText(`Pressure: ${hydrotest.pressure || 'N/A'} bar`, {
           x: pageMargin + 20,
           y: yPos,
           size: 10,
@@ -663,14 +798,72 @@ export async function generateFinalDossierPDF(
         });
         yPos -= 15;
         
-        hydrotestPage.drawText(`- Result: ${hydrotest.result || 'N/A'}`, {
+        hydrotestPage.drawText(`Duration: ${hydrotest.duration || 'N/A'} minutes`, {
           x: pageMargin + 20,
           y: yPos,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPos -= 25;
+        yPos -= 15;
+        
+        hydrotestPage.drawText(`Medium: ${hydrotest.medium || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        hydrotestPage.drawText(`Pressure Gauge: ${hydrotest.pressureGauge || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        hydrotestPage.drawText(`Operator: ${hydrotest.operator || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        hydrotestPage.drawText(`Test Date: ${hydrotest.testDate || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        hydrotestPage.drawText(`Result: ${hydrotest.result || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        if (hydrotest.notes) {
+          hydrotestPage.drawText(`Notes: ${hydrotest.notes}`, {
+            x: pageMargin + 20,
+            y: yPos,
+            size: 10,
+            font: helvetica,
+            color: rgb(0, 0, 0),
+          });
+          yPos -= 15;
+        }
+        
+        yPos -= 15; // Extra space between records
       }
     }
 
@@ -685,10 +878,19 @@ export async function generateFinalDossierPDF(
         font: helveticaBold,
         color: rgb(0, 0, 0),
       });
-      yPos -= 20;
+      yPos -= 30;
       
       for (const ncr of ncrRecords) {
-        ncrPage.drawText(`- Description: ${ncr.description || 'N/A'}`, {
+        ncrPage.drawText(`NCR ID: ${ncr.id || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helveticaBold,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        ncrPage.drawText(`NCR Date: ${ncr.ncrDate || 'N/A'}`, {
           x: pageMargin + 20,
           y: yPos,
           size: 10,
@@ -697,14 +899,53 @@ export async function generateFinalDossierPDF(
         });
         yPos -= 15;
         
-        ncrPage.drawText(`- Status: ${ncr.status || 'N/A'}`, {
+        ncrPage.drawText(`Status: ${ncr.ncrStatus || 'N/A'}`, {
           x: pageMargin + 20,
           y: yPos,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPos -= 25;
+        yPos -= 15;
+        
+        if (ncr.ncrDescription) {
+          const description = ncr.ncrDescription.length > 80 
+            ? ncr.ncrDescription.substring(0, 80) + '...' 
+            : ncr.ncrDescription;
+          ncrPage.drawText(`Description: ${description}`, {
+            x: pageMargin + 20,
+            y: yPos,
+            size: 10,
+            font: helvetica,
+            color: rgb(0, 0, 0),
+          });
+          yPos -= 15;
+        }
+        
+        ncrPage.drawText(`Disposition: ${ncr.ncrDisposition || 'N/A'}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+        
+        if (ncr.ncrCorrectiveAction) {
+          const correctiveAction = ncr.ncrCorrectiveAction.length > 80 
+            ? ncr.ncrCorrectiveAction.substring(0, 80) + '...' 
+            : ncr.ncrCorrectiveAction;
+          ncrPage.drawText(`Corrective Action: ${correctiveAction}`, {
+            x: pageMargin + 20,
+            y: yPos,
+            size: 10,
+            font: helvetica,
+            color: rgb(0, 0, 0),
+          });
+          yPos -= 15;
+        }
+        
+        yPos -= 20; // Extra space between records
       }
     }
 
