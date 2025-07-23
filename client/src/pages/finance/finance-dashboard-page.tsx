@@ -123,7 +123,7 @@ export default function FinanceDashboardPage() {
       </Helmet>
       <div className="container py-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Finance Dashboard</h1>
+          <h1 className="text-3xl font-bold pl-4">Finance Dashboard</h1>
           <div className="space-x-2">
             <Button variant="outline" asChild>
               <Link href="/finance/invoices/new">New Invoice</Link>
