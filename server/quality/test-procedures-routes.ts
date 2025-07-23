@@ -359,14 +359,18 @@ router.put('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
       tags: z.string().optional()
     });
 
+    console.log('PUT request body:', JSON.stringify(req.body, null, 2));
     const validation = partialSchema.safeParse(req.body);
     
     if (!validation.success) {
+      console.log('Validation failed:', validation.error.issues);
       return res.status(400).json({
         error: 'Validation failed',
         details: validation.error.issues
       });
     }
+    
+    console.log('Validation successful, proceeding with update');
     
     const data = validation.data;
     
