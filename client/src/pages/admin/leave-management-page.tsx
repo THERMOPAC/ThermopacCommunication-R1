@@ -58,7 +58,6 @@ import {
 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import Layout from '@/components/layout';
 
 // Form schemas
 const leaveRequestSchema = z.object({
@@ -308,7 +307,7 @@ export default function LeaveManagementPage() {
   };
 
   return (
-    <Layout>
+    <>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
@@ -1735,6 +1734,6 @@ export default function LeaveManagementPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </Layout>
+    </>
   );
 }
