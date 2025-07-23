@@ -311,18 +311,21 @@ export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
     console.log(`Parsed start: ${start.toISOString()}, end: ${end.toISOString()}`);
     console.log(`Templates: ${Object.keys(mdMeetingTemplates.weekly).join(', ')}`);
     
-    // Use same approach as generation for consistency
+    // Calculate the correct Monday for this week regardless of frontend date range
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0=Sunday, 1=Monday, etc.
     
     let monday: Date;
     
     if (dayOfWeek === 0) {
-      // If today is Sunday, use next Monday's week (startDate from frontend)
-      monday = new Date(startDate);
+      // If today is Sunday, use next Monday's week
+      monday = new Date(today);
+      monday.setDate(today.getDate() + 1); // Tomorrow (Monday)
     } else {
-      // Use this week's Monday (startDate from frontend)
-      monday = new Date(startDate);
+      // Calculate this week's Monday correctly
+      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 0=Sunday needs special handling
+      monday = new Date(today);
+      monday.setDate(today.getDate() - daysFromMonday);
     }
     
     monday.setHours(0, 0, 0, 0);
@@ -464,18 +467,21 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
     console.log(`\n🔥 MD WEEKLY GENERATION STARTED (SIMPLE APPROACH)`);
     console.log(`Date range: ${start.toISOString().split('T')[0]} to ${end.toISOString().split('T')[0]}`);
     
-    // Calculate appropriate week based on current day - aligns with frontend logic
+    // Calculate the correct Monday for this week regardless of frontend date range
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0=Sunday, 1=Monday, etc.
     
     let monday: Date;
     
     if (dayOfWeek === 0) {
-      // If today is Sunday, use next Monday's week (startDate from frontend)
-      monday = new Date(startDate);
+      // If today is Sunday, use next Monday's week
+      monday = new Date(today);
+      monday.setDate(today.getDate() + 1); // Tomorrow (Monday)
     } else {
-      // Use this week's Monday (startDate from frontend)
-      monday = new Date(startDate);
+      // Calculate this week's Monday correctly
+      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 0=Sunday needs special handling
+      monday = new Date(today);
+      monday.setDate(today.getDate() - daysFromMonday);
     }
     
     monday.setHours(0, 0, 0, 0);
