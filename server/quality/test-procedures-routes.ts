@@ -278,10 +278,30 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req: Request
       return res.status(409).json({ error: 'Procedure number already exists' });
     }
 
-    // Upload file to GCS
+    // Upload file to GCS with standards-based path structure
     const fileExtension = req.file.originalname.split('.').pop();
     const fileName = `${data.procedureNumber}.${fileExtension}`;
-    const gcsPath = `QMS/Test_Procedures/${data.ndtMethod}/${fileName}`;
+    
+    // Determine standard type from applicableStandard field
+    const getStandardType = (standard: string | undefined): string => {
+      if (!standard) return 'Other';
+      
+      // ASME Standards
+      if (standard.includes('ASME') || standard.includes('ASTM') || 
+          standard.includes('API') || standard.includes('AWS')) {
+        return 'ASME';
+      }
+      
+      // EN Standards  
+      if (standard.includes('EN')) {
+        return 'EN';
+      }
+      
+      return 'Other';
+    };
+    
+    const standardType = getStandardType(data.applicableStandard);
+    const gcsPath = `QMS/Test_Procedures/${data.ndtMethod}/${standardType}/${fileName}`;
     
     console.log('Uploading file to GCS path:', gcsPath);
     const uploadResult = await uploadFileWithDiagnostics(

@@ -82,8 +82,27 @@ export async function generateFinalDossierPDF(
             const testProcedure = await db.query.testProcedures.findFirst({
               where: eq(testProcedures.procedureNumber, procedure.procedureNumber)
             });
-            if (testProcedure?.ndtMethod) {
-              const procedurePath = `QMS/Test_Procedures/${testProcedure.ndtMethod}/${procedure.procedureNumber}.pdf`;
+            if (testProcedure?.ndtMethod && testProcedure?.applicableStandard) {
+              // Determine standard type from applicableStandard field
+              const getStandardType = (standard: string | undefined): string => {
+                if (!standard) return 'Other';
+                
+                // ASME Standards
+                if (standard.includes('ASME') || standard.includes('ASTM') || 
+                    standard.includes('API') || standard.includes('AWS')) {
+                  return 'ASME';
+                }
+                
+                // EN Standards  
+                if (standard.includes('EN')) {
+                  return 'EN';
+                }
+                
+                return 'Other';
+              };
+              
+              const standardType = getStandardType(testProcedure.applicableStandard);
+              const procedurePath = `QMS/Test_Procedures/${testProcedure.ndtMethod}/${standardType}/${procedure.procedureNumber}.pdf`;
               try {
                 const { bucket } = await initializeGCS();
                 if (bucket) {
