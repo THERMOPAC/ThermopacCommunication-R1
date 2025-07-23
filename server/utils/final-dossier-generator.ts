@@ -218,7 +218,8 @@ export async function generateFinalDossierPDF(
       ndtDocs,
       visualDocs,
       hydrotestDocs,
-      ncrDocs
+      ncrDocs,
+      calibrationDocs
     ] = await Promise.all([
       fetchTabDocuments('ApprovedDrawing'),
       fetchTabDocuments('DVR'),
@@ -231,7 +232,8 @@ export async function generateFinalDossierPDF(
       fetchTabDocuments('NDT'),
       fetchTabDocuments('Visual'),
       fetchTabDocuments('Hydrotest'),
-      fetchTabDocuments('NCR')
+      fetchTabDocuments('NCR'),
+      fetchTabDocuments('Calibration')
     ]);
 
     console.log('📋 Document compilation summary:', {
@@ -246,7 +248,8 @@ export async function generateFinalDossierPDF(
       NDT: ndtDocs.length,
       Visual: visualDocs.length,
       Hydrotest: hydrotestDocs.length,
-      NCR: ncrDocs.length
+      NCR: ncrDocs.length,
+      Calibration: calibrationDocs.length
     });
 
     // Parse inspection order data
