@@ -141,16 +141,135 @@ router.get('/download/:inspectionOrderId', ensureAuthenticated, async (req: Requ
     const result = await checkExistingFinalDossier(inspectionOrderId);
     console.log('Check result:', result);
     
-    if (!result.exists || !result.url) {
+    if (!result.exists) {
       return res.status(404).json({ error: 'Final dossier not found' });
     }
 
-    // Redirect to the signed URL
-    res.redirect(result.url);
+    // If we have a signed URL, use it
+    if (result.url) {
+      return res.redirect(result.url);
+    }
+
+    // If no signed URL but file exists, try to generate one on-demand
+    if (result.path) {
+      try {
+        const { bucket } = require('../utils/gcs-operations');
+        console.log(`Attempting to generate signed URL for: ${result.path}`);
+        
+        const [signedUrl] = await bucket.file(result.path).getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 60 * 60 * 1000, // 1 hour expiry for immediate download
+        });
+        
+        console.log('Successfully generated on-demand signed URL');
+        return res.redirect(signedUrl);
+      } catch (signedUrlError) {
+        console.error('Failed to generate on-demand signed URL:', signedUrlError);
+        // Fall back to serving file content directly
+        try {
+          const { bucket } = require('../utils/gcs-operations');
+          console.log(`Attempting to stream file directly: ${result.path}`);
+          
+          const file = bucket.file(result.path);
+          const [exists] = await file.exists();
+          
+          if (!exists) {
+            return res.status(404).json({ error: 'File not found in storage' });
+          }
+          
+          // Set appropriate headers for PDF
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `inline; filename="Final_Dossier.pdf"`);
+          
+          // Stream the file directly
+          file.createReadStream()
+            .on('error', (streamError) => {
+              console.error('Error streaming file:', streamError);
+              if (!res.headersSent) {
+                res.status(500).json({ error: 'Error streaming file' });
+              }
+            })
+            .pipe(res);
+            
+          return; // Don't send additional response
+        } catch (streamError) {
+          console.error('Failed to stream file directly:', streamError);
+          return res.status(500).json({ error: 'Unable to access file' });
+        }
+      }
+    }
+
+    return res.status(404).json({ error: 'Final dossier file path not available' });
   } catch (error) {
     console.error('Error downloading final dossier:', error);
     res.status(500).json({ 
       error: 'Failed to download final dossier', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
+// Alternative download route for path-based downloads (fallback mechanism)
+router.get('/download/*', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    // Extract the full path from the URL (everything after /download/)
+    const fullPath = req.params[0];
+    
+    if (!fullPath) {
+      return res.status(400).json({ error: 'File path is required' });
+    }
+
+    console.log(`Path-based download for: ${fullPath}`);
+    
+    try {
+      const { bucket } = require('../utils/gcs-operations');
+      
+      // Check if file exists
+      const file = bucket.file(fullPath);
+      const [exists] = await file.exists();
+      
+      if (!exists) {
+        return res.status(404).json({ error: 'File not found in storage' });
+      }
+      
+      // Try to generate signed URL first
+      try {
+        console.log(`Attempting to generate signed URL for: ${fullPath}`);
+        
+        const [signedUrl] = await file.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 60 * 60 * 1000, // 1 hour expiry
+        });
+        
+        console.log('Successfully generated signed URL');
+        return res.redirect(signedUrl);
+      } catch (signedUrlError) {
+        console.error('Failed to generate signed URL, streaming directly:', signedUrlError);
+        
+        // Fall back to streaming file directly
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="Final_Dossier.pdf"`);
+        
+        // Stream the file directly
+        file.createReadStream()
+          .on('error', (streamError) => {
+            console.error('Error streaming file:', streamError);
+            if (!res.headersSent) {
+              res.status(500).json({ error: 'Error streaming file' });
+            }
+          })
+          .pipe(res);
+          
+        return; // Don't send additional response
+      }
+    } catch (gcsError) {
+      console.error('GCS error:', gcsError);
+      return res.status(500).json({ error: 'Storage access error' });
+    }
+  } catch (error) {
+    console.error('Error in path-based download:', error);
+    res.status(500).json({ 
+      error: 'Failed to download file', 
       details: error instanceof Error ? error.message : 'Unknown error' 
     });
   }
