@@ -368,8 +368,8 @@ export default function TestProceduresPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="HT">HT</SelectItem>
-                      <SelectItem value="PNT">PNT</SelectItem>
+                      <SelectItem value="HT">Hydraulic Testing (HT)</SelectItem>
+                      <SelectItem value="PNT">Pneumatic Testing (PNT)</SelectItem>
                       <SelectItem value="RT">Radiographic Testing (RT)</SelectItem>
                       <SelectItem value="PT">Penetrant Testing (PT)</SelectItem>
                       <SelectItem value="UT">Ultrasonic Testing (UT)</SelectItem>
@@ -543,12 +543,12 @@ export default function TestProceduresPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Methods</SelectItem>
-                  <SelectItem value="HT">HT</SelectItem>
-                  <SelectItem value="PNT">PNT</SelectItem>
-                  <SelectItem value="RT">RT</SelectItem>
-                  <SelectItem value="PT">PT</SelectItem>
-                  <SelectItem value="UT">UT</SelectItem>
-                  <SelectItem value="MT">MT</SelectItem>
+                  <SelectItem value="HT">Hydraulic Testing (HT)</SelectItem>
+                  <SelectItem value="PNT">Pneumatic Testing (PNT)</SelectItem>
+                  <SelectItem value="RT">Radiographic Testing (RT)</SelectItem>
+                  <SelectItem value="PT">Penetrant Testing (PT)</SelectItem>
+                  <SelectItem value="UT">Ultrasonic Testing (UT)</SelectItem>
+                  <SelectItem value="MT">Magnetic Testing (MT)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
