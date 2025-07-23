@@ -2,7 +2,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { google, calendar_v3 } from 'googleapis';
 import { db } from './db';
 import { users, businessMeetings, googleCalendarSyncLog } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 // Google Calendar OAuth Configuration
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -297,6 +297,8 @@ export class GoogleCalendarService {
 
       // Get attendee emails from the database
       const attendeeEmails = await this.getAttendeeEmails(meetingData.attendeeIds, meetingData.externalAttendees);
+      
+      console.log(`📧 Creating Google Calendar event with ${attendeeEmails.length} invitees: ${attendeeEmails.join(', ')}`);
 
       // Convert meeting date and times to ISO format
       const startDateTime = this.createDateTime(meetingData.meetingDate, meetingData.startTime, meetingData.timezone);
@@ -529,22 +531,28 @@ export class GoogleCalendarService {
   private async getAttendeeEmails(attendeeIds: number[], externalAttendees: any[]): Promise<string[]> {
     const emails: string[] = [];
 
-    // Get internal attendee emails
+    console.log(`🔍 Fetching emails for ${attendeeIds?.length || 0} internal attendees: [${attendeeIds?.join(', ') || 'none'}]`);
+
+    // Get internal attendee emails for ALL attendees
     if (attendeeIds && attendeeIds.length > 0) {
       const attendees = await db
         .select({ email: users.email })
         .from(users)
-        .where(eq(users.id, attendeeIds[0])); // Simple query for first attendee
+        .where(inArray(users.id, attendeeIds)); // ✅ Get ALL attendees, not just first one
 
-      emails.push(...attendees.map(a => a.email));
+      console.log(`📧 Found ${attendees.length} internal attendee emails: ${attendees.map(a => a.email).join(', ')}`);
+      emails.push(...attendees.map(a => a.email).filter(email => email));
     }
 
     // Add external attendee emails
     if (externalAttendees && externalAttendees.length > 0) {
+      console.log(`🌐 Adding ${externalAttendees.length} external attendee emails`);
       emails.push(...externalAttendees.map((attendee: any) => attendee.email));
     }
 
-    return emails.filter(email => email && email.includes('@'));
+    const finalEmails = emails.filter(email => email && email.includes('@'));
+    console.log(`✅ Final attendee email list: ${finalEmails.join(', ')}`);
+    return finalEmails;
   }
 
   /**
