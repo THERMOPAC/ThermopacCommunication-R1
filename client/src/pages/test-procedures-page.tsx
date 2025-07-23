@@ -321,8 +321,18 @@ export default function TestProceduresPage() {
       UT: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
       MT: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300"
     };
+
+    const displayNames: Record<string, string> = {
+      LPT: "HT",
+      MPT: "Pneumatic Test",
+      RT: "RT",
+      PT: "PT", 
+      UT: "UT",
+      MT: "MT"
+    };
     
-    return <Badge className={colors[method] || "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"}>{method}</Badge>;
+    const displayName = displayNames[method] || method;
+    return <Badge className={colors[method] || "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"}>{displayName}</Badge>;
   };
 
   return (
@@ -370,8 +380,8 @@ export default function TestProceduresPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="LPT">Liquid Penetrant Testing (LPT)</SelectItem>
-                      <SelectItem value="MPT">Magnetic Particle Testing (MPT)</SelectItem>
+                      <SelectItem value="LPT">Hydraulic Testing (HT)</SelectItem>
+                      <SelectItem value="MPT">Pneumatic Test</SelectItem>
                       <SelectItem value="RT">Radiographic Testing (RT)</SelectItem>
                       <SelectItem value="PT">Penetrant Testing (PT)</SelectItem>
                       <SelectItem value="UT">Ultrasonic Testing (UT)</SelectItem>
@@ -545,8 +555,8 @@ export default function TestProceduresPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Methods</SelectItem>
-                  <SelectItem value="LPT">LPT</SelectItem>
-                  <SelectItem value="MPT">MPT</SelectItem>
+                  <SelectItem value="LPT">HT</SelectItem>
+                  <SelectItem value="MPT">Pneumatic Test</SelectItem>
                   <SelectItem value="RT">RT</SelectItem>
                   <SelectItem value="PT">PT</SelectItem>
                   <SelectItem value="UT">UT</SelectItem>
