@@ -174,7 +174,7 @@ router.post("/upload", ensureAuthenticated, upload.single('file'), async (req: R
 });
 
 // GET documents for an inspection order record
-router.get("/:inspectionOrderNumber/:tabName/:recordId", ensureAuthenticated, async (req: Request, res: Response) => {
+router.get("/:inspectionOrderNumber/:tabName/:recordId/documents", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { inspectionOrderNumber, tabName, recordId } = req.params;
     
