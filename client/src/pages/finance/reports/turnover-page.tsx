@@ -208,11 +208,8 @@ export default function TurnoverReportPage() {
       
       const reportData = await response.json();
       
-      // For detailed invoice data, always use FY 2025-26 regardless of selected period
-      const fy2526StartDate = '2025-04-01';
-      const fy2526EndDate = '2026-03-31';
-      
-      const detailResponse = await fetch(`/api/simple-finance/invoices?startDate=${fy2526StartDate}&endDate=${fy2526EndDate}${selectedCurrency !== 'all' ? `&currency=${selectedCurrency}` : ''}`);
+      // Use the same date range for detailed invoice data as selected by user
+      const detailResponse = await fetch(`/api/simple-finance/invoices?startDate=${startDate}&endDate=${endDate}${selectedCurrency !== 'all' ? `&currency=${selectedCurrency}` : ''}`);
       const invoiceDetails = detailResponse.ok ? await detailResponse.json() : [];
       
       // Create Excel workbook
