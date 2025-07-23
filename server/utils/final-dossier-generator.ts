@@ -698,18 +698,18 @@ export async function checkExistingFinalDossier(inspectionOrderIdOrNumber: numbe
       console.error('Error checking file existence:', fileCheckError);
     }
     
-    // If exact file doesn't exist, try listing files in the directory
+    // If exact file doesn't exist in new location, try listing files in the new directory
     try {
-      console.log(`Listing files in directory: ${basePath}`);
+      console.log(`Listing files in new directory: ${basePath}`);
       const files = await listFilesInDirectory(basePath);
-      console.log(`Found ${files.length} files in Final Dossier directory:`, files);
+      console.log(`Found ${files.length} files in new Final_Dossier directory:`, files);
       
       // Look for any PDF files that match the pattern
       const pdfFiles = files.filter(file => file.endsWith('.pdf'));
       
       if (pdfFiles.length > 0) {
         const existingFile = pdfFiles[0]; // Take the first PDF found
-        console.log(`Found existing Final Dossier PDF: ${existingFile}`);
+        console.log(`Found existing Final Dossier PDF in new location: ${existingFile}`);
         
         // Generate signed URL for the existing file
         try {
@@ -731,11 +731,86 @@ export async function checkExistingFinalDossier(inspectionOrderIdOrNumber: numbe
           };
         }
       } else {
-        console.log('No PDF files found in Final Dossier directory');
+        console.log('No PDF files found in new Final_Dossier directory');
+      }
+    } catch (listError) {
+      console.error('Error listing files in new Final_Dossier directory:', listError);
+    }
+
+    // Fallback: Check old location with space in folder name for backward compatibility
+    const oldBasePath = `QMS/Inspections_Records/${inspectionOrder.projectCode || 'UNKNOWN'}/${inspectionOrder.inspectionOrderNumber}/Final Dossier/`;
+    const oldExpectedFilePath = `${oldBasePath}${expectedFileName}`;
+    
+    // Check if the exact expected file exists in old location
+    try {
+      console.log(`Checking if exact file exists in old location: ${oldExpectedFilePath}`);
+      const fileExists = await bucket.file(oldExpectedFilePath).exists();
+      
+      if (fileExists[0]) {
+        console.log('Found exact expected file in old location, generating signed URL');
+        
+        // Generate signed URL for the existing file
+        try {
+          const [signedUrl] = await bucket.file(oldExpectedFilePath).getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+          });
+          
+          return {
+            exists: true,
+            path: oldExpectedFilePath,
+            url: signedUrl
+          };
+        } catch (signedUrlError) {
+          console.error('Error generating signed URL for existing file in old location:', signedUrlError);
+          return {
+            exists: true,
+            path: oldExpectedFilePath
+          };
+        }
+      }
+    } catch (fileCheckError) {
+      console.error('Error checking file existence in old location:', fileCheckError);
+    }
+
+    // If exact file doesn't exist in old location, try listing files in the old directory
+    try {
+      console.log(`Listing files in old directory: ${oldBasePath}`);
+      const files = await listFilesInDirectory(oldBasePath);
+      console.log(`Found ${files.length} files in old Final Dossier directory:`, files);
+      
+      // Look for any PDF files that match the pattern
+      const pdfFiles = files.filter(file => file.endsWith('.pdf'));
+      
+      if (pdfFiles.length > 0) {
+        const existingFile = pdfFiles[0]; // Take the first PDF found
+        console.log(`Found existing Final Dossier PDF in old location: ${existingFile}`);
+        
+        // Generate signed URL for the existing file
+        try {
+          const [signedUrl] = await bucket.file(existingFile).getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+          });
+          
+          return {
+            exists: true,
+            path: existingFile,
+            url: signedUrl
+          };
+        } catch (signedUrlError) {
+          console.error('Error generating signed URL for existing file in old location:', signedUrlError);
+          return {
+            exists: true,
+            path: existingFile
+          };
+        }
+      } else {
+        console.log('No PDF files found in old Final Dossier directory');
         return { exists: false };
       }
     } catch (listError) {
-      console.error('Error listing files in Final Dossier directory:', listError);
+      console.error('Error listing files in old Final Dossier directory:', listError);
       return { exists: false };
     }
     
