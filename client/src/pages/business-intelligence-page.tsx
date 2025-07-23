@@ -23,6 +23,45 @@ interface OverviewData {
   completedInspections: number;
   totalInvoices: number;
   paidInvoices: number;
+  taskCompletionRate: number;
+  inspectionCompletionRate: number;
+  invoicePaymentRate: number;
+  insights: {
+    healthStatus: 'healthy' | 'warning' | 'critical';
+    complianceStatus: 'good' | 'moderate' | 'poor';
+    productivityStatus: 'excellent' | 'good' | 'needs_improvement';
+  };
+}
+
+interface BusinessInsights {
+  insights: Array<{
+    category: string;
+    title: string;
+    description: string;
+    trend: string;
+    recommendation: string;
+  }>;
+  recommendations: Array<{
+    category: string;
+    title: string;
+    description: string;
+    impact: string;
+    effort: string;
+  }>;
+  alerts: Array<{
+    type: 'critical' | 'warning' | 'info';
+    category: string;
+    title: string;
+    message: string;
+    action: string;
+    priority: 'high' | 'medium' | 'low';
+  }>;
+  summary: {
+    totalAlerts: number;
+    criticalAlerts: number;
+    pendingActions: number;
+    improvementOpportunities: number;
+  };
 }
 
 interface ActivityStats {
@@ -148,6 +187,11 @@ export default function BusinessIntelligencePage() {
     queryKey: ['/api/business-intelligence/compliance-status'],
   });
 
+  const { data: businessInsights, isLoading: insightsLoading } = useQuery<BusinessInsights>({
+    queryKey: ['/api/business-intelligence/insights', startDate, endDate],
+    enabled: !!startDate && !!endDate,
+  });
+
   const getDisplayName = (user: any) => {
     if (user.firstName && user.lastName) {
       return `${user.firstName} ${user.lastName}`;
@@ -167,6 +211,34 @@ export default function BusinessIntelligencePage() {
         return <Badge variant="outline" className="border-orange-500 text-orange-600"><AlertCircle className="w-3 h-3 mr-1" />Expired</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'healthy':
+      case 'good':
+      case 'excellent':
+        return <Badge variant="default" className="bg-green-500 text-white"><CheckCircle className="w-3 h-3 mr-1" />{status}</Badge>;
+      case 'warning':
+      case 'moderate':
+        return <Badge variant="outline" className="border-yellow-500 text-yellow-600"><AlertCircle className="w-3 h-3 mr-1" />{status}</Badge>;
+      case 'critical':
+      case 'poor':
+      case 'needs_improvement':
+        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />{status}</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const getAlertBadge = (type: string, priority: string) => {
+    if (type === 'critical') {
+      return <Badge variant="destructive"><AlertCircle className="w-3 h-3 mr-1" />Critical</Badge>;
+    } else if (type === 'warning') {
+      return <Badge variant="outline" className="border-yellow-500 text-yellow-600"><AlertCircle className="w-3 h-3 mr-1" />Warning</Badge>;
+    } else {
+      return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Info</Badge>;
     }
   };
 
@@ -253,7 +325,10 @@ export default function BusinessIntelligencePage() {
                 <Skeleton className="h-8 w-20" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{overview?.systemHealthScore.toFixed(1) || '0.0'}%</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-2xl font-bold">{overview?.systemHealthScore.toFixed(1) || '0.0'}%</div>
+                    {overview?.insights && getStatusBadge(overview.insights.healthStatus)}
+                  </div>
                   <Progress value={overview?.systemHealthScore || 0} className="mt-2" />
                 </>
               )}
@@ -270,7 +345,10 @@ export default function BusinessIntelligencePage() {
                 <Skeleton className="h-8 w-20" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{overview?.complianceRate.toFixed(1) || '0.0'}%</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-2xl font-bold">{overview?.complianceRate.toFixed(1) || '0.0'}%</div>
+                    {overview?.insights && getStatusBadge(overview.insights.complianceStatus)}
+                  </div>
                   <Progress value={overview?.complianceRate || 0} className="mt-2" />
                 </>
               )}
@@ -287,7 +365,10 @@ export default function BusinessIntelligencePage() {
                 <Skeleton className="h-8 w-20" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{overview?.productivityIndex.toFixed(1) || '0.0'}%</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-2xl font-bold">{overview?.productivityIndex.toFixed(1) || '0.0'}%</div>
+                    {overview?.insights && getStatusBadge(overview.insights.productivityStatus)}
+                  </div>
                   <Progress value={overview?.productivityIndex || 0} className="mt-2" />
                 </>
               )}
@@ -296,13 +377,192 @@ export default function BusinessIntelligencePage() {
         </div>
 
         {/* Main Analytics Tabs */}
-        <Tabs defaultValue="activity" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue="insights" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="insights">Insights & Alerts</TabsTrigger>
             <TabsTrigger value="activity">User Activity</TabsTrigger>
             <TabsTrigger value="modules">Module Usage</TabsTrigger>
             <TabsTrigger value="productivity">Productivity</TabsTrigger>
             <TabsTrigger value="compliance">Compliance</TabsTrigger>
           </TabsList>
+
+          {/* Insights & Alerts Tab */}
+          <TabsContent value="insights" className="space-y-6">
+            {/* Alerts Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Alerts</CardTitle>
+                  <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  {insightsLoading ? (
+                    <Skeleton className="h-8 w-16" />
+                  ) : (
+                    <div className="text-2xl font-bold">{businessInsights?.summary.totalAlerts || 0}</div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Critical Issues</CardTitle>
+                  <XCircle className="h-4 w-4 text-red-500" />
+                </CardHeader>
+                <CardContent>
+                  {insightsLoading ? (
+                    <Skeleton className="h-8 w-16" />
+                  ) : (
+                    <div className="text-2xl font-bold text-red-600">{businessInsights?.summary.criticalAlerts || 0}</div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Pending Actions</CardTitle>
+                  <Clock className="h-4 w-4 text-yellow-500" />
+                </CardHeader>
+                <CardContent>
+                  {insightsLoading ? (
+                    <Skeleton className="h-8 w-16" />
+                  ) : (
+                    <div className="text-2xl font-bold text-yellow-600">{businessInsights?.summary.pendingActions || 0}</div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Improvement Opportunities</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent>
+                  {insightsLoading ? (
+                    <Skeleton className="h-8 w-16" />
+                  ) : (
+                    <div className="text-2xl font-bold text-green-600">{businessInsights?.summary.improvementOpportunities || 0}</div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Active Alerts */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5" />
+                    Active Alerts
+                  </CardTitle>
+                  <CardDescription>Issues requiring immediate attention</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {insightsLoading ? (
+                    <div className="space-y-4">
+                      {[...Array(3)].map((_, i) => (
+                        <Skeleton key={i} className="h-20 w-full" />
+                      ))}
+                    </div>
+                  ) : businessInsights?.alerts.length > 0 ? (
+                    <div className="space-y-4">
+                      {businessInsights.alerts.map((alert, index) => (
+                        <div key={index} className="p-4 border rounded-lg">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                {getAlertBadge(alert.type, alert.priority)}
+                                <Badge variant="outline" className="text-xs">{alert.category}</Badge>
+                              </div>
+                              <h4 className="font-medium">{alert.title}</h4>
+                              <p className="text-sm text-muted-foreground mt-1">{alert.message}</p>
+                              <p className="text-sm font-medium mt-2 text-blue-600">Action: {alert.action}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
+                      <p>No active alerts - system is running smoothly!</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Recommendations */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Recommendations
+                  </CardTitle>
+                  <CardDescription>Actionable improvements for better performance</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {insightsLoading ? (
+                    <div className="space-y-4">
+                      {[...Array(3)].map((_, i) => (
+                        <Skeleton key={i} className="h-20 w-full" />
+                      ))}
+                    </div>
+                  ) : businessInsights?.recommendations.length > 0 ? (
+                    <div className="space-y-4">
+                      {businessInsights.recommendations.map((rec, index) => (
+                        <div key={index} className="p-4 border rounded-lg">
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="font-medium">{rec.title}</h4>
+                            <div className="flex gap-2">
+                              <Badge variant="outline" className="text-xs">Impact: {rec.impact}</Badge>
+                              <Badge variant="outline" className="text-xs">Effort: {rec.effort}</Badge>
+                            </div>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{rec.description}</p>
+                          <Badge variant="secondary" className="mt-2 text-xs">{rec.category}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
+                      <p>No recommendations available</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Business Insights */}
+            {businessInsights?.insights && businessInsights.insights.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    Business Performance Insights
+                  </CardTitle>
+                  <CardDescription>Key insights about your business operations</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {businessInsights.insights.map((insight, index) => (
+                      <div key={index} className="p-4 border rounded-lg">
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="font-medium">{insight.title}</h4>
+                          <Badge variant="outline" className="text-xs">{insight.category}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{insight.description}</p>
+                        <div className="mt-2 text-sm">
+                          <span className="font-medium text-blue-600">Recommendation: </span>
+                          <span>{insight.recommendation}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
           {/* User Activity Tab */}
           <TabsContent value="activity" className="space-y-6">

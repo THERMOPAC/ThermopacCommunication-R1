@@ -74,19 +74,77 @@ router.get('/overview', async (req, res) => {
       .from(inspectionOrders)
       .leftJoin(invoices, eq(invoices.id, invoices.id));
 
-    // Calculate compliance rate (placeholder - we'll enhance this)
-    const complianceRate = 85.5; // This should be calculated from actual compliance data
-
-    // Calculate productivity index (placeholder - we'll enhance this)
-    const productivityIndex = 92.3; // This should be calculated from actual productivity metrics
-
+    // Calculate actual compliance rate from real data
+    const totalUsersForCompliance = totalUsersResult[0]?.count || 0;
+    const activePeriodDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    const expectedAttendanceDays = activePeriodDays * totalUsersForCompliance;
+    
+    // Get actual attendance data
+    const actualAttendanceResult = await db
+      .select({ count: count() })
+      .from(attendanceRecords)
+      .where(
+        and(
+          gte(attendanceRecords.date, start),
+          lte(attendanceRecords.date, end)
+        )
+      );
+    
+    const actualAttendance = actualAttendanceResult[0]?.count || 0;
+    const attendanceRate = expectedAttendanceDays > 0 ? (actualAttendance / expectedAttendanceDays) * 100 : 0;
+    
+    // Calculate task completion rate for productivity
+    const tasksResult = await db
+      .select({
+        totalTasks: count(),
+        completedTasks: count(sql`CASE WHEN ${tasks.status} = 'completed' THEN 1 END`)
+      })
+      .from(tasks)
+      .where(
+        and(
+          gte(tasks.createdAt, start),
+          lte(tasks.createdAt, end)
+        )
+      );
+    
+    const taskCompletionRate = tasksResult[0]?.totalTasks > 0 
+      ? (tasksResult[0]?.completedTasks / tasksResult[0]?.totalTasks) * 100 
+      : 0;
+    
+    // Calculate inspection completion rate for quality metrics
+    const inspectionCompletionRate = systemHealthMetrics[0]?.totalInspections > 0
+      ? (systemHealthMetrics[0]?.completedInspections / systemHealthMetrics[0]?.totalInspections) * 100
+      : 0;
+    
+    // Calculate invoice payment rate for financial health
+    const invoicePaymentRate = systemHealthMetrics[0]?.totalInvoices > 0
+      ? (systemHealthMetrics[0]?.paidInvoices / systemHealthMetrics[0]?.totalInvoices) * 100
+      : 0;
+    
+    // Weighted system health score
+    const systemHealthScore = Math.round(
+      (attendanceRate * 0.2) + 
+      (taskCompletionRate * 0.3) + 
+      (inspectionCompletionRate * 0.3) + 
+      (invoicePaymentRate * 0.2)
+    );
+    
     const overview = {
       totalActiveUsers: activeUsersResult[0]?.count || 0,
-      totalUsers: totalUsersResult[0]?.count || 0,
-      systemHealthScore: 94.2, // Calculated based on various factors
-      complianceRate,
-      productivityIndex,
-      ...systemHealthMetrics[0]
+      totalUsers: totalUsersForCompliance,
+      systemHealthScore: Math.min(100, Math.max(0, systemHealthScore)),
+      complianceRate: Math.round(attendanceRate),
+      productivityIndex: Math.round(taskCompletionRate),
+      taskCompletionRate: Math.round(taskCompletionRate),
+      inspectionCompletionRate: Math.round(inspectionCompletionRate),
+      invoicePaymentRate: Math.round(invoicePaymentRate),
+      ...systemHealthMetrics[0],
+      // Add actionable insights
+      insights: {
+        healthStatus: systemHealthScore >= 80 ? 'healthy' : systemHealthScore >= 60 ? 'warning' : 'critical',
+        complianceStatus: attendanceRate >= 85 ? 'good' : attendanceRate >= 70 ? 'moderate' : 'poor',
+        productivityStatus: taskCompletionRate >= 80 ? 'excellent' : taskCompletionRate >= 60 ? 'good' : 'needs_improvement'
+      }
     };
 
     res.json(overview);
@@ -455,6 +513,174 @@ router.get('/user-details/:userId', async (req, res) => {
   } catch (error) {
     console.error('Error fetching user details:', error);
     res.status(500).json({ error: 'Failed to fetch user details' });
+  }
+});
+
+// ============================================================================
+// BUSINESS INSIGHTS & RECOMMENDATIONS
+// ============================================================================
+
+// Get actionable business insights and recommendations
+router.get('/insights', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const start = startDate ? new Date(startDate as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate as string) : new Date();
+
+    // Get overdue tasks
+    const overdueTasks = await db
+      .select({
+        count: count(),
+        oldestOverdue: sql`MIN(${tasks.dueDate})`
+      })
+      .from(tasks)
+      .where(
+        and(
+          eq(tasks.status, 'pending'),
+          lte(tasks.dueDate, new Date())
+        )
+      );
+
+    // Get users with low attendance
+    const lowAttendanceUsers = await db
+      .select({
+        userId: attendanceRecords.userId,
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        attendanceCount: count(attendanceRecords.id)
+      })
+      .from(attendanceRecords)
+      .leftJoin(users, eq(attendanceRecords.userId, users.id))
+      .where(
+        and(
+          gte(attendanceRecords.date, start),
+          lte(attendanceRecords.date, end)
+        )
+      )
+      .groupBy(attendanceRecords.userId, users.username, users.firstName, users.lastName)
+      .having(sql`COUNT(${attendanceRecords.id}) < 20`); // Less than 20 days in period
+
+    // Get pending inspections
+    const pendingInspections = await db
+      .select({
+        count: count(),
+        oldestPending: sql`MIN(${inspectionOrders.createdAt})`
+      })
+      .from(inspectionOrders)
+      .where(eq(inspectionOrders.status, 'pending'));
+
+    // Get unpaid invoices
+    const unpaidInvoices = await db
+      .select({
+        count: count(),
+        totalAmount: sum(invoices.totalAmount),
+        oldestUnpaid: sql`MIN(${invoices.issueDate})`
+      })
+      .from(invoices)
+      .where(eq(invoices.status, 'Pending'));
+
+    // Generate insights based on data
+    const insights = [];
+    const recommendations = [];
+    const alerts = [];
+
+    // Task Management Insights
+    if (overdueTasks[0]?.count > 0) {
+      alerts.push({
+        type: 'critical',
+        category: 'tasks',
+        title: 'Overdue Tasks Alert',
+        message: `${overdueTasks[0].count} tasks are overdue`,
+        action: 'Review and reassign overdue tasks immediately',
+        priority: 'high'
+      });
+      
+      recommendations.push({
+        category: 'productivity',
+        title: 'Task Management Improvement',
+        description: 'Implement daily task review meetings to prevent overdue tasks',
+        impact: 'High',
+        effort: 'Medium'
+      });
+    }
+
+    // Attendance Insights
+    if (lowAttendanceUsers.length > 0) {
+      alerts.push({
+        type: 'warning',
+        category: 'attendance',
+        title: 'Low Attendance Alert',
+        message: `${lowAttendanceUsers.length} users have low attendance`,
+        action: 'Contact HR department for attendance review',
+        priority: 'medium'
+      });
+
+      recommendations.push({
+        category: 'compliance',
+        title: 'Attendance Monitoring',
+        description: 'Implement automated attendance tracking and alerts',
+        impact: 'Medium',
+        effort: 'Low'
+      });
+    }
+
+    // Quality Management Insights
+    if (pendingInspections[0]?.count > 0) {
+      const urgencyLevel = pendingInspections[0].count > 10 ? 'critical' : 'warning';
+      alerts.push({
+        type: urgencyLevel,
+        category: 'quality',
+        title: 'Pending Inspections',
+        message: `${pendingInspections[0].count} inspections are pending`,
+        action: 'Allocate additional inspection resources',
+        priority: urgencyLevel === 'critical' ? 'high' : 'medium'
+      });
+    }
+
+    // Financial Insights
+    if (unpaidInvoices[0]?.count > 0) {
+      alerts.push({
+        type: 'warning',
+        category: 'finance',
+        title: 'Outstanding Payments',
+        message: `${unpaidInvoices[0].count} invoices pending payment (₹${unpaidInvoices[0].totalAmount || 0})`,
+        action: 'Follow up with finance team on payment collection',
+        priority: 'high'
+      });
+
+      recommendations.push({
+        category: 'finance',
+        title: 'Payment Process Optimization',
+        description: 'Implement automated payment reminders and follow-up system',
+        impact: 'High',
+        effort: 'Medium'
+      });
+    }
+
+    // Performance Insights
+    insights.push({
+      category: 'performance',
+      title: 'System Utilization',
+      description: 'Current system shows good user engagement with room for process optimization',
+      trend: 'stable',
+      recommendation: 'Focus on automation to improve efficiency'
+    });
+
+    res.json({
+      insights,
+      recommendations,
+      alerts,
+      summary: {
+        totalAlerts: alerts.length,
+        criticalAlerts: alerts.filter(a => a.type === 'critical').length,
+        pendingActions: alerts.filter(a => a.priority === 'high').length,
+        improvementOpportunities: recommendations.length
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching business insights:', error);
+    res.status(500).json({ error: 'Failed to fetch business insights' });
   }
 });
 
