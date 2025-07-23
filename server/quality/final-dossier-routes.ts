@@ -153,7 +153,7 @@ router.get('/download/:inspectionOrderId', ensureAuthenticated, async (req: Requ
     // If no signed URL but file exists, try to generate one on-demand
     if (result.path) {
       try {
-        const { bucket } = require('../utils/gcs-operations');
+        const { bucket } = await import('../utils/gcs-operations.js');
         console.log(`Attempting to generate signed URL for: ${result.path}`);
         
         const [signedUrl] = await bucket.file(result.path).getSignedUrl({
@@ -167,7 +167,7 @@ router.get('/download/:inspectionOrderId', ensureAuthenticated, async (req: Requ
         console.error('Failed to generate on-demand signed URL:', signedUrlError);
         // Fall back to serving file content directly
         try {
-          const { bucket } = require('../utils/gcs-operations');
+          const { bucket } = await import('../utils/gcs-operations.js');
           console.log(`Attempting to stream file directly: ${result.path}`);
           
           const file = bucket.file(result.path);
@@ -222,7 +222,7 @@ router.get('/download/*', ensureAuthenticated, async (req: Request, res: Respons
     console.log(`Path-based download for: ${fullPath}`);
     
     try {
-      const { bucket } = require('../utils/gcs-operations');
+      const { bucket } = await import('../utils/gcs-operations.js');
       
       // Check if file exists
       const file = bucket.file(fullPath);
@@ -287,9 +287,9 @@ router.get('/debug/:inspectionOrderId', ensureAuthenticated, async (req: Request
     console.log(`🐛 DEBUG: Final dossier troubleshooting for inspection order ID: ${inspectionOrderId}`);
     
     // Get the inspection order details
-    const { db } = require('../storage');
-    const { inspectionOrders } = require('../../shared/schema');
-    const { eq } = require('drizzle-orm');
+    const { db } = await import('../storage.js');
+    const { inspectionOrders } = await import('../../shared/schema.js');
+    const { eq } = await import('drizzle-orm');
     
     const inspectionOrder = await db.query.inspectionOrders.findFirst({
       where: eq(inspectionOrders.id, inspectionOrderId)
