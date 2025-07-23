@@ -4110,7 +4110,7 @@ Suggested next steps
                           </Badge>
                         </div>
                         <p className="text-sm text-gray-600 mb-2">{meeting.description}</p>
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
                           <span className="flex items-center gap-1">
                             <CalendarIcon className="h-4 w-4" />
                             {format(parseISO(meeting.meetingDate), 'eeee, MMM dd, yyyy')}
@@ -4123,6 +4123,15 @@ Suggested next steps
                             <TimerIcon className="h-4 w-4" />
                             {meeting.duration} min
                           </span>
+                        </div>
+                        <div className="flex items-center gap-1 text-sm text-gray-500">
+                          <UsersIcon className="h-4 w-4" />
+                          <span>{meeting.participantCount || 0} attendees</span>
+                          {meeting.participants && meeting.participants.length > 0 && (
+                            <span className="text-xs text-gray-400 ml-2">
+                              ({meeting.participants.map((p: any) => p.firstName && p.lastName ? `${p.firstName} ${p.lastName}` : p.username).join(', ')})
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -4139,7 +4148,10 @@ Suggested next steps
                               variant="outline"
                               onClick={() => {
                                 // Create a detailed view of the meeting
-                                alert(`Meeting Details:\n\nTitle: ${meeting.title}\nDescription: ${meeting.description}\nDate: ${format(parseISO(meeting.meetingDate), 'eeee, MMM dd, yyyy')}\nTime: ${meeting.startTime} - ${meeting.endTime}\nDuration: ${meeting.duration} min\nPriority: ${meeting.priority}\nType: ${meeting.meetingType}\nParticipants: ${meeting.participantCount || 0} attendees`);
+                                const participantNames = meeting.participants && meeting.participants.length > 0 
+                                  ? meeting.participants.map((p: any) => p.firstName && p.lastName ? `${p.firstName} ${p.lastName}` : p.username).join(', ')
+                                  : 'No participants assigned';
+                                alert(`Meeting Details:\n\nTitle: ${meeting.title}\nDescription: ${meeting.description}\nDate: ${format(parseISO(meeting.meetingDate), 'eeee, MMM dd, yyyy')}\nTime: ${meeting.startTime} - ${meeting.endTime}\nDuration: ${meeting.duration} min\nPriority: ${meeting.priority}\nType: ${meeting.meetingType}\nParticipants: ${meeting.participantCount || 0} attendees\nAttendees: ${participantNames}`);
                               }}
                               className="h-7 px-2"
                               title="View Meeting Details"
