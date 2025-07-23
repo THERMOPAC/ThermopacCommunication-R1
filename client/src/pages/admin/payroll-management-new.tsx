@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Helmet } from "react-helmet";
-import Layout from "@/components/layout";
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -818,7 +818,7 @@ export default function PayrollManagementNew() {
   };
 
   return (
-    <Layout>
+    <>
       <Helmet>
         <title>Payroll Management - THERMOPAC</title>
       </Helmet>
@@ -1354,7 +1354,7 @@ export default function PayrollManagementNew() {
           </DialogContent>
         </Dialog>
       </div>
-    </Layout>
+    </>
   );
 }
 
