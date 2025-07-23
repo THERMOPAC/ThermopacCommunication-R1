@@ -193,6 +193,11 @@ function Layout({ children }: LayoutProps) {
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
     { icon: Repeat, label: "Recurring Tasks", href: "/recurring-tasks" },
+    ...(user?.role === "Superuser" ? [{ 
+      icon: BarChart3, 
+      label: "Business Intelligence", 
+      href: "/business-intelligence" 
+    }] : []),
     ...(hasViewPermission("Meetings & Commitments") ? [{ 
       icon: CalendarDays, 
       label: "Meetings & Commitments", 

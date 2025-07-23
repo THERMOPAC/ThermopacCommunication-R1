@@ -8235,3 +8235,97 @@ export type InsertDesignAssignment = z.infer<typeof insertDesignAssignmentSchema
 
 export type DesignBasicDrawing = typeof designBasicDrawings.$inferSelect;
 export type InsertDesignBasicDrawing = z.infer<typeof insertDesignBasicDrawingSchema>;
+
+// ============================================================================
+// USER INTELLIGENCE & BUSINESS ANALYTICS TABLES
+// ============================================================================
+
+// User activity tracking table
+export const userActivityLogs = pgTable("user_activity_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  module: varchar("module", { length: 50 }).notNull(),
+  action: varchar("action", { length: 100 }).notNull(),
+  resourceType: varchar("resource_type", { length: 50 }),
+  resourceId: varchar("resource_id", { length: 50 }),
+  ipAddress: varchar("ip_address", { length: 45 }), // Support both IPv4 and IPv6
+  userAgent: text("user_agent"),
+  sessionDuration: integer("session_duration").default(0), // in minutes
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Module usage statistics (daily aggregated data)
+export const userModuleStats = pgTable("user_module_stats", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  module: varchar("module", { length: 50 }).notNull(),
+  date: date("date").notNull(),
+  timeSpent: integer("time_spent").default(0), // in minutes
+  actionsCount: integer("actions_count").default(0),
+  documentsCreated: integer("documents_created").default(0),
+  documentsModified: integer("documents_modified").default(0),
+  lastActivity: timestamp("last_activity"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Compliance tracking for various compliance requirements
+export const userComplianceMetrics = pgTable("user_compliance_metrics", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  complianceType: varchar("compliance_type", { length: 50 }).notNull(), // password_policy, training, certification, etc.
+  status: varchar("status", { length: 20 }).notNull(), // compliant, non_compliant, pending, expired
+  dueDate: date("due_date"),
+  completedDate: date("completed_date"),
+  score: decimal("score", { precision: 5, scale: 2 }), // compliance score 0-100
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// User productivity metrics
+export const userProductivityMetrics = pgTable("user_productivity_metrics", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  date: date("date").notNull(),
+  tasksCompleted: integer("tasks_completed").default(0),
+  inspectionsProcessed: integer("inspections_processed").default(0),
+  documentsGenerated: integer("documents_generated").default(0),
+  qualityRecordsCreated: integer("quality_records_created").default(0),
+  financialTransactions: integer("financial_transactions").default(0),
+  attendanceScore: decimal("attendance_score", { precision: 5, scale: 2 }).default("0"), // percentage
+  efficiencyScore: decimal("efficiency_score", { precision: 5, scale: 2 }).default("0"), // calculated score
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Insert schemas for Business Intelligence tables
+export const insertUserActivityLogSchema = createInsertSchema(userActivityLogs)
+  .omit({ id: true, createdAt: true });
+
+export const insertUserModuleStatsSchema = createInsertSchema(userModuleStats)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+export const insertUserComplianceMetricsSchema = createInsertSchema(userComplianceMetrics)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    status: z.enum(['compliant', 'non_compliant', 'pending', 'expired']),
+    dueDate: z.string().optional().transform(dateStringToDate),
+    completedDate: z.string().optional().transform(dateStringToDate),
+  });
+
+export const insertUserProductivityMetricsSchema = createInsertSchema(userProductivityMetrics)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+// Export types for Business Intelligence
+export type UserActivityLog = typeof userActivityLogs.$inferSelect;
+export type InsertUserActivityLog = z.infer<typeof insertUserActivityLogSchema>;
+
+export type UserModuleStats = typeof userModuleStats.$inferSelect;
+export type InsertUserModuleStats = z.infer<typeof insertUserModuleStatsSchema>;
+
+export type UserComplianceMetrics = typeof userComplianceMetrics.$inferSelect;
+export type InsertUserComplianceMetrics = z.infer<typeof insertUserComplianceMetricsSchema>;
+
+export type UserProductivityMetrics = typeof userProductivityMetrics.$inferSelect;
+export type InsertUserProductivityMetrics = z.infer<typeof insertUserProductivityMetricsSchema>;

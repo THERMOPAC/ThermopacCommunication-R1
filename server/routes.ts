@@ -74,6 +74,7 @@ import { default as schengenRoutes } from "./schengen-routes";
 import { default as legalManagementRoutes } from "./legal-management-routes";
 import { default as googleCalendarRoutes } from "./google-calendar-routes";
 import { default as designManagementRoutes } from "./design-management-routes";
+import { businessIntelligenceRoutes } from "./business-intelligence/business-intelligence-routes";
 import { default as designReviewRoutes } from "./design-review-routes";
 import { default as designDrawingRoutes } from "./design-drawing-routes";
 import { default as designBasicDrawingRoutes } from "./design-basic-drawings-routes";
@@ -781,6 +782,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up Salary Calculation Engine routes
   app.use('/api/salary-calculation', salaryCalculationRoutes);
   console.log('Salary calculation routes registered at /api/salary-calculation');
+
+  // Set up Business Intelligence routes (Superuser only)
+  app.use('/api/business-intelligence', businessIntelligenceRoutes);
+  console.log('Business Intelligence routes registered at /api/business-intelligence');
 
   // Timezone Detection API
   app.get('/api/timezone/detect', ensureAuthenticated, async (req: any, res: any) => {
