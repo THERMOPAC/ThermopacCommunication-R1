@@ -335,7 +335,12 @@ app.use((req, res, next) => {
       
       const bucketName = process.env.GOOGLE_CLOUD_BUCKET || 'thermopac_storage';
       const bucket = storage.bucket(bucketName);
+      
+      // Ensure we use the exact file path from GCS without double encoding
+      // Since GCS paths should use forward slashes and spaces should be preserved
       const file = bucket.file(filePath);
+      
+      console.log(`🔍 GCS File path being used: ${filePath}`);
       
       // Check if file exists first
       const [exists] = await file.exists();
