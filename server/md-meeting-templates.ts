@@ -336,17 +336,32 @@ export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
       console.log(`📅 WEEKDAY DETECTED: Previewing for THIS week (${monday.toDateString()})`);
     }
     
-    // Create explicit dates for each day of the week
+    // Create explicit dates for each day of the work week (Monday-Thursday ONLY)
+    // MD only works Monday through Thursday, not Friday/Saturday/Sunday
     const weekDays = {
       0: new Date(monday), // Monday
       1: new Date(monday.getTime() + 24 * 60 * 60 * 1000), // Tuesday  
       2: new Date(monday.getTime() + 2 * 24 * 60 * 60 * 1000), // Wednesday
       3: new Date(monday.getTime() + 3 * 24 * 60 * 60 * 1000)  // Thursday
+      // Note: MD does not work Friday (4), Saturday (5), or Sunday (6)
     };
+
+    console.log(`\n📅 MD WORK WEEK DATES:`);
+    console.log(`Monday (day 0): ${weekDays[0].toDateString()}`);
+    console.log(`Tuesday (day 1): ${weekDays[1].toDateString()}`);
+    console.log(`Wednesday (day 2): ${weekDays[2].toDateString()}`);
+    console.log(`Thursday (day 3): ${weekDays[3].toDateString()}`);
+    console.log(`⚠️  MD does NOT work Friday/Saturday/Sunday`);
 
     for (const [templateKey, template] of Object.entries(mdMeetingTemplates.weekly)) {
       console.log(`\n--- Processing Template: ${templateKey} ---`);
       console.log(`Template dayOfWeek: ${template.dayOfWeek}, title: "${template.title}"`);
+      
+      // Validate that MD meetings are only scheduled for Monday-Thursday (0-3)
+      if (template.dayOfWeek < 0 || template.dayOfWeek > 3) {
+        console.log(`❌ REJECTED - MD meetings only allowed Monday-Thursday, not dayOfWeek: ${template.dayOfWeek}`);
+        continue;
+      }
       
       const meetingDate = weekDays[template.dayOfWeek];
       if (!meetingDate) {
@@ -474,13 +489,22 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
       console.log(`📅 WEEKDAY DETECTED: Generating for THIS week (${monday.toDateString()})`);
     }
     
-    // Create explicit dates for each day of the week
+    // Create explicit dates for each day of the work week (Monday-Thursday ONLY)
+    // MD only works Monday through Thursday, not Friday/Saturday/Sunday
     const weekDays = {
       0: new Date(monday), // Monday
       1: new Date(monday.getTime() + 24 * 60 * 60 * 1000), // Tuesday  
       2: new Date(monday.getTime() + 2 * 24 * 60 * 60 * 1000), // Wednesday
       3: new Date(monday.getTime() + 3 * 24 * 60 * 60 * 1000)  // Thursday
+      // Note: MD does not work Friday (4), Saturday (5), or Sunday (6)
     };
+
+    console.log(`\n📅 MD WORK WEEK DATES (GENERATION):`);
+    console.log(`Monday (day 0): ${weekDays[0].toDateString()}`);
+    console.log(`Tuesday (day 1): ${weekDays[1].toDateString()}`);
+    console.log(`Wednesday (day 2): ${weekDays[2].toDateString()}`);
+    console.log(`Thursday (day 3): ${weekDays[3].toDateString()}`);
+    console.log(`⚠️  MD does NOT work Friday/Saturday/Sunday`);
     
     // Process each template with explicit date mapping
     const templates = mdMeetingTemplates.weekly;
@@ -488,6 +512,12 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
     for (const [templateKey, template] of Object.entries(templates)) {
       console.log(`\n--- Processing ${templateKey} ---`);
       console.log(`Template: dayOfWeek=${template.dayOfWeek}, title="${template.title}"`);
+      
+      // Validate that MD meetings are only scheduled for Monday-Thursday (0-3)
+      if (template.dayOfWeek < 0 || template.dayOfWeek > 3) {
+        console.log(`❌ REJECTED - MD meetings only allowed Monday-Thursday, not dayOfWeek: ${template.dayOfWeek}`);
+        continue;
+      }
       
       const meetingDate = weekDays[template.dayOfWeek];
       if (!meetingDate) {
