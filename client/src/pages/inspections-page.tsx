@@ -5033,6 +5033,24 @@ export default function InspectionsPage() {
                           </TableBody>
                         </Table>
                       </div>
+                      
+                      {/* Uploaded Files Display Section */}
+                      {itpRecords.length > 0 && (
+                        <div className="mt-6 border-t pt-4">
+                          <h4 className="text-sm font-medium text-gray-700 mb-3">Uploaded Files</h4>
+                          <div className="space-y-2">
+                            {itpRecords.map((record) => (
+                              <DrawingFilesDisplay
+                                key={record.id}
+                                inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                                recordId={record.id}
+                                recordTitle={record.itpNumber || `ITP ${record.id}`}
+                                tabName="ITP"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
                   
