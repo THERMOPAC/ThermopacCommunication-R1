@@ -341,7 +341,7 @@ export default function TestProceduresPage() {
       <div className="container py-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Test Procedures</h1>
+          <h1 className="text-3xl font-bold pl-4">Test Procedures</h1>
           <p className="text-muted-foreground">Manage NDT test procedures and standards</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

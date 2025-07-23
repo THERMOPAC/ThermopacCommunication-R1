@@ -529,7 +529,7 @@ export default function InvoiceAgingDashboard() {
       <div className="container mx-auto p-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Invoice Aging Dashboard</h1>
+            <h1 className="text-3xl font-bold mb-2 pl-4">Invoice Aging Dashboard</h1>
             <p className="text-muted-foreground">
               Analyze outstanding invoices and track collection efforts
             </p>

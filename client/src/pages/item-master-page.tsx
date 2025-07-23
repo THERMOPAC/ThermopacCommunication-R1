@@ -15,7 +15,7 @@ const ItemMasterPage = () => {
         <title>Item Master | THERMOPAC Communication System</title>
       </Helmet>
       <div>
-        <h1 className="text-3xl font-bold mb-6">Item Master</h1>
+        <h1 className="text-3xl font-bold mb-6 pl-4">Item Master</h1>
         
         {/* Only show admin tools for Superuser */}
         {isSuperuser && <AdminTools />}

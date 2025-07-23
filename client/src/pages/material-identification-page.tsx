@@ -558,7 +558,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Material Identification</h1>
+            <h1 className="text-3xl font-bold tracking-tight pl-4">Material Identification</h1>
             <p className="text-muted-foreground mt-2">
               {isEditMode ? 'Edit' : isViewMode ? 'View' : 'Create'} material identification details for quality assurance and traceability.
             </p>

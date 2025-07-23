@@ -178,7 +178,7 @@ export default function WorkOrderDetailPage() {
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
             <div>
-              <h1 className="text-3xl font-bold">Work Order Details</h1>
+              <h1 className="text-3xl font-bold pl-4">Work Order Details</h1>
               <p className="text-lg text-muted-foreground">{workOrder?.workOrderNumber}</p>
             </div>
             {workOrder?.status && getStatusBadge(workOrder.status)}

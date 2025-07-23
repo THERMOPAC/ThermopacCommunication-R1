@@ -410,7 +410,7 @@ export default function WpqrPage() {
       <div className="w-full">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold">WPQR Documents</h1>
+            <h1 className="text-3xl font-bold pl-4">WPQR Documents</h1>
             <p className="text-muted-foreground">
               Manage Welding Procedure Qualification Records
             </p>

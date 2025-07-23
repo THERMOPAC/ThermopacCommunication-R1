@@ -336,7 +336,7 @@ export default function WpsPqrPage() {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">WPS and PQR</h1>
+          <h1 className="text-3xl font-bold tracking-tight pl-4">WPS and PQR</h1>
           <p className="text-muted-foreground mt-2">
             Create and manage Welding Procedure Specifications (WPS) and Procedure Qualification Records (PQR).
           </p>

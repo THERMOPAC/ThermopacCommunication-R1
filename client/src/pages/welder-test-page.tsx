@@ -99,7 +99,7 @@ export default function WelderTestPage() {
     <Layout>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold tracking-tight">Welder Test Page</h1>
+          <h1 className="text-3xl font-bold tracking-tight pl-4">Welder Test Page</h1>
         </div>
         
         <Card>

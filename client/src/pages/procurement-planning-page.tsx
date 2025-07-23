@@ -339,7 +339,7 @@ export default function ProcurementPlanningPage() {
       <div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Procurement Planning</h1>
+            <h1 className="text-3xl font-bold tracking-tight pl-4">Procurement Planning</h1>
             <p className="text-muted-foreground">
               Generate and manage purchase orders for all your procurement needs
             </p>

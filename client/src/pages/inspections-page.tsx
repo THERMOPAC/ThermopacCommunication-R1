@@ -3510,7 +3510,7 @@ export default function InspectionsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Inspection Orders</CardTitle>
+              <CardTitle className="pl-4">Inspection Orders</CardTitle>
               <CardDescription>
                 Manage and track inspection orders for quality checks during production.
               </CardDescription>

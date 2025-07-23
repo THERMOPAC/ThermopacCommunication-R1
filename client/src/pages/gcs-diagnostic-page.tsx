@@ -37,7 +37,7 @@ export default function GcsDiagnosticPage() {
   return (
     <Layout>
       <div className="container py-6">
-        <h1 className="text-3xl font-bold mb-2">GCS Diagnostic Tools</h1>
+        <h1 className="text-3xl font-bold mb-2 pl-4">GCS Diagnostic Tools</h1>
         <p className="text-muted-foreground mb-6">
           These tools help diagnose issues with Google Cloud Storage connectivity
           and welder photo uploads.

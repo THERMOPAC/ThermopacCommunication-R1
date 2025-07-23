@@ -890,7 +890,7 @@ export default function DispatchShippingPage() {
     <Layout>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dispatch & Shipping</h1>
+          <h1 className="text-3xl font-bold tracking-tight pl-4">Dispatch & Shipping</h1>
           <p className="text-muted-foreground">
             Manage dispatch records and shipping information for projects
           </p>

@@ -178,7 +178,7 @@ export default function ReconciliationReportPage() {
       <div className="container mx-auto p-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Financial Reconciliation Report</h1>
+            <h1 className="text-3xl font-bold mb-2 pl-4">Financial Reconciliation Report</h1>
             <p className="text-muted-foreground">
               Comprehensive analysis of financial data to track outstanding invoices, advance payments, and overall financial health.
             </p>

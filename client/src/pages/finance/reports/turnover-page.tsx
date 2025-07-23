@@ -541,7 +541,7 @@ export default function TurnoverReportPage() {
       
       <div className="container mx-auto py-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Turnover Report</h1>
+          <h1 className="text-3xl font-bold pl-4">Turnover Report</h1>
           <Dialog open={isDownloadDialogOpen} onOpenChange={setIsDownloadDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-green-600 hover:bg-green-700">

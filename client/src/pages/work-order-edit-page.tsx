@@ -249,7 +249,7 @@ export default function WorkOrderEditPage() {
             >
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
-            <h1 className="text-3xl font-bold">Edit Work Order</h1>
+            <h1 className="text-3xl font-bold pl-4">Edit Work Order</h1>
           </div>
         </div>
         

@@ -187,7 +187,7 @@ export default function OutstandingReportPage() {
       
       <div className="container mx-auto py-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Outstanding Report</h1>
+          <h1 className="text-3xl font-bold pl-4">Outstanding Report</h1>
           <Button onClick={handleDownload}>
             <Download className="mr-2 h-4 w-4" />
             Export Report

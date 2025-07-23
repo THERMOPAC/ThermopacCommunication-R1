@@ -388,7 +388,7 @@ export default function ProcurementTrackingPage() {
       <div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Procurement Tracking</h1>
+            <h1 className="text-3xl font-bold tracking-tight pl-4">Procurement Tracking</h1>
             <p className="text-muted-foreground">
               Track and manage your purchase orders and deliveries
             </p>
