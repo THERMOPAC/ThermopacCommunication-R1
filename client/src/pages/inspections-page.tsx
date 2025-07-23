@@ -5573,6 +5573,24 @@ export default function InspectionsPage() {
                           View Documents
                         </Button>
                       </div>
+                      
+                      {/* Uploaded Files Display Section */}
+                      {shopInspectionRecords.length > 0 && (
+                        <div className="mt-6 border-t pt-4">
+                          <h4 className="text-sm font-medium text-gray-700 mb-3">Uploaded Files</h4>
+                          <div className="space-y-2">
+                            {shopInspectionRecords.map((record) => (
+                              <DrawingFilesDisplay
+                                key={record.id}
+                                inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                                recordId={record.id}
+                                recordTitle={record.inspectionType || `Shop Inspection ${record.id}`}
+                                tabName="Shop Inspection"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
                   
