@@ -335,7 +335,31 @@ router.put('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
     
-    const validation = testProcedureSchema.partial().safeParse(req.body);
+    // Create a partial schema for updates (all fields optional)
+    const partialSchema = z.object({
+      procedureNumber: z.string().min(1, 'Procedure number is required').optional(),
+      procedureName: z.string().min(1, 'Procedure name is required').optional(),
+      ndtMethod: z.enum(['LPT', 'MPT', 'RT', 'PT', 'UT', 'MT']).optional(),
+      applicableStandard: z.string().optional(),
+      procedureRevision: z.string().optional(),
+      scope: z.string().optional(),
+      technique: z.string().optional(),
+      sensitivity: z.string().optional(),
+      preparation: z.string().optional(),
+      procedureSteps: z.string().optional(),
+      evaluation: z.string().optional(),
+      documentation: z.string().optional(),
+      personnelQualification: z.string().optional(),
+      acceptanceCriteria: z.string().optional(),
+      limitations: z.string().optional(),
+      environmentalConditions: z.string().optional(),
+      status: z.enum(['Draft', 'Under Review', 'Approved', 'Superseded']).optional(),
+      approvalLevel: z.string().optional(),
+      remarks: z.string().optional(),
+      tags: z.string().optional()
+    });
+
+    const validation = partialSchema.safeParse(req.body);
     
     if (!validation.success) {
       return res.status(400).json({
