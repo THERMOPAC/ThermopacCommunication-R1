@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -402,16 +402,26 @@ export default function TestProceduresPage() {
                     <SelectValue placeholder="Select applicable standard" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ASME SEC V">ASME Section V</SelectItem>
-                    <SelectItem value="ASTM E165">ASTM E165 - Liquid Penetrant</SelectItem>
-                    <SelectItem value="ASTM E709">ASTM E709 - Magnetic Particle</SelectItem>
-                    <SelectItem value="ASTM E1444">ASTM E1444 - Magnetic Particle</SelectItem>
-                    <SelectItem value="ASTM E1417">ASTM E1417 - Liquid Penetrant</SelectItem>
-                    <SelectItem value="EN ISO 3452">EN ISO 3452 - Penetrant Testing</SelectItem>
-                    <SelectItem value="EN ISO 9934">EN ISO 9934 - Magnetic Particle Testing</SelectItem>
-                    <SelectItem value="API 5L">API 5L - Line Pipe</SelectItem>
-                    <SelectItem value="AWS D1.1">AWS D1.1 - Structural Welding Code</SelectItem>
-                    <SelectItem value="Other">Other (specify in remarks)</SelectItem>
+                    <SelectGroup>
+                      <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">ASME Standards</SelectLabel>
+                      <SelectItem value="ASME SEC V">ASME Section V</SelectItem>
+                      <SelectItem value="ASTM E165">ASTM E165 - Liquid Penetrant</SelectItem>
+                      <SelectItem value="ASTM E709">ASTM E709 - Magnetic Particle</SelectItem>
+                      <SelectItem value="ASTM E1444">ASTM E1444 - Magnetic Particle</SelectItem>
+                      <SelectItem value="ASTM E1417">ASTM E1417 - Liquid Penetrant</SelectItem>
+                      <SelectItem value="API 5L">API 5L - Line Pipe</SelectItem>
+                      <SelectItem value="AWS D1.1">AWS D1.1 - Structural Welding Code</SelectItem>
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">EN Standards</SelectLabel>
+                      <SelectItem value="EN 13445">EN 13445 - Unfired Pressure Vessels (LPT, MPT, RT, etc.)</SelectItem>
+                      <SelectItem value="EN ISO 3452">EN ISO 3452 - Penetrant Testing</SelectItem>
+                      <SelectItem value="EN ISO 9934">EN ISO 9934 - Magnetic Particle Testing</SelectItem>
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">Other</SelectLabel>
+                      <SelectItem value="Other">Other (specify in remarks)</SelectItem>
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
               </div>
