@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { apiRequest } from '@/lib/queryClient';
-import { Layout } from '@/components/layout';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -3283,7 +3283,7 @@ export default function BusinessTripManagement() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   return (
-    <Layout>
+    <>
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -3343,6 +3343,6 @@ export default function BusinessTripManagement() {
           </TabsContent>
         </Tabs>
       </div>
-    </Layout>
+    </>
   );
 }

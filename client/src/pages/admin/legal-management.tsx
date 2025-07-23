@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Layout } from "@/components/layout";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1682,7 +1682,7 @@ const LegalManagementPage: React.FC = () => {
   };
 
   return (
-    <Layout>
+    <>
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <div className="bg-white shadow-sm border-b">
@@ -1767,7 +1767,7 @@ const LegalManagementPage: React.FC = () => {
           </Tabs>
         </div>
       </div>
-    </Layout>
+    </>
   );
 };
 

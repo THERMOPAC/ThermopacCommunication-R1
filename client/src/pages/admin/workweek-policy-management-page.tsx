@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Calendar, Clock, Users, MapPin, Building2, Plus, Edit, Trash2, Settings, Save, X } from 'lucide-react';
 
-import { Layout } from '@/components/layout';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -280,7 +280,7 @@ export default function WorkweekPolicyManagementPage() {
   };
 
   return (
-    <Layout>
+    <>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
@@ -973,6 +973,6 @@ export default function WorkweekPolicyManagementPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </Layout>
+    </>
   );
 }

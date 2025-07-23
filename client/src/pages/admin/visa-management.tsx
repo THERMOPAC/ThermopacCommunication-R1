@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
-import Layout from '@/components/layout';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -399,7 +399,7 @@ export default function VisaManagement() {
   });
 
   return (
-    <Layout>
+    <>
       <div className="space-y-6 p-6">
         <div>
           <h1 className="text-3xl font-bold">Visa Management</h1>
@@ -1196,6 +1196,6 @@ export default function VisaManagement() {
           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
         />
       </div>
-    </Layout>
+    </>
   );
 }

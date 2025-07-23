@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Helmet } from "react-helmet";
-import Layout from "@/components/layout";
 import {
   Card,
   CardContent,
@@ -1342,7 +1341,7 @@ export default function PayrollManagementPage() {
   );
 
   return (
-    <Layout>
+    <>
       <Helmet>
         <title>Payroll Management - THERMOPAC</title>
       </Helmet>
@@ -1526,6 +1525,6 @@ export default function PayrollManagementPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </Layout>
+    </>
   );
 }
