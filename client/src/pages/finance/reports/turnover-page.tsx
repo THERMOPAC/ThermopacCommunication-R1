@@ -202,6 +202,10 @@ export default function TurnoverReportPage() {
       
       const reportData = await response.json();
       
+      // Fetch detailed invoice data for the same period
+      const detailResponse = await fetch(`/api/simple-finance/invoices?startDate=${startDate}&endDate=${endDate}${selectedCurrency !== 'all' ? `&currency=${selectedCurrency}` : ''}`);
+      const invoiceDetails = detailResponse.ok ? await detailResponse.json() : [];
+      
       // Create Excel workbook
       const workbook = XLSX.utils.book_new();
       
@@ -230,6 +234,121 @@ export default function TurnoverReportPage() {
       ];
       
       XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Summary');
+      
+      // Detailed Invoice Sheet
+      if (invoiceDetails && invoiceDetails.length > 0) {
+        // Fetch invoice items for each invoice
+        const detailedInvoiceData = [];
+        const headers = [
+          'Invoice Number',
+          'Currency', 
+          'Exchange Rate',
+          'SAP Invoice No',
+          'Invoice Type',
+          'Shipping Bill No',
+          'Customer',
+          'Project',
+          'Issue Date',
+          'Due Date',
+          'Notes',
+          'Description',
+          'Amount',
+          'Amount LC'
+        ];
+        
+        detailedInvoiceData.push(['DETAILED INVOICE DATA']);
+        detailedInvoiceData.push([]);
+        detailedInvoiceData.push(headers);
+        
+        for (const invoice of invoiceDetails) {
+          try {
+            // Fetch invoice items for each invoice
+            const itemsResponse = await fetch(`/api/simple-finance/invoice-items/${invoice.id}`);
+            const items = itemsResponse.ok ? await itemsResponse.json() : [];
+            
+            if (items.length > 0) {
+              // Add row for each invoice item
+              items.forEach((item: any) => {
+                detailedInvoiceData.push([
+                  invoice.invoiceNumber || '',
+                  invoice.currency || '',
+                  invoice.exchangeRate || '',
+                  invoice.sapInvoiceNo || '',
+                  invoice.invoiceType || '',
+                  invoice.shippingBillNumber || '',
+                  invoice.customerName || '',
+                  invoice.projectName || '',
+                  invoice.issueDate ? format(new Date(invoice.issueDate), 'yyyy-MM-dd') : '',
+                  invoice.dueDate ? format(new Date(invoice.dueDate), 'yyyy-MM-dd') : '',
+                  invoice.notes || '',
+                  item.description || '',
+                  item.amount || '',
+                  item.amountLC || ''
+                ]);
+              });
+            } else {
+              // Add row for invoice without items
+              detailedInvoiceData.push([
+                invoice.invoiceNumber || '',
+                invoice.currency || '',
+                invoice.exchangeRate || '',
+                invoice.sapInvoiceNo || '',
+                invoice.invoiceType || '',
+                invoice.shippingBillNumber || '',
+                invoice.customerName || '',
+                invoice.projectName || '',
+                invoice.issueDate ? format(new Date(invoice.issueDate), 'yyyy-MM-dd') : '',
+                invoice.dueDate ? format(new Date(invoice.dueDate), 'yyyy-MM-dd') : '',
+                invoice.notes || '',
+                'No item details available',
+                invoice.totalAmount || '',
+                ''
+              ]);
+            }
+          } catch (error) {
+            console.error(`Error fetching items for invoice ${invoice.id}:`, error);
+            // Add row for invoice with error
+            detailedInvoiceData.push([
+              invoice.invoiceNumber || '',
+              invoice.currency || '',
+              invoice.exchangeRate || '',
+              invoice.sapInvoiceNo || '',
+              invoice.invoiceType || '',
+              invoice.shippingBillNumber || '',
+              invoice.customerName || '',
+              invoice.projectName || '',
+              invoice.issueDate ? format(new Date(invoice.issueDate), 'yyyy-MM-dd') : '',
+              invoice.dueDate ? format(new Date(invoice.dueDate), 'yyyy-MM-dd') : '',
+              invoice.notes || '',
+              'Error loading item details',
+              invoice.totalAmount || '',
+              ''
+            ]);
+          }
+        }
+        
+        const detailedWorksheet = XLSX.utils.aoa_to_sheet(detailedInvoiceData);
+        
+        // Set column widths for detailed sheet
+        detailedWorksheet['!cols'] = [
+          { width: 18 }, // Invoice Number
+          { width: 10 }, // Currency
+          { width: 12 }, // Exchange Rate
+          { width: 18 }, // SAP Invoice No
+          { width: 15 }, // Invoice Type
+          { width: 18 }, // Shipping Bill No
+          { width: 20 }, // Customer
+          { width: 15 }, // Project
+          { width: 12 }, // Issue Date
+          { width: 12 }, // Due Date
+          { width: 25 }, // Notes
+          { width: 30 }, // Description
+          { width: 15 }, // Amount
+          { width: 18 }  // Amount LC
+        ];
+        
+        XLSX.utils.book_append_sheet(workbook, detailedWorksheet, 'Invoice Details');
+      }
       
       // Monthly Details Sheet (if available)
       if (reportData.monthlyData && reportData.monthlyData.length > 0) {
