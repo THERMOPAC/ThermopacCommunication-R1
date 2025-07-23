@@ -585,9 +585,9 @@ export async function generateFinalDossierPDF(
     // Generate PDF buffer
     const pdfBytes = await pdfDoc.save();
 
-    // Upload to GCS with proper hierarchical path structure
-    const fileName = `Final_Dossier_${inspectionOrder.inspectionOrderNumber}_${new Date().toISOString().split('T')[0]}.pdf`;
-    const filePath = `QMS/Inspections_Records/${inspectionOrder.projectCode || 'UNKNOWN'}/${inspectionOrder.inspectionOrderNumber}/Final_Dossier/${fileName}`;
+    // Upload to GCS with standardized path structure
+    const fileName = `FD_${inspectionOrder.inspectionOrderNumber}.pdf`;
+    const filePath = `QMS/Inspections_Records/${inspectionOrder.projectCode || 'UNKNOWN'}/${inspectionOrder.inspectionOrderNumber}/Final Dossier/${fileName}`;
 
     try {
       const uploadResult = await uploadFileWithDiagnostics(
@@ -679,10 +679,50 @@ export async function checkExistingFinalDossier(inspectionOrderId: number): Prom
 
     console.log(`Found inspection order: ${inspectionOrder.inspectionOrderNumber} with project code: ${inspectionOrder.projectCode}`);
 
-    // Check for existing final dossier in GCS
-    const basePath = `QMS/Inspections_Records/${inspectionOrder.projectCode || 'UNKNOWN'}/${inspectionOrder.inspectionOrderNumber}/Final_Dossier/`;
+    // Check for existing final dossier in GCS using standardized path
+    const basePath = `QMS/Inspections_Records/${inspectionOrder.projectCode || 'UNKNOWN'}/${inspectionOrder.inspectionOrderNumber}/Final Dossier/`;
+    const expectedFileName = `FD_${inspectionOrder.inspectionOrderNumber}.pdf`;
+    const expectedFilePath = `${basePath}${expectedFileName}`;
     console.log(`Checking GCS path: ${basePath}`);
+    console.log(`Expected file: ${expectedFileName}`);
     
+    // First, try to check if the exact expected file exists
+    try {
+      console.log(`Checking if exact file exists: ${expectedFilePath}`);
+      const fileExists = await bucket.file(expectedFilePath).exists();
+      
+      if (fileExists[0]) {
+        console.log('Found exact expected file, generating signed URL');
+        
+        // Generate signed URL for the existing file
+        try {
+          const [signedUrl] = await bucket.file(expectedFilePath).getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+          });
+          
+          console.log('Successfully generated signed URL for existing file');
+          return {
+            exists: true,
+            path: expectedFilePath,
+            url: signedUrl
+          };
+        } catch (signedUrlError) {
+          console.error('Error generating signed URL for existing file:', signedUrlError);
+          return {
+            exists: true,
+            path: expectedFilePath,
+            url: expectedFilePath // Fallback to path if signed URL fails
+          };
+        }
+      } else {
+        console.log('Exact expected file not found, checking directory for any PDF files');
+      }
+    } catch (exactFileError) {
+      console.log('Error checking exact file:', exactFileError);
+    }
+
+    // If exact file not found, scan directory for any PDF files (legacy support)
     try {
       const existingFiles = await listFilesInDirectory(basePath);
       console.log(`Found ${existingFiles.length} files in directory`);
@@ -701,7 +741,7 @@ export async function checkExistingFinalDossier(inspectionOrderId: number): Prom
         const latestFile = pdfFiles[pdfFiles.length - 1]; 
         const filePath = latestFile.name;
         
-        console.log('Using file path for signed URL:', filePath);
+        console.log('Using legacy file path for signed URL:', filePath);
         
         // Validate file path
         if (!filePath || typeof filePath !== 'string') {
@@ -716,14 +756,14 @@ export async function checkExistingFinalDossier(inspectionOrderId: number): Prom
             expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
           });
           
-          console.log('Successfully generated signed URL for existing file');
+          console.log('Successfully generated signed URL for legacy file');
           return {
             exists: true,
             path: filePath,
             url: signedUrl
           };
         } catch (signedUrlError) {
-          console.error('Error generating signed URL for existing file:', signedUrlError);
+          console.error('Error generating signed URL for legacy file:', signedUrlError);
           return {
             exists: true,
             path: filePath,
