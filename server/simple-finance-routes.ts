@@ -365,7 +365,9 @@ router.get('/invoices', ensureAuthenticated, async (req: Request, res: Response)
       customerId, 
       projectId, 
       fromDate, 
-      toDate, 
+      toDate,
+      startDate,
+      endDate,
       status, 
       currency 
     } = req.query;
@@ -381,12 +383,13 @@ router.get('/invoices', ensureAuthenticated, async (req: Request, res: Response)
       filters.projectId = parseInt(projectId as string);
     }
     
-    if (fromDate) {
-      filters.fromDate = new Date(fromDate as string);
+    // Support both fromDate/toDate and startDate/endDate parameter naming
+    if (fromDate || startDate) {
+      filters.fromDate = new Date((fromDate || startDate) as string);
     }
     
-    if (toDate) {
-      filters.toDate = new Date(toDate as string);
+    if (toDate || endDate) {
+      filters.toDate = new Date((toDate || endDate) as string);
     }
     
     if (status) {
@@ -399,11 +402,57 @@ router.get('/invoices', ensureAuthenticated, async (req: Request, res: Response)
     
     // Use direct query instead of storage function to avoid ORM issues
     try {
+      // Build WHERE clauses for filtering by issue date and other parameters
+      const whereClauses = [];
+      const queryParams = [];
+      let paramIndex = 1;
+
+      // Add date filtering using issue_date (invoice date)
+      if (filters.fromDate) {
+        whereClauses.push(`i.issue_date >= $${paramIndex}`);
+        queryParams.push(filters.fromDate.toISOString().split('T')[0]);
+        paramIndex++;
+      }
+      
+      if (filters.toDate) {
+        whereClauses.push(`i.issue_date <= $${paramIndex}`);
+        queryParams.push(filters.toDate.toISOString().split('T')[0]);
+        paramIndex++;
+      }
+      
+      // Add other filters
+      if (filters.customerId) {
+        whereClauses.push(`i.customer_id = $${paramIndex}`);
+        queryParams.push(filters.customerId);
+        paramIndex++;
+      }
+      
+      if (filters.projectId) {
+        whereClauses.push(`i.project_id = $${paramIndex}`);
+        queryParams.push(filters.projectId);
+        paramIndex++;
+      }
+      
+      if (filters.status) {
+        whereClauses.push(`i.status = $${paramIndex}`);
+        queryParams.push(filters.status);
+        paramIndex++;
+      }
+      
+      if (filters.currency) {
+        whereClauses.push(`i.currency = $${paramIndex}`);
+        queryParams.push(filters.currency);
+        paramIndex++;
+      }
+
+      const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
       const query = `
         SELECT 
           i.id, 
           i.invoice_number as "invoiceNumber", 
           i.customer_id as "customerId",
+          i.project_id as "projectId",
           i.issue_date as "issueDate", 
           i.due_date as "dueDate", 
           i.total_amount as "totalAmount", 
@@ -414,14 +463,23 @@ router.get('/invoices', ensureAuthenticated, async (req: Request, res: Response)
           i.status,
           i.sap_invoice_no as "sapInvoiceNo", 
           i.invoice_type as "invoiceType",
+          i.shipping_bill_number as "shippingBillNumber",
+          i.notes,
           i.created_at as "createdAt", 
-          i.updated_at as "updatedAt"
+          i.updated_at as "updatedAt",
+          c.bp_name as "customerName",
+          p.name as "projectName"
         FROM invoices i
-        ORDER BY i.created_at DESC
-        LIMIT 50
+        LEFT JOIN customers c ON i.customer_id = c.id
+        LEFT JOIN projects p ON i.project_id = p.id
+        ${whereClause}
+        ORDER BY i.issue_date DESC, i.created_at DESC
       `;
       
-      const result = await pool.query(query);
+      console.log('Invoice query with date filtering:', query);
+      console.log('Query parameters:', queryParams);
+      
+      const result = await pool.query(query, queryParams);
       
       // Get actual invoice data from the database query result
       if (result && result.rows && result.rows.length > 0) {
@@ -430,7 +488,7 @@ router.get('/invoices', ensureAuthenticated, async (req: Request, res: Response)
           ...inv,
           issueDate: inv.issueDate ? new Date(inv.issueDate).toISOString().split('T')[0] : null,
           dueDate: inv.dueDate ? new Date(inv.dueDate).toISOString().split('T')[0] : null,
-          customerName: `Customer ${inv.customerId}` // Default name
+          customerName: inv.customerName || `Customer ${inv.customerId}` // Use join result or fallback
         }));
         return res.json(invoices);
       } else {
