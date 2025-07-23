@@ -68,6 +68,62 @@ const fixedAllocationRouter = await import('./fix-allocation-endpoint');
 app.use('/api/finance', fixedAllocationRouter.default);
 console.log('🔥 PRIORITY: Fixed allocation endpoint registered at /api/finance/allocate-payment');
 
+// PRIORITY ENDPOINT: Final Dossier routes - Must be registered before Vite catch-all
+app.get('/api/quality/final-dossier/test', (req: any, res: any) => {
+  console.log('🎯 PRIORITY: Final Dossier test endpoint hit!');
+  res.setHeader('Content-Type', 'application/json');
+  res.json({ 
+    message: 'Final Dossier API routes are working correctly',
+    timestamp: new Date().toISOString() 
+  });
+});
+
+app.get('/api/quality/final-dossier/check/:inspectionOrderNumber', async (req: any, res: any) => {
+  try {
+    console.log(`🎯 PRIORITY: Checking final dossier for ${req.params.inspectionOrderNumber}`);
+    res.setHeader('Content-Type', 'application/json');
+    
+    const { checkExistingFinalDossier } = await import('./utils/final-dossier-generator');
+    const result = await checkExistingFinalDossier(req.params.inspectionOrderNumber);
+    
+    res.json(result);
+  } catch (error: any) {
+    console.error('🚨 Priority final dossier check error:', error);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ 
+      error: 'Failed to check final dossier',
+      message: error.message 
+    });
+  }
+});
+
+app.post('/api/quality/final-dossier/generate/:inspectionOrderId', async (req: any, res: any) => {
+  try {
+    const inspectionOrderId = parseInt(req.params.inspectionOrderId);
+    console.log(`🎯 PRIORITY: Generating final dossier for inspection order ID: ${inspectionOrderId}`);
+    res.setHeader('Content-Type', 'application/json');
+    
+    const { generateFinalDossier } = await import('./utils/final-dossier-generator');
+    const result = await generateFinalDossier(inspectionOrderId);
+    
+    res.json({
+      success: true,
+      message: 'Final dossier generated successfully',
+      url: result.url,
+      path: result.path
+    });
+  } catch (error: any) {
+    console.error('🚨 Priority final dossier generation error:', error);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ 
+      error: 'Failed to generate final dossier',
+      message: error.message 
+    });
+  }
+});
+
+console.log('🔥 PRIORITY: Final Dossier endpoints registered before Vite catch-all');
+
 // Add missing write-offs by invoice endpoint that frontend needs
 app.get('/api/finance/write-offs/invoice/:invoiceId', async (req: any, res: any) => {
   try {
