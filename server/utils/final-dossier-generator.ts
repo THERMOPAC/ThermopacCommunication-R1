@@ -173,6 +173,7 @@ export async function generateFinalDossierPDF(
 
     // Section 1: Approved Drawing
     const approvedDrawingPage = addSectionPage(pdfDoc, sectionNumber++, 'APPROVED DRAWING', approvedDrawingRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage);
+    
     if (approvedDrawingRecords.length > 0) {
       let yPos = 620;
       approvedDrawingPage.drawText('Approved Drawing Records:', {
@@ -182,10 +183,23 @@ export async function generateFinalDossierPDF(
         font: helveticaBold,
         color: rgb(0, 0, 0),
       });
-      yPos -= 20;
+      yPos -= 30;
       
       for (const drawing of approvedDrawingRecords) {
-        approvedDrawingPage.drawText(`- Drawing Number: ${drawing.drawingNumber || 'N/A'}`, {
+        // Draw drawing title
+        if (drawing.drawingTitle) {
+          approvedDrawingPage.drawText(`Drawing Title: ${drawing.drawingTitle}`, {
+            x: pageMargin + 20,
+            y: yPos,
+            size: 10,
+            font: helveticaBold,
+            color: rgb(0, 0, 0),
+          });
+          yPos -= 15;
+        }
+        
+        // Draw drawing number
+        approvedDrawingPage.drawText(`Drawing Number: ${drawing.drawingNumber || 'N/A'}`, {
           x: pageMargin + 20,
           y: yPos,
           size: 10,
@@ -194,15 +208,130 @@ export async function generateFinalDossierPDF(
         });
         yPos -= 15;
         
-        approvedDrawingPage.drawText(`- Revision: ${drawing.revision || 'N/A'}`, {
+        // Draw revision
+        approvedDrawingPage.drawText(`Revision: ${drawing.revision || 'N/A'}`, {
           x: pageMargin + 20,
           y: yPos,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPos -= 25;
+        yPos -= 15;
+        
+        // Draw approved by
+        if (drawing.approvedBy) {
+          approvedDrawingPage.drawText(`Approved By: ${drawing.approvedBy}`, {
+            x: pageMargin + 20,
+            y: yPos,
+            size: 10,
+            font: helvetica,
+            color: rgb(0, 0, 0),
+          });
+          yPos -= 15;
+        }
+        
+        // Draw approval date
+        if (drawing.approvalDate) {
+          approvedDrawingPage.drawText(`Approval Date: ${drawing.approvalDate}`, {
+            x: pageMargin + 20,
+            y: yPos,
+            size: 10,
+            font: helvetica,
+            color: rgb(0, 0, 0),
+          });
+          yPos -= 15;
+        }
+        
+        // Draw status
+        if (drawing.status) {
+          approvedDrawingPage.drawText(`Status: ${drawing.status}`, {
+            x: pageMargin + 20,
+            y: yPos,
+            size: 10,
+            font: helvetica,
+            color: rgb(0, 0, 0),
+          });
+          yPos -= 15;
+        }
+        
+        // Draw remarks
+        if (drawing.remarks) {
+          approvedDrawingPage.drawText(`Remarks: ${drawing.remarks}`, {
+            x: pageMargin + 20,
+            y: yPos,
+            size: 10,
+            font: helvetica,
+            color: rgb(0, 0, 0),
+          });
+          yPos -= 15;
+        }
+        
+        yPos -= 20; // Space between records
       }
+    } else {
+      // Show basic drawing information from inspection order if no approved drawing records exist
+      let yPos = 620;
+      approvedDrawingPage.drawText('Basic Drawing Information:', {
+        x: pageMargin,
+        y: yPos,
+        size: 12,
+        font: helveticaBold,
+        color: rgb(0, 0, 0),
+      });
+      yPos -= 30;
+      
+      if (inspectionOrder.drawingNo) {
+        approvedDrawingPage.drawText(`Drawing Number: ${inspectionOrder.drawingNo}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+      }
+      
+      if (inspectionOrder.itemCode) {
+        approvedDrawingPage.drawText(`Item Code: ${inspectionOrder.itemCode}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+      }
+      
+      if (inspectionOrder.description) {
+        const description = inspectionOrder.description.length > 80 
+          ? inspectionOrder.description.substring(0, 80) + '...' 
+          : inspectionOrder.description;
+        approvedDrawingPage.drawText(`Description: ${description}`, {
+          x: pageMargin + 20,
+          y: yPos,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 15;
+      }
+      
+      yPos -= 20;
+      approvedDrawingPage.drawText('Note: No detailed approved drawing records have been added to this inspection order.', {
+        x: pageMargin + 20,
+        y: yPos,
+        size: 9,
+        font: helvetica,
+        color: rgb(0.5, 0.5, 0.5),
+      });
+      yPos -= 15;
+      approvedDrawingPage.drawText('Add approved drawing records in the inspection order to include detailed drawing information.', {
+        x: pageMargin + 20,
+        y: yPos,
+        size: 9,
+        font: helvetica,
+        color: rgb(0.5, 0.5, 0.5),
+      });
     }
 
     // Section 2: Design Verification Report (DVR)
