@@ -204,6 +204,8 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents", ensureAuthent
       formattedTabName = 'DVR'; // DVR tab maintains same name for GCS path consistency
     } else if (tabName === 'ITP') {
       formattedTabName = 'ITP'; // ITP tab maintains same name for GCS path consistency
+    } else if (tabName === 'Hydrotest') {
+      formattedTabName = 'Hydrotest'; // Hydrotest tab maintains same name for GCS path consistency
     }
     
     console.log(`Getting documents for inspection: ${inspectionOrderNumber}, tab: ${tabName} (formatted as: ${formattedTabName}), record: ${recordId}`);
@@ -272,6 +274,8 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId/dow
       formattedTabName = 'DVR'; // DVR tab maintains same name for GCS path consistency
     } else if (tabName === 'ITP') {
       formattedTabName = 'ITP'; // ITP tab maintains same name for GCS path consistency
+    } else if (tabName === 'Hydrotest') {
+      formattedTabName = 'Hydrotest'; // Hydrotest tab maintains same name for GCS path consistency
     }
     
     // Try multiple path formats for file detection
@@ -395,6 +399,8 @@ router.delete("/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId"
       formattedTabName = 'DVR'; // DVR tab maintains same name for GCS path consistency
     } else if (tabName === 'ITP') {
       formattedTabName = 'ITP'; // ITP tab maintains same name for GCS path consistency
+    } else if (tabName === 'Hydrotest') {
+      formattedTabName = 'Hydrotest'; // Hydrotest tab maintains same name for GCS path consistency
     }
     
     // Try multiple path formats for file detection

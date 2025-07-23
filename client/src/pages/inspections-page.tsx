@@ -6251,6 +6251,24 @@ export default function InspectionsPage() {
                           )}
                         </div>
                       </div>
+                      
+                      {/* Uploaded Files Display Section */}
+                      {hydrotestRecords && hydrotestRecords.length > 0 && (
+                        <div className="mt-6 border-t pt-4">
+                          <h4 className="text-sm font-medium text-gray-700 mb-3">Uploaded Files</h4>
+                          <div className="space-y-2">
+                            {hydrotestRecords.map((record) => (
+                              <DrawingFilesDisplay
+                                key={record.id}
+                                inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                                recordId={record.id}
+                                recordTitle={`Hydrotest Record - ${record.id}`}
+                                tabName="Hydrotest"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
                   
