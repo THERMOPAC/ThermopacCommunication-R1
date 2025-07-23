@@ -6036,6 +6036,24 @@ export default function InspectionsPage() {
                           </Button>
                         </div>
                       </div>
+                      
+                      {/* Uploaded Files Display Section */}
+                      {visualRecords && visualRecords.length > 0 && (
+                        <div className="mt-6 border-t pt-4">
+                          <h4 className="text-sm font-medium text-gray-700 mb-3">Uploaded Files</h4>
+                          <div className="space-y-2">
+                            {visualRecords.map((record) => (
+                              <DrawingFilesDisplay
+                                key={record.id}
+                                inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                                recordId={record.id}
+                                recordTitle={`Visual Inspection - ${record.id}`}
+                                tabName="Visual"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
                   
