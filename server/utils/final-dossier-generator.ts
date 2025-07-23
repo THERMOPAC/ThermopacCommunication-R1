@@ -152,12 +152,12 @@ export async function generateFinalDossierPDF(
     addFooterToPage(tocPage);
 
     // Parse inspection order data
-    const approvedDrawingRecords = inspectionOrder.parsedApprovedDrawingRecords ? 
-      JSON.parse(inspectionOrder.parsedApprovedDrawingRecords) : [];
-    const dvrRecords = inspectionOrder.parsedDvrRecords ? 
-      JSON.parse(inspectionOrder.parsedDvrRecords) : [];
-    const itpRecords = inspectionOrder.parsedItpRecords ? 
-      JSON.parse(inspectionOrder.parsedItpRecords) : [];
+    const approvedDrawingRecords = inspectionOrder.approvedDrawingData ? 
+      JSON.parse(inspectionOrder.approvedDrawingData) : [];
+    const dvrRecords = inspectionOrder.dvrData ? 
+      JSON.parse(inspectionOrder.dvrData) : [];
+    const itpRecords = inspectionOrder.itpData ? 
+      JSON.parse(inspectionOrder.itpData) : [];
     const materialRecords = JSON.parse(inspectionOrder.materialTraceability || '[]');
     const pmaRecords = inspectionOrder.parsedPmaRecords ? 
       JSON.parse(inspectionOrder.parsedPmaRecords) : [];
@@ -165,11 +165,11 @@ export async function generateFinalDossierPDF(
       JSON.parse(inspectionOrder.parsedProcedureRecords) : [];
     const shopInspectionRecords = inspectionOrder.parsedShopInspectionRecords ? 
       JSON.parse(inspectionOrder.parsedShopInspectionRecords) : [];
-    const weldingRecords = JSON.parse(inspectionOrder.welding || '[]');
-    const ndtRecords = JSON.parse(inspectionOrder.ndt || '[]');
-    const visualRecords = JSON.parse(inspectionOrder.visual || '[]');
-    const hydrotestRecords = JSON.parse(inspectionOrder.hydrotest || '[]');
-    const ncrRecords = JSON.parse(inspectionOrder.ncr || '[]');
+    const weldingRecords = JSON.parse(inspectionOrder.weldData || '[]');
+    const ndtRecords = JSON.parse(inspectionOrder.ndtData || '[]');
+    const visualRecords = JSON.parse(inspectionOrder.visualData || '[]');
+    const hydrotestRecords = JSON.parse(inspectionOrder.hydrotestData || '[]');
+    const ncrRecords = JSON.parse(inspectionOrder.ncrData || '[]');
 
     // Section 1: Approved Drawing
     const approvedDrawingPage = addSectionPage(pdfDoc, sectionNumber++, 'APPROVED DRAWING', approvedDrawingRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage);
