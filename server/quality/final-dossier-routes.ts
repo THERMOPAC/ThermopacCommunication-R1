@@ -1,14 +1,16 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { generateFinalDossier, checkExistingFinalDossier } from '../utils/final-dossier-generator';
 import { listFilesInDirectory } from '../utils/list-gcs-files';
 
 const router = express.Router();
 
 // Middleware to ensure user is authenticated
-function ensureAuthenticated(req: Request, res: Response, next: express.NextFunction) {
-  if (req.isAuthenticated && req.isAuthenticated()) {
+function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
+  // More flexible authentication check that handles different session states
+  if (req.user || (req.isAuthenticated && req.isAuthenticated()) || req.session?.passport?.user) {
     return next();
   }
+  console.log('Authentication failed in final-dossier-routes. Req.user:', !!req.user, 'isAuthenticated:', typeof req.isAuthenticated, 'session user:', !!req.session?.passport?.user);
   res.status(401).json({ error: 'Not authenticated' });
 }
 
@@ -113,6 +115,7 @@ router.get('/list-directory/:inspectionOrderNumber', ensureAuthenticated, async 
     });
   }
 });
+
 
 // Download/view a final dossier PDF
 router.get('/download/:inspectionOrderId', ensureAuthenticated, async (req: Request, res: Response) => {

@@ -743,21 +743,21 @@ export async function checkExistingFinalDossier(inspectionOrderIdOrNumber: numbe
       console.log(`  - Scanning directory: ${basePath}`);
       const existingFiles = await listFilesInDirectory(basePath);
       console.log(`  - Found ${existingFiles.length} total files in directory`);
-      console.log(`  - File list:`, existingFiles.map(f => f.name));
+      console.log(`  - File list:`, existingFiles);
       
       // Filter out .keep files and get only PDF files
       const pdfFiles = existingFiles.filter(file => 
-        file.name && 
-        file.name.endsWith('.pdf') && 
-        !file.name.endsWith('/.keep')
+        file && 
+        file.endsWith('.pdf') && 
+        !file.endsWith('/.keep')
       );
       
-      console.log(`  - Found ${pdfFiles.length} PDF files:`, pdfFiles.map(f => f.name));
+      console.log(`  - Found ${pdfFiles.length} PDF files:`, pdfFiles);
       
       if (pdfFiles.length > 0) {
         // Get the latest file (assuming files are sorted by date in filename)
         const latestFile = pdfFiles[pdfFiles.length - 1]; 
-        const filePath = latestFile.name;
+        const filePath = latestFile;
         
         console.log('Using legacy file path for signed URL:', filePath);
         
