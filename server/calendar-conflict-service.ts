@@ -136,7 +136,7 @@ export class CalendarConflictService {
           // Check if any participant is involved
           or(
             inArray(businessMeetings.organizerId, participantIds),
-            sql`${businessMeetings.attendeeIds} && ${participantIds}`
+            sql`${businessMeetings.attendeeIds} && ARRAY[${participantIds.map(id => `${id}`).join(',')}]::integer[]`
           )
         )
       );
@@ -149,7 +149,7 @@ export class CalendarConflictService {
           sql`${businessMeetings.status} NOT IN ('Cancelled', 'Completed')`,
           or(
             inArray(businessMeetings.organizerId, participantIds),
-            sql`${businessMeetings.attendeeIds} && ${participantIds}`
+            sql`${businessMeetings.attendeeIds} && ARRAY[${participantIds.map(id => `${id}`).join(',')}]::integer[]`
           ),
           sql`${businessMeetings.id} != ${excludeMeetingId}`
         )
