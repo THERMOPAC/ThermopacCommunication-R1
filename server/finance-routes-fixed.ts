@@ -680,13 +680,14 @@ router.get('/reports/turnover-direct', async (req: Request, res: Response) => {
     
     const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
     
-    // Use same successful query pattern as finance dashboard
+    // Updated query pattern to include credit note deductions
     const query = `
       SELECT 
         COUNT(*) as "totalCount",
         COALESCE(SUM(total_amount), 0) as "totalInvoiced",
         COALESCE(SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END), 0) as "totalReceived",
         COALESCE(SUM(outstanding_amount), 0) as "totalOutstanding",
+        COALESCE(SUM(COALESCE(credit_note_amount, 0)), 0) as "totalCreditNotes",
         COALESCE(SUM(
           (SELECT SUM(amount_lc) FROM invoice_items WHERE invoice_items.invoice_id = invoices.id)
         ), 0) as "totalInvoicedINR",
@@ -694,7 +695,12 @@ router.get('/reports/turnover-direct', async (req: Request, res: Response) => {
           CASE WHEN status = 'Paid' THEN 
             (SELECT SUM(amount_lc) FROM invoice_items WHERE invoice_items.invoice_id = invoices.id)
           ELSE 0 END
-        ), 0) as "totalReceivedINR"
+        ), 0) as "totalReceivedINR",
+        COALESCE(SUM(
+          CASE WHEN credit_note_amount IS NOT NULL THEN 
+            (SELECT SUM(amount_lc) FROM invoice_items WHERE invoice_items.invoice_id = invoices.id) * (credit_note_amount / total_amount)
+          ELSE 0 END
+        ), 0) as "totalCreditNotesINR"
       FROM invoices ${whereClause}
     `;
     
@@ -706,7 +712,7 @@ router.get('/reports/turnover-direct', async (req: Request, res: Response) => {
     
     console.log('📊 DIRECT RESULT:', data);
     
-    // Get monthly breakdown data
+    // Get monthly breakdown data with credit note deductions
     const monthlyQuery = `
       SELECT 
         EXTRACT(YEAR FROM issue_date) as year,
@@ -715,6 +721,7 @@ router.get('/reports/turnover-direct', async (req: Request, res: Response) => {
         COALESCE(SUM(total_amount), 0) as monthly_invoiced,
         COALESCE(SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END), 0) as monthly_received,
         COALESCE(SUM(outstanding_amount), 0) as monthly_outstanding,
+        COALESCE(SUM(COALESCE(credit_note_amount, 0)), 0) as monthly_credit_notes,
         COALESCE(SUM(
           (SELECT SUM(amount_lc) FROM invoice_items WHERE invoice_items.invoice_id = invoices.id)
         ), 0) as monthly_invoiced_inr,
@@ -723,6 +730,11 @@ router.get('/reports/turnover-direct', async (req: Request, res: Response) => {
             (SELECT SUM(amount_lc) FROM invoice_items WHERE invoice_items.invoice_id = invoices.id)
           ELSE 0 END
         ), 0) as monthly_received_inr,
+        COALESCE(SUM(
+          CASE WHEN credit_note_amount IS NOT NULL THEN 
+            (SELECT SUM(amount_lc) FROM invoice_items WHERE invoice_items.invoice_id = invoices.id) * (credit_note_amount / total_amount)
+          ELSE 0 END
+        ), 0) as monthly_credit_notes_inr,
         CASE 
           WHEN SUM(total_amount) > 0 
           THEN ROUND((SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END) * 100.0 / SUM(total_amount)), 2)
@@ -739,28 +751,43 @@ router.get('/reports/turnover-direct', async (req: Request, res: Response) => {
     
     console.log('📅 MONTHLY DATA:', monthlyData);
     
-    // Calculate outstanding INR using actual invoice amounts minus received amounts
-    const totalOutstandingINR = (parseFloat(data.totalInvoicedINR) || 0) - (parseFloat(data.totalReceivedINR) || 0);
+    // Calculate net values after credit note deductions
+    const totalCreditNotes = parseFloat(data.totalCreditNotes) || 0;
+    const totalCreditNotesINR = parseFloat(data.totalCreditNotesINR) || 0;
     
-    // Format response for frontend
+    // Net amounts after deducting credit notes
+    const netTotalInvoiced = (parseFloat(data.totalInvoiced) || 0) - totalCreditNotes;
+    const netTotalInvoicedINR = (parseFloat(data.totalInvoicedINR) || 0) - totalCreditNotesINR;
+    const totalOutstandingINR = netTotalInvoicedINR - (parseFloat(data.totalReceivedINR) || 0);
+    
+    // Format response for frontend with credit note adjustments
     const response = {
       reportDate: new Date().toISOString(),
-      totalInvoiced: parseFloat(data.totalInvoiced) || 0,
+      totalInvoiced: netTotalInvoiced,
       totalReceived: parseFloat(data.totalReceived) || 0,
       totalOutstanding: parseFloat(data.totalOutstanding) || 0,
-      totalInvoicedINR: parseFloat(data.totalInvoicedINR) || 0,
+      totalCreditNotes: totalCreditNotes,
+      totalInvoicedINR: netTotalInvoicedINR,
       totalReceivedINR: parseFloat(data.totalReceivedINR) || 0,
+      totalCreditNotesINR: totalCreditNotesINR,
       totalOutstandingINR: totalOutstandingINR,
       monthlyData: monthlyData.map(row => {
-        const monthlyOutstandingINR = (parseFloat(row.monthly_invoiced_inr) || 0) - (parseFloat(row.monthly_received_inr) || 0);
+        const monthlyCreditNotes = parseFloat(row.monthly_credit_notes) || 0;
+        const monthlyCreditNotesINR = parseFloat(row.monthly_credit_notes_inr) || 0;
+        const netMonthlyInvoiced = (parseFloat(row.monthly_invoiced) || 0) - monthlyCreditNotes;
+        const netMonthlyInvoicedINR = (parseFloat(row.monthly_invoiced_inr) || 0) - monthlyCreditNotesINR;
+        const monthlyOutstandingINR = netMonthlyInvoicedINR - (parseFloat(row.monthly_received_inr) || 0);
+        
         return {
           month: row.month_label.trim(),
-          invoicedAmount: parseFloat(row.monthly_invoiced) || 0,
+          invoicedAmount: netMonthlyInvoiced,
           receivedAmount: parseFloat(row.monthly_received) || 0,
           outstanding: parseFloat(row.monthly_outstanding) || 0,
+          creditNotes: monthlyCreditNotes,
           percentCollected: parseFloat(row.percent_collected) || 0,
-          invoicedAmountINR: parseFloat(row.monthly_invoiced_inr) || 0,
+          invoicedAmountINR: netMonthlyInvoicedINR,
           receivedAmountINR: parseFloat(row.monthly_received_inr) || 0,
+          creditNotesINR: monthlyCreditNotesINR,
           outstandingINR: monthlyOutstandingINR
         };
       })

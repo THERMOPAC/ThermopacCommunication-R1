@@ -215,7 +215,7 @@ export default function TurnoverReportPage() {
       // Create Excel workbook
       const workbook = XLSX.utils.book_new();
       
-      // Summary Sheet
+      // Summary Sheet with Credit Notes Integration
       const summaryData = [
         ['THERMOPAC TURNOVER REPORT'],
         [`Report Period: ${downloadType === 'financialYear' ? financialYearPresets.find(fy => fy.value === downloadFinancialYear)?.label : format(downloadDateRange.from!, 'MMM dd, yyyy') + ' to ' + format(downloadDateRange.to!, 'MMM dd, yyyy')}`],
@@ -223,11 +223,13 @@ export default function TurnoverReportPage() {
         [''],
         ['SUMMARY'],
         ['Metric', 'USD Amount', 'INR Amount'],
-        ['Total Invoiced', reportData.totalInvoiced?.toFixed(2) || '0.00', reportData.totalInvoicedINR?.toFixed(2) || '0.00'],
+        ['Total Invoiced (Net)', reportData.totalInvoiced?.toFixed(2) || '0.00', reportData.totalInvoicedINR?.toFixed(2) || '0.00'],
+        ['Total Credit Notes', reportData.totalCreditNotes?.toFixed(2) || '0.00', reportData.totalCreditNotesINR?.toFixed(2) || '0.00'],
         ['Total Received', reportData.totalReceived?.toFixed(2) || '0.00', reportData.totalReceivedINR?.toFixed(2) || '0.00'],
         ['Total Outstanding', reportData.totalOutstanding?.toFixed(2) || '0.00', reportData.totalOutstandingINR?.toFixed(2) || '0.00'],
         [''],
-        ['Collection Rate', `${reportData.totalInvoiced > 0 ? ((reportData.totalReceived / reportData.totalInvoiced) * 100).toFixed(2) : '0.00'}%`]
+        ['Collection Rate', `${reportData.totalInvoiced > 0 ? ((reportData.totalReceived / reportData.totalInvoiced) * 100).toFixed(2) : '0.00'}%`],
+        ['Credit Note Rate', `${reportData.totalInvoiced > 0 && reportData.totalCreditNotes ? ((reportData.totalCreditNotes / (reportData.totalInvoiced + reportData.totalCreditNotes)) * 100).toFixed(2) : '0.00'}%`]
       ];
       
       const summaryWorksheet = XLSX.utils.aoa_to_sheet(summaryData);
@@ -411,21 +413,23 @@ export default function TurnoverReportPage() {
         XLSX.utils.book_append_sheet(workbook, detailedWorksheet, 'Invoice Details');
       }
       
-      // Monthly Details Sheet (if available)
+      // Monthly Details Sheet with Credit Notes (if available)
       if (reportData.monthlyData && reportData.monthlyData.length > 0) {
         const monthlyHeader = [
-          ['MONTHLY BREAKDOWN'],
+          ['MONTHLY BREAKDOWN WITH CREDIT NOTES'],
           [''],
-          ['Month', 'Invoiced (USD)', 'Received (USD)', 'Outstanding (USD)', 'Collection %', 'Invoiced (INR)', 'Received (INR)', 'Outstanding (INR)']
+          ['Month', 'Invoiced (USD)', 'Credit Notes (USD)', 'Received (USD)', 'Outstanding (USD)', 'Collection %', 'Invoiced (INR)', 'Credit Notes (INR)', 'Received (INR)', 'Outstanding (INR)']
         ];
         
         const monthlyDetails = reportData.monthlyData.map((month: any) => [
           month.month,
           month.invoicedAmount?.toFixed(2) || '0.00',
+          month.creditNotes?.toFixed(2) || '0.00',
           month.receivedAmount?.toFixed(2) || '0.00', 
           month.outstanding?.toFixed(2) || '0.00',
           `${month.percentCollected?.toFixed(2) || '0.00'}%`,
           month.invoicedAmountINR?.toFixed(2) || '0.00',
+          month.creditNotesINR?.toFixed(2) || '0.00',
           month.receivedAmountINR?.toFixed(2) || '0.00',
           month.outstandingINR?.toFixed(2) || '0.00'
         ]);
@@ -435,14 +439,16 @@ export default function TurnoverReportPage() {
         
         // Set column widths
         monthlyWorksheet['!cols'] = [
-          { width: 15 },
-          { width: 15 },
-          { width: 15 },
-          { width: 15 },
-          { width: 12 },
-          { width: 18 },
-          { width: 18 },
-          { width: 18 }
+          { width: 15 }, // Month
+          { width: 15 }, // Invoiced USD
+          { width: 15 }, // Credit Notes USD
+          { width: 15 }, // Received USD
+          { width: 15 }, // Outstanding USD
+          { width: 12 }, // Collection %
+          { width: 18 }, // Invoiced INR
+          { width: 15 }, // Credit Notes INR
+          { width: 18 }, // Received INR
+          { width: 18 }  // Outstanding INR
         ];
         
         XLSX.utils.book_append_sheet(workbook, monthlyWorksheet, 'Monthly Details');
