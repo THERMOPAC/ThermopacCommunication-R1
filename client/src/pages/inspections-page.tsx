@@ -4,6 +4,7 @@ import Layout from "@/components/layout";
 import { Check, Edit, Trash, Eye, Plus, ClipboardCheck, ClipboardList, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Edit2, Pencil, Trash2, X, FileCheck, BarChart3, ListChecks, FileOutput, Download, Upload, Filter, Search, Info } from "lucide-react";
 import InspectionDocumentUpload from "@/components/inspection-document-upload";
 import InspectionDocumentViewer from "@/components/inspection-document-viewer";
+import DrawingFilesDisplay from "@/components/drawing-files-display";
 import { FinalDossierDebugButton } from "@/components/final-dossier-debug-button";
 import { 
   ChartContainer, 
@@ -4723,6 +4724,23 @@ export default function InspectionsPage() {
                           </TableBody>
                         </Table>
                       </div>
+                      
+                      {/* Uploaded Files Display Section */}
+                      {approvedDrawingRecords.length > 0 && (
+                        <div className="mt-6 border-t pt-4">
+                          <h4 className="text-sm font-medium text-gray-700 mb-3">Uploaded Files</h4>
+                          <div className="space-y-2">
+                            {approvedDrawingRecords.map((record) => (
+                              <DrawingFilesDisplay
+                                key={record.id}
+                                inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                                recordId={record.id}
+                                recordTitle={record.drawingTitle || `Drawing ${record.id}`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
                   
