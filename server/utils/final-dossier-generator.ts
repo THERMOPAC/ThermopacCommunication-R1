@@ -663,17 +663,28 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
   }
 }
 
-// Function to check if final dossier already exists
-export async function checkExistingFinalDossier(inspectionOrderId: number): Promise<{ exists: boolean; path?: string; url?: string }> {
+// Function to check if final dossier already exists - overloaded for both ID and number
+export async function checkExistingFinalDossier(inspectionOrderId: number): Promise<{ exists: boolean; path?: string; url?: string }>;
+export async function checkExistingFinalDossier(inspectionOrderNumber: string): Promise<{ exists: boolean; path?: string; url?: string }>;
+export async function checkExistingFinalDossier(inspectionOrderIdOrNumber: number | string): Promise<{ exists: boolean; path?: string; url?: string }> {
   try {
-    console.log(`Checking existing final dossier for inspection order ID: ${inspectionOrderId}`);
+    let inspectionOrder;
     
-    const inspectionOrder = await db.query.inspectionOrders.findFirst({
-      where: eq(inspectionOrders.id, inspectionOrderId)
-    });
+    if (typeof inspectionOrderIdOrNumber === 'number') {
+      console.log(`Checking existing final dossier for inspection order ID: ${inspectionOrderIdOrNumber}`);
+      inspectionOrder = await db.query.inspectionOrders.findFirst({
+        where: eq(inspectionOrders.id, inspectionOrderIdOrNumber)
+      });
+    } else {
+      console.log(`Checking existing final dossier for inspection order number: ${inspectionOrderIdOrNumber}`);
+      inspectionOrder = await db.query.inspectionOrders.findFirst({
+        where: eq(inspectionOrders.inspectionOrderNumber, inspectionOrderIdOrNumber)
+      });
+    }
     
     if (!inspectionOrder) {
       console.log('Inspection order not found in database');
+      console.log(`Searched by: ${typeof inspectionOrderIdOrNumber === 'number' ? 'ID' : 'number'} = ${inspectionOrderIdOrNumber}`);
       return { exists: false };
     }
 
@@ -683,8 +694,12 @@ export async function checkExistingFinalDossier(inspectionOrderId: number): Prom
     const basePath = `QMS/Inspections_Records/${inspectionOrder.projectCode || 'UNKNOWN'}/${inspectionOrder.inspectionOrderNumber}/Final Dossier/`;
     const expectedFileName = `FD_${inspectionOrder.inspectionOrderNumber}.pdf`;
     const expectedFilePath = `${basePath}${expectedFileName}`;
-    console.log(`Checking GCS path: ${basePath}`);
-    console.log(`Expected file: ${expectedFileName}`);
+    console.log(`🔍 GCS PATH DEBUG:`);
+    console.log(`  - Project Code: ${inspectionOrder.projectCode || 'UNKNOWN'}`);
+    console.log(`  - Inspection Order: ${inspectionOrder.inspectionOrderNumber}`);
+    console.log(`  - Base Path: ${basePath}`);
+    console.log(`  - Expected File Name: ${expectedFileName}`);
+    console.log(`  - Full Expected Path: ${expectedFilePath}`);
     
     // First, try to check if the exact expected file exists
     try {
@@ -724,8 +739,11 @@ export async function checkExistingFinalDossier(inspectionOrderId: number): Prom
 
     // If exact file not found, scan directory for any PDF files (legacy support)
     try {
+      console.log(`📂 FALLBACK DIRECTORY SCAN:`);
+      console.log(`  - Scanning directory: ${basePath}`);
       const existingFiles = await listFilesInDirectory(basePath);
-      console.log(`Found ${existingFiles.length} files in directory`);
+      console.log(`  - Found ${existingFiles.length} total files in directory`);
+      console.log(`  - File list:`, existingFiles.map(f => f.name));
       
       // Filter out .keep files and get only PDF files
       const pdfFiles = existingFiles.filter(file => 
@@ -734,7 +752,7 @@ export async function checkExistingFinalDossier(inspectionOrderId: number): Prom
         !file.name.endsWith('/.keep')
       );
       
-      console.log('Found PDF files:', pdfFiles.map(f => f.name));
+      console.log(`  - Found ${pdfFiles.length} PDF files:`, pdfFiles.map(f => f.name));
       
       if (pdfFiles.length > 0) {
         // Get the latest file (assuming files are sorted by date in filename)

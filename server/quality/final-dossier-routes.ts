@@ -144,4 +144,75 @@ router.get('/download/:inspectionOrderId', ensureAuthenticated, async (req: Requ
   }
 });
 
+// Debug endpoint to troubleshoot specific inspection order
+router.get('/debug/:inspectionOrderId', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const inspectionOrderId = parseInt(req.params.inspectionOrderId);
+    
+    if (isNaN(inspectionOrderId)) {
+      return res.status(400).json({ error: 'Invalid inspection order ID' });
+    }
+
+    console.log(`🐛 DEBUG: Final dossier troubleshooting for inspection order ID: ${inspectionOrderId}`);
+    
+    // Get the inspection order details
+    const { db } = require('../storage');
+    const { inspectionOrders } = require('../../shared/schema');
+    const { eq } = require('drizzle-orm');
+    
+    const inspectionOrder = await db.query.inspectionOrders.findFirst({
+      where: eq(inspectionOrders.id, inspectionOrderId)
+    });
+    
+    if (!inspectionOrder) {
+      return res.json({
+        error: 'Inspection order not found',
+        inspectionOrderId,
+        foundInDatabase: false
+      });
+    }
+
+    // Check if final dossier exists
+    const result = await checkExistingFinalDossier(inspectionOrderId);
+    
+    // Generate expected paths
+    const basePath = `QMS/Inspections_Records/${inspectionOrder.projectCode || 'UNKNOWN'}/${inspectionOrder.inspectionOrderNumber}/Final Dossier/`;
+    const expectedFileName = `FD_${inspectionOrder.inspectionOrderNumber}.pdf`;
+    const expectedFilePath = `${basePath}${expectedFileName}`;
+    
+    // Try to list directory contents for additional debugging
+    let directoryContents = [];
+    try {
+      directoryContents = await listFilesInDirectory(basePath);
+    } catch (e) {
+      console.log('Could not list directory contents:', e);
+    }
+    
+    res.json({
+      inspectionOrderId,
+      foundInDatabase: true,
+      inspectionOrder: {
+        id: inspectionOrder.id,
+        inspectionOrderNumber: inspectionOrder.inspectionOrderNumber,
+        projectCode: inspectionOrder.projectCode,
+        title: inspectionOrder.title
+      },
+      expectedGCSPath: {
+        basePath,
+        expectedFileName,
+        expectedFilePath
+      },
+      checkResult: result,
+      directoryContents: directoryContents.map(f => f.name),
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error in debug endpoint:', error);
+    res.status(500).json({ 
+      error: 'Debug endpoint failed', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
 export default router;
