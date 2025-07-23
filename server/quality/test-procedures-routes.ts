@@ -354,10 +354,13 @@ router.put('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
       limitations: z.string().optional(),
       environmentalConditions: z.string().optional(),
       status: z.enum(['Draft', 'Under Review', 'Approved', 'Superseded']).optional(),
-      approvalLevel: z.string().optional(),
+      approvalLevel: z.enum(['Level 1', 'Level 2', 'Level 3']).optional().or(z.literal('')),
       remarks: z.string().optional(),
       tags: z.string().optional()
-    });
+    }).transform((data) => ({
+      ...data,
+      approvalLevel: data.approvalLevel === '' ? undefined : data.approvalLevel
+    }));
 
     console.log('PUT request body:', JSON.stringify(req.body, null, 2));
     const validation = partialSchema.safeParse(req.body);
