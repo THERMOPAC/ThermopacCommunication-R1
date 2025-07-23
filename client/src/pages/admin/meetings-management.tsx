@@ -4113,7 +4113,7 @@ Suggested next steps
                         <div className="flex items-center gap-4 text-sm text-gray-500">
                           <span className="flex items-center gap-1">
                             <CalendarIcon className="h-4 w-4" />
-                            {format(parseISO(meeting.meetingDate), 'MMM dd, yyyy')}
+                            {format(parseISO(meeting.meetingDate), 'eeee, MMM dd, yyyy')}
                           </span>
                           <span className="flex items-center gap-1">
                             <ClockIcon className="h-4 w-4" />
@@ -4139,7 +4139,7 @@ Suggested next steps
                               variant="outline"
                               onClick={() => {
                                 // Create a detailed view of the meeting
-                                alert(`Meeting Details:\n\nTitle: ${meeting.title}\nDescription: ${meeting.description}\nDate: ${format(parseISO(meeting.meetingDate), 'MMM dd, yyyy')}\nTime: ${meeting.startTime} - ${meeting.endTime}\nDuration: ${meeting.duration} min\nPriority: ${meeting.priority}\nType: ${meeting.meetingType}\nParticipants: ${meeting.participantCount || 0} attendees`);
+                                alert(`Meeting Details:\n\nTitle: ${meeting.title}\nDescription: ${meeting.description}\nDate: ${format(parseISO(meeting.meetingDate), 'eeee, MMM dd, yyyy')}\nTime: ${meeting.startTime} - ${meeting.endTime}\nDuration: ${meeting.duration} min\nPriority: ${meeting.priority}\nType: ${meeting.meetingType}\nParticipants: ${meeting.participantCount || 0} attendees`);
                               }}
                               className="h-7 px-2"
                               title="View Meeting Details"
