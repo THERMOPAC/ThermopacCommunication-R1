@@ -122,34 +122,6 @@ app.post('/api/quality/final-dossier/generate/:inspectionOrderId', async (req: a
   }
 });
 
-app.get('/api/quality/final-dossier/download/*', async (req: any, res: any) => {
-  try {
-    const filePath = req.params[0]; // This captures the entire path after /download/
-    console.log(`🎯 PRIORITY: Downloading final dossier file: ${filePath}`);
-    
-    const { Storage } = await import('@google-cloud/storage');
-    const storage = new Storage();
-    const bucketName = process.env.GOOGLE_CLOUD_BUCKET || 'thermopac_storage';
-    const bucket = storage.bucket(bucketName);
-    const file = bucket.file(filePath);
-    
-    // Generate signed URL for download
-    const [signedUrl] = await file.getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 15 * 60 * 1000, // 15 minutes
-    });
-    
-    console.log(`✅ Generated signed URL for final dossier download: ${filePath}`);
-    res.redirect(signedUrl);
-  } catch (error: any) {
-    console.error('🚨 Priority final dossier download error:', error);
-    res.status(500).json({ 
-      error: 'Failed to download final dossier',
-      message: error.message 
-    });
-  }
-});
-
 console.log('🔥 PRIORITY: Final Dossier endpoints registered before Vite catch-all');
 
 // Add missing write-offs by invoice endpoint that frontend needs
@@ -322,6 +294,61 @@ app.use((req, res, next) => {
     
     // Log the error but don't throw it
     console.error("Express error:", err);
+  });
+
+  // PRIORITY: Final Dossier download route MUST be before Vite middleware
+  app.get('/api/quality/final-dossier/download/*', async (req: any, res: any) => {
+    try {
+      // Extract the file path from the remaining URL path after /download/
+      const fullPath = req.path;
+      const filePath = fullPath.replace('/api/quality/final-dossier/download/', '');
+      
+      console.log(`🎯 PRIORITY DOWNLOAD: Final Dossier download endpoint hit!`);
+      console.log(`🎯 PRIORITY DOWNLOAD: Full path: ${fullPath}`);
+      console.log(`🎯 PRIORITY DOWNLOAD: Downloading file: ${filePath}`);
+      
+      const { Storage } = await import('@google-cloud/storage');
+      
+      // Initialize GCS with the same pattern used in the application
+      let storage: Storage;
+      
+      if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
+        console.log('🔧 Using explicit credentials from GOOGLE_CLOUD_CREDENTIALS');
+        const credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS);
+        
+        storage = new Storage({
+          projectId: credentials.project_id,
+          credentials: {
+            client_email: credentials.client_email,
+            private_key: credentials.private_key
+          }
+        });
+        
+        console.log(`🔧 Using explicit GCS credentials with project: ${credentials.project_id}`);
+      } else {
+        console.log('🔧 Using default GCS authentication');
+        storage = new Storage();
+      }
+      
+      const bucketName = process.env.GOOGLE_CLOUD_BUCKET || 'thermopac_storage';
+      const bucket = storage.bucket(bucketName);
+      const file = bucket.file(filePath);
+      
+      // Generate signed URL for download
+      const [signedUrl] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+      });
+      
+      console.log(`✅ Generated signed URL for final dossier download: ${filePath}`);
+      res.redirect(signedUrl);
+    } catch (error: any) {
+      console.error('🚨 Priority final dossier download error:', error);
+      res.status(500).json({ 
+        error: 'Failed to download final dossier',
+        message: error.message 
+      });
+    }
   });
 
   // importantly only setup vite in development and after
