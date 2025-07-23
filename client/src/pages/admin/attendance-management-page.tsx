@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet';
-import Layout from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -145,7 +144,7 @@ export default function AttendanceManagementPage() {
   };
 
   return (
-    <Layout>
+    <>
       <Helmet>
         <title>Attendance Management - THERMOPAC</title>
       </Helmet>
@@ -395,6 +394,6 @@ export default function AttendanceManagementPage() {
         </CardContent>
       </Card>
       </div>
-    </Layout>
+    </>
   );
 }
