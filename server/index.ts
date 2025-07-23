@@ -122,6 +122,49 @@ app.post('/api/quality/final-dossier/generate/:inspectionOrderId', async (req: a
   }
 });
 
+// MIGRATION ENDPOINTS: Final Dossier path migration utilities
+app.get('/api/quality/final-dossier/migration/status', async (req: any, res: any) => {
+  try {
+    console.log('🎯 PRIORITY: Checking Final Dossier migration status');
+    res.setHeader('Content-Type', 'application/json');
+    
+    const { checkMigrationStatus } = await import('./utils/final-dossier-migration');
+    const result = await checkMigrationStatus();
+    
+    res.json(result);
+  } catch (error: any) {
+    console.error('🚨 Migration status check error:', error);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ 
+      error: 'Failed to check migration status',
+      message: error.message 
+    });
+  }
+});
+
+app.post('/api/quality/final-dossier/migration/execute', async (req: any, res: any) => {
+  try {
+    console.log('🎯 PRIORITY: Executing Final Dossier migration');
+    res.setHeader('Content-Type', 'application/json');
+    
+    const { migrateFinalDossierFiles } = await import('./utils/final-dossier-migration');
+    const result = await migrateFinalDossierFiles();
+    
+    res.json({
+      success: true,
+      message: 'Migration completed',
+      summary: result
+    });
+  } catch (error: any) {
+    console.error('🚨 Migration execution error:', error);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ 
+      error: 'Failed to execute migration',
+      message: error.message 
+    });
+  }
+});
+
 console.log('🔥 PRIORITY: Final Dossier endpoints registered before Vite catch-all');
 
 // Add missing write-offs by invoice endpoint that frontend needs
