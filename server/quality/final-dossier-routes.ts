@@ -93,7 +93,7 @@ router.get('/list-directory/:inspectionOrderNumber', ensureAuthenticated, async 
     const files = await listFilesInDirectory(inspectionDirPath);
     
     // Also check the specific Final Dossier subdirectory
-    const dossierDirPath = `${inspectionDirPath}/Final Dossier`;
+    const dossierDirPath = `${inspectionDirPath}/Final_Dossier`;
     let dossierFiles: string[] = [];
     try {
       dossierFiles = await listFilesInDirectory(dossierDirPath);
@@ -188,7 +188,7 @@ router.get('/debug/:inspectionOrderId', ensureAuthenticated, async (req: Request
     const result = await checkExistingFinalDossier(inspectionOrderId);
     
     // Generate expected paths
-    const basePath = `QMS/Inspections_Records/${inspectionOrder.projectCode || 'UNKNOWN'}/${inspectionOrder.inspectionOrderNumber}/Final Dossier/`;
+    const basePath = `QMS/Inspections_Records/${inspectionOrder.projectCode || 'UNKNOWN'}/${inspectionOrder.inspectionOrderNumber}/Final_Dossier/`;
     const expectedFileName = `FD_${inspectionOrder.inspectionOrderNumber}.pdf`;
     const expectedFilePath = `${basePath}${expectedFileName}`;
     
