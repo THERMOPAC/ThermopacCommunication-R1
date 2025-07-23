@@ -1013,14 +1013,25 @@ export default function InspectionsPage() {
       
       const data = await response.json();
       
-      if (data.exists && data.url) {
-        setDossierUrl(data.url);
+      // In development environment, signed URLs may fail but file can still exist
+      if (data.exists) {
+        // Set URL if available, otherwise we'll handle download differently
+        if (data.url) {
+          setDossierUrl(data.url);
+        } else {
+          // Use a fallback download URL that goes through our download endpoint
+          const fallbackUrl = `/api/quality/final-dossier/download/${encodeURIComponent(data.path)}`;
+          setDossierUrl(fallbackUrl);
+        }
+        
         // Automatically show the documents section when a dossier is found
         setShowDossierDocuments(true);
         // Display success toast to notify user
         toast({
           title: "Final Dossier Found",
-          description: "An existing Final Dossier was found and is ready to view",
+          description: data.url 
+            ? "An existing Final Dossier was found and is ready to view"
+            : "An existing Final Dossier was found (using fallback download method)",
         });
         return true;
       }
