@@ -69,7 +69,7 @@ router.get('/next-number', ensureAuthenticated, async (req: Request, res: Respon
 const testProcedureSchema = z.object({
   procedureNumber: z.string().min(1, 'Procedure number is required'),
   procedureName: z.string().min(1, 'Procedure name is required'),
-  ndtMethod: z.enum(['LPT', 'MPT', 'RT', 'PT', 'UT', 'MT']),
+  ndtMethod: z.enum(['HT', 'PNT', 'RT', 'PT', 'UT', 'MT']),
   applicableStandard: z.string().optional(),
   procedureRevision: z.string().default('R1'),
   scope: z.string().optional(),
@@ -339,7 +339,7 @@ router.put('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     const partialSchema = z.object({
       procedureNumber: z.string().min(1, 'Procedure number is required').optional(),
       procedureName: z.string().min(1, 'Procedure name is required').optional(),
-      ndtMethod: z.enum(['LPT', 'MPT', 'RT', 'PT', 'UT', 'MT']).optional(),
+      ndtMethod: z.enum(['HT', 'PNT', 'RT', 'PT', 'UT', 'MT']).optional(),
       applicableStandard: z.string().optional(),
       procedureRevision: z.string().optional(),
       scope: z.string().optional(),

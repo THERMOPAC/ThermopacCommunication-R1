@@ -4090,8 +4090,8 @@ export const insertTestProcedureSchema = createInsertSchema(testProcedures)
   .extend({
     procedureNumber: z.string().min(1, "Procedure number is required"),
     procedureName: z.string().min(1, "Procedure name is required"),
-    ndtMethod: z.enum(['LPT', 'MPT', 'RT', 'PT', 'UT', 'MT'], {
-      errorMap: () => ({ message: "NDT method must be one of: LPT, MPT, RT, PT, UT, MT" })
+    ndtMethod: z.enum(['HT', 'PNT', 'RT', 'PT', 'UT', 'MT'], {
+      errorMap: () => ({ message: "NDT method must be one of: HT, PNT, RT, PT, UT, MT" })
     }),
     applicableStandard: z.string().optional(),
     procedureRevision: z.string().default('R1'),

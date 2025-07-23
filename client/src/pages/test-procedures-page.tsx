@@ -119,7 +119,7 @@ export default function TestProceduresPage() {
   const [formData, setFormData] = useState({
     procedureNumber: "",
     procedureName: "",
-    ndtMethod: "LPT",
+    ndtMethod: "HT",
     applicableStandard: "",
     procedureRevision: "R1",
     scope: "",
@@ -146,7 +146,7 @@ export default function TestProceduresPage() {
     setFormData({
       procedureNumber: nextProcedureNumber?.procedureNumber || "",
       procedureName: "",
-      ndtMethod: "LPT",
+      ndtMethod: "HT",
       applicableStandard: "",
       procedureRevision: "R1",
       scope: "",
@@ -302,8 +302,8 @@ export default function TestProceduresPage() {
 
   const getMethodBadge = (method: string) => {
     const colors: Record<string, string> = {
-      LPT: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
-      MPT: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
+      HT: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+      PNT: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
       RT: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
       PT: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
       UT: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
@@ -311,8 +311,8 @@ export default function TestProceduresPage() {
     };
 
     const displayNames: Record<string, string> = {
-      LPT: "HT",
-      MPT: "Pneumatic Test (PNT)",
+      HT: "HT",
+      PNT: "PNT",
       RT: "RT",
       PT: "PT", 
       UT: "UT",
@@ -368,8 +368,8 @@ export default function TestProceduresPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="LPT">Hydraulic Testing (HT)</SelectItem>
-                      <SelectItem value="MPT">Pneumatic Test (PNT)</SelectItem>
+                      <SelectItem value="HT">HT</SelectItem>
+                      <SelectItem value="PNT">PNT</SelectItem>
                       <SelectItem value="RT">Radiographic Testing (RT)</SelectItem>
                       <SelectItem value="PT">Penetrant Testing (PT)</SelectItem>
                       <SelectItem value="UT">Ultrasonic Testing (UT)</SelectItem>
@@ -543,8 +543,8 @@ export default function TestProceduresPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Methods</SelectItem>
-                  <SelectItem value="LPT">HT</SelectItem>
-                  <SelectItem value="MPT">Pneumatic Test (PNT)</SelectItem>
+                  <SelectItem value="HT">HT</SelectItem>
+                  <SelectItem value="PNT">PNT</SelectItem>
                   <SelectItem value="RT">RT</SelectItem>
                   <SelectItem value="PT">PT</SelectItem>
                   <SelectItem value="UT">UT</SelectItem>
