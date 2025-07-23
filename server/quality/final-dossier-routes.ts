@@ -153,7 +153,13 @@ router.get('/download/:inspectionOrderId', ensureAuthenticated, async (req: Requ
     // If no signed URL but file exists, try to generate one on-demand
     if (result.path) {
       try {
-        const { bucket } = await import('../utils/gcs-operations.js');
+        const { initializeGCS } = await import('../utils/gcs-operations.js');
+        const { bucket } = await initializeGCS();
+        
+        if (!bucket) {
+          throw new Error('Failed to initialize GCS bucket');
+        }
+        
         console.log(`Attempting to generate signed URL for: ${result.path}`);
         
         const [signedUrl] = await bucket.file(result.path).getSignedUrl({
@@ -167,7 +173,13 @@ router.get('/download/:inspectionOrderId', ensureAuthenticated, async (req: Requ
         console.error('Failed to generate on-demand signed URL:', signedUrlError);
         // Fall back to serving file content directly
         try {
-          const { bucket } = await import('../utils/gcs-operations.js');
+          const { initializeGCS } = await import('../utils/gcs-operations.js');
+          const { bucket } = await initializeGCS();
+          
+          if (!bucket) {
+            throw new Error('Failed to initialize GCS bucket for streaming');
+          }
+          
           console.log(`Attempting to stream file directly: ${result.path}`);
           
           const file = bucket.file(result.path);
@@ -222,7 +234,12 @@ router.get('/download/*', ensureAuthenticated, async (req: Request, res: Respons
     console.log(`Path-based download for: ${fullPath}`);
     
     try {
-      const { bucket } = await import('../utils/gcs-operations.js');
+      const { initializeGCS } = await import('../utils/gcs-operations.js');
+      const { bucket } = await initializeGCS();
+      
+      if (!bucket) {
+        return res.status(500).json({ error: 'Failed to initialize GCS bucket' });
+      }
       
       // Check if file exists
       const file = bucket.file(fullPath);
