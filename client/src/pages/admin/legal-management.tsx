@@ -1689,7 +1689,7 @@ const LegalManagementPage: React.FC = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-6">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Legal Management</h1>
+                <h1 className="text-3xl font-bold text-gray-900 pl-4">Legal Management</h1>
                 <p className="mt-1 text-sm text-gray-500">
                   Comprehensive legal management system for contracts, cases, compliance, and more
                 </p>

@@ -1350,7 +1350,7 @@ export default function PayrollManagementPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Payroll Management</h1>
+            <h1 className="text-3xl font-bold tracking-tight pl-4">Payroll Management</h1>
             <p className="text-muted-foreground">
               Configure employee salaries and manage payroll processing
             </p>

@@ -273,7 +273,7 @@ export default function LeaderboardPage() {
   return (
     <Layout>
       <div className="container py-6">
-        <h1 className="text-3xl font-bold mb-6">Productivity Dashboard</h1>
+        <h1 className="text-3xl font-bold mb-6 pl-4">Productivity Dashboard</h1>
         
         {/* Performance Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">

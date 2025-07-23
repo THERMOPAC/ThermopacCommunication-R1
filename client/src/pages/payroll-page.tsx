@@ -224,7 +224,7 @@ export default function PayrollPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Payroll Management</h1>
+          <h1 className="text-3xl font-bold pl-4">Payroll Management</h1>
           <p className="text-muted-foreground">Manage employee salaries and payroll processing</p>
         </div>
       </div>

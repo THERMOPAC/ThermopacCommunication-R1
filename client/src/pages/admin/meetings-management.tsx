@@ -1285,7 +1285,7 @@ export default function MeetingsManagement() {
     <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold">Meetings & Commitments</h1>
+            <h1 className="text-3xl font-bold pl-4">Meetings & Commitments</h1>
             <p className="text-gray-600">Manage business meetings and track action items</p>
           </div>
         </div>

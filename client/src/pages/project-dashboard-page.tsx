@@ -150,7 +150,7 @@ export default function ProjectDashboardPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Project Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight pl-4">Project Dashboard</h1>
             <p className="text-muted-foreground">
               Comprehensive overview of all projects and their status
             </p>

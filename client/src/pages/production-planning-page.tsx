@@ -488,7 +488,7 @@ export default function ProductionPlanningPage() {
       
       <div className="space-y-6 max-w-7xl mx-auto">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold tracking-tight">Production Planning</h1>
+          <h1 className="text-3xl font-bold tracking-tight pl-4">Production Planning</h1>
           <Button 
             onClick={() => setIsCreateDialogOpen(true)} 
             className="bg-gradient-to-r from-blue-600 to-indigo-600"

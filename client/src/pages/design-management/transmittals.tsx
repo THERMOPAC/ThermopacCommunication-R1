@@ -171,7 +171,7 @@ export default function TransmittalsPage() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Drawing Transmittals</h1>
+            <h1 className="text-3xl font-bold text-gray-900 pl-4">Drawing Transmittals</h1>
             <p className="text-gray-600 mt-1">Client submission tracking and document distribution</p>
           </div>
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>

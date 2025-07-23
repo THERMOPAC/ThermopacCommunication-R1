@@ -13402,7 +13402,7 @@ export default function DesignToolsPage() {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Design Tools</h1>
+          <h1 className="text-3xl font-bold text-gray-900 pl-4">Design Tools</h1>
           <p className="text-gray-600 mt-2">
             Comprehensive engineering design tools for mechanical, piping, and electrical systems
           </p>

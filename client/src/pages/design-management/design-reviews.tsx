@@ -402,7 +402,7 @@ const ReviewsDashboard: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Review & Approval</h1>
+          <h1 className="text-3xl font-bold tracking-tight pl-4">Review & Approval</h1>
           <p className="text-muted-foreground mt-1">
             Design review workflow and approval process
           </p>

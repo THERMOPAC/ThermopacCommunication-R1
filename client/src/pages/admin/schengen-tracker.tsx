@@ -177,7 +177,7 @@ export default function SchengenTracker() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">EU 180-Day Rule Tracker</h1>
+          <h1 className="text-3xl font-bold text-gray-900 pl-4">EU 180-Day Rule Tracker</h1>
           <p className="text-gray-600 mt-1">Monitor Schengen area travel compliance for all employees</p>
         </div>
         <div className="flex gap-2">

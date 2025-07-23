@@ -154,7 +154,7 @@ export default function PaymentsPage() {
       
       <div className="container mx-auto py-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Payments</h1>
+          <h1 className="text-3xl font-bold pl-4">Payments</h1>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => refetch()} title="Refresh payment list">
               <span className="rotate-90 inline-block mr-2">↻</span>

@@ -9,7 +9,7 @@ export default function ReviewApprovalPage() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Review & Approval</h1>
+            <h1 className="text-3xl font-bold text-gray-900 pl-4">Review & Approval</h1>
             <p className="text-gray-600 mt-1">Design review workflow and approval process</p>
           </div>
           <Button className="bg-blue-600 hover:bg-blue-700">

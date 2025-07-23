@@ -24,7 +24,7 @@ export default function CustomersPage() {
             Back to Dashboard
           </Link>
           <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold tracking-tight">Customer Management</h1>
+            <h1 className="text-3xl font-bold tracking-tight pl-4">Customer Management</h1>
           </div>
           
           <div className="max-h-[calc(100vh-200px)] overflow-y-auto">

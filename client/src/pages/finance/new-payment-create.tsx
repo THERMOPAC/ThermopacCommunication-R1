@@ -193,7 +193,7 @@ export default function NewPaymentCreatePage() {
       </Helmet>
       
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Create New Payment</h1>
+        <h1 className="text-3xl font-bold pl-4">Create New Payment</h1>
         <Button variant="outline" onClick={() => navigate('/finance/payments')}>
           Back to Payments
         </Button>

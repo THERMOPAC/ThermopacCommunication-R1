@@ -312,7 +312,7 @@ export default function LeaveManagementPage() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Leave Management</h1>
+            <h1 className="text-3xl font-bold tracking-tight pl-4">Leave Management</h1>
             <p className="text-muted-foreground mt-2">
               Manage employee leave requests, balances, and policies
             </p>

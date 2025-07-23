@@ -282,7 +282,7 @@ export default function EditPaymentPage() {
       
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Edit Payment</h1>
+          <h1 className="text-3xl font-bold pl-4">Edit Payment</h1>
           <p className="text-muted-foreground">Payment ID: {paymentId}</p>
         </div>
         <Button variant="outline" onClick={handleBack}>

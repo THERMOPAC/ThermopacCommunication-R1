@@ -181,7 +181,7 @@ export default function DailyProductionReportPage() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold">Daily Production Report (DPR)</h1>
+            <h1 className="text-3xl font-bold pl-4">Daily Production Report (DPR)</h1>
             <p className="text-muted-foreground">
               Comprehensive production tracking and performance analysis
             </p>

@@ -864,7 +864,7 @@ export default function CalibrationManagementPage() {
     <Layout>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold tracking-tight">Calibration Management</h1>
+          <h1 className="text-3xl font-bold tracking-tight pl-4">Calibration Management</h1>
           <Dialog open={isAddInstrumentOpen} onOpenChange={setIsAddInstrumentOpen}>
             <DialogTrigger asChild>
               <Button>

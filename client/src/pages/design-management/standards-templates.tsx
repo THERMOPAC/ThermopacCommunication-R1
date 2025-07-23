@@ -9,7 +9,7 @@ export default function StandardsTemplatesPage() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Standards & Templates</h1>
+            <h1 className="text-3xl font-bold text-gray-900 pl-4">Standards & Templates</h1>
             <p className="text-gray-600 mt-1">Company design standards and template library</p>
           </div>
           <Button className="bg-blue-600 hover:bg-blue-700">

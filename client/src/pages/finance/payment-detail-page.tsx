@@ -83,7 +83,7 @@ export default function PaymentDetailPage() {
                 Back to Payments
               </a>
             </Button>
-            <h1 className="text-3xl font-bold">Payment #{payment?.paymentNumber || payment?.id}</h1>
+            <h1 className="text-3xl font-bold pl-4">Payment #{payment?.paymentNumber || payment?.id}</h1>
             {payment?.reference && (
               <span className="ml-4 text-muted-foreground">Ref: {payment.reference}</span>
             )}

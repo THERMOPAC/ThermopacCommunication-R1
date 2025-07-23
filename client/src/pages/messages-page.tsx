@@ -6,7 +6,7 @@ function MessagesPage() {
   return (
     <Layout>
       <div className="container py-6">
-        <h1 className="text-3xl font-bold mb-6">Internal Messages</h1>
+        <h1 className="text-3xl font-bold mb-6 pl-4">Internal Messages</h1>
         <InternalMessages />
       </div>
     </Layout>

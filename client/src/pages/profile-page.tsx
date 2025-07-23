@@ -22,7 +22,7 @@ export default function ProfilePage() {
           </Link>
         </div>
 
-        <h1 className="text-3xl font-bold mb-8">Profile Settings</h1>
+        <h1 className="text-3xl font-bold mb-8 pl-4">Profile Settings</h1>
 
         <div className="grid gap-8 md:grid-cols-2">
           {/* User Profile Card */}

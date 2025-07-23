@@ -153,7 +153,7 @@ export default function AttendanceManagementPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Attendance Management</h1>
+          <h1 className="text-3xl font-bold text-gray-900 pl-4">Attendance Management</h1>
           <p className="text-gray-600 mt-1">Monitor and manage employee attendance records</p>
         </div>
         <Button onClick={exportAttendance} className="flex items-center gap-2">

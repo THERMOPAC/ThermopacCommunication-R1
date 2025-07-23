@@ -729,7 +729,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       </Helmet>
       
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">{isEditMode ? 'Edit Payment' : 'Record New Payment'}</h1>
+        <h1 className="text-3xl font-bold pl-4">{isEditMode ? 'Edit Payment' : 'Record New Payment'}</h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => navigate('/finance/payments')}>
             Cancel

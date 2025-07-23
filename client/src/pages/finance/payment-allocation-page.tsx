@@ -559,7 +559,7 @@ export default function PaymentAllocationPage() {
       <div className="container mx-auto p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold">Payment Allocation</h1>
+            <h1 className="text-3xl font-bold pl-4">Payment Allocation</h1>
             <p className="text-muted-foreground">
               Allocate payments to outstanding invoices
             </p>

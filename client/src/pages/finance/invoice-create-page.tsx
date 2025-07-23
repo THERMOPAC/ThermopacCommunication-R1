@@ -979,7 +979,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       </Helmet>
       <div className="container py-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">{isEditMode ? 'Edit Invoice' : 'Create New Invoice'}</h1>
+          <h1 className="text-3xl font-bold pl-4">{isEditMode ? 'Edit Invoice' : 'Create New Invoice'}</h1>
           <Button variant="outline" onClick={() => navigate('/finance/invoices')}>
             Cancel
           </Button>

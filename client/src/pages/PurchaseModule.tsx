@@ -455,7 +455,7 @@ export default function PurchaseModule() {
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">SAP B1 Purchase Module</h1>
+          <h1 className="text-3xl font-bold pl-4">SAP B1 Purchase Module</h1>
           <p className="text-gray-600 mt-2">Manage purchase orders, requisitions, and vendor relationships</p>
         </div>
         <Badge variant="outline" className="bg-blue-50 text-blue-700">

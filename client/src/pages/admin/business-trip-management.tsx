@@ -3287,7 +3287,7 @@ export default function BusinessTripManagement() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Business Trip Management</h1>
+            <h1 className="text-3xl font-bold pl-4">Business Trip Management</h1>
             <p className="text-gray-600 mt-2">Request, track, and manage business travel</p>
           </div>
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>

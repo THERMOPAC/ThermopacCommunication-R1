@@ -250,7 +250,7 @@ export default function InvoiceDetailPage({ download = false, print = false }: I
                 Back to Invoices
               </a>
             </Button>
-            <h1 className="text-3xl font-bold">{invoice?.invoiceNumber}</h1>
+            <h1 className="text-3xl font-bold pl-4">{invoice?.invoiceNumber}</h1>
             <div className="ml-4">
               <StatusBadge status={invoice?.status || ''} />
             </div>

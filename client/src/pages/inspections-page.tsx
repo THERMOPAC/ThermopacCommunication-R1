@@ -3157,7 +3157,7 @@ export default function InspectionsPage() {
 
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold tracking-tight">Quality Inspections</h1>
+          <h1 className="text-3xl font-bold tracking-tight pl-4">Quality Inspections</h1>
           <Button 
             onClick={() => setIsCreateDialogOpen(true)} 
             className="bg-gradient-to-r from-green-600 to-teal-600"

@@ -343,7 +343,7 @@ export default function BatchAdvanceAllocationPage() {
       <div className="container py-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold">Batch Advance Payment Allocation</h1>
+            <h1 className="text-3xl font-bold pl-4">Batch Advance Payment Allocation</h1>
             <p className="text-muted-foreground">
               Allocate advance payments to outstanding invoices in bulk
             </p>

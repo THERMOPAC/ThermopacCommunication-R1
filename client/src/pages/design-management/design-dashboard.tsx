@@ -69,7 +69,7 @@ export default function DesignDashboard() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Design Dashboard</h1>
+          <h1 className="text-3xl font-bold text-gray-900 pl-4">Design Dashboard</h1>
           <p className="text-gray-600 mt-2">Overview of design projects and activities from Project Management</p>
         </div>
       </div>

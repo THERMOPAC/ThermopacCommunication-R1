@@ -4744,7 +4744,7 @@ export default function FinanceToolsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Finance Tools</h1>
+            <h1 className="text-3xl font-bold tracking-tight pl-4">Finance Tools</h1>
             <p className="text-muted-foreground">
               Financial utilities and tools for calculations, analysis, and reporting
             </p>

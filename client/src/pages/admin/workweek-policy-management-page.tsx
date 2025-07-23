@@ -285,7 +285,7 @@ export default function WorkweekPolicyManagementPage() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Workweek Policy Management</h1>
+            <h1 className="text-3xl font-bold text-gray-900 pl-4">Workweek Policy Management</h1>
             <p className="text-gray-600 mt-1">Configure working hours and policies for different locations and departments</p>
           </div>
           <Button onClick={handleNew} className="flex items-center gap-2">

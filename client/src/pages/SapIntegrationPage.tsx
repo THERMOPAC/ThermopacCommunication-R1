@@ -182,7 +182,7 @@ export default function SapIntegrationPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center">
+          <h1 className="text-3xl font-bold flex items-center pl-4">
             <Database className="h-8 w-8 mr-3" />
             SAP B1 Integration
           </h1>

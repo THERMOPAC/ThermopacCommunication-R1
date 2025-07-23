@@ -93,7 +93,7 @@ export default function AdministrationPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Administration</h1>
+            <h1 className="text-3xl font-bold tracking-tight pl-4">Administration</h1>
             <p className="text-muted-foreground">
               Manage users, payroll, and system configurations
             </p>

@@ -5210,7 +5210,7 @@ export default function MarketingToolsPage() {
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2">Marketing Tools</h1>
+          <h1 className="text-3xl font-bold mb-2 pl-4">Marketing Tools</h1>
           <p className="text-muted-foreground">
             Comprehensive marketing tools to enhance your campaigns and analyze performance
           </p>

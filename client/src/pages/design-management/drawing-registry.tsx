@@ -1966,7 +1966,7 @@ export default function DrawingRegistryPage() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Drawing Registry</h1>
+            <h1 className="text-3xl font-bold text-gray-900 pl-4">Drawing Registry</h1>
             <p className="text-gray-600 mt-1">Central repository for CAD drawings and technical documents</p>
           </div>
           <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>

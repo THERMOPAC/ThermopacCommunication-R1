@@ -402,7 +402,7 @@ export default function VisaManagement() {
     <>
       <div className="space-y-6 p-6">
         <div>
-          <h1 className="text-3xl font-bold">Visa Management</h1>
+          <h1 className="text-3xl font-bold pl-4">Visa Management</h1>
           <p className="text-gray-600 mt-1">Track employee visa records and Schengen travel compliance</p>
         </div>
 

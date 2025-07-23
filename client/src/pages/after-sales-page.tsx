@@ -191,7 +191,7 @@ export default function AfterSalesPage() {
     <Layout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight">After-Sales Service</h1>
+          <h1 className="text-3xl font-bold tracking-tight pl-4">After-Sales Service</h1>
           <div className="flex items-center gap-4">
             <Button variant="outline">Export Data</Button>
             <Button onClick={() => setIsCreatingRequest(true)}>

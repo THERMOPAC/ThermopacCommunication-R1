@@ -699,7 +699,7 @@ export default function UserManagementPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+            <h1 className="text-3xl font-bold tracking-tight pl-4">User Management</h1>
             <p className="text-muted-foreground">
               Manage employee accounts, roles, and permissions
             </p>

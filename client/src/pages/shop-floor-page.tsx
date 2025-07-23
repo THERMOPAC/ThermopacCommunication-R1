@@ -332,7 +332,7 @@ export default function ShopFloorPage() {
       </Helmet>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold tracking-tight">Shop Floor Management</h1>
+          <h1 className="text-3xl font-bold tracking-tight pl-4">Shop Floor Management</h1>
           <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => setConfigDialogOpen(true)}>
             <Settings className="mr-2 h-4 w-4" /> Configure
           </Button>

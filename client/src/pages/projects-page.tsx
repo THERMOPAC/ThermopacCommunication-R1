@@ -80,7 +80,7 @@ export default function ProjectsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Projects</h1>
+            <h1 className="text-3xl font-bold text-gray-900 pl-4">Projects</h1>
             <p className="text-gray-600 mt-2">Select a project to view associated items and details</p>
           </div>
         </div>
