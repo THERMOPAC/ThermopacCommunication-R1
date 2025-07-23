@@ -24,6 +24,49 @@ export async function generateFinalDossierPDF(
     const pageMargin = 50;
     let sectionNumber = 1;
 
+    // Helper function to fetch uploaded documents for each tab
+    const fetchTabDocuments = async (tabName: string): Promise<string[]> => {
+      try {
+        const basePath = `QMS/Inspections_Records/${inspectionOrder.projectCode || 'UNKNOWN'}/${inspectionOrder.inspectionOrderNumber}/${tabName}/`;
+        console.log(`🔍 Fetching documents for tab: ${tabName} at path: ${basePath}`);
+        
+        const files = await listFilesInDirectory(basePath);
+        console.log(`📁 Found ${files.length} documents for ${tabName}:`, files);
+        
+        return files.filter(file => file && file.trim().length > 0);
+      } catch (error) {
+        console.error(`❌ Error fetching documents for ${tabName}:`, error);
+        return [];
+      }
+    };
+
+    // Helper function to add document references to a page
+    const addDocumentReferences = (page: any, documents: string[], yPos: number, margin: number, helvetica: any) => {
+      if (documents.length > 0) {
+        page.drawText('Associated Documents:', {
+          x: margin,
+          y: yPos,
+          size: 12,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        yPos -= 20;
+        
+        documents.forEach((doc, index) => {
+          const fileName = doc.split('/').pop() || doc;
+          page.drawText(`${index + 1}. ${fileName}`, {
+            x: margin + 20,
+            y: yPos,
+            size: 10,
+            font: helvetica,
+            color: rgb(0, 0, 0.8),
+          });
+          yPos -= 15;
+        });
+      }
+      return yPos;
+    };
+
     // Helper function to add a section page with consistent formatting
     const addSectionPage = (
       pdfDoc: PDFDocument,
@@ -33,7 +76,8 @@ export async function generateFinalDossierPDF(
       helveticaBold: any,
       helvetica: any,
       margin: number,
-      footerFunction: (page: any) => void
+      footerFunction: (page: any) => void,
+      documents: string[] = []
     ) => {
       const page = pdfDoc.addPage([612, 792]);
       
@@ -47,14 +91,23 @@ export async function generateFinalDossierPDF(
       });
 
       // Add appropriate content based on data availability
-      if (!hasData) {
-        page.drawText('No records available for this section.', {
+      if (!hasData && documents.length === 0) {
+        page.drawText('No records or documents available for this section.', {
           x: margin,
           y: 650,
           size: 12,
           font: helvetica,
           color: rgb(0.5, 0.5, 0.5),
         });
+      } else if (!hasData && documents.length > 0) {
+        page.drawText('No database records available, but the following documents are attached:', {
+          x: margin,
+          y: 650,
+          size: 12,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        addDocumentReferences(page, documents, 620, margin, helvetica);
       }
 
       footerFunction(page);
@@ -151,6 +204,51 @@ export async function generateFinalDossierPDF(
 
     addFooterToPage(tocPage);
 
+    // Fetch documents for each tab from GCS
+    console.log('🚀 Starting document compilation for Final Dossier...');
+    const [
+      approvedDrawingDocs,
+      dvrDocs,
+      itpDocs,
+      materialTraceabilityDocs,
+      pmaDocs,
+      procedureDocs,
+      shopInspectionDocs,
+      weldingDocs,
+      ndtDocs,
+      visualDocs,
+      hydrotestDocs,
+      ncrDocs
+    ] = await Promise.all([
+      fetchTabDocuments('ApprovedDrawing'),
+      fetchTabDocuments('DVR'),
+      fetchTabDocuments('ITP'),
+      fetchTabDocuments('MaterialTraceability'),
+      fetchTabDocuments('PMA'),
+      fetchTabDocuments('Procedures'),
+      fetchTabDocuments('ShopInspection'),
+      fetchTabDocuments('Welding'),
+      fetchTabDocuments('NDT'),
+      fetchTabDocuments('Visual'),
+      fetchTabDocuments('Hydrotest'),
+      fetchTabDocuments('NCR')
+    ]);
+
+    console.log('📋 Document compilation summary:', {
+      ApprovedDrawing: approvedDrawingDocs.length,
+      DVR: dvrDocs.length,
+      ITP: itpDocs.length,
+      MaterialTraceability: materialTraceabilityDocs.length,
+      PMA: pmaDocs.length,
+      Procedures: procedureDocs.length,
+      ShopInspection: shopInspectionDocs.length,
+      Welding: weldingDocs.length,
+      NDT: ndtDocs.length,
+      Visual: visualDocs.length,
+      Hydrotest: hydrotestDocs.length,
+      NCR: ncrDocs.length
+    });
+
     // Parse inspection order data
     const approvedDrawingRecords = inspectionOrder.approvedDrawingData ? 
       JSON.parse(inspectionOrder.approvedDrawingData) : [];
@@ -172,7 +270,7 @@ export async function generateFinalDossierPDF(
     const ncrRecords = JSON.parse(inspectionOrder.ncrData || '[]');
 
     // Section 1: Approved Drawing
-    const approvedDrawingPage = addSectionPage(pdfDoc, sectionNumber++, 'APPROVED DRAWING', approvedDrawingRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage);
+    const approvedDrawingPage = addSectionPage(pdfDoc, sectionNumber++, 'APPROVED DRAWING', approvedDrawingRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage, approvedDrawingDocs);
     
     if (approvedDrawingRecords.length > 0) {
       let yPos = 620;
@@ -268,6 +366,11 @@ export async function generateFinalDossierPDF(
         
         yPos -= 20; // Space between records
       }
+      
+      // Add document references if available
+      if (approvedDrawingDocs.length > 0) {
+        yPos = addDocumentReferences(approvedDrawingPage, approvedDrawingDocs, yPos - 20, pageMargin, helvetica);
+      }
     } else {
       // Show basic drawing information from inspection order if no approved drawing records exist
       let yPos = 620;
@@ -332,10 +435,15 @@ export async function generateFinalDossierPDF(
         font: helvetica,
         color: rgb(0.5, 0.5, 0.5),
       });
+      
+      // Add document references even if no database records exist
+      if (approvedDrawingDocs.length > 0) {
+        yPos = addDocumentReferences(approvedDrawingPage, approvedDrawingDocs, yPos - 20, pageMargin, helvetica);
+      }
     }
 
     // Section 2: Design Verification Report (DVR)
-    const dvrPage = addSectionPage(pdfDoc, sectionNumber++, 'DESIGN VERIFICATION REPORT (DVR)', dvrRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage);
+    const dvrPage = addSectionPage(pdfDoc, sectionNumber++, 'DESIGN VERIFICATION REPORT (DVR)', dvrRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage, dvrDocs);
     if (dvrRecords.length > 0) {
       let yPos = 620;
       dvrPage.drawText('DVR Records:', {
@@ -369,7 +477,7 @@ export async function generateFinalDossierPDF(
     }
 
     // Section 3: Inspection Test Plan (ITP)
-    const itpPage = addSectionPage(pdfDoc, sectionNumber++, 'INSPECTION TEST PLAN (ITP)', itpRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage);
+    const itpPage = addSectionPage(pdfDoc, sectionNumber++, 'INSPECTION TEST PLAN (ITP)', itpRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage, itpDocs);
     if (itpRecords.length > 0) {
       let yPos = 620;
       itpPage.drawText('ITP Records:', {
@@ -403,7 +511,7 @@ export async function generateFinalDossierPDF(
     }
 
     // Section 4: Material Traceability
-    const materialPage = addSectionPage(pdfDoc, sectionNumber++, 'MATERIAL TRACEABILITY', materialRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage);
+    const materialPage = addSectionPage(pdfDoc, sectionNumber++, 'MATERIAL TRACEABILITY', materialRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage, materialTraceabilityDocs);
     if (materialRecords.length > 0) {
       let yPos = 620;
       materialPage.drawText('Material Traceability Records:', {
@@ -434,10 +542,15 @@ export async function generateFinalDossierPDF(
         });
         yPos -= 25;
       }
+      
+      // Add document references
+      if (materialTraceabilityDocs.length > 0) {
+        yPos = addDocumentReferences(materialPage, materialTraceabilityDocs, yPos - 20, pageMargin, helvetica);
+      }
     }
 
     // Section 5: Particular Material Appraisal (PMA)
-    const pmaPage = addSectionPage(pdfDoc, sectionNumber++, 'PARTICULAR MATERIAL APPRAISAL (PMA)', pmaRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage);
+    const pmaPage = addSectionPage(pdfDoc, sectionNumber++, 'PARTICULAR MATERIAL APPRAISAL (PMA)', pmaRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage, pmaDocs);
     if (pmaRecords.length > 0) {
       let yPos = 620;
       pmaPage.drawText('PMA Records:', {
@@ -468,10 +581,15 @@ export async function generateFinalDossierPDF(
         });
         yPos -= 25;
       }
+      
+      // Add document references
+      if (pmaDocs.length > 0) {
+        yPos = addDocumentReferences(pmaPage, pmaDocs, yPos - 20, pageMargin, helvetica);
+      }
     }
 
     // Section 6: Procedures
-    const procedurePage = addSectionPage(pdfDoc, sectionNumber++, 'PROCEDURES', procedureRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage);
+    const procedurePage = addSectionPage(pdfDoc, sectionNumber++, 'PROCEDURES', procedureRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage, procedureDocs);
     if (procedureRecords.length > 0) {
       let yPos = 620;
       procedurePage.drawText('Procedure Records:', {
@@ -502,10 +620,15 @@ export async function generateFinalDossierPDF(
         });
         yPos -= 25;
       }
+      
+      // Add document references
+      if (procedureDocs.length > 0) {
+        yPos = addDocumentReferences(procedurePage, procedureDocs, yPos - 20, pageMargin, helvetica);
+      }
     }
 
     // Section 7: Shop Inspection
-    const shopPage = addSectionPage(pdfDoc, sectionNumber++, 'SHOP INSPECTION', shopInspectionRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage);
+    const shopPage = addSectionPage(pdfDoc, sectionNumber++, 'SHOP INSPECTION', shopInspectionRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage, shopInspectionDocs);
     if (shopInspectionRecords.length > 0) {
       let yPos = 620;
       shopPage.drawText('Shop Inspection Records:', {
@@ -536,10 +659,15 @@ export async function generateFinalDossierPDF(
         });
         yPos -= 25;
       }
+      
+      // Add document references
+      if (shopInspectionDocs.length > 0) {
+        yPos = addDocumentReferences(shopPage, shopInspectionDocs, yPos - 20, pageMargin, helvetica);
+      }
     }
 
     // Section 8: Welding & Weld Maps
-    const weldPage = addSectionPage(pdfDoc, sectionNumber++, 'WELDING & WELD MAPS', weldingRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage);
+    const weldPage = addSectionPage(pdfDoc, sectionNumber++, 'WELDING & WELD MAPS', weldingRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage, weldingDocs);
     if (weldingRecords.length > 0) {
       let yPos = 620;
       weldPage.drawText('Welding Records:', {
@@ -606,10 +734,15 @@ export async function generateFinalDossierPDF(
         });
         yPos -= 25;
       }
+      
+      // Add document references
+      if (weldingDocs.length > 0) {
+        yPos = addDocumentReferences(weldPage, weldingDocs, yPos - 20, pageMargin, helvetica);
+      }
     }
 
     // Section 9: NDT Reports
-    const ndtPage = addSectionPage(pdfDoc, sectionNumber++, 'NDT REPORTS', ndtRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage);
+    const ndtPage = addSectionPage(pdfDoc, sectionNumber++, 'NDT REPORTS', ndtRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage, ndtDocs);
     if (ndtRecords.length > 0) {
       let yPos = 620;
       ndtPage.drawText('NDT Records:', {
@@ -685,10 +818,15 @@ export async function generateFinalDossierPDF(
         });
         yPos -= 25;
       }
+      
+      // Add document references
+      if (ndtDocs.length > 0) {
+        yPos = addDocumentReferences(ndtPage, ndtDocs, yPos - 20, pageMargin, helvetica);
+      }
     }
 
     // Section 10: Visual Inspection Records
-    const visualPage = addSectionPage(pdfDoc, sectionNumber++, 'VISUAL INSPECTION RECORDS', visualRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage);
+    const visualPage = addSectionPage(pdfDoc, sectionNumber++, 'VISUAL INSPECTION RECORDS', visualRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage, visualDocs);
     if (visualRecords.length > 0) {
       let yPos = 620;
       visualPage.drawText('Visual Inspection Records:', {
@@ -764,10 +902,15 @@ export async function generateFinalDossierPDF(
         });
         yPos -= 25;
       }
+      
+      // Add document references
+      if (visualDocs.length > 0) {
+        yPos = addDocumentReferences(visualPage, visualDocs, yPos - 20, pageMargin, helvetica);
+      }
     }
 
     // Section 11: Hydrotest Reports
-    const hydrotestPage = addSectionPage(pdfDoc, sectionNumber++, 'HYDROTEST REPORTS', hydrotestRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage);
+    const hydrotestPage = addSectionPage(pdfDoc, sectionNumber++, 'HYDROTEST REPORTS', hydrotestRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage, hydrotestDocs);
     if (hydrotestRecords.length > 0) {
       let yPos = 620;
       hydrotestPage.drawText('Hydrotest Records:', {
@@ -865,10 +1008,15 @@ export async function generateFinalDossierPDF(
         
         yPos -= 15; // Extra space between records
       }
+      
+      // Add document references
+      if (hydrotestDocs.length > 0) {
+        yPos = addDocumentReferences(hydrotestPage, hydrotestDocs, yPos - 20, pageMargin, helvetica);
+      }
     }
 
     // Section 12: Non-Conformance Reports
-    const ncrPage = addSectionPage(pdfDoc, sectionNumber++, 'NON-CONFORMANCE REPORTS', ncrRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage);
+    const ncrPage = addSectionPage(pdfDoc, sectionNumber++, 'NON-CONFORMANCE REPORTS', ncrRecords.length > 0, helveticaBold, helvetica, pageMargin, addFooterToPage, ncrDocs);
     if (ncrRecords.length > 0) {
       let yPos = 620;
       ncrPage.drawText('NCR Records:', {
@@ -947,10 +1095,15 @@ export async function generateFinalDossierPDF(
         
         yPos -= 20; // Extra space between records
       }
+      
+      // Add document references
+      if (ncrDocs.length > 0) {
+        yPos = addDocumentReferences(ncrPage, ncrDocs, yPos - 20, pageMargin, helvetica);
+      }
     }
 
     // Section 13: Calibration Certificates
-    const calibrationPage = addSectionPage(pdfDoc, sectionNumber++, 'CALIBRATION CERTIFICATES', false, helveticaBold, helvetica, pageMargin, addFooterToPage);
+    const calibrationPage = addSectionPage(pdfDoc, sectionNumber++, 'CALIBRATION CERTIFICATES', false, helveticaBold, helvetica, pageMargin, addFooterToPage, calibrationDocs);
 
     // Generate PDF buffer
     const pdfBytes = await pdfDoc.save();
