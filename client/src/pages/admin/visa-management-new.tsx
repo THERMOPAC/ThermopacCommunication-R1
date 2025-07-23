@@ -17,7 +17,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { Plus, Download, FileText, Eye, Edit, Trash2, Search, Filter, Globe, CreditCard, Clock, AlertTriangle, Upload, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import Layout from '@/components/layout';
+
 
 // Form validation schema
 const visaFormSchema = z.object({
@@ -1846,7 +1846,7 @@ function VisaRecordsTab() {
 
 export default function VisaManagementNew() {
   return (
-    <Layout>
+    <>
       <div className="flex-1 space-y-6 p-6">
         <div className="flex items-center justify-between">
           <div>
@@ -1878,6 +1878,6 @@ export default function VisaManagementNew() {
           </TabsContent>
         </Tabs>
       </div>
-    </Layout>
+    </>
   );
 }
