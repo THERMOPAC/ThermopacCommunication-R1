@@ -6406,6 +6406,24 @@ export default function InspectionsPage() {
                           />
                         </div>
                       )}
+                      
+                      {/* Uploaded Files Display Section */}
+                      {ncrRecords && ncrRecords.length > 0 && (
+                        <div className="mt-6 border-t pt-4">
+                          <h4 className="text-sm font-medium text-gray-700 mb-3">Uploaded Files</h4>
+                          <div className="space-y-2">
+                            {ncrRecords.map((record) => (
+                              <DrawingFilesDisplay
+                                key={record.id}
+                                inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                                recordId={record.id}
+                                recordTitle={`NCR Record - ${record.id}`}
+                                tabName="NonConformance"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
                   
