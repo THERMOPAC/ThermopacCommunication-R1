@@ -295,16 +295,16 @@ router.get('/active-users-count', async (req, res) => {
     // Clean up stale users first
     cleanupStaleUsers();
     
-    // Debug logging for production troubleshooting
-    console.log('=== LIVE USERS DEBUG ===');
-    console.log('Total users in liveUsers Map:', liveUsers.size);
-    console.log('Live users details:', Array.from(liveUsers.entries()).map(([id, data]) => ({
-      userId: id,
-      username: data.username,
-      lastSeen: data.lastSeen,
-      minutesAgo: Math.round((new Date().getTime() - data.lastSeen.getTime()) / (1000 * 60))
-    })));
-    console.log('Current user:', req.user ? `${req.user.id} (${req.user.username})` : 'Not authenticated');
+    // Optional debug logging (disabled for production performance)
+    // console.log('=== LIVE USERS DEBUG ===');
+    // console.log('Total users in liveUsers Map:', liveUsers.size);
+    // console.log('Live users details:', Array.from(liveUsers.entries()).map(([id, data]) => ({
+    //   userId: id,
+    //   username: data.username,
+    //   lastSeen: data.lastSeen,
+    //   minutesAgo: Math.round((new Date().getTime() - data.lastSeen.getTime()) / (1000 * 60))
+    // })));
+    // console.log('Current user:', req.user ? `${req.user.id} (${req.user.username})` : 'Not authenticated');
     
     // Get live users count from the Map
     let liveUsersCount = liveUsers.size;
@@ -324,12 +324,13 @@ router.get('/active-users-count', async (req, res) => {
       
       // Recalculate count after ensuring current user is in the map
       liveUsersCount = liveUsers.size;
-      console.log('Updated current user in liveUsers Map, new count:', liveUsersCount);
+      // Optional debug logging (disabled for production performance) 
+      // console.log('Updated current user in liveUsers Map, new count:', liveUsersCount);
       
       // Final safety check - if somehow still 0, use fallback
       if (liveUsersCount === 0) {
         liveUsersCount = 1;
-        console.log('Emergency fallback: showing 1 user for current authenticated session');
+        // console.log('Emergency fallback: showing 1 user for current authenticated session');
       }
     }
     
@@ -343,8 +344,9 @@ router.get('/active-users-count', async (req, res) => {
     
     const totalUsers = totalUsersResult[0]?.count || 0;
     
-    console.log('Final response:', { activeUsers: liveUsersCount, totalUsers });
-    console.log('========================');
+    // Optional debug logging (disabled for production performance)
+    // console.log('Final response:', { activeUsers: liveUsersCount, totalUsers });
+    // console.log('========================');
     
     res.json({
       activeUsers: liveUsersCount,
@@ -798,12 +800,12 @@ router.post('/heartbeat', (req: any, res: any) => {
       const userId = req.user.id;
       const timestamp = new Date();
       
-      // Debug logging for heartbeat
-      console.log('=== HEARTBEAT RECEIVED ===');
-      console.log('User ID:', userId);
-      console.log('Username:', req.user.username);
-      console.log('Timestamp:', timestamp);
-      console.log('Current Map size before update:', liveUsers.size);
+      // Optional debug logging for heartbeat (disabled for production performance)
+      // console.log('=== HEARTBEAT RECEIVED ===');
+      // console.log('User ID:', userId);
+      // console.log('Username:', req.user.username);
+      // console.log('Timestamp:', timestamp);
+      // console.log('Current Map size before update:', liveUsers.size);
       
       liveUsers.set(userId, {
         userId,
@@ -813,8 +815,8 @@ router.post('/heartbeat', (req: any, res: any) => {
         lastSeen: timestamp
       });
       
-      console.log('Map size after update:', liveUsers.size);
-      console.log('==========================');
+      // console.log('Map size after update:', liveUsers.size);
+      // console.log('==========================');
       
       res.json({ success: true, timestamp });
     } else {
