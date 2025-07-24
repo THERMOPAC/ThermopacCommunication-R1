@@ -933,7 +933,7 @@ router.get('/meetings-commitments', async (req, res) => {
       )
       .groupBy(meetingCommitments.assignedToId, users.username, users.firstName, users.lastName, users.role, users.department)
       .having(sql`COUNT(${meetingCommitments.id}) > 0`)
-      .orderBy(sql`completion_rate ASC, overdue_count DESC`);
+      .orderBy(sql`(COUNT(CASE WHEN ${meetingCommitments.status} = 'Completed' THEN 1 END) * 100.0) / NULLIF(COUNT(${meetingCommitments.id}), 0) ASC, COUNT(CASE WHEN ${meetingCommitments.status} != 'Completed' AND ${meetingCommitments.dueDate} < CURRENT_DATE THEN 1 END) DESC`);
 
     // Get recent overdue commitments with details
     const overdueCommitmentsDetails = await db
