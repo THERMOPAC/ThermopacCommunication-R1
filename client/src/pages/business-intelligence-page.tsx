@@ -168,26 +168,26 @@ export default function BusinessIntelligencePage() {
     enabled: !!startDate && !!endDate,
   });
 
-  const { data: activityStats, isLoading: activityLoading } = useQuery<ActivityStats>({
+  const { data: activityStats, isLoading: activityLoading, refetch: refetchActivityStats } = useQuery<ActivityStats>({
     queryKey: ['/api/business-intelligence/activity-stats', startDate, endDate],
     enabled: !!startDate && !!endDate,
   });
 
-  const { data: moduleUsage, isLoading: moduleLoading } = useQuery<ModuleUsage>({
+  const { data: moduleUsage, isLoading: moduleLoading, refetch: refetchModuleUsage } = useQuery<ModuleUsage>({
     queryKey: ['/api/business-intelligence/module-usage', startDate, endDate],
     enabled: !!startDate && !!endDate,
   });
 
-  const { data: productivityMetrics, isLoading: productivityLoading } = useQuery<ProductivityMetrics>({
+  const { data: productivityMetrics, isLoading: productivityLoading, refetch: refetchProductivityMetrics } = useQuery<ProductivityMetrics>({
     queryKey: ['/api/business-intelligence/productivity-metrics', startDate, endDate],
     enabled: !!startDate && !!endDate,
   });
 
-  const { data: complianceStatus, isLoading: complianceLoading } = useQuery<ComplianceStatus>({
+  const { data: complianceStatus, isLoading: complianceLoading, refetch: refetchComplianceStatus } = useQuery<ComplianceStatus>({
     queryKey: ['/api/business-intelligence/compliance-status'],
   });
 
-  const { data: businessInsights, isLoading: insightsLoading } = useQuery<BusinessInsights>({
+  const { data: businessInsights, isLoading: insightsLoading, refetch: refetchBusinessInsights } = useQuery<BusinessInsights>({
     queryKey: ['/api/business-intelligence/insights', startDate, endDate],
     enabled: !!startDate && !!endDate,
   });
@@ -243,7 +243,13 @@ export default function BusinessIntelligencePage() {
   };
 
   const refreshAllData = () => {
+    // Refresh all queries on the page
     refetchOverview();
+    refetchActivityStats();
+    refetchModuleUsage();
+    refetchProductivityMetrics();
+    refetchComplianceStatus();
+    refetchBusinessInsights();
   };
 
   return (
