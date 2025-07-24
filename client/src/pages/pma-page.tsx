@@ -108,12 +108,12 @@ export default function PMAPage() {
     // Bolts
     {
       group: 'Bolts',
-      options: ['SA-193 B7']
+      options: ['SA-193 B7', 'SA-325 Type 1', 'SA-490 Type 1']
     },
     // Nuts
     {
       group: 'Nuts',
-      options: ['SA-193 B7']
+      options: ['SA-194 2H', 'SA-194 7', 'SA-563 Grade A']
     },
     // Gaskets
     {
