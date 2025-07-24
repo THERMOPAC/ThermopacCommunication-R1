@@ -515,29 +515,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
   
   // ENHANCED GLOBAL USER TRACKING MIDDLEWARE - POSITIONED AFTER AUTHENTICATION SETUP
-  // Import the global live users map from index.ts
-  const { globalLiveUsers } = await import('./index.js');
-  
-  app.use((req: any, res: any, next: any) => {
-    // Track authenticated users globally across all routes AFTER authentication is setup
-    if (req.user && req.user.id) {
-      const timestamp = new Date();
+  // Set up dynamic import within an async function to avoid top-level await
+  (async () => {
+    try {
+      const { globalLiveUsers } = await import('./index.js');
       
-      globalLiveUsers.set(req.user.id, {
-        userId: req.user.id,
-        username: req.user.username || `User${req.user.id}`,
-        firstName: req.user.firstName || null,
-        lastName: req.user.lastName || null,
-        lastSeen: timestamp
+      app.use((req: any, res: any, next: any) => {
+        // Track authenticated users globally across all routes AFTER authentication is setup
+        if (req.user && req.user.id) {
+          const timestamp = new Date();
+          
+          globalLiveUsers.set(req.user.id, {
+            userId: req.user.id,
+            username: req.user.username || `User${req.user.id}`,
+            firstName: req.user.firstName || null,
+            lastName: req.user.lastName || null,
+            lastSeen: timestamp
+          });
+          
+          // Enhanced debugging for production tracking
+          if (req.path.includes('/heartbeat') || req.path.includes('/active-users-count')) {
+            console.log(`🌐 MIDDLEWARE TRACKING: User ${req.user.username} (ID: ${req.user.id}) added to global map. Size: ${globalLiveUsers.size}`);
+          }
+        }
+        next();
       });
-      
-      // Enhanced debugging for production tracking
-      if (req.path.includes('/heartbeat') || req.path.includes('/active-users-count')) {
-        console.log(`🌐 MIDDLEWARE TRACKING: User ${req.user.username} (ID: ${req.user.id}) added to global map. Size: ${globalLiveUsers.size}`);
-      }
+    } catch (error) {
+      console.warn('Failed to set up global user tracking:', error);
     }
-    next();
-  });
+  })();
   
   // Set up Gmail integration routes
   setupGmailRoutes(app);
@@ -658,13 +664,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('ROI Calculator routes registered');
 
   // Register plant costs routes directly here
-  const { db } = await import('./db');
-  const { plantCosts } = await import('@shared/schema');
-  const { eq } = await import('drizzle-orm');
-  const { ensureAuthenticated } = await import('./auth-middleware');
+  (async () => {
+    try {
+      const { db } = await import('./db');
+      const { plantCosts } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      const { ensureAuthenticated } = await import('./auth-middleware');
 
-  // GET all plant costs
-  app.get('/api/plant-costs', ensureAuthenticated, async (req: any, res: any) => {
+      // GET all plant costs
+      app.get('/api/plant-costs', ensureAuthenticated, async (req: any, res: any) => {
     try {
       console.log('Direct plant costs GET route hit');
       const costs = await db
@@ -752,7 +760,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Failed to delete plant cost' });
     }
   });
-  console.log('Plant costs routes registered directly');
+      
+      console.log('Plant costs routes registered directly');
+    } catch (error) {
+      console.warn('Failed to set up plant costs routes:', error);
+    }
+  })();
   
   // Set up procurement management routes
   setupProcurementRoutes(app);

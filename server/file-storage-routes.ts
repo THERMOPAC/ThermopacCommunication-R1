@@ -727,7 +727,7 @@ export function setupFileStorageRoutes(app: Router) {
       console.log(`Uploading file to ${storagePath} using uploadFileWithDiagnostics method`);
       
       // Import the enhanced upload function
-      const { uploadFileWithDiagnostics } = require('./utils/gcs-enhanced-upload');
+      const { uploadFileWithDiagnostics } = await import('./utils/gcs-enhanced-upload');
       
       // Use the enhanced upload function for better diagnostics
       const uploadResponse = await uploadFileWithDiagnostics(storagePath, req.file.buffer, req.file.mimetype);
@@ -741,7 +741,7 @@ export function setupFileStorageRoutes(app: Router) {
         }, null, 2));
         
         // Import the bucketName from storage-config
-        const { bucketName } = require('./utils/storage-config');
+        const { bucketName } = await import('./utils/storage-config');
         
         // Determine if this is a typo or misconfiguration in the bucket name
         let suggestedFix = '';
@@ -919,7 +919,7 @@ export function setupFileStorageRoutes(app: Router) {
       }
       
       // Import the bucketName
-      const { bucketName } = require('./utils/storage-config');
+      const { bucketName } = await import('./utils/storage-config');
       
       // If we got here, we couldn't recover
       // Provide more specific error information based on error type
