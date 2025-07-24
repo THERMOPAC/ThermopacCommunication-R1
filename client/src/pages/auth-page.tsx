@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/use-auth";
+import { useAutofillSetting } from "@/hooks/useAutofillSetting";
 import { useForm } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -106,6 +107,9 @@ export default function AuthPage() {
 
 // The LoginForm is now a component that receives the loginMutation as a prop
 function LoginForm({ loginMutation, onForgotPassword }: { loginMutation: any; onForgotPassword: () => void }) {
+  const { disableAutofill } = useAutofillSetting();
+  const [readOnlyFields, setReadOnlyFields] = useState({ username: true, password: true });
+  
   const form = useForm({
     defaultValues: {
       username: "",
@@ -113,9 +117,19 @@ function LoginForm({ loginMutation, onForgotPassword }: { loginMutation: any; on
     },
   });
 
+  const handleFieldFocus = (fieldName: 'username' | 'password') => {
+    if (disableAutofill) {
+      setReadOnlyFields(prev => ({ ...prev, [fieldName]: false }));
+    }
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit((data) => loginMutation.mutate(data))} className="space-y-4">
+      <form 
+        onSubmit={form.handleSubmit((data) => loginMutation.mutate(data))} 
+        className="space-y-4"
+        autoComplete={disableAutofill ? "off" : "on"}
+      >
         <FormField
           control={form.control}
           name="username"
@@ -123,7 +137,12 @@ function LoginForm({ loginMutation, onForgotPassword }: { loginMutation: any; on
             <FormItem>
               <FormLabel>Username</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input 
+                  {...field} 
+                  autoComplete={disableAutofill ? "off" : "username"}
+                  readOnly={disableAutofill ? readOnlyFields.username : false}
+                  onFocus={() => handleFieldFocus('username')}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -136,7 +155,13 @@ function LoginForm({ loginMutation, onForgotPassword }: { loginMutation: any; on
             <FormItem>
               <FormLabel>Password</FormLabel>
               <FormControl>
-                <Input type="password" {...field} />
+                <Input 
+                  type="password" 
+                  {...field} 
+                  autoComplete={disableAutofill ? "new-password" : "current-password"}
+                  readOnly={disableAutofill ? readOnlyFields.password : false}
+                  onFocus={() => handleFieldFocus('password')}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
