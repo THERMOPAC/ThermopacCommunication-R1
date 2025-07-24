@@ -289,23 +289,19 @@ router.get('/module-usage', async (req, res) => {
 // ACTIVE USERS COUNT
 // ============================================================================
 
-// Get active users count - users who have logged in recently
+// Get live users count - users currently online (active in last 5 minutes)
 router.get('/active-users-count', async (req, res) => {
   try {
-    // Consider users active if they've had attendance in the last 7 days
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // Clean up stale users first
+    cleanupStaleUsers();
     
-    const activeUsersResult = await db
-      .selectDistinct({
-        userId: attendanceRecords.userId
-      })
-      .from(attendanceRecords)
-      .where(
-        gte(attendanceRecords.date, sevenDaysAgo)
-      );
+    // Get live users count from the Map
+    let liveUsersCount = liveUsers.size;
     
-    const activeUsersCount = activeUsersResult.length;
+    // If no users in the Map, show at least current user as live if authenticated
+    if (liveUsersCount === 0 && req.user) {
+      liveUsersCount = 1;
+    }
     
     // Get total users count
     const totalUsersResult = await db
@@ -318,12 +314,12 @@ router.get('/active-users-count', async (req, res) => {
     const totalUsers = totalUsersResult[0]?.count || 0;
     
     res.json({
-      activeUsers: activeUsersCount,
+      activeUsers: liveUsersCount,
       totalUsers: totalUsers
     });
   } catch (error) {
-    console.error('Error fetching active users count:', error);
-    res.status(500).json({ error: 'Failed to fetch active users count' });
+    console.error('Error fetching live users count:', error);
+    res.status(500).json({ error: 'Failed to fetch live users count' });
   }
 });
 
@@ -754,6 +750,51 @@ router.get('/insights', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch business insights' });
   }
 });
+
+// ============================================================================
+// LIVE USER TRACKING & HEARTBEAT
+// ============================================================================
+
+// Store live users in memory (for development - in production use Redis or database)
+const liveUsers = new Map();
+
+// Heartbeat endpoint to track live users
+router.post('/heartbeat', (req: any, res: any) => {
+  try {
+    if (req.user && req.user.id) {
+      const userId = req.user.id;
+      const timestamp = new Date();
+      
+      liveUsers.set(userId, {
+        userId,
+        username: req.user.username,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        lastSeen: timestamp
+      });
+      
+      res.json({ success: true, timestamp });
+    } else {
+      res.status(401).json({ error: 'User not authenticated' });
+    }
+  } catch (error) {
+    console.error('Error recording heartbeat:', error);
+    res.status(500).json({ error: 'Failed to record heartbeat' });
+  }
+});
+
+// Clean up stale users (remove users inactive for more than 5 minutes)
+const cleanupStaleUsers = () => {
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  for (const [userId, userData] of liveUsers.entries()) {
+    if (userData.lastSeen < fiveMinutesAgo) {
+      liveUsers.delete(userId);
+    }
+  }
+};
+
+// Run cleanup every minute
+setInterval(cleanupStaleUsers, 60 * 1000);
 
 // ============================================================================
 // ACTIVITY LOGGING (for tracking user actions)

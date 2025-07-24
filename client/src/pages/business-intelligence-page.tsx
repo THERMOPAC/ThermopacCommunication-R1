@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useHeartbeat } from "@/hooks/useHeartbeat";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -160,6 +161,9 @@ export default function BusinessIntelligencePage() {
     from: subDays(new Date(), 30),
     to: new Date(),
   });
+
+  // Initialize heartbeat for live user tracking
+  useHeartbeat({ interval: 30000 }); // Send heartbeat every 30 seconds
 
   // Format dates for API calls
   const startDate = dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : undefined;
@@ -329,7 +333,7 @@ export default function BusinessIntelligencePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+              <CardTitle className="text-sm font-medium">Live Users</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -337,9 +341,12 @@ export default function BusinessIntelligencePage() {
                 <Skeleton className="h-8 w-20" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{activeUsersCount?.activeUsers || 0}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-2xl font-bold">{activeUsersCount?.activeUsers || 0}</div>
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    of {activeUsersCount?.totalUsers || 0} total users
+                    of {activeUsersCount?.totalUsers || 0} total users currently online
                   </p>
                 </>
               )}
