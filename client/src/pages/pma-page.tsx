@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Label } from '@/components/ui/label';
@@ -59,18 +59,67 @@ export default function PMAPage() {
     'API', 'ASME', 'ASTM', 'ATEX', 'BS', 'DIN', 'EN', 'IECEx', 'ISO'
   ];
 
-  // Fixed grade options matching Material Identification page
-  const availableGrades = [
+  // Material Grade options matching Material Identification page exactly
+  const materialGradeOptions = [
     // Carbon Steel
-    'SA-516 Gr 60', 'SA-516 Gr 70', 'SA-106 Gr B', 'SA-106 Gr C', 
-    'SA-36', 'SA-537 Cl 1', 'SA-537 Cl 2', 'SA-53 Gr B',
+    {
+      group: 'Carbon Steel',
+      options: [
+        'SA-516 Gr 60', 'SA-516 Gr 70', 'SA-106 Gr B', 'SA-106 Gr C', 
+        'SA-36', 'SA-537 Cl 1', 'SA-537 Cl 2', 'SA-53 Gr B',
+        'SA-105', 'SA-234 WPB', 'ASTM A36', 'ASTM A106 Gr B',
+        'ASTM A333 Gr 6', 'ASTM A515 Gr 70', 'Gr.B'
+      ]
+    },
     // Stainless Steel
-    'SA-240 TP 304', 'SA-240 TP 304L', 'SA-240 TP 316', 'SA-240 TP 316L',
-    'SA-240 TP 321', 'SA-240 TP 347', 'SA-312 TP 304', 'SA-312 TP 316L',
+    {
+      group: 'Stainless Steel',
+      options: [
+        'SA-240 Type 304', 'SA-240 Type 304L', 'SA-240 Type 316', 'SA-240 Type 316L',
+        'SA-240 Type 321', 'SA-312 TP304', 'SA-312 TP304L', 'SA-312 TP316',
+        'SA-312 TP316L', 'SA-213 TP304', 'SA-213 TP304L', 'SA-213 TP316',
+        'SA-213 TP316L', 'SA-182 F304', 'SA-182 F316'
+      ]
+    },
     // Alloy Steel
-    'SA-335 P11', 'SA-335 P22', 'SA-335 P91', 'SA-213 T11', 'SA-213 T22',
-    // Other grades
-    'A105', 'A350 LF2', 'A182 F304', 'A182 F316L'
+    {
+      group: 'Alloy Steel',
+      options: [
+        'SA-387 Gr 11 Cl 2', 'SA-387 Gr 22 Cl 2', 'SA-335 P11', 'SA-335 P22',
+        'SA-182 F11', 'SA-182 F22', 'SA-234 WP11', 'SA-234 WP22'
+      ]
+    },
+    // API Grades
+    {
+      group: 'API Grades',
+      options: [
+        'API 5L Gr B', 'API 5L X42', 'API 5L X52', 'API 5L X60',
+        'API 5L X65', 'API 5L X70'
+      ]
+    },
+    // Duplex Steel
+    {
+      group: 'Duplex Steel',
+      options: [
+        'ASTM A240 UNS S31803 (2205)', 'ASTM A240 UNS S32750 (2507)',
+        'ASTM A790 UNS S31803', 'ASTM A790 UNS S32750'
+      ]
+    },
+    // Bolts
+    {
+      group: 'Bolts',
+      options: ['SA-193 B7']
+    },
+    // Nuts
+    {
+      group: 'Nuts',
+      options: ['SA-193 B7']
+    },
+    // Gaskets
+    {
+      group: 'Gaskets',
+      options: ['AF 159']
+    }
   ];
 
   // Form setup
@@ -372,11 +421,18 @@ export default function PMAPage() {
                                   <SelectValue placeholder="Select grade" />
                                 </SelectTrigger>
                               </FormControl>
-                              <SelectContent>
-                                {availableGrades.map((grade) => (
-                                  <SelectItem key={grade} value={grade}>
-                                    {grade}
-                                  </SelectItem>
+                              <SelectContent className="max-h-[300px] overflow-y-auto">
+                                {materialGradeOptions.map((gradeGroup, groupIndex) => (
+                                  <SelectGroup key={`group-${groupIndex}`}>
+                                    <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                      {gradeGroup.group}
+                                    </SelectLabel>
+                                    {gradeGroup.options.map((grade, optionIndex) => (
+                                      <SelectItem key={`${groupIndex}-${optionIndex}-${grade}`} value={grade}>
+                                        {grade}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
                                 ))}
                               </SelectContent>
                             </Select>
@@ -675,11 +731,18 @@ export default function PMAPage() {
                             <SelectValue placeholder="Select grade" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
-                          {availableGrades.map((grade) => (
-                            <SelectItem key={grade} value={grade}>
-                              {grade}
-                            </SelectItem>
+                        <SelectContent className="max-h-[300px] overflow-y-auto">
+                          {materialGradeOptions.map((gradeGroup, groupIndex) => (
+                            <SelectGroup key={`edit-group-${groupIndex}`}>
+                              <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                {gradeGroup.group}
+                              </SelectLabel>
+                              {gradeGroup.options.map((grade, optionIndex) => (
+                                <SelectItem key={`edit-${groupIndex}-${optionIndex}-${grade}`} value={grade}>
+                                  {grade}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
                           ))}
                         </SelectContent>
                       </Select>
