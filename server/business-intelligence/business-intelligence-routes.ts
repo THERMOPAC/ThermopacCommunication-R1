@@ -827,6 +827,92 @@ router.get('/insights', async (req, res) => {
 // Store live users in memory (for development - in production use Redis or database)
 const liveUsers = new Map();
 
+// Demo/Test endpoint to simulate multiple live users (for testing purposes only)
+router.post('/simulate-live-users', (req: any, res: any) => {
+  try {
+    if (req.user?.role !== 'Superuser') {
+      return res.status(403).json({ error: 'Access denied. Superuser only.' });
+    }
+
+    // Clear existing test users
+    liveUsers.clear();
+    
+    // Add current real user
+    if (req.user && req.user.id) {
+      liveUsers.set(req.user.id, {
+        userId: req.user.id,
+        username: req.user.username,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        lastSeen: new Date()
+      });
+    }
+
+    // Simulate additional users for demonstration
+    const simulatedUsers = [
+      { id: 100, username: 'Vishal', firstName: 'Vishal', lastName: 'Kumar' },
+      { id: 101, username: 'Abhay', firstName: 'Abhay', lastName: 'Singh' },
+      { id: 102, username: 'Sanjeev', firstName: 'Sanjeev', lastName: 'Manager' },
+      { id: 103, username: 'TestUser1', firstName: 'Test', lastName: 'User' }
+    ];
+
+    simulatedUsers.forEach(user => {
+      liveUsers.set(user.id, {
+        userId: user.id,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        lastSeen: new Date()
+      });
+    });
+
+    console.log(`🧪 DEMO: Simulated ${liveUsers.size} live users for testing purposes`);
+    
+    res.json({
+      success: true,
+      message: `Simulated ${liveUsers.size} live users`,
+      liveUsersCount: liveUsers.size,
+      simulatedUsers: Array.from(liveUsers.values())
+    });
+  } catch (error) {
+    console.error('Error simulating live users:', error);
+    res.status(500).json({ error: 'Failed to simulate live users' });
+  }
+});
+
+// Reset live users to real tracking only
+router.post('/reset-live-users', (req: any, res: any) => {
+  try {
+    if (req.user?.role !== 'Superuser') {
+      return res.status(403).json({ error: 'Access denied. Superuser only.' });
+    }
+
+    // Clear all users and add only the current real user
+    liveUsers.clear();
+    
+    if (req.user && req.user.id) {
+      liveUsers.set(req.user.id, {
+        userId: req.user.id,
+        username: req.user.username,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        lastSeen: new Date()
+      });
+    }
+
+    console.log(`🔄 RESET: Live users reset to real tracking only`);
+    
+    res.json({
+      success: true,
+      message: `Reset to real tracking only`,
+      liveUsersCount: liveUsers.size
+    });
+  } catch (error) {
+    console.error('Error resetting live users:', error);
+    res.status(500).json({ error: 'Failed to reset live users' });
+  }
+});
+
 // Heartbeat endpoint to track live users
 router.post('/heartbeat', (req: any, res: any) => {
   try {

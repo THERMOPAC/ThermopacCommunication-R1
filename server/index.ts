@@ -353,33 +353,6 @@ app.use((req, res, next) => {
 
   const server = await registerRoutes(app);
 
-  // ENHANCED GLOBAL USER TRACKING MIDDLEWARE - After authentication is set up
-  app.use((req: any, res: any, next: any) => {
-    // Always log middleware execution
-    if (req.path.includes('/heartbeat') || req.path.includes('/active-users-count')) {
-      console.log(`🔧 MIDDLEWARE EXECUTION: Path ${req.path}, User exists: ${!!req.user}, User ID: ${req.user?.id}`);
-    }
-    
-    // Track authenticated users globally across all routes
-    if (req.user && req.user.id) {
-      const timestamp = new Date();
-      
-      globalLiveUsers.set(req.user.id, {
-        userId: req.user.id,
-        username: req.user.username || `User${req.user.id}`,
-        firstName: req.user.firstName || null,
-        lastName: req.user.lastName || null,
-        lastSeen: timestamp
-      });
-      
-      // Enhanced debugging for production tracking
-      if (req.path.includes('/heartbeat') || req.path.includes('/active-users-count')) {
-        console.log(`🌐 ENHANCED GLOBAL TRACKING: User ${req.user.username} (ID: ${req.user.id}) added to global map. Size: ${globalLiveUsers.size}`);
-      }
-    }
-    next();
-  });
-
   // Add a special middleware to ensure all API routes return JSON even for errors
   app.use('/api', (req: Request, res: Response, next: NextFunction) => {
     // Force content type to JSON for all API routes

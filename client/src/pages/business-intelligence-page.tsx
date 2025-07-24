@@ -351,6 +351,48 @@ export default function BusinessIntelligencePage() {
                   <p className="text-xs text-muted-foreground">
                     of {activeUsersCount?.totalUsers || 0} total users currently online
                   </p>
+                  <div className="flex gap-1 mt-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="text-xs px-2 py-1 h-auto"
+                      onClick={async () => {
+                        try {
+                          const response = await fetch('/api/business-intelligence/simulate-live-users', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                          });
+                          if (response.ok) {
+                            refetchActiveUsersCount();
+                          }
+                        } catch (error) {
+                          console.error('Failed to simulate users:', error);
+                        }
+                      }}
+                    >
+                      Demo 5 Users
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="text-xs px-2 py-1 h-auto"
+                      onClick={async () => {
+                        try {
+                          const response = await fetch('/api/business-intelligence/reset-live-users', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                          });
+                          if (response.ok) {
+                            refetchActiveUsersCount();
+                          }
+                        } catch (error) {
+                          console.error('Failed to reset users:', error);
+                        }
+                      }}
+                    >
+                      Reset
+                    </Button>
+                  </div>
                 </>
               )}
             </CardContent>
