@@ -1120,7 +1120,7 @@ export default function MeetingsManagement() {
       
       // User-specific filtering: when toggle is ON show commitments assigned to user, when OFF show commitments assigned by user
       const matchesUserFilter = !user || 
-        (showOnlyMyCommitments ? commitment.assignedTo.id === user.id : commitment.assignedBy?.id === user.id);
+        (showOnlyMyCommitments ? commitment.commitment.assignedToId === user.id : commitment.commitment.assignedById === user.id);
       
       return matchesSearch && matchesStatus && matchesPriority && matchesUserFilter;
     });
