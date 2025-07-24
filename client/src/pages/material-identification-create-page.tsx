@@ -504,7 +504,7 @@ export default function MaterialIdentificationCreatePage() {
                             <SelectContent className="max-h-[300px] overflow-y-auto">
                               {/* Carbon Steel */}
                               <SelectGroup>
-                                <SelectLabel>Carbon Steel</SelectLabel>
+                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">Carbon Steel</SelectLabel>
                                 <SelectItem value="SA-516 Gr 60">SA-516 Gr 60</SelectItem>
                                 <SelectItem value="SA-516 Gr 70">SA-516 Gr 70</SelectItem>
                                 <SelectItem value="SA-106 Gr B">SA-106 Gr B</SelectItem>
@@ -524,7 +524,7 @@ export default function MaterialIdentificationCreatePage() {
                               
                               {/* Stainless Steel */}
                               <SelectGroup>
-                                <SelectLabel>Stainless Steel</SelectLabel>
+                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">Stainless Steel</SelectLabel>
                                 <SelectItem value="SA-240 Type 304">SA-240 Type 304</SelectItem>
                                 <SelectItem value="SA-240 Type 304L">SA-240 Type 304L</SelectItem>
                                 <SelectItem value="SA-240 Type 316">SA-240 Type 316</SelectItem>
@@ -545,7 +545,7 @@ export default function MaterialIdentificationCreatePage() {
                               
                               {/* Alloy Steel */}
                               <SelectGroup>
-                                <SelectLabel>Alloy Steel</SelectLabel>
+                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">Alloy Steel</SelectLabel>
                                 <SelectItem value="SA-387 Gr 11 Cl 2">SA-387 Gr 11 Cl 2</SelectItem>
                                 <SelectItem value="SA-387 Gr 22 Cl 2">SA-387 Gr 22 Cl 2</SelectItem>
                                 <SelectItem value="SA-335 P11">SA-335 P11</SelectItem>
@@ -558,7 +558,7 @@ export default function MaterialIdentificationCreatePage() {
                               
                               {/* API Grades */}
                               <SelectGroup>
-                                <SelectLabel>API Grades</SelectLabel>
+                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">API Grades</SelectLabel>
                                 <SelectItem value="API 5L Gr B">API 5L Gr B</SelectItem>
                                 <SelectItem value="API 5L X42">API 5L X42</SelectItem>
                                 <SelectItem value="API 5L X52">API 5L X52</SelectItem>
@@ -569,7 +569,7 @@ export default function MaterialIdentificationCreatePage() {
                               
                               {/* Duplex and Super Duplex */}
                               <SelectGroup>
-                                <SelectLabel>Duplex Steel</SelectLabel>
+                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">Duplex Steel</SelectLabel>
                                 <SelectItem value="ASTM A240 UNS S31803">ASTM A240 UNS S31803 (2205)</SelectItem>
                                 <SelectItem value="ASTM A240 UNS S32750">ASTM A240 UNS S32750 (2507)</SelectItem>
                                 <SelectItem value="ASTM A790 UNS S31803">ASTM A790 UNS S31803</SelectItem>
@@ -578,21 +578,21 @@ export default function MaterialIdentificationCreatePage() {
                               
                               {/* Bolts */}
                               <SelectGroup>
-                                <SelectLabel>Bolts</SelectLabel>
+                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">Bolts</SelectLabel>
                                 <SelectItem value="SA-193 B7">SA-193 B7</SelectItem>
                                 <SelectItem value="SA-193 Gr. B8">SA-193 Gr. B8</SelectItem>
                               </SelectGroup>
                               
                               {/* Nuts */}
                               <SelectGroup>
-                                <SelectLabel>Nuts</SelectLabel>
+                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">Nuts</SelectLabel>
                                 <SelectItem value="SA-194 Gr. 8">SA-194 Gr. 8</SelectItem>
                                 <SelectItem value="SA-194 Gr. 2H">SA-194 Gr. 2H</SelectItem>
                               </SelectGroup>
                               
                               {/* Gaskets */}
                               <SelectGroup>
-                                <SelectLabel>Gaskets</SelectLabel>
+                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">Gaskets</SelectLabel>
                                 <SelectItem value="AF 159">AF 159</SelectItem>
                               </SelectGroup>
                             </SelectContent>
