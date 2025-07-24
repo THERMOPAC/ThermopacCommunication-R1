@@ -393,6 +393,94 @@ router.get('/active-users-count', async (req, res) => {
 });
 
 // ============================================================================
+// TESTING ENDPOINTS - For demonstrating live user tracking functionality
+// ============================================================================
+
+// Simulate multiple users being online (for testing purposes)
+router.post('/simulate-live-users', async (req, res) => {
+  try {
+    console.log('🧪 SIMULATE: Adding demo users to live tracking');
+    
+    // Get some sample users from database to simulate
+    const sampleUsers = await db
+      .select({ id: users.id, username: users.username, firstName: users.firstName, lastName: users.lastName })
+      .from(users)
+      .where(eq(users.isActive, true))
+      .limit(5);
+    
+    // Add current user + 4 sample users to simulate 5 total
+    const currentTime = new Date();
+    
+    // Add current user
+    if (req.user) {
+      globalLiveUsers.set(req.user.id, {
+        userId: req.user.id,
+        username: req.user.username,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        lastSeen: currentTime
+      });
+    }
+    
+    // Add sample users (skip current user if they're in the sample)
+    let addedCount = 1; // Current user already added
+    for (const user of sampleUsers) {
+      if (user.id !== req.user?.id && addedCount < 5) {
+        globalLiveUsers.set(user.id, {
+          userId: user.id,
+          username: user.username,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          lastSeen: currentTime
+        });
+        addedCount++;
+      }
+    }
+    
+    console.log(`🧪 SIMULATE: Added ${addedCount} demo users. Live map size: ${globalLiveUsers.size}`);
+    
+    res.json({ 
+      success: true, 
+      message: `Simulated ${addedCount} users online`,
+      liveUsersCount: globalLiveUsers.size
+    });
+  } catch (error) {
+    console.error('Error simulating live users:', error);
+    res.status(500).json({ error: 'Failed to simulate live users' });
+  }
+});
+
+// Reset live users to real tracking only
+router.post('/reset-live-users', async (req, res) => {
+  try {
+    console.log('🔄 RESET: Live users reset to real tracking only');
+    
+    // Clear the global live users map but keep current user
+    globalLiveUsers.clear();
+    
+    // Add back only the current authenticated user
+    if (req.user) {
+      globalLiveUsers.set(req.user.id, {
+        userId: req.user.id,
+        username: req.user.username,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        lastSeen: new Date()
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Reset to real tracking. Only actual users will be shown.',
+      liveUsersCount: globalLiveUsers.size
+    });
+  } catch (error) {
+    console.error('Error resetting live users:', error);
+    res.status(500).json({ error: 'Failed to reset live users' });
+  }
+});
+
+// ============================================================================
 // PRODUCTIVITY METRICS
 // ============================================================================
 
