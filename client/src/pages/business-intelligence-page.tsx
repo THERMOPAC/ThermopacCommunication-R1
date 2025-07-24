@@ -10,8 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar } from "@/components/ui/calendar";
 import { DateRange } from "react-day-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, RefreshCw, Users, Activity, TrendingUp, Shield, AlertCircle, CheckCircle, Clock, XCircle } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
+import { CalendarIcon, RefreshCw, Users, Activity, TrendingUp, Shield, AlertCircle, CheckCircle, Clock, XCircle, CheckSquare, Target } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area, Legend } from 'recharts';
 import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
@@ -153,6 +153,77 @@ interface ComplianceStatus {
   }>;
 }
 
+interface MeetingCommitmentAnalytics {
+  summary: {
+    totalMeetings: number;
+    totalCommitments: number;
+    completedCommitments: number;
+    overdueCommitments: number;
+    averageCompletionRate: number;
+  };
+  meetingCreators: Array<{
+    userId: number;
+    username: string;
+    firstName?: string;
+    lastName?: string;
+    role: string;
+    totalMeetings: number;
+    recentMeetings: string[];
+  }>;
+  commitmentCreators: Array<{
+    userId: number;
+    username: string;
+    firstName?: string;
+    lastName?: string;
+    role: string;
+    totalCommitments: number;
+    completedCommitments: number;
+    overdueCommitments: number;
+  }>;
+  commitmentFailures: Array<{
+    userId: number;
+    username: string;
+    firstName?: string;
+    lastName?: string;
+    role: string;
+    department?: string;
+    totalAssigned: number;
+    completedCount: number;
+    overdueCount: number;
+    pendingCount: number;
+    completionRate: number;
+    averageDaysToComplete: number;
+  }>;
+  overdueCommitmentsDetails: Array<{
+    id: number;
+    title: string;
+    description?: string;
+    priority: string;
+    dueDate: string;
+    status: string;
+    assignedTo: {
+      id: number;
+      username: string;
+      firstName?: string;
+      lastName?: string;
+      role: string;
+    };
+    assignedBy: {
+      id: number;
+      username: string;
+      firstName?: string;
+      lastName?: string;
+    };
+    daysPastDue: number;
+  }>;
+  commitmentTrends: Array<{
+    month: string;
+    totalCreated: number;
+    completed: number;
+    overdue: number;
+  }>;
+}
+
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 export default function BusinessIntelligencePage() {
@@ -206,6 +277,11 @@ export default function BusinessIntelligencePage() {
     cacheTime: 0, // Don't cache responses to ensure fresh data
     refetchOnMount: true, // Always refetch when component mounts
     refetchOnWindowFocus: true, // Refetch when window gains focus
+  });
+
+  const { data: meetingCommitmentAnalytics, isLoading: meetingCommitmentLoading, refetch: refetchMeetingCommitmentAnalytics } = useQuery<{success: boolean, data: MeetingCommitmentAnalytics}>({
+    queryKey: ['/api/business-intelligence/meetings-commitments', startDate, endDate],
+    enabled: !!startDate && !!endDate,
   });
 
   const getDisplayName = (user: any) => {
@@ -267,6 +343,7 @@ export default function BusinessIntelligencePage() {
     refetchComplianceStatus();
     refetchBusinessInsights();
     refetchActiveUsersCount();
+    refetchMeetingCommitmentAnalytics();
   };
 
   return (
@@ -419,12 +496,13 @@ export default function BusinessIntelligencePage() {
 
         {/* Main Analytics Tabs */}
         <Tabs defaultValue="insights" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="insights">Insights & Alerts</TabsTrigger>
             <TabsTrigger value="activity">User Activity</TabsTrigger>
             <TabsTrigger value="modules">Module Usage</TabsTrigger>
             <TabsTrigger value="productivity">Productivity</TabsTrigger>
             <TabsTrigger value="compliance">Compliance</TabsTrigger>
+            <TabsTrigger value="meetings">Meetings & Commitments</TabsTrigger>
           </TabsList>
 
           {/* Insights & Alerts Tab */}
@@ -918,6 +996,266 @@ export default function BusinessIntelligencePage() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Meeting & Commitments Tab */}
+          <TabsContent value="meetings" className="space-y-6">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Meetings</CardTitle>
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  {meetingCommitmentLoading ? (
+                    <Skeleton className="h-8 w-16" />
+                  ) : (
+                    <div className="text-2xl font-bold">{meetingCommitmentAnalytics?.data?.summary?.totalMeetings || 0}</div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Commitments</CardTitle>
+                  <CheckSquare className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  {meetingCommitmentLoading ? (
+                    <Skeleton className="h-8 w-16" />
+                  ) : (
+                    <div className="text-2xl font-bold">{meetingCommitmentAnalytics?.data?.summary?.totalCommitments || 0}</div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Completed</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent>
+                  {meetingCommitmentLoading ? (
+                    <Skeleton className="h-8 w-16" />
+                  ) : (
+                    <div className="text-2xl font-bold text-green-600">{meetingCommitmentAnalytics?.data?.summary?.completedCommitments || 0}</div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Overdue</CardTitle>
+                  <XCircle className="h-4 w-4 text-red-500" />
+                </CardHeader>
+                <CardContent>
+                  {meetingCommitmentLoading ? (
+                    <Skeleton className="h-8 w-16" />
+                  ) : (
+                    <div className="text-2xl font-bold text-red-600">{meetingCommitmentAnalytics?.data?.summary?.overdueCommitments || 0}</div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  {meetingCommitmentLoading ? (
+                    <Skeleton className="h-8 w-16" />
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold">{meetingCommitmentAnalytics?.data?.summary?.averageCompletionRate?.toFixed(1) || '0.0'}%</div>
+                      <Progress value={meetingCommitmentAnalytics?.data?.summary?.averageCompletionRate || 0} className="mt-2" />
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Meeting Creators */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Top Meeting Organizers
+                  </CardTitle>
+                  <CardDescription>Users creating the most meetings</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {meetingCommitmentLoading ? (
+                    <div className="space-y-4">
+                      {[...Array(5)].map((_, i) => (
+                        <Skeleton key={i} className="h-16 w-full" />
+                      ))}
+                    </div>
+                  ) : meetingCommitmentAnalytics?.data?.meetingCreators && meetingCommitmentAnalytics.data.meetingCreators.length > 0 ? (
+                    <div className="space-y-4">
+                      {meetingCommitmentAnalytics.data.meetingCreators.slice(0, 10).map((creator, index) => (
+                        <div key={creator.userId} className="flex justify-between items-center p-4 border rounded-lg">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">{creator.role}</Badge>
+                              <span className="font-medium">{getDisplayName(creator)}</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Recent: {creator.recentMeetings?.slice(0, 2).join(', ') || 'No recent meetings'}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold">{creator.totalMeetings}</div>
+                            <p className="text-xs text-muted-foreground">meetings</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                      <p>No meeting data available for selected period</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Commitment Performance */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5" />
+                    Commitment Performance Issues
+                  </CardTitle>
+                  <CardDescription>Users with low completion rates</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {meetingCommitmentLoading ? (
+                    <div className="space-y-4">
+                      {[...Array(5)].map((_, i) => (
+                        <Skeleton key={i} className="h-16 w-full" />
+                      ))}
+                    </div>
+                  ) : meetingCommitmentAnalytics?.data?.commitmentFailures && meetingCommitmentAnalytics.data.commitmentFailures.length > 0 ? (
+                    <div className="space-y-4">
+                      {meetingCommitmentAnalytics.data.commitmentFailures.slice(0, 10).map((user, index) => (
+                        <div key={user.userId} className={`flex justify-between items-center p-4 border rounded-lg ${
+                          user.completionRate < 50 ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950' : 
+                          user.completionRate < 80 ? 'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950' : 
+                          'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950'
+                        }`}>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">{user.role}</Badge>
+                              <span className="font-medium">{getDisplayName(user)}</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {user.department && `${user.department} • `}
+                              {user.totalAssigned} assigned, {user.completedCount} completed, {user.overdueCount} overdue
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <div className={`text-lg font-bold ${
+                              user.completionRate < 50 ? 'text-red-600' : 
+                              user.completionRate < 80 ? 'text-yellow-600' : 
+                              'text-green-600'
+                            }`}>
+                              {user.completionRate?.toFixed(1) || '0.0'}%
+                            </div>
+                            <p className="text-xs text-muted-foreground">completion</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
+                      <p>All users have excellent commitment completion rates!</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Overdue Commitments Details */}
+            {meetingCommitmentAnalytics?.data?.overdueCommitmentsDetails && meetingCommitmentAnalytics.data.overdueCommitmentsDetails.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-red-500" />
+                    Overdue Commitments Requiring Immediate Action
+                  </CardTitle>
+                  <CardDescription>Commitments that are past their due dates</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {meetingCommitmentAnalytics.data.overdueCommitmentsDetails.slice(0, 15).map((commitment, index) => (
+                      <div key={commitment.id} className="flex justify-between items-start p-4 border rounded-lg border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant={commitment.priority === 'High' ? 'destructive' : commitment.priority === 'Medium' ? 'default' : 'secondary'}>
+                              {commitment.priority}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">{commitment.status}</Badge>
+                          </div>
+                          <h4 className="font-medium mb-1">{commitment.title}</h4>
+                          {commitment.description && (
+                            <p className="text-sm text-muted-foreground mb-2">{commitment.description}</p>
+                          )}
+                          <div className="flex items-center gap-4 text-sm">
+                            <span>
+                              <strong>Assigned to:</strong> {getDisplayName(commitment.assignedTo)} ({commitment.assignedTo?.role})
+                            </span>
+                            <span>
+                              <strong>Assigned by:</strong> {getDisplayName(commitment.assignedBy)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right ml-4">
+                          <div className="text-red-600 font-medium">
+                            {commitment.daysPastDue} days overdue
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Due: {format(new Date(commitment.dueDate), 'MMM dd, yyyy')}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Commitment Trends Chart */}
+            {meetingCommitmentAnalytics?.data?.commitmentTrends && meetingCommitmentAnalytics.data.commitmentTrends.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Commitment Trends Over Time
+                  </CardTitle>
+                  <CardDescription>Monthly commitment creation and completion patterns</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={meetingCommitmentAnalytics.data.commitmentTrends}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="totalCreated" fill="#3b82f6" name="Created" />
+                        <Bar dataKey="completed" fill="#10b981" name="Completed" />
+                        <Bar dataKey="overdue" fill="#ef4444" name="Overdue" />
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>

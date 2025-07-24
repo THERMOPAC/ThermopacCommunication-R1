@@ -10,6 +10,8 @@ import {
   invoices,
   tasks,
   attendanceRecords,
+  businessMeetings,
+  meetingCommitments,
   insertUserActivityLogSchema,
   insertUserModuleStatsSchema,
   insertUserComplianceMetricsSchema,
@@ -839,6 +841,200 @@ const cleanupStaleUsers = () => {
 
 // Run cleanup every minute
 setInterval(cleanupStaleUsers, 60 * 1000);
+
+// ============================================================================
+// MEETINGS & COMMITMENTS ANALYTICS
+// ============================================================================
+
+// Get Meeting & Commitment analytics
+router.get('/meetings-commitments', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const start = startDate ? new Date(startDate as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate as string) : new Date();
+
+    // Get meeting creators (users organizing meetings)
+    const meetingCreators = await db
+      .select({
+        userId: businessMeetings.organizerId,
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        role: users.role,
+        totalMeetings: count(businessMeetings.id),
+        recentMeetings: sql<string[]>`ARRAY_AGG(${businessMeetings.title} ORDER BY ${businessMeetings.meetingDate} DESC)`.as('recentMeetings')
+      })
+      .from(businessMeetings)
+      .leftJoin(users, eq(businessMeetings.organizerId, users.id))
+      .where(
+        and(
+          gte(businessMeetings.meetingDate, start),
+          lte(businessMeetings.meetingDate, end)
+        )
+      )
+      .groupBy(businessMeetings.organizerId, users.username, users.firstName, users.lastName, users.role)
+      .orderBy(desc(count(businessMeetings.id)));
+
+    // Get commitment creators (users assigning commitments)
+    const commitmentCreators = await db
+      .select({
+        userId: meetingCommitments.assignedById,
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        role: users.role,
+        totalCommitments: count(meetingCommitments.id),
+        completedCommitments: count(sql`CASE WHEN ${meetingCommitments.status} = 'Completed' THEN 1 END`),
+        overdueCommitments: count(sql`CASE WHEN ${meetingCommitments.status} != 'Completed' AND ${meetingCommitments.dueDate} < CURRENT_DATE THEN 1 END`)
+      })
+      .from(meetingCommitments)
+      .leftJoin(users, eq(meetingCommitments.assignedById, users.id))
+      .where(
+        and(
+          gte(meetingCommitments.createdAt, start),
+          lte(meetingCommitments.createdAt, end)
+        )
+      )
+      .groupBy(meetingCommitments.assignedById, users.username, users.firstName, users.lastName, users.role)
+      .orderBy(desc(count(meetingCommitments.id)));
+
+    // Get users failing to fulfill commitments (poor completion rates)
+    const commitmentFailures = await db
+      .select({
+        userId: meetingCommitments.assignedToId,
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        role: users.role,
+        department: users.department,
+        totalAssigned: count(meetingCommitments.id),
+        completedCount: count(sql`CASE WHEN ${meetingCommitments.status} = 'Completed' THEN 1 END`),
+        overdueCount: count(sql`CASE WHEN ${meetingCommitments.status} != 'Completed' AND ${meetingCommitments.dueDate} < CURRENT_DATE THEN 1 END`),
+        pendingCount: count(sql`CASE WHEN ${meetingCommitments.status} = 'Pending' THEN 1 END`),
+        completionRate: sql<number>`ROUND(
+          (COUNT(CASE WHEN ${meetingCommitments.status} = 'Completed' THEN 1 END) * 100.0) / 
+          NULLIF(COUNT(${meetingCommitments.id}), 0), 2
+        )`,
+        averageDaysToComplete: sql<number>`ROUND(
+          AVG(CASE 
+            WHEN ${meetingCommitments.status} = 'Completed' AND ${meetingCommitments.completionDate} IS NOT NULL
+            THEN EXTRACT(DAY FROM ${meetingCommitments.completionDate} - ${meetingCommitments.createdAt})
+            ELSE NULL 
+          END), 1
+        )`
+      })
+      .from(meetingCommitments)
+      .leftJoin(users, eq(meetingCommitments.assignedToId, users.id))
+      .where(
+        and(
+          gte(meetingCommitments.createdAt, start),
+          lte(meetingCommitments.createdAt, end)
+        )
+      )
+      .groupBy(meetingCommitments.assignedToId, users.username, users.firstName, users.lastName, users.role, users.department)
+      .having(sql`COUNT(${meetingCommitments.id}) > 0`)
+      .orderBy(sql`completion_rate ASC, overdue_count DESC`);
+
+    // Get recent overdue commitments with details
+    const overdueCommitmentsDetails = await db
+      .select({
+        commitment: meetingCommitments,
+        assignedTo: {
+          id: users.id,
+          username: users.username,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          role: users.role
+        },
+        assignedBy: {
+          id: sql<number>`assignedBy.id`,
+          username: sql<string>`assignedBy.username`,
+          firstName: sql<string>`assignedBy.first_name`,
+          lastName: sql<string>`assignedBy.last_name`
+        }
+      })
+      .from(meetingCommitments)
+      .leftJoin(users, eq(meetingCommitments.assignedToId, users.id))
+      .leftJoin(sql`users assignedBy`, sql`${meetingCommitments.assignedById} = assignedBy.id`)
+      .where(
+        and(
+          sql`${meetingCommitments.status} != 'Completed'`,
+          sql`${meetingCommitments.dueDate} < CURRENT_DATE`
+        )
+      )
+      .orderBy(meetingCommitments.dueDate)
+      .limit(20);
+
+    // Calculate overall statistics
+    const overallStats = await db
+      .select({
+        totalMeetings: count(sql`DISTINCT ${businessMeetings.id}`),
+        totalCommitments: count(sql`DISTINCT ${meetingCommitments.id}`),
+        completedCommitments: count(sql`CASE WHEN ${meetingCommitments.status} = 'Completed' THEN 1 END`),
+        overdueCommitments: count(sql`CASE WHEN ${meetingCommitments.status} != 'Completed' AND ${meetingCommitments.dueDate} < CURRENT_DATE THEN 1 END`),
+        averageCompletionRate: sql<number>`ROUND(
+          (COUNT(CASE WHEN ${meetingCommitments.status} = 'Completed' THEN 1 END) * 100.0) / 
+          NULLIF(COUNT(${meetingCommitments.id}), 0), 2
+        )`
+      })
+      .from(businessMeetings)
+      .fullJoin(meetingCommitments, eq(businessMeetings.id, meetingCommitments.meetingId))
+      .where(
+        and(
+          gte(businessMeetings.meetingDate, start),
+          lte(businessMeetings.meetingDate, end)
+        )
+      );
+
+    // Get commitment trends by month
+    const commitmentTrends = await db
+      .select({
+        month: sql<string>`TO_CHAR(${meetingCommitments.createdAt}, 'YYYY-MM')`,
+        totalCreated: count(meetingCommitments.id),
+        completed: count(sql`CASE WHEN ${meetingCommitments.status} = 'Completed' THEN 1 END`),
+        overdue: count(sql`CASE WHEN ${meetingCommitments.status} != 'Completed' AND ${meetingCommitments.dueDate} < CURRENT_DATE THEN 1 END`)
+      })
+      .from(meetingCommitments)
+      .where(
+        and(
+          gte(meetingCommitments.createdAt, start),
+          lte(meetingCommitments.createdAt, end)
+        )
+      )
+      .groupBy(sql`TO_CHAR(${meetingCommitments.createdAt}, 'YYYY-MM')`)
+      .orderBy(sql`TO_CHAR(${meetingCommitments.createdAt}, 'YYYY-MM')`);
+
+    res.json({
+      success: true,
+      data: {
+        summary: overallStats[0] || {
+          totalMeetings: 0,
+          totalCommitments: 0,
+          completedCommitments: 0,
+          overdueCommitments: 0,
+          averageCompletionRate: 0
+        },
+        meetingCreators: meetingCreators || [],
+        commitmentCreators: commitmentCreators || [],
+        commitmentFailures: commitmentFailures || [],
+        overdueCommitmentsDetails: overdueCommitmentsDetails.map(row => ({
+          ...row.commitment,
+          assignedTo: row.assignedTo,
+          assignedBy: row.assignedBy,
+          daysPastDue: Math.floor((new Date().getTime() - new Date(row.commitment.dueDate).getTime()) / (1000 * 60 * 60 * 24))
+        })),
+        commitmentTrends: commitmentTrends || []
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching meetings & commitments analytics:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch meetings & commitments analytics' 
+    });
+  }
+});
 
 // ============================================================================
 // ACTIVITY LOGGING (for tracking user actions)
