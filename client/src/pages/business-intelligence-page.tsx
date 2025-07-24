@@ -203,6 +203,9 @@ export default function BusinessIntelligencePage() {
     queryKey: ['/api/business-intelligence/active-users-count'],
     refetchInterval: 30000, // Refresh every 30 seconds for real-time updates
     staleTime: 0, // Always consider data stale to ensure fresh counts
+    cacheTime: 0, // Don't cache responses to ensure fresh data
+    refetchOnMount: true, // Always refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window gains focus
   });
 
   const getDisplayName = (user: any) => {

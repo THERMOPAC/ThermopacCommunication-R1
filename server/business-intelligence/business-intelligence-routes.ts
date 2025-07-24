@@ -295,12 +295,42 @@ router.get('/active-users-count', async (req, res) => {
     // Clean up stale users first
     cleanupStaleUsers();
     
+    // Debug logging for production troubleshooting
+    console.log('=== LIVE USERS DEBUG ===');
+    console.log('Total users in liveUsers Map:', liveUsers.size);
+    console.log('Live users details:', Array.from(liveUsers.entries()).map(([id, data]) => ({
+      userId: id,
+      username: data.username,
+      lastSeen: data.lastSeen,
+      minutesAgo: Math.round((new Date().getTime() - data.lastSeen.getTime()) / (1000 * 60))
+    })));
+    console.log('Current user:', req.user ? `${req.user.id} (${req.user.username})` : 'Not authenticated');
+    
     // Get live users count from the Map
     let liveUsersCount = liveUsers.size;
     
-    // If no users in the Map, show at least current user as live if authenticated
-    if (liveUsersCount === 0 && req.user) {
-      liveUsersCount = 1;
+    // PRODUCTION FIX: Always ensure current authenticated user is counted as live
+    if (req.user && req.user.id) {
+      const userId = req.user.id;
+      
+      // Always update/add current user as they are making an authenticated request
+      liveUsers.set(userId, {
+        userId,
+        username: req.user.username,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        lastSeen: new Date()
+      });
+      
+      // Recalculate count after ensuring current user is in the map
+      liveUsersCount = liveUsers.size;
+      console.log('Updated current user in liveUsers Map, new count:', liveUsersCount);
+      
+      // Final safety check - if somehow still 0, use fallback
+      if (liveUsersCount === 0) {
+        liveUsersCount = 1;
+        console.log('Emergency fallback: showing 1 user for current authenticated session');
+      }
     }
     
     // Get total users count
@@ -312,6 +342,9 @@ router.get('/active-users-count', async (req, res) => {
       .where(eq(users.isActive, true));
     
     const totalUsers = totalUsersResult[0]?.count || 0;
+    
+    console.log('Final response:', { activeUsers: liveUsersCount, totalUsers });
+    console.log('========================');
     
     res.json({
       activeUsers: liveUsersCount,
@@ -765,6 +798,13 @@ router.post('/heartbeat', (req: any, res: any) => {
       const userId = req.user.id;
       const timestamp = new Date();
       
+      // Debug logging for heartbeat
+      console.log('=== HEARTBEAT RECEIVED ===');
+      console.log('User ID:', userId);
+      console.log('Username:', req.user.username);
+      console.log('Timestamp:', timestamp);
+      console.log('Current Map size before update:', liveUsers.size);
+      
       liveUsers.set(userId, {
         userId,
         username: req.user.username,
@@ -773,8 +813,12 @@ router.post('/heartbeat', (req: any, res: any) => {
         lastSeen: timestamp
       });
       
+      console.log('Map size after update:', liveUsers.size);
+      console.log('==========================');
+      
       res.json({ success: true, timestamp });
     } else {
+      console.log('Heartbeat failed: User not authenticated');
       res.status(401).json({ error: 'User not authenticated' });
     }
   } catch (error) {
