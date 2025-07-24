@@ -35,8 +35,6 @@ import { CalendarConflictService } from './calendar-conflict-service';
  */
 export const getMeetings = async (req: Request, res: Response) => {
   try {
-    console.log('🔍 getMeetings called with query params:', req.query);
-    
     const { 
       status, 
       type, 
@@ -122,8 +120,6 @@ export const getMeetings = async (req: Request, res: Response) => {
     query = query.limit(parseInt(limit as string)).offset(offset);
 
     const results = await query;
-    console.log('🔍 Query results count:', results.length);
-    console.log('🔍 Sample result:', results[0] || 'No results');
 
     // Get total count for pagination
     const totalQuery = db
@@ -135,7 +131,6 @@ export const getMeetings = async (req: Request, res: Response) => {
     }
     
     const [{ count }] = await totalQuery;
-    console.log('🔍 Total count in database:', count);
 
     res.json({
       meetings: results,
