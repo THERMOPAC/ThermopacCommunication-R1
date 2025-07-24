@@ -997,13 +997,13 @@ router.get('/meetings-commitments', async (req, res) => {
         )
       );
 
-    // Combine statistics
+    // Combine statistics with proper number conversion
     const overallStats = {
-      totalMeetings: meetingStats[0]?.totalMeetings || 0,
-      totalCommitments: commitmentStats[0]?.totalCommitments || 0,
-      completedCommitments: commitmentStats[0]?.completedCommitments || 0,
-      overdueCommitments: commitmentStats[0]?.overdueCommitments || 0,
-      averageCompletionRate: commitmentStats[0]?.averageCompletionRate || 0
+      totalMeetings: Number(meetingStats[0]?.totalMeetings || 0),
+      totalCommitments: Number(commitmentStats[0]?.totalCommitments || 0),
+      completedCommitments: Number(commitmentStats[0]?.completedCommitments || 0),
+      overdueCommitments: Number(commitmentStats[0]?.overdueCommitments || 0),
+      averageCompletionRate: Number(commitmentStats[0]?.averageCompletionRate || 0)
     };
 
     console.log('Meeting & Commitment Analytics Debug:');

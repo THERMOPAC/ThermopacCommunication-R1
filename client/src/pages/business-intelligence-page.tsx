@@ -1072,8 +1072,8 @@ export default function BusinessIntelligencePage() {
                     <Skeleton className="h-8 w-16" />
                   ) : (
                     <>
-                      <div className="text-2xl font-bold">{meetingCommitmentAnalytics?.data?.summary?.averageCompletionRate?.toFixed(1) || '0.0'}%</div>
-                      <Progress value={meetingCommitmentAnalytics?.data?.summary?.averageCompletionRate || 0} className="mt-2" />
+                      <div className="text-2xl font-bold">{Number(meetingCommitmentAnalytics?.data?.summary?.averageCompletionRate || 0).toFixed(1)}%</div>
+                      <Progress value={Number(meetingCommitmentAnalytics?.data?.summary?.averageCompletionRate || 0)} className="mt-2" />
                     </>
                   )}
                 </CardContent>
