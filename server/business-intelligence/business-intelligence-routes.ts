@@ -46,14 +46,15 @@ router.get('/overview', async (req, res) => {
     const start = startDate ? new Date(startDate as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const end = endDate ? new Date(endDate as string) : new Date();
 
-    // Get total active users (users with activity in date range)
+    // Get total active users (users with recent attendance or activity)
+    // Since user_activity_logs may be empty, use attendance records as indicator of active users
     const activeUsersResult = await db
-      .select({ count: count() })
-      .from(userActivityLogs)
+      .select({ count: sql<number>`COUNT(DISTINCT ${attendanceRecords.userId})` })
+      .from(attendanceRecords)
       .where(
         and(
-          gte(userActivityLogs.createdAt, start),
-          lte(userActivityLogs.createdAt, end)
+          gte(attendanceRecords.date, start),
+          lte(attendanceRecords.date, end)
         )
       );
 
