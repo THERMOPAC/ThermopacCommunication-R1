@@ -540,6 +540,7 @@ export default function MaterialIdentificationCreatePage() {
                                 <SelectItem value="SA-213 TP316L">SA-213 TP316L</SelectItem>
                                 <SelectItem value="SA-182 F304">SA-182 F304</SelectItem>
                                 <SelectItem value="SA-182 F316">SA-182 F316</SelectItem>
+                                <SelectItem value="SA-403 Gr. WP 316L">SA-403 Gr. WP 316L</SelectItem>
                               </SelectGroup>
                               
                               {/* Alloy Steel */}
@@ -579,12 +580,14 @@ export default function MaterialIdentificationCreatePage() {
                               <SelectGroup>
                                 <SelectLabel>Bolts</SelectLabel>
                                 <SelectItem value="SA-193 B7">SA-193 B7</SelectItem>
+                                <SelectItem value="SA-193 Gr. B8">SA-193 Gr. B8</SelectItem>
                               </SelectGroup>
                               
                               {/* Nuts */}
                               <SelectGroup>
                                 <SelectLabel>Nuts</SelectLabel>
-                                <SelectItem value="SA-193 B7">SA-193 B7</SelectItem>
+                                <SelectItem value="SA-194 Gr. 8">SA-194 Gr. 8</SelectItem>
+                                <SelectItem value="SA-194 Gr. 2H">SA-194 Gr. 2H</SelectItem>
                               </SelectGroup>
                               
                               {/* Gaskets */}

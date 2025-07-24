@@ -78,7 +78,7 @@ export default function PMAPage() {
         'SA-240 Type 304', 'SA-240 Type 304L', 'SA-240 Type 316', 'SA-240 Type 316L',
         'SA-240 Type 321', 'SA-312 TP304', 'SA-312 TP304L', 'SA-312 TP316',
         'SA-312 TP316L', 'SA-213 TP304', 'SA-213 TP304L', 'SA-213 TP316',
-        'SA-213 TP316L', 'SA-182 F304', 'SA-182 F316'
+        'SA-213 TP316L', 'SA-182 F304', 'SA-182 F316', 'SA-403 Gr. WP 316L'
       ]
     },
     // Alloy Steel
@@ -108,12 +108,12 @@ export default function PMAPage() {
     // Bolts
     {
       group: 'Bolts',
-      options: ['SA-193 B7', 'SA-325 Type 1', 'SA-490 Type 1']
+      options: ['SA-193 B7', 'SA-193 Gr. B8', 'SA-325 Type 1', 'SA-490 Type 1']
     },
     // Nuts
     {
       group: 'Nuts',
-      options: ['SA-194 2H', 'SA-194 7', 'SA-563 Grade A']
+      options: ['SA-194 Gr. 8', 'SA-194 Gr. 2H', 'SA-194 2H', 'SA-194 7', 'SA-563 Grade A']
     },
     // Gaskets
     {
