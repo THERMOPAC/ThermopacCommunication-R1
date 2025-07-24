@@ -965,11 +965,23 @@ router.get('/meetings-commitments', async (req, res) => {
       .orderBy(meetingCommitments.dueDate)
       .limit(20);
 
-    // Calculate overall statistics
-    const overallStats = await db
+    // Calculate meeting statistics
+    const meetingStats = await db
       .select({
-        totalMeetings: count(sql`DISTINCT ${businessMeetings.id}`),
-        totalCommitments: count(sql`DISTINCT ${meetingCommitments.id}`),
+        totalMeetings: count(businessMeetings.id)
+      })
+      .from(businessMeetings)
+      .where(
+        and(
+          gte(businessMeetings.meetingDate, start),
+          lte(businessMeetings.meetingDate, end)
+        )
+      );
+
+    // Calculate commitment statistics separately
+    const commitmentStats = await db
+      .select({
+        totalCommitments: count(meetingCommitments.id),
         completedCommitments: count(sql`CASE WHEN ${meetingCommitments.status} = 'Completed' THEN 1 END`),
         overdueCommitments: count(sql`CASE WHEN ${meetingCommitments.status} != 'Completed' AND ${meetingCommitments.dueDate} < CURRENT_DATE THEN 1 END`),
         averageCompletionRate: sql<number>`ROUND(
@@ -977,14 +989,28 @@ router.get('/meetings-commitments', async (req, res) => {
           NULLIF(COUNT(${meetingCommitments.id}), 0), 2
         )`
       })
-      .from(businessMeetings)
-      .fullJoin(meetingCommitments, eq(businessMeetings.id, meetingCommitments.meetingId))
+      .from(meetingCommitments)
       .where(
         and(
-          gte(businessMeetings.meetingDate, start),
-          lte(businessMeetings.meetingDate, end)
+          gte(meetingCommitments.createdAt, start),
+          lte(meetingCommitments.createdAt, end)
         )
       );
+
+    // Combine statistics
+    const overallStats = {
+      totalMeetings: meetingStats[0]?.totalMeetings || 0,
+      totalCommitments: commitmentStats[0]?.totalCommitments || 0,
+      completedCommitments: commitmentStats[0]?.completedCommitments || 0,
+      overdueCommitments: commitmentStats[0]?.overdueCommitments || 0,
+      averageCompletionRate: commitmentStats[0]?.averageCompletionRate || 0
+    };
+
+    console.log('Meeting & Commitment Analytics Debug:');
+    console.log('Date range:', start, 'to', end);
+    console.log('Meeting stats:', meetingStats[0]);
+    console.log('Commitment stats:', commitmentStats[0]);
+    console.log('Overall stats:', overallStats);
 
     // Get commitment trends by month
     const commitmentTrends = await db
@@ -1007,13 +1033,7 @@ router.get('/meetings-commitments', async (req, res) => {
     res.json({
       success: true,
       data: {
-        summary: overallStats[0] || {
-          totalMeetings: 0,
-          totalCommitments: 0,
-          completedCommitments: 0,
-          overdueCommitments: 0,
-          averageCompletionRate: 0
-        },
+        summary: overallStats,
         meetingCreators: meetingCreators || [],
         commitmentCreators: commitmentCreators || [],
         commitmentFailures: commitmentFailures || [],
