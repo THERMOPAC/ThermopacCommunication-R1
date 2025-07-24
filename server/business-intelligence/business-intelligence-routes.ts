@@ -24,23 +24,25 @@ const router = Router();
 // Helper function to count currently online users based on active sessions
 async function getOnlineUsersCount(req: any): Promise<number> {
   try {
-    // Access the session store to get active sessions
-    const sessionStore = req.sessionStore;
+    // Access the session store from storage object
+    const { storage } = await import('../storage');
+    const sessionStore = storage.sessionStore;
     
-    if (!sessionStore) {
-      console.log('No session store available, falling back to single user count');
+    if (!sessionStore || typeof sessionStore.all !== 'function') {
+      console.log('Session store not available or missing all() method, using current user count');
       return req.user ? 1 : 0;
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       sessionStore.all((err: any, sessions: any) => {
         if (err) {
-          console.error('Error getting sessions:', err);
-          resolve(req.user ? 1 : 0); // Fallback to current user if session store fails
+          console.error('Error accessing session store:', err);
+          resolve(req.user ? 1 : 0);
           return;
         }
 
-        if (!sessions) {
+        if (!sessions || typeof sessions !== 'object') {
+          console.log('No valid sessions found');
           resolve(req.user ? 1 : 0);
           return;
         }
@@ -48,20 +50,24 @@ async function getOnlineUsersCount(req: any): Promise<number> {
         // Count unique authenticated users from active sessions
         const authenticatedUserIds = new Set();
         
-        Object.keys(sessions).forEach(sessionId => {
-          const session = sessions[sessionId];
-          if (session?.passport?.user) {
-            authenticatedUserIds.add(session.passport.user);
-          }
-        });
+        try {
+          Object.values(sessions).forEach((session: any) => {
+            if (session?.passport?.user) {
+              authenticatedUserIds.add(session.passport.user);
+            }
+          });
 
-        console.log(`Found ${authenticatedUserIds.size} online users from ${Object.keys(sessions).length} active sessions`);
-        resolve(authenticatedUserIds.size);
+          console.log(`Found ${authenticatedUserIds.size} online users from ${Object.keys(sessions).length} total sessions`);
+          resolve(Math.max(authenticatedUserIds.size, req.user ? 1 : 0)); // Ensure at least current user is counted
+        } catch (sessionError) {
+          console.error('Error processing sessions:', sessionError);
+          resolve(req.user ? 1 : 0);
+        }
       });
     });
   } catch (error) {
-    console.error('Error counting online users:', error);
-    return req.user ? 1 : 0; // Fallback
+    console.error('Error in getOnlineUsersCount:', error);
+    return req.user ? 1 : 0; // Always fallback to current user
   }
 }
 
