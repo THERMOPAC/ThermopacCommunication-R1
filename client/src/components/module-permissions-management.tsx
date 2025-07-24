@@ -243,7 +243,7 @@ const ModulePermissionsManagement: React.FC = () => {
             <TabsList className="mb-4">
               <TabsTrigger value="users">User Permissions</TabsTrigger>
               <TabsTrigger value="roles">Role Defaults</TabsTrigger>
-              <TabsTrigger value="analytics">Module Permissions</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
             
             <TabsContent value="users" className="space-y-6">
