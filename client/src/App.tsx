@@ -74,6 +74,7 @@ import MeetingsManagementPage from "@/pages/admin/meetings-management";
 import GoogleCalendarSettingsPage from "@/pages/google-calendar-settings";
 import PasswordCompliancePage from "@/pages/password-compliance-page";
 import BusinessIntelligencePage from "@/pages/business-intelligence-page";
+import ActiveAlertsPage from "@/pages/active-alerts-page";
 import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
 import OutstandingReportPage from "@/pages/finance/reports/outstanding-page";
 import RemittancesReportPage from "@/pages/finance/reports/remittances-page";
@@ -332,6 +333,7 @@ function Router() {
       <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
       <SuperuserRoute path="/module-permissions" component={ModulePermissionsPage} />
       <SuperuserRoute path="/business-intelligence" component={() => <Layout><BusinessIntelligencePage /></Layout>} />
+      <SuperuserRoute path="/active-alerts" component={ActiveAlertsPage} />
       <ProtectedRoute path="/google-calendar-settings" component={() => <Layout><GoogleCalendarSettingsPage /></Layout>} />
       
       {/* SAP B1 Integration Routes */}

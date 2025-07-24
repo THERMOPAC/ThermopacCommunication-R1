@@ -6,12 +6,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar, DateRange } from "@/components/ui/calendar";
+import { Calendar } from "@/components/ui/calendar";
+import { DateRange } from "react-day-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, RefreshCw, Users, Activity, TrendingUp, Shield, AlertCircle, CheckCircle, Clock, XCircle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useLocation } from "wouter";
 
 interface OverviewData {
   totalActiveUsers: number;
@@ -153,6 +155,7 @@ interface ComplianceStatus {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 export default function BusinessIntelligencePage() {
+  const [, setLocation] = useLocation();
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: subDays(new Date(), 30),
     to: new Date(),
@@ -455,13 +458,13 @@ export default function BusinessIntelligencePage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Active Alerts */}
-              <Card>
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setLocation('/active-alerts')}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <AlertCircle className="h-5 w-5" />
                     Active Alerts
                   </CardTitle>
-                  <CardDescription>Issues requiring immediate attention</CardDescription>
+                  <CardDescription>Issues requiring immediate attention (Click to view details)</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {insightsLoading ? (
@@ -470,7 +473,7 @@ export default function BusinessIntelligencePage() {
                         <Skeleton key={i} className="h-20 w-full" />
                       ))}
                     </div>
-                  ) : businessInsights?.alerts.length > 0 ? (
+                  ) : businessInsights?.alerts && businessInsights.alerts.length > 0 ? (
                     <div className="space-y-4">
                       {businessInsights.alerts.map((alert, index) => (
                         <div key={index} className="p-4 border rounded-lg">
@@ -513,7 +516,7 @@ export default function BusinessIntelligencePage() {
                         <Skeleton key={i} className="h-20 w-full" />
                       ))}
                     </div>
-                  ) : businessInsights?.recommendations.length > 0 ? (
+                  ) : businessInsights?.recommendations && businessInsights.recommendations.length > 0 ? (
                     <div className="space-y-4">
                       {businessInsights.recommendations.map((rec, index) => (
                         <div key={index} className="p-4 border rounded-lg">
