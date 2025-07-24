@@ -285,6 +285,7 @@ export default function MeetingsManagement() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [showOnlyMyCommitments, setShowOnlyMyCommitments] = useState(true);
   const [isCreateMeetingOpen, setIsCreateMeetingOpen] = useState(false);
   const [isCreateCommitmentOpen, setIsCreateCommitmentOpen] = useState(false);
   const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
@@ -1117,9 +1118,14 @@ export default function MeetingsManagement() {
       const matchesStatus = !statusFilter || statusFilter === 'all' || commitment.commitment.status === statusFilter;
       const matchesPriority = !priorityFilter || priorityFilter === 'all' || commitment.commitment.priority === priorityFilter;
       
-      return matchesSearch && matchesStatus && matchesPriority;
+      // User-specific filtering: show only commitments assigned to user or assigned by user
+      const matchesUserFilter = !showOnlyMyCommitments || !user || 
+        commitment.assignedTo.id === user.id || 
+        commitment.assignedBy?.id === user.id;
+      
+      return matchesSearch && matchesStatus && matchesPriority && matchesUserFilter;
     });
-  }, [commitmentsData, searchTerm, statusFilter, priorityFilter]);
+  }, [commitmentsData, searchTerm, statusFilter, priorityFilter, showOnlyMyCommitments, user]);
 
   // Forms
   const meetingForm = useForm<MeetingFormData>({
@@ -2362,6 +2368,19 @@ export default function MeetingsManagement() {
                     <SelectItem value="Critical">Critical</SelectItem>
                   </SelectContent>
                 </Select>
+                
+                {/* User Filter Toggle */}
+                <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-white">
+                  <UserIcon className="h-4 w-4 text-gray-500" />
+                  <Switch
+                    checked={showOnlyMyCommitments}
+                    onCheckedChange={setShowOnlyMyCommitments}
+                    id="my-commitments-toggle"
+                  />
+                  <label htmlFor="my-commitments-toggle" className="text-sm font-medium cursor-pointer">
+                    {showOnlyMyCommitments ? 'My Commitments' : 'All Commitments'}
+                  </label>
+                </div>
               </div>
               <Dialog open={isCreateCommitmentOpen} onOpenChange={setIsCreateCommitmentOpen}>
                 <DialogTrigger asChild>
