@@ -1118,10 +1118,9 @@ export default function MeetingsManagement() {
       const matchesStatus = !statusFilter || statusFilter === 'all' || commitment.commitment.status === statusFilter;
       const matchesPriority = !priorityFilter || priorityFilter === 'all' || commitment.commitment.priority === priorityFilter;
       
-      // User-specific filtering: show only commitments assigned to user or assigned by user
-      const matchesUserFilter = !showOnlyMyCommitments || !user || 
-        commitment.assignedTo.id === user.id || 
-        commitment.assignedBy?.id === user.id;
+      // User-specific filtering: when toggle is ON show commitments assigned to user, when OFF show commitments assigned by user
+      const matchesUserFilter = !user || 
+        (showOnlyMyCommitments ? commitment.assignedTo.id === user.id : commitment.assignedBy?.id === user.id);
       
       return matchesSearch && matchesStatus && matchesPriority && matchesUserFilter;
     });
@@ -2378,7 +2377,7 @@ export default function MeetingsManagement() {
                     id="my-commitments-toggle"
                   />
                   <label htmlFor="my-commitments-toggle" className="text-sm font-medium cursor-pointer">
-                    {showOnlyMyCommitments ? 'My Commitments' : 'All Commitments'}
+                    {showOnlyMyCommitments ? 'My Commitments' : 'Commitments assigned by Me'}
                   </label>
                 </div>
               </div>
