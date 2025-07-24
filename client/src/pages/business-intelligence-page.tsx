@@ -312,7 +312,7 @@ export default function BusinessIntelligencePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Online Users</CardTitle>
+              <CardTitle className="text-sm font-medium">Active Users</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -322,7 +322,7 @@ export default function BusinessIntelligencePage() {
                 <>
                   <div className="text-2xl font-bold">{activeUsersCount?.activeUsers || 0}</div>
                   <p className="text-xs text-muted-foreground">
-                    of {activeUsersCount?.totalUsers || 0} total users currently online
+                    of {activeUsersCount?.totalUsers || 0} total users
                   </p>
                 </>
               )}
