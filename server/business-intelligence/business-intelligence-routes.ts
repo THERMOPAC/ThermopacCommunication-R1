@@ -21,6 +21,50 @@ import { z } from 'zod';
 
 const router = Router();
 
+// Helper function to count currently online users based on active sessions
+async function getOnlineUsersCount(req: any): Promise<number> {
+  try {
+    // Access the session store to get active sessions
+    const sessionStore = req.sessionStore;
+    
+    if (!sessionStore) {
+      console.log('No session store available, falling back to single user count');
+      return req.user ? 1 : 0;
+    }
+
+    return new Promise((resolve, reject) => {
+      sessionStore.all((err: any, sessions: any) => {
+        if (err) {
+          console.error('Error getting sessions:', err);
+          resolve(req.user ? 1 : 0); // Fallback to current user if session store fails
+          return;
+        }
+
+        if (!sessions) {
+          resolve(req.user ? 1 : 0);
+          return;
+        }
+
+        // Count unique authenticated users from active sessions
+        const authenticatedUserIds = new Set();
+        
+        Object.keys(sessions).forEach(sessionId => {
+          const session = sessions[sessionId];
+          if (session?.passport?.user) {
+            authenticatedUserIds.add(session.passport.user);
+          }
+        });
+
+        console.log(`Found ${authenticatedUserIds.size} online users from ${Object.keys(sessions).length} active sessions`);
+        resolve(authenticatedUserIds.size);
+      });
+    });
+  } catch (error) {
+    console.error('Error counting online users:', error);
+    return req.user ? 1 : 0; // Fallback
+  }
+}
+
 // Middleware to ensure only Superusers can access Business Intelligence
 router.use(ensureAuthenticated);
 router.use((req: any, res: any, next: any) => {
@@ -289,23 +333,12 @@ router.get('/module-usage', async (req, res) => {
 // ACTIVE USERS COUNT
 // ============================================================================
 
-// Get active users count - users who have logged in recently
+// Get online users count - users currently logged in with active sessions
 router.get('/active-users-count', async (req, res) => {
   try {
-    // Consider users active if they've had attendance in the last 7 days
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
-    const activeUsersResult = await db
-      .selectDistinct({
-        userId: attendanceRecords.userId
-      })
-      .from(attendanceRecords)
-      .where(
-        gte(attendanceRecords.date, sevenDaysAgo)
-      );
-    
-    const activeUsersCount = activeUsersResult.length;
+    // Get currently online users by checking active sessions
+    // We'll count unique user sessions that are currently active
+    const onlineUsersCount = await getOnlineUsersCount(req);
     
     // Get total users count
     const totalUsersResult = await db
@@ -318,12 +351,12 @@ router.get('/active-users-count', async (req, res) => {
     const totalUsers = totalUsersResult[0]?.count || 0;
     
     res.json({
-      activeUsers: activeUsersCount,
+      activeUsers: onlineUsersCount,
       totalUsers: totalUsers
     });
   } catch (error) {
-    console.error('Error fetching active users count:', error);
-    res.status(500).json({ error: 'Failed to fetch active users count' });
+    console.error('Error fetching online users count:', error);
+    res.status(500).json({ error: 'Failed to fetch online users count' });
   }
 });
 
