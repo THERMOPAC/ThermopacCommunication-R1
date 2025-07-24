@@ -108,7 +108,7 @@ router.get('/api/my-permissions', authenticateUser, async (req, res) => {
 router.get('/api/my-permissions/:moduleName/:permission', authenticateUser, async (req, res) => {
   try {
     const moduleName = req.params.moduleName as any;
-    const permission = req.params.permission as 'view' | 'create' | 'edit' | 'delete';
+    const permission = req.params.permission as 'view' | 'create' | 'edit' | 'delete' | 'upload' | 'download';
     
     // Validate module name
     if (!modules.includes(moduleName)) {
@@ -116,7 +116,7 @@ router.get('/api/my-permissions/:moduleName/:permission', authenticateUser, asyn
     }
     
     // Validate permission type
-    if (!['view', 'create', 'edit', 'delete'].includes(permission)) {
+    if (!['view', 'create', 'edit', 'delete', 'upload', 'download'].includes(permission)) {
       return res.status(400).json({ error: 'Invalid permission type' });
     }
     
@@ -151,6 +151,8 @@ router.get('/api/modules/:moduleName/analytics', authenticateUser, isAdmin, asyn
     let canCreateCount = 0;
     let canEditCount = 0;
     let canDeleteCount = 0;
+    let canUploadCount = 0;
+    let canDownloadCount = 0;
 
     // Check each user's permissions for this module
     for (const user of allUsers) {
@@ -164,6 +166,8 @@ router.get('/api/modules/:moduleName/analytics', authenticateUser, isAdmin, asyn
         if (modulePermission.canCreate) canCreateCount++;
         if (modulePermission.canEdit) canEditCount++;
         if (modulePermission.canDelete) canDeleteCount++;
+        if (modulePermission.canUpload) canUploadCount++;
+        if (modulePermission.canDownload) canDownloadCount++;
       }
     }
 
@@ -189,7 +193,9 @@ router.get('/api/modules/:moduleName/analytics', authenticateUser, isAdmin, asyn
         canView: canViewCount,
         canCreate: canCreateCount,
         canEdit: canEditCount,
-        canDelete: canDeleteCount
+        canDelete: canDeleteCount,
+        canUpload: canUploadCount,
+        canDownload: canDownloadCount
       }
     };
 

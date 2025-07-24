@@ -1195,6 +1195,8 @@ export const modulePermissions = pgTable('module_permissions', {
   canCreate: boolean('can_create').default(false).notNull(),
   canEdit: boolean('can_edit').default(false).notNull(),
   canDelete: boolean('can_delete').default(false).notNull(),
+  canUpload: boolean('can_upload').default(false).notNull(),
+  canDownload: boolean('can_download').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -1208,6 +1210,8 @@ export const roleModulePermissions = pgTable('role_module_permissions', {
   canCreate: boolean('can_create').default(false).notNull(),
   canEdit: boolean('can_edit').default(false).notNull(),
   canDelete: boolean('can_delete').default(false).notNull(),
+  canUpload: boolean('can_upload').default(false).notNull(),
+  canDownload: boolean('can_download').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

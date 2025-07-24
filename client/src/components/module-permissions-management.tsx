@@ -19,6 +19,8 @@ interface ModulePermission {
   canCreate: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  canUpload: boolean;
+  canDownload: boolean;
   isCustom: boolean;
 }
 
@@ -36,6 +38,8 @@ interface RolePermission {
   canCreate: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  canUpload: boolean;
+  canDownload: boolean;
 }
 
 const ModulePermissionsManagement: React.FC = () => {
@@ -107,6 +111,8 @@ const ModulePermissionsManagement: React.FC = () => {
       canCreate: number;
       canEdit: number;
       canDelete: number;
+      canUpload: number;
+      canDownload: number;
     }
   }, Error>({
     queryKey: ['/api/modules', selectedAnalyticsModule, 'analytics'],
@@ -184,6 +190,8 @@ const ModulePermissionsManagement: React.FC = () => {
       canCreate: false,
       canEdit: false,
       canDelete: false,
+      canUpload: false,
+      canDownload: false,
       isCustom: false
     };
     
@@ -320,6 +328,8 @@ const ModulePermissionsManagement: React.FC = () => {
                             canCreate: true,
                             canEdit: true,
                             canDelete: true,
+                            canUpload: true,
+                            canDownload: true,
                             isCustom: false
                           };
                         } else {
@@ -329,6 +339,8 @@ const ModulePermissionsManagement: React.FC = () => {
                             canCreate: false, 
                             canEdit: false,
                             canDelete: false,
+                            canUpload: false,
+                            canDownload: false,
                             isCustom: false
                           };
                         }
@@ -354,7 +366,7 @@ const ModulePermissionsManagement: React.FC = () => {
                               </div>
                             </CardHeader>
                             <CardContent className="pt-4">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <div className="flex items-center space-x-2">
                                   <Checkbox 
                                     id={`${module}-view`} 
@@ -398,6 +410,28 @@ const ModulePermissionsManagement: React.FC = () => {
                                     disabled={updatePermissionMutation.isPending || isSuperUser}
                                   />
                                   <Label htmlFor={`${module}-delete`}>Delete</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <Checkbox 
+                                    id={`${module}-upload`} 
+                                    checked={permission.canUpload}
+                                    onCheckedChange={(checked) => 
+                                      handlePermissionChange(module, 'canUpload', !!checked)
+                                    }
+                                    disabled={updatePermissionMutation.isPending || isSuperUser}
+                                  />
+                                  <Label htmlFor={`${module}-upload`}>Upload</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <Checkbox 
+                                    id={`${module}-download`} 
+                                    checked={permission.canDownload}
+                                    onCheckedChange={(checked) => 
+                                      handlePermissionChange(module, 'canDownload', !!checked)
+                                    }
+                                    disabled={updatePermissionMutation.isPending || isSuperUser}
+                                  />
+                                  <Label htmlFor={`${module}-download`}>Download</Label>
                                 </div>
                               </div>
                               
@@ -468,7 +502,7 @@ const ModulePermissionsManagement: React.FC = () => {
                               <CardTitle className="text-lg">{moduleName}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                                 <div className="flex items-center space-x-2">
                                   <Checkbox 
                                     id={`${role}-${moduleName}-view`} 
@@ -500,6 +534,22 @@ const ModulePermissionsManagement: React.FC = () => {
                                     disabled={true}
                                   />
                                   <Label htmlFor={`${role}-${moduleName}-delete`}>Delete</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <Checkbox 
+                                    id={`${role}-${moduleName}-upload`} 
+                                    checked={permissions.canUpload}
+                                    disabled={true}
+                                  />
+                                  <Label htmlFor={`${role}-${moduleName}-upload`}>Upload</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <Checkbox 
+                                    id={`${role}-${moduleName}-download`} 
+                                    checked={permissions.canDownload}
+                                    disabled={true}
+                                  />
+                                  <Label htmlFor={`${role}-${moduleName}-download`}>Download</Label>
                                 </div>
                               </div>
                             </CardContent>
@@ -552,7 +602,7 @@ const ModulePermissionsManagement: React.FC = () => {
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                             <div className="text-center p-4 bg-blue-50 rounded-lg border">
                               <div className="text-2xl font-bold text-blue-600">
                                 {moduleAnalytics.usersWithAccess.length}
@@ -576,6 +626,24 @@ const ModulePermissionsManagement: React.FC = () => {
                                 {moduleAnalytics.accessStats.canEdit}
                               </div>
                               <div className="text-sm text-purple-800">Can Edit</div>
+                            </div>
+                            <div className="text-center p-4 bg-red-50 rounded-lg border">
+                              <div className="text-2xl font-bold text-red-600">
+                                {moduleAnalytics.accessStats.canDelete}
+                              </div>
+                              <div className="text-sm text-red-800">Can Delete</div>
+                            </div>
+                            <div className="text-center p-4 bg-indigo-50 rounded-lg border">
+                              <div className="text-2xl font-bold text-indigo-600">
+                                {moduleAnalytics.accessStats.canUpload}
+                              </div>
+                              <div className="text-sm text-indigo-800">Can Upload</div>
+                            </div>
+                            <div className="text-center p-4 bg-teal-50 rounded-lg border">
+                              <div className="text-2xl font-bold text-teal-600">
+                                {moduleAnalytics.accessStats.canDownload}
+                              </div>
+                              <div className="text-sm text-teal-800">Can Download</div>
                             </div>
                           </div>
                         </CardContent>

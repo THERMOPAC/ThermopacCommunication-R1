@@ -8,7 +8,7 @@ import { modulePermissions, roleModulePermissions, users, type Module, type User
 export async function checkModulePermission(
   userId: number, 
   moduleName: Module,
-  permission: 'view' | 'create' | 'edit' | 'delete'
+  permission: 'view' | 'create' | 'edit' | 'delete' | 'upload' | 'download'
 ): Promise<boolean> {
   // Get the user to check their role
   const userResults = await db.select().from(users).where(eq(users.id, userId));
@@ -38,6 +38,8 @@ export async function checkModulePermission(
       case 'create': return userPerm.canCreate;
       case 'edit': return userPerm.canEdit;
       case 'delete': return userPerm.canDelete;
+      case 'upload': return userPerm.canUpload;
+      case 'download': return userPerm.canDownload;
     }
   }
 
@@ -57,6 +59,8 @@ export async function checkModulePermission(
       case 'create': return rolePerm.canCreate;
       case 'edit': return rolePerm.canEdit;
       case 'delete': return rolePerm.canDelete;
+      case 'upload': return rolePerm.canUpload;
+      case 'download': return rolePerm.canDownload;
     }
   }
 
@@ -75,6 +79,8 @@ export async function setUserModulePermission(
     canCreate?: boolean;
     canEdit?: boolean;
     canDelete?: boolean;
+    canUpload?: boolean;
+    canDownload?: boolean;
   }
 ): Promise<void> {
   // Check if permission record already exists
@@ -93,6 +99,8 @@ export async function setUserModulePermission(
         canCreate: permissions.canCreate !== undefined ? permissions.canCreate : existingPerms[0].canCreate,
         canEdit: permissions.canEdit !== undefined ? permissions.canEdit : existingPerms[0].canEdit,
         canDelete: permissions.canDelete !== undefined ? permissions.canDelete : existingPerms[0].canDelete,
+        canUpload: permissions.canUpload !== undefined ? permissions.canUpload : existingPerms[0].canUpload,
+        canDownload: permissions.canDownload !== undefined ? permissions.canDownload : existingPerms[0].canDownload,
         updatedAt: new Date()
       })
       .where(and(
@@ -108,7 +116,9 @@ export async function setUserModulePermission(
         canView: permissions.canView ?? false,
         canCreate: permissions.canCreate ?? false, 
         canEdit: permissions.canEdit ?? false,
-        canDelete: permissions.canDelete ?? false
+        canDelete: permissions.canDelete ?? false,
+        canUpload: permissions.canUpload ?? false,
+        canDownload: permissions.canDownload ?? false
       });
   }
 }
