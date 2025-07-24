@@ -197,6 +197,8 @@ export default function BusinessIntelligencePage() {
 
   const { data: activeUsersCount, isLoading: activeUsersLoading, refetch: refetchActiveUsersCount } = useQuery<{activeUsers: number, totalUsers: number}>({
     queryKey: ['/api/business-intelligence/active-users-count'],
+    refetchInterval: 30000, // Refresh every 30 seconds for real-time updates
+    staleTime: 0, // Always consider data stale to ensure fresh counts
   });
 
   const getDisplayName = (user: any) => {
@@ -266,7 +268,22 @@ export default function BusinessIntelligencePage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Business Intelligence</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Business Intelligence</h1>
+              {activeUsersLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+                  <span className="text-sm text-gray-500">Loading...</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-1 bg-green-100 dark:bg-green-900/20 rounded-full">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                    {activeUsersCount?.activeUsers || 0} users active
+                  </span>
+                </div>
+              )}
+            </div>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
               Comprehensive analytics and insights for system performance and user productivity
             </p>
