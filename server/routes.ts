@@ -784,6 +784,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('Salary calculation routes registered at /api/salary-calculation');
 
   // Set up Business Intelligence routes (Superuser only)
+  // Pass the global live users map for comprehensive user tracking
+  try {
+    const serverModule = require('./index');
+    if (serverModule.globalLiveUsers) {
+      // Connect the global live users map to business intelligence
+      const biModule = require('./business-intelligence/business-intelligence-routes');
+      if (biModule.setGlobalLiveUsers) {
+        biModule.setGlobalLiveUsers(serverModule.globalLiveUsers);
+        console.log('🔗 Connected global live users tracking to Business Intelligence');
+      }
+    }
+  } catch (error) {
+    console.log('⚠️ Could not connect global live users tracking:', error.message);
+  }
+  
   app.use('/api/business-intelligence', businessIntelligenceRoutes);
   console.log('Business Intelligence routes registered at /api/business-intelligence');
 

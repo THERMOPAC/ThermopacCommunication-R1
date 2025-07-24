@@ -15,9 +15,18 @@ import {
   insertUserComplianceMetricsSchema,
   insertUserProductivityMetricsSchema
 } from '../../shared/schema';
-import { eq, desc, count, sum, avg, and, gte, lte, sql } from 'drizzle-orm';
+import { eq, desc, count, sum, avg, and, gte, lte, sql, or } from 'drizzle-orm';
 import { ensureAuthenticated } from '../auth-middleware';
 import { z } from 'zod';
+
+// Create a reference to access global live users - this will track ALL authenticated requests across the entire app
+let globalLiveUsers: Map<number, any> = new Map();
+
+// Set global live users reference from the main server module
+// This enables tracking of ALL authenticated users across the entire application
+const setGlobalLiveUsers = (liveUsersMap: Map<number, any>) => {
+  globalLiveUsers = liveUsersMap;
+};
 
 const router = Router();
 
@@ -289,50 +298,37 @@ router.get('/module-usage', async (req, res) => {
 // ACTIVE USERS COUNT
 // ============================================================================
 
-// Get live users count - users currently online (active in last 5 minutes)
+// Get live users count - users currently online (active in last 5 minutes)  
 router.get('/active-users-count', async (req, res) => {
   try {
-    // Clean up stale users first
+    // Clean up stale users in local heartbeat map
     cleanupStaleUsers();
     
-    // Optional debug logging (disabled for production performance)
-    // console.log('=== LIVE USERS DEBUG ===');
-    // console.log('Total users in liveUsers Map:', liveUsers.size);
-    // console.log('Live users details:', Array.from(liveUsers.entries()).map(([id, data]) => ({
-    //   userId: id,
-    //   username: data.username,
-    //   lastSeen: data.lastSeen,
-    //   minutesAgo: Math.round((new Date().getTime() - data.lastSeen.getTime()) / (1000 * 60))
-    // })));
-    // console.log('Current user:', req.user ? `${req.user.id} (${req.user.username})` : 'Not authenticated');
+    // NEW GLOBAL APPROACH: Import the global tracking function from main server
+    let globalLiveData = { count: 0, users: [], userIds: [] };
+    try {
+      const { getGlobalLiveUsersCount } = require('../index');
+      globalLiveData = getGlobalLiveUsersCount();
+    } catch (error) {
+      console.log('Global live users function not available, using fallback');
+    }
     
-    // Get live users count from the Map
-    let liveUsersCount = liveUsers.size;
-    
-    // PRODUCTION FIX: Always ensure current authenticated user is counted as live
+    // Also maintain local heartbeat tracking for Business Intelligence page users
     if (req.user && req.user.id) {
-      const userId = req.user.id;
-      
-      // Always update/add current user as they are making an authenticated request
-      liveUsers.set(userId, {
-        userId,
+      liveUsers.set(req.user.id, {
+        userId: req.user.id,
         username: req.user.username,
         firstName: req.user.firstName,
         lastName: req.user.lastName,
         lastSeen: new Date()
       });
-      
-      // Recalculate count after ensuring current user is in the map
-      liveUsersCount = liveUsers.size;
-      // Optional debug logging (disabled for production performance) 
-      // console.log('Updated current user in liveUsers Map, new count:', liveUsersCount);
-      
-      // Final safety check - if somehow still 0, use fallback
-      if (liveUsersCount === 0) {
-        liveUsersCount = 1;
-        // console.log('Emergency fallback: showing 1 user for current authenticated session');
-      }
     }
+    
+    const localHeartbeatCount = liveUsers.size;
+    const globalLiveCount = globalLiveData.count;
+    
+    // Use the higher count between global tracking and local heartbeat, with minimum of 1 for authenticated user
+    const liveUsersCount = Math.max(globalLiveCount, localHeartbeatCount, req.user ? 1 : 0);
     
     // Get total users count
     const totalUsersResult = await db
@@ -344,9 +340,14 @@ router.get('/active-users-count', async (req, res) => {
     
     const totalUsers = totalUsersResult[0]?.count || 0;
     
-    // Optional debug logging (disabled for production performance)
-    // console.log('Final response:', { activeUsers: liveUsersCount, totalUsers });
-    // console.log('========================');
+    console.log(`=== LIVE USERS DEBUG ===`);
+    console.log(`Total users in liveUsers Map: ${liveUsers.size}`);
+    console.log(`Live users details: [${Array.from(liveUsers.values()).map(u => `{userId: ${u.userId}, username: ${u.username}, lastSeen: ${u.lastSeen}, minutesAgo: ${Math.floor((Date.now() - u.lastSeen.getTime()) / 60000)}}`).join(', ')}]`);
+    console.log(`Current user: ${req.user?.id} (${req.user?.username})`);
+    console.log(`Global live count: ${globalLiveCount} (User IDs: [${globalLiveData.userIds.join(', ')}])`);
+    console.log(`Updated current user in liveUsers Map, new count: ${liveUsers.size}`);
+    console.log(`Final response: { activeUsers: ${liveUsersCount}, totalUsers: ${totalUsers} }`);
+    console.log(`========================`);
     
     res.json({
       activeUsers: liveUsersCount,
@@ -863,4 +864,4 @@ router.post('/log-activity', async (req, res) => {
   }
 });
 
-export { router as businessIntelligenceRoutes };
+export { router as businessIntelligenceRoutes, setGlobalLiveUsers };
