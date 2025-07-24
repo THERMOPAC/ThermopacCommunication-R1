@@ -292,8 +292,8 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId/dow
     console.log(`Trying paths for download:`, pathsToTry);
     
     // Import GCS utilities
-    const { Storage } = await import('@google-cloud/storage');
-    const { gcsCredentials, gcsBucketName } = await import('../utils/gcs-config');
+    const { Storage } = require('@google-cloud/storage');
+    const { gcsCredentials, gcsBucketName } = require('../utils/gcs-config');
     
     const storage = new Storage({
       credentials: gcsCredentials,
@@ -417,8 +417,8 @@ router.delete("/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId"
     console.log(`Trying paths for deletion:`, pathsToTry);
     
     // Import GCS utilities
-    const { Storage } = await import('@google-cloud/storage');
-    const { gcsCredentials, gcsBucketName } = await import('../utils/gcs-config');
+    const { Storage } = require('@google-cloud/storage');
+    const { gcsCredentials, gcsBucketName } = require('../utils/gcs-config');
     
     const storage = new Storage({
       credentials: gcsCredentials,

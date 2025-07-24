@@ -437,7 +437,7 @@ router.post('/payments/update/:id', ensureAuthenticated, async (req: Request, re
       const customer_id = body.customerId || body.customer_id || null;
       
       console.log('Extracted payment data for update:', {
-        irm_no, payment_date, sap_payment_no, 
+        irm_no, irm_no, payment_date, sap_payment_no, 
         payment_type, amount, currency, payment_method, notes,
         is_advance_payment, customer_id
       });

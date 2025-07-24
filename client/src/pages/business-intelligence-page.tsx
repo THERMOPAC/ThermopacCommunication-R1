@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
-import { useAutofillSetting } from "@/hooks/useAutofillSetting";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,9 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar } from "@/components/ui/calendar";
 import { DateRange } from "react-day-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { CalendarIcon, RefreshCw, Users, Activity, TrendingUp, Shield, AlertCircle, CheckCircle, Clock, XCircle, Settings } from "lucide-react";
+import { CalendarIcon, RefreshCw, Users, Activity, TrendingUp, Shield, AlertCircle, CheckCircle, Clock, XCircle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -164,10 +161,6 @@ export default function BusinessIntelligencePage() {
     from: subDays(new Date(), 30),
     to: new Date(),
   });
-  
-  // Auto-fill setting for development testing
-  const { disableAutofill, updateAutofillSetting } = useAutofillSetting();
-  const isDevelopment = import.meta.env.MODE === 'development' || import.meta.env.NODE_ENV !== 'production';
 
   // Note: Global heartbeat tracking is now handled in App.tsx InactivityProvider
   // No need for page-specific heartbeat tracking
@@ -303,21 +296,6 @@ export default function BusinessIntelligencePage() {
             </p>
           </div>
           <div className="flex items-center space-x-4">
-            {/* Development-only Auto-fill Security Toggle */}
-            {isDevelopment && (
-              <div className="flex items-center space-x-2 px-3 py-2 border rounded-lg bg-orange-50 dark:bg-orange-900/20">
-                <Settings className="h-4 w-4 text-orange-600" />
-                <Label htmlFor="autofill-toggle" className="text-sm font-medium text-orange-700 dark:text-orange-400">
-                  Disable Auto-Fill (High Security)
-                </Label>
-                <Switch
-                  id="autofill-toggle"
-                  checked={disableAutofill}
-                  onCheckedChange={updateAutofillSetting}
-                />
-              </div>
-            )}
-            
             {/* Date Range Picker */}
             <Popover>
               <PopoverTrigger asChild>

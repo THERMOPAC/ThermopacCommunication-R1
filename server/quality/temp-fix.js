@@ -1,16 +1,11 @@
-async function getRequiredModules() {
-  const { db } = await import('../db');
-  const { eq, and, inArray } = await import('drizzle-orm');
-  const { projectItems, masterItems, inspectionOrders, projects } = await import('../../shared/schema');
-  return { db, eq, and, inArray, projectItems, masterItems, inspectionOrders, projects };
-}
+const { db } = require('../db');
+const { eq, and, inArray } = require('drizzle-orm');
+const { projectItems, masterItems, inspectionOrders, projects } = require('../../shared/schema');
 
 // This is a script to directly create inspection orders for project 2025-1
 async function createInspectionOrdersForProject3() {
   try {
     console.log('Starting manual fix for project 2025-1 (ID: 3)...');
-    
-    const { db, eq, and, inArray, projectItems, masterItems, inspectionOrders, projects } = await getRequiredModules();
     
     // Get the project
     const project = await db.query.projects.findFirst({
@@ -107,4 +102,4 @@ async function createInspectionOrdersForProject3() {
   }
 }
 
-export { createInspectionOrdersForProject3 };
+module.exports = { createInspectionOrdersForProject3 };
