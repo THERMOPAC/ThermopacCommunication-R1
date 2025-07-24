@@ -527,7 +527,33 @@ router.get('/insights', async (req, res) => {
     const start = startDate ? new Date(startDate as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const end = endDate ? new Date(endDate as string) : new Date();
 
-    // Get overdue tasks
+    // Get overdue tasks with details
+    const overdueTasksDetails = await db
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        description: tasks.description,
+        dueDate: tasks.dueDate,
+        priority: tasks.priority,
+        assignedTo: tasks.assignedTo,
+        assignedToName: users.username,
+        assignedToFirstName: users.firstName,
+        assignedToLastName: users.lastName,
+        projectId: tasks.projectId,
+        daysPastDue: sql`EXTRACT(DAY FROM NOW() - ${tasks.dueDate})`
+      })
+      .from(tasks)
+      .leftJoin(users, eq(tasks.assignedTo, users.id))
+      .where(
+        and(
+          eq(tasks.status, 'pending'),
+          lte(tasks.dueDate, new Date())
+        )
+      )
+      .orderBy(tasks.dueDate)
+      .limit(10);
+
+    // Get overdue tasks count
     const overdueTasks = await db
       .select({
         count: count(),
@@ -591,9 +617,23 @@ router.get('/insights', async (req, res) => {
         type: 'critical',
         category: 'tasks',
         title: 'Overdue Tasks Alert',
-        message: `${overdueTasks[0].count} tasks are overdue`,
+        message: `${overdueTasks[0].count} tasks are overdue and require immediate attention`,
         action: 'Review and reassign overdue tasks immediately',
-        priority: 'high'
+        priority: 'High',
+        context: {
+          totalOverdue: overdueTasks[0].count,
+          oldestOverdueDate: overdueTasks[0].oldestOverdue,
+          taskDetails: overdueTasksDetails.map(task => ({
+            id: task.id,
+            title: task.title,
+            assignee: task.assignedToFirstName && task.assignedToLastName 
+              ? `${task.assignedToFirstName} ${task.assignedToLastName}` 
+              : task.assignedToName || 'Unassigned',
+            dueDate: task.dueDate,
+            daysPastDue: task.daysPastDue,
+            priority: task.priority
+          }))
+        }
       });
       
       recommendations.push({

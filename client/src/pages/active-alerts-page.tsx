@@ -6,6 +6,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, AlertCircle, Clock, XCircle, CheckCircle, Info } from "lucide-react";
 import { useLocation } from "wouter";
 
+interface TaskDetail {
+  id: number;
+  title: string;
+  assignee: string;
+  dueDate: string;
+  daysPastDue: number;
+  priority: string;
+}
+
 interface Alert {
   type: 'critical' | 'warning' | 'info';
   category: string;
@@ -14,6 +23,9 @@ interface Alert {
   action: string;
   priority: string;
   context?: {
+    totalOverdue?: number;
+    oldestOverdueDate?: string;
+    taskDetails?: TaskDetail[];
     [key: string]: any;
   };
 }
@@ -208,13 +220,67 @@ export default function ActiveAlertsPage() {
                         <p className="text-sm font-medium text-muted-foreground mb-2">
                           Additional Context:
                         </p>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          {Object.entries(alert.context).map(([key, value]) => (
-                            <div key={key} className="bg-gray-50 p-2 rounded">
-                              <span className="font-medium">{key}:</span> {String(value)}
+                        
+                        {/* Special handling for task details */}
+                        {alert.category === 'tasks' && alert.context.taskDetails && (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                              <div className="bg-gray-50 p-2 rounded">
+                                <span className="font-medium">Total Overdue:</span> {alert.context.totalOverdue}
+                              </div>
+                              <div className="bg-gray-50 p-2 rounded">
+                                <span className="font-medium">Oldest Due:</span> {
+                                  alert.context.oldestOverdueDate 
+                                    ? new Date(alert.context.oldestOverdueDate).toLocaleDateString()
+                                    : 'N/A'
+                                }
+                              </div>
                             </div>
-                          ))}
-                        </div>
+                            
+                            <div>
+                              <p className="text-sm font-medium mb-2">Overdue Task Details:</p>
+                              <div className="space-y-2 max-h-64 overflow-y-auto">
+                                {alert.context.taskDetails.map((task: TaskDetail, idx: number) => (
+                                  <div key={idx} className="bg-yellow-50 border border-yellow-200 p-3 rounded text-xs">
+                                    <div className="flex justify-between items-start mb-1">
+                                      <span className="font-medium text-gray-900">{task.title}</span>
+                                      <span className="text-red-600 font-bold">
+                                        {task.daysPastDue} days overdue
+                                      </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 text-gray-600">
+                                      <div>
+                                        <span className="font-medium">Assignee:</span> {task.assignee}
+                                      </div>
+                                      <div>
+                                        <span className="font-medium">Due Date:</span> {
+                                          task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'N/A'
+                                        }
+                                      </div>
+                                      <div>
+                                        <span className="font-medium">Priority:</span> {task.priority || 'Normal'}
+                                      </div>
+                                      <div>
+                                        <span className="font-medium">Task ID:</span> #{task.id}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Default context display for non-task alerts */}
+                        {alert.category !== 'tasks' && (
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            {Object.entries(alert.context).map(([key, value]) => (
+                              <div key={key} className="bg-gray-50 p-2 rounded">
+                                <span className="font-medium">{key}:</span> {String(value)}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
