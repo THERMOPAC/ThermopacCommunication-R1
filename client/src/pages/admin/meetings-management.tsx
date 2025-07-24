@@ -286,6 +286,7 @@ export default function MeetingsManagement() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [showOnlyMyCommitments, setShowOnlyMyCommitments] = useState(true);
+  const [showPendingCommitments, setShowPendingCommitments] = useState(true); // Default to Pending
   const [isCreateMeetingOpen, setIsCreateMeetingOpen] = useState(false);
   const [isCreateCommitmentOpen, setIsCreateCommitmentOpen] = useState(false);
   const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
@@ -1122,9 +1123,14 @@ export default function MeetingsManagement() {
       const matchesUserFilter = !user || 
         (showOnlyMyCommitments ? commitment.commitment.assignedToId === user.id : commitment.commitment.assignedById === user.id);
       
-      return matchesSearch && matchesStatus && matchesPriority && matchesUserFilter;
+      // Status filtering: when toggle is ON show Pending commitments, when OFF show Completed commitments
+      const matchesStatusToggle = showPendingCommitments ? 
+        commitment.commitment.status === 'Pending' : 
+        commitment.commitment.status === 'Completed';
+      
+      return matchesSearch && matchesStatus && matchesPriority && matchesUserFilter && matchesStatusToggle;
     });
-  }, [commitmentsData, searchTerm, statusFilter, priorityFilter, showOnlyMyCommitments, user]);
+  }, [commitmentsData, searchTerm, statusFilter, priorityFilter, showOnlyMyCommitments, showPendingCommitments, user]);
 
   // Forms
   const meetingForm = useForm<MeetingFormData>({
@@ -2378,6 +2384,19 @@ export default function MeetingsManagement() {
                   />
                   <label htmlFor="my-commitments-toggle" className="text-sm font-medium cursor-pointer">
                     {showOnlyMyCommitments ? 'My Commitments' : 'Commitments assigned by Me'}
+                  </label>
+                </div>
+
+                {/* Status Filter Toggle */}
+                <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-white">
+                  <ListChecksIcon className="h-4 w-4 text-gray-500" />
+                  <Switch
+                    checked={showPendingCommitments}
+                    onCheckedChange={setShowPendingCommitments}
+                    id="status-commitments-toggle"
+                  />
+                  <label htmlFor="status-commitments-toggle" className="text-sm font-medium cursor-pointer">
+                    {showPendingCommitments ? 'Pending' : 'Completed'}
                   </label>
                 </div>
               </div>
