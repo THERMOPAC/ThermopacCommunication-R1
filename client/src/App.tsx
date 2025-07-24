@@ -129,6 +129,7 @@ import { PasswordManagement } from "@/components/password-management";
 import { Loader2 } from "lucide-react";
 import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
+import { useHeartbeat } from "@/hooks/useHeartbeat";
 import { useState } from "react";
 
 // SuperuserRoute component to protect routes that only superusers should access
@@ -354,7 +355,7 @@ function Router() {
   );
 }
 
-// InactivityProvider component to handle automatic logout
+// InactivityProvider component to handle automatic logout and global heartbeat tracking
 function InactivityProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -393,6 +394,13 @@ function InactivityProvider({ children }: { children: React.ReactNode }) {
     onWarning: handleWarning,
     onLogout: handleLogout,
     disabled: isDisabled
+  });
+
+  // 🚀 GLOBAL HEARTBEAT TRACKING: Track ALL authenticated users across entire application
+  // This ensures every user (Prasad, Vishal, Abhay) is counted when they're online
+  useHeartbeat({ 
+    interval: 30000, // Send heartbeat every 30 seconds
+    endpoint: '/api/business-intelligence/heartbeat'
   });
 
   return (

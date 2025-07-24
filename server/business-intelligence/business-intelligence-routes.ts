@@ -304,16 +304,22 @@ router.get('/active-users-count', async (req, res) => {
     // Clean up stale users in local heartbeat map
     cleanupStaleUsers();
     
-    // NEW GLOBAL APPROACH: Import the global tracking function from main server
+    // NEW GLOBAL APPROACH: Use dynamic import for global tracking function
     let globalLiveData = { count: 0, users: [], userIds: [] };
     try {
-      const { getGlobalLiveUsersCount } = require('../index');
-      globalLiveData = getGlobalLiveUsersCount();
+      // Dynamic ES modules import
+      const indexModule = await import('../index.js');
+      const getGlobalLiveUsersCount = indexModule.getGlobalLiveUsersCount;
+      
+      if (getGlobalLiveUsersCount) {
+        globalLiveData = getGlobalLiveUsersCount();
+        console.log(`🔗 SUCCESSFULLY CONNECTED TO GLOBAL TRACKING: ${globalLiveData.count} users found`);
+      }
     } catch (error) {
-      console.log('Global live users function not available, using fallback');
+      console.log('Global live users function not available, using fallback:', error.message);
     }
     
-    // Also maintain local heartbeat tracking for Business Intelligence page users
+    // PRODUCTION-GRADE ENHANCEMENT: Automatically add any authenticated user making requests to live tracking
     if (req.user && req.user.id) {
       liveUsers.set(req.user.id, {
         userId: req.user.id,
@@ -322,13 +328,40 @@ router.get('/active-users-count', async (req, res) => {
         lastName: req.user.lastName,
         lastSeen: new Date()
       });
+      
+      // Also try to add to global tracking if available
+      try {
+        const { globalLiveUsers } = require('../index');
+        if (globalLiveUsers && typeof globalLiveUsers.set === 'function') {
+          globalLiveUsers.set(req.user.id, {
+            userId: req.user.id,
+            username: req.user.username,
+            firstName: req.user.firstName,
+            lastName: req.user.lastName,
+            lastSeen: new Date()
+          });
+          console.log(`✅ Added user ${req.user.username} to both local and global live tracking`);
+        }
+      } catch (error) {
+        console.log('Could not add to global tracking:', error.message);
+      }
     }
     
     const localHeartbeatCount = liveUsers.size;
     const globalLiveCount = globalLiveData.count;
     
-    // Use the higher count between global tracking and local heartbeat, with minimum of 1 for authenticated user
-    const liveUsersCount = Math.max(globalLiveCount, localHeartbeatCount, req.user ? 1 : 0);
+    // ENHANCED PRODUCTION FIX: Use robust fallback logic to ensure accurate live user count
+    // 1. Try global count first (tracks all authenticated users across app)
+    // 2. Fall back to local heartbeat count (tracks users who visited BI page)  
+    // 3. Ensure minimum of 1 for current authenticated user
+    // 4. Add any authenticated users making requests now to ensure current user is always counted
+    let liveUsersCount = Math.max(globalLiveCount, localHeartbeatCount);
+    
+    // PRODUCTION ENHANCEMENT: If current user is authenticated but not in any count, add them
+    if (req.user && req.user.id && liveUsersCount === 0) {
+      liveUsersCount = 1;
+      console.log(`🔧 PRODUCTION FIX: Added current authenticated user ${req.user.username} to live count`);
+    }
     
     // Get total users count
     const totalUsersResult = await db
@@ -345,7 +378,7 @@ router.get('/active-users-count', async (req, res) => {
     console.log(`Live users details: [${Array.from(liveUsers.values()).map(u => `{userId: ${u.userId}, username: ${u.username}, lastSeen: ${u.lastSeen}, minutesAgo: ${Math.floor((Date.now() - u.lastSeen.getTime()) / 60000)}}`).join(', ')}]`);
     console.log(`Current user: ${req.user?.id} (${req.user?.username})`);
     console.log(`Global live count: ${globalLiveCount} (User IDs: [${globalLiveData.userIds.join(', ')}])`);
-    console.log(`Updated current user in liveUsers Map, new count: ${liveUsers.size}`);
+    console.log(`Production-enhanced live count: ${liveUsersCount}`);
     console.log(`Final response: { activeUsers: ${liveUsersCount}, totalUsers: ${totalUsers} }`);
     console.log(`========================`);
     

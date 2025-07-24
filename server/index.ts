@@ -13,8 +13,8 @@ app.use(express.urlencoded({ extended: false }));
 app.use('/images', express.static(path.join(process.cwd(), 'client/public/images')));
 app.use('/test-static', express.static(path.join(process.cwd(), 'server/public')));
 
-// GLOBAL USER ACTIVITY TRACKING MIDDLEWARE
-// This must be added early to track all authenticated requests across the entire app
+// GLOBAL USER ACTIVITY TRACKING INFRASTRUCTURE 
+// Define the map at the top level but middleware will be added after auth setup
 let globalLiveUsers = new Map<number, {
   userId: number;
   username: string;
@@ -22,35 +22,6 @@ let globalLiveUsers = new Map<number, {
   lastName?: string | null;
   lastSeen: Date;
 }>();
-
-// Global middleware to track user activity for live user counting
-app.use((req: any, res: any, next: any) => {
-  // Track authenticated users globally across all routes
-  if (req.session?.passport?.user) {
-    const userId = req.session.passport.user;
-    
-    // Fetch user details for this session if we don't have them or if they're stale
-    if (!globalLiveUsers.has(userId) || 
-        (Date.now() - globalLiveUsers.get(userId)!.lastSeen.getTime()) > 60000) { // Update every minute
-      
-      // Add user to global live tracking
-      globalLiveUsers.set(userId, {
-        userId: userId,
-        username: req.user?.username || `User${userId}`,
-        firstName: req.user?.firstName || null,
-        lastName: req.user?.lastName || null,
-        lastSeen: new Date()
-      });
-    } else {
-      // Just update the timestamp for existing user
-      const existingUser = globalLiveUsers.get(userId)!;
-      existingUser.lastSeen = new Date();
-      globalLiveUsers.set(userId, existingUser);
-    }
-  }
-  
-  next();
-});
 
 // Cleanup function for stale global users
 function cleanupGlobalStaleUsers() {
@@ -381,6 +352,33 @@ app.use((req, res, next) => {
   });
 
   const server = await registerRoutes(app);
+
+  // ENHANCED GLOBAL USER TRACKING MIDDLEWARE - After authentication is set up
+  app.use((req: any, res: any, next: any) => {
+    // Always log middleware execution
+    if (req.path.includes('/heartbeat') || req.path.includes('/active-users-count')) {
+      console.log(`🔧 MIDDLEWARE EXECUTION: Path ${req.path}, User exists: ${!!req.user}, User ID: ${req.user?.id}`);
+    }
+    
+    // Track authenticated users globally across all routes
+    if (req.user && req.user.id) {
+      const timestamp = new Date();
+      
+      globalLiveUsers.set(req.user.id, {
+        userId: req.user.id,
+        username: req.user.username || `User${req.user.id}`,
+        firstName: req.user.firstName || null,
+        lastName: req.user.lastName || null,
+        lastSeen: timestamp
+      });
+      
+      // Enhanced debugging for production tracking
+      if (req.path.includes('/heartbeat') || req.path.includes('/active-users-count')) {
+        console.log(`🌐 ENHANCED GLOBAL TRACKING: User ${req.user.username} (ID: ${req.user.id}) added to global map. Size: ${globalLiveUsers.size}`);
+      }
+    }
+    next();
+  });
 
   // Add a special middleware to ensure all API routes return JSON even for errors
   app.use('/api', (req: Request, res: Response, next: NextFunction) => {

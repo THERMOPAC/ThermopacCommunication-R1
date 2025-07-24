@@ -162,8 +162,8 @@ export default function BusinessIntelligencePage() {
     to: new Date(),
   });
 
-  // Initialize heartbeat for live user tracking
-  useHeartbeat({ interval: 30000 }); // Send heartbeat every 30 seconds
+  // Note: Global heartbeat tracking is now handled in App.tsx InactivityProvider
+  // No need for page-specific heartbeat tracking
 
   // Format dates for API calls
   const startDate = dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : undefined;
