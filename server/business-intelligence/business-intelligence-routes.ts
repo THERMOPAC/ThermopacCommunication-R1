@@ -529,19 +529,7 @@ router.get('/insights', async (req, res) => {
 
     // Get overdue tasks with details
     const overdueTasksDetails = await db
-      .select({
-        id: tasks.id,
-        title: tasks.title,
-        description: tasks.description,
-        dueDate: tasks.dueDate,
-        priority: tasks.priority,
-        assignedTo: tasks.assignedTo,
-        assignedToName: users.username,
-        assignedToFirstName: users.firstName,
-        assignedToLastName: users.lastName,
-        projectId: tasks.projectId,
-        daysPastDue: sql`EXTRACT(DAY FROM NOW() - ${tasks.dueDate})`
-      })
+      .select()
       .from(tasks)
       .leftJoin(users, eq(tasks.assignedTo, users.id))
       .where(
@@ -623,16 +611,22 @@ router.get('/insights', async (req, res) => {
         context: {
           totalOverdue: overdueTasks[0].count,
           oldestOverdueDate: overdueTasks[0].oldestOverdue,
-          taskDetails: overdueTasksDetails.map(task => ({
-            id: task.id,
-            title: task.title,
-            assignee: task.assignedToFirstName && task.assignedToLastName 
-              ? `${task.assignedToFirstName} ${task.assignedToLastName}` 
-              : task.assignedToName || 'Unassigned',
-            dueDate: task.dueDate,
-            daysPastDue: task.daysPastDue,
-            priority: task.priority
-          }))
+          taskDetails: overdueTasksDetails.map(row => {
+            const task = row.tasks;
+            const user = row.users;
+            const daysPastDue = Math.floor((new Date().getTime() - new Date(task.dueDate).getTime()) / (1000 * 60 * 60 * 24));
+            
+            return {
+              id: task.id,
+              title: task.title,
+              assignee: user?.firstName && user?.lastName 
+                ? `${user.firstName} ${user.lastName}` 
+                : user?.username || 'Unassigned',
+              dueDate: task.dueDate,
+              daysPastDue: daysPastDue,
+              priority: task.priority || 'Normal'
+            };
+          })
         }
       });
       
