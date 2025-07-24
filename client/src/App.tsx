@@ -8,6 +8,7 @@ import Layout from "@/components/layout";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import ResetPasswordPage from "@/pages/reset-password-page";
+import LogoutPage from "@/pages/logout-page";
 import Dashboard from "@/pages/dashboard";
 import ProfilePage from "@/pages/profile-page";
 import LeaderboardPage from "@/pages/leaderboard-page";
@@ -126,6 +127,9 @@ import SapIntegrationPage from "@/pages/SapIntegrationPage";
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
 import { Loader2 } from "lucide-react";
+import { useInactivityLogout } from "@/hooks/useInactivityLogout";
+import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
+import { useState } from "react";
 
 // SuperuserRoute component to protect routes that only superusers should access
 function SuperuserRoute({
@@ -172,6 +176,7 @@ function Router() {
     <Switch>
       <Route path="/auth" component={AuthPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
+      <Route path="/logout" component={LogoutPage} />
       <ProtectedRoute path="/" component={() => <Redirect to="/dashboard" />} />
       <ProtectedRoute path="/dashboard" component={Dashboard} />
       <ProtectedRoute path="/tasks" component={Dashboard} />
@@ -349,12 +354,68 @@ function Router() {
   );
 }
 
+// InactivityProvider component to handle automatic logout
+function InactivityProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  const [showWarning, setShowWarning] = useState(false);
+
+  const handleWarning = () => {
+    setShowWarning(true);
+  };
+
+  const handleLogout = async () => {
+    setShowWarning(false);
+    try {
+      // Call the logout API
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error('Error during automatic logout:', error);
+    }
+    // Redirect to login page
+    setLocation('/auth');
+  };
+
+  const handleStayLoggedIn = () => {
+    setShowWarning(false);
+    // The timer will be reset automatically by the hook
+  };
+
+  // Only enable inactivity logout for authenticated users
+  // Disable on auth and reset-password pages
+  const [location] = useLocation();
+  const isDisabled = !user || location === '/auth' || location === '/reset-password' || location === '/logout';
+
+  useInactivityLogout({
+    onWarning: handleWarning,
+    onLogout: handleLogout,
+    disabled: isDisabled
+  });
+
+  return (
+    <>
+      {children}
+      <InactivityWarningDialog
+        isOpen={showWarning}
+        onStayLoggedIn={handleStayLoggedIn}
+        onLogout={handleLogout}
+        countdownSeconds={30}
+      />
+    </>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router />
-        <Toaster />
+        <InactivityProvider>
+          <Router />
+          <Toaster />
+        </InactivityProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
