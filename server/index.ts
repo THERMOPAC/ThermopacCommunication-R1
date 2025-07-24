@@ -13,49 +13,6 @@ app.use(express.urlencoded({ extended: false }));
 app.use('/images', express.static(path.join(process.cwd(), 'client/public/images')));
 app.use('/test-static', express.static(path.join(process.cwd(), 'server/public')));
 
-// GLOBAL USER ACTIVITY TRACKING INFRASTRUCTURE 
-// Define the map at the top level but middleware will be added after auth setup
-let globalLiveUsers = new Map<number, {
-  userId: number;
-  username: string;
-  firstName?: string | null;
-  lastName?: string | null;
-  lastSeen: Date;
-}>();
-
-// Cleanup function for stale global users
-function cleanupGlobalStaleUsers() {
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-  for (const [userId, userData] of globalLiveUsers.entries()) {
-    if (userData.lastSeen < fiveMinutesAgo) {
-      globalLiveUsers.delete(userId);
-    }
-  }
-}
-
-// Clean up stale users every minute
-setInterval(cleanupGlobalStaleUsers, 60000);
-
-// Export the global live users map for use in business intelligence routes
-export { globalLiveUsers };
-
-// Function to get global live users count for business intelligence
-export const getGlobalLiveUsersCount = () => {
-  // Clean up stale users first (5-minute threshold)
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-  for (const [userId, userData] of globalLiveUsers.entries()) {
-    if (userData.lastSeen < fiveMinutesAgo) {
-      globalLiveUsers.delete(userId);
-    }
-  }
-  
-  return {
-    count: globalLiveUsers.size,
-    users: Array.from(globalLiveUsers.values()),
-    userIds: Array.from(globalLiveUsers.keys())
-  };
-};
-
 // PRIORITY ENDPOINT: Must be registered before ANY other middleware to avoid Vite catch-all
 app.post('/api/approve-writeoff/:id', async (req: any, res: any) => {
   try {

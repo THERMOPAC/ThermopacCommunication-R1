@@ -15,18 +15,9 @@ import {
   insertUserComplianceMetricsSchema,
   insertUserProductivityMetricsSchema
 } from '../../shared/schema';
-import { eq, desc, count, sum, avg, and, gte, lte, sql, or } from 'drizzle-orm';
+import { eq, desc, count, sum, avg, and, gte, lte, sql } from 'drizzle-orm';
 import { ensureAuthenticated } from '../auth-middleware';
 import { z } from 'zod';
-
-// Create a reference to access global live users - this will track ALL authenticated requests across the entire app
-let globalLiveUsers: Map<number, any> = new Map();
-
-// Set global live users reference from the main server module
-// This enables tracking of ALL authenticated users across the entire application
-const setGlobalLiveUsers = (liveUsersMap: Map<number, any>) => {
-  globalLiveUsers = liveUsersMap;
-};
 
 const router = Router();
 
@@ -298,69 +289,48 @@ router.get('/module-usage', async (req, res) => {
 // ACTIVE USERS COUNT
 // ============================================================================
 
-// Get live users count - users currently online (active in last 5 minutes)  
+// Get live users count - users currently online (active in last 5 minutes)
 router.get('/active-users-count', async (req, res) => {
   try {
-    // Clean up stale users in local heartbeat map
+    // Clean up stale users first
     cleanupStaleUsers();
     
-    // NEW GLOBAL APPROACH: Use dynamic import for global tracking function
-    let globalLiveData = { count: 0, users: [], userIds: [] };
-    try {
-      // Dynamic ES modules import
-      const indexModule = await import('../index.js');
-      const getGlobalLiveUsersCount = indexModule.getGlobalLiveUsersCount;
-      
-      if (getGlobalLiveUsersCount) {
-        globalLiveData = getGlobalLiveUsersCount();
-        console.log(`🔗 SUCCESSFULLY CONNECTED TO GLOBAL TRACKING: ${globalLiveData.count} users found`);
-      }
-    } catch (error) {
-      console.log('Global live users function not available, using fallback:', error.message);
-    }
+    // Debug logging for production troubleshooting
+    console.log('=== LIVE USERS DEBUG ===');
+    console.log('Total users in liveUsers Map:', liveUsers.size);
+    console.log('Live users details:', Array.from(liveUsers.entries()).map(([id, data]) => ({
+      userId: id,
+      username: data.username,
+      lastSeen: data.lastSeen,
+      minutesAgo: Math.round((new Date().getTime() - data.lastSeen.getTime()) / (1000 * 60))
+    })));
+    console.log('Current user:', req.user ? `${req.user.id} (${req.user.username})` : 'Not authenticated');
     
-    // PRODUCTION-GRADE ENHANCEMENT: Automatically add any authenticated user making requests to live tracking
+    // Get live users count from the Map
+    let liveUsersCount = liveUsers.size;
+    
+    // PRODUCTION FIX: Always ensure current authenticated user is counted as live
     if (req.user && req.user.id) {
-      liveUsers.set(req.user.id, {
-        userId: req.user.id,
+      const userId = req.user.id;
+      
+      // Always update/add current user as they are making an authenticated request
+      liveUsers.set(userId, {
+        userId,
         username: req.user.username,
         firstName: req.user.firstName,
         lastName: req.user.lastName,
         lastSeen: new Date()
       });
       
-      // Also try to add to global tracking if available
-      try {
-        const { globalLiveUsers } = require('../index');
-        if (globalLiveUsers && typeof globalLiveUsers.set === 'function') {
-          globalLiveUsers.set(req.user.id, {
-            userId: req.user.id,
-            username: req.user.username,
-            firstName: req.user.firstName,
-            lastName: req.user.lastName,
-            lastSeen: new Date()
-          });
-          console.log(`✅ Added user ${req.user.username} to both local and global live tracking`);
-        }
-      } catch (error) {
-        console.log('Could not add to global tracking:', error.message);
+      // Recalculate count after ensuring current user is in the map
+      liveUsersCount = liveUsers.size;
+      console.log('Updated current user in liveUsers Map, new count:', liveUsersCount);
+      
+      // Final safety check - if somehow still 0, use fallback
+      if (liveUsersCount === 0) {
+        liveUsersCount = 1;
+        console.log('Emergency fallback: showing 1 user for current authenticated session');
       }
-    }
-    
-    const localHeartbeatCount = liveUsers.size;
-    const globalLiveCount = globalLiveData.count;
-    
-    // ENHANCED PRODUCTION FIX: Use robust fallback logic to ensure accurate live user count
-    // 1. Try global count first (tracks all authenticated users across app)
-    // 2. Fall back to local heartbeat count (tracks users who visited BI page)  
-    // 3. Ensure minimum of 1 for current authenticated user
-    // 4. Add any authenticated users making requests now to ensure current user is always counted
-    let liveUsersCount = Math.max(globalLiveCount, localHeartbeatCount);
-    
-    // PRODUCTION ENHANCEMENT: If current user is authenticated but not in any count, add them
-    if (req.user && req.user.id && liveUsersCount === 0) {
-      liveUsersCount = 1;
-      console.log(`🔧 PRODUCTION FIX: Added current authenticated user ${req.user.username} to live count`);
     }
     
     // Get total users count
@@ -373,14 +343,8 @@ router.get('/active-users-count', async (req, res) => {
     
     const totalUsers = totalUsersResult[0]?.count || 0;
     
-    console.log(`=== LIVE USERS DEBUG ===`);
-    console.log(`Total users in liveUsers Map: ${liveUsers.size}`);
-    console.log(`Live users details: [${Array.from(liveUsers.values()).map(u => `{userId: ${u.userId}, username: ${u.username}, lastSeen: ${u.lastSeen}, minutesAgo: ${Math.floor((Date.now() - u.lastSeen.getTime()) / 60000)}}`).join(', ')}]`);
-    console.log(`Current user: ${req.user?.id} (${req.user?.username})`);
-    console.log(`Global live count: ${globalLiveCount} (User IDs: [${globalLiveData.userIds.join(', ')}])`);
-    console.log(`Production-enhanced live count: ${liveUsersCount}`);
-    console.log(`Final response: { activeUsers: ${liveUsersCount}, totalUsers: ${totalUsers} }`);
-    console.log(`========================`);
+    console.log('Final response:', { activeUsers: liveUsersCount, totalUsers });
+    console.log('========================');
     
     res.json({
       activeUsers: liveUsersCount,
@@ -389,161 +353,6 @@ router.get('/active-users-count', async (req, res) => {
   } catch (error) {
     console.error('Error fetching live users count:', error);
     res.status(500).json({ error: 'Failed to fetch live users count' });
-  }
-});
-
-// ============================================================================
-// TESTING ENDPOINTS - For demonstrating live user tracking functionality
-// ============================================================================
-
-// Simulate multiple users being online (for testing purposes)
-router.post('/simulate-live-users', async (req, res) => {
-  try {
-    console.log('🧪 SIMULATE: Adding demo users to live tracking');
-    
-    // Get some sample users from database to simulate
-    const sampleUsers = await db
-      .select({ id: users.id, username: users.username, firstName: users.firstName, lastName: users.lastName })
-      .from(users)
-      .where(eq(users.isActive, true))
-      .limit(5);
-    
-    // Add current user + 4 sample users to simulate 5 total
-    const currentTime = new Date();
-    
-    // Add current user
-    if (req.user) {
-      globalLiveUsers.set(req.user.id, {
-        userId: req.user.id,
-        username: req.user.username,
-        firstName: req.user.firstName,
-        lastName: req.user.lastName,
-        lastSeen: currentTime
-      });
-    }
-    
-    // Add sample users (skip current user if they're in the sample)
-    let addedCount = 1; // Current user already added
-    for (const user of sampleUsers) {
-      if (user.id !== req.user?.id && addedCount < 5) {
-        globalLiveUsers.set(user.id, {
-          userId: user.id,
-          username: user.username,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          lastSeen: currentTime
-        });
-        addedCount++;
-      }
-    }
-    
-    console.log(`🧪 SIMULATE: Added ${addedCount} demo users. Live map size: ${globalLiveUsers.size}`);
-    
-    res.json({ 
-      success: true, 
-      message: `Simulated ${addedCount} users online`,
-      liveUsersCount: globalLiveUsers.size
-    });
-  } catch (error) {
-    console.error('Error simulating live users:', error);
-    res.status(500).json({ error: 'Failed to simulate live users' });
-  }
-});
-
-// Reset live users to real tracking only
-router.post('/reset-live-users', async (req, res) => {
-  try {
-    console.log('🔄 RESET: Live users reset to real tracking only');
-    
-    // Clear the global live users map but keep current user
-    globalLiveUsers.clear();
-    
-    // Add back only the current authenticated user
-    if (req.user) {
-      globalLiveUsers.set(req.user.id, {
-        userId: req.user.id,
-        username: req.user.username,
-        firstName: req.user.firstName,
-        lastName: req.user.lastName,
-        lastSeen: new Date()
-      });
-    }
-    
-    res.json({ 
-      success: true, 
-      message: 'Reset to real tracking. Only actual users will be shown.',
-      liveUsersCount: globalLiveUsers.size
-    });
-  } catch (error) {
-    console.error('Error resetting live users:', error);
-    res.status(500).json({ error: 'Failed to reset live users' });
-  }
-});
-
-// Get detailed live users information for debugging and verification
-router.get('/live-users-details', async (req, res) => {
-  try {
-    console.log('🔍 LIVE USERS DETAILS DEBUG REQUEST');
-    
-    // Get current state of globalLiveUsers map
-    const currentTime = new Date();
-    const fiveMinutesAgo = new Date(currentTime.getTime() - 5 * 60 * 1000);
-    
-    // Convert Map to array with additional debugging info
-    const liveUsersArray = Array.from(globalLiveUsers.entries()).map(([userId, userData]) => {
-      const minutesAgo = Math.floor((currentTime.getTime() - userData.lastSeen.getTime()) / 60000);
-      const isActive = userData.lastSeen >= fiveMinutesAgo;
-      
-      return {
-        userId: userId,
-        username: userData.username,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        lastSeen: userData.lastSeen,
-        lastSeenFormatted: userData.lastSeen.toISOString(),
-        minutesAgo: minutesAgo,
-        secondsAgo: Math.floor((currentTime.getTime() - userData.lastSeen.getTime()) / 1000),
-        isActiveWithin5Min: isActive
-      };
-    });
-    
-    // Sort by most recent activity
-    liveUsersArray.sort((a, b) => b.lastSeen.getTime() - a.lastSeen.getTime());
-    
-    // Filter active users (within 5 minutes)
-    const activeUsers = liveUsersArray.filter(user => user.isActiveWithin5Min);
-    
-    console.log(`🔍 DETAILS: Total in Map: ${globalLiveUsers.size}, Active (5min): ${activeUsers.length}`);
-    console.log(`🔍 DETAILS: Current user making request: ${req.user?.username} (ID: ${req.user?.id})`);
-    
-    // Development environment info
-    const devEnvironmentInfo = {
-      nodeEnv: process.env.NODE_ENV || 'development',
-      isViteDevMode: !!process.env.VITE_DEV_SERVER,
-      currentTimestamp: currentTime.toISOString(),
-      mapSize: globalLiveUsers.size,
-      activeUsersCount: activeUsers.length,
-      totalUsersInMap: liveUsersArray.length
-    };
-    
-    res.json({
-      success: true,
-      timestamp: currentTime.toISOString(),
-      developmentInfo: devEnvironmentInfo,
-      globalMapSize: globalLiveUsers.size,
-      activeUsersCount: activeUsers.length,
-      activeUsers: activeUsers,
-      allUsersInMap: liveUsersArray,
-      requestingUser: {
-        id: req.user?.id,
-        username: req.user?.username,
-        firstName: req.user?.firstName,
-        lastName: req.user?.lastName
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching live users details:', error);
-    res.status(500).json({ error: 'Failed to fetch live users details', details: error.message });
   }
 });
 
@@ -982,92 +791,6 @@ router.get('/insights', async (req, res) => {
 // Store live users in memory (for development - in production use Redis or database)
 const liveUsers = new Map();
 
-// Demo/Test endpoint to simulate multiple live users (for testing purposes only)
-router.post('/simulate-live-users', (req: any, res: any) => {
-  try {
-    if (req.user?.role !== 'Superuser') {
-      return res.status(403).json({ error: 'Access denied. Superuser only.' });
-    }
-
-    // Clear existing test users
-    liveUsers.clear();
-    
-    // Add current real user
-    if (req.user && req.user.id) {
-      liveUsers.set(req.user.id, {
-        userId: req.user.id,
-        username: req.user.username,
-        firstName: req.user.firstName,
-        lastName: req.user.lastName,
-        lastSeen: new Date()
-      });
-    }
-
-    // Simulate additional users for demonstration
-    const simulatedUsers = [
-      { id: 100, username: 'Vishal', firstName: 'Vishal', lastName: 'Kumar' },
-      { id: 101, username: 'Abhay', firstName: 'Abhay', lastName: 'Singh' },
-      { id: 102, username: 'Sanjeev', firstName: 'Sanjeev', lastName: 'Manager' },
-      { id: 103, username: 'TestUser1', firstName: 'Test', lastName: 'User' }
-    ];
-
-    simulatedUsers.forEach(user => {
-      liveUsers.set(user.id, {
-        userId: user.id,
-        username: user.username,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        lastSeen: new Date()
-      });
-    });
-
-    console.log(`🧪 DEMO: Simulated ${liveUsers.size} live users for testing purposes`);
-    
-    res.json({
-      success: true,
-      message: `Simulated ${liveUsers.size} live users`,
-      liveUsersCount: liveUsers.size,
-      simulatedUsers: Array.from(liveUsers.values())
-    });
-  } catch (error) {
-    console.error('Error simulating live users:', error);
-    res.status(500).json({ error: 'Failed to simulate live users' });
-  }
-});
-
-// Reset live users to real tracking only
-router.post('/reset-live-users', (req: any, res: any) => {
-  try {
-    if (req.user?.role !== 'Superuser') {
-      return res.status(403).json({ error: 'Access denied. Superuser only.' });
-    }
-
-    // Clear all users and add only the current real user
-    liveUsers.clear();
-    
-    if (req.user && req.user.id) {
-      liveUsers.set(req.user.id, {
-        userId: req.user.id,
-        username: req.user.username,
-        firstName: req.user.firstName,
-        lastName: req.user.lastName,
-        lastSeen: new Date()
-      });
-    }
-
-    console.log(`🔄 RESET: Live users reset to real tracking only`);
-    
-    res.json({
-      success: true,
-      message: `Reset to real tracking only`,
-      liveUsersCount: liveUsers.size
-    });
-  } catch (error) {
-    console.error('Error resetting live users:', error);
-    res.status(500).json({ error: 'Failed to reset live users' });
-  }
-});
-
 // Heartbeat endpoint to track live users
 router.post('/heartbeat', (req: any, res: any) => {
   try {
@@ -1075,12 +798,12 @@ router.post('/heartbeat', (req: any, res: any) => {
       const userId = req.user.id;
       const timestamp = new Date();
       
-      // Optional debug logging for heartbeat (disabled for production performance)
-      // console.log('=== HEARTBEAT RECEIVED ===');
-      // console.log('User ID:', userId);
-      // console.log('Username:', req.user.username);
-      // console.log('Timestamp:', timestamp);
-      // console.log('Current Map size before update:', liveUsers.size);
+      // Debug logging for heartbeat
+      console.log('=== HEARTBEAT RECEIVED ===');
+      console.log('User ID:', userId);
+      console.log('Username:', req.user.username);
+      console.log('Timestamp:', timestamp);
+      console.log('Current Map size before update:', liveUsers.size);
       
       liveUsers.set(userId, {
         userId,
@@ -1090,8 +813,8 @@ router.post('/heartbeat', (req: any, res: any) => {
         lastSeen: timestamp
       });
       
-      // console.log('Map size after update:', liveUsers.size);
-      // console.log('==========================');
+      console.log('Map size after update:', liveUsers.size);
+      console.log('==========================');
       
       res.json({ success: true, timestamp });
     } else {
@@ -1138,4 +861,4 @@ router.post('/log-activity', async (req, res) => {
   }
 });
 
-export { router as businessIntelligenceRoutes, setGlobalLiveUsers };
+export { router as businessIntelligenceRoutes };
