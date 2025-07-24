@@ -585,12 +585,17 @@ export const getCommitments = async (req: Request, res: Response) => {
     const conditions = [];
 
     // Role-based access control for commitments
-    // Superusers can see all commitments, regular users only see commitments from meetings they participate in
+    // Superusers can see all commitments, regular users only see commitments they're involved in
     if (user?.role !== 'Superuser') {
       console.log('Applying role-based filtering for non-Superuser:', user.username);
-      // Regular users can only see commitments from meetings where they are organizer OR attendee
+      // Regular users can see commitments where they are:
+      // 1. Assigned TO (assignedToId = user.id)
+      // 2. Assigned BY (assignedById = user.id) 
+      // 3. From meetings where they are organizer OR attendee
       conditions.push(
         or(
+          eq(meetingCommitments.assignedToId, user.id),
+          eq(meetingCommitments.assignedById, user.id),
           eq(businessMeetings.organizerId, user.id),
           sql`${businessMeetings.attendeeIds} @> ${JSON.stringify([user.id])}`
         )
