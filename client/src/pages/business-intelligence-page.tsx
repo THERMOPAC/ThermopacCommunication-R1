@@ -1146,8 +1146,8 @@ export default function BusinessIntelligencePage() {
                     <div className="space-y-4">
                       {meetingCommitmentAnalytics.data.commitmentFailures.slice(0, 10).map((user, index) => (
                         <div key={user.userId} className={`flex justify-between items-center p-4 border rounded-lg ${
-                          user.completionRate < 50 ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950' : 
-                          user.completionRate < 80 ? 'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950' : 
+                          Number(user.completionRate || 0) < 50 ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950' : 
+                          Number(user.completionRate || 0) < 80 ? 'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950' : 
                           'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950'
                         }`}>
                           <div className="flex-1">
@@ -1162,11 +1162,11 @@ export default function BusinessIntelligencePage() {
                           </div>
                           <div className="text-right">
                             <div className={`text-lg font-bold ${
-                              user.completionRate < 50 ? 'text-red-600' : 
-                              user.completionRate < 80 ? 'text-yellow-600' : 
+                              Number(user.completionRate || 0) < 50 ? 'text-red-600' : 
+                              Number(user.completionRate || 0) < 80 ? 'text-yellow-600' : 
                               'text-green-600'
                             }`}>
-                              {user.completionRate?.toFixed(1) || '0.0'}%
+                              {Number(user.completionRate || 0).toFixed(1)}%
                             </div>
                             <p className="text-xs text-muted-foreground">completion</p>
                           </div>
