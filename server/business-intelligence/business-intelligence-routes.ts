@@ -480,6 +480,73 @@ router.post('/reset-live-users', async (req, res) => {
   }
 });
 
+// Get detailed live users information for debugging and verification
+router.get('/live-users-details', async (req, res) => {
+  try {
+    console.log('🔍 LIVE USERS DETAILS DEBUG REQUEST');
+    
+    // Get current state of globalLiveUsers map
+    const currentTime = new Date();
+    const fiveMinutesAgo = new Date(currentTime.getTime() - 5 * 60 * 1000);
+    
+    // Convert Map to array with additional debugging info
+    const liveUsersArray = Array.from(globalLiveUsers.entries()).map(([userId, userData]) => {
+      const minutesAgo = Math.floor((currentTime.getTime() - userData.lastSeen.getTime()) / 60000);
+      const isActive = userData.lastSeen >= fiveMinutesAgo;
+      
+      return {
+        userId: userId,
+        username: userData.username,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        lastSeen: userData.lastSeen,
+        lastSeenFormatted: userData.lastSeen.toISOString(),
+        minutesAgo: minutesAgo,
+        secondsAgo: Math.floor((currentTime.getTime() - userData.lastSeen.getTime()) / 1000),
+        isActiveWithin5Min: isActive
+      };
+    });
+    
+    // Sort by most recent activity
+    liveUsersArray.sort((a, b) => b.lastSeen.getTime() - a.lastSeen.getTime());
+    
+    // Filter active users (within 5 minutes)
+    const activeUsers = liveUsersArray.filter(user => user.isActiveWithin5Min);
+    
+    console.log(`🔍 DETAILS: Total in Map: ${globalLiveUsers.size}, Active (5min): ${activeUsers.length}`);
+    console.log(`🔍 DETAILS: Current user making request: ${req.user?.username} (ID: ${req.user?.id})`);
+    
+    // Development environment info
+    const devEnvironmentInfo = {
+      nodeEnv: process.env.NODE_ENV || 'development',
+      isViteDevMode: !!process.env.VITE_DEV_SERVER,
+      currentTimestamp: currentTime.toISOString(),
+      mapSize: globalLiveUsers.size,
+      activeUsersCount: activeUsers.length,
+      totalUsersInMap: liveUsersArray.length
+    };
+    
+    res.json({
+      success: true,
+      timestamp: currentTime.toISOString(),
+      developmentInfo: devEnvironmentInfo,
+      globalMapSize: globalLiveUsers.size,
+      activeUsersCount: activeUsers.length,
+      activeUsers: activeUsers,
+      allUsersInMap: liveUsersArray,
+      requestingUser: {
+        id: req.user?.id,
+        username: req.user?.username,
+        firstName: req.user?.firstName,
+        lastName: req.user?.lastName
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching live users details:', error);
+    res.status(500).json({ error: 'Failed to fetch live users details', details: error.message });
+  }
+});
+
 // ============================================================================
 // PRODUCTIVITY METRICS
 // ============================================================================
