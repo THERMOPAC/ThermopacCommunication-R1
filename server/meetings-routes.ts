@@ -587,19 +587,29 @@ export const getCommitments = async (req: Request, res: Response) => {
     // Role-based access control for commitments
     // Superusers can see all commitments, regular users only see commitments they're involved in
     if (user?.role !== 'Superuser') {
-      console.log('Applying role-based filtering for non-Superuser:', user.username);
+      console.log('Applying role-based filtering for non-Superuser:', user.username, 'with user ID:', user.id);
       // Regular users can see commitments where they are:
-      // 1. Assigned TO (assignedToId = user.id)
-      // 2. Assigned BY (assignedById = user.id) 
-      // 3. From meetings where they are organizer OR attendee
+      // 1. Assigned TO (assignedToId = user.id) - always allow
+      // 2. Assigned BY (assignedById = user.id) - always allow
+      // 3. From meetings where they are organizer OR attendee - only if meeting exists
       conditions.push(
         or(
           eq(meetingCommitments.assignedToId, user.id),
           eq(meetingCommitments.assignedById, user.id),
-          eq(businessMeetings.organizerId, user.id),
-          sql`${businessMeetings.attendeeIds} @> ${JSON.stringify([user.id])}`
+          and(
+            sql`${businessMeetings.id} IS NOT NULL`,
+            or(
+              eq(businessMeetings.organizerId, user.id),
+              sql`${businessMeetings.attendeeIds} @> ${JSON.stringify([user.id])}`
+            )
+          )
         )
       );
+      console.log('Access conditions for user ID', user.id, ':');
+      console.log('- Can see commitments assigned TO them (assignedToId =', user.id, ')');
+      console.log('- Can see commitments assigned BY them (assignedById =', user.id, ')');
+      console.log('- Can see commitments from meetings they organize (if meeting exists)');
+      console.log('- Can see commitments from meetings they attend (if meeting exists)');
     } else {
       console.log('Superuser access - showing all commitments for:', user.username);
     }
@@ -647,7 +657,17 @@ export const getCommitments = async (req: Request, res: Response) => {
 
     const results = await query;
 
-    console.log(`Role-based commitments result: ${results.length} commitments returned for ${user?.role || 'Unknown'} user ${user?.username}`);
+    console.log(`Role-based commitments result: ${results.length} commitments returned for ${user?.role || 'Unknown'} user ${user?.username} (ID: ${user?.id})`);
+    
+    // Log detailed results for debugging
+    if (user?.id === 2) { // Sanjeev's user ID
+      console.log('SANJEEV DEBUG - Commitments found:');
+      results.forEach((result, index) => {
+        console.log(`  ${index + 1}. Commitment ID: ${result.commitment.id}, Title: ${result.commitment.title}`);
+        console.log(`     Assigned To: ${result.commitment.assignedToId}, Assigned By: ${result.commitment.assignedById}`);
+        console.log(`     Meeting: ${result.meeting?.title || 'No meeting'} (ID: ${result.commitment.meetingId})`);
+      });
+    }
 
     res.json({ commitments: results });
   } catch (error) {
