@@ -195,6 +195,10 @@ export default function BusinessIntelligencePage() {
     enabled: !!startDate && !!endDate,
   });
 
+  const { data: activeUsersCount, isLoading: activeUsersLoading, refetch: refetchActiveUsersCount } = useQuery<{activeUsers: number, totalUsers: number}>({
+    queryKey: ['/api/business-intelligence/active-users-count'],
+  });
+
   const getDisplayName = (user: any) => {
     if (user.firstName && user.lastName) {
       return `${user.firstName} ${user.lastName}`;
@@ -253,6 +257,7 @@ export default function BusinessIntelligencePage() {
     refetchProductivityMetrics();
     refetchComplianceStatus();
     refetchBusinessInsights();
+    refetchActiveUsersCount();
   };
 
   return (
@@ -311,13 +316,13 @@ export default function BusinessIntelligencePage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              {overviewLoading ? (
+              {activeUsersLoading ? (
                 <Skeleton className="h-8 w-20" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{overview?.totalActiveUsers || 0}</div>
+                  <div className="text-2xl font-bold">{activeUsersCount?.activeUsers || 0}</div>
                   <p className="text-xs text-muted-foreground">
-                    of {overview?.totalUsers || 0} total users
+                    of {activeUsersCount?.totalUsers || 0} total users
                   </p>
                 </>
               )}

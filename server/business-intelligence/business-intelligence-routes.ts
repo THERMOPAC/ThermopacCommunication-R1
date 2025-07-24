@@ -286,6 +286,48 @@ router.get('/module-usage', async (req, res) => {
 });
 
 // ============================================================================
+// ACTIVE USERS COUNT
+// ============================================================================
+
+// Get active users count - users who have logged in recently
+router.get('/active-users-count', async (req, res) => {
+  try {
+    // Consider users active if they've had attendance in the last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    const activeUsersResult = await db
+      .selectDistinct({
+        userId: attendanceRecords.userId
+      })
+      .from(attendanceRecords)
+      .where(
+        gte(attendanceRecords.date, sevenDaysAgo)
+      );
+    
+    const activeUsersCount = activeUsersResult.length;
+    
+    // Get total users count
+    const totalUsersResult = await db
+      .select({
+        count: count(users.id)
+      })
+      .from(users)
+      .where(eq(users.isActive, true));
+    
+    const totalUsers = totalUsersResult[0]?.count || 0;
+    
+    res.json({
+      activeUsers: activeUsersCount,
+      totalUsers: totalUsers
+    });
+  } catch (error) {
+    console.error('Error fetching active users count:', error);
+    res.status(500).json({ error: 'Failed to fetch active users count' });
+  }
+});
+
+// ============================================================================
 // PRODUCTIVITY METRICS
 // ============================================================================
 
