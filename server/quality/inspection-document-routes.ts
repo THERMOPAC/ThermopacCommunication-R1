@@ -439,15 +439,14 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId/dow
     console.log(`Trying paths for download:`, pathsToTry);
     
     // Import GCS utilities
-    const { Storage } = require('@google-cloud/storage');
-    const { gcsCredentials, gcsBucketName } = require('../utils/gcs-config');
+    const { initializeGCS } = require('../utils/gcs-operations');
     
-    const storage = new Storage({
-      credentials: gcsCredentials,
-      projectId: gcsCredentials.project_id
-    });
+    const { storage, bucket } = await initializeGCS();
     
-    const bucket = storage.bucket(gcsBucketName);
+    if (!storage || !bucket) {
+      console.error('GCS not properly initialized for download');
+      return res.status(500).json({ error: "File storage unavailable" });
+    }
     let fileFound = false;
     let finalPath = '';
     
@@ -567,15 +566,24 @@ router.delete("/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId"
     console.log(`Trying paths for deletion:`, pathsToTry);
     
     // Import GCS utilities
-    const { Storage } = require('@google-cloud/storage');
-    const { gcsCredentials, gcsBucketName } = require('../utils/gcs-config');
+    const { initializeGCS } = require('../utils/gcs-operations');
     
-    const storage = new Storage({
-      credentials: gcsCredentials,
-      projectId: gcsCredentials.project_id
-    });
+    const { storage, bucket } = await initializeGCS();
     
-    const bucket = storage.bucket(gcsBucketName);
+    if (!storage || !bucket) {
+      console.error('GCS not properly initialized');
+      // Continue with database deletion even if GCS fails
+      await db.delete(inspectionDocuments)
+        .where(eq(inspectionDocuments.id, parseInt(documentId)));
+      
+      console.log(`Database record deleted for document ${documentId} (GCS unavailable)`);
+      
+      return res.status(200).json({ 
+        message: "Document deleted from database (file storage unavailable)",
+        fileDeleted: false,
+        pathUsed: 'GCS unavailable'
+      });
+    }
     let fileDeleted = false;
     let finalPath = '';
     
