@@ -768,7 +768,7 @@ export default function InspectionsPage() {
     result: string;
     notes: string;
   };
-  const [selectedHydrotestRecord, setSelectedHydrotestRecord] = useState<HydrotestRecord | null>(null);
+
 
   
   // Non-Conformance Report state
@@ -6606,14 +6606,9 @@ export default function InspectionsPage() {
                             {Array.isArray(hydrotestRecords) && hydrotestRecords.map((record, index) => (
                               <TableRow 
                                 key={record.id}
-                                className={selectedHydrotestRecord?.id === record.id ? 'bg-primary/20 border-l-4 border-primary' : 'cursor-pointer hover:bg-muted/50'}
-                                onClick={() => setSelectedHydrotestRecord(record)}
+                                className="hover:bg-muted/50"
                               >
-                                <TableCell className="w-[150px] flex items-center">
-                                  {selectedHydrotestRecord?.id === record.id ? 
-                                    <Check className="h-4 w-4 mr-2 text-primary" /> : 
-                                    <div className="h-4 w-4 mr-2 rounded-full border border-muted-foreground/30"></div>
-                                  }
+                                <TableCell className="w-[150px]">
                                   {record.id}
                                 </TableCell>
                                 <TableCell>
