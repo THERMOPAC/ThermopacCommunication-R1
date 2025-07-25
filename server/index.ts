@@ -428,6 +428,130 @@ app.use((req, res, next) => {
     }
   });
 
+  // PRIORITY: Welding tab DELETE route - dedicated endpoint for Welding file deletion with GCS cleanup
+  app.delete('/api/welding-delete/:inspectionOrderNumber/:recordId/:documentId', async (req: any, res: any) => {
+    console.log(`🔥🔥🔥 WELDING DELETE ENDPOINT HIT! 🔥🔥🔥`);
+    console.log(`🔥 Method: ${req.method}, Path: ${req.path}`);
+    console.log(`🔥 Full URL: ${req.url}`);
+    console.log(`🔥 Original URL: ${req.originalUrl}`);
+    
+    try {
+      // Enhanced session debugging
+      console.log(`🔥 Session object:`, req.session);
+      console.log(`🔥 Session passport:`, req.session?.passport);
+      console.log(`🔥 req.isAuthenticated():`, req.isAuthenticated?.());
+      console.log(`🔥 req.user:`, req.user);
+      
+      // Check session authentication with multiple methods
+      const userId = req.session?.passport?.user || req.user?.id;
+      if (!userId && !req.isAuthenticated?.()) {
+        console.log(`🔥 No session user found - all authentication methods failed`);
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      console.log(`🔥 User authenticated: User ID ${userId}`);
+      
+      const { inspectionOrderNumber, recordId, documentId } = req.params;
+      console.log(`🔥 WELDING DELETE - Inspection: ${inspectionOrderNumber}, Record: ${recordId}, Document: ${documentId}`);
+
+      // Import and use the actual deletion logic
+      const { initializeGCS } = await import('./utils/gcs-operations');
+      const { db } = await import('./db');
+      const { eq } = await import('drizzle-orm');
+      const { inspectionOrders, inspectionDocuments } = await import('../shared/schema');
+      
+      // Get the inspection order and project code
+      const inspection = await db.query.inspectionOrders.findFirst({
+        where: eq(inspectionOrders.inspectionOrderNumber, inspectionOrderNumber)
+      });
+      
+      if (!inspection) {
+        return res.status(404).json({ error: "Inspection order not found" });
+      }
+      
+      // Get the document record
+      const document = await db.query.inspectionDocuments.findFirst({
+        where: eq(inspectionDocuments.id, parseInt(documentId))
+      });
+      
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      
+      console.log(`🔥 Found document: ${document.fileName} at path: ${document.filePath}`);
+      
+      let gcsStatus = 'failed';
+      let databaseStatus = 'failed';
+      let details = '';
+      
+      // Try to delete from GCS
+      try {
+        const { bucket } = await initializeGCS();
+        if (!bucket) {
+          throw new Error('GCS bucket not available');
+        }
+        
+        // Reconstruct GCS path for Welding tab
+        const gcsPath = `QMS/Inspections_Records/${inspection.projectCode}/${inspectionOrderNumber}/Welding/${recordId}.pdf`;
+        console.log(`🔥 Attempting GCS deletion at path: ${gcsPath}`);
+        
+        const file = bucket.file(gcsPath);
+        const [exists] = await file.exists();
+        
+        if (exists) {
+          await file.delete();
+          console.log(`🔥 ✅ GCS file deleted successfully: ${gcsPath}`);
+          gcsStatus = 'success';
+          details += 'GCS file removed successfully. ';
+        } else {
+          console.log(`🔥 ⚠️ GCS file not found at path: ${gcsPath}`);
+          gcsStatus = 'not_found';
+          details += 'GCS file not found (may have been already deleted). ';
+        }
+      } catch (error: any) {
+        console.error(`🔥 ❌ GCS deletion failed for ${document.fileName}:`, error.message);
+        gcsStatus = 'failed';
+        details += `GCS deletion failed: ${error.message}. `;
+      }
+      
+      // Always delete from database regardless of GCS success
+      try {
+        await db.delete(inspectionDocuments).where(eq(inspectionDocuments.id, parseInt(documentId)));
+        console.log(`🔥 ✅ Successfully deleted database record for document ${documentId}`);
+        databaseStatus = 'success';
+        details += 'Database record removed successfully.';
+        
+        // Provide detailed feedback about what succeeded and what failed
+        res.json({ 
+          success: true, 
+          message: gcsStatus === 'success' ? 'Welding document deleted completely' : 'Welding document partially deleted',
+          gcsStatus,
+          databaseStatus,
+          details: details.trim()
+        });
+        
+      } catch (dbError: any) {
+        console.error(`🔥 ❌ Database deletion failed for document ${documentId}:`, dbError.message);
+        res.status(500).json({ 
+          success: false,
+          error: 'Failed to delete database record',
+          message: dbError.message,
+          gcsStatus,
+          databaseStatus,
+          details: details + ` Database deletion failed: ${dbError.message}`
+        });
+      }
+      
+    } catch (error: any) {
+      console.error('🔥 Welding deletion error:', error);
+      res.status(500).json({ 
+        success: false,
+        error: 'Failed to delete Welding document',
+        message: error.message 
+      });
+    }
+  });
+
   const server = await registerRoutes(app);
 
   // Add a special middleware to ensure all API routes return JSON even for errors

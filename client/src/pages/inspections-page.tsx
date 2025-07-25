@@ -845,8 +845,97 @@ export default function InspectionsPage() {
     ]);
   };
   
-  // Delete a weld
-  const deleteWeld = (index: number) => {
+  // Delete a weld record with complete GCS cleanup
+  const deleteWeldRecord = async (weldRecord: any, index: number) => {
+    try {
+      console.log(`🔥 Starting deletion of Welding record: ${weldRecord.id}`);
+      console.log(`Inspection Order Number: ${editInspectionOrderDetails?.inspectionOrderNumber}`);
+      
+      // Fetch associated documents first
+      const documentsUrl = `/api/quality/inspection-documents?inspectionOrderNumber=${editInspectionOrderDetails?.inspectionOrderNumber}&tabName=Welding&recordId=${weldRecord.id}`;
+      console.log(`Fetching documents from: ${documentsUrl}`);
+      
+      const documentsResponse = await fetch(documentsUrl, {
+        credentials: 'include'
+      });
+      
+      console.log(`Documents fetch response status: ${documentsResponse.status}`);
+      
+      if (documentsResponse.ok) {
+        const documents = await documentsResponse.json();
+        console.log(`Raw response:`, JSON.stringify(documents));
+        console.log(`Found ${documents.length} documents to delete:`, documents);
+        
+        // Delete each document with GCS cleanup
+        let successCount = 0;
+        let failCount = 0;
+        
+        for (const doc of documents) {
+          console.log(`🔥 Attempting to delete document ${doc.id}: ${doc.fileName}`);
+          console.log(`🔥 Using dedicated endpoint for Welding deletion`);
+          
+          const deleteResponse = await fetch(`/api/welding-delete/${editInspectionOrderDetails?.inspectionOrderNumber}/${weldRecord.id}/${doc.id}`, {
+            method: 'DELETE',
+            credentials: 'include'
+          });
+          
+          console.log(`🔥 Delete response status: ${deleteResponse.status}`);
+          
+          if (deleteResponse.ok) {
+            const result = await deleteResponse.json();
+            console.log(`🔥 Delete result:`, result);
+            
+            if (result.success) {
+              console.log(`🔥 ✅ Document ${doc.fileName} deleted successfully (${result.gcsStatus === 'success' && result.databaseStatus === 'success' ? 'Complete Success' : 'Partial Success'})`);
+              if (result.details) {
+                console.log(`🔥 Details: ${result.details}`);
+              }
+              successCount++;
+            } else {
+              console.log(`🔥 ❌ Failed to delete document ${doc.fileName}: ${result.message}`);
+              failCount++;
+            }
+          } else {
+            console.log(`🔥 ❌ Delete request failed for ${doc.fileName} with status ${deleteResponse.status}`);
+            failCount++;
+          }
+        }
+        
+        console.log(`Document deletion summary: ${successCount} successful, ${failCount} failed`);
+        
+        if (successCount > 0) {
+          toast({
+            title: failCount === 0 ? "Welding Record Deleted Successfully" : "Welding Record Partially Deleted",
+            description: failCount === 0 
+              ? `Successfully deleted ${successCount} document(s) and removed from welding records.`
+              : `Deleted ${successCount} document(s), but ${failCount} document(s) could not be removed from cloud storage.`,
+            variant: failCount === 0 ? "default" : "destructive",
+          });
+        } else if (documents.length > 0) {
+          toast({
+            title: "Document Deletion Failed",
+            description: "Could not delete associated documents from cloud storage, but record will be removed.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        console.log(`Failed to fetch documents: ${documentsResponse.status}`);
+        toast({
+          title: "Warning",
+          description: "Could not check for associated documents. Record will be removed from frontend only.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error during Welding record deletion:', error);
+      toast({
+        title: "Deletion Error",
+        description: "An error occurred during deletion. Record will be removed from frontend only.",
+        variant: "destructive",
+      });
+    }
+    
+    // Remove from frontend state (always proceed with this)
     const updatedWelds = [...welds];
     updatedWelds.splice(index, 1);
     
@@ -857,8 +946,32 @@ export default function InspectionsPage() {
     }));
     
     setWelds(renumberedWelds);
+    
+    // Clear selection if the deleted weld was selected
+    if (selectedWeldRecord?.id === weldRecord.id) {
+      setSelectedWeldRecord(null);
+    }
+    
     if (editingWeldIndex === index) {
       setEditingWeldIndex(null);
+    }
+  };
+
+  // Legacy delete function with confirmation dialog
+  const deleteWeld = (index: number) => {
+    const weldRecord = welds[index];
+    if (weldRecord) {
+      const confirmDelete = window.confirm(
+        `Are you sure you want to delete Welding record "${weldRecord.id}"?\n\n` +
+        `This will permanently delete:\n` +
+        `• The welding record from the database\n` +
+        `• All associated documents from cloud storage\n\n` +
+        `This action cannot be undone.`
+      );
+      
+      if (confirmDelete) {
+        deleteWeldRecord(weldRecord, index);
+      }
     }
   };
   
@@ -5854,6 +5967,7 @@ export default function InspectionsPage() {
                                       size="icon" 
                                       onClick={() => deleteWeld(index)}
                                       className="h-7 w-7 text-destructive"
+                                      title="Delete Record and Documents"
                                     >
                                       <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
@@ -5924,19 +6038,28 @@ export default function InspectionsPage() {
                       </div>
                       
                       {/* Uploaded Files Display Section */}
-                      {welds && welds.length > 0 && (
+                      {editInspectionOrderDetails?.inspectionOrderNumber && (
                         <div className="mt-6 border-t pt-4">
                           <h4 className="text-sm font-medium text-gray-700 mb-3">Uploaded Files</h4>
                           <div className="space-y-2">
-                            {welds.map((record) => (
+                            {welds && welds.length > 0 ? (
+                              welds.map((record) => (
+                                <DrawingFilesDisplay
+                                  key={record.id}
+                                  inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                                  recordId={record.id}
+                                  recordTitle={`Weld Record - ${record.id}`}
+                                  tabName="Welding"
+                                />
+                              ))
+                            ) : (
                               <DrawingFilesDisplay
-                                key={record.id}
                                 inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
-                                recordId={record.id}
-                                recordTitle={`Weld Record - ${record.id}`}
+                                recordId="ALL"
+                                recordTitle="All Welding Files"
                                 tabName="Welding"
                               />
-                            ))}
+                            )}
                           </div>
                         </div>
                       )}
