@@ -2494,7 +2494,7 @@ export default function InspectionsPage() {
             console.log(`🏪 Attempting to delete document ${document.id}: ${document.fileName}`);
             console.log(`🏪 Using new dedicated endpoint for Shop Inspection deletion`);
             
-            const deleteResponse = await fetch(`/api/shop-inspection-delete/${editInspectionOrderDetails?.inspectionOrderNumber}/${recordId}/${document.id}`, {
+            const deleteResponse = await fetch(`/api/quality/inspection-documents/shop-inspection-delete/${editInspectionOrderDetails?.inspectionOrderNumber}/${recordId}/${document.id}`, {
               method: 'DELETE',
               credentials: 'include'
             });
