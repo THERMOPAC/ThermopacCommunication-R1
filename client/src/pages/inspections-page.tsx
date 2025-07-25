@@ -5249,53 +5249,73 @@ export default function InspectionsPage() {
                                     </span>
                                   </TableCell>
                                   <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      <Button 
-                                        type="button" 
-                                        variant="ghost" 
+                                    <div className="flex items-center space-x-1">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-green-600 hover:text-green-800 hover:bg-green-50"
-                                        onClick={() => {
-                                          setEditingApprovedDrawingRecord(record);
-                                          setIsApprovedDrawingDialogOpen(true);
-                                        }}
-                                        title="Edit Approved Drawing Record"
-                                      >
-                                        <Edit2 className="h-3.5 w-3.5" />
-                                      </Button>
-                                      <Button
-                                        type="button" 
-                                        variant="ghost"
-                                        size="sm"
-                                        className="text-xs px-2 py-1 h-7 bg-blue-50 text-blue-600 hover:bg-blue-100"
-                                        onClick={() => {
-                                          setDocumentUploadConfig({
-                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || '',
-                                            tabName: 'Approved Drawing',
-                                            recordId: record.id
-                                          });
-                                          setShowDocumentUpload(true);
-                                        }}
-                                      >
-                                        <Upload className="h-3 w-3 mr-1" />
-                                        Upload
-                                      </Button>
-                                      <Button
-                                        type="button" 
-                                        variant="ghost"
-                                        size="sm"
-                                        className="text-xs px-2 py-1 h-7 bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
+                                        className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
+                                        title="View Documents"
                                         onClick={() => {
                                           setDocumentViewerConfig({
-                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || '',
-                                            tabName: 'Approved Drawing',
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
+                                            tabName: "Approved Drawing",
                                             recordId: record.id
                                           });
                                           setShowDocumentViewer(true);
                                         }}
                                       >
-                                        <Eye className="h-3 w-3 mr-1" />
-                                        View
+                                        <Eye className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
+                                        title="Upload Document"
+                                        onClick={() => {
+                                          setDocumentUploadConfig({
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
+                                            tabName: "Approved Drawing",
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentUpload(true);
+                                        }}
+                                      >
+                                        <FileText className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
+                                        title="Edit Record"
+                                        onClick={() => {
+                                          setEditingApprovedDrawingRecord(record);
+                                          setIsApprovedDrawingDialogOpen(true);
+                                        }}
+                                      >
+                                        <Edit2 className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
+                                        title="Delete Record and Documents"
+                                        onClick={() => {
+                                          if (window.confirm(`Are you sure you want to delete Approved Drawing record "${record.id}"?\n\nThis will permanently delete:\n• The drawing record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
+                                            // TODO: Implement Drawing record deletion with GCS cleanup
+                                            console.log("Delete Drawing record:", record.id);
+                                            toast({
+                                              title: "Delete Function",
+                                              description: "Drawing record deletion will be implemented soon.",
+                                              variant: "default",
+                                            });
+                                          }
+                                        }}
+                                      >
+                                        <Trash2 className="h-3 w-3" />
                                       </Button>
                                     </div>
                                   </TableCell>
@@ -5303,14 +5323,8 @@ export default function InspectionsPage() {
                               ))
                             ) : (
                               <TableRow>
-                                <TableCell colSpan={8} className="text-center py-10">
-                                  <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
-                                  <p className="mt-2 text-xs text-muted-foreground">
-                                    No approved drawing records found.
-                                  </p>
-                                  <p className="text-xs text-muted-foreground mb-2">
-                                    Click "Add Approved Drawing Record" to create a new record.
-                                  </p>
+                                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                  No approved drawing records available. Click "Add Approved Drawing Record" to create a new record.
                                 </TableCell>
                               </TableRow>
                             )}
@@ -5319,19 +5333,28 @@ export default function InspectionsPage() {
                       </div>
                       
                       {/* Uploaded Files Display Section */}
-                      {approvedDrawingRecords.length > 0 && (
+                      {editInspectionOrderDetails?.inspectionOrderNumber && (
                         <div className="mt-6 border-t pt-4">
                           <h4 className="text-sm font-medium text-gray-700 mb-3">Uploaded Files</h4>
                           <div className="space-y-2">
-                            {approvedDrawingRecords.map((record) => (
+                            {approvedDrawingRecords.length > 0 ? (
+                              approvedDrawingRecords.map((record) => (
+                                <DrawingFilesDisplay
+                                  key={record.id}
+                                  inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                                  recordId={record.id}
+                                  recordTitle={record.drawingTitle || `Drawing ${record.id}`}
+                                  tabName="Approved Drawing"
+                                />
+                              ))
+                            ) : (
                               <DrawingFilesDisplay
-                                key={record.id}
                                 inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
-                                recordId={record.id}
-                                recordTitle={record.drawingTitle || `Drawing ${record.id}`}
+                                recordId="ALL"
+                                recordTitle="All Drawing Files"
                                 tabName="Approved Drawing"
                               />
-                            ))}
+                            )}
                           </div>
                         </div>
                       )}
