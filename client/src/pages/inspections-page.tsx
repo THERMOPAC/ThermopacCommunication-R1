@@ -414,6 +414,10 @@ export default function InspectionsPage() {
   const [ndtFiles, setNdtFiles] = useState<File[]>([]);
   const [isUploadingNdtFiles, setIsUploadingNdtFiles] = useState(false);
   
+  // NCR file upload states
+  const [ncrFiles, setNcrFiles] = useState<File[]>([]);
+  const [isUploadingNcrFiles, setIsUploadingNcrFiles] = useState(false);
+  
   const [approvedDrawingRecords, setApprovedDrawingRecords] = useState<{
     id: string;
     drawingTitle: string;
@@ -1315,8 +1319,8 @@ export default function InspectionsPage() {
     return newId;
   };
 
-  // Add new NCR record via dialog
-  const addNcrRecord = (recordData: {
+  // Add new NCR record via dialog with file upload support
+  const addNcrRecord = async (recordData: {
     id: string;
     ncrDate: string;
     ncrStatus: string;
@@ -1324,14 +1328,71 @@ export default function InspectionsPage() {
     ncrDisposition: string;
     ncrCorrectiveAction: string;
   }) => {
+    // Check if we have valid inspection order details with project code
+    if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
+      toast({
+        title: "Cannot Create Record",
+        description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const newRecord = {
       ...recordData
     };
+
+    // Handle file uploads if any files are selected
+    if (ncrFiles.length > 0) {
+      setIsUploadingNcrFiles(true);
+      
+      try {
+        // Upload files for this specific record
+        for (const file of ncrFiles) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('inspectionOrderNumber', editInspectionOrderDetails.inspectionOrderNumber);
+          formData.append('tabName', 'NonConformance');
+          formData.append('recordId', recordData.id);
+          formData.append('projectCode', editInspectionOrderDetails.projectCode);
+
+          const uploadResponse = await fetch('/api/quality/inspection-documents/upload', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData,
+          });
+
+          if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json();
+            throw new Error(errorData.error || `Failed to upload ${file.name}`);
+          }
+        }
+
+        toast({
+          title: "Files Uploaded Successfully",
+          description: `${ncrFiles.length} file(s) uploaded for NCR record ${recordData.id}`,
+        });
+      } catch (error: any) {
+        console.error("Error uploading files:", error);
+        toast({
+          title: "File Upload Error",
+          description: error.message || "Some files could not be uploaded. Please try again.",
+          variant: "destructive",
+        });
+        setIsUploadingNcrFiles(false);
+        return;
+      }
+      
+      setIsUploadingNcrFiles(false);
+      setNcrFiles([]); // Clear selected files
+    }
+
     setNcrRecords(prev => [...prev, newRecord]);
     setIsNcrDialogOpen(false);
+    
     toast({
       title: "Success",
-      description: "NCR record added successfully",
+      description: "NCR record added successfully" + (ncrFiles.length > 0 ? " with files" : ""),
     });
   };
 
@@ -8208,6 +8269,7 @@ export default function InspectionsPage() {
         setIsNcrDialogOpen(open);
         if (!open) {
           setEditingNcrRecord(null);
+          setNcrFiles([]); // Clear selected files when dialog closes
         }
       }}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -8223,7 +8285,7 @@ export default function InspectionsPage() {
             </DialogDescription>
           </DialogHeader>
           
-          <form onSubmit={(e) => {
+          <form onSubmit={async (e) => {
             e.preventDefault();
             const formData = new FormData(e.currentTarget);
             const recordData = {
@@ -8237,7 +8299,7 @@ export default function InspectionsPage() {
             if (editingNcrRecord) {
               updateNcrRecord(recordData);
             } else {
-              addNcrRecord(recordData);
+              await addNcrRecord(recordData);
             }
           }} className="space-y-4">
             
@@ -8330,6 +8392,43 @@ export default function InspectionsPage() {
               />
             </div>
 
+            {/* File Upload Section - Only for new records */}
+            {!editingNcrRecord && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Upload NCR Documents (Optional)
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      setNcrFiles(files);
+                    }}
+                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Select PDF, DOC, DOCX, JPG, JPEG, or PNG files
+                  </p>
+                  {ncrFiles.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-sm font-medium text-gray-700">Selected files:</p>
+                      <ul className="text-sm text-gray-600">
+                        {ncrFiles.map((file, index) => (
+                          <li key={index} className="flex items-center gap-2">
+                            <span>• {file.name}</span>
+                            <span className="text-gray-400">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end space-x-2">
               <Button 
                 type="button" 
@@ -8337,12 +8436,13 @@ export default function InspectionsPage() {
                 onClick={() => {
                   setIsNcrDialogOpen(false);
                   setEditingNcrRecord(null);
+                  setNcrFiles([]); // Clear files when canceling
                 }}
               >
                 Cancel
               </Button>
-              <Button type="submit">
-                {editingNcrRecord ? 'Update Record' : 'Add Record'}
+              <Button type="submit" disabled={isUploadingNcrFiles}>
+                {isUploadingNcrFiles ? 'Uploading...' : (editingNcrRecord ? 'Update Record' : 'Add Record')}
               </Button>
             </div>
           </form>
