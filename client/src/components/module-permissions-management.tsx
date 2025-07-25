@@ -28,6 +28,9 @@ interface User {
   id: number;
   username: string;
   role: string;
+  firstName?: string;
+  lastName?: string;
+  department?: string;
 }
 
 interface RolePermission {
@@ -62,19 +65,32 @@ const ModulePermissionsManagement: React.FC = () => {
     queryFn: getQueryFn({ on401: "throw" })
   });
 
-  // Group users by role with proper hierarchy
-  const groupedUsers = useMemo(() => {
-    if (!users || users.length === 0) return {} as Record<string, User[]>;
+  // Group users by role with proper hierarchy following unified user dropdown standard
+  const groupedUsers = React.useMemo(() => {
+    const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Employee'];
+    const groups: Record<string, User[]> = {};
     
-    return Array.from(roles)
-      .sort((a, b) => roleHierarchy[a] - roleHierarchy[b])
-      .reduce((acc: Record<string, User[]>, role) => {
-        const usersInRole = users.filter(u => u.role === role);
-        if (usersInRole.length > 0) {
-          acc[role] = usersInRole;
-        }
-        return acc;
-      }, {} as Record<string, User[]>);
+    users?.forEach((user: User) => {
+      const role = user.role || 'Employee';
+      if (!groups[role]) {
+        groups[role] = [];
+      }
+      groups[role].push(user);
+    });
+    
+    // Sort alphabetically within each group
+    Object.values(groups).forEach(group => {
+      group.sort((a, b) => {
+        const nameA = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
+        const nameB = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
+        return nameA.localeCompare(nameB);
+      });
+    });
+    
+    return roleOrder.filter(role => groups[role]).map(role => ({
+      role,
+      users: groups[role]
+    }));
   }, [users]);
   
   // Fetch role-based module permissions
@@ -258,14 +274,17 @@ const ModulePermissionsManagement: React.FC = () => {
                       <SelectValue placeholder="Select a user" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(groupedUsers).map(([role, roleUsers]) => (
+                      {groupedUsers.map(({ role, users: roleUsers }) => (
                         <SelectGroup key={role}>
                           <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
-                            {role}s
+                            {role}
                           </SelectLabel>
                           {roleUsers.map((user: User) => (
                             <SelectItem key={user.id} value={user.id.toString()}>
-                              {user.username}
+                              {user.firstName && user.lastName 
+                                ? `${user.firstName} ${user.lastName}${user.department ? ` • ${user.department}` : ''}`
+                                : user.username
+                              }
                             </SelectItem>
                           ))}
                         </SelectGroup>
