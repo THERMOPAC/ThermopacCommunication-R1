@@ -2401,16 +2401,57 @@ export default function InspectionsPage() {
     setIsShopInspectionDialogOpen(true);
   };
 
-  // Function to delete a shop inspection record
-  const deleteShopInspectionRecord = (recordId: string) => {
-    setShopInspectionRecords(prev => 
-      prev.filter(record => record.id !== recordId)
-    );
-    
-    toast({
-      title: "Success",
-      description: "Shop inspection record deleted successfully",
-    });
+  // Function to delete a shop inspection record with GCS cleanup
+  const deleteShopInspectionRecord = async (recordId: string) => {
+    try {
+      // First, fetch all documents associated with this record for cleanup
+      const response = await fetch(`/api/quality/inspection-documents?inspectionOrderNumber=${editInspectionOrderDetails?.inspectionOrderNumber}&tabName=ShopInspection&recordId=${recordId}`);
+      
+      if (response.ok) {
+        const documents = await response.json();
+        
+        // Delete all associated GCS files
+        for (const document of documents) {
+          try {
+            const deleteResponse = await fetch(`/api/quality/inspection-documents/delete/${document.id}`, {
+              method: 'DELETE'
+            });
+            
+            if (deleteResponse.ok) {
+              console.log(`Document ${document.fileName} deleted successfully from GCS`);
+            } else {
+              console.warn(`Failed to delete document ${document.fileName} from GCS`);
+            }
+          } catch (docError) {
+            console.warn(`Error deleting document ${document.fileName}:`, docError);
+          }
+        }
+      }
+      
+      // Remove the record from frontend state
+      setShopInspectionRecords(prev => 
+        prev.filter(record => record.id !== recordId)
+      );
+      
+      toast({
+        title: "Success",
+        description: "Shop inspection record and associated documents deleted successfully",
+      });
+      
+    } catch (error) {
+      console.error('Error deleting shop inspection record:', error);
+      
+      // Still remove from frontend even if GCS cleanup fails
+      setShopInspectionRecords(prev => 
+        prev.filter(record => record.id !== recordId)
+      );
+      
+      toast({
+        title: "Partial Success",
+        description: "Shop inspection record deleted, but some documents may remain in storage",
+        variant: "destructive"
+      });
+    }
   };
 
   // Helper function to generate approved drawing record ID
@@ -5549,8 +5590,12 @@ export default function InspectionsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
-                                        title="Delete Record"
-                                        onClick={() => deleteShopInspectionRecord(record.id)}
+                                        title="Delete Record and Documents"
+                                        onClick={() => {
+                                          if (window.confirm(`Are you sure you want to delete Shop Inspection record "${record.id}"?\n\nThis will permanently delete:\n• The inspection record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
+                                            deleteShopInspectionRecord(record.id);
+                                          }
+                                        }}
                                       >
                                         <Trash2 className="h-3 w-3" />
                                       </Button>
