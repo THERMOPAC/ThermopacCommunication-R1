@@ -82,6 +82,69 @@ const materialIdentificationSchema = z.object({
 // Define type for form values
 type MaterialIdentificationFormValues = z.infer<typeof materialIdentificationSchema>;
 
+// Material Grade options matching PMA page exactly
+const materialGradeOptions = [
+  // Carbon Steel
+  {
+    group: 'Carbon Steel',
+    options: [
+      'SA-516 Gr 60', 'SA-516 Gr 70', 'SA-106 Gr B', 'SA-106 Gr C', 
+      'SA-36', 'SA-537 Cl 1', 'SA-537 Cl 2', 'SA-53 Gr B',
+      'SA-105', 'SA-234 WPB', 'ASTM A36', 'ASTM A106 Gr B',
+      'ASTM A333 Gr 6', 'ASTM A515 Gr 70', 'Gr.B'
+    ]
+  },
+  // Stainless Steel
+  {
+    group: 'Stainless Steel',
+    options: [
+      'SA-240 Type 304', 'SA-240 Type 304L', 'SA-240 Type 316', 'SA-240 Type 316L',
+      'SA-240 Type 321', 'SA-312 TP304', 'SA-312 TP304L', 'SA-312 TP316',
+      'SA-312 TP316L', 'SA-213 TP304', 'SA-213 TP304L', 'SA-213 TP316',
+      'SA-213 TP316L', 'SA-182 F304', 'SA-182 F316', 'SA-403 Gr. WP 316L'
+    ]
+  },
+  // Alloy Steel
+  {
+    group: 'Alloy Steel',
+    options: [
+      'SA-387 Gr 11 Cl 2', 'SA-387 Gr 22 Cl 2', 'SA-335 P11', 'SA-335 P22',
+      'SA-182 F11', 'SA-182 F22', 'SA-234 WP11', 'SA-234 WP22'
+    ]
+  },
+  // API Grades
+  {
+    group: 'API Grades',
+    options: [
+      'API 5L Gr B', 'API 5L X42', 'API 5L X52', 'API 5L X60',
+      'API 5L X65', 'API 5L X70'
+    ]
+  },
+  // Duplex Steel
+  {
+    group: 'Duplex Steel',
+    options: [
+      'ASTM A240 UNS S31803 (2205)', 'ASTM A240 UNS S32750 (2507)',
+      'ASTM A790 UNS S31803', 'ASTM A790 UNS S32750'
+    ]
+  },
+  // Bolts
+  {
+    group: 'Bolts',
+    options: ['SA-193 B7', 'SA-193 Gr. B8', 'SA-325 Type 1', 'SA-490 Type 1']
+  },
+  // Nuts
+  {
+    group: 'Nuts',
+    options: ['SA-194 Gr. 8', 'SA-194 Gr. 2H', 'SA-194 2H', 'SA-194 7', 'SA-563 Grade A']
+  },
+  // Gaskets
+  {
+    group: 'Gaskets',
+    options: ['AF 159']
+  }
+];
+
 export default function MaterialIdentificationCreatePage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -502,99 +565,18 @@ export default function MaterialIdentificationCreatePage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent className="max-h-[300px] overflow-y-auto">
-                              {/* Carbon Steel */}
-                              <SelectGroup>
-                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">Carbon Steel</SelectLabel>
-                                <SelectItem value="SA-516 Gr 60">SA-516 Gr 60</SelectItem>
-                                <SelectItem value="SA-516 Gr 70">SA-516 Gr 70</SelectItem>
-                                <SelectItem value="SA-106 Gr B">SA-106 Gr B</SelectItem>
-                                <SelectItem value="SA-106 Gr C">SA-106 Gr C</SelectItem>
-                                <SelectItem value="SA-36">SA-36</SelectItem>
-                                <SelectItem value="SA-537 Cl 1">SA-537 Cl 1</SelectItem>
-                                <SelectItem value="SA-537 Cl 2">SA-537 Cl 2</SelectItem>
-                                <SelectItem value="SA-53 Gr B">SA-53 Gr B</SelectItem>
-                                <SelectItem value="SA-105">SA-105</SelectItem>
-                                <SelectItem value="SA-234 WPB">SA-234 WPB</SelectItem>
-                                <SelectItem value="ASTM A36">ASTM A36</SelectItem>
-                                <SelectItem value="ASTM A106 Gr B">ASTM A106 Gr B</SelectItem>
-                                <SelectItem value="ASTM A333 Gr 6">ASTM A333 Gr 6</SelectItem>
-                                <SelectItem value="ASTM A515 Gr 70">ASTM A515 Gr 70</SelectItem>
-                                <SelectItem value="Gr.B">Gr.B</SelectItem>
-                              </SelectGroup>
-                              
-                              {/* Stainless Steel */}
-                              <SelectGroup>
-                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">Stainless Steel</SelectLabel>
-                                <SelectItem value="SA-240 Type 304">SA-240 Type 304</SelectItem>
-                                <SelectItem value="SA-240 Type 304L">SA-240 Type 304L</SelectItem>
-                                <SelectItem value="SA-240 Type 316">SA-240 Type 316</SelectItem>
-                                <SelectItem value="SA-240 Type 316L">SA-240 Type 316L</SelectItem>
-                                <SelectItem value="SA-240 Type 321">SA-240 Type 321</SelectItem>
-                                <SelectItem value="SA-312 TP304">SA-312 TP304</SelectItem>
-                                <SelectItem value="SA-312 TP304L">SA-312 TP304L</SelectItem>
-                                <SelectItem value="SA-312 TP316">SA-312 TP316</SelectItem>
-                                <SelectItem value="SA-312 TP316L">SA-312 TP316L</SelectItem>
-                                <SelectItem value="SA-213 TP304">SA-213 TP304</SelectItem>
-                                <SelectItem value="SA-213 TP304L">SA-213 TP304L</SelectItem>
-                                <SelectItem value="SA-213 TP316">SA-213 TP316</SelectItem>
-                                <SelectItem value="SA-213 TP316L">SA-213 TP316L</SelectItem>
-                                <SelectItem value="SA-182 F304">SA-182 F304</SelectItem>
-                                <SelectItem value="SA-182 F316">SA-182 F316</SelectItem>
-                                <SelectItem value="SA-403 Gr. WP 316L">SA-403 Gr. WP 316L</SelectItem>
-                              </SelectGroup>
-                              
-                              {/* Alloy Steel */}
-                              <SelectGroup>
-                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">Alloy Steel</SelectLabel>
-                                <SelectItem value="SA-387 Gr 11 Cl 2">SA-387 Gr 11 Cl 2</SelectItem>
-                                <SelectItem value="SA-387 Gr 22 Cl 2">SA-387 Gr 22 Cl 2</SelectItem>
-                                <SelectItem value="SA-335 P11">SA-335 P11</SelectItem>
-                                <SelectItem value="SA-335 P22">SA-335 P22</SelectItem>
-                                <SelectItem value="SA-182 F11">SA-182 F11</SelectItem>
-                                <SelectItem value="SA-182 F22">SA-182 F22</SelectItem>
-                                <SelectItem value="SA-234 WP11">SA-234 WP11</SelectItem>
-                                <SelectItem value="SA-234 WP22">SA-234 WP22</SelectItem>
-                              </SelectGroup>
-                              
-                              {/* API Grades */}
-                              <SelectGroup>
-                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">API Grades</SelectLabel>
-                                <SelectItem value="API 5L Gr B">API 5L Gr B</SelectItem>
-                                <SelectItem value="API 5L X42">API 5L X42</SelectItem>
-                                <SelectItem value="API 5L X52">API 5L X52</SelectItem>
-                                <SelectItem value="API 5L X60">API 5L X60</SelectItem>
-                                <SelectItem value="API 5L X65">API 5L X65</SelectItem>
-                                <SelectItem value="API 5L X70">API 5L X70</SelectItem>
-                              </SelectGroup>
-                              
-                              {/* Duplex and Super Duplex */}
-                              <SelectGroup>
-                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">Duplex Steel</SelectLabel>
-                                <SelectItem value="ASTM A240 UNS S31803">ASTM A240 UNS S31803 (2205)</SelectItem>
-                                <SelectItem value="ASTM A240 UNS S32750">ASTM A240 UNS S32750 (2507)</SelectItem>
-                                <SelectItem value="ASTM A790 UNS S31803">ASTM A790 UNS S31803</SelectItem>
-                                <SelectItem value="ASTM A790 UNS S32750">ASTM A790 UNS S32750</SelectItem>
-                              </SelectGroup>
-                              
-                              {/* Bolts */}
-                              <SelectGroup>
-                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">Bolts</SelectLabel>
-                                <SelectItem value="SA-193 B7">SA-193 B7</SelectItem>
-                                <SelectItem value="SA-193 Gr. B8">SA-193 Gr. B8</SelectItem>
-                              </SelectGroup>
-                              
-                              {/* Nuts */}
-                              <SelectGroup>
-                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">Nuts</SelectLabel>
-                                <SelectItem value="SA-194 Gr. 8">SA-194 Gr. 8</SelectItem>
-                                <SelectItem value="SA-194 Gr. 2H">SA-194 Gr. 2H</SelectItem>
-                              </SelectGroup>
-                              
-                              {/* Gaskets */}
-                              <SelectGroup>
-                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">Gaskets</SelectLabel>
-                                <SelectItem value="AF 159">AF 159</SelectItem>
-                              </SelectGroup>
+                              {materialGradeOptions.map((gradeGroup, groupIndex) => (
+                                <SelectGroup key={`group-${groupIndex}`}>
+                                  <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                    {gradeGroup.group}
+                                  </SelectLabel>
+                                  {gradeGroup.options.map((grade, optionIndex) => (
+                                    <SelectItem key={`${groupIndex}-${optionIndex}-${grade}`} value={grade}>
+                                      {grade}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              ))}
                             </SelectContent>
                           </Select>
                           <FormMessage />
