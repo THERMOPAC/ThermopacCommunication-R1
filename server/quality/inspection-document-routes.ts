@@ -211,14 +211,29 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents", ensureAuthent
     console.log(`Getting documents for inspection: ${inspectionOrderNumber}, tab: ${tabName} (formatted as: ${formattedTabName}), record: ${recordId}`);
     
     // Get documents for this inspection order record
-    const documents = await db.query.inspectionDocuments.findMany({
-      where: sql`
-        inspection_order_id = ${inspection.id} AND
-        tab_name = ${formattedTabName} AND
-        record_id = ${recordId}
-      `,
-      orderBy: (inspectionDocuments, { desc }) => [desc(inspectionDocuments.createdAt)]
-    });
+    // Handle backward compatibility for tab names (both "Shop Inspection" and "ShopInspection")
+    let documents;
+    if (tabName === 'Shop Inspection') {
+      // For Shop Inspection tab, search for both old format ("Shop Inspection") and new format ("ShopInspection")
+      documents = await db.query.inspectionDocuments.findMany({
+        where: sql`
+          inspection_order_id = ${inspection.id} AND
+          (tab_name = 'Shop Inspection' OR tab_name = 'ShopInspection') AND
+          record_id = ${recordId}
+        `,
+        orderBy: (inspectionDocuments, { desc }) => [desc(inspectionDocuments.createdAt)]
+      });
+    } else {
+      // For other tabs, use the formatted tab name
+      documents = await db.query.inspectionDocuments.findMany({
+        where: sql`
+          inspection_order_id = ${inspection.id} AND
+          tab_name = ${formattedTabName} AND
+          record_id = ${recordId}
+        `,
+        orderBy: (inspectionDocuments, { desc }) => [desc(inspectionDocuments.createdAt)]
+      });
+    }
     
     return res.status(200).json(documents);
     
