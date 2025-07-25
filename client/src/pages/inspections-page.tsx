@@ -5430,50 +5430,70 @@ export default function InspectionsPage() {
                                   </TableCell>
                                   <TableCell className="text-xs">{record.comments || '-'}</TableCell>
                                   <TableCell>
-                                    <div className="flex items-center gap-1">
-                                      <Button 
-                                        type="button" 
-                                        variant="ghost" 
+                                    <div className="flex items-center space-x-1">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-green-600 hover:text-green-800 hover:bg-green-50"
-                                        onClick={() => startEditingDvrRecord(record)}
-                                        title="Edit DVR Record"
-                                      >
-                                        <Edit2 className="h-3.5 w-3.5" />
-                                      </Button>
-                                      <Button
-                                        type="button" 
-                                        variant="ghost"
-                                        size="sm"
-                                        className="text-xs px-2 py-1 h-7 bg-blue-50 text-blue-600 hover:bg-blue-100"
-                                        onClick={() => {
-                                          setDocumentUploadConfig({
-                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || '',
-                                            tabName: 'DVR',
-                                            recordId: record.id
-                                          });
-                                          setShowDocumentUpload(true);
-                                        }}
-                                      >
-                                        <Upload className="h-3 w-3 mr-1" />
-                                        Upload
-                                      </Button>
-                                      <Button
-                                        type="button" 
-                                        variant="ghost"
-                                        size="sm"
-                                        className="text-xs px-2 py-1 h-7 bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
+                                        className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
+                                        title="View Documents"
                                         onClick={() => {
                                           setDocumentViewerConfig({
-                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || '',
-                                            tabName: 'DVR',
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
+                                            tabName: "DVR",
                                             recordId: record.id
                                           });
                                           setShowDocumentViewer(true);
                                         }}
                                       >
-                                        <Eye className="h-3 w-3 mr-1" />
-                                        View
+                                        <Eye className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
+                                        title="Upload Document"
+                                        onClick={() => {
+                                          setDocumentUploadConfig({
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
+                                            tabName: "DVR",
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentUpload(true);
+                                        }}
+                                      >
+                                        <FileText className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
+                                        title="Edit Record"
+                                        onClick={() => startEditingDvrRecord(record)}
+                                      >
+                                        <Edit2 className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
+                                        title="Delete Record and Documents"
+                                        onClick={() => {
+                                          if (window.confirm(`Are you sure you want to delete DVR record "${record.id}"?\n\nThis will permanently delete:\n• The DVR record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
+                                            // TODO: Implement DVR record deletion with GCS cleanup
+                                            console.log("Delete DVR record:", record.id);
+                                            toast({
+                                              title: "Delete Function",
+                                              description: "DVR record deletion will be implemented soon.",
+                                              variant: "default",
+                                            });
+                                          }
+                                        }}
+                                      >
+                                        <Trash2 className="h-3 w-3" />
                                       </Button>
                                     </div>
                                   </TableCell>
@@ -5481,14 +5501,8 @@ export default function InspectionsPage() {
                               ))
                             ) : (
                               <TableRow>
-                                <TableCell colSpan={9} className="text-center py-10">
-                                  <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
-                                  <p className="mt-2 text-xs text-muted-foreground">
-                                    No DVR records found.
-                                  </p>
-                                  <p className="text-xs text-muted-foreground mb-2">
-                                    Click "Add DVR Record" to create a new record.
-                                  </p>
+                                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                  No DVR records available. Click "Add DVR Record" to create a new record.
                                 </TableCell>
                               </TableRow>
                             )}
@@ -5497,19 +5511,28 @@ export default function InspectionsPage() {
                       </div>
                       
                       {/* Uploaded Files Display Section */}
-                      {dvrRecords.length > 0 && (
+                      {editInspectionOrderDetails?.inspectionOrderNumber && (
                         <div className="mt-6 border-t pt-4">
                           <h4 className="text-sm font-medium text-gray-700 mb-3">Uploaded Files</h4>
                           <div className="space-y-2">
-                            {dvrRecords.map((record) => (
+                            {dvrRecords.length > 0 ? (
+                              dvrRecords.map((record) => (
+                                <DrawingFilesDisplay
+                                  key={record.id}
+                                  inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                                  recordId={record.id}
+                                  recordTitle={record.designDocument || `DVR ${record.id}`}
+                                  tabName="DVR"
+                                />
+                              ))
+                            ) : (
                               <DrawingFilesDisplay
-                                key={record.id}
                                 inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
-                                recordId={record.id}
-                                recordTitle={record.designDocument || `DVR ${record.id}`}
+                                recordId="ALL"
+                                recordTitle="All DVR Files"
                                 tabName="DVR"
                               />
-                            ))}
+                            )}
                           </div>
                         </div>
                       )}
