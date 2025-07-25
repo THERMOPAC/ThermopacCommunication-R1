@@ -6012,12 +6012,35 @@ export default function InspectionsPage() {
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex items-center space-x-1">
+                                    <InspectionDocumentUpload
+                                      inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                                      tabName="Welding"
+                                      recordId={weld.id}
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                                      onSuccess={() => {
+                                        toast({
+                                          title: "Weld map uploaded successfully",
+                                          description: `Weld map for ${weld.id} has been uploaded.`,
+                                        });
+                                      }}
+                                    />
+                                    <InspectionDocumentViewer
+                                      inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                                      tabName="Welding"
+                                      recordId={weld.id}
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-green-600 hover:text-green-800 hover:bg-green-50"
+                                    />
                                     <Button 
                                       type="button" 
                                       variant="ghost" 
                                       size="icon" 
                                       onClick={() => startEditingWeldRecord(weld)}
-                                      className="h-7 w-7"
+                                      className="h-7 w-7 text-orange-600 hover:text-orange-800 hover:bg-orange-50"
+                                      title="Edit Weld Record"
                                     >
                                       <Pencil className="h-3.5 w-3.5" />
                                     </Button>
@@ -6026,7 +6049,7 @@ export default function InspectionsPage() {
                                       variant="ghost" 
                                       size="icon" 
                                       onClick={() => deleteWeld(index)}
-                                      className="h-7 w-7 text-destructive"
+                                      className="h-7 w-7 text-red-600 hover:text-red-800 hover:bg-red-50"
                                       title="Delete Record and Documents"
                                     >
                                       <Trash2 className="h-3.5 w-3.5" />
@@ -6061,38 +6084,6 @@ export default function InspectionsPage() {
                           >
                             <Plus className="h-4 w-4 mr-2" />
                             Add Weld Record
-                          </Button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {selectedWeldRecord ? (
-                            <InspectionDocumentUpload
-                              inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
-                              tabName="Welding"
-                              recordId={selectedWeldRecord.id}
-                              variant="outline"
-                              size="sm"
-                              onSuccess={() => {
-                                toast({
-                                  title: "Weld map uploaded successfully",
-                                  description: `Weld map for ${selectedWeldRecord.id} has been uploaded.`,
-                                });
-                              }}
-                            />
-                          ) : (
-                            <Button type="button" variant="outline" size="sm" onClick={() => {
-                              toast({
-                                title: "No weld record selected",
-                                description: "Please select a weld record to upload a weld map.",
-                                variant: "destructive"
-                              });
-                            }}>
-                              <FileText className="h-4 w-4 mr-2" />
-                              Upload Weld Map
-                            </Button>
-                          )}
-                          <Button type="button" variant="outline" size="sm">
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Attachments
                           </Button>
                         </div>
                       </div>
