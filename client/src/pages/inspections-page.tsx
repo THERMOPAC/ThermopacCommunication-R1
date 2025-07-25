@@ -6851,86 +6851,20 @@ export default function InspectionsPage() {
                   {/* Non-Conformance Tab */}
                   <TabsContent value="non-conformance" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Non-Conformance Records</h3>
-                      <div className="border rounded-md">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-[80px]">NCR ID</TableHead>
-                              <TableHead className="w-[100px]">Date</TableHead>
-                              <TableHead className="w-[90px]">Status</TableHead>
-                              <TableHead className="w-[250px]">Description</TableHead>
-                              <TableHead className="w-[120px]">Disposition</TableHead>
-                              <TableHead className="w-[250px]">Corrective Action</TableHead>
-                              <TableHead className="w-[70px] text-right">Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {Array.isArray(ncrRecords) && ncrRecords.map((record, index) => (
-                              <TableRow key={record.id}>
-                                <TableCell className="font-medium">{record.id}</TableCell>
-                                <TableCell>
-                                  {record.ncrDate || "-"}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant={
-                                    record.ncrStatus === 'open' ? 'outline' : 
-                                    record.ncrStatus === 'closed' ? 'default' : 
-                                    record.ncrStatus === 'pending' ? 'secondary' : 
-                                    'destructive'
-                                  }>
-                                    {record.ncrStatus.charAt(0).toUpperCase() + record.ncrStatus.slice(1)}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="max-w-[250px] truncate" title={record.ncrDescription}>
-                                    {record.ncrDescription || "-"}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="capitalize">
-                                    {record.ncrDisposition === 'useAsIs' ? 'Use As Is' : 
-                                     record.ncrDisposition.replace(/([A-Z])/g, ' $1').trim() || "-"}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="max-w-[250px] truncate" title={record.ncrCorrectiveAction}>
-                                    {record.ncrCorrectiveAction || "-"}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Button 
-                                    type="button" 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    onClick={() => {
-                                      setEditingNcrRecord(record);
-                                      setIsNcrDialogOpen(true);
-                                    }}
-                                    className="h-7 w-7 text-green-600 hover:text-green-800 hover:bg-green-50"
-                                    title="Edit NCR Record"
-                                  >
-                                    <Edit2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                      
-                      {/* Action buttons */}
-                      <div className="flex items-center justify-between mt-4">
-                        <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-medium">Non-Conformance Records (NCR)</h3>
+                        <div className="flex gap-2">
                           <Button 
                             type="button" 
-                            variant="default" 
-                            size="sm" 
+                            variant="outline" 
+                            size="sm"
+                            className="flex items-center text-xs"
                             onClick={() => {
-                              if (editInspectionOrderDetails?.projectCode === 'UNKNOWN') {
+                              // Check if we have valid project code before opening dialog
+                              if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
                                 toast({
-                                  title: "Project Code Required",
-                                  description: "Cannot add NCR records when project code is UNKNOWN. Please set a valid project code first.",
+                                  title: "Cannot Create Record",
+                                  description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
                                   variant: "destructive",
                                 });
                                 return;
@@ -6938,33 +6872,165 @@ export default function InspectionsPage() {
                               setEditingNcrRecord(null);
                               setIsNcrDialogOpen(true);
                             }}
-                            className="mr-2"
                           >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add NCR Record
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Add NCR Record
                           </Button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {/* Buttons removed per user request */}
                         </div>
                       </div>
                       
-                      {/* Document viewer section removed per user request */}
+                      {/* NCR Records Table */}
+                      <div className="border rounded-md shadow-sm overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[100px]">Record ID</TableHead>
+                              <TableHead className="w-[120px]">Date</TableHead>
+                              <TableHead className="w-[100px]">Status</TableHead>
+                              <TableHead className="w-[200px]">Description</TableHead>
+                              <TableHead className="w-[150px]">Disposition</TableHead>
+                              <TableHead className="w-[200px]">Corrective Action</TableHead>
+                              <TableHead className="w-[140px]">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {Array.isArray(ncrRecords) && ncrRecords.length > 0 ? (
+                              ncrRecords.map((record) => (
+                                <TableRow key={record.id}>
+                                  <TableCell className="font-medium">{record.id}</TableCell>
+                                  <TableCell>{record.ncrDate || "-"}</TableCell>
+                                  <TableCell>
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      record.ncrStatus === 'closed' ? 'bg-green-100 text-green-800' :
+                                      record.ncrStatus === 'open' ? 'bg-yellow-100 text-yellow-800' :
+                                      record.ncrStatus === 'pending' ? 'bg-blue-100 text-blue-800' :
+                                      'bg-gray-100 text-gray-800'
+                                    }`}>
+                                      {record.ncrStatus.charAt(0).toUpperCase() + record.ncrStatus.slice(1)}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="max-w-[200px] truncate" title={record.ncrDescription}>
+                                      {record.ncrDescription || "-"}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="capitalize">
+                                      {record.ncrDisposition === 'useAsIs' ? 'Use As Is' : 
+                                       record.ncrDisposition.replace(/([A-Z])/g, ' $1').trim() || "-"}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="max-w-[200px] truncate" title={record.ncrCorrectiveAction}>
+                                      {record.ncrCorrectiveAction || "-"}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center space-x-1">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
+                                        title="View Documents"
+                                        onClick={() => {
+                                          setDocumentViewerConfig({
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
+                                            tabName: "NonConformance",
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentViewer(true);
+                                        }}
+                                      >
+                                        <Eye className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
+                                        title="Upload Document"
+                                        onClick={() => {
+                                          setDocumentUploadConfig({
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
+                                            tabName: "NonConformance",
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentUpload(true);
+                                        }}
+                                      >
+                                        <FileText className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
+                                        title="Edit Record"
+                                        onClick={() => {
+                                          setEditingNcrRecord(record);
+                                          setIsNcrDialogOpen(true);
+                                        }}
+                                      >
+                                        <Edit2 className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
+                                        title="Delete Record and Documents"
+                                        onClick={() => {
+                                          if (window.confirm(`Are you sure you want to delete NCR record "${record.id}"?\n\nThis will permanently delete:\n• The NCR record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
+                                            // TODO: Implement NCR record deletion with GCS cleanup
+                                            console.log("Delete NCR record:", record.id);
+                                            toast({
+                                              title: "Delete Function",
+                                              description: "NCR record deletion will be implemented soon.",
+                                              variant: "default",
+                                            });
+                                          }
+                                        }}
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                  No NCR records available. Click "Add NCR Record" to create a new record.
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
                       
                       {/* Uploaded Files Display Section */}
-                      {ncrRecords && ncrRecords.length > 0 && (
+                      {editInspectionOrderDetails?.inspectionOrderNumber && (
                         <div className="mt-6 border-t pt-4">
                           <h4 className="text-sm font-medium text-gray-700 mb-3">Uploaded Files</h4>
                           <div className="space-y-2">
-                            {ncrRecords.map((record) => (
+                            {ncrRecords.length > 0 ? (
+                              ncrRecords.map((record) => (
+                                <DrawingFilesDisplay
+                                  key={record.id}
+                                  inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                                  recordId={record.id}
+                                  recordTitle={`NCR Record - ${record.id}`}
+                                  tabName="NonConformance"
+                                />
+                              ))
+                            ) : (
                               <DrawingFilesDisplay
-                                key={record.id}
                                 inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
-                                recordId={record.id}
-                                recordTitle={`NCR Record - ${record.id}`}
+                                recordId="ALL"
+                                recordTitle="All NCR Files"
                                 tabName="NonConformance"
                               />
-                            ))}
+                            )}
                           </div>
                         </div>
                       )}
