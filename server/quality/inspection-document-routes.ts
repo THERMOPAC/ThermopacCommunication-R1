@@ -673,7 +673,7 @@ router.delete('/shop-inspection-delete/:inspectionOrderNumber/:recordId/:documen
     // Try to delete from GCS
     try {
       console.log(`🏪 Initializing GCS for file deletion...`);
-      const { initializeGCS } = require('../utils/gcs-operations');
+      const { initializeGCS } = await import('../utils/gcs-operations');
       const { bucket } = await initializeGCS();
       
       if (!bucket) {
