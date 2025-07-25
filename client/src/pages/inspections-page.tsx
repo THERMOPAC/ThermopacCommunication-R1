@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { 
   Select,
@@ -227,6 +227,7 @@ type InspectionReportFormValues = z.infer<typeof inspectionReportSchema>;
 export default function InspectionsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
   const [keepProjectVisible, setKeepProjectVisible] = useState(false);
@@ -2489,7 +2490,7 @@ export default function InspectionsPage() {
         for (const document of documents) {
           try {
             console.log(`Attempting to delete document ${document.id}: ${document.fileName}`);
-            const deleteResponse = await fetch(`/api/quality/inspection-documents/delete/${document.id}`, {
+            const deleteResponse = await fetch(`/api/quality/inspection-documents/${editInspectionOrderDetails?.inspectionOrderNumber}/ShopInspection/${recordId}/documents/${document.id}`, {
               method: 'DELETE'
             });
             
@@ -2507,6 +2508,11 @@ export default function InspectionsPage() {
         }
         
         console.log(`Document deletion summary: ${deletedCount} successful, ${failedCount} failed`);
+        
+        // Invalidate React Query cache for document listings
+        await queryClient.invalidateQueries({
+          queryKey: ['/api/quality/inspection-documents']
+        });
         
         // Remove the record from frontend state
         setShopInspectionRecords(prev => 
