@@ -6690,71 +6690,7 @@ export default function InspectionsPage() {
                             Add Hydrotest Record
                           </Button>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {selectedHydrotestRecord ? (
-                            <>
-                              <Button 
-                                type="button" 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => {
-                                  if (selectedHydrotestRecord) {
-                                    setDocumentUploadConfig({
-                                      inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || '',
-                                      tabName: 'Hydrotest',
-                                      recordId: selectedHydrotestRecord.id
-                                    });
-                                    setShowDocumentUpload(true);
-                                  }
-                                }}
-                              >
-                                <FileText className="h-4 w-4 mr-2" />
-                                Upload Hydrotest Certificate
-                              </Button>
-                              <Button 
-                                type="button" 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => {
-                                  if (selectedHydrotestRecord && editInspectionOrderDetails?.inspectionOrderNumber) {
-                                    setDocumentViewerConfig({
-                                      inspectionOrderNumber: editInspectionOrderDetails.inspectionOrderNumber,
-                                      tabName: 'Hydrotest',
-                                      recordId: selectedHydrotestRecord.id
-                                    });
-                                    setShowDocumentViewer(true);
-                                  }
-                                }}
-                              >
-                                <Eye className="h-4 w-4 mr-2" />
-                                View Certificate
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button 
-                                type="button" 
-                                variant="outline" 
-                                size="sm"
-                                disabled={true}
-                                className="cursor-not-allowed opacity-70"
-                              >
-                                <FileText className="h-4 w-4 mr-2" />
-                                Select Record to Upload
-                              </Button>
-                              <Button 
-                                type="button" 
-                                variant="outline" 
-                                size="sm"
-                                disabled={true}
-                                className="cursor-not-allowed opacity-70"
-                              >
-                                <Eye className="h-4 w-4 mr-2" />
-                                Select Record to View
-                              </Button>
-                            </>
-                          )}
-                        </div>
+
                       </div>
                       
                       {/* Uploaded Files Display Section */}
