@@ -339,6 +339,84 @@ app.use((req, res, next) => {
     console.error("Express error:", err);
   });
 
+  // PRIORITY: Inspection Document DELETE route MUST be before Vite middleware
+  app.delete('/api/quality/inspection-documents/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId', async (req: any, res: any) => {
+    try {
+      console.log(`🚨 PRIORITY DELETE HIT! Path: ${req.path}`);
+      
+      // Check session authentication
+      const userId = req.session?.passport?.user;
+      if (!userId) {
+        console.log(`🚨 No session user found`);
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      console.log(`🚨 User authenticated: User ID ${userId}`);
+      
+      const { inspectionOrderNumber, tabName, recordId, documentId } = req.params;
+      console.log(`🗑️ PRIORITY DELETE - Inspection: ${inspectionOrderNumber}, Tab: ${tabName}, Record: ${recordId}, Document: ${documentId}`);
+
+      // Import and use the actual deletion logic
+      const { initializeGCS } = await import('./utils/gcs-operations');
+      const { db } = await import('./db');
+      const { eq } = await import('drizzle-orm');
+      const { inspectionOrders, inspectionDocuments } = await import('../shared/schema');
+      
+      // Get the inspection order and project code
+      const inspection = await db.query.inspectionOrders.findFirst({
+        where: eq(inspectionOrders.inspectionOrderNumber, inspectionOrderNumber)
+      });
+      
+      if (!inspection) {
+        return res.status(404).json({ error: "Inspection order not found" });
+      }
+      
+      // Get the document record
+      const document = await db.query.inspectionDocuments.findFirst({
+        where: eq(inspectionDocuments.id, parseInt(documentId))
+      });
+      
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      
+      console.log(`🗑️ Found document: ${document.fileName} at path: ${document.filePath}`);
+      
+      // Delete from GCS
+      try {
+        const { bucket } = await initializeGCS();
+        const file = bucket.file(document.filePath);
+        
+        const [exists] = await file.exists();
+        if (exists) {
+          await file.delete();
+          console.log(`✅ Successfully deleted GCS file: ${document.filePath}`);
+        } else {
+          console.log(`⚠️ GCS file not found: ${document.filePath}`);
+        }
+      } catch (gcsError) {
+        console.error(`❌ GCS deletion failed:`, gcsError);
+        // Continue with database deletion even if GCS fails
+      }
+      
+      // Delete from database
+      await db.delete(inspectionDocuments).where(eq(inspectionDocuments.id, parseInt(documentId)));
+      console.log(`✅ Successfully deleted database record for document ${documentId}`);
+      
+      res.json({ 
+        success: true, 
+        message: 'Document deleted successfully'
+      });
+      
+    } catch (error: any) {
+      console.error('🚨 Priority inspection document deletion error:', error);
+      res.status(500).json({ 
+        error: 'Failed to delete document',
+        message: error.message 
+      });
+    }
+  });
+
   // PRIORITY: Final Dossier download route MUST be before Vite middleware
   app.get('/api/quality/final-dossier/download/*', async (req: any, res: any) => {
     try {
