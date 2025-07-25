@@ -2550,15 +2550,15 @@ export default function InspectionsPage() {
           if (parsedItpRecords && Array.isArray(parsedItpRecords) && parsedItpRecords.length > 0) {
             console.log("Found ITP records:", parsedItpRecords);
             
-            // Map the ITP records to match our state format
+            // Map the ITP records to match our state format using the correct field names
             const formattedRecords = parsedItpRecords.map((record, index) => ({
               id: record.id || `ITP-${index + 1}`,
-              testItem: record.testItem || '',
-              testProcedure: record.testProcedure || '',
-              acceptanceCriteria: record.acceptanceCriteria || '',
+              itpNumber: record.itpNumber || '',
+              itemDescription: record.itemDescription || '',
+              inspectionStage: record.inspectionStage || '',
               inspector: record.inspector || '',
-              testDate: record.testDate || '',
-              result: record.result || 'pending',
+              inspectionDate: record.inspectionDate || '',
+              status: record.status || 'Pending',
               remarks: record.remarks || ''
             }));
             
@@ -2574,12 +2574,12 @@ export default function InspectionsPage() {
       console.log("No ITP records found, initializing with defaults");
       setItpRecords([{
         id: 'ITP-1',
-        testItem: '',
-        testProcedure: '',
-        acceptanceCriteria: '',
+        itpNumber: '',
+        itemDescription: '',
+        inspectionStage: '',
         inspector: '',
-        testDate: '',
-        result: 'pending',
+        inspectionDate: '',
+        status: 'Pending',
         remarks: ''
       }]);
     }
