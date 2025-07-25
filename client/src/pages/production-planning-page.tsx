@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
 import { 
@@ -98,13 +98,13 @@ const getWorkOrderCategoryBadge = (workOrder: any) => {
   
   if (isComponent) {
     return (
-      <Badge variant="outline" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
+      <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
         🟪 Component
       </Badge>
     );
   } else {
     return (
-      <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+      <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
         🟩 Parent Assembly
       </Badge>
     );
@@ -200,7 +200,7 @@ export default function ProductionPlanningPage() {
   const [open, setOpen] = useState(false);
   const [masterItems, setMasterItems] = useState<any[]>([]);
   const [projectItems, setProjectItems] = useState<any[]>([]);
-  const [filteredWorkOrders, setFilteredWorkOrders] = useState<any[]>([]);
+
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [isItemDetailOpen, setIsItemDetailOpen] = useState(false);
   
@@ -464,17 +464,16 @@ export default function ProductionPlanningPage() {
     }
   };
   
-  // Function to filter work orders based on search term
-  useEffect(() => {
+  // Function to filter work orders based on search term using useMemo
+  const filteredWorkOrders = useMemo(() => {
     if (!selectedProject || !workOrders || searchTerm.trim() === '') {
-      setFilteredWorkOrders([]);
-      return;
+      return [];
     }
     
     const lowercaseSearch = searchTerm.toLowerCase();
     
     // Filter work orders by work order number, title, or associated items
-    const filtered = workOrders.filter((workOrder: any) => {
+    return workOrders.filter((workOrder: any) => {
       // Check work order number
       if (workOrder.workOrderNumber?.toLowerCase().includes(lowercaseSearch)) {
         return true;
@@ -496,8 +495,6 @@ export default function ProductionPlanningPage() {
       
       return false;
     });
-    
-    setFilteredWorkOrders(filtered);
   }, [searchTerm, selectedProject, workOrders]);
 
   return (
