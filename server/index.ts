@@ -316,10 +316,16 @@ app.use((req, res, next) => {
     console.log(`🚨 Original URL: ${req.originalUrl}`);
     
     try {
-      // Check session authentication
-      const userId = req.session?.passport?.user;
-      if (!userId) {
-        console.log(`🚨 No session user found`);
+      // Enhanced session debugging
+      console.log(`🚨 Session object:`, req.session);
+      console.log(`🚨 Session passport:`, req.session?.passport);
+      console.log(`🚨 req.isAuthenticated():`, req.isAuthenticated?.());
+      console.log(`🚨 req.user:`, req.user);
+      
+      // Check session authentication with multiple methods
+      const userId = req.session?.passport?.user || req.user?.id;
+      if (!userId && !req.isAuthenticated?.()) {
+        console.log(`🚨 No session user found - all authentication methods failed`);
         return res.status(401).json({ error: "Not authenticated" });
       }
       

@@ -439,7 +439,7 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId/dow
     console.log(`Trying paths for download:`, pathsToTry);
     
     // Import GCS utilities
-    const { initializeGCS } = require('../utils/gcs-operations');
+    const { initializeGCS } = await import('../utils/gcs-operations');
     
     const { storage, bucket } = await initializeGCS();
     
