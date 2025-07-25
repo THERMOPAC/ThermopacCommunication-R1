@@ -2116,12 +2116,46 @@ export default function InspectionsPage() {
     }
   }, [editInspectionOrderDetails]);
 
-  // Initialize Shop Inspection records as empty - users can add records manually
+  // Initialize Shop Inspection records - check for existing uploaded files first
   useEffect(() => {
     if (editInspectionOrderDetails?.inspectionOrderNumber) {
       console.log("Initializing Shop Inspection records for:", editInspectionOrderDetails.inspectionOrderNumber);
-      // Start with empty state - records will be added manually by users
-      setShopInspectionRecords([]);
+      
+      // Fetch existing uploaded files to infer missing records
+      const fetchExistingFiles = async () => {
+        try {
+          const response = await fetch(`/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/ShopInspection/ALL/documents`);
+          if (response.ok) {
+            const documents = await response.json();
+            console.log("Found existing Shop Inspection documents:", documents);
+            
+            // Extract unique record IDs from uploaded files
+            const existingRecordIds = [...new Set(documents.map((doc: any) => doc.recordId))];
+            console.log("Existing record IDs from files:", existingRecordIds);
+            
+            // Create placeholder records for files that exist but have no frontend record
+            const placeholderRecords = existingRecordIds.map(recordId => ({
+              id: recordId,
+              inspectionType: "Uploaded Files Only",
+              inspector: "Unknown",
+              date: new Date().toISOString().split('T')[0],
+              status: "Pending",
+              remarks: `Record inferred from uploaded files. Please edit to add proper details.`
+            }));
+            
+            console.log("Creating placeholder records:", placeholderRecords);
+            setShopInspectionRecords(placeholderRecords);
+          } else {
+            console.log("No existing documents found, starting with empty state");
+            setShopInspectionRecords([]);
+          }
+        } catch (error) {
+          console.error("Error fetching existing documents:", error);
+          setShopInspectionRecords([]);
+        }
+      };
+      
+      fetchExistingFiles();
     }
   }, [editInspectionOrderDetails]);
 
