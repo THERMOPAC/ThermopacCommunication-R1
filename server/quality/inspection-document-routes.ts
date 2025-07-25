@@ -5,6 +5,7 @@ import { db } from '../db';
 import { inspectionDocuments, inspectionOrders } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { sql } from 'drizzle-orm/sql';
+import { cleanupShopInspectionOrphanedFile } from '../utils/cleanup-orphaned-files';
 
 const router = express.Router();
 
@@ -748,6 +749,41 @@ router.delete('/shop-inspection-delete/:inspectionOrderNumber/:recordId/:documen
       success: false,
       error: 'Failed to delete Shop Inspection document',
       message: error.message || 'Unknown server error'
+    });
+  }
+});
+
+// CLEANUP ORPHANED FILES ENDPOINT
+router.delete('/cleanup-orphaned-shop-inspection', ensureAuthenticated, async (req: Request, res: Response) => {
+  console.log(`🧹 CLEANUP ORPHANED SHOP INSPECTION FILE ENDPOINT CALLED`);
+  console.log(`🧹 User:`, req.user);
+  
+  try {
+    console.log(`🧹 Attempting to clean up orphaned Shop Inspection file...`);
+    
+    const success = await cleanupShopInspectionOrphanedFile();
+    
+    if (success) {
+      console.log(`🧹 ✅ Successfully cleaned up orphaned Shop Inspection file`);
+      res.json({
+        success: true,
+        message: 'Orphaned Shop Inspection file cleaned up successfully',
+        details: 'File removed from Google Cloud Storage'
+      });
+    } else {
+      console.log(`🧹 ⚠️ Cleanup completed but file may not have existed`);
+      res.json({
+        success: true,
+        message: 'Cleanup completed - file may not have existed',
+        details: 'No file found to clean up'
+      });
+    }
+  } catch (error: any) {
+    console.error(`🧹 ❌ Failed to clean up orphaned file:`, error);
+    res.status(500).json({
+      success: false,
+      error: 'Cleanup failed',
+      message: error.message || 'Unknown error occurred during cleanup'
     });
   }
 });
