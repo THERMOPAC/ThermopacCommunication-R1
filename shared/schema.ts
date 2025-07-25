@@ -4321,6 +4321,9 @@ export const inspectionOrders = pgTable('inspection_orders', {
   // Procedures/Test Procedures data - stored as JSON string
   procedureData: text('procedure_data'),
   
+  // Shop Inspection data - stored as JSON string
+  shopData: text('shop_data'),
+  
   // Timing
   plannedDate: timestamp('planned_date'),
   completedDate: timestamp('completed_date'),

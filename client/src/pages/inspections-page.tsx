@@ -2584,6 +2584,58 @@ export default function InspectionsPage() {
       }]);
     }
   }, [editInspectionOrderDetails]);
+
+  // Load Shop inspection records from the inspection order data
+  useEffect(() => {
+    if (editInspectionOrderDetails) {
+      // Check if the response has Shop data in the expected format
+      console.log("Checking for Shop data:", editInspectionOrderDetails);
+      
+      const shopData = (editInspectionOrderDetails as any).shopInspectionRecords || (editInspectionOrderDetails as any).shopData || (editInspectionOrderDetails as any).shop_data;
+      
+      if (shopData) {
+        try {
+          // If the data is already parsed as an object, use it directly
+          // Otherwise, try to parse it from JSON string
+          const parsedShopRecords = Array.isArray(shopData) 
+            ? shopData 
+            : typeof shopData === 'string' 
+              ? JSON.parse(shopData) 
+              : [];
+          
+          if (Array.isArray(parsedShopRecords) && parsedShopRecords.length > 0) {
+            console.log("Successfully loaded Shop records:", parsedShopRecords);
+            
+            // Format the records to match expected structure
+            const formattedRecords = parsedShopRecords.map((record: any, index: number) => ({
+              id: record.id || `SI-${index + 1}`,
+              inspectionType: record.inspectionType || '',
+              inspector: record.inspector || '',
+              date: record.date || '',
+              status: record.status || 'Pending',
+              remarks: record.remarks || ''
+            }));
+            
+            setShopInspectionRecords(formattedRecords);
+            return; // Exit here, don't run fallback
+          }
+        } catch (error) {
+          console.error("Error parsing Shop records:", error);
+        }
+      }
+      
+      // If no valid Shop records were found, initialize with a default record (only once when details first load)
+      console.log("No Shop records found, initializing with defaults");
+      setShopInspectionRecords([{
+        id: 'SI-1',
+        inspectionType: '',
+        inspector: '',
+        date: '',
+        status: 'Pending',
+        remarks: ''
+      }]);
+    }
+  }, [editInspectionOrderDetails]);
   
   // Helper function to sync material rows with form
   const syncMaterialRowsWithForm = () => {
@@ -3560,7 +3612,7 @@ export default function InspectionsPage() {
       let materialRows = data.materials || [];
       const validMaterialRows = materialRows.filter(row => row.materialId);
       
-      // Combine the form data with the NDT records, Visual records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, and ITP records from the state
+      // Combine the form data with the NDT records, Visual records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, ITP records, and Shop inspection records from the state
       const updateData = {
         ...data,
         materials: validMaterialRows,
@@ -3571,7 +3623,8 @@ export default function InspectionsPage() {
         ncrRecords: ncrRecords,
         approvedDrawingRecords: approvedDrawingRecords,
         dvrRecords: dvrRecords,
-        itpRecords: itpRecords
+        itpRecords: itpRecords,
+        shopInspectionRecords: shopInspectionRecords
       };
       
       console.log("Updating inspection order with data:", updateData);

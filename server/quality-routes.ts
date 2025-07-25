@@ -248,7 +248,21 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       console.log('No Procedure data found in inspection order.');
     }
     
-    // Return detailed inspection order with items, materials, NDT records, Visual Inspection records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, ITP records, PMA records, and Procedure records
+    // Parse Shop data if it exists
+    let shopRecords = [];
+    console.log('Checking for Shop data in inspection order:', inspectionOrder.shopData);
+    if (inspectionOrder.shopData) {
+      try {
+        shopRecords = JSON.parse(inspectionOrder.shopData);
+        console.log('Successfully parsed Shop data:', shopRecords);
+      } catch (e) {
+        console.error('Error parsing Shop data:', e);
+      }
+    } else {
+      console.log('No Shop data found in inspection order.');
+    }
+    
+    // Return detailed inspection order with items, materials, NDT records, Visual Inspection records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, ITP records, PMA records, Procedure records, and Shop records
     res.json({
       ...inspectionOrder,
       items: orderItems,
@@ -262,7 +276,8 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       dvrRecords: dvrRecords,
       itpRecords: itpRecords,
       pmaRecords: pmaRecords,
-      procedureRecords: procedureRecords
+      procedureRecords: procedureRecords,
+      shopInspectionRecords: shopRecords
     });
   } catch (error) {
     console.error('Error fetching inspection order details:', error);
@@ -291,8 +306,8 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       return res.status(404).json({ error: 'Inspection order not found' });
     }
 
-    // Extract materials, NDT records, Visual Inspection records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, ITP records, PMA records, and Procedure records from the request body
-    const { materials, ndtRecords, visualRecords, welds, hydrotestRecords, ncrRecords, approvedDrawingRecords, dvrRecords, itpRecords, pmaRecords, procedureRecords, ...orderData } = req.body;
+    // Extract materials, NDT records, Visual Inspection records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, ITP records, PMA records, Procedure records, and Shop inspection records from the request body
+    const { materials, ndtRecords, visualRecords, welds, hydrotestRecords, ncrRecords, approvedDrawingRecords, dvrRecords, itpRecords, pmaRecords, procedureRecords, shopInspectionRecords, ...orderData } = req.body;
     
     // Store NDT records in the orderData as a JSON string if they exist
     if (ndtRecords && Array.isArray(ndtRecords)) {
@@ -363,6 +378,14 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       orderData.procedureData = JSON.stringify(procedureRecords);
     } else {
       console.log('No Procedure records to store in order update:', procedureRecords);
+    }
+    
+    // Store Shop inspection records in the orderData as a JSON string if they exist
+    if (shopInspectionRecords && Array.isArray(shopInspectionRecords)) {
+      console.log('Storing Shop inspection records in order update:', shopInspectionRecords);
+      orderData.shopData = JSON.stringify(shopInspectionRecords);
+    } else {
+      console.log('No Shop inspection records to store in order update:', shopInspectionRecords);
     }
 
     // Update inspection order
@@ -532,7 +555,21 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       console.log('No Procedure data found in updated order response');
     }
     
-    // Return updated order with all records including Approved Drawing, DVR, ITP, PMA, and Procedure records
+    // Parse Shop data for the response
+    let parsedShopRecords = [];
+    console.log('Checking for Shop data in updated order response:', updatedOrder[0].shopData);
+    if (updatedOrder[0].shopData) {
+      try {
+        parsedShopRecords = JSON.parse(updatedOrder[0].shopData);
+        console.log('Successfully parsed Shop data in response:', parsedShopRecords);
+      } catch (e) {
+        console.error('Error parsing Shop data in response:', e);
+      }
+    } else {
+      console.log('No Shop data found in updated order response');
+    }
+    
+    // Return updated order with all records including Approved Drawing, DVR, ITP, PMA, Procedure, and Shop records
     res.json({
       ...updatedOrder[0],
       materials: updatedMaterials,
@@ -545,7 +582,8 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       dvrRecords: parsedDvrRecords,
       itpRecords: parsedItpRecords,
       pmaRecords: parsedPmaRecords,
-      procedureRecords: parsedProcedureRecords
+      procedureRecords: parsedProcedureRecords,
+      shopInspectionRecords: parsedShopRecords
     });
   } catch (error) {
     console.error('Error updating inspection order:', error);
