@@ -209,11 +209,13 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents", ensureAuthent
     }
     
     console.log(`Getting documents for inspection: ${inspectionOrderNumber}, tab: ${tabName} (formatted as: ${formattedTabName}), record: ${recordId}`);
+    console.log(`Inspection order found with ID: ${inspection.id}`);
     
     // Get documents for this inspection order record
     // Handle backward compatibility for tab names (both "Shop Inspection" and "ShopInspection")
     let documents;
     if (tabName === 'Shop Inspection') {
+      console.log(`Shop Inspection tab detected - searching for both "Shop Inspection" and "ShopInspection" formats`);
       // For Shop Inspection tab, search for both old format ("Shop Inspection") and new format ("ShopInspection")
       documents = await db.query.inspectionDocuments.findMany({
         where: sql`
@@ -223,6 +225,7 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents", ensureAuthent
         `,
         orderBy: (inspectionDocuments, { desc }) => [desc(inspectionDocuments.createdAt)]
       });
+      console.log(`Found ${documents.length} Shop Inspection documents for record ${recordId}:`, documents.map(d => ({ id: d.id, tabName: d.tabName, fileName: d.fileName })));
     } else {
       // For other tabs, use the formatted tab name
       documents = await db.query.inspectionDocuments.findMany({
@@ -233,8 +236,10 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents", ensureAuthent
         `,
         orderBy: (inspectionDocuments, { desc }) => [desc(inspectionDocuments.createdAt)]
       });
+      console.log(`Found ${documents.length} documents for tab ${tabName} (${formattedTabName}), record ${recordId}`);
     }
     
+    console.log(`Returning ${documents.length} documents to frontend`);
     return res.status(200).json(documents);
     
   } catch (error) {
