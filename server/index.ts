@@ -315,15 +315,9 @@ app.use((req, res, next) => {
     console.log(`🏪 Method: ${req.method}, URL: ${req.url}`);
     
     try {
-      // Check authentication with comprehensive debugging
-      const isAuthenticated = req.isAuthenticated?.() || false;
-      const sessionUser = req.session?.passport?.user;
-      const directUser = req.user?.id;
-      
-      console.log(`🏪 Auth check - isAuthenticated: ${isAuthenticated}, sessionUser: ${sessionUser}, directUser: ${directUser}`);
-      
-      if (!isAuthenticated && !sessionUser && !directUser) {
-        console.log(`🏪 Authentication failed - no valid user found`);
+      // Check authentication using standard pattern
+      if (!req.isAuthenticated()) {
+        console.log(`🏪 Authentication failed - user not authenticated`);
         return res.status(401).json({ 
           success: false,
           error: "Not authenticated",
@@ -331,9 +325,10 @@ app.use((req, res, next) => {
         });
       }
       
-      const userId = sessionUser || directUser;
-      console.log(`🏪 Authenticated user ID: ${userId}`);
+      console.log(`🏪 Authenticated user:`, req.user?.username, `(ID: ${req.user?.id})`);
+      console.log(`🏪 User role:`, req.user?.role);
       
+      const userId = req.user.id;
       const { inspectionOrderNumber, recordId, documentId } = req.params;
       console.log(`🏪 Deleting Shop Inspection - Order: ${inspectionOrderNumber}, Record: ${recordId}, Document: ${documentId}`);
 
