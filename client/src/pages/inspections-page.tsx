@@ -2488,37 +2488,52 @@ export default function InspectionsPage() {
         let deletedCount = 0;
         let failedCount = 0;
         
-        // Delete all associated GCS files
+        // Delete all associated GCS files using the new dedicated endpoint
         for (const document of documents) {
           try {
-            console.log(`Attempting to delete document ${document.id}: ${document.fileName}`);
-            const deleteResponse = await fetch(`/api/quality/inspection-documents/${editInspectionOrderDetails?.inspectionOrderNumber}/ShopInspection/${recordId}/documents/${document.id}`, {
+            console.log(`🏪 Attempting to delete document ${document.id}: ${document.fileName}`);
+            console.log(`🏪 Using new dedicated endpoint for Shop Inspection deletion`);
+            
+            const deleteResponse = await fetch(`/api/shop-inspection-delete/${editInspectionOrderDetails?.inspectionOrderNumber}/${recordId}/${document.id}`, {
               method: 'DELETE',
               credentials: 'include'
             });
             
+            console.log(`🏪 Delete response status: ${deleteResponse.status}`);
+            
             if (deleteResponse.ok) {
               const deleteResult = await deleteResponse.json();
+              console.log(`🏪 Delete result:`, deleteResult);
               
               if (deleteResult.success) {
                 deletedCount++;
                 if (deleteResult.warning) {
-                  console.log(`⚠️ Partial success for ${document.fileName}: ${deleteResult.message}`);
-                  console.log(`Warning: ${deleteResult.warning}`);
+                  console.log(`🏪 ⚠️ Partial success for ${document.fileName}: ${deleteResult.message}`);
+                  console.log(`🏪 Warning: ${deleteResult.warning}`);
+                  console.log(`🏪 GCS Status: ${deleteResult.gcsStatus}, Database Status: ${deleteResult.databaseStatus}`);
                 } else {
-                  console.log(`✅ Document ${document.fileName} deleted successfully from GCS`);
+                  console.log(`🏪 ✅ Document ${document.fileName} deleted successfully (Complete Success)`);
+                  console.log(`🏪 Details: ${deleteResult.details}`);
                 }
               } else {
                 failedCount++;
-                console.warn(`❌ Failed to delete document ${document.fileName}: ${deleteResult.message || 'Unknown error'}`);
+                console.warn(`🏪 ❌ Failed to delete document ${document.fileName}: ${deleteResult.message || 'Unknown error'}`);
               }
             } else {
               failedCount++;
-              console.warn(`❌ Failed to delete document ${document.fileName} from GCS - Status: ${deleteResponse.status}`);
+              console.warn(`🏪 ❌ HTTP Error deleting document ${document.fileName} - Status: ${deleteResponse.status}`);
+              
+              // Try to get error details from response
+              try {
+                const errorResponse = await deleteResponse.text();
+                console.warn(`🏪 Error response:`, errorResponse);
+              } catch (e) {
+                console.warn(`🏪 Could not read error response`);
+              }
             }
           } catch (docError) {
             failedCount++;
-            console.warn(`❌ Error deleting document ${document.fileName}:`, docError);
+            console.warn(`🏪 ❌ Exception deleting document ${document.fileName}:`, docError);
           }
         }
         

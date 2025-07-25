@@ -308,6 +308,143 @@ app.use((req, res, next) => {
     }
   });
 
+  // SHOP INSPECTION DEDICATED DELETE ENDPOINT - Completely rewritten for reliability
+  app.delete('/api/shop-inspection-delete/:inspectionOrderNumber/:recordId/:documentId', async (req: any, res: any) => {
+    console.log(`🏪🗑️ SHOP INSPECTION DELETE ENDPOINT CALLED!`);
+    console.log(`🏪 Params:`, req.params);
+    console.log(`🏪 Method: ${req.method}, URL: ${req.url}`);
+    
+    try {
+      // Check authentication with comprehensive debugging
+      const isAuthenticated = req.isAuthenticated?.() || false;
+      const sessionUser = req.session?.passport?.user;
+      const directUser = req.user?.id;
+      
+      console.log(`🏪 Auth check - isAuthenticated: ${isAuthenticated}, sessionUser: ${sessionUser}, directUser: ${directUser}`);
+      
+      if (!isAuthenticated && !sessionUser && !directUser) {
+        console.log(`🏪 Authentication failed - no valid user found`);
+        return res.status(401).json({ 
+          success: false,
+          error: "Not authenticated",
+          message: "Please log in to delete documents" 
+        });
+      }
+      
+      const userId = sessionUser || directUser;
+      console.log(`🏪 Authenticated user ID: ${userId}`);
+      
+      const { inspectionOrderNumber, recordId, documentId } = req.params;
+      console.log(`🏪 Deleting Shop Inspection - Order: ${inspectionOrderNumber}, Record: ${recordId}, Document: ${documentId}`);
+
+      // Import required modules
+      const { initializeGCS } = await import('./utils/gcs-operations');
+      const { db } = await import('./db');
+      const { eq } = await import('drizzle-orm');
+      const { inspectionDocuments } = await import('../shared/schema');
+      
+      // Get the document record first
+      console.log(`🏪 Fetching document with ID: ${documentId}`);
+      const document = await db.query.inspectionDocuments.findFirst({
+        where: eq(inspectionDocuments.id, parseInt(documentId))
+      });
+      
+      if (!document) {
+        console.log(`🏪 Document ${documentId} not found in database`);
+        return res.status(404).json({ 
+          success: false,
+          error: "Document not found",
+          message: `Document with ID ${documentId} does not exist` 
+        });
+      }
+      
+      console.log(`🏪 Found document: ${document.fileName}`);
+      console.log(`🏪 GCS path: ${document.filePath}`);
+      
+      let gcsDeleted = false;
+      let gcsError = null;
+      
+      // Try to delete from GCS with detailed error handling
+      try {
+        console.log(`🏪 Initializing GCS for file deletion...`);
+        const { bucket } = await initializeGCS();
+        
+        if (!bucket) {
+          throw new Error('GCS bucket not available - initialization failed');
+        }
+        
+        console.log(`🏪 GCS bucket initialized successfully`);
+        const file = bucket.file(document.filePath);
+        
+        console.log(`🏪 Checking if file exists in GCS: ${document.filePath}`);
+        const [exists] = await file.exists();
+        
+        if (exists) {
+          console.log(`🏪 File exists in GCS, attempting deletion...`);
+          await file.delete();
+          console.log(`🏪 ✅ Successfully deleted GCS file: ${document.filePath}`);
+          gcsDeleted = true;
+        } else {
+          console.log(`🏪 ⚠️ File not found in GCS (may have been deleted already): ${document.filePath}`);
+          gcsDeleted = true; // Consider it "deleted" if it doesn't exist
+        }
+      } catch (error: any) {
+        console.error(`🏪 ❌ GCS deletion failed for ${document.fileName}:`, error);
+        gcsError = error.message || 'Unknown GCS error';
+        console.log(`🏪 Continuing with database deletion despite GCS failure...`);
+      }
+      
+      // Always delete from database regardless of GCS success
+      try {
+        console.log(`🏪 Deleting document ${documentId} from database...`);
+        await db.delete(inspectionDocuments).where(eq(inspectionDocuments.id, parseInt(documentId)));
+        console.log(`🏪 ✅ Successfully deleted database record for document ${documentId}`);
+        
+        // Provide detailed response based on what succeeded
+        if (gcsDeleted) {
+          console.log(`🏪 🎉 COMPLETE SUCCESS - Both database and GCS deletion successful`);
+          res.json({ 
+            success: true, 
+            message: 'Document deleted successfully',
+            details: 'Both database record and GCS file removed',
+            gcsStatus: 'success',
+            databaseStatus: 'success'
+          });
+        } else {
+          console.log(`🏪 ⚠️ PARTIAL SUCCESS - Database deleted, GCS failed`);
+          res.json({ 
+            success: true, 
+            message: 'Partial Success: Database record deleted, but GCS file removal failed',
+            warning: `GCS deletion failed: ${gcsError}`,
+            details: 'Database record removed successfully. File may remain in storage.',
+            gcsStatus: 'failed',
+            gcsError: gcsError,
+            databaseStatus: 'success'
+          });
+        }
+        
+      } catch (dbError: any) {
+        console.error(`🏪 ❌ Database deletion failed for document ${documentId}:`, dbError);
+        res.status(500).json({ 
+          success: false,
+          error: 'Failed to delete database record',
+          message: dbError.message || 'Unknown database error',
+          gcsStatus: gcsDeleted ? 'success' : 'failed',
+          gcsError: gcsError,
+          databaseStatus: 'failed'
+        });
+      }
+      
+    } catch (error: any) {
+      console.error('🏪 💥 Shop Inspection deletion error:', error);
+      res.status(500).json({ 
+        success: false,
+        error: 'Failed to delete Shop Inspection document',
+        message: error.message || 'Unknown server error'
+      });
+    }
+  });
+
   // PRIORITY: Inspection Document DELETE route MUST be before registerRoutes
   app.delete('/api/quality/inspection-documents/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId', async (req: any, res: any) => {
     console.log(`🚨🚨🚨 PRIORITY DELETE ENDPOINT HIT! 🚨🚨🚨`);
