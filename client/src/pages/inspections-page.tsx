@@ -6176,10 +6176,7 @@ export default function InspectionsPage() {
                   <TabsContent value="ndt" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium">Non-Destructive Testing (NDT)</h3>
-                      <div className="bg-muted/50 p-2 rounded-md text-sm flex items-center mb-2">
-                        <Info className="h-4 w-4 mr-2 text-blue-500" />
-                        Click on a row in the table below to select an NDT record before uploading a report.
-                      </div>
+
                       
                       {/* NDT list */}
                       <div className="border rounded-md shadow-sm overflow-hidden">
@@ -6200,13 +6197,8 @@ export default function InspectionsPage() {
                             {Array.isArray(ndtRecords) && ndtRecords.map((record, index) => (
                               <TableRow 
                                 key={record.id}
-                                className={selectedNdtRecord?.id === record.id ? 'bg-primary/20 border-l-4 border-primary' : 'cursor-pointer hover:bg-muted/50'}
-                                onClick={() => setSelectedNdtRecord(record)}>
-                                <TableCell className="font-medium flex items-center">
-                                  {selectedNdtRecord?.id === record.id ? 
-                                    <Check className="h-4 w-4 mr-2 text-primary" /> : 
-                                    <div className="h-4 w-4 mr-2 rounded-full border border-muted-foreground/30"></div>
-                                  }
+                                className="hover:bg-muted/50">
+                                <TableCell className="font-medium">
                                   {record.id}
                                 </TableCell>
                                 <TableCell>
