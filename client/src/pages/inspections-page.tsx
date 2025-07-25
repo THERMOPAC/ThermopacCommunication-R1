@@ -2466,7 +2466,9 @@ export default function InspectionsPage() {
       const documentsUrl = `/api/quality/inspection-documents?inspectionOrderNumber=${editInspectionOrderDetails?.inspectionOrderNumber}&tabName=ShopInspection&recordId=${recordId}`;
       console.log(`Fetching documents from: ${documentsUrl}`);
       
-      const response = await fetch(documentsUrl);
+      const response = await fetch(documentsUrl, {
+        credentials: 'include'
+      });
       console.log(`Documents fetch response status: ${response.status}`);
       
       if (response.ok) {
@@ -2491,7 +2493,8 @@ export default function InspectionsPage() {
           try {
             console.log(`Attempting to delete document ${document.id}: ${document.fileName}`);
             const deleteResponse = await fetch(`/api/quality/inspection-documents/${editInspectionOrderDetails?.inspectionOrderNumber}/ShopInspection/${recordId}/documents/${document.id}`, {
-              method: 'DELETE'
+              method: 'DELETE',
+              credentials: 'include'
             });
             
             if (deleteResponse.ok) {
