@@ -7387,8 +7387,9 @@ export default function InspectionsPage() {
           <form onSubmit={(e) => {
             e.preventDefault();
             const formData = new FormData(e.currentTarget);
+            const newWeldNumber = welds.length + 1;
             const recordData = {
-              id: editingWeldRecord ? editingWeldRecord.id : `W-${Date.now()}`,
+              id: editingWeldRecord ? editingWeldRecord.id : `W-${newWeldNumber}`,
               weldType: formData.get('weldType') as string,
               weldProcess: formData.get('weldProcess') as string,
               wpqrDocument: formData.get('wpqrDocument') as string,
