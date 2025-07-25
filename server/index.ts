@@ -360,31 +360,62 @@ app.use((req, res, next) => {
       
       console.log(`🗑️ Found document: ${document.fileName} at path: ${document.filePath}`);
       
-      // Delete from GCS
+      let gcsDeleted = false;
+      let gcsError = null;
+      
+      // Try to delete from GCS
       try {
         const { bucket } = await initializeGCS();
+        if (!bucket) {
+          throw new Error('GCS bucket not available');
+        }
+        
         const file = bucket.file(document.filePath);
         
         const [exists] = await file.exists();
         if (exists) {
           await file.delete();
           console.log(`✅ Successfully deleted GCS file: ${document.filePath}`);
+          gcsDeleted = true;
         } else {
           console.log(`⚠️ GCS file not found: ${document.filePath}`);
+          gcsDeleted = true; // Consider it "deleted" if it doesn't exist
         }
-      } catch (gcsError) {
-        console.error(`❌ GCS deletion failed:`, gcsError);
+      } catch (error: any) {
+        console.error(`❌ GCS deletion failed for ${document.fileName}:`, error.message);
+        gcsError = error.message;
         // Continue with database deletion even if GCS fails
       }
       
-      // Delete from database
-      await db.delete(inspectionDocuments).where(eq(inspectionDocuments.id, parseInt(documentId)));
-      console.log(`✅ Successfully deleted database record for document ${documentId}`);
-      
-      res.json({ 
-        success: true, 
-        message: 'Document deleted successfully'
-      });
+      // Always delete from database regardless of GCS success
+      try {
+        await db.delete(inspectionDocuments).where(eq(inspectionDocuments.id, parseInt(documentId)));
+        console.log(`✅ Successfully deleted database record for document ${documentId}`);
+        
+        // Provide detailed feedback about what succeeded and what failed
+        if (gcsDeleted) {
+          res.json({ 
+            success: true, 
+            message: 'Document deleted successfully',
+            details: 'Both database record and GCS file removed'
+          });
+        } else {
+          res.json({ 
+            success: true, 
+            message: 'Partial Success: Database record deleted, but GCS file removal failed',
+            warning: `GCS deletion failed: ${gcsError}`,
+            details: 'Database record removed successfully. File may remain in storage.'
+          });
+        }
+      } catch (dbError: any) {
+        console.error(`❌ Database deletion failed for document ${documentId}:`, dbError.message);
+        res.status(500).json({ 
+          success: false,
+          error: 'Failed to delete database record',
+          message: dbError.message,
+          gcsStatus: gcsDeleted ? 'GCS file deleted successfully' : `GCS deletion also failed: ${gcsError}`
+        });
+      }
       
     } catch (error: any) {
       console.error('🚨 Priority inspection document deletion error:', error);

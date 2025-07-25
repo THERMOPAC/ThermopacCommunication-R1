@@ -2498,8 +2498,20 @@ export default function InspectionsPage() {
             });
             
             if (deleteResponse.ok) {
-              deletedCount++;
-              console.log(`✅ Document ${document.fileName} deleted successfully from GCS`);
+              const deleteResult = await deleteResponse.json();
+              
+              if (deleteResult.success) {
+                deletedCount++;
+                if (deleteResult.warning) {
+                  console.log(`⚠️ Partial success for ${document.fileName}: ${deleteResult.message}`);
+                  console.log(`Warning: ${deleteResult.warning}`);
+                } else {
+                  console.log(`✅ Document ${document.fileName} deleted successfully from GCS`);
+                }
+              } else {
+                failedCount++;
+                console.warn(`❌ Failed to delete document ${document.fileName}: ${deleteResult.message || 'Unknown error'}`);
+              }
             } else {
               failedCount++;
               console.warn(`❌ Failed to delete document ${document.fileName} from GCS - Status: ${deleteResponse.status}`);
