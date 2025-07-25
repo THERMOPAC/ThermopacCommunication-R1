@@ -406,6 +406,10 @@ export default function InspectionsPage() {
   const [weldingFiles, setWeldingFiles] = useState<File[]>([]);
   const [isUploadingWeldFiles, setIsUploadingWeldFiles] = useState(false);
   
+  // NDT file upload states
+  const [ndtFiles, setNdtFiles] = useState<File[]>([]);
+  const [isUploadingNdtFiles, setIsUploadingNdtFiles] = useState(false);
+  
   const [approvedDrawingRecords, setApprovedDrawingRecords] = useState<{
     id: string;
     drawingTitle: string;
@@ -3208,7 +3212,7 @@ export default function InspectionsPage() {
   };
 
   // Add new NDT record via dialog
-  const addNdtRecord = (recordData: {
+  const addNdtRecord = async (recordData: {
     id: string;
     ndtMethod: string;
     ndtStandard: string;
@@ -3217,11 +3221,58 @@ export default function InspectionsPage() {
     ndtDate: string;
     ndtResults: string;
   }) => {
+    // Generate unique NDT ID using sequential numbering pattern
+    const newRecordId = `NDT-${ndtRecords.length + 1}`;
+    
     const newRecord = {
-      ...recordData
+      ...recordData,
+      id: newRecordId
     };
+    
     setNdtRecords(prev => [...prev, newRecord]);
+    
+    // Handle file uploads if files are selected
+    if (ndtFiles.length > 0) {
+      setIsUploadingNdtFiles(true);
+      
+      try {
+        for (const file of ndtFiles) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('inspectionOrderNumber', params.inspectionOrderNumber || '');
+          formData.append('tabName', 'NDT');
+          formData.append('recordId', newRecordId);
+          
+          const response = await fetch('/api/quality/inspection-documents/upload', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData,
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Failed to upload ${file.name}`);
+          }
+        }
+        
+        toast({
+          title: "Success",
+          description: `${ndtFiles.length} file(s) uploaded for NDT record ${newRecordId}`,
+        });
+      } catch (error) {
+        console.error('Upload error:', error);
+        toast({
+          title: "Warning",
+          description: "Record created but some files failed to upload. Please try uploading files again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsUploadingNdtFiles(false);
+        setNdtFiles([]); // Clear selected files
+      }
+    }
+    
     setIsNdtDialogOpen(false);
+    
     toast({
       title: "Success",
       description: "NDT record added successfully",
@@ -7591,6 +7642,7 @@ export default function InspectionsPage() {
         setIsNdtDialogOpen(open);
         if (!open) {
           setEditingNdtRecord(null);
+          setNdtFiles([]); // Clear selected files when dialog closes
         }
       }}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
@@ -7606,7 +7658,7 @@ export default function InspectionsPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={(e) => {
+          <form onSubmit={async (e) => {
             e.preventDefault();
             const formData = new FormData(e.currentTarget);
             const recordData = {
@@ -7621,7 +7673,7 @@ export default function InspectionsPage() {
             if (editingNdtRecord) {
               editNdtRecord(recordData);
             } else {
-              addNdtRecord(recordData);
+              await addNdtRecord(recordData);
             }
           }}>
 
@@ -7731,6 +7783,42 @@ export default function InspectionsPage() {
                   </select>
                 </div>
               </div>
+
+              {/* File Upload Section - Only for new records */}
+              {!editingNdtRecord && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Upload NDT Reports (Optional)
+                  </label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                    <input
+                      type="file"
+                      multiple
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        setNdtFiles(files);
+                      }}
+                      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      Select PDF, DOC, DOCX, JPG, JPEG, or PNG files
+                    </p>
+                    {ndtFiles.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-sm font-medium text-gray-700">Selected files:</p>
+                        <ul className="text-sm text-gray-600">
+                          {ndtFiles.map((file, index) => (
+                            <li key={index} className="truncate">
+                              • {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <DialogFooter>
@@ -7740,12 +7828,20 @@ export default function InspectionsPage() {
                 onClick={() => {
                   setIsNdtDialogOpen(false);
                   setEditingNdtRecord(null);
+                  setNdtFiles([]); // Clear selected files
                 }}
               >
                 Cancel
               </Button>
-              <Button type="submit">
-                {editingNdtRecord ? 'Update Record' : 'Add Record'}
+              <Button type="submit" disabled={isUploadingNdtFiles}>
+                {isUploadingNdtFiles ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  editingNdtRecord ? 'Update Record' : 'Add Record'
+                )}
               </Button>
             </DialogFooter>
           </form>
