@@ -552,13 +552,16 @@ router.delete("/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId"
     
     // Try multiple path formats for file detection
     const projectCode = inspection.projectCode || 'UNKNOWN';
+    const fileExtension = document.fileName?.split('.').pop() || 'pdf';
     const pathsToTry = [
-      // New hierarchical format (preferred)
-      `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${document.fileName?.split('.').pop() || 'pdf'}`,
-      // Stored database path
+      // Stored database path (most reliable)
       document.filePath,
+      // Current hierarchical format - using recordId.extension (what GCS shows)
+      `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${fileExtension}`,
+      // Alternative format - using original filename
+      `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/${formattedTabName}/${document.fileName}`,
       // Old format fallback
-      `QMS/Inspections_Records/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${document.fileName?.split('.').pop() || 'pdf'}`
+      `QMS/Inspections_Records/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${fileExtension}`
     ].filter(Boolean);
     
     console.log(`Trying paths for deletion:`, pathsToTry);
