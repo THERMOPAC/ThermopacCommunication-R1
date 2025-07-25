@@ -876,7 +876,7 @@ export default function InspectionsPage() {
           console.log(`🔥 Attempting to delete document ${doc.id}: ${doc.fileName}`);
           console.log(`🔥 Using dedicated endpoint for Welding deletion`);
           
-          const deleteResponse = await fetch(`/api/welding-delete/${editInspectionOrderDetails?.inspectionOrderNumber}/${weldRecord.id}/${doc.id}`, {
+          const deleteResponse = await fetch(`/api/quality/inspection-documents/welding-delete/${editInspectionOrderDetails?.inspectionOrderNumber}/${weldRecord.id}/${doc.id}`, {
             method: 'DELETE',
             credentials: 'include'
           });

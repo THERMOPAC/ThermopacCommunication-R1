@@ -788,4 +788,109 @@ router.delete('/cleanup-orphaned-shop-inspection', ensureAuthenticated, async (r
   }
 });
 
+// WELDING DELETE ENDPOINT - Properly authenticated endpoint for Welding file deletion with GCS cleanup
+router.delete('/welding-delete/:inspectionOrderNumber/:recordId/:documentId', ensureAuthenticated, async (req: Request, res: Response) => {
+  console.log(`🔥🔥🔥 AUTHENTICATED WELDING DELETE ENDPOINT HIT! 🔥🔥🔥`);
+  console.log(`🔥 Method: ${req.method}, Path: ${req.path}`);
+  console.log(`🔥 User authenticated:`, req.user);
+  
+  try {
+    const { inspectionOrderNumber, recordId, documentId } = req.params;
+    console.log(`🔥 WELDING DELETE - Inspection: ${inspectionOrderNumber}, Record: ${recordId}, Document: ${documentId}`);
+
+    // Import GCS operations
+    const { initializeGCS } = await import('../utils/gcs-operations');
+    
+    // Get the inspection order and project code
+    const inspection = await db.query.inspectionOrders.findFirst({
+      where: eq(inspectionOrders.inspectionOrderNumber, inspectionOrderNumber)
+    });
+    
+    if (!inspection) {
+      return res.status(404).json({ error: "Inspection order not found" });
+    }
+    
+    // Get the document record
+    const document = await db.query.inspectionDocuments.findFirst({
+      where: eq(inspectionDocuments.id, parseInt(documentId))
+    });
+    
+    if (!document) {
+      return res.status(404).json({ error: "Document not found" });
+    }
+    
+    console.log(`🔥 Found document: ${document.fileName} at path: ${document.filePath}`);
+    
+    let gcsStatus = 'failed';
+    let databaseStatus = 'failed';
+    let details = '';
+    
+    // Try to delete from GCS
+    try {
+      const { bucket } = await initializeGCS();
+      if (!bucket) {
+        throw new Error('GCS bucket not available');
+      }
+      
+      // Reconstruct GCS path for Welding tab
+      const gcsPath = `QMS/Inspections_Records/${inspection.projectCode}/${inspectionOrderNumber}/Welding/${recordId}.pdf`;
+      console.log(`🔥 Attempting GCS deletion at path: ${gcsPath}`);
+      
+      const file = bucket.file(gcsPath);
+      const [exists] = await file.exists();
+      
+      if (exists) {
+        await file.delete();
+        console.log(`🔥 ✅ GCS file deleted successfully: ${gcsPath}`);
+        gcsStatus = 'success';
+        details += 'GCS file removed successfully. ';
+      } else {
+        console.log(`🔥 ⚠️ GCS file not found at path: ${gcsPath}`);
+        gcsStatus = 'not_found';
+        details += 'GCS file not found (may have been already deleted). ';
+      }
+    } catch (error: any) {
+      console.error(`🔥 ❌ GCS deletion failed for ${document.fileName}:`, error.message);
+      gcsStatus = 'failed';
+      details += `GCS deletion failed: ${error.message}. `;
+    }
+    
+    // Always delete from database regardless of GCS success
+    try {
+      await db.delete(inspectionDocuments).where(eq(inspectionDocuments.id, parseInt(documentId)));
+      console.log(`🔥 ✅ Successfully deleted database record for document ${documentId}`);
+      databaseStatus = 'success';
+      details += 'Database record removed successfully.';
+      
+      // Provide detailed feedback about what succeeded and what failed
+      res.json({ 
+        success: true, 
+        message: gcsStatus === 'success' ? 'Welding document deleted completely' : 'Welding document partially deleted',
+        gcsStatus,
+        databaseStatus,
+        details: details.trim()
+      });
+      
+    } catch (dbError: any) {
+      console.error(`🔥 ❌ Database deletion failed for document ${documentId}:`, dbError.message);
+      res.status(500).json({ 
+        success: false,
+        error: 'Failed to delete database record',
+        message: dbError.message,
+        gcsStatus,
+        databaseStatus,
+        details: details + ` Database deletion failed: ${dbError.message}`
+      });
+    }
+    
+  } catch (error: any) {
+    console.error('🔥 Authenticated Welding deletion error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to delete Welding document',
+      message: error.message 
+    });
+  }
+});
+
 export default router;
