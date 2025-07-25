@@ -5508,7 +5508,7 @@ export default function InspectionsPage() {
                                         title="View Documents"
                                         onClick={() => {
                                           setDocumentViewerConfig({
-                                            inspectionOrderNumber: editForm.getValues("inspectionOrderNumber") || "N/A",
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
                                             tabName: "Shop Inspection",
                                             recordId: record.id
                                           });
@@ -5525,7 +5525,7 @@ export default function InspectionsPage() {
                                         title="Upload Document"
                                         onClick={() => {
                                           setDocumentUploadConfig({
-                                            inspectionOrderNumber: editForm.getValues("inspectionOrderNumber") || "N/A",
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
                                             tabName: "Shop Inspection",
                                             recordId: record.id
                                           });
@@ -5588,7 +5588,7 @@ export default function InspectionsPage() {
                             // Use the first record or let user select
                             const recordId = shopInspectionRecords[0].id;
                             setDocumentUploadConfig({
-                              inspectionOrderNumber: editForm.getValues("inspectionOrderNumber") || "N/A",
+                              inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
                               tabName: "Shop Inspection",
                               recordId: recordId
                             });
@@ -5615,7 +5615,7 @@ export default function InspectionsPage() {
                             // Use the first record or let user select
                             const recordId = shopInspectionRecords[0].id;
                             setDocumentViewerConfig({
-                              inspectionOrderNumber: editForm.getValues("inspectionOrderNumber") || "N/A",
+                              inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
                               tabName: "Shop Inspection",
                               recordId: recordId
                             });
