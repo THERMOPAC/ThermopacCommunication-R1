@@ -2404,44 +2404,81 @@ export default function InspectionsPage() {
   // Function to delete a shop inspection record with GCS cleanup
   const deleteShopInspectionRecord = async (recordId: string) => {
     try {
+      console.log(`Starting deletion of Shop Inspection record: ${recordId}`);
+      console.log(`Inspection Order Number: ${editInspectionOrderDetails?.inspectionOrderNumber}`);
+      
       // First, fetch all documents associated with this record for cleanup
-      const response = await fetch(`/api/quality/inspection-documents?inspectionOrderNumber=${editInspectionOrderDetails?.inspectionOrderNumber}&tabName=ShopInspection&recordId=${recordId}`);
+      const documentsUrl = `/api/quality/inspection-documents?inspectionOrderNumber=${editInspectionOrderDetails?.inspectionOrderNumber}&tabName=ShopInspection&recordId=${recordId}`;
+      console.log(`Fetching documents from: ${documentsUrl}`);
+      
+      const response = await fetch(documentsUrl);
+      console.log(`Documents fetch response status: ${response.status}`);
       
       if (response.ok) {
         const documents = await response.json();
+        console.log(`Found ${documents.length} documents to delete:`, documents);
+        
+        let deletedCount = 0;
+        let failedCount = 0;
         
         // Delete all associated GCS files
         for (const document of documents) {
           try {
+            console.log(`Attempting to delete document ${document.id}: ${document.fileName}`);
             const deleteResponse = await fetch(`/api/quality/inspection-documents/delete/${document.id}`, {
               method: 'DELETE'
             });
             
             if (deleteResponse.ok) {
-              console.log(`Document ${document.fileName} deleted successfully from GCS`);
+              deletedCount++;
+              console.log(`✅ Document ${document.fileName} deleted successfully from GCS`);
             } else {
-              console.warn(`Failed to delete document ${document.fileName} from GCS`);
+              failedCount++;
+              console.warn(`❌ Failed to delete document ${document.fileName} from GCS - Status: ${deleteResponse.status}`);
             }
           } catch (docError) {
-            console.warn(`Error deleting document ${document.fileName}:`, docError);
+            failedCount++;
+            console.warn(`❌ Error deleting document ${document.fileName}:`, docError);
           }
         }
+        
+        console.log(`Document deletion summary: ${deletedCount} successful, ${failedCount} failed`);
+        
+        // Remove the record from frontend state
+        setShopInspectionRecords(prev => 
+          prev.filter(record => record.id !== recordId)
+        );
+        
+        if (failedCount === 0) {
+          toast({
+            title: "Success",
+            description: `Shop inspection record and ${deletedCount} associated documents deleted successfully`,
+          });
+        } else {
+          toast({
+            title: "Partial Success",
+            description: `Shop inspection record deleted. ${deletedCount} documents removed, ${failedCount} documents may remain in storage`,
+            variant: "destructive"
+          });
+        }
+      } else {
+        console.warn(`Failed to fetch documents - Status: ${response.status}`);
+        // Still remove the record even if we can't fetch documents
+        setShopInspectionRecords(prev => 
+          prev.filter(record => record.id !== recordId)
+        );
+        
+        toast({
+          title: "Partial Success",
+          description: "Shop inspection record deleted, but document cleanup could not be performed",
+          variant: "destructive"
+        });
       }
-      
-      // Remove the record from frontend state
-      setShopInspectionRecords(prev => 
-        prev.filter(record => record.id !== recordId)
-      );
-      
-      toast({
-        title: "Success",
-        description: "Shop inspection record and associated documents deleted successfully",
-      });
       
     } catch (error) {
       console.error('Error deleting shop inspection record:', error);
       
-      // Still remove from frontend even if GCS cleanup fails
+      // Still remove from frontend even if everything fails
       setShopInspectionRecords(prev => 
         prev.filter(record => record.id !== recordId)
       );
