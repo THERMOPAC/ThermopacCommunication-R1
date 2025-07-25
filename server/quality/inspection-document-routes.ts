@@ -218,7 +218,30 @@ router.get("/", ensureAuthenticated, async (req: Request, res: Response) => {
     // Get documents for this inspection order record
     // Handle backward compatibility for tab names (both "Shop Inspection" and "ShopInspection")
     let documents;
-    if (tabName === 'Shop Inspection' || tabName === 'ShopInspection') {
+    
+    if (recordId === 'ALL') {
+      console.log(`ALL recordId detected - fetching all documents for tab ${tabName} (${formattedTabName})`);
+      if (tabName === 'Shop Inspection' || tabName === 'ShopInspection') {
+        // For Shop Inspection tab, search for both old format ("Shop Inspection") and new format ("ShopInspection")
+        documents = await db.query.inspectionDocuments.findMany({
+          where: sql`
+            inspection_order_id = ${inspection.id} AND
+            (tab_name = 'Shop Inspection' OR tab_name = 'ShopInspection')
+          `,
+          orderBy: (inspectionDocuments, { desc }) => [desc(inspectionDocuments.createdAt)]
+        });
+      } else {
+        // For other tabs, use the formatted tab name
+        documents = await db.query.inspectionDocuments.findMany({
+          where: sql`
+            inspection_order_id = ${inspection.id} AND
+            tab_name = ${formattedTabName}
+          `,
+          orderBy: (inspectionDocuments, { desc }) => [desc(inspectionDocuments.createdAt)]
+        });
+      }
+      console.log(`Found ${documents.length} total documents for tab ${tabName} (${formattedTabName}):`, documents.map(d => ({ id: d.id, tabName: d.tabName, fileName: d.fileName, recordId: d.recordId })));
+    } else if (tabName === 'Shop Inspection' || tabName === 'ShopInspection') {
       console.log(`Shop Inspection tab detected - searching for both "Shop Inspection" and "ShopInspection" formats`);
       documents = await db.query.inspectionDocuments.findMany({
         where: sql`
@@ -295,7 +318,30 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents", ensureAuthent
     // Get documents for this inspection order record
     // Handle backward compatibility for tab names (both "Shop Inspection" and "ShopInspection")
     let documents;
-    if (tabName === 'Shop Inspection') {
+    
+    if (recordId === 'ALL') {
+      console.log(`ALL recordId detected - fetching all documents for tab ${tabName} (${formattedTabName})`);
+      if (tabName === 'Shop Inspection' || formattedTabName === 'ShopInspection') {
+        // For Shop Inspection tab, search for both old format ("Shop Inspection") and new format ("ShopInspection")
+        documents = await db.query.inspectionDocuments.findMany({
+          where: sql`
+            inspection_order_id = ${inspection.id} AND
+            (tab_name = 'Shop Inspection' OR tab_name = 'ShopInspection')
+          `,
+          orderBy: (inspectionDocuments, { desc }) => [desc(inspectionDocuments.createdAt)]
+        });
+      } else {
+        // For other tabs, use the formatted tab name
+        documents = await db.query.inspectionDocuments.findMany({
+          where: sql`
+            inspection_order_id = ${inspection.id} AND
+            tab_name = ${formattedTabName}
+          `,
+          orderBy: (inspectionDocuments, { desc }) => [desc(inspectionDocuments.createdAt)]
+        });
+      }
+      console.log(`Found ${documents.length} total documents for tab ${tabName} (${formattedTabName}):`, documents.map(d => ({ id: d.id, tabName: d.tabName, fileName: d.fileName, recordId: d.recordId })));
+    } else if (tabName === 'Shop Inspection') {
       console.log(`Shop Inspection tab detected - searching for both "Shop Inspection" and "ShopInspection" formats`);
       // For Shop Inspection tab, search for both old format ("Shop Inspection") and new format ("ShopInspection")
       documents = await db.query.inspectionDocuments.findMany({

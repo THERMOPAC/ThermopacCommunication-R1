@@ -5641,19 +5641,28 @@ export default function InspectionsPage() {
                       </div>
                       
                       {/* Uploaded Files Display Section */}
-                      {shopInspectionRecords.length > 0 && (
+                      {editInspectionOrderDetails?.inspectionOrderNumber && (
                         <div className="mt-6 border-t pt-4">
                           <h4 className="text-sm font-medium text-gray-700 mb-3">Uploaded Files</h4>
                           <div className="space-y-2">
-                            {shopInspectionRecords.map((record) => (
+                            {shopInspectionRecords.length > 0 ? (
+                              shopInspectionRecords.map((record) => (
+                                <DrawingFilesDisplay
+                                  key={record.id}
+                                  inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                                  recordId={record.id}
+                                  recordTitle={record.inspectionType || `Shop Inspection ${record.id}`}
+                                  tabName="ShopInspection"
+                                />
+                              ))
+                            ) : (
                               <DrawingFilesDisplay
-                                key={record.id}
                                 inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
-                                recordId={record.id}
-                                recordTitle={record.inspectionType || `Shop Inspection ${record.id}`}
-                                tabName="Shop Inspection"
+                                recordId="ALL"
+                                recordTitle="All Shop Inspection Files"
+                                tabName="ShopInspection"
                               />
-                            ))}
+                            )}
                           </div>
                         </div>
                       )}
