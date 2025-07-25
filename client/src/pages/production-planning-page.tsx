@@ -54,7 +54,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ClipboardList, Calendar as CalendarIcon, CheckCircle2, Hourglass, AlertTriangle, XCircle, Trash2, Loader2, Search, Info as InfoIcon } from "lucide-react";
+import { Plus, ClipboardList, Calendar as CalendarIcon, CheckCircle2, Hourglass, AlertTriangle, XCircle, Trash2, Loader2, Search, Info as InfoIcon, Eye, Edit } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -464,37 +464,64 @@ export default function ProductionPlanningPage() {
     }
   };
   
-  // Function to filter work orders based on search term using useMemo
-  const filteredWorkOrders = useMemo(() => {
-    if (!selectedProject || !workOrders || searchTerm.trim() === '') {
-      return [];
+  // Function to organize work orders hierarchically and filter them
+  const { filteredWorkOrders, organizedWorkOrders } = useMemo(() => {
+    if (!selectedProject || !workOrders) {
+      return { filteredWorkOrders: [], organizedWorkOrders: { parentAssemblies: [], components: [] } };
     }
     
-    const lowercaseSearch = searchTerm.toLowerCase();
+    // Separate work orders into parent assemblies and components
+    const parentAssemblies: any[] = [];
+    const components: any[] = [];
     
-    // Filter work orders by work order number, title, or associated items
-    return workOrders.filter((workOrder: any) => {
-      // Check work order number
-      if (workOrder.workOrderNumber?.toLowerCase().includes(lowercaseSearch)) {
-        return true;
-      }
+    workOrders.forEach((workOrder: any) => {
+      const title = workOrder.title || '';
+      const isComponent = title.includes('Components for') || title.includes('Component') || title.includes('Sub-assembly');
       
-      // Check work order title
-      if (workOrder.title?.toLowerCase().includes(lowercaseSearch)) {
-        return true;
+      if (isComponent) {
+        components.push(workOrder);
+      } else {
+        parentAssemblies.push(workOrder);
       }
-      
-      // Check associated items (if available in work order data)
-      if (workOrder.items && Array.isArray(workOrder.items)) {
-        return workOrder.items.some((item: any) => {
-          const itemCode = item.itemCode?.toLowerCase() || '';
-          const description = item.description?.toLowerCase() || '';
-          return itemCode.includes(lowercaseSearch) || description.includes(lowercaseSearch);
-        });
-      }
-      
-      return false;
     });
+    
+    // If there's a search term, filter the work orders
+    if (searchTerm.trim() !== '') {
+      const lowercaseSearch = searchTerm.toLowerCase();
+      
+      const filtered = workOrders.filter((workOrder: any) => {
+        // Check work order number
+        if (workOrder.workOrderNumber?.toLowerCase().includes(lowercaseSearch)) {
+          return true;
+        }
+        
+        // Check work order title
+        if (workOrder.title?.toLowerCase().includes(lowercaseSearch)) {
+          return true;
+        }
+        
+        // Check associated items (if available in work order data)
+        if (workOrder.items && Array.isArray(workOrder.items)) {
+          return workOrder.items.some((item: any) => {
+            const itemCode = item.itemCode?.toLowerCase() || '';
+            const description = item.description?.toLowerCase() || '';
+            return itemCode.includes(lowercaseSearch) || description.includes(lowercaseSearch);
+          });
+        }
+        
+        return false;
+      });
+      
+      return { 
+        filteredWorkOrders: filtered, 
+        organizedWorkOrders: { parentAssemblies: [], components: [] }
+      };
+    }
+    
+    return { 
+      filteredWorkOrders: [], 
+      organizedWorkOrders: { parentAssemblies, components }
+    };
   }, [searchTerm, selectedProject, workOrders]);
 
   return (
@@ -696,56 +723,103 @@ export default function ProductionPlanningPage() {
                 </Button>
               </div>
             ) : searchTerm.trim() !== '' ? null : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableCaption>List of work orders for the selected project.</TableCaption>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-auto whitespace-nowrap">Work Order #</TableHead>
-                      <TableHead className="w-auto">Title</TableHead>
-                      <TableHead className="w-auto whitespace-nowrap">Status</TableHead>
-                      <TableHead className="w-auto whitespace-nowrap">Priority</TableHead>
-                      <TableHead className="w-auto whitespace-nowrap">Start Date</TableHead>
-                      <TableHead className="w-auto whitespace-nowrap">End Date</TableHead>
-                      <TableHead className="w-[100px] whitespace-nowrap">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {workOrders?.map((workOrder: any) => (
-                      <TableRow key={workOrder.id}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            <span>{workOrder.workOrderNumber}</span>
-                            {getWorkOrderCategoryBadge(workOrder)}
-                          </div>
-                        </TableCell>
-                        <TableCell>{workOrder.title}</TableCell>
-                        <TableCell>{getStatusBadge(workOrder.status)}</TableCell>
-                        <TableCell>{getPriorityBadge(workOrder.priority)}</TableCell>
-                        <TableCell>{format(new Date(workOrder.plannedStartDate), 'dd MMM yyyy')}</TableCell>
-                        <TableCell>{format(new Date(workOrder.plannedEndDate), 'dd MMM yyyy')}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => window.location.href = `/production/work-orders/${workOrder.id}`}
-                            >
-                              View
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => window.location.href = `/production/work-orders/edit/${workOrder.id}`}
-                            >
-                              Edit
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <div className="space-y-2">
+                {/* Parent Assemblies */}
+                {organizedWorkOrders.parentAssemblies.map((workOrder: any) => (
+                  <div key={`parent-${workOrder.id}`} className="flex items-center justify-between p-4 bg-green-50 rounded border border-green-200">
+                    <div className="flex items-center gap-3">
+                      <ClipboardList className="w-4 h-4 text-green-600" />
+                      <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+                        🟩 Parent Assembly
+                      </Badge>
+                      <div>
+                        <div className="font-medium text-gray-900">{workOrder.workOrderNumber}</div>
+                        <div className="text-sm text-gray-600">{workOrder.title}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-sm">
+                        {getStatusBadge(workOrder.status)}
+                      </div>
+                      <div className="text-sm">
+                        {getPriorityBadge(workOrder.priority)}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {workOrder.startDate && new Date(workOrder.startDate).toLocaleDateString()}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => window.location.href = `/production/work-orders/${workOrder.id}`}
+                          title="View Work Order"
+                        >
+                          <Eye className="w-3 h-3" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => window.location.href = `/production/work-orders/edit/${workOrder.id}`}
+                          title="Edit Work Order"
+                        >
+                          <Edit className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Components (indented) */}
+                {organizedWorkOrders.components.map((workOrder: any) => (
+                  <div key={`component-${workOrder.id}`} className="flex items-center justify-between p-4 bg-purple-50 rounded border border-purple-200 ml-6">
+                    <div className="flex items-center gap-3">
+                      <ClipboardList className="w-4 h-4 text-purple-600" />
+                      <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
+                        🟪 Component
+                      </Badge>
+                      <div>
+                        <div className="font-medium text-gray-900">{workOrder.workOrderNumber}</div>
+                        <div className="text-sm text-gray-600">{workOrder.title}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-sm">
+                        {getStatusBadge(workOrder.status)}
+                      </div>
+                      <div className="text-sm">
+                        {getPriorityBadge(workOrder.priority)}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {workOrder.startDate && new Date(workOrder.startDate).toLocaleDateString()}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => window.location.href = `/production/work-orders/${workOrder.id}`}
+                          title="View Work Order"
+                        >
+                          <Eye className="w-3 h-3" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => window.location.href = `/production/work-orders/edit/${workOrder.id}`}
+                          title="Edit Work Order"
+                        >
+                          <Edit className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Message when no work orders exist */}
+                {organizedWorkOrders.parentAssemblies.length === 0 && organizedWorkOrders.components.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    No work orders found for this project.
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
