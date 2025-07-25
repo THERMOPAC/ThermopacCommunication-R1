@@ -238,7 +238,7 @@ export default function InspectionsPage() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingInspectionOrder, setEditingInspectionOrder] = useState<number | null>(null);
-  const [showNcrDocuments, setShowNcrDocuments] = useState(false);
+  // NCR document viewing state removed per user request
   const [showDossierDocuments, setShowDossierDocuments] = useState(false);
   
   // State for final dossier generation
@@ -6945,43 +6945,11 @@ export default function InspectionsPage() {
                           </Button>
                         </div>
                         <div className="flex items-center gap-2">
-                          {editInspectionOrderDetails && ncrRecords && ncrRecords.length > 0 && ncrRecords[0].id && (
-                            <>
-                              <InspectionDocumentUpload
-                                inspectionOrderNumber={editInspectionOrderDetails.inspectionOrderNumber}
-                                tabName="NonConformance"
-                                recordId={ncrRecords[0].id}
-                                variant="outline"
-                                size="sm"
-                              />
-                              <Button 
-                                type="button"
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => {
-                                  setShowNcrDocuments(!showNcrDocuments);
-                                }}
-                              >
-                                <Eye className="h-4 w-4 mr-2" />
-                                {showNcrDocuments ? "Hide Documents" : "View Documents"}
-                              </Button>
-                            </>
-                          )}
+                          {/* Buttons removed per user request */}
                         </div>
                       </div>
                       
-                      {/* Document viewer section */}
-                      {showNcrDocuments && editInspectionOrderDetails && ncrRecords && ncrRecords.length > 0 && ncrRecords[0].id && (
-                        <div className="mt-4 border rounded-md p-3">
-                          <h4 className="text-md font-medium mb-2">NCR Documents</h4>
-                          <InspectionDocumentViewer
-                            inspectionOrderNumber={editInspectionOrderDetails.inspectionOrderNumber}
-                            tabName="NonConformance"
-                            recordId={ncrRecords[0].id}
-                            className="mt-2"
-                          />
-                        </div>
-                      )}
+                      {/* Document viewer section removed per user request */}
                       
                       {/* Uploaded Files Display Section */}
                       {ncrRecords && ncrRecords.length > 0 && (
