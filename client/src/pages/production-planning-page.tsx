@@ -476,7 +476,16 @@ export default function ProductionPlanningPage() {
     
     workOrders.forEach((workOrder: any) => {
       const title = workOrder.title || '';
-      const isComponent = title.includes('Components for') || title.includes('Component') || title.includes('Sub-assembly');
+      const workOrderNumber = workOrder.workOrderNumber || '';
+      
+      // Check if it's a component work order by:
+      // 1. Title contains "Components for", "Component", or "Sub-assembly"
+      // 2. Work order number pattern indicates sub-component (e.g., WO-2025-1-1-1, WO-2025-1-1-2)
+      const isComponent = 
+        title.includes('Components for') || 
+        title.includes('Component') || 
+        title.includes('Sub-assembly') ||
+        /WO-\d{4}-\d+-\d+-\d+/.test(workOrderNumber); // Pattern: WO-YYYY-X-X-X (has extra dash indicating sub-component)
       
       if (isComponent) {
         components.push(workOrder);
