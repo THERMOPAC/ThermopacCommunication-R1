@@ -6269,38 +6269,7 @@ export default function InspectionsPage() {
                             Add NDT Record
                           </Button>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {selectedNdtRecord ? (
-                            <InspectionDocumentUpload
-                              inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
-                              tabName="NDT"
-                              recordId={selectedNdtRecord.id}
-                              variant="outline"
-                              size="sm"
-                              onSuccess={() => {
-                                toast({
-                                  title: "Report uploaded successfully",
-                                  description: `NDT report for ${selectedNdtRecord.id} has been uploaded.`,
-                                });
-                              }}
-                            />
-                          ) : (
-                            <Button type="button" variant="outline" size="sm" onClick={() => {
-                              toast({
-                                title: "No NDT record selected",
-                                description: "Please select an NDT record to upload a report.",
-                                variant: "destructive"
-                              });
-                            }}>
-                              <Info className="h-4 w-4 mr-2 text-blue-500" />
-                              Select NDT Record First
-                            </Button>
-                          )}
-                          <Button type="button" variant="outline" size="sm">
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Reports
-                          </Button>
-                        </div>
+
                       </div>
                       
                       {/* Uploaded Files Display Section */}
