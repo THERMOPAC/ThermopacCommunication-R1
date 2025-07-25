@@ -173,7 +173,88 @@ router.post("/upload", ensureAuthenticated, upload.single('file'), async (req: R
   }
 });
 
-// GET documents for an inspection order record
+// GET documents for an inspection order record (query parameter version)
+router.get("/", ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { inspectionOrderNumber, tabName, recordId } = req.query;
+    
+    if (!inspectionOrderNumber || !tabName || !recordId) {
+      return res.status(400).json({ 
+        error: "Required query parameters are missing",
+        required: ["inspectionOrderNumber", "tabName", "recordId"]
+      });
+    }
+    
+    // Get the inspection order ID
+    const inspection = await db.query.inspectionOrders.findFirst({
+      where: eq(inspectionOrders.inspectionOrderNumber, inspectionOrderNumber as string)
+    });
+    
+    if (!inspection) {
+      return res.status(404).json({ error: "Inspection order not found" });
+    }
+    
+    // Map tab names to match what's stored in the database
+    let formattedTabName = tabName;
+    if (tabName === 'Visual') {
+      formattedTabName = 'Visual';
+    } else if (tabName === 'ShopInspection') {
+      formattedTabName = 'ShopInspection'; // Already formatted
+    } else if (tabName === 'Shop Inspection') {
+      formattedTabName = 'ShopInspection'; // Format for GCS path consistency
+    } else if (tabName === 'Approved Drawing') {
+      formattedTabName = 'ApprovedDrawing';
+    } else if (tabName === 'DVR') {
+      formattedTabName = 'DVR';
+    } else if (tabName === 'ITP') {
+      formattedTabName = 'ITP';
+    } else if (tabName === 'Hydrotest') {
+      formattedTabName = 'Hydrotest';
+    }
+    
+    console.log(`Getting documents for inspection: ${inspectionOrderNumber}, tab: ${tabName} (formatted as: ${formattedTabName}), record: ${recordId}`);
+    console.log(`Inspection order found with ID: ${inspection.id}`);
+    
+    // Get documents for this inspection order record
+    // Handle backward compatibility for tab names (both "Shop Inspection" and "ShopInspection")
+    let documents;
+    if (tabName === 'Shop Inspection' || tabName === 'ShopInspection') {
+      console.log(`Shop Inspection tab detected - searching for both "Shop Inspection" and "ShopInspection" formats`);
+      documents = await db.query.inspectionDocuments.findMany({
+        where: sql`
+          inspection_order_id = ${inspection.id} AND
+          (tab_name = 'Shop Inspection' OR tab_name = 'ShopInspection') AND
+          record_id = ${recordId as string}
+        `,
+        orderBy: (inspectionDocuments, { desc }) => [desc(inspectionDocuments.createdAt)]
+      });
+      console.log(`Found ${documents.length} Shop Inspection documents for record ${recordId}:`, documents.map(d => ({ id: d.id, tabName: d.tabName, fileName: d.fileName })));
+    } else {
+      // For other tabs, use the formatted tab name
+      documents = await db.query.inspectionDocuments.findMany({
+        where: sql`
+          inspection_order_id = ${inspection.id} AND
+          tab_name = ${formattedTabName} AND
+          record_id = ${recordId as string}
+        `,
+        orderBy: (inspectionDocuments, { desc }) => [desc(inspectionDocuments.createdAt)]
+      });
+      console.log(`Found ${documents.length} documents for tab ${tabName} (${formattedTabName}), record ${recordId}`);
+    }
+    
+    console.log(`Returning ${documents.length} documents to frontend`);
+    return res.status(200).json(documents);
+    
+  } catch (error) {
+    console.error('Error getting inspection documents:', error);
+    return res.status(500).json({ 
+      error: "Internal server error",
+      message: error instanceof Error ? error.message : "Unknown error occurred"
+    });
+  }
+});
+
+// GET documents for an inspection order record (path parameter version)
 router.get("/:inspectionOrderNumber/:tabName/:recordId/documents", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { inspectionOrderNumber, tabName, recordId } = req.params;

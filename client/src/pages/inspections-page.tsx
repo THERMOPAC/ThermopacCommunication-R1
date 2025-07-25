@@ -2415,8 +2415,18 @@ export default function InspectionsPage() {
       console.log(`Documents fetch response status: ${response.status}`);
       
       if (response.ok) {
-        const documents = await response.json();
-        console.log(`Found ${documents.length} documents to delete:`, documents);
+        const responseText = await response.text();
+        console.log(`Raw response:`, responseText);
+        
+        let documents;
+        try {
+          documents = JSON.parse(responseText);
+          console.log(`Found ${documents.length} documents to delete:`, documents);
+        } catch (parseError) {
+          console.error(`Failed to parse JSON response:`, parseError);
+          console.error(`Response was HTML, likely a routing issue`);
+          throw new Error('API returned HTML instead of JSON - routing issue');
+        }
         
         let deletedCount = 0;
         let failedCount = 0;
