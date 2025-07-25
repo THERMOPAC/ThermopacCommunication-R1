@@ -5661,62 +5661,14 @@ export default function InspectionsPage() {
                         </Table>
                       </div>
                       
-                      {/* Action buttons */}
-                      <div className="flex items-center gap-2 mt-4">
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          size="sm" 
-                          className="text-xs"
-                          onClick={() => {
-                            if (shopInspectionRecords.length === 0) {
-                              toast({
-                                title: "No Records Available",
-                                description: "Please add a shop inspection record first before uploading documents.",
-                                variant: "destructive",
-                              });
-                              return;
-                            }
-                            // Use the first record or let user select
-                            const recordId = shopInspectionRecords[0].id;
-                            setDocumentUploadConfig({
-                              inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
-                              tabName: "ShopInspection",
-                              recordId: recordId
-                            });
-                            setShowDocumentUpload(true);
-                          }}
-                        >
-                          <FileText className="h-3.5 w-3.5 mr-1" />
-                          Upload Shop Inspection Document
-                        </Button>
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          size="sm" 
-                          className="text-xs"
-                          onClick={() => {
-                            if (shopInspectionRecords.length === 0) {
-                              toast({
-                                title: "No Records Available",
-                                description: "Please add a shop inspection record first before viewing documents.",
-                                variant: "destructive",
-                              });
-                              return;
-                            }
-                            // Use the first record or let user select
-                            const recordId = shopInspectionRecords[0].id;
-                            setDocumentViewerConfig({
-                              inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
-                              tabName: "ShopInspection",
-                              recordId: recordId
-                            });
-                            setShowDocumentViewer(true);
-                          }}
-                        >
-                          <Eye className="h-3.5 w-3.5 mr-1" />
-                          View Documents
-                        </Button>
+                      {/* Info message - explaining upload functionality */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-4">
+                        <div className="flex items-center">
+                          <Info className="h-4 w-4 text-blue-500 mr-2" />
+                          <p className="text-xs text-blue-700">
+                            To upload or view documents, use the Upload/View buttons in the Actions column for each specific shop inspection record.
+                          </p>
+                        </div>
                       </div>
                       
                       {/* Uploaded Files Display Section */}
