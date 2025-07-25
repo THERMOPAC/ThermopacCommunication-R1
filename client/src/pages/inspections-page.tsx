@@ -5668,16 +5668,7 @@ export default function InspectionsPage() {
                         </Table>
                       </div>
                       
-                      {/* Info message - explaining upload functionality */}
-                      <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-4">
-                        <div className="flex items-center">
-                          <Info className="h-4 w-4 text-blue-500 mr-2" />
-                          <div className="text-xs text-blue-700">
-                            <p className="mb-1"><strong>File Upload Options:</strong></p>
-                            <p>• <strong>Record-Specific Upload:</strong> Use Upload/View buttons in Actions column for each inspection record</p>
-                          </div>
-                        </div>
-                      </div>
+
                       
                       {/* Uploaded Files Display Section */}
                       {editInspectionOrderDetails?.inspectionOrderNumber && (
