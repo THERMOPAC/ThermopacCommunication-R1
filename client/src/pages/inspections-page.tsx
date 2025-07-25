@@ -5557,22 +5557,7 @@ export default function InspectionsPage() {
                             <Plus className="h-3.5 w-3.5 mr-1" /> Add Shop Inspection Record
                           </Button>
                           
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            size="sm"
-                            className="flex items-center text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                            onClick={() => {
-                              setDocumentUploadConfig({
-                                inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || '',
-                                tabName: "ShopInspection",
-                                recordId: "GENERAL"
-                              });
-                              setShowDocumentUpload(true);
-                            }}
-                          >
-                            <Upload className="h-3.5 w-3.5 mr-1" /> Upload General Files
-                          </Button>
+
                         </div>
                       </div>
                       
@@ -5689,7 +5674,6 @@ export default function InspectionsPage() {
                           <Info className="h-4 w-4 text-blue-500 mr-2" />
                           <div className="text-xs text-blue-700">
                             <p className="mb-1"><strong>File Upload Options:</strong></p>
-                            <p>• <strong>Upload General Files:</strong> Upload documents without creating specific inspection records</p>
                             <p>• <strong>Record-Specific Upload:</strong> Use Upload/View buttons in Actions column for each inspection record</p>
                           </div>
                         </div>
