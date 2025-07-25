@@ -4318,6 +4318,9 @@ export const inspectionOrders = pgTable('inspection_orders', {
   // PMA (Particular Material Appraisal) data - stored as JSON string
   pmaData: text('pma_data'),
   
+  // Procedures/Test Procedures data - stored as JSON string
+  procedureData: text('procedure_data'),
+  
   // Timing
   plannedDate: timestamp('planned_date'),
   completedDate: timestamp('completed_date'),
