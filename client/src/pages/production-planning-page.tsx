@@ -91,6 +91,26 @@ const workOrderSchema = z.object({
 
 type WorkOrderFormValues = z.infer<typeof workOrderSchema>;
 
+// Function to determine work order category and return appropriate badge
+const getWorkOrderCategoryBadge = (workOrder: any) => {
+  const title = workOrder.title || '';
+  const isComponent = title.includes('Components for') || title.includes('Component') || title.includes('Sub-assembly');
+  
+  if (isComponent) {
+    return (
+      <Badge variant="outline" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
+        🟪 Component
+      </Badge>
+    );
+  } else {
+    return (
+      <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+        🟩 Parent Assembly
+      </Badge>
+    );
+  }
+};
+
 export default function ProductionPlanningPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -616,12 +636,10 @@ export default function ProductionPlanningPage() {
                             className="hover:bg-muted/50"
                           >
                             <TableCell className="font-medium">
-                              {workOrder.workOrderNumber}
-                              {workOrder.title && workOrder.title.includes('Components for') && (
-                                <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
-                                  Assembly Parts
-                                </span>
-                              )}
+                              <div className="flex items-center gap-2">
+                                <span>{workOrder.workOrderNumber}</span>
+                                {getWorkOrderCategoryBadge(workOrder)}
+                              </div>
                             </TableCell>
                             <TableCell>{workOrder.title}</TableCell>
                             <TableCell>{getStatusBadge(workOrder.status)}</TableCell>
@@ -699,12 +717,10 @@ export default function ProductionPlanningPage() {
                     {workOrders?.map((workOrder: any) => (
                       <TableRow key={workOrder.id}>
                         <TableCell className="font-medium">
-                          {workOrder.workOrderNumber}
-                          {workOrder.title && workOrder.title.includes('Components for') && (
-                            <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
-                              Assembly Parts
-                            </span>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <span>{workOrder.workOrderNumber}</span>
+                            {getWorkOrderCategoryBadge(workOrder)}
+                          </div>
                         </TableCell>
                         <TableCell>{workOrder.title}</TableCell>
                         <TableCell>{getStatusBadge(workOrder.status)}</TableCell>
