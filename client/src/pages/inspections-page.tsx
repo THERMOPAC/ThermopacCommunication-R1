@@ -403,6 +403,8 @@ export default function InspectionsPage() {
   // Shop Inspection file upload states
   const [shopInspectionFiles, setShopInspectionFiles] = useState<File[]>([]);
   const [isUploadingShopFiles, setIsUploadingShopFiles] = useState(false);
+  const [weldingFiles, setWeldingFiles] = useState<File[]>([]);
+  const [isUploadingWeldFiles, setIsUploadingWeldFiles] = useState(false);
   
   const [approvedDrawingRecords, setApprovedDrawingRecords] = useState<{
     id: string;
@@ -3094,8 +3096,8 @@ export default function InspectionsPage() {
     setIsItpDialogOpen(true);
   };
 
-  // Add new weld record via dialog
-  const addWeldRecord = (recordData: {
+  // Add new weld record via dialog with file upload support
+  const addWeldRecord = async (recordData: {
     id: string;
     weldType: string;
     weldProcess: string;
@@ -3103,14 +3105,72 @@ export default function InspectionsPage() {
     welderId: string;
     weldStatus: string;
   }) => {
+    // Check if we have valid inspection order details with project code
+    if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
+      toast({
+        title: "Cannot Create Record",
+        description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newRecordId = recordData.id;
     const newRecord = {
       ...recordData
     };
+
+    // Handle file uploads if any files are selected
+    if (weldingFiles.length > 0) {
+      setIsUploadingWeldFiles(true);
+      
+      try {
+        // Upload files for this specific record
+        for (const file of weldingFiles) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('inspectionOrderNumber', editInspectionOrderDetails.inspectionOrderNumber);
+          formData.append('tabName', 'Welding');
+          formData.append('recordId', newRecordId);
+          formData.append('projectCode', editInspectionOrderDetails.projectCode);
+
+          const uploadResponse = await fetch('/api/quality/inspection-documents/upload', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+          });
+
+          if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json();
+            throw new Error(errorData.error || `Failed to upload ${file.name}`);
+          }
+        }
+
+        // Clear file state after successful upload
+        setWeldingFiles([]);
+        setIsUploadingWeldFiles(false);
+        
+        toast({
+          title: "Success",
+          description: `${weldingFiles.length} file(s) uploaded for Weld record ${newRecordId}`,
+        });
+      } catch (error) {
+        console.error('Error uploading files:', error);
+        setIsUploadingWeldFiles(false);
+        toast({
+          title: "Upload Error",
+          description: error instanceof Error ? error.message : "Failed to upload files",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setWelds(prev => [...prev, newRecord]);
     setIsWeldingDialogOpen(false);
     toast({
       title: "Success",
-      description: "Weld record added successfully",
+      description: "Weld record added successfully" + (weldingFiles.length > 0 ? " with uploaded files" : ""),
     });
   };
 
@@ -7313,6 +7373,7 @@ export default function InspectionsPage() {
         if (!open) {
           setEditingWeldRecord(null);
           setSelectedWpqrForDialog("");
+          setWeldingFiles([]); // Clear selected files when dialog closes
         }
       }}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
@@ -7464,6 +7525,42 @@ export default function InspectionsPage() {
                   <option value="Failed">Failed</option>
                 </select>
               </div>
+
+              {/* File Upload Section - Only for new records */}
+              {!editingWeldRecord && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Upload Weld Maps (Optional)
+                  </label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                    <input
+                      type="file"
+                      multiple
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        setWeldingFiles(files);
+                      }}
+                      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      Select PDF, DOC, DOCX, JPG, JPEG, or PNG files
+                    </p>
+                    {weldingFiles.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-sm font-medium text-gray-700">Selected files:</p>
+                        <ul className="text-sm text-gray-600">
+                          {weldingFiles.map((file, index) => (
+                            <li key={index} className="truncate">
+                              • {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <DialogFooter>
@@ -7473,12 +7570,20 @@ export default function InspectionsPage() {
                 onClick={() => {
                   setIsWeldingDialogOpen(false);
                   setEditingWeldRecord(null);
+                  setWeldingFiles([]); // Clear selected files
                 }}
               >
                 Cancel
               </Button>
-              <Button type="submit">
-                {editingWeldRecord ? 'Update Record' : 'Add Record'}
+              <Button type="submit" disabled={isUploadingWeldFiles}>
+                {isUploadingWeldFiles ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  editingWeldRecord ? 'Update Record' : 'Add Record'
+                )}
               </Button>
             </DialogFooter>
           </form>
