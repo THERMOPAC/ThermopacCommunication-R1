@@ -6438,58 +6438,7 @@ export default function InspectionsPage() {
                             Add Visual Inspection Record
                           </Button>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {selectedVisualRecord ? (
-                            <InspectionDocumentUpload
-                              inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
-                              tabName="Visual"
-                              recordId={selectedVisualRecord.id}
-                              variant="outline"
-                              size="sm"
-                              onSuccess={() => {
-                                toast({
-                                  title: "Photos uploaded successfully",
-                                  description: `Visual inspection photos for ${selectedVisualRecord.id} have been uploaded.`,
-                                });
-                              }}
-                            />
-                          ) : (
-                            <Button type="button" variant="outline" size="sm" onClick={() => {
-                              toast({
-                                title: "No Visual Inspection record selected",
-                                description: "Please select a Visual Inspection record to upload photos.",
-                                variant: "destructive"
-                              });
-                            }}>
-                              <Info className="h-4 w-4 mr-2 text-blue-500" />
-                              Select Record First
-                            </Button>
-                          )}
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              if (selectedVisualRecord && editInspectionOrderDetails?.inspectionOrderNumber) {
-                                setShowDocumentViewer(true);
-                                setDocumentViewerConfig({
-                                  inspectionOrderNumber: editInspectionOrderDetails.inspectionOrderNumber,
-                                  tabName: 'Visual',
-                                  recordId: selectedVisualRecord.id
-                                });
-                              } else {
-                                toast({
-                                  title: "No Visual Inspection record selected",
-                                  description: "Please select a Visual Inspection record to view photos.",
-                                  variant: "destructive"
-                                });
-                              }
-                            }}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Photos
-                          </Button>
-                        </div>
+
                       </div>
                       
                       {/* Uploaded Files Display Section */}
