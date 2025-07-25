@@ -2,10 +2,9 @@ import { Storage, Bucket, File } from '@google-cloud/storage';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { gcsCredentials, gcsBucketName } from './gcs-config';
 
 // Define the GCS bucket name
-const bucketName = process.env.GCS_BUCKET_NAME || gcsBucketName || 'thermopac_storage';
+const bucketName = process.env.GCS_BUCKET_NAME || 'thermopac_storage';
 
 // Initialize GCS client
 let gcsStorage: Storage | null = null;
@@ -60,7 +59,7 @@ export const initializeGCS = async (): Promise<{ storage: Storage | null, bucket
     }
     
     // Get bucket name from environment or use default
-    const bucketName = process.env.GCS_BUCKET_NAME || gcsBucketName || 'thermopac_storage';
+    const bucketName = process.env.GCS_BUCKET_NAME || 'thermopac_storage';
     console.log(`Using GCS bucket name: ${bucketName}`);
     
     // CRITICAL CHANGE: Always create a bucket reference if we have a storage client
