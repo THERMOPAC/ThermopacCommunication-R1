@@ -5535,26 +5535,45 @@ export default function InspectionsPage() {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-medium">Shop Inspection</h3>
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          size="sm"
-                          className="flex items-center text-xs"
-                          onClick={() => {
-                            // Check if we have valid project code before opening dialog
-                            if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
-                              toast({
-                                title: "Cannot Create Record",
-                                description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
-                                variant: "destructive",
+                        <div className="flex gap-2">
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm"
+                            className="flex items-center text-xs"
+                            onClick={() => {
+                              // Check if we have valid project code before opening dialog
+                              if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
+                                toast({
+                                  title: "Cannot Create Record",
+                                  description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+                              setIsShopInspectionDialogOpen(true);
+                            }}
+                          >
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Add Shop Inspection Record
+                          </Button>
+                          
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm"
+                            className="flex items-center text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                            onClick={() => {
+                              setDocumentUploadConfig({
+                                inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || '',
+                                tabName: "ShopInspection",
+                                recordId: "GENERAL"
                               });
-                              return;
-                            }
-                            setIsShopInspectionDialogOpen(true);
-                          }}
-                        >
-                          <Plus className="h-3.5 w-3.5 mr-1" /> Add Shop Inspection Record
-                        </Button>
+                              setShowDocumentUpload(true);
+                            }}
+                          >
+                            <Upload className="h-3.5 w-3.5 mr-1" /> Upload General Files
+                          </Button>
+                        </div>
                       </div>
                       
                       {/* Shop Inspection Records Table */}
@@ -5668,9 +5687,11 @@ export default function InspectionsPage() {
                       <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-4">
                         <div className="flex items-center">
                           <Info className="h-4 w-4 text-blue-500 mr-2" />
-                          <p className="text-xs text-blue-700">
-                            To upload or view documents, use the Upload/View buttons in the Actions column for each specific shop inspection record.
-                          </p>
+                          <div className="text-xs text-blue-700">
+                            <p className="mb-1"><strong>File Upload Options:</strong></p>
+                            <p>• <strong>Upload General Files:</strong> Upload documents without creating specific inspection records</p>
+                            <p>• <strong>Record-Specific Upload:</strong> Use Upload/View buttons in Actions column for each inspection record</p>
+                          </div>
                         </div>
                       </div>
                       
