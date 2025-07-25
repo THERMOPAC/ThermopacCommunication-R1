@@ -98,21 +98,17 @@ const getWorkOrderCategoryBadge = (workOrder: any) => {
   
   if (isComponent) {
     return (
-      <div className="flex items-center gap-1">
-        <Settings className="w-4 h-4 text-purple-600" />
-        <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">
-          Component
-        </Badge>
-      </div>
+      <Badge className="bg-purple-100 text-purple-800 border-purple-200 rounded-full px-3 py-1 flex items-center gap-1.5">
+        <Settings className="w-3 h-3" />
+        Component
+      </Badge>
     );
   } else {
     return (
-      <div className="flex items-center gap-1">
-        <Settings className="w-4 h-4 text-green-600" />
-        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
-          Parent Assembly
-        </Badge>
-      </div>
+      <Badge className="bg-green-100 text-green-800 border-green-200 rounded-full px-3 py-1 flex items-center gap-1.5">
+        <Settings className="w-3 h-3" />
+        Parent Assembly
+      </Badge>
     );
   }
 };
