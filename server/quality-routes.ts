@@ -220,7 +220,21 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       console.log('No ITP data found in inspection order.');
     }
     
-    // Return detailed inspection order with items, materials, NDT records, Visual Inspection records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, and ITP records
+    // Parse PMA data if it exists
+    let pmaRecords = [];
+    console.log('Checking for PMA data in inspection order:', inspectionOrder.pmaData);
+    if (inspectionOrder.pmaData) {
+      try {
+        pmaRecords = JSON.parse(inspectionOrder.pmaData);
+        console.log('Successfully parsed PMA data:', pmaRecords);
+      } catch (e) {
+        console.error('Error parsing PMA data:', e);
+      }
+    } else {
+      console.log('No PMA data found in inspection order.');
+    }
+    
+    // Return detailed inspection order with items, materials, NDT records, Visual Inspection records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, ITP records, and PMA records
     res.json({
       ...inspectionOrder,
       items: orderItems,
@@ -232,7 +246,8 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       ncrRecords: ncrRecords,
       approvedDrawingRecords: approvedDrawingRecords,
       dvrRecords: dvrRecords,
-      itpRecords: itpRecords
+      itpRecords: itpRecords,
+      pmaRecords: pmaRecords
     });
   } catch (error) {
     console.error('Error fetching inspection order details:', error);
@@ -261,8 +276,8 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       return res.status(404).json({ error: 'Inspection order not found' });
     }
 
-    // Extract materials, NDT records, Visual Inspection records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, and ITP records from the request body
-    const { materials, ndtRecords, visualRecords, welds, hydrotestRecords, ncrRecords, approvedDrawingRecords, dvrRecords, itpRecords, ...orderData } = req.body;
+    // Extract materials, NDT records, Visual Inspection records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, ITP records, and PMA records from the request body
+    const { materials, ndtRecords, visualRecords, welds, hydrotestRecords, ncrRecords, approvedDrawingRecords, dvrRecords, itpRecords, pmaRecords, ...orderData } = req.body;
     
     // Store NDT records in the orderData as a JSON string if they exist
     if (ndtRecords && Array.isArray(ndtRecords)) {
@@ -317,6 +332,14 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       orderData.itpData = JSON.stringify(itpRecords);
     } else {
       console.log('No ITP records to store in order update:', itpRecords);
+    }
+    
+    // Store PMA records in the orderData as a JSON string if they exist
+    if (pmaRecords && Array.isArray(pmaRecords)) {
+      console.log('Storing PMA records in order update:', pmaRecords);
+      orderData.pmaData = JSON.stringify(pmaRecords);
+    } else {
+      console.log('No PMA records to store in order update:', pmaRecords);
     }
 
     // Update inspection order
@@ -458,7 +481,21 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       console.log('No ITP data found in updated order response');
     }
     
-    // Return updated order with all records including Approved Drawing, DVR, and ITP records
+    // Parse PMA data for the response
+    let parsedPmaRecords = [];
+    console.log('Checking for PMA data in updated order response:', updatedOrder[0].pmaData);
+    if (updatedOrder[0].pmaData) {
+      try {
+        parsedPmaRecords = JSON.parse(updatedOrder[0].pmaData);
+        console.log('Successfully parsed PMA data in response:', parsedPmaRecords);
+      } catch (e) {
+        console.error('Error parsing PMA data in response:', e);
+      }
+    } else {
+      console.log('No PMA data found in updated order response');
+    }
+    
+    // Return updated order with all records including Approved Drawing, DVR, ITP, and PMA records
     res.json({
       ...updatedOrder[0],
       materials: updatedMaterials,
@@ -469,7 +506,8 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       ncrRecords: parsedNcrRecords,
       approvedDrawingRecords: parsedApprovedDrawingRecords,
       dvrRecords: parsedDvrRecords,
-      itpRecords: parsedItpRecords
+      itpRecords: parsedItpRecords,
+      pmaRecords: parsedPmaRecords
     });
   } catch (error) {
     console.error('Error updating inspection order:', error);

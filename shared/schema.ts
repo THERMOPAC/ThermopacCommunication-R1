@@ -4315,6 +4315,9 @@ export const inspectionOrders = pgTable('inspection_orders', {
   // ITP (Inspection Test Plan) data - stored as JSON string
   itpData: text('itp_data'),
   
+  // PMA (Particular Material Appraisal) data - stored as JSON string
+  pmaData: text('pma_data'),
+  
   // Timing
   plannedDate: timestamp('planned_date'),
   completedDate: timestamp('completed_date'),
