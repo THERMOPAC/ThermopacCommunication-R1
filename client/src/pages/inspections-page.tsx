@@ -403,6 +403,8 @@ export default function InspectionsPage() {
   // Shop Inspection file upload states
   const [shopInspectionFiles, setShopInspectionFiles] = useState<File[]>([]);
   const [isUploadingShopFiles, setIsUploadingShopFiles] = useState(false);
+  const [visualInspectionFiles, setVisualInspectionFiles] = useState<File[]>([]);
+  const [isUploadingVisualFiles, setIsUploadingVisualFiles] = useState(false);
   const [weldingFiles, setWeldingFiles] = useState<File[]>([]);
   const [isUploadingWeldFiles, setIsUploadingWeldFiles] = useState(false);
   
@@ -7867,6 +7869,7 @@ export default function InspectionsPage() {
         setIsVisualDialogOpen(open);
         if (!open) {
           setEditingVisualRecord(null);
+          setVisualInspectionFiles([]); // Clear selected files when dialog closes
         }
       }}>
         <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
@@ -7876,7 +7879,7 @@ export default function InspectionsPage() {
             </DialogTitle>
           </DialogHeader>
           
-          <form onSubmit={(e) => {
+          <form onSubmit={async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target as HTMLFormElement);
             
@@ -7890,10 +7893,66 @@ export default function InspectionsPage() {
               observations: formData.get('visualObservations') as string,
             };
 
-            if (editingVisualRecord) {
-              editVisualRecord(recordData);
-            } else {
-              addVisualRecord(recordData);
+            try {
+              if (editingVisualRecord) {
+                editVisualRecord(recordData);
+              } else {
+                // Add record to state first
+                addVisualRecord(recordData);
+                
+                // Handle file uploads for new records
+                if (visualInspectionFiles.length > 0 && selectedOrder) {
+                  setIsUploadingVisualFiles(true);
+                  
+                  for (const file of visualInspectionFiles) {
+                    try {
+                      const uploadFormData = new FormData();
+                      uploadFormData.append('file', file);
+                      uploadFormData.append('inspectionOrderNumber', selectedOrder.inspectionOrderNumber);
+                      uploadFormData.append('recordId', recordData.id);
+                      uploadFormData.append('tabName', 'Visual');
+                      uploadFormData.append('documentType', 'Visual Inspection Report');
+                      
+                      const response = await fetch('/api/quality/inspection-documents/upload', {
+                        method: 'POST',
+                        body: uploadFormData,
+                        credentials: 'include'
+                      });
+                      
+                      if (!response.ok) {
+                        throw new Error(`Failed to upload ${file.name}`);
+                      }
+                    } catch (uploadError) {
+                      console.error(`Error uploading ${file.name}:`, uploadError);
+                      toast({
+                        title: "Upload Error",
+                        description: `Failed to upload ${file.name}`,
+                        variant: "destructive"
+                      });
+                    }
+                  }
+                  
+                  setIsUploadingVisualFiles(false);
+                  setVisualInspectionFiles([]); // Clear files after upload
+                  
+                  // Refresh the files display
+                  documentsQuery.refetch();
+                }
+              }
+              
+              setIsVisualDialogOpen(false);
+              setEditingVisualRecord(null);
+              toast({
+                title: "Success",
+                description: editingVisualRecord ? "Visual inspection record updated successfully" : "Visual inspection record added successfully"
+              });
+            } catch (error) {
+              console.error('Error saving visual inspection record:', error);
+              toast({
+                title: "Error",
+                description: "Failed to save visual inspection record",
+                variant: "destructive"
+              });
             }
           }}>
             <div className="space-y-4">
@@ -8000,6 +8059,45 @@ export default function InspectionsPage() {
               </div>
             </div>
 
+            {/* File Upload Section - Only for new records */}
+            {!editingVisualRecord && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Upload Photos/Files (Optional)
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      setVisualInspectionFiles(files);
+                    }}
+                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Select PDF, DOC, DOCX, JPG, JPEG, or PNG files
+                  </p>
+                  {visualInspectionFiles.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-sm font-medium text-gray-700">Selected files:</p>
+                      <ul className="text-sm text-gray-600">
+                        {visualInspectionFiles.map((file, index) => (
+                          <li key={index} className="flex items-center">
+                            <span className="truncate">{file.name}</span>
+                            <span className="ml-2 text-xs text-gray-400">
+                              ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <DialogFooter>
               <Button 
                 type="button" 
@@ -8007,12 +8105,20 @@ export default function InspectionsPage() {
                 onClick={() => {
                   setIsVisualDialogOpen(false);
                   setEditingVisualRecord(null);
+                  setVisualInspectionFiles([]); // Clear selected files
                 }}
               >
                 Cancel
               </Button>
-              <Button type="submit">
-                {editingVisualRecord ? 'Update Record' : 'Add Record'}
+              <Button type="submit" disabled={isUploadingVisualFiles}>
+                {isUploadingVisualFiles ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  editingVisualRecord ? 'Update Record' : 'Add Record'
+                )}
               </Button>
             </DialogFooter>
           </form>
