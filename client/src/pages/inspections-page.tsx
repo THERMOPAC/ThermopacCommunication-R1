@@ -6343,121 +6343,111 @@ export default function InspectionsPage() {
                   <TabsContent value="visual" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-medium">Visual Inspection Records</h3>
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            if (editInspectionOrderDetails?.projectCode === 'UNKNOWN') {
-                              toast({
-                                title: "Project Code Required",
-                                description: "Cannot add Visual Inspection record with UNKNOWN project code. Please update the project information first.",
-                                variant: "destructive"
-                              });
-                              return;
-                            }
-                            setIsVisualDialogOpen(true);
-                          }}
-                          className="flex items-center text-xs"
-                        >
-                          <Plus className="h-3.5 w-3.5 mr-1" /> Add Visual Inspection Record
-                        </Button>
+                        <h3 className="text-lg font-medium">Visual Inspection</h3>
+                        <div className="flex gap-2">
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm"
+                            className="flex items-center text-xs"
+                            onClick={() => {
+                              // Check if we have valid project code before opening dialog
+                              if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
+                                toast({
+                                  title: "Cannot Create Record",
+                                  description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+                              setIsVisualDialogOpen(true);
+                            }}
+                          >
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Add Visual Inspection Record
+                          </Button>
+                        </div>
                       </div>
                       
-                      {/* Table of visual inspection records */}
-                      <div className="border rounded-md">
+                      {/* Visual Inspection Records Table */}
+                      <div className="border rounded-md shadow-sm overflow-hidden">
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>ID</TableHead>
-                              <TableHead>Standard</TableHead>
-                              <TableHead>Dimensional Checks</TableHead>
-                              <TableHead>Surface Condition</TableHead>
-                              <TableHead>Inspector</TableHead>
-                              <TableHead>Date</TableHead>
-                              <TableHead>Observations</TableHead>
-                              <TableHead className="text-right">Actions</TableHead>
+                              <TableHead className="w-[100px]">Record ID</TableHead>
+                              <TableHead className="w-[120px]">Standard</TableHead>
+                              <TableHead className="w-[150px]">Dimensional Checks</TableHead>
+                              <TableHead className="w-[150px]">Surface Condition</TableHead>
+                              <TableHead className="w-[120px]">Inspector</TableHead>
+                              <TableHead className="w-[120px]">Date</TableHead>
+                              <TableHead className="w-[200px]">Observations</TableHead>
+                              <TableHead className="w-[140px]">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {Array.isArray(visualRecords) && visualRecords.length > 0 ? (
-                              visualRecords.map((record, index) => (
-                                <TableRow key={record.id} className="hover:bg-muted/50">
-                                  <TableCell className="text-xs font-mono text-blue-600">
-                                    {record.id}
-                                  </TableCell>
-                                  <TableCell className="text-xs">
-                                    {record.standard || "-"}
-                                  </TableCell>
-                                  <TableCell className="text-xs">
-                                    {record.dimensionalChecks || "-"}
-                                  </TableCell>
-                                  <TableCell className="text-xs">
-                                    {record.surfaceCondition || "-"}
-                                  </TableCell>
-                                  <TableCell className="text-xs">
-                                    {record.inspector || "-"}
-                                  </TableCell>
-                                  <TableCell className="text-xs">
-                                    {record.inspectionDate || "-"}
-                                  </TableCell>
-                                  <TableCell className="text-xs">
-                                    {record.observations || "-"}
-                                  </TableCell>
+                              visualRecords.map((record) => (
+                                <TableRow key={record.id}>
+                                  <TableCell className="font-medium">{record.id}</TableCell>
+                                  <TableCell>{record.standard}</TableCell>
+                                  <TableCell>{record.dimensionalChecks}</TableCell>
+                                  <TableCell>{record.surfaceCondition}</TableCell>
+                                  <TableCell>{record.inspector}</TableCell>
+                                  <TableCell>{record.inspectionDate}</TableCell>
+                                  <TableCell>{record.observations}</TableCell>
                                   <TableCell>
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center space-x-1">
                                       <Button
-                                        type="button" 
-                                        variant="ghost" 
+                                        type="button"
+                                        variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                                        className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
+                                        title="View Documents"
                                         onClick={() => {
                                           setDocumentViewerConfig({
-                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || '',
-                                            tabName: 'Visual',
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
+                                            tabName: "Visual",
                                             recordId: record.id
                                           });
                                           setShowDocumentViewer(true);
                                         }}
-                                        title="View Documents"
                                       >
-                                        <Eye className="h-3.5 w-3.5" />
+                                        <Eye className="h-3 w-3" />
                                       </Button>
                                       <Button
-                                        type="button" 
-                                        variant="ghost" 
+                                        type="button"
+                                        variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-purple-600 hover:text-purple-800 hover:bg-purple-50"
+                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
+                                        title="Upload Document"
                                         onClick={() => {
                                           setDocumentUploadConfig({
-                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || '',
-                                            tabName: 'Visual',
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
+                                            tabName: "Visual",
                                             recordId: record.id
                                           });
                                           setShowDocumentUpload(true);
                                         }}
-                                        title="Upload Document"
                                       >
-                                        <FileText className="h-3.5 w-3.5" />
-                                      </Button>
-                                      <Button 
-                                        type="button" 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        onClick={() => startEditingVisualRecord(record)}
-                                        className="h-7 w-7 text-green-600 hover:text-green-800 hover:bg-green-50"
-                                        title="Edit Visual Inspection Record"
-                                      >
-                                        <Edit2 className="h-3.5 w-3.5" />
+                                        <FileText className="h-3 w-3" />
                                       </Button>
                                       <Button
-                                        type="button" 
-                                        variant="ghost" 
+                                        type="button"
+                                        variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-red-600 hover:text-red-800 hover:bg-red-50"
+                                        className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
+                                        title="Edit Record"
+                                        onClick={() => startEditingVisualRecord(record)}
+                                      >
+                                        <Edit2 className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
+                                        title="Delete Record and Documents"
                                         onClick={() => {
-                                          if (window.confirm('Are you sure you want to delete this Visual Inspection record? This action cannot be undone.')) {
+                                          if (window.confirm(`Are you sure you want to delete Visual Inspection record "${record.id}"?\n\nThis will permanently delete:\n• The inspection record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
                                             const updatedRecords = visualRecords.filter(r => r.id !== record.id);
                                             setVisualRecords(updatedRecords);
                                             toast({
@@ -6466,9 +6456,8 @@ export default function InspectionsPage() {
                                             });
                                           }
                                         }}
-                                        title="Delete Record and Documents"
                                       >
-                                        <Trash2 className="h-3.5 w-3.5" />
+                                        <Trash2 className="h-3 w-3" />
                                       </Button>
                                     </div>
                                   </TableCell>
@@ -6476,14 +6465,8 @@ export default function InspectionsPage() {
                               ))
                             ) : (
                               <TableRow>
-                                <TableCell colSpan={8} className="text-center py-10">
-                                  <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
-                                  <p className="mt-2 text-xs text-muted-foreground">
-                                    No Visual Inspection records available.
-                                  </p>
-                                  <p className="text-xs text-muted-foreground mb-2">
-                                    Click "Add Visual Inspection Record" to create a new record.
-                                  </p>
+                                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                  No visual inspection records available. Click "Add Visual Inspection Record" to create a new record.
                                 </TableCell>
                               </TableRow>
                             )}
@@ -6493,19 +6476,28 @@ export default function InspectionsPage() {
 
                       
                       {/* Uploaded Files Display Section */}
-                      {visualRecords && visualRecords.length > 0 && (
+                      {editInspectionOrderDetails?.inspectionOrderNumber && (
                         <div className="mt-6 border-t pt-4">
                           <h4 className="text-sm font-medium text-gray-700 mb-3">Uploaded Files</h4>
                           <div className="space-y-2">
-                            {visualRecords.map((record) => (
+                            {visualRecords.length > 0 ? (
+                              visualRecords.map((record) => (
+                                <DrawingFilesDisplay
+                                  key={record.id}
+                                  inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                                  recordId={record.id}
+                                  recordTitle={record.standard || `Visual Inspection ${record.id}`}
+                                  tabName="Visual"
+                                />
+                              ))
+                            ) : (
                               <DrawingFilesDisplay
-                                key={record.id}
                                 inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
-                                recordId={record.id}
-                                recordTitle={`Visual Inspection - ${record.id}`}
+                                recordId="ALL"
+                                recordTitle="All Visual Inspection Files"
                                 tabName="Visual"
                               />
-                            ))}
+                            )}
                           </div>
                         </div>
                       )}
