@@ -54,7 +54,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ClipboardList, Calendar as CalendarIcon, CheckCircle2, Hourglass, AlertTriangle, XCircle, Trash2, Loader2, Search, Info as InfoIcon } from "lucide-react";
+import { Plus, ClipboardList, Calendar as CalendarIcon, CheckCircle2, Hourglass, AlertTriangle, XCircle, Trash2, Loader2, Search, Info as InfoIcon, Settings } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -98,15 +98,21 @@ const getWorkOrderCategoryBadge = (workOrder: any) => {
   
   if (isComponent) {
     return (
-      <Badge variant="outline" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
-        🟪 Component
-      </Badge>
+      <div className="flex items-center gap-1">
+        <Settings className="w-4 h-4 text-purple-600" />
+        <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">
+          Component
+        </Badge>
+      </div>
     );
   } else {
     return (
-      <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-        🟩 Parent Assembly
-      </Badge>
+      <div className="flex items-center gap-1">
+        <Settings className="w-4 h-4 text-green-600" />
+        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+          Parent Assembly
+        </Badge>
+      </div>
     );
   }
 };
