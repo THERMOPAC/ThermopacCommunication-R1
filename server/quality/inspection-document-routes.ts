@@ -507,7 +507,9 @@ router.delete("/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId"
   try {
     const { inspectionOrderNumber, tabName, recordId, documentId } = req.params;
     
-    console.log(`Delete request - Inspection: ${inspectionOrderNumber}, Tab: ${tabName}, Record: ${recordId}, Document: ${documentId}`);
+    console.log(`🗑️ DELETE REQUEST RECEIVED - Inspection: ${inspectionOrderNumber}, Tab: ${tabName}, Record: ${recordId}, Document: ${documentId}`);
+    console.log(`🗑️ Full URL path: ${req.path}`);
+    console.log(`🗑️ User: ${(req.user as any)?.username || 'Unknown'}`);
     
     if (!inspectionOrderNumber || !tabName || !recordId || !documentId) {
       return res.status(400).json({ error: "Required parameters are missing" });
@@ -563,7 +565,11 @@ router.delete("/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId"
       `QMS/Inspections_Records/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${fileExtension}`
     ].filter(Boolean);
     
-    console.log(`Trying paths for deletion:`, pathsToTry);
+    console.log(`🗑️ PATHS TO TRY FOR DELETION:`, pathsToTry);
+    console.log(`🗑️ PROJECT CODE: ${projectCode}`);
+    console.log(`🗑️ FORMATTED TAB NAME: ${formattedTabName}`);
+    console.log(`🗑️ DOCUMENT FILE NAME: ${document.fileName}`);
+    console.log(`🗑️ DOCUMENT FILE PATH (stored): ${document.filePath}`);
     
     // Import GCS utilities
     const { initializeGCS } = require('../utils/gcs-operations');
