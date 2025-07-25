@@ -22,6 +22,8 @@ interface UploadedDocument {
   uploadedBy: number | null;
   createdAt: string;
   updatedAt: string;
+  recordId: string;
+  tabName: string;
 }
 
 const DrawingFilesDisplay: React.FC<DrawingFilesDisplayProps> = ({
@@ -139,6 +141,11 @@ const DrawingFilesDisplay: React.FC<DrawingFilesDisplayProps> = ({
                   <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
                     <span>Size: {formatFileSize(doc.fileSize)}</span>
                     <span>Uploaded: {formatDate(doc.createdAt)}</span>
+                    {doc.recordId && (
+                      <Badge variant="outline" className="text-xs px-1 bg-blue-50 text-blue-600">
+                        Record: {doc.recordId}
+                      </Badge>
+                    )}
                   </div>
                   <div className="text-xs text-gray-400 mt-1 font-mono truncate">
                     Path: {doc.filePath}
