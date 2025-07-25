@@ -6012,47 +6012,63 @@ export default function InspectionsPage() {
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex items-center space-x-1">
-                                    <InspectionDocumentUpload
-                                      inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
-                                      tabName="Welding"
-                                      recordId={weld.id}
+                                    <Button
+                                      type="button"
                                       variant="ghost"
                                       size="icon"
-                                      className="h-7 w-7 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                                      onSuccess={() => {
-                                        toast({
-                                          title: "Weld map uploaded successfully",
-                                          description: `Weld map for ${weld.id} has been uploaded.`,
+                                      className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
+                                      title="View Documents"
+                                      onClick={() => {
+                                        setDocumentViewerConfig({
+                                          inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
+                                          tabName: "Welding",
+                                          recordId: weld.id
                                         });
+                                        setShowDocumentViewer(true);
                                       }}
-                                    />
-                                    <InspectionDocumentViewer
-                                      inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
-                                      tabName="Welding"
-                                      recordId={weld.id}
+                                    >
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      type="button"
                                       variant="ghost"
                                       size="icon"
-                                      className="h-7 w-7 text-green-600 hover:text-green-800 hover:bg-green-50"
-                                    />
-                                    <Button 
-                                      type="button" 
-                                      variant="ghost" 
-                                      size="icon" 
-                                      onClick={() => startEditingWeldRecord(weld)}
-                                      className="h-7 w-7 text-orange-600 hover:text-orange-800 hover:bg-orange-50"
-                                      title="Edit Weld Record"
+                                      className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
+                                      title="Upload Document"
+                                      onClick={() => {
+                                        setDocumentUploadConfig({
+                                          inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
+                                          tabName: "Welding",
+                                          recordId: weld.id
+                                        });
+                                        setShowDocumentUpload(true);
+                                      }}
                                     >
-                                      <Pencil className="h-3.5 w-3.5" />
+                                      <FileText className="h-3 w-3" />
                                     </Button>
-                                    <Button 
-                                      type="button" 
-                                      variant="ghost" 
-                                      size="icon" 
-                                      onClick={() => deleteWeld(index)}
-                                      className="h-7 w-7 text-red-600 hover:text-red-800 hover:bg-red-50"
-                                      title="Delete Record and Documents"
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
+                                      title="Edit Record"
+                                      onClick={() => startEditingWeldRecord(weld)}
                                     >
-                                      <Trash2 className="h-3.5 w-3.5" />
+                                      <Edit2 className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
+                                      title="Delete Record and Documents"
+                                      onClick={() => {
+                                        if (window.confirm(`Are you sure you want to delete Welding record "${weld.id}"?\n\nThis will permanently delete:\n• The welding record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
+                                          deleteWeld(index);
+                                        }
+                                      }}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
                                     </Button>
                                   </div>
                                 </TableCell>
