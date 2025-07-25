@@ -5509,7 +5509,7 @@ export default function InspectionsPage() {
                                         onClick={() => {
                                           setDocumentViewerConfig({
                                             inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
-                                            tabName: "Shop Inspection",
+                                            tabName: "ShopInspection",
                                             recordId: record.id
                                           });
                                           setShowDocumentViewer(true);
@@ -5526,7 +5526,7 @@ export default function InspectionsPage() {
                                         onClick={() => {
                                           setDocumentUploadConfig({
                                             inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
-                                            tabName: "Shop Inspection",
+                                            tabName: "ShopInspection",
                                             recordId: record.id
                                           });
                                           setShowDocumentUpload(true);
@@ -5589,7 +5589,7 @@ export default function InspectionsPage() {
                             const recordId = shopInspectionRecords[0].id;
                             setDocumentUploadConfig({
                               inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
-                              tabName: "Shop Inspection",
+                              tabName: "ShopInspection",
                               recordId: recordId
                             });
                             setShowDocumentUpload(true);
@@ -5616,7 +5616,7 @@ export default function InspectionsPage() {
                             const recordId = shopInspectionRecords[0].id;
                             setDocumentViewerConfig({
                               inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
-                              tabName: "Shop Inspection",
+                              tabName: "ShopInspection",
                               recordId: recordId
                             });
                             setShowDocumentViewer(true);
