@@ -2401,6 +2401,18 @@ export default function InspectionsPage() {
     setIsShopInspectionDialogOpen(true);
   };
 
+  // Function to delete a shop inspection record
+  const deleteShopInspectionRecord = (recordId: string) => {
+    setShopInspectionRecords(prev => 
+      prev.filter(record => record.id !== recordId)
+    );
+    
+    toast({
+      title: "Success",
+      description: "Shop inspection record deleted successfully",
+    });
+  };
+
   // Helper function to generate approved drawing record ID
   const generateApprovedDrawingId = () => {
     const existingIds = approvedDrawingRecords.map(record => record.id);
@@ -5538,6 +5550,7 @@ export default function InspectionsPage() {
                                         size="icon"
                                         className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
                                         title="Delete Record"
+                                        onClick={() => deleteShopInspectionRecord(record.id)}
                                       >
                                         <Trash2 className="h-3 w-3" />
                                       </Button>
