@@ -6175,109 +6175,162 @@ export default function InspectionsPage() {
                   {/* NDT Tab */}
                   <TabsContent value="ndt" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Non-Destructive Testing (NDT)</h3>
-
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-medium">Non-Destructive Testing (NDT)</h3>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          className="flex items-center text-xs"
+                          onClick={() => {
+                            if (editInspectionOrderDetails?.projectCode === 'UNKNOWN') {
+                              toast({
+                                title: "Cannot Create Record",
+                                description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
+                                variant: "destructive"
+                              });
+                              return;
+                            }
+                            setIsNdtDialogOpen(true);
+                          }}
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Add NDT Record
+                        </Button>
+                      </div>
                       
-                      {/* NDT list */}
+                      {/* NDT Records Table */}
                       <div className="border rounded-md shadow-sm overflow-hidden">
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-[80px]">NDT ID</TableHead>
-                              <TableHead className="w-[400px]">Method</TableHead> {/* Updated width */}
-                              <TableHead className="w-[150px]">Standard</TableHead>
-                              <TableHead className="w-[120px]">Extent (%)</TableHead>
-                              <TableHead className="w-[150px]">Technician</TableHead>
+                              <TableHead className="w-[100px]">NDT ID</TableHead>
+                              <TableHead className="w-[150px]">Method</TableHead>
+                              <TableHead className="w-[120px]">Standard</TableHead>
+                              <TableHead className="w-[100px]">Extent (%)</TableHead>
+                              <TableHead className="w-[120px]">Technician</TableHead>
                               <TableHead className="w-[120px]">Date</TableHead>
-                              <TableHead className="w-[150px]">Results</TableHead> {/* Updated width */}
-                              <TableHead className="w-[80px]">Actions</TableHead>
+                              <TableHead className="w-[100px]">Results</TableHead>
+                              <TableHead className="w-[140px]">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {Array.isArray(ndtRecords) && ndtRecords.map((record, index) => (
-                              <TableRow 
-                                key={record.id}
-                                className="hover:bg-muted/50">
-                                <TableCell className="font-medium">
-                                  {record.id}
-                                </TableCell>
-                                <TableCell>
-                                  {record.ndtMethod ? getNdtMethodName(record.ndtMethod) : "-"}
-                                </TableCell>
-                                <TableCell>
-                                  {record.ndtStandard || "-"}
-                                </TableCell>
-                                <TableCell>
-                                  {record.ndtExtent ? `${record.ndtExtent}%` : "-"}
-                                </TableCell>
-                                <TableCell>
-                                  {record.ndtTechnician || "-"}
-                                </TableCell>
-                                <TableCell>
-                                  {record.ndtDate || "-"}
-                                </TableCell>
-                                <TableCell>
-                                  {record.ndtResults || "-"}
-                                </TableCell>
-                                <TableCell>
-                                  <Button 
-                                    type="button" 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    onClick={() => startEditingNdtRecord(record)}
-                                    className="h-7 w-7 text-green-600 hover:text-green-800 hover:bg-green-50"
-                                    title="Edit NDT Record"
-                                  >
-                                    <Edit2 className="h-3.5 w-3.5" />
-                                  </Button>
+                            {Array.isArray(ndtRecords) && ndtRecords.length > 0 ? (
+                              ndtRecords.map((record, index) => (
+                                <TableRow key={record.id}>
+                                  <TableCell className="font-medium">{record.id}</TableCell>
+                                  <TableCell>{record.ndtMethod ? getNdtMethodName(record.ndtMethod) : "-"}</TableCell>
+                                  <TableCell>{record.ndtStandard || "-"}</TableCell>
+                                  <TableCell>{record.ndtExtent ? `${record.ndtExtent}%` : "-"}</TableCell>
+                                  <TableCell>{record.ndtTechnician || "-"}</TableCell>
+                                  <TableCell>{record.ndtDate || "-"}</TableCell>
+                                  <TableCell>
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      record.ndtResults === 'Pass' ? 'bg-green-100 text-green-800' :
+                                      record.ndtResults === 'Fail' ? 'bg-red-100 text-red-800' :
+                                      'bg-gray-100 text-gray-800'
+                                    }`}>
+                                      {record.ndtResults || "-"}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center space-x-1">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
+                                        title="View Documents"
+                                        onClick={() => {
+                                          setDocumentViewerConfig({
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
+                                            tabName: "NDT",
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentViewer(true);
+                                        }}
+                                      >
+                                        <Eye className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
+                                        title="Upload Document"
+                                        onClick={() => {
+                                          setDocumentUploadConfig({
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
+                                            tabName: "NDT",
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentUpload(true);
+                                        }}
+                                      >
+                                        <FileText className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
+                                        title="Edit Record"
+                                        onClick={() => startEditingNdtRecord(record)}
+                                      >
+                                        <Edit2 className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
+                                        title="Delete Record and Documents"
+                                        onClick={() => {
+                                          if (window.confirm(`Are you sure you want to delete NDT record "${record.id}"?\n\nThis will permanently delete:\n• The NDT record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
+                                            // TODO: Implement deleteNdtRecord function similar to deleteShopInspectionRecord
+                                            console.log("Delete NDT record:", record.id);
+                                          }
+                                        }}
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                  No NDT records available. Click "Add NDT Record" to create a new record.
                                 </TableCell>
                               </TableRow>
-                            ))}
+                            )}
                           </TableBody>
                         </Table>
                       </div>
                       
-                      {/* Action buttons */}
-                      <div className="flex items-center justify-between mt-4">
-                        <div>
-                          <Button 
-                            type="button" 
-                            variant="default" 
-                            size="sm" 
-                            onClick={() => {
-                              if (editInspectionOrderDetails?.projectCode === 'UNKNOWN') {
-                                toast({
-                                  title: "Project Code Required",
-                                  description: "Cannot add NDT record with UNKNOWN project code. Please update the project information first.",
-                                  variant: "destructive"
-                                });
-                                return;
-                              }
-                              setIsNdtDialogOpen(true);
-                            }}
-                            className="mr-2"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add NDT Record
-                          </Button>
-                        </div>
-
-                      </div>
-                      
                       {/* Uploaded Files Display Section */}
-                      {ndtRecords && ndtRecords.length > 0 && (
+                      {editInspectionOrderDetails?.inspectionOrderNumber && (
                         <div className="mt-6 border-t pt-4">
                           <h4 className="text-sm font-medium text-gray-700 mb-3">Uploaded Files</h4>
                           <div className="space-y-2">
-                            {ndtRecords.map((record) => (
+                            {Array.isArray(ndtRecords) && ndtRecords.length > 0 ? (
+                              ndtRecords.map((record) => (
+                                <DrawingFilesDisplay
+                                  key={record.id}
+                                  inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                                  recordId={record.id}
+                                  recordTitle={`${record.ndtMethod ? getNdtMethodName(record.ndtMethod) : 'NDT'} - ${record.id}`}
+                                  tabName="NDT"
+                                />
+                              ))
+                            ) : (
                               <DrawingFilesDisplay
-                                key={record.id}
                                 inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
-                                recordId={record.id}
-                                recordTitle={`${record.ndtMethod ? getNdtMethodName(record.ndtMethod) : 'NDT'} - ${record.id}`}
+                                recordId="ALL"
+                                recordTitle="All NDT Files"
                                 tabName="NDT"
                               />
-                            ))}
+                            )}
                           </div>
                         </div>
                       )}
