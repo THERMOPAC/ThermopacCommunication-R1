@@ -176,6 +176,92 @@ router.post("/upload", ensureAuthenticated, upload.single('file'), async (req: R
   }
 });
 
+// Special endpoint specifically for Final Dossier documents
+router.get("/:inspectionOrderNumber/Final%20Dossier/dossier", ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { inspectionOrderNumber } = req.params;
+    
+    console.log(`🔍 Final Dossier endpoint called for: ${inspectionOrderNumber}`);
+    
+    if (!inspectionOrderNumber) {
+      return res.status(400).json({ error: "Inspection order number is required" });
+    }
+    
+    // Get the inspection order ID
+    const inspection = await db.query.inspectionOrders.findFirst({
+      where: eq(inspectionOrders.inspectionOrderNumber, inspectionOrderNumber as string)
+    });
+    
+    if (!inspection) {
+      return res.status(404).json({ error: "Inspection order not found" });
+    }
+    
+    try {
+      const { initializeGCS } = await import('../utils/gcs-operations');
+      const { storage, bucket } = await initializeGCS();
+      
+      if (storage && bucket) {
+        const projectCode = inspection.projectCode || 'UNKNOWN';
+        const dossierPaths = [
+          `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/Final_Dossier/`,
+          `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/FinalDossier/`,
+          `QMS/Inspections_Records/${inspectionOrderNumber}/Final_Dossier/`,
+          `QMS/Inspections_Records/${inspectionOrderNumber}/FinalDossier/`
+        ];
+        
+        console.log(`🔍 Final Dossier paths for inspection ${inspectionOrderNumber} with project ${projectCode}:`, dossierPaths);
+        
+        const gcsDocuments = [];
+        
+        for (const pathPrefix of dossierPaths) {
+          try {
+            const [files] = await bucket.getFiles({ prefix: pathPrefix });
+            console.log(`Found ${files.length} files in path: ${pathPrefix}`);
+            
+            for (const file of files) {
+              if (file.name.endsWith('.pdf') && !file.name.endsWith('/.keep')) {
+                const [metadata] = await file.getMetadata();
+                gcsDocuments.push({
+                  id: `gcs-${Date.now()}-${Math.random()}`,
+                  inspectionOrderId: inspection.id,
+                  tabName: 'Final Dossier',
+                  recordId: 'dossier',
+                  fileName: file.name.split('/').pop(),
+                  filePath: file.name,
+                  fileUrl: null,
+                  fileType: 'application/pdf',
+                  fileSize: parseInt(metadata.size || '0'),
+                  uploadedBy: null,
+                  createdAt: metadata.timeCreated || new Date().toISOString(),
+                  updatedAt: metadata.updated || new Date().toISOString()
+                });
+              }
+            }
+          } catch (pathError) {
+            console.log(`Error checking path ${pathPrefix}:`, pathError);
+          }
+        }
+        
+        console.log(`Found ${gcsDocuments.length} Final Dossier documents in GCS`);
+        return res.status(200).json(gcsDocuments);
+      } else {
+        console.log(`GCS not available, returning empty array for Final Dossier`);
+        return res.status(200).json([]);
+      }
+    } catch (error) {
+      console.error('Error checking GCS for Final Dossier documents:', error);
+      return res.status(200).json([]);
+    }
+    
+  } catch (error) {
+    console.error('Error in Final Dossier endpoint:', error);
+    return res.status(500).json({ 
+      error: "Internal server error",
+      message: error instanceof Error ? error.message : "Unknown error occurred"
+    });
+  }
+});
+
 // GET documents for an inspection order record (query parameter version)
 router.get("/", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
