@@ -2038,18 +2038,19 @@ export default function InspectionsPage() {
                 documentCount = Array.isArray(documents) ? documents.length : 0;
               }
               
-              // Material Traceability is an internal record - no validation warning needed
+              // Material Traceability is an internal record - validate records exist, not documents
               validationResults['Material Traceability'] = {
                 records: materialCount,
                 documents: documentCount,
-                isValid: true
+                isValid: materialCount > 0
               };
               
-              console.log(`✅ Material Traceability: ${materialCount} records, ${documentCount} documents ${materialCount === documentCount ? '✓' : '⚠️'}`);
+              const materialValidationIcon = materialCount > 0 ? '✓' : '⚠️';
+              console.log(`📋 Material Traceability: ${materialCount} records, ${documentCount} documents ${materialValidationIcon}`);
             } else {
               console.log(`❌ Material Traceability: API error ${materialResponse.status}`);
               counts['Material Traceability'] = 0;
-              validationResults['Material Traceability'] = { records: 0, documents: 0, isValid: true };
+              validationResults['Material Traceability'] = { records: 0, documents: 0, isValid: false };
             }
           } else {
             // Regular handling for other tabs
@@ -2065,18 +2066,20 @@ export default function InspectionsPage() {
               const documentCount = Array.isArray(documents) ? documents.length : 0;
               const recordCount = counts[mapping.frontendKey] || 0;
               
-              // Special handling for internal record tabs - no validation warning needed
+              // Special handling for internal record tabs - validate records exist, not documents
               const internalRecordTabs = ['Material Traceability', 'PMA', 'Test Procedures'];
               const isInternalRecord = internalRecordTabs.includes(mapping.frontendKey);
               
               validationResults[mapping.frontendKey] = {
                 records: recordCount,
                 documents: documentCount,
-                isValid: isInternalRecord ? true : recordCount === documentCount
+                isValid: isInternalRecord ? recordCount > 0 : recordCount === documentCount
               };
               
-              // Console logging with appropriate validation icon
-              const validationIcon = (isInternalRecord || recordCount === documentCount) ? '✓' : '⚠️';
+              // Console logging with appropriate validation logic for internal vs external tabs
+              const validationIcon = isInternalRecord ? 
+                (recordCount > 0 ? '✓' : '⚠️') : 
+                (recordCount === documentCount ? '✓' : '⚠️');
               console.log(`📋 ${mapping.frontendKey}: ${recordCount} records, ${documentCount} documents ${validationIcon}`);
             } else {
               console.log(`❌ ${mapping.frontendKey}: Documents API error ${response.status}`);
