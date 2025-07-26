@@ -2585,6 +2585,64 @@ export default function InspectionsPage() {
     }
   }, [editInspectionOrderDetails]);
 
+  // Load PMA records from the inspection order data
+  useEffect(() => {
+    if (editInspectionOrderDetails) {
+      // Check if the response has PMA data in the expected format
+      console.log("Checking for PMA data:", editInspectionOrderDetails);
+      
+      const pmaData = (editInspectionOrderDetails as any).pmaRecords || (editInspectionOrderDetails as any).pmaData || (editInspectionOrderDetails as any).pma_data;
+      
+      if (pmaData) {
+        try {
+          // If the data is already parsed as an object, use it directly
+          // Otherwise, try to parse it from JSON string
+          const parsedPmaRecords = Array.isArray(pmaData) 
+            ? pmaData 
+            : typeof pmaData === 'string' 
+              ? JSON.parse(pmaData) 
+              : null;
+          
+          if (parsedPmaRecords && Array.isArray(parsedPmaRecords) && parsedPmaRecords.length > 0) {
+            console.log("Found PMA records:", parsedPmaRecords);
+            
+            // Map the PMA records to match our state format
+            const formattedRecords = parsedPmaRecords.map((record, index) => ({
+              id: record.id || `PMA-${index + 1}`,
+              pmaNumber: record.pmaNumber || '',
+              materialSpecification: record.materialSpecification || '',
+              materialGrade: record.materialGrade || '',
+              certifiedBy: record.certifiedBy || '',
+              issueDate: record.issueDate || '',
+              expiryDate: record.expiryDate || '',
+              status: record.status || 'active',
+              remarks: record.remarks || ''
+            }));
+            
+            setPmaRecords(formattedRecords);
+            return; // Exit here, don't run fallback
+          }
+        } catch (error) {
+          console.error("Error parsing PMA records:", error);
+        }
+      }
+      
+      // If no valid PMA records were found, initialize with a default record (only once when details first load)
+      console.log("No PMA records found, initializing with defaults");
+      setPmaRecords([{
+        id: 'PMA-1',
+        pmaNumber: '',
+        materialSpecification: '',
+        materialGrade: '',
+        certifiedBy: '',
+        issueDate: '',
+        expiryDate: '',
+        status: 'active',
+        remarks: ''
+      }]);
+    }
+  }, [editInspectionOrderDetails]);
+
   // Load Shop inspection records from the inspection order data
   useEffect(() => {
     if (editInspectionOrderDetails) {
@@ -3612,7 +3670,7 @@ export default function InspectionsPage() {
       let materialRows = data.materials || [];
       const validMaterialRows = materialRows.filter(row => row.materialId);
       
-      // Combine the form data with the NDT records, Visual records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, ITP records, and Shop inspection records from the state
+      // Combine the form data with the NDT records, Visual records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, ITP records, PMA records, and Shop inspection records from the state
       const updateData = {
         ...data,
         materials: validMaterialRows,
@@ -3624,6 +3682,7 @@ export default function InspectionsPage() {
         approvedDrawingRecords: approvedDrawingRecords,
         dvrRecords: dvrRecords,
         itpRecords: itpRecords,
+        pmaRecords: pmaRecords,
         shopInspectionRecords: shopInspectionRecords
       };
       
