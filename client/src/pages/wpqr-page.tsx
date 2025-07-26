@@ -356,9 +356,12 @@ export default function WpqrPage() {
       const response = await fetch(`/api/quality/wpqr/${document.id}/welders`);
       if (response.ok) {
         const linkedWelders = await response.json();
-        const welderIds = linkedWelders.map((w: any) => w.welderId);
+        console.log("Linked welders from API:", linkedWelders);
+        const welderIds = linkedWelders.map((w: any) => w.id);
+        console.log("Mapped welder IDs:", welderIds);
         setEditSelectedWelders(welderIds);
       } else {
+        console.log("Failed to fetch welders, resetting to empty array");
         setEditSelectedWelders([]);
       }
     } catch (error) {
