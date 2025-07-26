@@ -3125,6 +3125,16 @@ export default function InspectionsPage() {
     setIsPmaDialogOpen(true);
   };
 
+  // Function to delete a PMA record (only removes from state, does not delete GCS files)
+  const deletePmaRecord = (recordId: string) => {
+    setPmaRecords(prev => prev.filter(record => record.id !== recordId));
+    
+    toast({
+      title: "Success",
+      description: "PMA record deleted successfully. Associated files remain in storage.",
+    });
+  };
+
   // Procedures helper functions
   const generateProcedureId = () => {
     const existingIds = procedureRecords.map(record => {
@@ -5938,6 +5948,20 @@ export default function InspectionsPage() {
                                         }}
                                       >
                                         <Edit2 className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
+                                        title="Delete Record"
+                                        onClick={() => {
+                                          if (window.confirm(`Are you sure you want to delete PMA record ${record.id}? This action cannot be undone.`)) {
+                                            deletePmaRecord(record.id);
+                                          }
+                                        }}
+                                      >
+                                        <Trash2 className="h-3 w-3" />
                                       </Button>
                                     </div>
                                   </TableCell>
