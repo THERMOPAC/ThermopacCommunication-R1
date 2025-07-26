@@ -53,7 +53,9 @@ router.get("/:inspectionOrderNumber/material-traceability/count", ensureAuthenti
       WHERE project_id = ${inspection.projectId}
     `);
     
+    console.log(`📦 Raw query result:`, materialCount);
     const count = materialCount[0]?.count || 0;
+    console.log(`📦 Parsed count: ${count}, type: ${typeof count}`);
     console.log(`📦 Material Traceability count for inspection ${inspectionOrderNumber}: ${count}`);
     
     return res.json({ count: parseInt(count as string) });
