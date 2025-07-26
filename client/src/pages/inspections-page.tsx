@@ -1485,6 +1485,20 @@ export default function InspectionsPage() {
       description: "Material record updated successfully",
     });
   };
+
+  // Function to delete a Material Traceability record (only removes from state, does not delete GCS files)
+  const deleteMaterialRecord = (recordId: number) => {
+    setMaterialRows(prev => prev.filter(record => record.id !== recordId));
+    
+    // Also update the form value
+    const updatedRows = materialRows.filter(record => record.id !== recordId);
+    editForm.setValue('materials', updatedRows);
+    
+    toast({
+      title: "Success",
+      description: "Material record deleted successfully. Associated files remain in storage.",
+    });
+  };
   
   // Fetch projects for dropdown
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery({
@@ -6884,19 +6898,35 @@ export default function InspectionsPage() {
                                     {materialRow.quantityUnit || '-'}
                                   </TableCell>
                                   <TableCell>
-                                    <Button 
-                                      type="button" 
-                                      variant="ghost" 
-                                      size="icon"
-                                      className="h-7 w-7 text-green-600 hover:text-green-800 hover:bg-green-50"
-                                      onClick={() => {
-                                        setEditingMaterialRecord(materialRow);
-                                        setIsMaterialDialogOpen(true);
-                                      }}
-                                      title="Edit Material Record"
-                                    >
-                                      <Edit2 className="h-3.5 w-3.5" />
-                                    </Button>
+                                    <div className="flex items-center gap-1">
+                                      <Button 
+                                        type="button" 
+                                        variant="ghost" 
+                                        size="icon"
+                                        className="h-7 w-7 text-green-600 hover:text-green-800 hover:bg-green-50"
+                                        onClick={() => {
+                                          setEditingMaterialRecord(materialRow);
+                                          setIsMaterialDialogOpen(true);
+                                        }}
+                                        title="Edit Material Record"
+                                      >
+                                        <Edit2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button 
+                                        type="button" 
+                                        variant="ghost" 
+                                        size="icon"
+                                        className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
+                                        title="Delete Record"
+                                        onClick={() => {
+                                          if (window.confirm(`Are you sure you want to delete material record ${materialRow.materialIdentificationId || materialRow.description || 'this record'}? This action cannot be undone.`)) {
+                                            deleteMaterialRecord(materialRow.id);
+                                          }
+                                        }}
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
                                   </TableCell>
                                 </TableRow>
                               ))
