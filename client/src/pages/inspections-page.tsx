@@ -6116,28 +6116,68 @@ export default function InspectionsPage() {
                                   <TableCell className="text-xs">{record.applicableStandard || '-'}</TableCell>
                                   <TableCell className="text-xs">{record.linkedDate || '-'}</TableCell>
                                   <TableCell className="text-xs">{record.linkedBy || '-'}</TableCell>
-                                  <TableCell className="text-xs">
+                                  <TableCell>
                                     <div className="flex items-center space-x-1">
                                       <Button
+                                        type="button"
                                         variant="ghost"
-                                        size="sm"
-                                        className="text-xs px-2 py-1 h-7 text-green-600 hover:bg-green-50"
+                                        size="icon"
+                                        className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
+                                        title="View Documents"
+                                        onClick={() => {
+                                          setDocumentViewerConfig({
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
+                                            tabName: "TestProcedures",
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentViewer(true);
+                                        }}
+                                      >
+                                        <Eye className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
+                                        title="Upload Document"
+                                        onClick={() => {
+                                          setDocumentUploadConfig({
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
+                                            tabName: "TestProcedures",
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentUpload(true);
+                                        }}
+                                      >
+                                        <FileText className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
+                                        title="Edit Record"
                                         onClick={() => {
                                           setEditingProcedureRecord(record);
                                           setIsProceduresDialogOpen(true);
                                         }}
                                       >
-                                        <Edit2 className="h-3 w-3 mr-1" />
-                                        Edit
+                                        <Edit2 className="h-3 w-3" />
                                       </Button>
                                       <Button
+                                        type="button"
                                         variant="ghost"
-                                        size="sm"
-                                        className="text-xs px-2 py-1 h-7 bg-red-50 text-red-600 hover:bg-red-100"
-                                        onClick={() => removeProcedureRecord(index)}
+                                        size="icon"
+                                        className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
+                                        title="Delete Record"
+                                        onClick={() => {
+                                          if (window.confirm(`Are you sure you want to delete Test Procedure record ${record.procedureNumber}? This action cannot be undone.`)) {
+                                            removeProcedureRecord(index);
+                                          }
+                                        }}
                                       >
-                                        <Trash2 className="h-3 w-3 mr-1" />
-                                        Remove
+                                        <Trash2 className="h-3 w-3" />
                                       </Button>
                                     </div>
                                   </TableCell>
@@ -6145,20 +6185,41 @@ export default function InspectionsPage() {
                               ))
                             ) : (
                               <TableRow>
-                                <TableCell colSpan={7} className="text-center py-10">
-                                  <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
-                                  <p className="mt-2 text-xs text-muted-foreground">
-                                    No test procedures linked.
-                                  </p>
-                                  <p className="text-xs text-muted-foreground mb-2">
-                                    Click "Link Test Procedure" to add a procedure to this inspection order.
-                                  </p>
+                                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                  No test procedure records available. Click "Link Test Procedure" to create a new record.
                                 </TableCell>
                               </TableRow>
                             )}
                           </TableBody>
                         </Table>
                       </div>
+                      
+                      {/* Uploaded Files Display Section */}
+                      {editInspectionOrderDetails?.inspectionOrderNumber && (
+                        <div className="mt-6 border-t pt-4">
+                          <h4 className="text-sm font-medium text-gray-700 mb-3">Uploaded Files</h4>
+                          <div className="space-y-2">
+                            {procedureRecords.length > 0 ? (
+                              procedureRecords.map((record) => (
+                                <DrawingFilesDisplay
+                                  key={record.id}
+                                  inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                                  recordId={record.id}
+                                  recordTitle={record.procedureNumber || `Test Procedure ${record.id}`}
+                                  tabName="TestProcedures"
+                                />
+                              ))
+                            ) : (
+                              <DrawingFilesDisplay
+                                inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                                recordId="ALL"
+                                recordTitle="All Test Procedure Files"
+                                tabName="TestProcedures"
+                              />
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
                   
