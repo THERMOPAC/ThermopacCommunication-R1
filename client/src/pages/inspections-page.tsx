@@ -2643,6 +2643,62 @@ export default function InspectionsPage() {
     }
   }, [editInspectionOrderDetails]);
 
+  // Load Procedures records from the inspection order data
+  useEffect(() => {
+    if (editInspectionOrderDetails) {
+      // Check if the response has Procedures data in the expected format
+      console.log("Checking for Procedures data:", editInspectionOrderDetails);
+      
+      const procedureData = (editInspectionOrderDetails as any).procedureRecords || (editInspectionOrderDetails as any).procedureData || (editInspectionOrderDetails as any).procedure_data;
+      
+      if (procedureData) {
+        try {
+          // If the data is already parsed as an object, use it directly
+          // Otherwise, try to parse it from JSON string
+          const parsedProcedureRecords = Array.isArray(procedureData) 
+            ? procedureData 
+            : typeof procedureData === 'string' 
+              ? JSON.parse(procedureData) 
+              : null;
+          
+          if (parsedProcedureRecords && Array.isArray(parsedProcedureRecords) && parsedProcedureRecords.length > 0) {
+            console.log("Found Procedures records:", parsedProcedureRecords);
+            
+            // Map the Procedures records to match our state format
+            const formattedRecords = parsedProcedureRecords.map((record, index) => ({
+              id: record.id || `TP-${index + 1}`,
+              procedureNumber: record.procedureNumber || '',
+              procedureName: record.procedureName || '',
+              ndtMethod: record.ndtMethod || '',
+              applicableStandard: record.applicableStandard || '',
+              linkedDate: record.linkedDate || '',
+              linkedBy: record.linkedBy || '',
+              notes: record.notes || ''
+            }));
+            
+            setProcedureRecords(formattedRecords);
+            return; // Exit here, don't run fallback
+          }
+        } catch (error) {
+          console.error("Error parsing Procedures records:", error);
+        }
+      }
+      
+      // If no valid Procedures records were found, initialize with a default record (only once when details first load)
+      console.log("No Procedures records found, initializing with defaults");
+      setProcedureRecords([{
+        id: 'TP-1',
+        procedureNumber: '',
+        procedureName: '',
+        ndtMethod: '',
+        applicableStandard: '',
+        linkedDate: '',
+        linkedBy: '',
+        notes: ''
+      }]);
+    }
+  }, [editInspectionOrderDetails]);
+
   // Load Shop inspection records from the inspection order data
   useEffect(() => {
     if (editInspectionOrderDetails) {
@@ -3680,7 +3736,7 @@ export default function InspectionsPage() {
       let materialRows = data.materials || [];
       const validMaterialRows = materialRows.filter(row => row.materialId);
       
-      // Combine the form data with the NDT records, Visual records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, ITP records, PMA records, and Shop inspection records from the state
+      // Combine the form data with the NDT records, Visual records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, ITP records, PMA records, Procedures records, and Shop inspection records from the state
       const updateData = {
         ...data,
         materials: validMaterialRows,
@@ -3693,6 +3749,7 @@ export default function InspectionsPage() {
         dvrRecords: dvrRecords,
         itpRecords: itpRecords,
         pmaRecords: pmaRecords,
+        procedureRecords: procedureRecords,
         shopInspectionRecords: shopInspectionRecords
       };
       
