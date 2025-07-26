@@ -180,6 +180,7 @@ router.post("/upload", ensureAuthenticated, upload.single('file'), async (req: R
 router.get("/", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { inspectionOrderNumber, tabName, recordId } = req.query;
+    console.log(`🚀 Query parameter endpoint called with: ${inspectionOrderNumber}, tab: "${tabName}", record: "${recordId}"`);
     
     if (!inspectionOrderNumber || !tabName || !recordId) {
       return res.status(400).json({ 
@@ -361,7 +362,7 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents", ensureAuthent
       });
       console.log(`Found ${documents.length} Shop Inspection documents for record ${recordId}:`, documents.map(d => ({ id: d.id, tabName: d.tabName, fileName: d.fileName })));
     } else if (tabName === 'Final Dossier' && recordId === 'dossier') {
-      console.log(`Final Dossier tab detected - checking GCS storage directly`);
+      console.log(`🔍 Final Dossier tab detected - checking GCS storage directly for ${inspectionOrderNumber}`);
       
       // For Final Dossier, check GCS storage directly since PDFs are generated programmatically
       try {
