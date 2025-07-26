@@ -9142,30 +9142,74 @@ export default function InspectionsPage() {
                     // Auto-populate other fields when a PMA document is selected
                     if (pmaNumber && activePmaDocuments && !editingPmaRecord) {
                       const selectedPma = activePmaDocuments.find((pma: any) => pma.pmaNumber === pmaNumber);
+                      console.log("Auto-population: Selected PMA document:", selectedPma);
+                      
                       if (selectedPma) {
-                        // Update form fields by setting their values
-                        const specField = document.getElementById('materialSpecification') as HTMLInputElement;
-                        const gradeField = document.getElementById('materialGrade') as HTMLInputElement;
-                        const certifiedByField = document.getElementById('certifiedBy') as HTMLInputElement;
-                        const issueDateField = document.getElementById('issueDate') as HTMLInputElement;
-                        const expiryDateField = document.getElementById('expiryDate') as HTMLInputElement;
-                        const statusField = document.getElementById('status') as HTMLSelectElement;
-                        
-                        if (specField) specField.value = selectedPma.specification || '';
-                        if (gradeField) gradeField.value = selectedPma.grade || '';
-                        if (certifiedByField) certifiedByField.value = selectedPma.certifiedBy || '';
-                        if (issueDateField) issueDateField.value = selectedPma.issueDate || '';
-                        if (expiryDateField) expiryDateField.value = selectedPma.expiryDate || '';
-                        
-                        // For the status field, we need to map the PMA status to the form options
-                        // PMA status might be "Active" but form expects lowercase "active"
-                        const statusValue = selectedPma.status ? selectedPma.status.toLowerCase() : 'active';
-                        setSelectedPmaStatus(statusValue);
-                        if (statusField) {
-                          statusField.value = statusValue;
-                          // Trigger change event to ensure any listeners are notified
-                          statusField.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
+                        // Use setTimeout to ensure DOM elements are ready
+                        setTimeout(() => {
+                          // Update form fields by setting their values
+                          const specField = document.getElementById('materialSpecification') as HTMLInputElement;
+                          const gradeField = document.getElementById('materialGrade') as HTMLInputElement;
+                          const certifiedByField = document.getElementById('certifiedBy') as HTMLInputElement;
+                          const issueDateField = document.getElementById('issueDate') as HTMLInputElement;
+                          const expiryDateField = document.getElementById('expiryDate') as HTMLInputElement;
+                          const statusField = document.getElementById('status') as HTMLSelectElement;
+                          
+                          console.log("Auto-population: Found fields:", {
+                            specField: !!specField,
+                            gradeField: !!gradeField,
+                            certifiedByField: !!certifiedByField,
+                            issueDateField: !!issueDateField,
+                            expiryDateField: !!expiryDateField,
+                            statusField: !!statusField
+                          });
+                          
+                          if (specField) {
+                            specField.value = selectedPma.specification || '';
+                            specField.dispatchEvent(new Event('input', { bubbles: true }));
+                          }
+                          if (gradeField) {
+                            gradeField.value = selectedPma.grade || '';
+                            gradeField.dispatchEvent(new Event('input', { bubbles: true }));
+                          }
+                          if (certifiedByField) {
+                            certifiedByField.value = selectedPma.certifiedBy || '';
+                            certifiedByField.dispatchEvent(new Event('input', { bubbles: true }));
+                          }
+                          if (issueDateField) {
+                            // Format date properly for input field (YYYY-MM-DD)
+                            const formattedDate = selectedPma.issueDate ? 
+                              new Date(selectedPma.issueDate).toISOString().split('T')[0] : '';
+                            issueDateField.value = formattedDate;
+                            issueDateField.dispatchEvent(new Event('input', { bubbles: true }));
+                          }
+                          if (expiryDateField) {
+                            // Format date properly for input field (YYYY-MM-DD)
+                            const formattedDate = selectedPma.expiryDate ? 
+                              new Date(selectedPma.expiryDate).toISOString().split('T')[0] : '';
+                            expiryDateField.value = formattedDate;
+                            expiryDateField.dispatchEvent(new Event('input', { bubbles: true }));
+                          }
+                          
+                          // For the status field, we need to map the PMA status to the form options
+                          // PMA status might be "Active" but form expects lowercase "active"
+                          const statusValue = selectedPma.status ? selectedPma.status.toLowerCase() : 'active';
+                          setSelectedPmaStatus(statusValue);
+                          if (statusField) {
+                            statusField.value = statusValue;
+                            // Trigger change event to ensure any listeners are notified
+                            statusField.dispatchEvent(new Event('change', { bubbles: true }));
+                          }
+                          
+                          console.log("Auto-population: Fields populated with values:", {
+                            specification: selectedPma.specification,
+                            grade: selectedPma.grade,
+                            certifiedBy: selectedPma.certifiedBy,
+                            issueDate: selectedPma.issueDate,
+                            expiryDate: selectedPma.expiryDate,
+                            status: statusValue
+                          });
+                        }, 100); // Small delay to ensure DOM is ready
                       }
                     }
                   }}
