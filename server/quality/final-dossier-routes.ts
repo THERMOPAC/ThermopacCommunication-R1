@@ -56,6 +56,9 @@ router.get('/check/:inspectionOrderNumber', ensureAuthenticated, async (req: Req
   try {
     const inspectionOrderNumber = req.params.inspectionOrderNumber;
     
+    console.log(`🎯 Final Dossier CHECK endpoint called for: ${inspectionOrderNumber}`);
+    console.log(`🎯 Request headers:`, req.headers);
+    
     if (!inspectionOrderNumber) {
       return res.status(400).json({ error: 'Invalid inspection order number' });
     }
