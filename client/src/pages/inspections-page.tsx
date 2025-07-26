@@ -9140,9 +9140,13 @@ export default function InspectionsPage() {
                     setSelectedPmaDocument(pmaNumber);
                     
                     // Auto-populate other fields when a PMA document is selected
-                    if (pmaNumber && activePmaDocuments && !editingPmaRecord) {
-                      const selectedPma = activePmaDocuments.find((pma: any) => pma.pmaNumber === pmaNumber);
-                      console.log("Auto-population: Selected PMA document:", selectedPma);
+                    if (pmaNumber && activePmaDocuments) {
+                      // For edit mode, only auto-populate if user changed to a different PMA Number
+                      const shouldAutoPopulate = !editingPmaRecord || (editingPmaRecord && pmaNumber !== editingPmaRecord.pmaNumber);
+                      
+                      if (shouldAutoPopulate) {
+                        const selectedPma = activePmaDocuments.find((pma: any) => pma.pmaNumber === pmaNumber);
+                        console.log("Auto-population: Selected PMA document:", selectedPma);
                       
                       if (selectedPma) {
                         // Use setTimeout to ensure DOM elements are ready
@@ -9210,6 +9214,7 @@ export default function InspectionsPage() {
                             status: statusValue
                           });
                         }, 100); // Small delay to ensure DOM is ready
+                        }
                       }
                     }
                   }}
