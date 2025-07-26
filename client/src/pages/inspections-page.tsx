@@ -1642,7 +1642,7 @@ export default function InspectionsPage() {
   } = useQuery({
     queryKey: ['/api/quality/test-procedures'],
     queryFn: async () => {
-      const response = await fetch('/api/quality/test-procedures?status=active');
+      const response = await fetch('/api/quality/test-procedures?status=Approved');
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to fetch test procedures");

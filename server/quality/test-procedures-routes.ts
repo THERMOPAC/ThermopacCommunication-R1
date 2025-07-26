@@ -26,7 +26,7 @@ const upload = multer({
 
 // Define ensureAuthenticated middleware
 const ensureAuthenticated = (req: Request, res: Response, next: Function) => {
-  if (req.user) {
+  if (req.isAuthenticated && req.isAuthenticated()) {
     next();
   } else {
     res.status(401).json({ error: 'Authentication required' });
@@ -34,6 +34,12 @@ const ensureAuthenticated = (req: Request, res: Response, next: Function) => {
 };
 
 const router = express.Router();
+
+// Test route to verify routing is working
+router.get('/test', (req: Request, res: Response) => {
+  console.log('🧪 Test route reached successfully');
+  res.json({ message: 'Test procedures routing is working', timestamp: new Date() });
+});
 
 // GET /api/quality/test-procedures/next-number - Get next procedure ID
 router.get('/next-number', ensureAuthenticated, async (req: Request, res: Response) => {
@@ -96,80 +102,34 @@ const testProcedureSchema = z.object({
 // GET /api/quality/test-procedures - Get all test procedures
 router.get('/', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    console.log('🔍 Test Procedures API called with query:', req.query);
     const { search, ndtMethod, status } = req.query;
     
-    let query = db
-      .select({
-        id: testProcedures.id,
-        procedureNumber: testProcedures.procedureNumber,
-        procedureName: testProcedures.procedureName,
-        ndtMethod: testProcedures.ndtMethod,
-        applicableStandard: testProcedures.applicableStandard,
-        procedureRevision: testProcedures.procedureRevision,
-        scope: testProcedures.scope,
-        technique: testProcedures.technique,
-        sensitivity: testProcedures.sensitivity,
-        preparation: testProcedures.preparation,
-        procedureSteps: testProcedures.procedureSteps,
-        evaluation: testProcedures.evaluation,
-        documentation: testProcedures.documentation,
-        personnelQualification: testProcedures.personnelQualification,
-        acceptanceCriteria: testProcedures.acceptanceCriteria,
-        limitations: testProcedures.limitations,
-        environmentalConditions: testProcedures.environmentalConditions,
-        status: testProcedures.status,
-        approvalLevel: testProcedures.approvalLevel,
-        approvedBy: testProcedures.approvedBy,
-        approvedAt: testProcedures.approvedAt,
-        isRevision: testProcedures.isRevision,
-        revisionOf: testProcedures.revisionOf,
-        revisionReason: testProcedures.revisionReason,
-        supersededAt: testProcedures.supersededAt,
-        supersededBy: testProcedures.supersededBy,
-        remarks: testProcedures.remarks,
-        tags: testProcedures.tags,
-        attachments: testProcedures.attachments,
-        createdBy: testProcedures.createdBy,
-        createdAt: testProcedures.createdAt,
-        updatedBy: testProcedures.updatedBy,
-        updatedAt: testProcedures.updatedAt,
-        createdByUser: users.username,
-        updatedByUser: sql`updated_user.username`,
-        approvedByUser: sql`approved_user.username`,
-      })
-      .from(testProcedures)
-      .leftJoin(users, eq(testProcedures.createdBy, users.id))
-      .leftJoin(sql`users as updated_user`, sql`test_procedures.updated_by = updated_user.id`)
-      .leftJoin(sql`users as approved_user`, sql`test_procedures.approved_by = approved_user.id`);
-
-    // Apply filters
-    const filters = [];
+    // Build query with optional filters
+    let query = db.select().from(testProcedures);
+    
+    // Apply filters if provided
+    if (status) {
+      query = query.where(eq(testProcedures.status, status as string));
+    }
     
     if (search) {
-      filters.push(
+      query = query.where(
         or(
-          like(testProcedures.procedureNumber, `%${search}%`),
-          like(testProcedures.procedureName, `%${search}%`),
-          like(testProcedures.applicableStandard, `%${search}%`),
-          like(testProcedures.tags, `%${search}%`)
+          ilike(testProcedures.procedureNumber, `%${search}%`),
+          ilike(testProcedures.procedureName, `%${search}%`)
         )
       );
     }
     
     if (ndtMethod) {
-      filters.push(eq(testProcedures.ndtMethod, ndtMethod as string));
+      query = query.where(eq(testProcedures.ndtMethod, ndtMethod as string));
     }
     
-    if (status) {
-      filters.push(eq(testProcedures.status, status as string));
-    }
-    
-    if (filters.length > 0) {
-      query = query.where(and(...filters));
-    }
-    
+    // Execute query with ordering
     const procedures = await query.orderBy(desc(testProcedures.createdAt));
     
+    console.log('📋 Found procedures:', procedures.length);
     res.json(procedures);
   } catch (error) {
     console.error('Error fetching test procedures:', error);
