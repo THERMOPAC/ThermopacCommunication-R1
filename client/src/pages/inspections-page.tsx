@@ -2523,12 +2523,13 @@ export default function InspectionsPage() {
             console.log("Found ITP records:", parsedItpRecords);
             
             // Filter out empty placeholder records - only keep records with actual data
+            // Use the correct field names that match our current ITP state structure
             const realRecords = parsedItpRecords.filter((record: any) => 
               (record.itpNumber && record.itpNumber.trim() !== '') ||
               (record.itemDescription && record.itemDescription.trim() !== '') ||
               (record.inspectionStage && record.inspectionStage.trim() !== '') ||
-              (record.testItem && record.testItem.trim() !== '') ||
-              (record.testProcedure && record.testProcedure.trim() !== '')
+              (record.inspector && record.inspector.trim() !== '') ||
+              (record.status && record.status.trim() !== '')
             );
             
             if (realRecords.length > 0) {
@@ -2544,6 +2545,7 @@ export default function InspectionsPage() {
                 remarks: record.remarks || ''
               }));
               
+              console.log("Setting ITP records:", formattedRecords);
               setItpRecords(formattedRecords);
               return; // Exit here, don't run fallback
             }
@@ -3717,6 +3719,7 @@ export default function InspectionsPage() {
       };
       
       console.log("Updating inspection order with data:", updateData);
+      console.log("ITP records being sent to server:", itpRecords);
       console.log("NCR records being sent to server:", ncrRecords);
       
       const response = await fetch(`/api/quality/inspection-orders/${editingInspectionOrder}`, {
