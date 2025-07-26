@@ -49,6 +49,7 @@ router.get("/:inspectionOrderNumber/material-traceability/count", ensureAuthenti
     console.log(`📦 Found inspection order with project ID: ${inspection.projectId}`);
     
     // Count material identification records for this project using Drizzle query builder
+    console.log(`📦 Querying material_identification table for project ID: ${inspection.projectId}`);
     const materialRecords = await db.select().from(materialIdentification).where(eq(materialIdentification.projectId, inspection.projectId));
     const count = materialRecords.length;
     
