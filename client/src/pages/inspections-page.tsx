@@ -1942,55 +1942,130 @@ export default function InspectionsPage() {
     
     // Map frontend display names to backend tab names
     const tabMappings = [
-      { frontendKey: 'NDT', backendName: 'NDT' },
-      { frontendKey: 'Visual', backendName: 'Visual' },
-      { frontendKey: 'Welding', backendName: 'Welding' },
-      { frontendKey: 'NonConformance', backendName: 'NonConformance' },
-      { frontendKey: 'Hydrotest', backendName: 'Hydrotest' },
-      { frontendKey: 'ShopInspection', backendName: 'Shop Inspection' },
-      { frontendKey: 'Approved Drawing', backendName: 'Approved Drawing' },
-      { frontendKey: 'DVR', backendName: 'DVR' },
-      { frontendKey: 'ITP', backendName: 'ITP' },
-      { frontendKey: 'PMA', backendName: 'PMA' },
-      { frontendKey: 'Test Procedures', backendName: 'Test Procedures' },
-      { frontendKey: 'Material Traceability', backendName: 'Material Traceability' }
+      { frontendKey: 'NDT', backendName: 'NDT', dataField: 'ndtData' },
+      { frontendKey: 'Visual', backendName: 'Visual', dataField: 'visualData' },
+      { frontendKey: 'Welding', backendName: 'Welding', dataField: 'weldData' },
+      { frontendKey: 'NonConformance', backendName: 'NonConformance', dataField: 'ncrData' },
+      { frontendKey: 'Hydrotest', backendName: 'Hydrotest', dataField: 'hydrotestData' },
+      { frontendKey: 'ShopInspection', backendName: 'Shop Inspection', dataField: 'shopData' },
+      { frontendKey: 'Approved Drawing', backendName: 'Approved Drawing', dataField: 'approvedDrawingData' },
+      { frontendKey: 'DVR', backendName: 'DVR', dataField: 'dvrData' },
+      { frontendKey: 'ITP', backendName: 'ITP', dataField: 'itpData' },
+      { frontendKey: 'PMA', backendName: 'PMA', dataField: 'pmaData' },
+      { frontendKey: 'Test Procedures', backendName: 'Test Procedures', dataField: 'procedureData' },
+      { frontendKey: 'Material Traceability', backendName: 'Material Traceability', dataField: 'materialTraceabilityData' }
     ];
     
     const counts: Record<string, number> = {};
     
     try {
-      // Fetch document counts for each tab
-      const countPromises = tabMappings.map(async (mapping) => {
-        try {
-          const response = await fetch(
-            `/api/quality/inspection-documents/${inspectionOrderNumber}/${encodeURIComponent(mapping.backendName)}/ALL/documents`,
-            {
-              credentials: 'include',
-            }
-          );
+      // First, count data records from the inspection order details
+      if (editInspectionOrderDetails) {
+        tabMappings.forEach((mapping) => {
+          let dataRecordCount = 0;
           
-          if (response.ok) {
-            const documents = await response.json();
-            counts[mapping.frontendKey] = Array.isArray(documents) ? documents.length : 0;
-            console.log(`✅ ${mapping.frontendKey}: ${counts[mapping.frontendKey]} documents`);
+          // Count data records from inspection order fields
+          const dataFieldValue = editInspectionOrderDetails[mapping.dataField as keyof typeof editInspectionOrderDetails];
+          if (dataFieldValue && typeof dataFieldValue === 'string') {
+            try {
+              const parsedData = JSON.parse(dataFieldValue);
+              if (Array.isArray(parsedData)) {
+                // Filter out empty placeholder records
+                const validRecords = parsedData.filter(record => {
+                  if (!record || typeof record !== 'object') return false;
+                  
+                  // Check if record has meaningful data (not just empty placeholders)
+                  const values = Object.values(record);
+                  const hasData = values.some(value => 
+                    value !== '' && 
+                    value !== null && 
+                    value !== undefined &&
+                    !String(value).includes('1') // Filter out placeholder IDs like NDT-1, VI-1, etc.
+                  );
+                  return hasData;
+                });
+                dataRecordCount = validRecords.length;
+              }
+            } catch (e) {
+              // If parsing fails, assume no data
+              dataRecordCount = 0;
+            }
+          }
+          
+          counts[mapping.frontendKey] = dataRecordCount;
+        });
+      }
+      
+      // Then, fetch uploaded document counts and add them to data record counts
+      const documentPromises = tabMappings.map(async (mapping) => {
+        try {
+          // Special handling for Material Traceability - count from separate table
+          if (mapping.frontendKey === 'Material Traceability') {
+            const materialResponse = await fetch(
+              `/api/quality/inspection-documents/${inspectionOrderNumber}/material-traceability/count`,
+              {
+                credentials: 'include',
+              }
+            );
+            
+            if (materialResponse.ok) {
+              const materialResult = await materialResponse.json();
+              const materialCount = materialResult.count || 0;
+              
+              // Get uploaded documents count
+              const documentsResponse = await fetch(
+                `/api/quality/inspection-documents/${inspectionOrderNumber}/${encodeURIComponent(mapping.backendName)}/ALL/documents`,
+                {
+                  credentials: 'include',
+                }
+              );
+              
+              let documentCount = 0;
+              if (documentsResponse.ok) {
+                const documents = await documentsResponse.json();
+                documentCount = Array.isArray(documents) ? documents.length : 0;
+              }
+              
+              // Total = material records + uploaded documents
+              counts[mapping.frontendKey] = materialCount + documentCount;
+              console.log(`✅ ${mapping.frontendKey}: ${counts[mapping.frontendKey]} total (${materialCount} material records + ${documentCount} documents)`);
+            } else {
+              console.log(`❌ ${mapping.frontendKey}: Material count API error ${materialResponse.status}`);
+            }
           } else {
-            counts[mapping.frontendKey] = 0;
-            console.log(`❌ ${mapping.frontendKey}: API error ${response.status}`);
+            // Regular handling for other tabs
+            const response = await fetch(
+              `/api/quality/inspection-documents/${inspectionOrderNumber}/${encodeURIComponent(mapping.backendName)}/ALL/documents`,
+              {
+                credentials: 'include',
+              }
+            );
+            
+            if (response.ok) {
+              const documents = await response.json();
+              const documentCount = Array.isArray(documents) ? documents.length : 0;
+              
+              // Add document count to existing data record count
+              counts[mapping.frontendKey] = (counts[mapping.frontendKey] || 0) + documentCount;
+              
+              console.log(`✅ ${mapping.frontendKey}: ${counts[mapping.frontendKey]} total (data + documents)`);
+            } else {
+              console.log(`❌ ${mapping.frontendKey}: API error ${response.status}`);
+            }
           }
         } catch (error) {
           console.log(`❌ Error fetching ${mapping.frontendKey} documents:`, error);
-          counts[mapping.frontendKey] = 0;
         }
       });
       
-      await Promise.all(countPromises);
+      await Promise.all(documentPromises);
       
-      console.log("📊 Final Documentation counts:", counts);
+      console.log("📊 Final Documentation counts (data + documents):", counts);
       setDocumentationCounts(counts);
     } catch (error) {
       console.error("Error fetching documentation counts:", error);
     }
-  }, []);
+  }, [editInspectionOrderDetails]);
 
   // Fetch documentation counts when edit dialog opens
   useEffect(() => {
