@@ -2031,6 +2031,8 @@ export default function InspectionsPage() {
               console.log(`✅ ${mapping.frontendKey}: ${counts[mapping.frontendKey]} total (${materialCount} material records + ${documentCount} documents)`);
             } else {
               console.log(`❌ ${mapping.frontendKey}: Material count API error ${materialResponse.status}`);
+              const errorText = await materialResponse.text();
+              console.log(`❌ Error response:`, errorText);
             }
           } else {
             // Regular handling for other tabs

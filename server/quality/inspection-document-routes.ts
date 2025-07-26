@@ -26,6 +26,47 @@ function ensureAuthenticated(req: Request, res: Response, next: express.NextFunc
   res.status(401).json({ error: 'Not authenticated' });
 }
 
+// Count material identification records for an inspection order (Material Traceability tab)
+// This needs to be BEFORE the generic /:inspectionOrderNumber/:tabName/:recordId/documents route
+router.get("/:inspectionOrderNumber/material-traceability/count", ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { inspectionOrderNumber } = req.params;
+    
+    console.log(`📦 Material Traceability count request for inspection: ${inspectionOrderNumber}`);
+    
+    // Get the inspection order and project ID
+    const inspection = await db.query.inspectionOrders.findFirst({
+      where: eq(inspectionOrders.inspectionOrderNumber, inspectionOrderNumber)
+    });
+    
+    if (!inspection) {
+      console.log(`📦 Inspection order ${inspectionOrderNumber} not found`);
+      return res.status(404).json({ error: "Inspection order not found" });
+    }
+    
+    console.log(`📦 Found inspection order with project ID: ${inspection.projectId}`);
+    
+    // Count material identification records for this project
+    const materialCount = await db.execute(sql`
+      SELECT COUNT(*) as count 
+      FROM material_identification 
+      WHERE project_id = ${inspection.projectId}
+    `);
+    
+    const count = materialCount[0]?.count || 0;
+    console.log(`📦 Material Traceability count for inspection ${inspectionOrderNumber}: ${count}`);
+    
+    return res.json({ count: parseInt(count as string) });
+    
+  } catch (error) {
+    console.error('📦 Error counting material identification records:', error);
+    return res.status(500).json({ 
+      error: "Internal server error",
+      message: error instanceof Error ? error.message : "Unknown error occurred"
+    });
+  }
+});
+
 // Document upload for inspection records
 router.post("/upload", ensureAuthenticated, upload.single('file'), async (req: Request, res: Response) => {
   try {
@@ -1047,41 +1088,6 @@ router.delete('/welding-delete/:inspectionOrderNumber/:recordId/:documentId', en
       success: false,
       error: 'Failed to delete Welding document',
       message: error.message 
-    });
-  }
-});
-
-// Count material identification records for an inspection order (Material Traceability tab)
-router.get("/:inspectionOrderNumber/material-traceability/count", ensureAuthenticated, async (req: Request, res: Response) => {
-  try {
-    const { inspectionOrderNumber } = req.params;
-    
-    // Get the inspection order and project ID
-    const inspection = await db.query.inspectionOrders.findFirst({
-      where: eq(inspectionOrders.inspectionOrderNumber, inspectionOrderNumber)
-    });
-    
-    if (!inspection) {
-      return res.status(404).json({ error: "Inspection order not found" });
-    }
-    
-    // Count material identification records for this project
-    const materialCount = await db.execute(sql`
-      SELECT COUNT(*) as count 
-      FROM material_identification 
-      WHERE project_id = ${inspection.projectId}
-    `);
-    
-    const count = materialCount[0]?.count || 0;
-    console.log(`📦 Material Traceability count for inspection ${inspectionOrderNumber}: ${count}`);
-    
-    return res.json({ count: parseInt(count as string) });
-    
-  } catch (error) {
-    console.error('Error counting material identification records:', error);
-    return res.status(500).json({ 
-      error: "Internal server error",
-      message: error instanceof Error ? error.message : "Unknown error occurred"
     });
   }
 });
