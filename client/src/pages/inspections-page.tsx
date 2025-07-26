@@ -2379,12 +2379,34 @@ export default function InspectionsPage() {
     }
   }, [editInspectionOrderDetails]);
 
-  // Initialize Shop Inspection records - check for existing uploaded files first
+  // Initialize Shop Inspection records - check for existing uploaded files only if no records were loaded from database
   useEffect(() => {
     if (editInspectionOrderDetails?.inspectionOrderNumber) {
-      console.log("Initializing Shop Inspection records for:", editInspectionOrderDetails.inspectionOrderNumber);
+      console.log("Checking if Shop Inspection placeholder logic should run");
       
-      // Fetch existing uploaded files to infer missing records
+      // Only run placeholder logic if no Shop records were loaded from the database
+      const shopData = (editInspectionOrderDetails as any).shopInspectionRecords || (editInspectionOrderDetails as any).shopData || (editInspectionOrderDetails as any).shop_data;
+      
+      if (shopData) {
+        try {
+          const parsedShopRecords = Array.isArray(shopData) 
+            ? shopData 
+            : typeof shopData === 'string' 
+              ? JSON.parse(shopData) 
+              : [];
+          
+          if (Array.isArray(parsedShopRecords) && parsedShopRecords.length > 0) {
+            console.log("Shop records already loaded from database, skipping placeholder logic");
+            return; // Don't create placeholders if real records exist
+          }
+        } catch (error) {
+          console.error("Error checking existing Shop records:", error);
+        }
+      }
+      
+      console.log("No database Shop records found, checking for uploaded files to create placeholders");
+      
+      // Fetch existing uploaded files to infer missing records only if no database records exist
       const fetchExistingFiles = async () => {
         try {
           const response = await fetch(`/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/ShopInspection/ALL/documents`);
