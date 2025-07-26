@@ -6101,8 +6101,6 @@ export default function InspectionsPage() {
                               <TableHead className="text-xs font-medium">Procedure Name</TableHead>
                               <TableHead className="text-xs font-medium">NDT Method</TableHead>
                               <TableHead className="text-xs font-medium">Applicable Standard</TableHead>
-                              <TableHead className="text-xs font-medium">Linked Date</TableHead>
-                              <TableHead className="text-xs font-medium">Linked By</TableHead>
                               <TableHead className="text-xs font-medium">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -6114,8 +6112,6 @@ export default function InspectionsPage() {
                                   <TableCell className="text-xs">{record.procedureName || '-'}</TableCell>
                                   <TableCell className="text-xs">{record.ndtMethod || '-'}</TableCell>
                                   <TableCell className="text-xs">{record.applicableStandard || '-'}</TableCell>
-                                  <TableCell className="text-xs">{record.linkedDate || '-'}</TableCell>
-                                  <TableCell className="text-xs">{record.linkedBy || '-'}</TableCell>
                                   <TableCell>
                                     <div className="flex items-center space-x-1">
                                       <Button
@@ -6185,7 +6181,7 @@ export default function InspectionsPage() {
                               ))
                             ) : (
                               <TableRow>
-                                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                                   No test procedure records available. Click "Link Test Procedure" to create a new record.
                                 </TableCell>
                               </TableRow>
