@@ -360,6 +360,63 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents", ensureAuthent
         orderBy: (inspectionDocuments, { desc }) => [desc(inspectionDocuments.createdAt)]
       });
       console.log(`Found ${documents.length} Shop Inspection documents for record ${recordId}:`, documents.map(d => ({ id: d.id, tabName: d.tabName, fileName: d.fileName })));
+    } else if (tabName === 'Final Dossier' && recordId === 'dossier') {
+      console.log(`Final Dossier tab detected - checking GCS storage directly`);
+      
+      // For Final Dossier, check GCS storage directly since PDFs are generated programmatically
+      try {
+        const { initializeGCS } = await import('../utils/gcs-operations');
+        const { storage, bucket } = await initializeGCS();
+        
+        if (storage && bucket) {
+          const projectCode = inspection.projectCode || 'UNKNOWN';
+          const dossierPaths = [
+            `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/FinalDossier/`,
+            `QMS/Inspections_Records/${inspectionOrderNumber}/Final Dossier/`,
+            `QMS/Inspections_Records/${inspectionOrderNumber}/FinalDossier/`
+          ];
+          
+          const gcsDocuments = [];
+          
+          for (const pathPrefix of dossierPaths) {
+            try {
+              const [files] = await bucket.getFiles({ prefix: pathPrefix });
+              console.log(`Found ${files.length} files in path: ${pathPrefix}`);
+              
+              for (const file of files) {
+                if (file.name.endsWith('.pdf') && !file.name.endsWith('/.keep')) {
+                  const [metadata] = await file.getMetadata();
+                  gcsDocuments.push({
+                    id: `gcs-${Date.now()}-${Math.random()}`,
+                    inspectionOrderId: inspection.id,
+                    tabName: 'Final Dossier',
+                    recordId: 'dossier',
+                    fileName: file.name.split('/').pop(),
+                    filePath: file.name,
+                    fileUrl: null,
+                    fileType: 'application/pdf',
+                    fileSize: parseInt(metadata.size || '0'),
+                    uploadedBy: null,
+                    createdAt: metadata.timeCreated || new Date().toISOString(),
+                    updatedAt: metadata.updated || new Date().toISOString()
+                  });
+                }
+              }
+            } catch (pathError) {
+              console.log(`Error checking path ${pathPrefix}:`, pathError);
+            }
+          }
+          
+          console.log(`Found ${gcsDocuments.length} Final Dossier documents in GCS`);
+          documents = gcsDocuments;
+        } else {
+          console.log(`GCS not available, returning empty array for Final Dossier`);
+          documents = [];
+        }
+      } catch (gcsError) {
+        console.error('Error checking GCS for Final Dossier documents:', gcsError);
+        documents = [];
+      }
     } else {
       // For other tabs, use the formatted tab name
       documents = await db.query.inspectionDocuments.findMany({

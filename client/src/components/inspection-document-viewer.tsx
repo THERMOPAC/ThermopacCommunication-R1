@@ -61,15 +61,34 @@ const InspectionDocumentViewer: React.FC<InspectionDocumentViewerProps> = ({
   });
   
   const downloadMutation = useMutation({
-    mutationFn: async (documentId: number) => {
-      const response = await fetch(`/api/quality/inspection-documents/${inspectionOrderNumber}/${tabName}/${recordId}/documents/${documentId}/download`);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to download document');
+    mutationFn: async (documentId: number | string) => {
+      // Handle Final Dossier documents with virtual GCS IDs
+      if (tabName === 'Final Dossier' && String(documentId).startsWith('gcs-')) {
+        const document = data?.find(d => d.id === documentId);
+        if (document?.filePath) {
+          // For Final Dossier documents, use the file path directly with final-dossier route
+          const response = await fetch(`/api/quality/final-dossier/download?filePath=${encodeURIComponent(document.filePath)}`);
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to download Final Dossier document');
+          }
+          
+          return response;
+        } else {
+          throw new Error('Final Dossier document path not found');
+        }
+      } else {
+        // Standard database document download
+        const response = await fetch(`/api/quality/inspection-documents/${inspectionOrderNumber}/${tabName}/${recordId}/documents/${documentId}/download`);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to download document');
+        }
+        
+        return response;
       }
-      
-      return response;
     },
     onSuccess: async (response, documentId) => {
       // Get the document to retrieve filename
@@ -106,17 +125,38 @@ const InspectionDocumentViewer: React.FC<InspectionDocumentViewerProps> = ({
   });
   
   const deleteMutation = useMutation({
-    mutationFn: async (documentId: number) => {
-      const response = await fetch(`/api/quality/inspection-documents/${inspectionOrderNumber}/${tabName}/${recordId}/documents/${documentId}`, {
-        method: 'DELETE',
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete document');
+    mutationFn: async (documentId: number | string) => {
+      // Handle Final Dossier documents with virtual GCS IDs
+      if (tabName === 'Final Dossier' && String(documentId).startsWith('gcs-')) {
+        const document = data?.find(d => d.id === documentId);
+        if (document?.filePath) {
+          // For Final Dossier documents, use the file path directly with final-dossier route
+          const response = await fetch(`/api/quality/final-dossier/delete?filePath=${encodeURIComponent(document.filePath)}`, {
+            method: 'DELETE',
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to delete Final Dossier document');
+          }
+          
+          return response.json();
+        } else {
+          throw new Error('Final Dossier document path not found');
+        }
+      } else {
+        // Standard database document deletion
+        const response = await fetch(`/api/quality/inspection-documents/${inspectionOrderNumber}/${tabName}/${recordId}/documents/${documentId}`, {
+          method: 'DELETE',
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to delete document');
+        }
+        
+        return response.json();
       }
-      
-      return response.json();
     },
     onSuccess: (responseData, documentId) => {
       // Get the document to retrieve filename before it's removed from the cache

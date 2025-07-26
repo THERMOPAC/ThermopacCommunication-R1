@@ -363,4 +363,103 @@ router.get('/debug/:inspectionOrderId', ensureAuthenticated, async (req: Request
   }
 });
 
+// Download a Final Dossier document by file path (query parameter version for InspectionDocumentViewer)
+router.get('/download', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const filePath = req.query.filePath as string;
+    
+    if (!filePath) {
+      return res.status(400).json({ error: 'File path is required' });
+    }
+    
+    console.log(`Downloading Final Dossier document from path: ${filePath}`);
+    
+    const { initializeGCS } = await import('../utils/gcs-operations');
+    const { storage, bucket } = await initializeGCS();
+    
+    if (!storage || !bucket) {
+      return res.status(500).json({ error: 'GCS storage not available' });
+    }
+    
+    const file = bucket.file(filePath);
+    const [exists] = await file.exists();
+    
+    if (!exists) {
+      return res.status(404).json({ error: 'Final Dossier document not found' });
+    }
+    
+    // Get file metadata
+    const [metadata] = await file.getMetadata();
+    const fileName = filePath.split('/').pop() || 'final_dossier.pdf';
+    
+    // Set appropriate headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', metadata.size || '0');
+    
+    // Stream the file
+    const stream = file.createReadStream();
+    stream.pipe(res);
+    
+    stream.on('error', (error) => {
+      console.error('Error streaming Final Dossier document:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to download document' });
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error downloading Final Dossier document:', error);
+    res.status(500).json({ 
+      error: 'Failed to download Final Dossier document', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
+// Delete a Final Dossier document by file path (query parameter version for InspectionDocumentViewer)
+router.delete('/delete', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const filePath = req.query.filePath as string;
+    
+    if (!filePath) {
+      return res.status(400).json({ error: 'File path is required' });
+    }
+    
+    console.log(`Deleting Final Dossier document from path: ${filePath}`);
+    
+    const { initializeGCS } = await import('../utils/gcs-operations');
+    const { storage, bucket } = await initializeGCS();
+    
+    if (!storage || !bucket) {
+      return res.status(500).json({ error: 'GCS storage not available' });
+    }
+    
+    const file = bucket.file(filePath);
+    const [exists] = await file.exists();
+    
+    if (!exists) {
+      return res.status(404).json({ error: 'Final Dossier document not found' });
+    }
+    
+    // Delete the file
+    await file.delete();
+    
+    console.log(`Successfully deleted Final Dossier document: ${filePath}`);
+    
+    res.json({
+      success: true,
+      message: 'Final Dossier document deleted successfully',
+      filePath: filePath
+    });
+    
+  } catch (error) {
+    console.error('Error deleting Final Dossier document:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete Final Dossier document', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
 export default router;
