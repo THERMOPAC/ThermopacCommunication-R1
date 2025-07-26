@@ -1959,9 +1959,15 @@ export default function InspectionsPage() {
     const counts: Record<string, number> = {};
     
     try {
-      // First, count data records from the inspection order details
+      // Count database records for each tab (matches what's displayed in tab tables)
       if (editInspectionOrderDetails) {
         tabMappings.forEach((mapping) => {
+          // Special handling for Material Traceability - count from separate table
+          if (mapping.frontendKey === 'Material Traceability') {
+            // Will be handled separately below
+            return;
+          }
+          
           let dataRecordCount = 0;
           
           // Count data records from inspection order fields
@@ -1970,17 +1976,20 @@ export default function InspectionsPage() {
             try {
               const parsedData = JSON.parse(dataFieldValue);
               if (Array.isArray(parsedData)) {
-                // Filter out empty placeholder records
+                // Filter out empty placeholder records with improved logic
                 const validRecords = parsedData.filter(record => {
                   if (!record || typeof record !== 'object') return false;
                   
-                  // Check if record has meaningful data (not just empty placeholders)
-                  const values = Object.values(record);
+                  // Check if record has meaningful data beyond just ID
+                  const recordCopy = { ...record };
+                  delete recordCopy.id; // Remove ID from validation
+                  
+                  const values = Object.values(recordCopy);
                   const hasData = values.some(value => 
                     value !== '' && 
                     value !== null && 
                     value !== undefined &&
-                    !String(value).includes('1') // Filter out placeholder IDs like NDT-1, VI-1, etc.
+                    String(value).trim() !== ''
                   );
                   return hasData;
                 });
@@ -1993,76 +2002,34 @@ export default function InspectionsPage() {
           }
           
           counts[mapping.frontendKey] = dataRecordCount;
+          console.log(`✅ ${mapping.frontendKey}: ${counts[mapping.frontendKey]} records (database only)`);
         });
       }
       
-      // Then, fetch uploaded document counts and add them to data record counts
-      const documentPromises = tabMappings.map(async (mapping) => {
-        try {
-          // Special handling for Material Traceability - count from separate table
-          if (mapping.frontendKey === 'Material Traceability') {
-            const materialResponse = await fetch(
-              `/api/quality/inspection-documents/${inspectionOrderNumber}/material-traceability/count`,
-              {
-                credentials: 'include',
-              }
-            );
-            
-            if (materialResponse.ok) {
-              const materialResult = await materialResponse.json();
-              const materialCount = materialResult.count || 0;
-              
-              // Get uploaded documents count
-              const documentsResponse = await fetch(
-                `/api/quality/inspection-documents/${inspectionOrderNumber}/${encodeURIComponent(mapping.backendName)}/ALL/documents`,
-                {
-                  credentials: 'include',
-                }
-              );
-              
-              let documentCount = 0;
-              if (documentsResponse.ok) {
-                const documents = await documentsResponse.json();
-                documentCount = Array.isArray(documents) ? documents.length : 0;
-              }
-              
-              // Total = material records + uploaded documents
-              counts[mapping.frontendKey] = materialCount + documentCount;
-              console.log(`✅ ${mapping.frontendKey}: ${counts[mapping.frontendKey]} total (${materialCount} material records + ${documentCount} documents)`);
-            } else {
-              console.log(`❌ ${mapping.frontendKey}: Material count API error ${materialResponse.status}`);
-              const errorText = await materialResponse.text();
-              console.log(`❌ Error response:`, errorText);
-            }
-          } else {
-            // Regular handling for other tabs
-            const response = await fetch(
-              `/api/quality/inspection-documents/${inspectionOrderNumber}/${encodeURIComponent(mapping.backendName)}/ALL/documents`,
-              {
-                credentials: 'include',
-              }
-            );
-            
-            if (response.ok) {
-              const documents = await response.json();
-              const documentCount = Array.isArray(documents) ? documents.length : 0;
-              
-              // Add document count to existing data record count
-              counts[mapping.frontendKey] = (counts[mapping.frontendKey] || 0) + documentCount;
-              
-              console.log(`✅ ${mapping.frontendKey}: ${counts[mapping.frontendKey]} total (data + documents)`);
-            } else {
-              console.log(`❌ ${mapping.frontendKey}: API error ${response.status}`);
-            }
+      // Special handling for Material Traceability - count from separate table
+      try {
+        const materialResponse = await fetch(
+          `/api/quality/inspection-documents/${inspectionOrderNumber}/material-traceability/count`,
+          {
+            credentials: 'include',
           }
-        } catch (error) {
-          console.log(`❌ Error fetching ${mapping.frontendKey} documents:`, error);
+        );
+        
+        if (materialResponse.ok) {
+          const materialResult = await materialResponse.json();
+          const materialCount = materialResult.count || 0;
+          counts['Material Traceability'] = materialCount;
+          console.log(`✅ Material Traceability: ${materialCount} records (separate table)`);
+        } else {
+          console.log(`❌ Material Traceability: API error ${materialResponse.status}`);
+          counts['Material Traceability'] = 0;
         }
-      });
+      } catch (error) {
+        console.log(`❌ Error fetching Material Traceability:`, error);
+        counts['Material Traceability'] = 0;
+      }
       
-      await Promise.all(documentPromises);
-      
-      console.log("📊 Final Documentation counts (data + documents):", counts);
+      console.log("📊 Final Documentation counts (database records only):", counts);
       setDocumentationCounts(counts);
     } catch (error) {
       console.error("Error fetching documentation counts:", error);
