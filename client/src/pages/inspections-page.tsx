@@ -2038,10 +2038,11 @@ export default function InspectionsPage() {
                 documentCount = Array.isArray(documents) ? documents.length : 0;
               }
               
+              // Material Traceability is an internal record - no validation warning needed
               validationResults['Material Traceability'] = {
                 records: materialCount,
                 documents: documentCount,
-                isValid: materialCount === documentCount
+                isValid: true
               };
               
               console.log(`✅ Material Traceability: ${materialCount} records, ${documentCount} documents ${materialCount === documentCount ? '✓' : '⚠️'}`);
@@ -2064,13 +2065,18 @@ export default function InspectionsPage() {
               const documentCount = Array.isArray(documents) ? documents.length : 0;
               const recordCount = counts[mapping.frontendKey] || 0;
               
+              // Special handling for internal record tabs - no validation warning needed
+              const internalRecordTabs = ['Material Traceability', 'PMA', 'Test Procedures'];
+              const isInternalRecord = internalRecordTabs.includes(mapping.frontendKey);
+              
               validationResults[mapping.frontendKey] = {
                 records: recordCount,
                 documents: documentCount,
-                isValid: recordCount === documentCount
+                isValid: isInternalRecord ? true : recordCount === documentCount
               };
               
-              const validationIcon = recordCount === documentCount ? '✓' : '⚠️';
+              // Console logging with appropriate validation icon
+              const validationIcon = (isInternalRecord || recordCount === documentCount) ? '✓' : '⚠️';
               console.log(`📋 ${mapping.frontendKey}: ${recordCount} records, ${documentCount} documents ${validationIcon}`);
             } else {
               console.log(`❌ ${mapping.frontendKey}: Documents API error ${response.status}`);
