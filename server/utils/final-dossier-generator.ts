@@ -690,6 +690,13 @@ export async function checkExistingFinalDossier(inspectionOrderIdOrNumber: numbe
 
     console.log(`Found inspection order: ${inspectionOrder.inspectionOrderNumber} with project code: ${inspectionOrder.projectCode}`);
 
+    // Initialize GCS bucket
+    const { bucket } = await initializeGCS();
+    if (!bucket) {
+      console.error('❌ Failed to initialize GCS bucket for Final Dossier check');
+      return { exists: false };
+    }
+
     // Check for existing final dossier in GCS using standardized path
     const basePath = `QMS/Inspections_Records/${inspectionOrder.projectCode || 'UNKNOWN'}/${inspectionOrder.inspectionOrderNumber}/Final_Dossier/`;
     const expectedFileName = `FD_${inspectionOrder.inspectionOrderNumber}.pdf`;
