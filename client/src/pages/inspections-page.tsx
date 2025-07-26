@@ -2738,16 +2738,9 @@ export default function InspectionsPage() {
         }
       }
       
-      // If no valid Shop records were found, initialize with a default record (only once when details first load)
-      console.log("No Shop records found, initializing with defaults");
-      setShopInspectionRecords([{
-        id: 'SI-1',
-        inspectionType: '',
-        inspector: '',
-        date: '',
-        status: 'Pending',
-        remarks: ''
-      }]);
+      // If no valid Shop records were found, initialize with empty array (don't create placeholder records)
+      console.log("No Shop records found, initializing with empty array");
+      setShopInspectionRecords([]);
     }
   }, [editInspectionOrderDetails]);
   
@@ -3736,6 +3729,11 @@ export default function InspectionsPage() {
       let materialRows = data.materials || [];
       const validMaterialRows = materialRows.filter(row => row.materialId);
       
+      // Filter out empty/placeholder Shop inspection records before saving
+      const validShopRecords = shopInspectionRecords.filter(record => 
+        record.inspectionType && record.inspectionType.trim() !== ''
+      );
+
       // Combine the form data with the NDT records, Visual records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, ITP records, PMA records, Procedures records, and Shop inspection records from the state
       const updateData = {
         ...data,
@@ -3750,7 +3748,7 @@ export default function InspectionsPage() {
         itpRecords: itpRecords,
         pmaRecords: pmaRecords,
         procedureRecords: procedureRecords,
-        shopInspectionRecords: shopInspectionRecords
+        shopInspectionRecords: validShopRecords
       };
       
       console.log("Updating inspection order with data:", updateData);
