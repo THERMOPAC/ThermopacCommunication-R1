@@ -1936,7 +1936,7 @@ export default function InspectionsPage() {
     setPreviewData(null);
   };
 
-  // Function to fetch document counts for all inspection tabs
+  // Function to fetch document counts for all inspection tabs with validation
   const fetchDocumentationCounts = useCallback(async (inspectionOrderNumber: string) => {
     if (!inspectionOrderNumber) return;
     
@@ -1957,6 +1957,7 @@ export default function InspectionsPage() {
     ];
     
     const counts: Record<string, number> = {};
+    const validationResults: Record<string, { records: number; documents: number; isValid: boolean }> = {};
     
     try {
       // Count database records for each tab (matches what's displayed in tab tables)
@@ -2006,31 +2007,109 @@ export default function InspectionsPage() {
         });
       }
       
-      // Special handling for Material Traceability - count from separate table
-      try {
-        const materialResponse = await fetch(
-          `/api/quality/inspection-documents/${inspectionOrderNumber}/material-traceability/count`,
-          {
-            credentials: 'include',
+      // Now fetch uploaded document counts for validation
+      const documentPromises = tabMappings.map(async (mapping) => {
+        try {
+          // Special handling for Material Traceability - count from separate table
+          if (mapping.frontendKey === 'Material Traceability') {
+            const materialResponse = await fetch(
+              `/api/quality/inspection-documents/${inspectionOrderNumber}/material-traceability/count`,
+              {
+                credentials: 'include',
+              }
+            );
+            
+            if (materialResponse.ok) {
+              const materialResult = await materialResponse.json();
+              const materialCount = materialResult.count || 0;
+              counts['Material Traceability'] = materialCount;
+              
+              // Get uploaded documents count for Material Traceability
+              const documentsResponse = await fetch(
+                `/api/quality/inspection-documents/${inspectionOrderNumber}/${encodeURIComponent(mapping.backendName)}/ALL/documents`,
+                {
+                  credentials: 'include',
+                }
+              );
+              
+              let documentCount = 0;
+              if (documentsResponse.ok) {
+                const documents = await documentsResponse.json();
+                documentCount = Array.isArray(documents) ? documents.length : 0;
+              }
+              
+              validationResults['Material Traceability'] = {
+                records: materialCount,
+                documents: documentCount,
+                isValid: materialCount === documentCount
+              };
+              
+              console.log(`✅ Material Traceability: ${materialCount} records, ${documentCount} documents ${materialCount === documentCount ? '✓' : '⚠️'}`);
+            } else {
+              console.log(`❌ Material Traceability: API error ${materialResponse.status}`);
+              counts['Material Traceability'] = 0;
+              validationResults['Material Traceability'] = { records: 0, documents: 0, isValid: true };
+            }
+          } else {
+            // Regular handling for other tabs
+            const response = await fetch(
+              `/api/quality/inspection-documents/${inspectionOrderNumber}/${encodeURIComponent(mapping.backendName)}/ALL/documents`,
+              {
+                credentials: 'include',
+              }
+            );
+            
+            if (response.ok) {
+              const documents = await response.json();
+              const documentCount = Array.isArray(documents) ? documents.length : 0;
+              const recordCount = counts[mapping.frontendKey] || 0;
+              
+              validationResults[mapping.frontendKey] = {
+                records: recordCount,
+                documents: documentCount,
+                isValid: recordCount === documentCount
+              };
+              
+              const validationIcon = recordCount === documentCount ? '✓' : '⚠️';
+              console.log(`📋 ${mapping.frontendKey}: ${recordCount} records, ${documentCount} documents ${validationIcon}`);
+            } else {
+              console.log(`❌ ${mapping.frontendKey}: Documents API error ${response.status}`);
+              validationResults[mapping.frontendKey] = {
+                records: counts[mapping.frontendKey] || 0,
+                documents: 0,
+                isValid: (counts[mapping.frontendKey] || 0) === 0
+              };
+            }
           }
-        );
-        
-        if (materialResponse.ok) {
-          const materialResult = await materialResponse.json();
-          const materialCount = materialResult.count || 0;
-          counts['Material Traceability'] = materialCount;
-          console.log(`✅ Material Traceability: ${materialCount} records (separate table)`);
-        } else {
-          console.log(`❌ Material Traceability: API error ${materialResponse.status}`);
-          counts['Material Traceability'] = 0;
+        } catch (error) {
+          console.log(`❌ Error validating ${mapping.frontendKey}:`, error);
+          validationResults[mapping.frontendKey] = {
+            records: counts[mapping.frontendKey] || 0,
+            documents: 0,
+            isValid: (counts[mapping.frontendKey] || 0) === 0
+          };
         }
-      } catch (error) {
-        console.log(`❌ Error fetching Material Traceability:`, error);
-        counts['Material Traceability'] = 0;
+      });
+      
+      await Promise.all(documentPromises);
+      
+      // Log validation summary
+      const invalidTabs = Object.entries(validationResults).filter(([_, result]) => !result.isValid);
+      if (invalidTabs.length > 0) {
+        console.warn("⚠️ VALIDATION ISSUES FOUND:");
+        invalidTabs.forEach(([tabName, result]) => {
+          console.warn(`   ${tabName}: ${result.records} records ≠ ${result.documents} documents`);
+        });
+      } else {
+        console.log("✅ ALL TABS VALIDATED: Records and documents counts match");
       }
       
       console.log("📊 Final Documentation counts (database records only):", counts);
       setDocumentationCounts(counts);
+      
+      // Store validation results for potential UI display
+      (window as any).inspectionValidationResults = validationResults;
+      
     } catch (error) {
       console.error("Error fetching documentation counts:", error);
     }
@@ -8183,8 +8262,14 @@ export default function InspectionsPage() {
                             ].map((tab) => {
                               const count = documentationCounts[tab.key] || 0;
                               const hasDocuments = count > 0;
+                              const validationResult = (window as any).inspectionValidationResults?.[tab.key];
+                              const isValidated = validationResult && validationResult.isValid;
+                              const hasValidationMismatch = validationResult && !validationResult.isValid;
+                              
                               return (
-                                <div key={tab.key} className="flex items-center justify-between space-x-2 p-2 rounded-md bg-gray-50 hover:bg-gray-100">
+                                <div key={tab.key} className={`flex items-center justify-between space-x-2 p-2 rounded-md ${
+                                  hasValidationMismatch ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-50'
+                                } hover:bg-gray-100`}>
                                   <div className="flex items-center space-x-2">
                                     <Checkbox 
                                       id={tab.key} 
@@ -8194,6 +8279,11 @@ export default function InspectionsPage() {
                                     <Label htmlFor={tab.key} className="flex items-center space-x-2">
                                       <span>{tab.icon}</span>
                                       <span>{tab.label}</span>
+                                      {hasValidationMismatch && (
+                                        <span className="text-yellow-600 text-xs" title={`Records (${validationResult.records}) ≠ Documents (${validationResult.documents})`}>
+                                          ⚠️
+                                        </span>
+                                      )}
                                     </Label>
                                   </div>
                                   <div className="flex items-center space-x-2">
@@ -8202,8 +8292,17 @@ export default function InspectionsPage() {
                                         ? 'bg-green-100 text-green-800' 
                                         : 'bg-gray-100 text-gray-600'
                                     }`}>
-                                      {count} {count === 1 ? 'doc' : 'docs'}
+                                      {count} {count === 1 ? 'record' : 'records'}
                                     </span>
+                                    {validationResult && (
+                                      <span className={`text-xs px-2 py-1 rounded ${
+                                        isValidated 
+                                          ? 'bg-green-100 text-green-700' 
+                                          : 'bg-yellow-100 text-yellow-700'
+                                      }`} title={isValidated ? 'Records and documents match' : `${validationResult.records} records vs ${validationResult.documents} documents`}>
+                                        {isValidated ? '✓' : `${validationResult.documents} docs`}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               );
@@ -8213,9 +8312,35 @@ export default function InspectionsPage() {
                           <div className="mt-4 p-3 bg-blue-50 rounded-md">
                             <div className="text-sm text-blue-700">
                               <strong>Documentation Summary:</strong> {' '}
-                              {Object.values(documentationCounts).reduce((sum, count) => sum + count, 0)} total documents across {' '}
+                              {Object.values(documentationCounts).reduce((sum, count) => sum + count, 0)} total database records across {' '}
                               {Object.values(documentationCounts).filter(count => count > 0).length} of 12 inspection tabs
                             </div>
+                            {(() => {
+                              const validationResults = (window as any).inspectionValidationResults;
+                              if (!validationResults) return null;
+                              
+                              const invalidTabs = Object.entries(validationResults).filter(([_, result]: any) => !result.isValid);
+                              if (invalidTabs.length === 0) {
+                                return (
+                                  <div className="text-sm text-green-700 mt-2">
+                                    ✓ <strong>Validation Status:</strong> All tabs have matching database records and uploaded documents
+                                  </div>
+                                );
+                              }
+                              
+                              return (
+                                <div className="text-sm text-yellow-700 mt-2">
+                                  ⚠️ <strong>Validation Issues:</strong> {invalidTabs.length} tab{invalidTabs.length > 1 ? 's have' : ' has'} mismatched counts:
+                                  <div className="ml-4 mt-1">
+                                    {invalidTabs.map(([tabName, result]: any) => (
+                                      <div key={tabName} className="text-xs">
+                                        • {tabName}: {result.records} records ≠ {result.documents} documents
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                         <div className="col-span-12">
