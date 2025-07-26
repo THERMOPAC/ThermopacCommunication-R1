@@ -642,21 +642,33 @@ function VisaRecordsTab() {
 
 
 
-  // Define comprehensive country list excluding individual Schengen countries
+  // Define standardized country list excluding individual EU/Schengen countries (matching business trip management)
   const visaOptions: VisaOptions = {
     countries: [
-      // Major non-EU countries
-      "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Argentina", "Armenia", "Australia", 
-      "Azerbaijan", "Bahrain", "Bangladesh", "Belarus", "Bosnia and Herzegovina", "Brazil", "Brunei", 
-      "Cambodia", "Cameroon", "Canada", "Chile", "China", "Colombia", "Costa Rica", "Cuba", 
-      "Dominican Republic", "Ecuador", "Egypt", "Ethiopia", "Georgia", "Ghana", "India", "Indonesia", 
-      "Iran", "Iraq", "Israel", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kuwait", "Kyrgyzstan", 
-      "Laos", "Lebanon", "Libya", "Malaysia", "Maldives", "Mexico", "Moldova", "Monaco", "Mongolia", 
-      "Montenegro", "Morocco", "Myanmar", "Nepal", "New Zealand", "Nigeria", "North Korea", "North Macedonia", 
-      "Oman", "Pakistan", "Panama", "Paraguay", "Peru", "Philippines", "Qatar", "Russia", "San Marino", 
-      "Saudi Arabia", "Serbia", "Singapore", "South Africa", "South Korea", "Sri Lanka", "Sudan", 
-      "Taiwan", "Tajikistan", "Thailand", "Tunisia", "Turkey", "Turkmenistan", "Ukraine", "United Arab Emirates", 
-      "United Kingdom", "United States", "Uruguay", "Uzbekistan", "Vatican City", "Venezuela", "Vietnam", "Yemen",
+      // Major non-EU countries and regions
+      "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", 
+      "Armenia", "Australia", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", 
+      "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", 
+      "Bulgaria", "Burkina Faso", "Burundi", "Cape Verde", "Cambodia", "Cameroon", "Canada", 
+      "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo", 
+      "Congo (Democratic Republic)", "Costa Rica", "Côte d'Ivoire", "Cuba", "Cyprus", "Djibouti", 
+      "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", 
+      "Eritrea", "Eswatini", "Ethiopia", "Fiji", "Gabon", "Gambia", "Georgia", "Ghana", "Grenada", 
+      "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras", "India", "Indonesia", 
+      "Iran", "Iraq", "Ireland", "Israel", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", 
+      "Kiribati", "Korea (North)", "Korea (South)", "Kuwait", "Kyrgyzstan", "Laos", "Lebanon", 
+      "Lesotho", "Liberia", "Libya", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", 
+      "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", 
+      "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar", "Namibia", "Nauru", "Nepal", 
+      "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Macedonia", "Oman", "Pakistan", "Palau", 
+      "Palestine", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Qatar", "Romania", 
+      "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", 
+      "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", 
+      "Sierra Leone", "Singapore", "Solomon Islands", "Somalia", "South Africa", "South Sudan", 
+      "Sri Lanka", "Sudan", "Suriname", "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", 
+      "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", 
+      "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Uruguay", "Uzbekistan", 
+      "Vanuatu", "Vatican City", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe",
       // Grouped Schengen Area (replaces individual EU countries)
       "Schengen Area (EU)"
     ],
