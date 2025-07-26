@@ -2522,20 +2522,31 @@ export default function InspectionsPage() {
           if (parsedItpRecords && Array.isArray(parsedItpRecords) && parsedItpRecords.length > 0) {
             console.log("Found ITP records:", parsedItpRecords);
             
-            // Map the ITP records to match our state format using the correct field names
-            const formattedRecords = parsedItpRecords.map((record, index) => ({
-              id: record.id || `ITP-${index + 1}`,
-              itpNumber: record.itpNumber || '',
-              itemDescription: record.itemDescription || '',
-              inspectionStage: record.inspectionStage || '',
-              inspector: record.inspector || '',
-              inspectionDate: record.inspectionDate || '',
-              status: record.status || 'Pending',
-              remarks: record.remarks || ''
-            }));
+            // Filter out empty placeholder records - only keep records with actual data
+            const realRecords = parsedItpRecords.filter((record: any) => 
+              (record.itpNumber && record.itpNumber.trim() !== '') ||
+              (record.itemDescription && record.itemDescription.trim() !== '') ||
+              (record.inspectionStage && record.inspectionStage.trim() !== '') ||
+              (record.testItem && record.testItem.trim() !== '') ||
+              (record.testProcedure && record.testProcedure.trim() !== '')
+            );
             
-            setItpRecords(formattedRecords);
-            return; // Exit here, don't run fallback
+            if (realRecords.length > 0) {
+              // Map the real ITP records to match our state format using the correct field names
+              const formattedRecords = realRecords.map((record, index) => ({
+                id: record.id || `ITP-${index + 1}`,
+                itpNumber: record.itpNumber || '',
+                itemDescription: record.itemDescription || '',
+                inspectionStage: record.inspectionStage || '',
+                inspector: record.inspector || '',
+                inspectionDate: record.inspectionDate || '',
+                status: record.status || 'Pending',
+                remarks: record.remarks || ''
+              }));
+              
+              setItpRecords(formattedRecords);
+              return; // Exit here, don't run fallback
+            }
           }
         } catch (error) {
           console.error("Error parsing ITP records:", error);
@@ -2617,20 +2628,30 @@ export default function InspectionsPage() {
           if (parsedProcedureRecords && Array.isArray(parsedProcedureRecords) && parsedProcedureRecords.length > 0) {
             console.log("Found Procedures records:", parsedProcedureRecords);
             
-            // Map the Procedures records to match our state format
-            const formattedRecords = parsedProcedureRecords.map((record, index) => ({
-              id: record.id || `TP-${index + 1}`,
-              procedureNumber: record.procedureNumber || '',
-              procedureName: record.procedureName || '',
-              ndtMethod: record.ndtMethod || '',
-              applicableStandard: record.applicableStandard || '',
-              linkedDate: record.linkedDate || '',
-              linkedBy: record.linkedBy || '',
-              notes: record.notes || ''
-            }));
+            // Filter out empty placeholder records - only keep records with actual data
+            const realRecords = parsedProcedureRecords.filter((record: any) => 
+              (record.procedureNumber && record.procedureNumber.trim() !== '') ||
+              (record.procedureName && record.procedureName.trim() !== '') ||
+              (record.ndtMethod && record.ndtMethod.trim() !== '') ||
+              (record.applicableStandard && record.applicableStandard.trim() !== '')
+            );
             
-            setProcedureRecords(formattedRecords);
-            return; // Exit here, don't run fallback
+            if (realRecords.length > 0) {
+              // Map the real Procedures records to match our state format
+              const formattedRecords = realRecords.map((record, index) => ({
+                id: record.id || `TP-${index + 1}`,
+                procedureNumber: record.procedureNumber || '',
+                procedureName: record.procedureName || '',
+                ndtMethod: record.ndtMethod || '',
+                applicableStandard: record.applicableStandard || '',
+                linkedDate: record.linkedDate || '',
+                linkedBy: record.linkedBy || '',
+                notes: record.notes || ''
+              }));
+              
+              setProcedureRecords(formattedRecords);
+              return; // Exit here, don't run fallback
+            }
           }
         } catch (error) {
           console.error("Error parsing Procedures records:", error);
