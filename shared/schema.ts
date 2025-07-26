@@ -4888,30 +4888,33 @@ export type InsertExchangeRateSetting = z.infer<typeof exchangeRateSettingSchema
 // Material Identification tables
 export const materialIdentification = pgTable('material_identification', {
   id: serial('id').primaryKey(),
+  materialIdentificationId: varchar('material_identification_id', { length: 255 }).notNull().unique(),
   projectId: integer('project_id').notNull().references(() => projects.id),
-  inspectionOrderId: integer('inspection_order_id').references(() => inspectionOrders.id),
+  projectNumber: varchar('project_number', { length: 255 }),
+  projectName: varchar('project_name', { length: 255 }),
+  inspectionOrderNumber: varchar('inspection_order_number', { length: 255 }),
   
   // Material Identification details
-  materialIdentificationId: text('material_identification_id').notNull().unique(), // Format: MI-YYYY-SEQUENCE
   materialDescription: text('material_description').notNull(),
-  materialCode: text('material_code').notNull(),
-  specification: text('specification').notNull(),
-  materialGrade: text('material_grade').notNull(),
-  heatNumber: text('heat_number').notNull(),
-  batchNumber: text('batch_number'),
-  millName: text('mill_name').notNull(),
-  millTestCertificateNumber: text('mill_test_certificate_number').notNull(),
-  quantity: text('quantity').notNull(),
-  dimensions: text('dimensions').notNull(),
-  materialStatus: text('material_status').notNull(),
+  materialCode: varchar('material_code', { length: 255 }).notNull(),
+  specification: varchar('specification', { length: 255 }).notNull(),
+  materialGrade: varchar('material_grade', { length: 255 }).notNull(),
+  heatNumber: varchar('heat_number', { length: 255 }).notNull(),
+  batchNumber: varchar('batch_number', { length: 255 }),
+  millName: varchar('mill_name', { length: 255 }).notNull(),
+  millTestCertificateNumber: varchar('mill_test_certificate_number', { length: 255 }).notNull(),
+  quantity: varchar('quantity', { length: 255 }).notNull(),
+  dimensions: varchar('dimensions', { length: 255 }).notNull(),
+  materialStatus: varchar('material_status', { length: 255 }).notNull(),
   
   // Inspection details
-  inspectorName: text('inspector_name').notNull(),
+  inspectorName: varchar('inspector_name', { length: 255 }).notNull(),
   inspectionDate: date('inspection_date').notNull(),
   remarks: text('remarks'),
   
   // Tracking and metadata
   createdBy: integer('created_by').notNull().references(() => users.id),
+  updatedBy: integer('updated_by').references(() => users.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -4970,17 +4973,17 @@ export const pmaDocumentsRelations = relations(pmaDocuments, ({ one }) => ({
 
 
 // Material Identification relations
-export const materialIdentificationRelations = relations(materialIdentification, ({ one, many }) => ({
+export const materialIdentificationRelations = relations(materialIdentification, ({ one }) => ({
   project: one(projects, {
     fields: [materialIdentification.projectId],
     references: [projects.id],
   }),
-  inspectionOrder: one(inspectionOrders, {
-    fields: [materialIdentification.inspectionOrderId],
-    references: [inspectionOrders.id],
-  }),
   creator: one(users, {
     fields: [materialIdentification.createdBy],
+    references: [users.id],
+  }),
+  updater: one(users, {
+    fields: [materialIdentification.updatedBy],
     references: [users.id],
   }),
 }));
