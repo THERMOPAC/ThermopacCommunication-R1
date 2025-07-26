@@ -1940,20 +1940,30 @@ export default function InspectionsPage() {
   const fetchDocumentationCounts = useCallback(async (inspectionOrderNumber: string) => {
     if (!inspectionOrderNumber) return;
     
-    const tabNames = [
-      'NDT', 'Visual', 'Welding', 'NonConformance', 'Hydrotest', 
-      'ShopInspection', 'Approved Drawing', 'DVR', 'ITP', 'PMA', 'Test Procedures',
-      'Material Traceability'
+    // Map frontend display names to backend tab names
+    const tabMappings = [
+      { frontendKey: 'NDT', backendName: 'NDT' },
+      { frontendKey: 'Visual', backendName: 'Visual' },
+      { frontendKey: 'Welding', backendName: 'Welding' },
+      { frontendKey: 'NonConformance', backendName: 'NonConformance' },
+      { frontendKey: 'Hydrotest', backendName: 'Hydrotest' },
+      { frontendKey: 'ShopInspection', backendName: 'Shop Inspection' },
+      { frontendKey: 'Approved Drawing', backendName: 'Approved Drawing' },
+      { frontendKey: 'DVR', backendName: 'DVR' },
+      { frontendKey: 'ITP', backendName: 'ITP' },
+      { frontendKey: 'PMA', backendName: 'PMA' },
+      { frontendKey: 'Test Procedures', backendName: 'Test Procedures' },
+      { frontendKey: 'Material Traceability', backendName: 'Material Traceability' }
     ];
     
     const counts: Record<string, number> = {};
     
     try {
       // Fetch document counts for each tab
-      const countPromises = tabNames.map(async (tabName) => {
+      const countPromises = tabMappings.map(async (mapping) => {
         try {
           const response = await fetch(
-            `/api/quality/inspection-documents/${inspectionOrderNumber}/${encodeURIComponent(tabName)}/ALL`,
+            `/api/quality/inspection-documents/${inspectionOrderNumber}/${encodeURIComponent(mapping.backendName)}/ALL/documents`,
             {
               credentials: 'include',
             }
@@ -1961,19 +1971,21 @@ export default function InspectionsPage() {
           
           if (response.ok) {
             const documents = await response.json();
-            counts[tabName] = Array.isArray(documents) ? documents.length : 0;
+            counts[mapping.frontendKey] = Array.isArray(documents) ? documents.length : 0;
+            console.log(`✅ ${mapping.frontendKey}: ${counts[mapping.frontendKey]} documents`);
           } else {
-            counts[tabName] = 0;
+            counts[mapping.frontendKey] = 0;
+            console.log(`❌ ${mapping.frontendKey}: API error ${response.status}`);
           }
         } catch (error) {
-          console.log(`Error fetching ${tabName} documents:`, error);
-          counts[tabName] = 0;
+          console.log(`❌ Error fetching ${mapping.frontendKey} documents:`, error);
+          counts[mapping.frontendKey] = 0;
         }
       });
       
       await Promise.all(countPromises);
       
-      console.log("📊 Documentation counts:", counts);
+      console.log("📊 Final Documentation counts:", counts);
       setDocumentationCounts(counts);
     } catch (error) {
       console.error("Error fetching documentation counts:", error);
