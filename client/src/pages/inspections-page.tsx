@@ -245,6 +245,7 @@ export default function InspectionsPage() {
   const [isGeneratingDossier, setIsGeneratingDossier] = useState(false);
   const [isCheckingDossier, setIsCheckingDossier] = useState(false);
   const [dossierUrl, setDossierUrl] = useState<string | null>(null);
+  const [documentationCounts, setDocumentationCounts] = useState<Record<string, number>>({});
   
   // Document upload state
   const [showDocumentUpload, setShowDocumentUpload] = useState(false);
@@ -1934,6 +1935,57 @@ export default function InspectionsPage() {
     setIsGeneratingOrders(false);
     setPreviewData(null);
   };
+
+  // Function to fetch document counts for all inspection tabs
+  const fetchDocumentationCounts = useCallback(async (inspectionOrderNumber: string) => {
+    if (!inspectionOrderNumber) return;
+    
+    const tabNames = [
+      'NDT', 'Visual', 'Welding', 'NonConformance', 'Hydrotest', 
+      'ShopInspection', 'Approved Drawing', 'DVR', 'ITP', 'PMA', 'Test Procedures',
+      'Material Traceability'
+    ];
+    
+    const counts: Record<string, number> = {};
+    
+    try {
+      // Fetch document counts for each tab
+      const countPromises = tabNames.map(async (tabName) => {
+        try {
+          const response = await fetch(
+            `/api/quality/inspection-documents/${inspectionOrderNumber}/${encodeURIComponent(tabName)}/ALL`,
+            {
+              credentials: 'include',
+            }
+          );
+          
+          if (response.ok) {
+            const documents = await response.json();
+            counts[tabName] = Array.isArray(documents) ? documents.length : 0;
+          } else {
+            counts[tabName] = 0;
+          }
+        } catch (error) {
+          console.log(`Error fetching ${tabName} documents:`, error);
+          counts[tabName] = 0;
+        }
+      });
+      
+      await Promise.all(countPromises);
+      
+      console.log("📊 Documentation counts:", counts);
+      setDocumentationCounts(counts);
+    } catch (error) {
+      console.error("Error fetching documentation counts:", error);
+    }
+  }, []);
+
+  // Fetch documentation counts when edit dialog opens
+  useEffect(() => {
+    if (editInspectionOrderDetails?.inspectionOrderNumber) {
+      fetchDocumentationCounts(editInspectionOrderDetails.inspectionOrderNumber);
+    }
+  }, [editInspectionOrderDetails?.inspectionOrderNumber, fetchDocumentationCounts]);
 
   // Form for creating new inspection report
   const form = useForm<InspectionReportFormValues>({
@@ -8059,37 +8111,54 @@ export default function InspectionsPage() {
                         <div className="col-span-12">
                           <h4 className="text-md font-medium mb-2">Documentation Checklist</h4>
                           <div className="space-y-2">
-                            <div className="flex items-center space-x-2">
-                              <Checkbox id="materialCerts" defaultChecked />
-                              <Label htmlFor="materialCerts">Material Certificates</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox id="weldingDocs" defaultChecked />
-                              <Label htmlFor="weldingDocs">Welding Documentation</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox id="ndtReports" defaultChecked />
-                              <Label htmlFor="ndtReports">NDT Reports</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox id="hydroCerts" defaultChecked />
-                              <Label htmlFor="hydroCerts">Hydrotest Certificates</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox id="dimReports" defaultChecked />
-                              <Label htmlFor="dimReports">Dimensional Reports</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox id="ncrReports" defaultChecked />
-                              <Label htmlFor="ncrReports">NCR Reports</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox id="inspectionReports" defaultChecked />
-                              <Label htmlFor="inspectionReports">Final Inspection Reports</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox id="coa" defaultChecked />
-                              <Label htmlFor="coa">Certificate of Conformity</Label>
+                            {[
+                              { key: 'NDT', label: 'NDT Reports', icon: '🔬' },
+                              { key: 'Visual', label: 'Visual Inspection', icon: '👁️' },
+                              { key: 'Welding', label: 'Welding Documentation', icon: '🔥' },
+                              { key: 'NonConformance', label: 'NCR Reports', icon: '⚠️' },
+                              { key: 'Hydrotest', label: 'Hydrotest Certificates', icon: '💧' },
+                              { key: 'ShopInspection', label: 'Shop Inspection', icon: '🏭' },
+                              { key: 'Approved Drawing', label: 'Approved Drawings', icon: '📐' },
+                              { key: 'DVR', label: 'DVR Documentation', icon: '📋' },
+                              { key: 'ITP', label: 'ITP Records', icon: '📊' },
+                              { key: 'PMA', label: 'PMA Documents', icon: '📜' },
+                              { key: 'Test Procedures', label: 'Test Procedures', icon: '🧪' },
+                              { key: 'Material Traceability', label: 'Material Traceability', icon: '🏷️' }
+                            ].map((tab) => {
+                              const count = documentationCounts[tab.key] || 0;
+                              const hasDocuments = count > 0;
+                              return (
+                                <div key={tab.key} className="flex items-center justify-between space-x-2 p-2 rounded-md bg-gray-50 hover:bg-gray-100">
+                                  <div className="flex items-center space-x-2">
+                                    <Checkbox 
+                                      id={tab.key} 
+                                      checked={hasDocuments}
+                                      readOnly 
+                                    />
+                                    <Label htmlFor={tab.key} className="flex items-center space-x-2">
+                                      <span>{tab.icon}</span>
+                                      <span>{tab.label}</span>
+                                    </Label>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <span className={`text-sm font-medium px-2 py-1 rounded ${
+                                      hasDocuments 
+                                        ? 'bg-green-100 text-green-800' 
+                                        : 'bg-gray-100 text-gray-600'
+                                    }`}>
+                                      {count} {count === 1 ? 'doc' : 'docs'}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {/* Summary Stats */}
+                          <div className="mt-4 p-3 bg-blue-50 rounded-md">
+                            <div className="text-sm text-blue-700">
+                              <strong>Documentation Summary:</strong> {' '}
+                              {Object.values(documentationCounts).reduce((sum, count) => sum + count, 0)} total documents across {' '}
+                              {Object.values(documentationCounts).filter(count => count > 0).length} of 12 inspection tabs
                             </div>
                           </div>
                         </div>
