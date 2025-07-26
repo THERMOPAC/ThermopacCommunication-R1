@@ -2152,16 +2152,9 @@ export default function InspectionsPage() {
         }
       }
       
-      // If no valid NDT records were found, initialize with a default record
-      setNdtRecords([{
-        id: 'NDT-1',
-        ndtMethod: 'rt',
-        ndtStandard: 'ASME',
-        ndtExtent: '10',
-        ndtTechnician: '',
-        ndtDate: '',
-        ndtResults: 'Pass'
-      }]);
+      // If no valid NDT records were found, initialize with empty array
+      console.log("No NDT records found, initializing with empty array");
+      setNdtRecords([]);
     }
   }, [editInspectionOrderDetails]);
   
@@ -2205,16 +2198,9 @@ export default function InspectionsPage() {
         }
       }
       
-      // If no valid Visual records were found, initialize with a default record
-      setVisualRecords([{
-        id: 'VI-1',
-        standard: 'ISO 13920',
-        inspector: '',
-        dimensionalChecks: 'acceptable',
-        surfaceCondition: 'acceptable',
-        inspectionDate: '',
-        observations: ''
-      }]);
+      // If no valid Visual records were found, initialize with empty array
+      console.log("No Visual records found, initializing with empty array");
+      setVisualRecords([]);
     }
   }, [editInspectionOrderDetails]);
   
@@ -2259,15 +2245,9 @@ export default function InspectionsPage() {
         }
       }
       
-      // If no valid Weld records were found, initialize with a default record
-      setWelds([{
-        id: 'W-1',
-        weldType: '',
-        weldProcess: '',
-        wpqrDocument: '',
-        welderId: '',
-        weldStatus: 'Pass'
-      }]);
+      // If no valid Weld records were found, initialize with empty array
+      console.log("No Weld records found, initializing with empty array");
+      setWelds([]);
     }
   }, [editInspectionOrderDetails]);
   
@@ -2310,15 +2290,9 @@ export default function InspectionsPage() {
         }
       }
       
-      // If no valid NCR records were found, initialize with a default record
-      setNcrRecords([{
-        id: 'NCR-1',
-        ncrDate: '',
-        ncrStatus: 'open',
-        ncrDescription: '',
-        ncrDisposition: 'rework',
-        ncrCorrectiveAction: ''
-      }]);
+      // If no valid NCR records were found, initialize with empty array
+      console.log("No NCR records found, initializing with empty array");
+      setNcrRecords([]);
     }
   }, [editInspectionOrderDetails]);
 
@@ -2364,18 +2338,9 @@ export default function InspectionsPage() {
         }
       }
       
-      // If no valid Hydrotest records were found, initialize with a default record
-      setHydrotestRecords([{
-        id: 'HT-1',
-        pressure: '',
-        duration: '',
-        medium: 'water',
-        pressureGauge: '',
-        operator: '',
-        testDate: '',
-        result: 'Pass',
-        notes: ''
-      }]);
+      // If no valid Hydrotest records were found, initialize with empty array
+      console.log("No Hydrotest records found, initializing with empty array");
+      setHydrotestRecords([]);
     }
   }, [editInspectionOrderDetails]);
 
@@ -2484,16 +2449,9 @@ export default function InspectionsPage() {
         }
       }
       
-      // If no valid Approved Drawing records were found, initialize with a default record
-      setApprovedDrawingRecords([{
-        id: 'AD-1',
-        drawingNumber: '',
-        drawingTitle: '',
-        revision: 'A',
-        approvalDate: '',
-        approvedBy: '',
-        notes: ''
-      }]);
+      // If no valid Approved Drawing records were found, initialize with empty array
+      console.log("No Approved Drawing records found, initializing with empty array");
+      setApprovedDrawingRecords([]);
     }
   }, [editInspectionOrderDetails]);
 
@@ -2537,17 +2495,9 @@ export default function InspectionsPage() {
         }
       }
       
-      // If no valid DVR records were found, initialize with a default record (only once when details first load)
-      console.log("No DVR records found, initializing with defaults");
-      setDvrRecords([{
-        id: 'DVR-1',
-        designDocument: '',
-        reviewType: 'design_review',
-        reviewer: '',
-        reviewDate: '',
-        status: 'pending',
-        comments: ''
-      }]);
+      // If no valid DVR records were found, initialize with empty array
+      console.log("No DVR records found, initializing with empty array");
+      setDvrRecords([]);
     }
   }, [editInspectionOrderDetails]);
 
@@ -2592,18 +2542,9 @@ export default function InspectionsPage() {
         }
       }
       
-      // If no valid ITP records were found, initialize with a default record (only once when details first load)
-      console.log("No ITP records found, initializing with defaults");
-      setItpRecords([{
-        id: 'ITP-1',
-        itpNumber: '',
-        itemDescription: '',
-        inspectionStage: '',
-        inspector: '',
-        inspectionDate: '',
-        status: 'Pending',
-        remarks: ''
-      }]);
+      // If no valid ITP records were found, initialize with empty array
+      console.log("No ITP records found, initializing with empty array");
+      setItpRecords([]);
     }
   }, [editInspectionOrderDetails]);
 
@@ -2649,19 +2590,9 @@ export default function InspectionsPage() {
         }
       }
       
-      // If no valid PMA records were found, initialize with a default record (only once when details first load)
-      console.log("No PMA records found, initializing with defaults");
-      setPmaRecords([{
-        id: 'PMA-1',
-        pmaNumber: '',
-        materialSpecification: '',
-        materialGrade: '',
-        certifiedBy: '',
-        issueDate: '',
-        expiryDate: '',
-        status: 'active',
-        remarks: ''
-      }]);
+      // If no valid PMA records were found, initialize with empty array
+      console.log("No PMA records found, initializing with empty array");
+      setPmaRecords([]);
     }
   }, [editInspectionOrderDetails]);
 
@@ -2706,18 +2637,9 @@ export default function InspectionsPage() {
         }
       }
       
-      // If no valid Procedures records were found, initialize with a default record (only once when details first load)
-      console.log("No Procedures records found, initializing with defaults");
-      setProcedureRecords([{
-        id: 'TP-1',
-        procedureNumber: '',
-        procedureName: '',
-        ndtMethod: '',
-        applicableStandard: '',
-        linkedDate: '',
-        linkedBy: '',
-        notes: ''
-      }]);
+      // If no valid Procedures records were found, initialize with empty array
+      console.log("No Procedures records found, initializing with empty array");
+      setProcedureRecords([]);
     }
   }, [editInspectionOrderDetails]);
 
