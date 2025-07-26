@@ -2840,6 +2840,650 @@ export default function InspectionsPage() {
     setIsShopInspectionDialogOpen(true);
   };
 
+  // Function to delete a drawing record with GCS cleanup
+  const deleteDrawingRecord = async (recordId: string) => {
+    try {
+      console.log(`Starting deletion of Drawing record: ${recordId}`);
+      console.log(`Inspection Order Number: ${editInspectionOrderDetails?.inspectionOrderNumber}`);
+      
+      // First, fetch all documents associated with this record for cleanup
+      const documentsUrl = `/api/quality/inspection-documents?inspectionOrderNumber=${editInspectionOrderDetails?.inspectionOrderNumber}&tabName=Approved Drawing&recordId=${recordId}`;
+      console.log(`Fetching documents from: ${documentsUrl}`);
+      
+      const response = await fetch(documentsUrl, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const documents = await response.json();
+        console.log(`Found ${documents.length} documents to delete:`, documents);
+        
+        let deletedCount = 0;
+        let failedCount = 0;
+        
+        // Delete all associated GCS files
+        for (const document of documents) {
+          try {
+            console.log(`Attempting to delete document ${document.id}: ${document.fileName}`);
+            
+            const deleteResponse = await fetch(`/api/quality/inspection-documents/${document.id}`, {
+              method: 'DELETE',
+              credentials: 'include'
+            });
+            
+            if (deleteResponse.ok) {
+              deletedCount++;
+              console.log(`✅ Document ${document.fileName} deleted successfully`);
+            } else {
+              failedCount++;
+              console.warn(`❌ Failed to delete document ${document.fileName}`);
+            }
+          } catch (docError) {
+            failedCount++;
+            console.warn(`❌ Exception deleting document ${document.fileName}:`, docError);
+          }
+        }
+        
+        console.log(`Document deletion summary: ${deletedCount} successful, ${failedCount} failed`);
+        
+        // Remove the record from frontend state
+        setApprovedDrawingRecords(prev => 
+          prev.filter(record => record.id !== recordId)
+        );
+        
+        if (failedCount === 0) {
+          toast({
+            title: "Success",
+            description: `Drawing record and ${deletedCount} associated documents deleted successfully`,
+          });
+        } else {
+          toast({
+            title: "Partial Success",
+            description: `Drawing record deleted. ${deletedCount} documents removed, ${failedCount} documents may remain in storage`,
+            variant: "destructive"
+          });
+        }
+      } else {
+        // Still remove the record even if we can't fetch documents
+        setApprovedDrawingRecords(prev => 
+          prev.filter(record => record.id !== recordId)
+        );
+        
+        toast({
+          title: "Partial Success",
+          description: "Drawing record deleted, but document cleanup could not be performed",
+          variant: "destructive"
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error deleting drawing record:', error);
+      
+      // Still remove from frontend even if everything fails
+      setApprovedDrawingRecords(prev => 
+        prev.filter(record => record.id !== recordId)
+      );
+      
+      toast({
+        title: "Error",
+        description: "Error occurred during deletion. Record removed from frontend only.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Function to delete a DVR record with GCS cleanup
+  const deleteDvrRecord = async (recordId: string) => {
+    try {
+      console.log(`Starting deletion of DVR record: ${recordId}`);
+      console.log(`Inspection Order Number: ${editInspectionOrderDetails?.inspectionOrderNumber}`);
+      
+      // First, fetch all documents associated with this record for cleanup
+      const documentsUrl = `/api/quality/inspection-documents?inspectionOrderNumber=${editInspectionOrderDetails?.inspectionOrderNumber}&tabName=DVR&recordId=${recordId}`;
+      console.log(`Fetching documents from: ${documentsUrl}`);
+      
+      const response = await fetch(documentsUrl, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const documents = await response.json();
+        console.log(`Found ${documents.length} documents to delete:`, documents);
+        
+        let deletedCount = 0;
+        let failedCount = 0;
+        
+        // Delete all associated GCS files
+        for (const document of documents) {
+          try {
+            console.log(`Attempting to delete document ${document.id}: ${document.fileName}`);
+            
+            const deleteResponse = await fetch(`/api/quality/inspection-documents/${document.id}`, {
+              method: 'DELETE',
+              credentials: 'include'
+            });
+            
+            if (deleteResponse.ok) {
+              deletedCount++;
+              console.log(`✅ Document ${document.fileName} deleted successfully`);
+            } else {
+              failedCount++;
+              console.warn(`❌ Failed to delete document ${document.fileName}`);
+            }
+          } catch (docError) {
+            failedCount++;
+            console.warn(`❌ Exception deleting document ${document.fileName}:`, docError);
+          }
+        }
+        
+        console.log(`Document deletion summary: ${deletedCount} successful, ${failedCount} failed`);
+        
+        // Remove the record from frontend state
+        setDvrRecords(prev => 
+          prev.filter(record => record.id !== recordId)
+        );
+        
+        if (failedCount === 0) {
+          toast({
+            title: "Success",
+            description: `DVR record and ${deletedCount} associated documents deleted successfully`,
+          });
+        } else {
+          toast({
+            title: "Partial Success",
+            description: `DVR record deleted. ${deletedCount} documents removed, ${failedCount} documents may remain in storage`,
+            variant: "destructive"
+          });
+        }
+      } else {
+        // Still remove the record even if we can't fetch documents
+        setDvrRecords(prev => 
+          prev.filter(record => record.id !== recordId)
+        );
+        
+        toast({
+          title: "Partial Success",
+          description: "DVR record deleted, but document cleanup could not be performed",
+          variant: "destructive"
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error deleting DVR record:', error);
+      
+      // Still remove from frontend even if everything fails
+      setDvrRecords(prev => 
+        prev.filter(record => record.id !== recordId)
+      );
+      
+      toast({
+        title: "Error",
+        description: "Error occurred during deletion. Record removed from frontend only.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Function to delete an ITP record with GCS cleanup
+  const deleteItpRecord = async (recordId: string) => {
+    try {
+      console.log(`Starting deletion of ITP record: ${recordId}`);
+      console.log(`Inspection Order Number: ${editInspectionOrderDetails?.inspectionOrderNumber}`);
+      
+      // First, fetch all documents associated with this record for cleanup
+      const documentsUrl = `/api/quality/inspection-documents?inspectionOrderNumber=${editInspectionOrderDetails?.inspectionOrderNumber}&tabName=ITP&recordId=${recordId}`;
+      console.log(`Fetching documents from: ${documentsUrl}`);
+      
+      const response = await fetch(documentsUrl, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const documents = await response.json();
+        console.log(`Found ${documents.length} documents to delete:`, documents);
+        
+        let deletedCount = 0;
+        let failedCount = 0;
+        
+        // Delete all associated GCS files
+        for (const document of documents) {
+          try {
+            console.log(`Attempting to delete document ${document.id}: ${document.fileName}`);
+            
+            const deleteResponse = await fetch(`/api/quality/inspection-documents/${document.id}`, {
+              method: 'DELETE',
+              credentials: 'include'
+            });
+            
+            if (deleteResponse.ok) {
+              deletedCount++;
+              console.log(`✅ Document ${document.fileName} deleted successfully`);
+            } else {
+              failedCount++;
+              console.warn(`❌ Failed to delete document ${document.fileName}`);
+            }
+          } catch (docError) {
+            failedCount++;
+            console.warn(`❌ Exception deleting document ${document.fileName}:`, docError);
+          }
+        }
+        
+        console.log(`Document deletion summary: ${deletedCount} successful, ${failedCount} failed`);
+        
+        // Remove the record from frontend state
+        setItpRecords(prev => 
+          prev.filter(record => record.id !== recordId)
+        );
+        
+        if (failedCount === 0) {
+          toast({
+            title: "Success",
+            description: `ITP record and ${deletedCount} associated documents deleted successfully`,
+          });
+        } else {
+          toast({
+            title: "Partial Success",
+            description: `ITP record deleted. ${deletedCount} documents removed, ${failedCount} documents may remain in storage`,
+            variant: "destructive"
+          });
+        }
+      } else {
+        // Still remove the record even if we can't fetch documents
+        setItpRecords(prev => 
+          prev.filter(record => record.id !== recordId)
+        );
+        
+        toast({
+          title: "Partial Success",
+          description: "ITP record deleted, but document cleanup could not be performed",
+          variant: "destructive"
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error deleting ITP record:', error);
+      
+      // Still remove from frontend even if everything fails
+      setItpRecords(prev => 
+        prev.filter(record => record.id !== recordId)
+      );
+      
+      toast({
+        title: "Error",
+        description: "Error occurred during deletion. Record removed from frontend only.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Function to delete an NDT record with GCS cleanup
+  const deleteNdtRecord = async (recordId: string) => {
+    try {
+      console.log(`Starting deletion of NDT record: ${recordId}`);
+      console.log(`Inspection Order Number: ${editInspectionOrderDetails?.inspectionOrderNumber}`);
+      
+      // First, fetch all documents associated with this record for cleanup
+      const documentsUrl = `/api/quality/inspection-documents?inspectionOrderNumber=${editInspectionOrderDetails?.inspectionOrderNumber}&tabName=NDT&recordId=${recordId}`;
+      console.log(`Fetching documents from: ${documentsUrl}`);
+      
+      const response = await fetch(documentsUrl, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const documents = await response.json();
+        console.log(`Found ${documents.length} documents to delete:`, documents);
+        
+        let deletedCount = 0;
+        let failedCount = 0;
+        
+        // Delete all associated GCS files
+        for (const document of documents) {
+          try {
+            console.log(`Attempting to delete document ${document.id}: ${document.fileName}`);
+            
+            const deleteResponse = await fetch(`/api/quality/inspection-documents/${document.id}`, {
+              method: 'DELETE',
+              credentials: 'include'
+            });
+            
+            if (deleteResponse.ok) {
+              deletedCount++;
+              console.log(`✅ Document ${document.fileName} deleted successfully`);
+            } else {
+              failedCount++;
+              console.warn(`❌ Failed to delete document ${document.fileName}`);
+            }
+          } catch (docError) {
+            failedCount++;
+            console.warn(`❌ Exception deleting document ${document.fileName}:`, docError);
+          }
+        }
+        
+        console.log(`Document deletion summary: ${deletedCount} successful, ${failedCount} failed`);
+        
+        // Remove the record from frontend state
+        setNdtRecords(prev => 
+          prev.filter(record => record.id !== recordId)
+        );
+        
+        if (failedCount === 0) {
+          toast({
+            title: "Success",
+            description: `NDT record and ${deletedCount} associated documents deleted successfully`,
+          });
+        } else {
+          toast({
+            title: "Partial Success",
+            description: `NDT record deleted. ${deletedCount} documents removed, ${failedCount} documents may remain in storage`,
+            variant: "destructive"
+          });
+        }
+      } else {
+        // Still remove the record even if we can't fetch documents
+        setNdtRecords(prev => 
+          prev.filter(record => record.id !== recordId)
+        );
+        
+        toast({
+          title: "Partial Success",
+          description: "NDT record deleted, but document cleanup could not be performed",
+          variant: "destructive"
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error deleting NDT record:', error);
+      
+      // Still remove from frontend even if everything fails
+      setNdtRecords(prev => 
+        prev.filter(record => record.id !== recordId)
+      );
+      
+      toast({
+        title: "Error",
+        description: "Error occurred during deletion. Record removed from frontend only.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Function to delete a visual inspection record with GCS cleanup
+  const deleteVisualRecord = async (recordId: string) => {
+    try {
+      console.log(`Starting deletion of Visual record: ${recordId}`);
+      console.log(`Inspection Order Number: ${editInspectionOrderDetails?.inspectionOrderNumber}`);
+      
+      // First, fetch all documents associated with this record for cleanup
+      const documentsUrl = `/api/quality/inspection-documents?inspectionOrderNumber=${editInspectionOrderDetails?.inspectionOrderNumber}&tabName=Visual&recordId=${recordId}`;
+      console.log(`Fetching documents from: ${documentsUrl}`);
+      
+      const response = await fetch(documentsUrl, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const documents = await response.json();
+        console.log(`Found ${documents.length} documents to delete:`, documents);
+        
+        let deletedCount = 0;
+        let failedCount = 0;
+        
+        // Delete all associated GCS files
+        for (const document of documents) {
+          try {
+            console.log(`Attempting to delete document ${document.id}: ${document.fileName}`);
+            
+            const deleteResponse = await fetch(`/api/quality/inspection-documents/${document.id}`, {
+              method: 'DELETE',
+              credentials: 'include'
+            });
+            
+            if (deleteResponse.ok) {
+              deletedCount++;
+              console.log(`✅ Document ${document.fileName} deleted successfully`);
+            } else {
+              failedCount++;
+              console.warn(`❌ Failed to delete document ${document.fileName}`);
+            }
+          } catch (docError) {
+            failedCount++;
+            console.warn(`❌ Exception deleting document ${document.fileName}:`, docError);
+          }
+        }
+        
+        console.log(`Document deletion summary: ${deletedCount} successful, ${failedCount} failed`);
+        
+        // Remove the record from frontend state
+        setVisualRecords(prev => 
+          prev.filter(record => record.id !== recordId)
+        );
+        
+        if (failedCount === 0) {
+          toast({
+            title: "Success",
+            description: `Visual record and ${deletedCount} associated documents deleted successfully`,
+          });
+        } else {
+          toast({
+            title: "Partial Success",
+            description: `Visual record deleted. ${deletedCount} documents removed, ${failedCount} documents may remain in storage`,
+            variant: "destructive"
+          });
+        }
+      } else {
+        // Still remove the record even if we can't fetch documents
+        setVisualRecords(prev => 
+          prev.filter(record => record.id !== recordId)
+        );
+        
+        toast({
+          title: "Partial Success",
+          description: "Visual record deleted, but document cleanup could not be performed",
+          variant: "destructive"
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error deleting visual record:', error);
+      
+      // Still remove from frontend even if everything fails
+      setVisualRecords(prev => 
+        prev.filter(record => record.id !== recordId)
+      );
+      
+      toast({
+        title: "Error",
+        description: "Error occurred during deletion. Record removed from frontend only.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Function to delete a hydrotest record with GCS cleanup
+  const deleteHydrotestRecord = async (recordId: string) => {
+    try {
+      console.log(`Starting deletion of Hydrotest record: ${recordId}`);
+      console.log(`Inspection Order Number: ${editInspectionOrderDetails?.inspectionOrderNumber}`);
+      
+      // First, fetch all documents associated with this record for cleanup
+      const documentsUrl = `/api/quality/inspection-documents?inspectionOrderNumber=${editInspectionOrderDetails?.inspectionOrderNumber}&tabName=Hydrotest&recordId=${recordId}`;
+      console.log(`Fetching documents from: ${documentsUrl}`);
+      
+      const response = await fetch(documentsUrl, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const documents = await response.json();
+        console.log(`Found ${documents.length} documents to delete:`, documents);
+        
+        let deletedCount = 0;
+        let failedCount = 0;
+        
+        // Delete all associated GCS files
+        for (const document of documents) {
+          try {
+            console.log(`Attempting to delete document ${document.id}: ${document.fileName}`);
+            
+            const deleteResponse = await fetch(`/api/quality/inspection-documents/${document.id}`, {
+              method: 'DELETE',
+              credentials: 'include'
+            });
+            
+            if (deleteResponse.ok) {
+              deletedCount++;
+              console.log(`✅ Document ${document.fileName} deleted successfully`);
+            } else {
+              failedCount++;
+              console.warn(`❌ Failed to delete document ${document.fileName}`);
+            }
+          } catch (docError) {
+            failedCount++;
+            console.warn(`❌ Exception deleting document ${document.fileName}:`, docError);
+          }
+        }
+        
+        console.log(`Document deletion summary: ${deletedCount} successful, ${failedCount} failed`);
+        
+        // Remove the record from frontend state
+        setHydrotestRecords(prev => 
+          prev.filter(record => record.id !== recordId)
+        );
+        
+        if (failedCount === 0) {
+          toast({
+            title: "Success",
+            description: `Hydrotest record and ${deletedCount} associated documents deleted successfully`,
+          });
+        } else {
+          toast({
+            title: "Partial Success",
+            description: `Hydrotest record deleted. ${deletedCount} documents removed, ${failedCount} documents may remain in storage`,
+            variant: "destructive"
+          });
+        }
+      } else {
+        // Still remove the record even if we can't fetch documents
+        setHydrotestRecords(prev => 
+          prev.filter(record => record.id !== recordId)
+        );
+        
+        toast({
+          title: "Partial Success",
+          description: "Hydrotest record deleted, but document cleanup could not be performed",
+          variant: "destructive"
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error deleting hydrotest record:', error);
+      
+      // Still remove from frontend even if everything fails
+      setHydrotestRecords(prev => 
+        prev.filter(record => record.id !== recordId)
+      );
+      
+      toast({
+        title: "Error",
+        description: "Error occurred during deletion. Record removed from frontend only.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Function to delete an NCR record with GCS cleanup
+  const deleteNcrRecord = async (recordId: string) => {
+    try {
+      console.log(`Starting deletion of NCR record: ${recordId}`);
+      console.log(`Inspection Order Number: ${editInspectionOrderDetails?.inspectionOrderNumber}`);
+      
+      // First, fetch all documents associated with this record for cleanup
+      const documentsUrl = `/api/quality/inspection-documents?inspectionOrderNumber=${editInspectionOrderDetails?.inspectionOrderNumber}&tabName=NonConformance&recordId=${recordId}`;
+      console.log(`Fetching documents from: ${documentsUrl}`);
+      
+      const response = await fetch(documentsUrl, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const documents = await response.json();
+        console.log(`Found ${documents.length} documents to delete:`, documents);
+        
+        let deletedCount = 0;
+        let failedCount = 0;
+        
+        // Delete all associated GCS files
+        for (const document of documents) {
+          try {
+            console.log(`Attempting to delete document ${document.id}: ${document.fileName}`);
+            
+            const deleteResponse = await fetch(`/api/quality/inspection-documents/${document.id}`, {
+              method: 'DELETE',
+              credentials: 'include'
+            });
+            
+            if (deleteResponse.ok) {
+              deletedCount++;
+              console.log(`✅ Document ${document.fileName} deleted successfully`);
+            } else {
+              failedCount++;
+              console.warn(`❌ Failed to delete document ${document.fileName}`);
+            }
+          } catch (docError) {
+            failedCount++;
+            console.warn(`❌ Exception deleting document ${document.fileName}:`, docError);
+          }
+        }
+        
+        console.log(`Document deletion summary: ${deletedCount} successful, ${failedCount} failed`);
+        
+        // Remove the record from frontend state
+        setNcrRecords(prev => 
+          prev.filter(record => record.id !== recordId)
+        );
+        
+        if (failedCount === 0) {
+          toast({
+            title: "Success",
+            description: `NCR record and ${deletedCount} associated documents deleted successfully`,
+          });
+        } else {
+          toast({
+            title: "Partial Success",
+            description: `NCR record deleted. ${deletedCount} documents removed, ${failedCount} documents may remain in storage`,
+            variant: "destructive"
+          });
+        }
+      } else {
+        // Still remove the record even if we can't fetch documents
+        setNcrRecords(prev => 
+          prev.filter(record => record.id !== recordId)
+        );
+        
+        toast({
+          title: "Partial Success",
+          description: "NCR record deleted, but document cleanup could not be performed",
+          variant: "destructive"
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error deleting NCR record:', error);
+      
+      // Still remove from frontend even if everything fails
+      setNcrRecords(prev => 
+        prev.filter(record => record.id !== recordId)
+      );
+      
+      toast({
+        title: "Error",
+        description: "Error occurred during deletion. Record removed from frontend only.",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Function to delete a shop inspection record with GCS cleanup
   const deleteShopInspectionRecord = async (recordId: string) => {
     try {
@@ -5450,13 +6094,7 @@ export default function InspectionsPage() {
                                         title="Delete Record and Documents"
                                         onClick={() => {
                                           if (window.confirm(`Are you sure you want to delete Approved Drawing record "${record.id}"?\n\nThis will permanently delete:\n• The drawing record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
-                                            // TODO: Implement Drawing record deletion with GCS cleanup
-                                            console.log("Delete Drawing record:", record.id);
-                                            toast({
-                                              title: "Delete Function",
-                                              description: "Drawing record deletion will be implemented soon.",
-                                              variant: "default",
-                                            });
+                                            deleteDrawingRecord(record.id);
                                           }
                                         }}
                                       >
@@ -5628,13 +6266,7 @@ export default function InspectionsPage() {
                                         title="Delete Record and Documents"
                                         onClick={() => {
                                           if (window.confirm(`Are you sure you want to delete DVR record "${record.id}"?\n\nThis will permanently delete:\n• The DVR record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
-                                            // TODO: Implement DVR record deletion with GCS cleanup
-                                            console.log("Delete DVR record:", record.id);
-                                            toast({
-                                              title: "Delete Function",
-                                              description: "DVR record deletion will be implemented soon.",
-                                              variant: "default",
-                                            });
+                                            deleteDvrRecord(record.id);
                                           }
                                         }}
                                       >
@@ -5805,13 +6437,7 @@ export default function InspectionsPage() {
                                         title="Delete Record and Documents"
                                         onClick={() => {
                                           if (window.confirm(`Are you sure you want to delete ITP record "${record.id}"?\n\nThis will permanently delete:\n• The ITP record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
-                                            // TODO: Implement ITP record deletion with GCS cleanup
-                                            console.log("Delete ITP record:", record.id);
-                                            toast({
-                                              title: "Delete Function",
-                                              description: "ITP record deletion will be implemented soon.",
-                                              variant: "default",
-                                            });
+                                            deleteItpRecord(record.id);
                                           }
                                         }}
                                       >
@@ -6750,8 +7376,7 @@ export default function InspectionsPage() {
                                         title="Delete Record and Documents"
                                         onClick={() => {
                                           if (window.confirm(`Are you sure you want to delete NDT record "${record.id}"?\n\nThis will permanently delete:\n• The NDT record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
-                                            // TODO: Implement deleteNdtRecord function similar to deleteShopInspectionRecord
-                                            console.log("Delete NDT record:", record.id);
+                                            deleteNdtRecord(record.id);
                                           }
                                         }}
                                       >
@@ -6910,12 +7535,7 @@ export default function InspectionsPage() {
                                         title="Delete Record and Documents"
                                         onClick={() => {
                                           if (window.confirm(`Are you sure you want to delete Visual Inspection record "${record.id}"?\n\nThis will permanently delete:\n• The inspection record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
-                                            const updatedRecords = visualRecords.filter(r => r.id !== record.id);
-                                            setVisualRecords(updatedRecords);
-                                            toast({
-                                              title: "Record Deleted",
-                                              description: "Visual Inspection record has been deleted successfully."
-                                            });
+                                            deleteVisualRecord(record.id);
                                           }
                                         }}
                                       >
@@ -7096,34 +7716,7 @@ export default function InspectionsPage() {
                                         title="Delete Record and Documents"
                                         onClick={() => {
                                           if (window.confirm(`Are you sure you want to delete Hydrotest record "${record.id}"?\n\nThis will permanently delete:\n• The inspection record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
-                                            // Delete hydrotest record logic here
-                                            const updatedRecords = hydrotestRecords.filter(r => r.id !== record.id);
-                                            setHydrotestRecords(updatedRecords);
-                                            
-                                            // Update the inspection order data
-                                            const updatedInspectionOrder = {
-                                              ...editInspectionOrderDetails,
-                                              hydrotestData: JSON.stringify(updatedRecords)
-                                            };
-                                            
-                                            // Save to backend
-                                            fetch(`/api/quality/inspection-orders/${editInspectionOrderDetails?.id}`, {
-                                              method: 'PUT',
-                                              headers: { 'Content-Type': 'application/json' },
-                                              credentials: 'include',
-                                              body: JSON.stringify(updatedInspectionOrder)
-                                            }).then(() => {
-                                              toast({
-                                                title: "Record Deleted",
-                                                description: "Hydrotest record has been deleted successfully."
-                                              });
-                                            }).catch(() => {
-                                              toast({
-                                                title: "Error",
-                                                description: "Failed to delete hydrotest record.",
-                                                variant: "destructive"
-                                              });
-                                            });
+                                            deleteHydrotestRecord(record.id);
                                           }
                                         }}
                                       >
@@ -7306,13 +7899,7 @@ export default function InspectionsPage() {
                                         title="Delete Record and Documents"
                                         onClick={() => {
                                           if (window.confirm(`Are you sure you want to delete NCR record "${record.id}"?\n\nThis will permanently delete:\n• The NCR record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
-                                            // TODO: Implement NCR record deletion with GCS cleanup
-                                            console.log("Delete NCR record:", record.id);
-                                            toast({
-                                              title: "Delete Function",
-                                              description: "NCR record deletion will be implemented soon.",
-                                              variant: "default",
-                                            });
+                                            deleteNcrRecord(record.id);
                                           }
                                         }}
                                       >
