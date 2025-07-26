@@ -8201,18 +8201,18 @@ export default function InspectionsPage() {
                           <h4 className="text-md font-medium mb-2">Documentation Checklist</h4>
                           <div className="space-y-2">
                             {[
-                              { key: 'NDT', label: 'NDT Reports', icon: '🔬' },
-                              { key: 'Visual', label: 'Visual Inspection', icon: '👁️' },
-                              { key: 'Welding', label: 'Welding Documentation', icon: '🔥' },
-                              { key: 'NonConformance', label: 'NCR Reports', icon: '⚠️' },
-                              { key: 'Hydrotest', label: 'Hydrotest Certificates', icon: '💧' },
-                              { key: 'ShopInspection', label: 'Shop Inspection', icon: '🏭' },
                               { key: 'Approved Drawing', label: 'Approved Drawings', icon: '📐' },
                               { key: 'DVR', label: 'DVR Documentation', icon: '📋' },
                               { key: 'ITP', label: 'ITP Records', icon: '📊' },
+                              { key: 'Material Traceability', label: 'Material Traceability', icon: '🏷️' },
                               { key: 'PMA', label: 'PMA Documents', icon: '📜' },
                               { key: 'Test Procedures', label: 'Test Procedures', icon: '🧪' },
-                              { key: 'Material Traceability', label: 'Material Traceability', icon: '🏷️' }
+                              { key: 'ShopInspection', label: 'Shop Inspection', icon: '🏭' },
+                              { key: 'Welding', label: 'Welding Documentation', icon: '🔥' },
+                              { key: 'NDT', label: 'NDT Reports', icon: '🔬' },
+                              { key: 'Visual', label: 'Visual Inspection', icon: '👁️' },
+                              { key: 'Hydrotest', label: 'Hydrotest Certificates', icon: '💧' },
+                              { key: 'NonConformance', label: 'NCR Reports', icon: '⚠️' }
                             ].map((tab) => {
                               const count = documentationCounts[tab.key] || 0;
                               const hasDocuments = count > 0;
