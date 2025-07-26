@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import multer from 'multer';
 import { uploadInspectionDocument } from '../utils/inspection-document-upload';
 import { db } from '../db';
-import { inspectionDocuments, inspectionOrders } from '@shared/schema';
+import { inspectionDocuments, inspectionOrders, materialIdentification } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { sql } from 'drizzle-orm/sql';
 import { cleanupShopInspectionOrphanedFile } from '../utils/cleanup-orphaned-files';
@@ -29,6 +29,8 @@ function ensureAuthenticated(req: Request, res: Response, next: express.NextFunc
 // Count material identification records for an inspection order (Material Traceability tab)
 // This needs to be BEFORE the generic /:inspectionOrderNumber/:tabName/:recordId/documents route
 router.get("/:inspectionOrderNumber/material-traceability/count", ensureAuthenticated, async (req: Request, res: Response) => {
+  console.log(`🎯 MATERIAL TRACEABILITY ENDPOINT CALLED FOR: ${req.params.inspectionOrderNumber}`);
+  
   try {
     const { inspectionOrderNumber } = req.params;
     
@@ -46,19 +48,15 @@ router.get("/:inspectionOrderNumber/material-traceability/count", ensureAuthenti
     
     console.log(`📦 Found inspection order with project ID: ${inspection.projectId}`);
     
-    // Count material identification records for this project
-    const materialCount = await db.execute(sql`
-      SELECT COUNT(*) as count 
-      FROM material_identification 
-      WHERE project_id = ${inspection.projectId}
-    `);
+    // Count material identification records for this project using Drizzle query builder
+    const materialRecords = await db.select().from(materialIdentification).where(eq(materialIdentification.projectId, inspection.projectId));
+    const count = materialRecords.length;
     
-    console.log(`📦 Raw query result:`, materialCount);
-    const count = materialCount[0]?.count || 0;
-    console.log(`📦 Parsed count: ${count}, type: ${typeof count}`);
+    console.log(`📦 Found ${count} material identification records for project ${inspection.projectId}`);
+    console.log(`📦 First few records:`, materialRecords.slice(0, 3).map(r => ({ id: r.id, materialIdentificationId: r.materialIdentificationId })));
     console.log(`📦 Material Traceability count for inspection ${inspectionOrderNumber}: ${count}`);
     
-    return res.json({ count: parseInt(count as string) });
+    return res.json({ count });
     
   } catch (error) {
     console.error('📦 Error counting material identification records:', error);
