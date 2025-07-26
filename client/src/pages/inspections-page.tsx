@@ -9436,8 +9436,8 @@ export default function InspectionsPage() {
                       const form = e.target.closest('form');
                       if (form) {
                         (form.elements.namedItem('procedureName') as HTMLInputElement).value = selectedProcedure.procedureName || '';
-                        (form.elements.namedItem('ndtMethod') as HTMLSelectElement).value = selectedProcedure.ndtMethod || '';
-                        (form.elements.namedItem('applicableStandard') as HTMLInputElement).value = selectedProcedure.applicableStandards || '';
+                        (form.elements.namedItem('ndtMethod') as HTMLInputElement).value = selectedProcedure.ndtMethod || '';
+                        (form.elements.namedItem('applicableStandard') as HTMLInputElement).value = selectedProcedure.applicableStandard || '';
                       }
                     }
                   }}
@@ -9468,22 +9468,16 @@ export default function InspectionsPage() {
 
               <div className="space-y-2">
                 <label htmlFor="ndtMethod" className="text-sm font-medium">NDT Method *</label>
-                <select
+                <input
+                  type="text"
                   id="ndtMethod"
                   name="ndtMethod"
                   required
                   defaultValue={editingProcedureRecord?.ndtMethod || ""}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-                  disabled
-                >
-                  <option value="">Select NDT method...</option>
-                  <option value="Visual Testing">Visual Testing</option>
-                  <option value="Liquid Penetrant Testing">Liquid Penetrant Testing</option>
-                  <option value="Magnetic Particle Testing">Magnetic Particle Testing</option>
-                  <option value="Ultrasonic Testing">Ultrasonic Testing</option>
-                  <option value="Radiographic Testing">Radiographic Testing</option>
-                  <option value="Eddy Current Testing">Eddy Current Testing</option>
-                </select>
+                  placeholder="Auto-populated from selection"
+                  readOnly
+                />
               </div>
 
               <div className="space-y-2">
