@@ -8142,12 +8142,7 @@ export default function InspectionsPage() {
                           {showDossierDocuments && editInspectionOrderDetails && (
                             <div className="mt-4 border rounded-md p-3">
                               <h4 className="text-md font-medium mb-2">Dossier Documents</h4>
-                              {/* Warning about document listing */}
-                              <div className="mb-4 p-2 rounded-md bg-amber-50 text-amber-600 text-sm">
-                                <p className="mb-1 font-semibold">Note:</p>
-                                <p>Individual dossier documents only appear here if they were uploaded directly through this interface. 
-                                   The generated Final Dossier PDF may still be available even if no documents appear here.</p>
-                              </div>
+
                               <InspectionDocumentViewer
                                 inspectionOrderNumber={editInspectionOrderDetails.inspectionOrderNumber}
                                 tabName="Final Dossier"
