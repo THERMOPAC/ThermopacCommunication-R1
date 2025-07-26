@@ -371,10 +371,14 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents", ensureAuthent
         if (storage && bucket) {
           const projectCode = inspection.projectCode || 'UNKNOWN';
           const dossierPaths = [
+            `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/Final_Dossier/`,
             `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/FinalDossier/`,
+            `QMS/Inspections_Records/${inspectionOrderNumber}/Final_Dossier/`,
             `QMS/Inspections_Records/${inspectionOrderNumber}/Final Dossier/`,
             `QMS/Inspections_Records/${inspectionOrderNumber}/FinalDossier/`
           ];
+          
+          console.log(`🔍 Final Dossier paths for inspection ${inspectionOrderNumber} with project ${projectCode}:`, dossierPaths);
           
           const gcsDocuments = [];
           
