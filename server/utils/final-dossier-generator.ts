@@ -342,8 +342,11 @@ export async function generateFinalDossierPDF(
         for (const material of materialRecords) {
           // Use materialIdentificationId (e.g., "MI-2025-29") instead of materialId (database ID)
           if (material.materialIdentificationId) {
+            // Extract project number from inspection order (could be projectCode or separate projectNumber field)
+            const projectNumber = inspectionOrder.projectCode || inspectionOrder.projectNumber || inspectionOrder.project;
+            
             // Try the new standardized path format first: Inspection_Report.{extension}
-            const standardizedPath = `QMS/Material_Identification/${inspectionOrder.projectCode}/${material.materialIdentificationId}/Inspection_Report.pdf`;
+            const standardizedPath = `QMS/Material_Identification/${projectNumber}/${material.materialIdentificationId}/Inspection_Report.pdf`;
             console.log(`📁 Checking standardized Material path: ${standardizedPath} for Material ID: ${material.materialIdentificationId}`);
             
             try {
@@ -356,7 +359,7 @@ export async function generateFinalDossierPDF(
               } else {
                 console.log(`❌ Standardized Material document not found: ${standardizedPath}`);
                 // Fallback: try scanning the directory for any PDF files (for backward compatibility)
-                const materialPath = `QMS/Material_Identification/${inspectionOrder.projectCode}/${material.materialIdentificationId}/`;
+                const materialPath = `QMS/Material_Identification/${projectNumber}/${material.materialIdentificationId}/`;
                 console.log(`📁 Fallback: Checking Material directory: ${materialPath}`);
                 const materialFiles = await listFilesInDirectory(materialPath);
                 const pdfFiles = materialFiles.filter(f => f && f.toLowerCase().endsWith('.pdf'));
