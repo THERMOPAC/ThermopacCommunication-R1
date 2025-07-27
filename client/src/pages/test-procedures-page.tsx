@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit2, FileText, Search, Download } from "lucide-react";
+import { Plus, Edit2, FileText, Search, Download, Upload } from "lucide-react";
 import type { TestProcedure, TestProcedureInsert } from "@/shared/schema";
 
 export default function TestProceduresPage() {
@@ -260,6 +260,55 @@ export default function TestProceduresPage() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleFileUpload = (procedure: TestProcedure) => {
+    // Create a file input element programmatically
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.pdf,.doc,.docx';
+    fileInput.style.display = 'none';
+    
+    fileInput.onchange = async (event) => {
+      const target = event.target as HTMLInputElement;
+      const file = target.files?.[0];
+      
+      if (!file) return;
+      
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await fetch(`/api/quality/test-procedures/${procedure.id}/upload`, {
+          method: 'POST',
+          body: formData,
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error('Upload failed');
+        }
+        
+        // Refresh the data
+        queryClient.invalidateQueries({ queryKey: ["/api/quality/test-procedures"] });
+        
+        toast({
+          title: "Success",
+          description: "File uploaded successfully",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to upload file",
+          variant: "destructive",
+        });
+      }
+    };
+    
+    // Trigger the file selection dialog
+    document.body.appendChild(fileInput);
+    fileInput.click();
+    document.body.removeChild(fileInput);
   };
 
   // Filter procedures
@@ -594,6 +643,14 @@ export default function TestProceduresPage() {
                             className="text-green-600 hover:text-green-800"
                           >
                             <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFileUpload(procedure)}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            <Upload className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="outline"

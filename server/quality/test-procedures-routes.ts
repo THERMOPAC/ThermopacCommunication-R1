@@ -404,6 +404,95 @@ router.put('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/quality/test-procedures/:id/upload - Upload file for existing test procedure
+router.post('/:id/upload', ensureAuthenticated, upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const userId = (req.user as any)?.id;
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid procedure ID' });
+    }
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'File is required' });
+    }
+    
+    // Check if test procedure exists
+    const existingProcedure = await db
+      .select({
+        id: testProcedures.id,
+        procedureNumber: testProcedures.procedureNumber,
+        attachments: testProcedures.attachments
+      })
+      .from(testProcedures)
+      .where(eq(testProcedures.id, id))
+      .limit(1);
+    
+    if (existingProcedure.length === 0) {
+      return res.status(404).json({ error: 'Test procedure not found' });
+    }
+    
+    const procedure = existingProcedure[0];
+    
+    // Upload file to GCS
+    const uploadResult = await uploadFileWithDiagnostics(
+      req.file.buffer,
+      `QMS/Test_Procedures/${procedure.procedureNumber}/${req.file.originalname}`,
+      req.file.mimetype
+    );
+    
+    if (!uploadResult.success) {
+      console.error('File upload failed:', uploadResult.error);
+      return res.status(500).json({ error: 'Failed to upload file' });
+    }
+    
+    // Parse existing attachments
+    let attachments = [];
+    if (procedure.attachments) {
+      try {
+        attachments = JSON.parse(procedure.attachments);
+      } catch (error) {
+        console.error('Error parsing existing attachments:', error);
+        attachments = [];
+      }
+    }
+    
+    // Add new attachment
+    const newAttachment = {
+      fileName: req.file.originalname,
+      fileUrl: uploadResult.fileUrl,
+      uploadedAt: new Date().toISOString(),
+      uploadedBy: userId
+    };
+    
+    attachments.push(newAttachment);
+    
+    // Update procedure with new attachment
+    await db
+      .update(testProcedures)
+      .set({
+        attachments: JSON.stringify(attachments),
+        updatedBy: userId,
+        updatedAt: new Date(),
+      })
+      .where(eq(testProcedures.id, id));
+    
+    res.json({
+      message: 'File uploaded successfully',
+      fileUrl: uploadResult.fileUrl,
+      fileName: req.file.originalname
+    });
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    res.status(500).json({ error: 'Failed to upload file' });
+  }
+});
+
 // DELETE /api/quality/test-procedures/:id - Delete test procedure
 router.delete('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
