@@ -1,9 +1,12 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Download, Upload, Calendar, User, HardDrive } from "lucide-react";
+import { FileText, Download, Upload, Calendar, User, HardDrive, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 interface Document {
@@ -31,9 +34,18 @@ export function MaterialFileInfoSection({
   className = "" 
 }: MaterialFileInfoSectionProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Upload state
+  const [isUploading, setIsUploading] = useState(false);
+  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [documentType, setDocumentType] = useState<string>('inspection_report');
+  const [description, setDescription] = useState<string>('');
 
   // Fetch documents for this material identification record
-  const { data: documents, isLoading, error } = useQuery({
+  const { data: documents, isLoading, error, refetch } = useQuery({
     queryKey: [`/api/quality/material-identification/${materialId}/documents`],
     enabled: !!materialId,
   });
@@ -94,6 +106,90 @@ export function MaterialFileInfoSection({
         variant: "destructive",
       });
     }
+  };
+
+  // Handle file upload
+  const handleFileUpload = async () => {
+    if (!selectedFile || !materialId) return;
+
+    setIsUploading(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('documentType', documentType);
+      formData.append('description', description);
+
+      const response = await fetch(`/api/quality/material-identification/${materialId}/upload`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      toast({
+        title: "Upload successful",
+        description: `Uploaded ${selectedFile.name}`,
+      });
+
+      // Reset form
+      setSelectedFile(null);
+      setDocumentType('inspection_report');
+      setDescription('');
+      setShowUploadForm(false);
+      
+      // Refresh documents
+      refetch();
+      queryClient.invalidateQueries({
+        queryKey: [`/api/quality/material-identification/${materialId}/documents`]
+      });
+
+    } catch (error) {
+      toast({
+        title: "Upload failed",
+        description: error instanceof Error ? error.message : "Failed to upload file",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Handle file selection
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Check file type
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Invalid file type",
+          description: "Please select a PDF, DOC, or DOCX file",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Check file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select a file smaller than 10MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setSelectedFile(file);
+    }
+  };
+
+  // Trigger file input
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
   };
 
   // Don't render if materialId is null or documents are loading
@@ -177,12 +273,128 @@ export function MaterialFileInfoSection({
       </CardHeader>
       <CardContent>
         {!documents || documents.length === 0 ? (
-          <div className="text-center py-6 text-gray-500">
-            <Upload className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No files uploaded yet</p>
-            <p className="text-xs text-gray-400 mt-1">
-              Upload files from the list page using the Upload button
-            </p>
+          <div className="space-y-4">
+            {!showUploadForm ? (
+              <div className="text-center py-6 text-gray-500">
+                <Upload className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                <p className="text-sm mb-3">No files uploaded yet</p>
+                <Button 
+                  onClick={() => setShowUploadForm(true)}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Upload File
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="documentType" className="text-sm font-medium">
+                      Document Type
+                    </Label>
+                    <Select value={documentType} onValueChange={setDocumentType}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select document type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="inspection_report">Inspection Report</SelectItem>
+                        <SelectItem value="mill_test_certificate">Mill Test Certificate</SelectItem>
+                        <SelectItem value="material_certificate">Material Certificate</SelectItem>
+                        <SelectItem value="test_report">Test Report</SelectItem>
+                        <SelectItem value="technical_datasheet">Technical Datasheet</SelectItem>
+                        <SelectItem value="general">General</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="fileInput" className="text-sm font-medium">
+                      Select File
+                    </Label>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={triggerFileInput}
+                        className="flex-1"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        {selectedFile ? selectedFile.name : 'Choose File'}
+                      </Button>
+                      {selectedFile && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedFile(null)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      onChange={handleFileSelect}
+                      accept=".pdf,.doc,.docx"
+                      className="hidden"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Supported: PDF, DOC, DOCX (max 10MB)
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="description" className="text-sm font-medium">
+                      Description (Optional)
+                    </Label>
+                    <Input
+                      id="description"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Enter file description"
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="flex space-x-2 pt-2">
+                    <Button
+                      onClick={handleFileUpload}
+                      disabled={!selectedFile || isUploading}
+                      className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
+                    >
+                      {isUploading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload File
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowUploadForm(false);
+                        setSelectedFile(null);
+                        setDescription('');
+                        setDocumentType('inspection_report');
+                      }}
+                      disabled={isUploading}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
