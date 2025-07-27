@@ -126,8 +126,12 @@ export function MaterialFileInfoSection({
       });
 
       if (!response.ok) {
-        throw new Error('Upload failed');
+        const errorText = await response.text();
+        throw new Error(`Upload failed: ${errorText}`);
       }
+
+      const responseData = await response.json();
+      console.log('Upload response:', responseData);
 
       toast({
         title: "Upload successful",
@@ -139,11 +143,13 @@ export function MaterialFileInfoSection({
       setDescription('');
       setShowUploadForm(false);
       
-      // Refresh documents
-      refetch();
-      queryClient.invalidateQueries({
-        queryKey: [`/api/quality/material-identification/${materialId}/documents`]
-      });
+      // Refresh documents with delay to allow backend processing
+      setTimeout(() => {
+        refetch();
+        queryClient.invalidateQueries({
+          queryKey: [`/api/quality/material-identification/${materialId}/documents`]
+        });
+      }, 1000);
 
     } catch (error) {
       toast({
