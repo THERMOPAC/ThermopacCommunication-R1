@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, ChangeEvent } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { z } from "zod";
@@ -16,17 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, FileText, FileUp, Download, Trash2, AlertCircle, RefreshCw, ArrowLeft } from "lucide-react";
+import { CalendarIcon, AlertCircle, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
 // Define interfaces for the data types
@@ -66,20 +57,7 @@ interface MaterialIdentification {
   updated_at: string;
 }
 
-// Define interface for document
-interface Document {
-  id: number;
-  material_identification_id: number;
-  file_name: string;
-  file_path: string;
-  file_url: string;
-  file_type: string;
-  file_size: number;
-  document_type: string;
-  description: string;
-  uploaded_by: number;
-  created_at: string;
-}
+
 
 // Define schema for Material Identification form
 const materialIdentificationSchema = z.object({
@@ -132,43 +110,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
   const [materialGradeValue, setMaterialGradeValue] = useState("");
   const [materialStatusValue, setMaterialStatusValue] = useState("");
   
-  // State for document upload dialog
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [documentType, setDocumentType] = useState("");
-  const [documentDescription, setDocumentDescription] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Map document type codes to display names
-  const documentTypeMap: {[key: string]: string} = {
-    'general': 'General Document',
-    'mill_test_certificate': 'Mill Test Certificate',
-    'inspection_report': 'Inspection Report',
-    'material_certificate': 'Material Certificate',
-    'test_report': 'Test Report',
-    'technical_datasheet': 'Technical Datasheet',
-    'other': 'Other Document'
-  };
-
-  // Handle document type selection with auto-population of description
-  const handleDocumentTypeChange = (value: string) => {
-    setDocumentType(value);
-    // Auto-populate description with document type display name
-    const displayName = documentTypeMap[value] || value;
-    setDocumentDescription(displayName);
-  };
-
-  // Reset upload form when dialog closes
-  const resetUploadForm = () => {
-    setDocumentType("");
-    setDocumentDescription("");
-    setSelectedFile(null);
-    setIsUploading(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
   
   // Fetch the Material Identification record
   const { data: recordData, isLoading: isLoadingRecord, error } = useQuery({
@@ -189,39 +131,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
     staleTime: 5 * 60 * 1000 // 5 minutes
   });
   
-  // Fetch documents for this material identification record
-  const { data: documents = [], isLoading: isLoadingDocuments, refetch: refetchDocuments } = useQuery<Document[]>({
-    queryKey: ['/api/quality/material-identification', recordId, 'documents'],
-    queryFn: async () => {
-      const response = await fetch(`/api/quality/material-identification/${recordId}/documents`, {
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch material identification documents');
-      }
-      return response.json();
-    },
-    enabled: !!recordId && recordId !== 'new',
-    staleTime: 0, // Always refetch
-    cacheTime: 0, // Don't cache
-  });
 
-  // Debug logging for documents
-  React.useEffect(() => {
-    if (documents && documents.length > 0) {
-      console.log('Documents loaded:', documents.map(doc => ({
-        id: doc.id,
-        file_name: doc.file_name,
-        file_path: doc.file_path,
-        document_type: doc.document_type
-      })));
-    } else {
-      console.log('No documents loaded, count:', documents.length);
-    }
-  }, [documents]);
   
   // Create form with default values
   const form = useForm<MaterialIdentificationFormValues>({
@@ -418,143 +328,9 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
     }
   };
 
-  // Handle file selection
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setSelectedFile(e.target.files[0]);
-    }
-  };
 
-  // Handle document upload
-  const handleDocumentUpload = async () => {
-    if (!selectedFile || !documentType) {
-      toast({
-        title: "Missing information",
-        description: "Please select a file and specify the document type.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIsUploading(true);
-      
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-      formData.append("documentType", documentType);
-      formData.append("description", documentDescription || "");
-      
-      const response = await fetch(`/api/quality/material-identification/${recordId}/documents`, {
-        method: "POST",
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to upload document: ${errorText}`);
-      }
-      
-      toast({
-        title: "Success",
-        description: "Document uploaded successfully.",
-      });
-      
-      // Reset form
-      setSelectedFile(null);
-      setDocumentType("");
-      setDocumentDescription("");
-      setUploadDialogOpen(false);
-      
-      // Refresh documents list
-      refetchDocuments();
-      
-    } catch (error) {
-      console.error("Document upload error:", error);
-      toast({
-        title: "Upload Failed",
-        description: error instanceof Error ? error.message : "Failed to upload document.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  // Handle document deletion
-  const handleDeleteDocument = async (documentId: number) => {
-    if (!confirm("Are you sure you want to delete this document?")) {
-      return;
-    }
-    
-    try {
-      const response = await fetch(`/api/quality/material-identification/documents/${documentId}`, {
-        method: "DELETE",
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to delete document");
-      }
-      
-      toast({
-        title: "Success",
-        description: "Document deleted successfully.",
-      });
-      
-      // Force refresh documents list using multiple approaches
-      await refetchDocuments();
-      
-      // Also invalidate the query cache to ensure complete refresh
-      queryClient.invalidateQueries({ 
-        queryKey: ['/api/quality/material-identification', recordId, 'documents'] 
-      });
-      
-    } catch (error) {
-      console.error("Document deletion error:", error);
-      toast({
-        title: "Deletion Failed",
-        description: "Failed to delete the document.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Handle document download
-  const handleDownloadDocument = async (documentId: number, fileName: string) => {
-    try {
-      const response = await fetch(`/api/quality/material-identification/${recordId}/documents/${documentId}/download`);
-      
-      if (!response.ok) {
-        throw new Error("Failed to download document");
-      }
-      
-      // Get file content as blob
-      const blob = await response.blob();
-      
-      // Create object URL
-      const url = window.URL.createObjectURL(blob);
-      
-      // Create temporary link and trigger download
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      
-      // Clean up
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
-    } catch (error) {
-      console.error("Document download error:", error);
-      toast({
-        title: "Download Failed",
-        description: "Failed to download the document.",
-        variant: "destructive",
-      });
-    }
-  };
   
-  const isLoading = isLoadingRecord || isLoadingProjects || isLoadingDocuments;
+  const isLoading = isLoadingRecord || isLoadingProjects;
   
   if (error) {
     return (
@@ -1111,193 +887,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
             )}
           </CardContent>
         </Card>
-        
-        {/* Document Management Section (if record is loaded) */}
-        {!isLoading && recordData && (
-          <Card className="mt-6">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Documents</CardTitle>
-                <CardDescription>
-                  Manage documents related to this Material Identification record.
-                </CardDescription>
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => refetchDocuments()}
-                  disabled={isLoadingDocuments}
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingDocuments ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
-                <Dialog open={uploadDialogOpen} onOpenChange={(open) => {
-                  if (!open) {
-                    resetUploadForm();
-                  }
-                  setUploadDialogOpen(open);
-                }}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" onClick={() => setUploadDialogOpen(true)}>
-                      <FileUp className="h-4 w-4 mr-2" />
-                      Upload Document
-                    </Button>
-                  </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Upload Document</DialogTitle>
-                    <DialogDescription>
-                      Add a document to this Material Identification record.
-                    </DialogDescription>
-                  </DialogHeader>
-                  
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="documentType" className="text-right">
-                        Document Type *
-                      </Label>
-                      <Select 
-                        value={documentType} 
-                        onValueChange={handleDocumentTypeChange}
-                      >
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Select document type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="general">General Document</SelectItem>
-                          <SelectItem value="mill_test_certificate">Mill Test Certificate</SelectItem>
-                          <SelectItem value="inspection_report">Inspection Report</SelectItem>
-                          <SelectItem value="material_certificate">Material Certificate</SelectItem>
-                          <SelectItem value="test_report">Test Report</SelectItem>
-                          <SelectItem value="technical_datasheet">Technical Datasheet</SelectItem>
-                          <SelectItem value="other">Other Document</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="description" className="text-right">
-                        Description
-                      </Label>
-                      <div className="col-span-3">
-                        <Input
-                          id="description"
-                          placeholder="Auto-filled when document type is selected"
-                          className="w-full"
-                          value={documentDescription}
-                          onChange={(e) => setDocumentDescription(e.target.value)}
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Auto-populated from document type (you can edit this)
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="file" className="text-right">
-                        File *
-                      </Label>
-                      <div className="col-span-3">
-                        <Input
-                          id="file"
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handleFileChange}
-                        />
-                        {selectedFile && (
-                          <p className="text-sm text-gray-500 mt-1">
-                            Selected: {selectedFile.name} ({Math.round(selectedFile.size / 1024)} KB)
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setUploadDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button 
-                      type="button" 
-                      onClick={handleDocumentUpload}
-                      disabled={isUploading || !selectedFile || !documentType}
-                    >
-                      {isUploading ? "Uploading..." : "Upload"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-              </div>
-            </CardHeader>
-            
-            <CardContent>
-              {isLoadingDocuments ? (
-                <div className="flex justify-center items-center h-20">
-                  <span className="loading loading-spinner text-primary"></span>
-                </div>
-              ) : documents.length === 0 ? (
-                <div className="text-center py-6 text-gray-500">
-                  <FileText className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                  <p>No documents available</p>
-                  <p className="text-sm">Click "Upload Document" to add files to this record.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-3 px-4 font-medium">Document Name</th>
-                        <th className="text-left py-3 px-4 font-medium">Type</th>
-                        <th className="text-left py-3 px-4 font-medium">Description</th>
-                        <th className="text-left py-3 px-4 font-medium">Uploaded On</th>
-                        <th className="text-right py-3 px-4 font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {documents.map((doc) => {
-                        // Extract the actual filename from the file_path
-                        // Format: QMS/Material_Identification/{MI ID}/{Document Type}.{extension}
-                        const pathParts = doc.file_path.split('/');
-                        const fileName = pathParts[pathParts.length - 1]; // Last part contains the filename
-                        
-                        return (
-                          <tr key={doc.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                            <td className="py-3 px-4">{fileName}</td>
-                            <td className="py-3 px-4">{doc.document_type}</td>
-                            <td className="py-3 px-4">{doc.description || "-"}</td>
-                            <td className="py-3 px-4">
-                              {new Date(doc.created_at).toLocaleDateString()}
-                            </td>
-                            <td className="py-3 px-4 text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDownloadDocument(doc.id, fileName)}
-                                title="Download"
-                              >
-                                <Download className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeleteDocument(doc.id)}
-                                title="Delete"
-                                className="text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/20"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+
       </div>
     </Layout>
   );
