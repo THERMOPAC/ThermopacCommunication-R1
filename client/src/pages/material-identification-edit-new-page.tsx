@@ -19,6 +19,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, AlertCircle, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
+import { MaterialFileInfoSection } from "@/components/MaterialFileInfoSection";
 
 // Define interfaces for the data types
 interface Project {
@@ -887,6 +888,12 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
             )}
           </CardContent>
         </Card>
+        
+        {/* Uploaded File Information Section */}
+        <MaterialFileInfoSection 
+          materialId={recordId ? parseInt(recordId) : null}
+          className="mt-6"
+        />
 
       </div>
     </Layout>

@@ -27,6 +27,7 @@ import {
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
+import { MaterialFileInfoSection } from "@/components/MaterialFileInfoSection";
 
 // Define interfaces for the data types
 interface Project {
@@ -1169,6 +1170,12 @@ export default function MaterialIdentificationCreatePage() {
             )}
           </CardContent>
         </Card>
+        
+        {/* Uploaded File Information Section */}
+        <MaterialFileInfoSection 
+          materialId={createdRecordId ? parseInt(createdRecordId) : null}
+          className="mt-6"
+        />
         
         {/* Document Upload Dialog */}
         <Dialog open={uploadDialogOpen} onOpenChange={(open) => {
