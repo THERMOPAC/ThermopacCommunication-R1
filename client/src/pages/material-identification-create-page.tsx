@@ -442,17 +442,64 @@ export default function MaterialIdentificationCreatePage() {
       
       if (response.ok) {
         const responseData = await response.json();
+        const recordId = responseData.id || formattedData.materialIdentificationId;
         
-        // Store the created record's ID for document uploads
-        setCreatedRecordId(responseData.id || formattedData.materialIdentificationId);
+        // Store the created record's ID
+        setCreatedRecordId(recordId);
         
         toast({
           title: "Material Identification Created",
           description: `Material Identification ${formattedData.materialIdentificationId} has been created successfully.`,
         });
         
-        // Show document upload dialog
-        setUploadDialogOpen(true);
+        // If a file was selected, upload it automatically
+        if (selectedFile && documentType) {
+          try {
+            setIsUploading(true);
+            
+            const fileFormData = new FormData();
+            fileFormData.append('file', selectedFile);
+            fileFormData.append('documentType', documentType);
+            fileFormData.append('description', documentDescription || 'Document uploaded during record creation');
+            
+            const uploadResponse = await fetch(`/api/quality/material-identification/${recordId}/documents`, {
+              method: 'POST',
+              body: fileFormData,
+            });
+            
+            if (uploadResponse.ok) {
+              toast({
+                title: "File uploaded successfully",
+                description: `Document "${selectedFile.name}" has been uploaded.`,
+              });
+              
+              // Clear file selection after successful upload
+              setSelectedFile(null);
+              setDocumentType('inspection_report');
+              setDocumentDescription('');
+              if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+              }
+            } else {
+              throw new Error('Failed to upload document');
+            }
+          } catch (uploadError) {
+            console.error('Error uploading document:', uploadError);
+            toast({
+              title: "Document upload failed",
+              description: "The record was created but the document could not be uploaded. You can upload it later from the list page.",
+              variant: "destructive",
+            });
+          } finally {
+            setIsUploading(false);
+          }
+        }
+        
+        // Navigate back to list after successful creation (and optional upload)
+        setTimeout(() => {
+          navigateBackToList();
+        }, selectedFile ? 2000 : 1500); // Wait longer if file was uploaded
+        
       } else {
         throw new Error('Failed to create record');
       }
@@ -976,6 +1023,111 @@ export default function MaterialIdentificationCreatePage() {
                     />
                   </div>
                   
+                  {/* File Upload Section */}
+                  <div className="border rounded-lg p-4 bg-gray-50">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Document Upload (Optional)</h3>
+                      <p className="text-sm text-gray-600 mb-4">
+                        You can optionally upload a document with this Material Identification record. 
+                        Supported formats: PDF, DOC, DOCX (Max size: 10MB)
+                      </p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Document Type Selection */}
+                      <div className="space-y-2">
+                        <label htmlFor="documentType" className="text-sm font-medium text-gray-700">
+                          Document Type
+                        </label>
+                        <Select
+                          value={documentType}
+                          onValueChange={setDocumentType}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select document type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="inspection_report">Inspection Report</SelectItem>
+                            <SelectItem value="mill_test_certificate">Mill Test Certificate</SelectItem>
+                            <SelectItem value="material_certificate">Material Certificate</SelectItem>
+                            <SelectItem value="test_report">Test Report</SelectItem>
+                            <SelectItem value="technical_datasheet">Technical Datasheet</SelectItem>
+                            <SelectItem value="general">General Document</SelectItem>
+                            <SelectItem value="other">Other Document</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      {/* File Selection */}
+                      <div className="space-y-2">
+                        <label htmlFor="fileUpload" className="text-sm font-medium text-gray-700">
+                          Select File
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            id="fileUpload"
+                            accept=".pdf,.doc,.docx"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files.length > 0) {
+                                setSelectedFile(e.target.files[0]);
+                              }
+                            }}
+                            className="hidden"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex items-center gap-2"
+                          >
+                            <Upload className="h-4 w-4" />
+                            Choose File
+                          </Button>
+                          {selectedFile && (
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-blue-600" />
+                              <span className="text-sm text-gray-700 truncate max-w-[200px]">
+                                {selectedFile.name}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedFile(null);
+                                  if (fileInputRef.current) {
+                                    fileInputRef.current.value = '';
+                                  }
+                                }}
+                                className="text-red-500 hover:text-red-700 p-1"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Document Description */}
+                    {selectedFile && (
+                      <div className="mt-4">
+                        <label htmlFor="documentDescription" className="text-sm font-medium text-gray-700">
+                          Document Description (Optional)
+                        </label>
+                        <Textarea
+                          id="documentDescription"
+                          value={documentDescription}
+                          onChange={(e) => setDocumentDescription(e.target.value)}
+                          placeholder="Brief description of this document..."
+                          className="mt-1 min-h-[60px]"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  
                   {/* Form buttons */}
                   <div className="flex justify-between gap-2">
                     <Button
@@ -994,8 +1146,21 @@ export default function MaterialIdentificationCreatePage() {
                       >
                         Clear Form
                       </Button>
-                      <Button type="submit">
-                        Create Material Identification
+                      <Button 
+                        type="submit" 
+                        disabled={form.formState.isSubmitting || isUploading}
+                        className="flex items-center gap-2"
+                      >
+                        {form.formState.isSubmitting || isUploading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            {selectedFile ? 'Creating & Uploading...' : 'Creating Record...'}
+                          </>
+                        ) : (
+                          <>
+                            {selectedFile ? 'Create & Upload File' : 'Create Material Identification'}
+                          </>
+                        )}
                       </Button>
                     </div>
                   </div>
