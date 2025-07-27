@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, DownloadCloud, FileText, RefreshCw, Trash2, Plus, Eye, PencilLine } from "lucide-react";
+import { Loader2, DownloadCloud, FileText, RefreshCw, Trash2, Plus, Eye, PencilLine, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -335,6 +335,47 @@ export default function WpqrPage() {
     }
   };
 
+  // Handle file upload for WPQR document
+  const handleFileUpload = (wpqrDocument: WpqrDocument) => {
+    // Create a file input element
+    const input = window.document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx';
+    input.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const file = target.files?.[0];
+      if (file) {
+        try {
+          const formData = new FormData();
+          formData.append('document', file);
+          
+          const response = await fetch(`/api/quality/wpqr/${wpqrDocument.id}/upload`, {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (response.ok) {
+            toast({
+              title: "File Uploaded",
+              description: "The document file was uploaded successfully.",
+            });
+            queryClient.invalidateQueries({ queryKey: ['/api/quality/wpqr'] });
+          } else {
+            const errorData = await response.json();
+            throw new Error(errorData.error || "Failed to upload file");
+          }
+        } catch (error) {
+          toast({
+            title: "Upload Error",
+            description: error instanceof Error ? error.message : "Failed to upload file",
+            variant: "destructive",
+          });
+        }
+      }
+    };
+    input.click();
+  };
+
   // View document details
   const handleViewDocument = (document: WpqrDocument) => {
     setSelectedDocument(document);
@@ -528,10 +569,10 @@ export default function WpqrPage() {
                             variant="ghost"
                             size="sm"
                             className="px-1 h-7"
-                            onClick={() => handleDelete(document.id)}
-                            title="Delete"
+                            onClick={() => handleFileUpload(document)}
+                            title="Upload File"
                           >
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            <Upload className="h-3.5 w-3.5 text-blue-600" />
                           </Button>
                         </div>
                       </td>
