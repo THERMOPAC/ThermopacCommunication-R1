@@ -205,7 +205,8 @@ export default function MaterialIdentificationCreatePage() {
   const [isAutoPopulated, setIsAutoPopulated] = useState({
     projectId: false,
     projectName: false,
-    projectNumber: false
+    projectNumber: false,
+    unit: false // Track unit field auto-population
   });
   
   interface NextIdResponse {
@@ -392,6 +393,15 @@ export default function MaterialIdentificationCreatePage() {
       
       // Reset form with formatted data
       form.reset(formattedData);
+      
+      // Mark unit field as auto-populated from backend template
+      if (templateData.unit) {
+        setIsAutoPopulated(prev => ({
+          ...prev,
+          unit: true
+        }));
+        console.log('✨ Unit field auto-populated from backend template:', templateData.unit);
+      }
     }
   }, [templateData, nextIdData, form]);
   
@@ -712,6 +722,11 @@ export default function MaterialIdentificationCreatePage() {
                                 shouldValidate: true, 
                                 shouldDirty: true 
                               });
+                              // Mark unit field as auto-populated from material grade selection
+                              setIsAutoPopulated(prev => ({
+                                ...prev,
+                                unit: true
+                              }));
                               console.log(`🔧 Material Grade selected: ${value}, Auto-populated Unit: ${autoUnit}`);
                             }}
                           >
@@ -829,7 +844,7 @@ export default function MaterialIdentificationCreatePage() {
                             <Input 
                               {...field} 
                               placeholder="Pcs"
-                              className={field.value && field.value !== 'Pcs' ? "bg-blue-50 text-blue-700 border-blue-200" : ""}
+                              className={isAutoPopulated.unit ? "bg-blue-50 text-blue-700 border-blue-200" : ""}
                             />
                           </FormControl>
                           <FormMessage />

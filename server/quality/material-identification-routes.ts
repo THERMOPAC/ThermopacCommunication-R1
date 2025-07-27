@@ -71,6 +71,7 @@ const materialIdentificationSchema = z.object({
   millName: z.string(),
   millTestCertificateNumber: z.string(),
   quantity: z.string(),
+  unit: z.string(), // Added missing unit field validation
   dimensions: z.string(),
   materialStatus: z.string(),
   inspectorName: z.string(),
