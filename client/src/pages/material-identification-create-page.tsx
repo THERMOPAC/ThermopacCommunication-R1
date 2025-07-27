@@ -195,7 +195,7 @@ export default function MaterialIdentificationCreatePage() {
   
   // Document upload states
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [documentType, setDocumentType] = useState('general');
+  const [documentType] = useState('inspection_report'); // Always use inspection_report
   const [documentDescription, setDocumentDescription] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -1027,42 +1027,18 @@ export default function MaterialIdentificationCreatePage() {
                   {/* File Upload Section */}
                   <div className="border rounded-lg p-4 bg-gray-50">
                     <div className="mb-4">
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Document Upload (Optional)</h3>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Inspection Report Upload (Optional)</h3>
                       <p className="text-sm text-gray-600 mb-4">
-                        You can optionally upload a document with this Material Identification record. 
+                        You can optionally upload an Inspection Report with this Material Identification record. 
                         Supported formats: PDF, DOC, DOCX (Max size: 10MB)
                       </p>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Document Type Selection */}
-                      <div className="space-y-2">
-                        <label htmlFor="documentType" className="text-sm font-medium text-gray-700">
-                          Document Type
-                        </label>
-                        <Select
-                          value={documentType}
-                          onValueChange={setDocumentType}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select document type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="inspection_report">Inspection Report</SelectItem>
-                            <SelectItem value="mill_test_certificate">Mill Test Certificate</SelectItem>
-                            <SelectItem value="material_certificate">Material Certificate</SelectItem>
-                            <SelectItem value="test_report">Test Report</SelectItem>
-                            <SelectItem value="technical_datasheet">Technical Datasheet</SelectItem>
-                            <SelectItem value="general">General Document</SelectItem>
-                            <SelectItem value="other">Other Document</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
+                    <div className="space-y-4">
                       {/* File Selection */}
                       <div className="space-y-2">
                         <label htmlFor="fileUpload" className="text-sm font-medium text-gray-700">
-                          Select File
+                          Select Inspection Report
                         </label>
                         <div className="flex items-center gap-2">
                           <input
@@ -1110,23 +1086,23 @@ export default function MaterialIdentificationCreatePage() {
                           )}
                         </div>
                       </div>
+                      
+                      {/* Document Description */}
+                      {selectedFile && (
+                        <div>
+                          <label htmlFor="documentDescription" className="text-sm font-medium text-gray-700">
+                            Document Description (Optional)
+                          </label>
+                          <Textarea
+                            id="documentDescription"
+                            value={documentDescription}
+                            onChange={(e) => setDocumentDescription(e.target.value)}
+                            placeholder="Brief description of this document..."
+                            className="mt-1 min-h-[60px]"
+                          />
+                        </div>
+                      )}
                     </div>
-                    
-                    {/* Document Description */}
-                    {selectedFile && (
-                      <div className="mt-4">
-                        <label htmlFor="documentDescription" className="text-sm font-medium text-gray-700">
-                          Document Description (Optional)
-                        </label>
-                        <Textarea
-                          id="documentDescription"
-                          value={documentDescription}
-                          onChange={(e) => setDocumentDescription(e.target.value)}
-                          placeholder="Brief description of this document..."
-                          className="mt-1 min-h-[60px]"
-                        />
-                      </div>
-                    )}
                   </div>
                   
                   {/* Form buttons */}
@@ -1177,117 +1153,7 @@ export default function MaterialIdentificationCreatePage() {
           className="mt-6"
         />
         
-        {/* Document Upload Dialog */}
-        <Dialog open={uploadDialogOpen} onOpenChange={(open) => {
-          if (!open) {
-            // If dialog is being closed, navigate to list
-            navigateBackToList();
-          }
-          setUploadDialogOpen(open);
-        }}>
-          <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Upload Document</DialogTitle>
-              <DialogDescription>
-                Upload relevant documents for this Material Identification record.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <label htmlFor="documentType" className="text-sm font-medium">Document Type</label>
-                <Select
-                  value={documentType}
-                  onValueChange={setDocumentType}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select document type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="general">General Document</SelectItem>
-                    <SelectItem value="mill_test_certificate">Mill Test Certificate</SelectItem>
-                    <SelectItem value="inspection_report">Inspection Report</SelectItem>
-                    <SelectItem value="material_certificate">Material Certificate</SelectItem>
-                    <SelectItem value="test_report">Test Report</SelectItem>
-                    <SelectItem value="technical_datasheet">Technical Datasheet</SelectItem>
-                    <SelectItem value="other">Other Document</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <label htmlFor="documentDescription" className="text-sm font-medium">Description</label>
-                <Input 
-                  id="documentDescription"
-                  value={documentDescription}
-                  onChange={(e) => setDocumentDescription(e.target.value)}
-                  placeholder="Enter document description"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label htmlFor="file" className="text-sm font-medium">File</label>
-                <div className="border rounded-md p-2">
-                  <Input 
-                    id="file" 
-                    type="file" 
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-                    className="w-full"
-                  />
-                </div>
-                {selectedFile && (
-                  <div className="flex items-center mt-2 text-sm">
-                    <FileText className="h-4 w-4 mr-1" />
-                    <span className="truncate">{selectedFile.name}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="ml-auto h-6 w-6 p-0"
-                      onClick={() => {
-                        setSelectedFile(null);
-                        if (fileInputRef.current) {
-                          fileInputRef.current.value = '';
-                        }
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={handleFinishUploads}
-              >
-                Skip & Finish
-              </Button>
-              <Button 
-                type="button" 
-                onClick={handleUpload}
-                disabled={isUploading || !selectedFile}
-              >
-                {isUploading ? (
-                  <>
-                    <span className="loading loading-spinner loading-xs mr-2"></span>
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+
       </div>
     </Layout>
   );
