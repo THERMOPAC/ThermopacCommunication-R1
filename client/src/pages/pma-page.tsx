@@ -332,6 +332,14 @@ export default function PMAPage() {
     (doc.grade || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Check if PMA document is expired
+  const isExpired = (expiryDate: string) => {
+    if (!expiryDate) return false;
+    const today = new Date();
+    const expiry = new Date(expiryDate);
+    return expiry < today;
+  };
+
   const getStatusBadge = (status: string) => {
     const statusColors = {
       Draft: 'bg-yellow-100 text-yellow-800',
@@ -602,11 +610,16 @@ export default function PMAPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredDocuments.map((doc: any) => (
-                      <TableRow key={doc.id}>
-                        <TableCell className="font-medium">
-                          {doc.pmaNumber || doc.pma_number}
-                        </TableCell>
+                    filteredDocuments.map((doc: any) => {
+                      const expired = isExpired(doc.expiryDate || doc.expiry_date);
+                      return (
+                        <TableRow 
+                          key={doc.id}
+                          className={expired ? "bg-red-50 border-red-200" : ""}
+                        >
+                          <TableCell className="font-medium">
+                            {doc.pmaNumber || doc.pma_number}
+                          </TableCell>
                         <TableCell>{doc.specification}</TableCell>
                         <TableCell>{doc.grade}</TableCell>
                         <TableCell>{doc.certifiedBy || doc.certified_by || '-'}</TableCell>
@@ -621,11 +634,16 @@ export default function PMAPage() {
                             : '-'
                           }
                         </TableCell>
-                        <TableCell>
+                        <TableCell className={expired ? "text-red-600 font-semibold" : ""}>
                           {doc.expiryDate || doc.expiry_date 
                             ? format(new Date(doc.expiryDate || doc.expiry_date), 'MMM dd, yyyy')
                             : '-'
                           }
+                          {expired && (
+                            <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
+                              EXPIRED
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell>
                           {(doc.fileUrl || doc.file_url) && (
@@ -663,7 +681,8 @@ export default function PMAPage() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
+                      )
+                    })
                   )}
                 </TableBody>
               </Table>
