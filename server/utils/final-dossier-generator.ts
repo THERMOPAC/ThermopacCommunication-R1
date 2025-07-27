@@ -549,8 +549,11 @@ export async function generateFinalDossierPDF(
       parsedPmaRecords: pmaRecords,
       hasPmaRecords,
       pmaDocs: pmaDocs.length,
-      hasPmaDocs
+      hasPmaDocs,
+      willShowPmaSection: hasPmaRecords || hasPmaDocs
     });
+    
+    console.log(`📄 CREATING PMA SECTION 5 with ${pmaRecords.length} database records and ${pmaDocs.length} PDF documents`);
     
     if (hasPmaRecords || hasPmaDocs) {
       const sectionPage = pdfDoc.addPage();
@@ -628,6 +631,17 @@ export async function generateFinalDossierPDF(
     const procedureRecords = JSON.parse(inspectionOrder.procedureData || '[]');
     const hasProcedureRecords = procedureRecords.length > 0;
     const hasProcedureDocs = procedureDocs.length > 0;
+    
+    console.log(`🔍 Procedures Section Debug:`, {
+      procedureDataField: inspectionOrder.procedureData,
+      parsedProcedureRecords: procedureRecords,
+      hasProcedureRecords,
+      procedureDocs: procedureDocs.length,
+      hasProcedureDocs,
+      willShowProceduresSection: hasProcedureRecords || hasProcedureDocs
+    });
+    
+    console.log(`📄 CREATING PROCEDURES SECTION 6 with ${procedureRecords.length} database records and ${procedureDocs.length} PDF documents`);
     
     if (hasProcedureRecords || hasProcedureDocs) {
       const sectionPage = pdfDoc.addPage();
@@ -879,6 +893,14 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     }
 
     console.log(`Found inspection order: ${inspectionOrder.inspectionOrderNumber}`);
+    console.log(`🔍 CRITICAL DEBUG - Raw DB fields:`, {
+      hasPmaData: !!inspectionOrder.pmaData,
+      pmaDataLength: (inspectionOrder.pmaData || '').length,
+      hasProcedureData: !!inspectionOrder.procedureData,
+      procedureDataLength: (inspectionOrder.procedureData || '').length,
+      pmaDataPreview: (inspectionOrder.pmaData || '').substring(0, 100),
+      procedureDataPreview: (inspectionOrder.procedureData || '').substring(0, 100)
+    });
 
     // Get associated documents (this can be empty for now)
     const documents: { [key: string]: any[] } = {};
