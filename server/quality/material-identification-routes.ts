@@ -645,6 +645,51 @@ router.post("/:id/documents", upload.single('file'), async (req: Request, res: R
     
     console.log(`Material identification ${materialIdentificationId} found, proceeding with upload`);
     
+    // Check for existing documents and delete them first (automatic replacement)
+    console.log('Checking for existing documents to replace...');
+    const existingDocuments = await db.execute(sql`
+      SELECT * FROM material_identification_documents
+      WHERE material_identification_id = ${materialIdentificationId}
+    `) as any;
+    
+    if (existingDocuments.rows && existingDocuments.rows.length > 0) {
+      console.log(`Found ${existingDocuments.rows.length} existing document(s), deleting them first...`);
+      
+      // Get GCS client for deletion
+      const { storage, bucketName } = getGcsClient();
+      const bucket = storage.bucket(bucketName);
+      
+      // Delete each existing document from both GCS and database
+      for (const doc of existingDocuments.rows) {
+        try {
+          // Try to delete from GCS
+          const file = bucket.file(doc.file_path);
+          const [exists] = await file.exists();
+          if (exists) {
+            await file.delete();
+            console.log(`✅ Deleted existing file from GCS: ${doc.file_path}`);
+          } else {
+            console.log(`⚠️ File not found in GCS (already deleted): ${doc.file_path}`);
+          }
+        } catch (gcsError) {
+          console.warn(`Failed to delete GCS file ${doc.file_path}:`, gcsError);
+        }
+        
+        // Delete from database
+        try {
+          await db.execute(sql`
+            DELETE FROM material_identification_documents
+            WHERE id = ${doc.id}
+          `);
+          console.log(`✅ Deleted existing database record: ${doc.id}`);
+        } catch (dbError) {
+          console.error(`Failed to delete database record ${doc.id}:`, dbError);
+        }
+      }
+    } else {
+      console.log('No existing documents found, proceeding with fresh upload');
+    }
+    
     // Set materialIdentificationId in request body for the upload util
     req.body.materialIdentificationId = materialIdentificationId;
     
