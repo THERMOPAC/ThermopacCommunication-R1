@@ -241,7 +241,10 @@ export default function MaterialIdentificationCreatePage() {
   
   // Auto-population from sessionStorage (from Material Identification list page)
   useEffect(() => {
+    console.log('🔍 Checking sessionStorage for materialIdentificationProject...');
     const storedProjectData = sessionStorage.getItem('materialIdentificationProject');
+    console.log('📦 Raw sessionStorage data:', storedProjectData);
+    
     if (storedProjectData) {
       try {
         const projectData = JSON.parse(storedProjectData);
@@ -264,6 +267,11 @@ export default function MaterialIdentificationCreatePage() {
           projectName: projectData.name,
           projectNumber: projectData.code
         });
+        console.log('🎨 Applied auto-population styling state:', {
+          projectId: true,
+          projectName: true,
+          projectNumber: true
+        });
         
         // Clear sessionStorage after use
         sessionStorage.removeItem('materialIdentificationProject');
@@ -272,6 +280,8 @@ export default function MaterialIdentificationCreatePage() {
       } catch (error) {
         console.error('❌ Error parsing stored project data:', error);
       }
+    } else {
+      console.log('❌ No stored project data found in sessionStorage');
     }
   }, [form]);
 
