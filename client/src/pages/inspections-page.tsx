@@ -10704,8 +10704,18 @@ export default function InspectionsPage() {
                   id="itemDescription"
                   name="itemDescription"
                   required
-                  defaultValue={editingItpRecord?.itemDescription || ""}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  defaultValue={editingItpRecord?.itemDescription || 
+                    (editInspectionOrderDetails?.description || 
+                     (editInspectionOrderDetails?.items && editInspectionOrderDetails.items.length > 0 ? 
+                      editInspectionOrderDetails.items[0].description : ""))}
+                  readOnly={!editingItpRecord && (editInspectionOrderDetails?.description || 
+                    (editInspectionOrderDetails?.items && editInspectionOrderDetails.items.length > 0 && 
+                     editInspectionOrderDetails.items[0].description))}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    !editingItpRecord && (editInspectionOrderDetails?.description || 
+                    (editInspectionOrderDetails?.items && editInspectionOrderDetails.items.length > 0 && 
+                     editInspectionOrderDetails.items[0].description)) ? 'bg-gray-50 text-gray-700' : ''
+                  }`}
                   placeholder="Enter item description"
                 />
               </div>
