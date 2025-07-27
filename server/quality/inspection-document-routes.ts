@@ -36,7 +36,7 @@ router.get("/:inspectionOrderNumber/material-traceability/count", ensureAuthenti
     
     console.log(`📦 Material Traceability count request for inspection: ${inspectionOrderNumber}`);
     
-    // Get the inspection order and project ID
+    // Get the inspection order with its material data
     const inspection = await db.query.inspectionOrders.findFirst({
       where: eq(inspectionOrders.inspectionOrderNumber, inspectionOrderNumber)
     });
@@ -48,14 +48,28 @@ router.get("/:inspectionOrderNumber/material-traceability/count", ensureAuthenti
     
     console.log(`📦 Found inspection order with project ID: ${inspection.projectId}`);
     
-    // Count material identification records for this project using Drizzle query builder
-    console.log(`📦 Querying material_identification table for project ID: ${inspection.projectId}`);
-    const materialRecords = await db.select().from(materialIdentification).where(eq(materialIdentification.projectId, inspection.projectId));
-    const count = materialRecords.length;
+    // Count materials ATTACHED to this specific inspection order, not all project materials
+    let count = 0;
     
-    console.log(`📦 Found ${count} material identification records for project ${inspection.projectId}`);
-    console.log(`📦 First few records:`, materialRecords.slice(0, 3).map(r => ({ id: r.id, materialIdentificationId: r.materialIdentificationId })));
-    console.log(`📦 Material Traceability count for inspection ${inspectionOrderNumber}: ${count}`);
+    // Check if inspection order has material traceability data
+    if (inspection.materialTraceabilityData) {
+      try {
+        const materialData = typeof inspection.materialTraceabilityData === 'string' 
+          ? JSON.parse(inspection.materialTraceabilityData) 
+          : inspection.materialTraceabilityData;
+        
+        count = Array.isArray(materialData) ? materialData.length : 0;
+        console.log(`📦 Found ${count} materials attached to inspection order ${inspectionOrderNumber}`);
+        console.log(`📦 Material data sample:`, Array.isArray(materialData) ? materialData.slice(0, 2) : materialData);
+      } catch (parseError) {
+        console.error(`📦 Error parsing material traceability data:`, parseError);
+        count = 0;
+      }
+    } else {
+      console.log(`📦 No material traceability data found for inspection ${inspectionOrderNumber}`);
+    }
+    
+    console.log(`📦 Material Traceability count for inspection ${inspectionOrderNumber}: ${count} (attached materials only)`);
     
     return res.json({ count });
     
