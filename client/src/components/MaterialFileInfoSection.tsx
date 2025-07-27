@@ -119,7 +119,7 @@ export function MaterialFileInfoSection({
       formData.append('documentType', 'inspection_report');
       formData.append('description', description);
 
-      const response = await fetch(`/api/quality/material-identification/${materialId}/upload`, {
+      const response = await fetch(`/api/quality/material-identification/${materialId}/documents`, {
         method: 'POST',
         body: formData,
         credentials: 'include',
