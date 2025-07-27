@@ -315,12 +315,12 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
     <Card className="w-full">
       <CardContent className="pt-4">
         <div className="flex flex-col items-center space-y-4">
-          <Avatar className="h-32 w-32">
+          <Avatar className="h-32 w-32 border-2 border-gray-300">
             {preview ? (
               <AvatarImage src={preview} alt="Welder photo" />
             ) : (
-              <AvatarFallback className="text-2xl bg-muted">
-                Photo
+              <AvatarFallback className="text-lg font-medium bg-gray-100 text-gray-600 flex items-center justify-center">
+                📷 Photo
               </AvatarFallback>
             )}
           </Avatar>
