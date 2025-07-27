@@ -17,14 +17,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
+
 import {
   Pagination,
   PaginationContent,
@@ -37,15 +30,21 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { 
   PlusCircle, 
   Search, 
   Filter, 
   Eye, 
   Edit, 
-  MoreHorizontal, 
   FileText, 
   Download, 
-  Printer,
   ChevronLeft,
   ChevronRight,
   Upload
@@ -376,6 +375,66 @@ export default function MaterialIdentificationListNewPage() {
     input.click();
   };
 
+  // Handle file download
+  const handleFileDownload = async (recordId: number) => {
+    try {
+      // First, get the list of documents for this record
+      const response = await fetch(`/api/quality/material-identification/${recordId}/documents`, {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch documents');
+      }
+
+      const documents = await response.json();
+      
+      if (!documents || documents.length === 0) {
+        toast({
+          title: "No documents found",
+          description: "No documents are available for download for this record.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // If there are multiple documents, download the first one
+      // In the future, we could show a selection dialog
+      const document = documents[0];
+      
+      // Download the document
+      const downloadResponse = await fetch(`/api/quality/material-identification/${recordId}/documents/${document.id}/download`, {
+        credentials: 'include',
+      });
+
+      if (!downloadResponse.ok) {
+        throw new Error('Failed to download document');
+      }
+
+      // Create a blob and download link
+      const blob = await downloadResponse.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = document.file_name || 'document';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Download successful",
+        description: `Downloaded ${document.file_name}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Download failed",
+        description: error instanceof Error ? error.message : "Failed to download document",
+        variant: "destructive",
+      });
+    }
+  };
+
   const records: MaterialIdentification[] = data?.data || [];
   const pagination: PaginationInfo = data?.pagination || { total: 0, page: 1, limit: 10, totalPages: 1 };
   
@@ -568,23 +627,15 @@ export default function MaterialIdentificationListNewPage() {
                               >
                                 <Upload className="h-4 w-4" />
                               </Button>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button size="icon" variant="ghost" title="More options">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem>
-                                    <Download className="h-4 w-4 mr-2" />
-                                    Download Certificate
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem>
-                                    <Printer className="h-4 w-4 mr-2" />
-                                    Print Record
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleFileDownload(record.id)}
+                                title="Download Document"
+                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
