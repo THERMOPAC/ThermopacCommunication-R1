@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { format } from "date-fns";
 import Layout from "@/components/layout";
@@ -35,6 +35,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import { 
   PlusCircle, 
   Search, 
@@ -46,7 +47,8 @@ import {
   Download, 
   Printer,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Upload
 } from "lucide-react";
 
 // Define interface for the Material Identification record
@@ -95,6 +97,11 @@ export default function MaterialIdentificationListNewPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [showRecords, setShowRecords] = useState(false);
   const [keepVisible, setKeepVisible] = useState(false);
+  const [uploadingRecordId, setUploadingRecordId] = useState<number | null>(null);
+  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Parse URL parameters on component mount
   useEffect(() => {
@@ -314,6 +321,61 @@ export default function MaterialIdentificationListNewPage() {
     return items;
   };
   
+  // Upload mutation
+  const uploadMutation = useMutation({
+    mutationFn: async ({ recordId, file }: { recordId: number; file: File }) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('documentType', 'inspection_report');
+
+      const response = await fetch(`/api/quality/material-identification/${recordId}/documents`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Upload successful",
+        description: "Document has been uploaded successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/quality/material-identification'] });
+      setUploadingRecordId(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Upload failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      setUploadingRecordId(null);
+    },
+  });
+
+  // Handle file upload
+  const handleFileUpload = (recordId: number) => {
+    setUploadingRecordId(recordId);
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        uploadMutation.mutate({ recordId, file });
+      } else {
+        setUploadingRecordId(null);
+      }
+    };
+    input.click();
+  };
+
   const records: MaterialIdentification[] = data?.data || [];
   const pagination: PaginationInfo = data?.pagination || { total: 0, page: 1, limit: 10, totalPages: 1 };
   
@@ -495,6 +557,16 @@ export default function MaterialIdentificationListNewPage() {
                                 title="Edit"
                               >
                                 <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleFileUpload(record.id)}
+                                title="Upload Document"
+                                disabled={uploadingRecordId === record.id || uploadMutation.isPending}
+                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              >
+                                <Upload className="h-4 w-4" />
                               </Button>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
