@@ -275,6 +275,15 @@ export default function MaterialIdentificationCreatePage() {
         projectNumber: true
       });
       
+      // Debug form values after setting
+      setTimeout(() => {
+        console.log('🔍 Form values after auto-population:', {
+          projectId: form.getValues('projectId'),
+          projectName: form.getValues('projectName'),
+          projectNumber: form.getValues('projectNumber')
+        });
+      }, 100);
+      
       // Clean up URL parameters after use to avoid confusion
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
