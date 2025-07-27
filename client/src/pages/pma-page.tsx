@@ -676,6 +676,7 @@ export default function PMAPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEditPMA(doc)}
+                              className="text-green-600 hover:text-green-800"
                             >
                               <Edit2 className="w-4 h-4" />
                             </Button>
@@ -687,6 +688,19 @@ export default function PMAPage() {
                             >
                               <Upload className="w-4 h-4" />
                             </Button>
+                            {(doc.fileUrl || doc.file_url) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDownload(
+                                  doc.fileUrl || doc.file_url, 
+                                  doc.originalFileName || doc.original_file_name || 'document'
+                                )}
+                                className="text-purple-600 hover:text-purple-800"
+                              >
+                                <Download className="w-4 h-4" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
