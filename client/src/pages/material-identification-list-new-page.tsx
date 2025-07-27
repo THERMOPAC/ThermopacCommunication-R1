@@ -114,9 +114,11 @@ export default function MaterialIdentificationListNewPage() {
   // Update URL when project filter changes
   const updateURL = (projectId: number | null, keep: boolean) => {
     const params = new URLSearchParams();
-    if (projectId && keep) {
+    if (projectId) {
       params.set('project', projectId.toString());
-      params.set('keep', 'true');
+      if (keep) {
+        params.set('keep', 'true');
+      }
     }
     
     const newUrl = params.toString() ? 

@@ -74,6 +74,11 @@ export default function MaterialIdentificationViewNewPage({ params }: MaterialId
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
+  // Parse URL parameters for project filter context
+  const urlParams = new URLSearchParams(window.location.search);
+  const projectParam = urlParams.get('project');
+  const keepParam = urlParams.get('keep');
+  
   // State for upload dialog
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -136,7 +141,12 @@ export default function MaterialIdentificationViewNewPage({ params }: MaterialId
 
   // Navigate to edit page for this record
   const handleEdit = () => {
-    navigate(`/quality/material-identification/edit/${recordId}`);
+    // Preserve project filter context if Keep Visible was enabled
+    if (projectParam && keepParam === 'true') {
+      navigate(`/quality/material-identification/edit/${recordId}?project=${projectParam}&keep=true`);
+    } else {
+      navigate(`/quality/material-identification/edit/${recordId}`);
+    }
   };
   
   // Handle file input change
@@ -278,7 +288,14 @@ export default function MaterialIdentificationViewNewPage({ params }: MaterialId
               <Button 
                 variant="outline" 
                 className="mt-4" 
-                onClick={() => navigate('/quality/material-identification')}
+                onClick={() => {
+                  // Preserve project filter context if Keep Visible was enabled
+                  if (projectParam && keepParam === 'true') {
+                    navigate(`/quality/material-identification?project=${projectParam}&keep=true`);
+                  } else {
+                    navigate('/quality/material-identification');
+                  }
+                }}
               >
                 Back to List
               </Button>
@@ -312,7 +329,14 @@ export default function MaterialIdentificationViewNewPage({ params }: MaterialId
                 <Edit className="h-4 w-4 mr-2" />
                 Edit
               </Button>
-              <Button variant="outline" onClick={() => navigate('/quality/material-identification')}>
+              <Button variant="outline" onClick={() => {
+                // Preserve project filter context if Keep Visible was enabled
+                if (projectParam && keepParam === 'true') {
+                  navigate(`/quality/material-identification?project=${projectParam}&keep=true`);
+                } else {
+                  navigate('/quality/material-identification');
+                }
+              }}>
                 Back to List
               </Button>
             </div>
