@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Download, Upload, Calendar, User, HardDrive, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
@@ -41,7 +41,6 @@ export function MaterialFileInfoSection({
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [documentType, setDocumentType] = useState<string>('inspection_report');
   const [description, setDescription] = useState<string>('');
 
   // Fetch documents for this material identification record
@@ -117,7 +116,7 @@ export function MaterialFileInfoSection({
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
-      formData.append('documentType', documentType);
+      formData.append('documentType', 'inspection_report');
       formData.append('description', description);
 
       const response = await fetch(`/api/quality/material-identification/${materialId}/upload`, {
@@ -137,7 +136,6 @@ export function MaterialFileInfoSection({
 
       // Reset form
       setSelectedFile(null);
-      setDocumentType('inspection_report');
       setDescription('');
       setShowUploadForm(false);
       
@@ -291,26 +289,6 @@ export function MaterialFileInfoSection({
               <div className="space-y-4 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                 <div className="space-y-3">
                   <div>
-                    <Label htmlFor="documentType" className="text-sm font-medium">
-                      Document Type
-                    </Label>
-                    <Select value={documentType} onValueChange={setDocumentType}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select document type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="inspection_report">Inspection Report</SelectItem>
-                        <SelectItem value="mill_test_certificate">Mill Test Certificate</SelectItem>
-                        <SelectItem value="material_certificate">Material Certificate</SelectItem>
-                        <SelectItem value="test_report">Test Report</SelectItem>
-                        <SelectItem value="technical_datasheet">Technical Datasheet</SelectItem>
-                        <SelectItem value="general">General</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
                     <Label htmlFor="fileInput" className="text-sm font-medium">
                       Select File
                     </Label>
@@ -385,7 +363,6 @@ export function MaterialFileInfoSection({
                         setShowUploadForm(false);
                         setSelectedFile(null);
                         setDescription('');
-                        setDocumentType('inspection_report');
                       }}
                       disabled={isUploading}
                     >
