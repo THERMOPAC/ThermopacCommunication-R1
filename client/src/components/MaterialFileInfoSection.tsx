@@ -42,6 +42,10 @@ export function MaterialFileInfoSection({
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [description, setDescription] = useState<string>('');
+  
+  // Replacement state
+  const [isReplacing, setIsReplacing] = useState(false);
+  const [replacingDocumentId, setReplacingDocumentId] = useState<number | null>(null);
 
   // Fetch documents for this material identification record
   const { data: documents, isLoading, error, refetch } = useQuery({
@@ -159,6 +163,96 @@ export function MaterialFileInfoSection({
       });
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  // Handle file replacement
+  const handleFileReplacement = async () => {
+    if (!selectedFile || !materialId || !replacingDocumentId) return;
+
+    setIsUploading(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('documentType', 'inspection_report');
+      formData.append('description', description || 'Replacement file');
+
+      // First delete the old file, then upload the new one
+      const deleteResponse = await fetch(`/api/quality/material-identification/${materialId}/documents/${replacingDocumentId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!deleteResponse.ok) {
+        console.warn('Failed to delete old file, proceeding with upload anyway');
+      }
+
+      // Upload the new file
+      const uploadResponse = await fetch(`/api/quality/material-identification/${materialId}/documents`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(`Replacement upload failed: ${errorText}`);
+      }
+
+      const responseData = await uploadResponse.json();
+      console.log('Replacement upload response:', responseData);
+
+      toast({
+        title: "File replaced successfully",
+        description: `Replaced with ${selectedFile.name}`,
+      });
+
+      // Reset replacement state
+      setSelectedFile(null);
+      setDescription('');
+      setIsReplacing(false);
+      setReplacingDocumentId(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      
+      // Refresh documents with delay to allow backend processing
+      setTimeout(() => {
+        refetch();
+        queryClient.invalidateQueries({
+          queryKey: [`/api/quality/material-identification/${materialId}/documents`]
+        });
+      }, 1000);
+
+    } catch (error) {
+      toast({
+        title: "Replacement failed",
+        description: error instanceof Error ? error.message : "Failed to replace file",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Start replacement mode
+  const startReplacement = (documentId: number) => {
+    setIsReplacing(true);
+    setReplacingDocumentId(documentId);
+    setShowUploadForm(false);
+    setSelectedFile(null);
+    setDescription('');
+  };
+
+  // Cancel replacement mode
+  const cancelReplacement = () => {
+    setIsReplacing(false);
+    setReplacingDocumentId(null);
+    setSelectedFile(null);
+    setDescription('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -421,14 +515,110 @@ export function MaterialFileInfoSection({
                   <Button
                     size="sm"
                     variant="outline"
+                    onClick={() => startReplacement(document.id)}
+                    className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                    title="Replace File"
+                  >
+                    <Upload className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
                     onClick={() => handleDownload(document)}
                     className="h-8 w-8 p-0"
+                    title="Download File"
                   >
                     <Download className="h-3 w-3" />
                   </Button>
                 </div>
               </div>
             ))}
+            
+            {/* File Replacement Form */}
+            {isReplacing && (
+              <div className="mt-4 p-4 bg-orange-50 rounded-lg border-2 border-dashed border-orange-200">
+                <h4 className="text-sm font-medium text-orange-800 mb-3">Replace Inspection Report</h4>
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="replacementFileInput" className="text-sm font-medium">
+                      Select New File
+                    </Label>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={triggerFileInput}
+                        className="flex-1"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        {selectedFile ? selectedFile.name : 'Choose File'}
+                      </Button>
+                      {selectedFile && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedFile(null)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      onChange={handleFileSelect}
+                      accept=".pdf,.doc,.docx"
+                      className="hidden"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Supported: PDF, DOC, DOCX (max 10MB)
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="replacementDescription" className="text-sm font-medium">
+                      Description (Optional)
+                    </Label>
+                    <Input
+                      id="replacementDescription"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Enter replacement file description"
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="flex space-x-2 pt-2">
+                    <Button
+                      onClick={handleFileReplacement}
+                      disabled={!selectedFile || isUploading}
+                      className="bg-orange-600 hover:bg-orange-700 text-white flex-1"
+                    >
+                      {isUploading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Replacing...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Replace File
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={cancelReplacement}
+                      disabled={isUploading}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
