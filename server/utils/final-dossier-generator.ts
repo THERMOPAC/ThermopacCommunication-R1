@@ -333,12 +333,13 @@ export async function generateFinalDossierPDF(
         console.log(`🔍 Fetching actual Material documents for ${materialRecords.length} records`);
         
         for (const material of materialRecords) {
-          if (material.materialId) {
-            const materialPath = `QMS/Material_Identification/${inspectionOrder.projectCode}/${material.materialId}/`;
-            console.log(`📁 Checking Material path: ${materialPath}`);
+          // Use materialIdentificationId (e.g., "MI-2025-29") instead of materialId (database ID)
+          if (material.materialIdentificationId) {
+            const materialPath = `QMS/Material_Identification/${inspectionOrder.projectCode}/${material.materialIdentificationId}/`;
+            console.log(`📁 Checking Material path: ${materialPath} for Material ID: ${material.materialIdentificationId}`);
             const materialFiles = await listFilesInDirectory(materialPath);
             const pdfFiles = materialFiles.filter(f => f && f.toLowerCase().endsWith('.pdf'));
-            console.log(`📋 Found ${pdfFiles.length} PDF files for material ${material.materialId}:`, pdfFiles);
+            console.log(`📋 Found ${pdfFiles.length} PDF files for material ${material.materialIdentificationId}:`, pdfFiles);
             materialDocs.push(...pdfFiles);
           }
         }
