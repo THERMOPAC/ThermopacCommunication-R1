@@ -215,7 +215,7 @@ export default function WelderManagementPage() {
         throw new Error("Failed to fetch all certificates");
       }
       const data = await response.json();
-      console.log("Fetched all certificates:", data); // Debug log
+      console.log("Certificate data loaded:", data.length, "certificates");
       return data;
     },
   });
@@ -459,19 +459,23 @@ export default function WelderManagementPage() {
   
   const uniqueWelderIds = new Set(welders.map(w => w.id));
   const weldersWithCertificates = allCertificates
-    .filter(cert => uniqueWelderIds.has(cert.welderId))
+    .filter(cert => {
+      const welderId = cert.welderId || cert.welder_id;
+      return uniqueWelderIds.has(welderId); 
+    })
     .reduce((acc, cert) => {
-      if (!acc[cert.welderId]) {
-        const welder = welders.find(w => w.id === cert.welderId);
+      const welderId = cert.welderId || cert.welder_id;
+      if (!acc[welderId]) {
+        const welder = welders.find(w => w.id === welderId);
         if (welder) {
-          acc[cert.welderId] = {
+          acc[welderId] = {
             welder,
             certificates: []
           };
         }
       }
-      if (acc[cert.welderId]) {
-        acc[cert.welderId].certificates.push(cert);
+      if (acc[welderId]) {
+        acc[welderId].certificates.push(cert);
       }
       return acc;
     }, {} as Record<number, { welder: Welder, certificates: WelderCertificate[] }>);
@@ -507,7 +511,7 @@ export default function WelderManagementPage() {
       })
     );
 
-  // Get welders with expired certificates
+  // Get welders with expired certificates  
   const weldersWithExpiredCertificates = Object.values(weldersWithCertificates)
     .filter(({ certificates }) => 
       certificates.some(cert => {
@@ -532,6 +536,8 @@ export default function WelderManagementPage() {
         }
       })
     );
+
+  console.log(`Certificate status - Expiring soon: ${weldersWithExpiringSoonCertificates.length}, Expired: ${weldersWithExpiredCertificates.length}`);
 
   return (
     <Layout>
