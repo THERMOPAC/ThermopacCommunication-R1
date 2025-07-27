@@ -262,11 +262,26 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       console.log('No Shop data found in inspection order.');
     }
     
-    // Return detailed inspection order with items, materials, NDT records, Visual Inspection records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, ITP records, PMA records, Procedure records, and Shop records
+    // Parse Material Traceability data if it exists
+    let materialTraceabilityRecords = [];
+    console.log('Checking for Material Traceability data in inspection order:', inspectionOrder.materialTraceabilityData);
+    if (inspectionOrder.materialTraceabilityData) {
+      try {
+        materialTraceabilityRecords = JSON.parse(inspectionOrder.materialTraceabilityData);
+        console.log('Successfully parsed Material Traceability data:', materialTraceabilityRecords);
+      } catch (e) {
+        console.error('Error parsing Material Traceability data:', e);
+      }
+    } else {
+      console.log('No Material Traceability data found in inspection order.');
+    }
+    
+    // Return detailed inspection order with items, materials, NDT records, Visual Inspection records, Weld records, Hydrotest records, NCR records, Approved Drawing records, DVR records, ITP records, PMA records, Procedure records, Shop records, and Material Traceability records
     res.json({
       ...inspectionOrder,
       items: orderItems,
       materials: materials,
+      materialTraceabilityRecords: materialTraceabilityRecords,
       ndtRecords: ndtRecords,
       visualRecords: visualRecords,
       welds: weldRecords,
@@ -386,6 +401,14 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       orderData.shopData = JSON.stringify(shopInspectionRecords);
     } else {
       console.log('No Shop inspection records to store in order update:', shopInspectionRecords);
+    }
+    
+    // Store Material Traceability data in the orderData as a JSON string if materials exist
+    if (materials && Array.isArray(materials)) {
+      console.log('Storing Material Traceability data in order update:', materials);
+      orderData.materialTraceabilityData = JSON.stringify(materials);
+    } else {
+      console.log('No Material Traceability data to store in order update:', materials);
     }
 
     // Update inspection order

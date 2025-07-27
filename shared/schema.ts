@@ -4324,6 +4324,9 @@ export const inspectionOrders = pgTable('inspection_orders', {
   // Shop Inspection data - stored as JSON string
   shopData: text('shop_data'),
   
+  // Material Traceability data - stored as JSON string
+  materialTraceabilityData: text('material_traceability_data'),
+  
   // Timing
   plannedDate: timestamp('planned_date'),
   completedDate: timestamp('completed_date'),
