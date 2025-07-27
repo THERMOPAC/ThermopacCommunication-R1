@@ -216,26 +216,32 @@ export default function MaterialIdentificationListNewPage() {
   };
   
   const handleCreate = () => {
-    // Pass selected project information to the new record page
+    // Pass selected project information to the new record page via URL parameters
     if (selectedProjectId) {
       const selectedProject = activeProjects.find(p => p.id === selectedProjectId);
       if (selectedProject) {
-        // Store project data in sessionStorage for auto-population
-        const projectData = {
+        console.log('🔄 Navigating with project data:', {
           id: selectedProject.id,
           code: selectedProject.code,
           name: selectedProject.name
-        };
-        console.log('🔄 Storing project data in sessionStorage:', projectData);
-        sessionStorage.setItem('materialId_selectedProject', JSON.stringify(projectData));
-        console.log('✅ Data stored successfully');
+        });
+        
+        // Use URL parameters instead of sessionStorage for reliability
+        const params = new URLSearchParams({
+          projectId: selectedProject.id.toString(),
+          projectCode: selectedProject.code,
+          projectName: selectedProject.name
+        });
+        
+        navigate(`/quality/material-identification/new?${params.toString()}`);
+        console.log('✅ Navigation with URL params completed');
       } else {
         console.log('❌ No selected project found for ID:', selectedProjectId);
       }
     } else {
       console.log('❌ No project selected');
+      navigate('/quality/material-identification/new');
     }
-    navigate('/quality/material-identification/new');
   };
   
   // Generate pagination items

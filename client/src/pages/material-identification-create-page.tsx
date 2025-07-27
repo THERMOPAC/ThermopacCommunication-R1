@@ -239,49 +239,49 @@ export default function MaterialIdentificationCreatePage() {
     },
   });
   
-  // Auto-population from sessionStorage (from Material Identification list page)
+  // Auto-population from URL parameters (from Material Identification list page)
   useEffect(() => {
-    console.log('🔍 Checking sessionStorage for materialIdentificationProject...');
-    const storedProjectData = sessionStorage.getItem('materialIdentificationProject');
-    console.log('📦 Raw sessionStorage data:', storedProjectData);
+    console.log('🔍 Checking URL parameters for project data...');
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectId = urlParams.get('projectId');
+    const projectCode = urlParams.get('projectCode');
+    const projectName = urlParams.get('projectName');
     
-    if (storedProjectData) {
-      try {
-        const projectData = JSON.parse(storedProjectData);
-        console.log('📋 Found stored project data:', projectData);
-        
-        // Auto-populate project fields
-        form.setValue('projectId', projectData.id);
-        form.setValue('projectName', projectData.name);
-        form.setValue('projectNumber', projectData.code);
-        
-        // Mark fields as auto-populated for styling
-        setIsAutoPopulated({
-          projectId: true,
-          projectName: true,
-          projectNumber: true
-        });
-        
-        console.log('✨ Auto-populated project fields:', {
-          projectId: projectData.id,
-          projectName: projectData.name,
-          projectNumber: projectData.code
-        });
-        console.log('🎨 Applied auto-population styling state:', {
-          projectId: true,
-          projectName: true,
-          projectNumber: true
-        });
-        
-        // Clear sessionStorage after use
-        sessionStorage.removeItem('materialIdentificationProject');
-        console.log('🗑️ Cleared sessionStorage after auto-population');
-        
-      } catch (error) {
-        console.error('❌ Error parsing stored project data:', error);
-      }
+    console.log('📦 URL parameters:', { projectId, projectCode, projectName });
+    
+    if (projectId && projectCode && projectName) {
+      console.log('📋 Found project data in URL parameters');
+      
+      // Auto-populate project fields
+      form.setValue('projectId', parseInt(projectId));
+      form.setValue('projectName', projectName);
+      form.setValue('projectNumber', projectCode);
+      
+      // Mark fields as auto-populated for styling
+      setIsAutoPopulated({
+        projectId: true,
+        projectName: true,
+        projectNumber: true
+      });
+      
+      console.log('✨ Auto-populated project fields:', {
+        projectId: parseInt(projectId),
+        projectName: projectName,
+        projectNumber: projectCode
+      });
+      console.log('🎨 Applied auto-population styling state:', {
+        projectId: true,
+        projectName: true,
+        projectNumber: true
+      });
+      
+      // Clean up URL parameters after use to avoid confusion
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+      console.log('🗑️ Cleaned up URL parameters after auto-population');
+      
     } else {
-      console.log('❌ No stored project data found in sessionStorage');
+      console.log('❌ No project data found in URL parameters');
     }
   }, [form]);
 
