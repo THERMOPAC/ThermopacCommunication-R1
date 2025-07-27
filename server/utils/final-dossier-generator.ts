@@ -64,7 +64,11 @@ export async function generateFinalDossierPDF(
       
       try {
         // Fetch Material Identification documents
-        const materialRecords = JSON.parse(inspectionOrder.materialTraceability || '[]');
+        console.log('🔍 Checking for Material Traceability data...');
+        console.log('materialTraceabilityData field:', inspectionOrder.materialTraceabilityData);
+        
+        const materialRecords = JSON.parse(inspectionOrder.materialTraceabilityData || '[]');
+        console.log(`📋 Found ${materialRecords.length} Material Traceability records:`, materialRecords);
         for (const material of materialRecords) {
           if (material.materialId) {
             const materialPath = `QMS/Material_Identification/${inspectionOrder.projectCode}/${material.materialId}/`;
@@ -74,8 +78,11 @@ export async function generateFinalDossierPDF(
         }
 
         // Fetch Test Procedures documents
-        const procedureRecords = inspectionOrder.parsedProcedureRecords ? 
-          JSON.parse(inspectionOrder.parsedProcedureRecords) : [];
+        console.log('🔍 Checking for Procedures data...');
+        console.log('procedureData field:', inspectionOrder.procedureData);
+        
+        const procedureRecords = JSON.parse(inspectionOrder.procedureData || '[]');
+        console.log(`📋 Found ${procedureRecords.length} Test Procedure records:`, procedureRecords);
         for (const procedure of procedureRecords) {
           if (procedure.procedureNumber) {
             // Try to fetch from test procedures table
@@ -428,7 +435,11 @@ export async function generateFinalDossierPDF(
     }
 
     // Section 4: Material Traceability
-    if (materialTraceabilityDocs.length > 0) {
+    const materialTraceabilityRecords = JSON.parse(inspectionOrder.materialTraceabilityData || '[]');
+    const hasMaterialRecords = materialTraceabilityRecords.length > 0;
+    const hasMaterialDocs = materialTraceabilityDocs.length > 0;
+    
+    if (hasMaterialRecords || hasMaterialDocs) {
       const sectionPage = pdfDoc.addPage();
       sectionPage.drawText('SECTION 4: MATERIAL TRACEABILITY', {
         x: pageMargin,
@@ -437,8 +448,51 @@ export async function generateFinalDossierPDF(
         font: helveticaBold,
         color: rgb(0, 0, 0),
       });
+      
+      let currentY = 700;
+      
+      // Display material records if they exist
+      if (hasMaterialRecords) {
+        sectionPage.drawText('Material Records:', {
+          x: pageMargin,
+          y: currentY,
+          size: 14,
+          font: helveticaBold,
+          color: rgb(0, 0, 0),
+        });
+        currentY -= 30;
+        
+        for (let i = 0; i < materialTraceabilityRecords.length; i++) {
+          const material = materialTraceabilityRecords[i];
+          const recordText = `${i + 1}. Certificate: ${material.materialCertificateNumber || 'N/A'}, ` +
+                           `Heat: ${material.heatNumber || 'N/A'}, ` +
+                           `Grade: ${material.materialGrade || 'N/A'}, ` +
+                           `Specification: ${material.materialSpecification || 'N/A'}`;
+          
+          sectionPage.drawText(recordText, {
+            x: pageMargin + 20,
+            y: currentY,
+            size: 10,
+            font: helvetica,
+            color: rgb(0, 0, 0),
+          });
+          currentY -= 20;
+          
+          // Ensure we don't go off the page
+          if (currentY < 100) {
+            break;
+          }
+        }
+        
+        currentY -= 20; // Add some space between records and documents
+      }
+      
       addFooterToPage(sectionPage);
-      await embedPDFDocuments(materialTraceabilityDocs, 'Material Traceability');
+      
+      // Embed PDF documents if they exist
+      if (hasMaterialDocs) {
+        await embedPDFDocuments(materialTraceabilityDocs, 'Material Traceability');
+      }
     }
 
     // Section 5: Particular Material Appraisal (PMA)
@@ -602,12 +656,18 @@ export async function generateFinalDossierPDF(
         
         // Generate signed URL for immediate viewing
         try {
-          const [signedUrl] = await bucket.file(filePath).getSignedUrl({
-            action: 'read',
-            expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
-          });
-          
-          return { path: filePath, url: signedUrl };
+          const { bucket } = await initializeGCS();
+          if (bucket) {
+            const [signedUrl] = await bucket.file(filePath).getSignedUrl({
+              action: 'read',
+              expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+            });
+            
+            return { path: filePath, url: signedUrl };
+          } else {
+            console.error('Failed to initialize GCS bucket for signed URL generation');
+            return { path: filePath, url: null };
+          }
         } catch (signedUrlError) {
           console.error('Error generating signed URL:', signedUrlError);
           return { path: filePath, url: null };
