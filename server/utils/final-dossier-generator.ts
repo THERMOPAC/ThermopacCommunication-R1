@@ -63,19 +63,8 @@ export async function generateFinalDossierPDF(
       const additionalDocs: string[] = [];
       
       try {
-        // Fetch Material Identification documents
-        console.log('🔍 Checking for Material Traceability data...');
-        console.log('materialTraceabilityData field:', inspectionOrder.materialTraceabilityData);
-        
-        const materialRecords = JSON.parse(inspectionOrder.materialTraceabilityData || '[]');
-        console.log(`📋 Found ${materialRecords.length} Material Traceability records:`, materialRecords);
-        for (const material of materialRecords) {
-          if (material.materialId) {
-            const materialPath = `QMS/Material_Identification/${inspectionOrder.projectCode}/${material.materialId}/`;
-            const materialFiles = await listFilesInDirectory(materialPath);
-            additionalDocs.push(...materialFiles.filter(f => f.toLowerCase().endsWith('.pdf')));
-          }
-        }
+        // Note: Material documents are now handled separately in fetchMaterialDocuments()
+        // to ensure they appear in the correct Material Traceability section
 
         // Fetch Test Procedures documents
         console.log('🔍 Checking for Procedures data...');
@@ -336,6 +325,32 @@ export async function generateFinalDossierPDF(
 
     addFooterToPage(tocPage);
 
+    // Helper function to fetch Material Identification documents
+    const fetchMaterialDocuments = async (): Promise<string[]> => {
+      const materialDocs: string[] = [];
+      try {
+        const materialRecords = JSON.parse(inspectionOrder.materialTraceabilityData || '[]');
+        console.log(`🔍 Fetching actual Material documents for ${materialRecords.length} records`);
+        
+        for (const material of materialRecords) {
+          if (material.materialId) {
+            const materialPath = `QMS/Material_Identification/${inspectionOrder.projectCode}/${material.materialId}/`;
+            console.log(`📁 Checking Material path: ${materialPath}`);
+            const materialFiles = await listFilesInDirectory(materialPath);
+            const pdfFiles = materialFiles.filter(f => f && f.toLowerCase().endsWith('.pdf'));
+            console.log(`📋 Found ${pdfFiles.length} PDF files for material ${material.materialId}:`, pdfFiles);
+            materialDocs.push(...pdfFiles);
+          }
+        }
+        
+        console.log(`📋 Total Material documents collected: ${materialDocs.length}`);
+        return materialDocs;
+      } catch (error) {
+        console.error('❌ Error fetching material documents:', error);
+        return [];
+      }
+    };
+
     // Fetch documents from all sources
     console.log('🚀 Starting comprehensive document compilation for Final Dossier...');
     const [
@@ -357,7 +372,7 @@ export async function generateFinalDossierPDF(
       fetchTabDocuments('ApprovedDrawing'),
       fetchTabDocuments('DVR'),
       fetchTabDocuments('ITP'),
-      fetchTabDocuments('MaterialTraceability'),
+      fetchMaterialDocuments(), // Get actual material documents from Material Identification
       fetchTabDocuments('PMA'),
       fetchTabDocuments('Procedures'),
       fetchTabDocuments('ShopInspection'),
