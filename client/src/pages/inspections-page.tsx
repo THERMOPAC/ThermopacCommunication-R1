@@ -9961,7 +9961,10 @@ export default function InspectionsPage() {
                   id="drawingTitle"
                   name="drawingTitle"
                   required
-                  defaultValue={editingApprovedDrawingRecord?.drawingTitle || ""}
+                  defaultValue={editingApprovedDrawingRecord?.drawingTitle || 
+                    (editInspectionOrderDetails?.description || 
+                     (editInspectionOrderDetails?.items && editInspectionOrderDetails.items.length > 0 ? 
+                      editInspectionOrderDetails.items[0].description : ""))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter drawing title"
                 />
@@ -9974,7 +9977,9 @@ export default function InspectionsPage() {
                   id="drawingNumber"
                   name="drawingNumber"
                   required
-                  defaultValue={editingApprovedDrawingRecord?.drawingNumber || ""}
+                  defaultValue={editingApprovedDrawingRecord?.drawingNumber || 
+                    (editInspectionOrderDetails?.drawingNo || 
+                     editInspectionOrderDetails?.drawingNumber || "")}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter drawing number"
                 />
