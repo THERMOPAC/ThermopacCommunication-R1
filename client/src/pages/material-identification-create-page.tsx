@@ -150,6 +150,9 @@ export default function MaterialIdentificationCreatePage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
+  // Debug component loading
+  console.log('🚀 MaterialIdentificationCreatePage loaded');
+  
   // Document upload states
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState('general');
@@ -158,6 +161,13 @@ export default function MaterialIdentificationCreatePage() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [createdRecordId, setCreatedRecordId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Auto-population state
+  const [isAutoPopulated, setIsAutoPopulated] = useState({
+    projectId: false,
+    projectName: false,
+    projectNumber: false
+  });
   
   interface NextIdResponse {
     nextId: string;
@@ -229,6 +239,42 @@ export default function MaterialIdentificationCreatePage() {
     },
   });
   
+  // Auto-population from sessionStorage (from Material Identification list page)
+  useEffect(() => {
+    const storedProjectData = sessionStorage.getItem('materialIdentificationProject');
+    if (storedProjectData) {
+      try {
+        const projectData = JSON.parse(storedProjectData);
+        console.log('📋 Found stored project data:', projectData);
+        
+        // Auto-populate project fields
+        form.setValue('projectId', projectData.id);
+        form.setValue('projectName', projectData.name);
+        form.setValue('projectNumber', projectData.code);
+        
+        // Mark fields as auto-populated for styling
+        setIsAutoPopulated({
+          projectId: true,
+          projectName: true,
+          projectNumber: true
+        });
+        
+        console.log('✨ Auto-populated project fields:', {
+          projectId: projectData.id,
+          projectName: projectData.name,
+          projectNumber: projectData.code
+        });
+        
+        // Clear sessionStorage after use
+        sessionStorage.removeItem('materialIdentificationProject');
+        console.log('🗑️ Cleared sessionStorage after auto-population');
+        
+      } catch (error) {
+        console.error('❌ Error parsing stored project data:', error);
+      }
+    }
+  }, [form]);
+
   // Update form with template data and next ID when loaded
   useEffect(() => {
     if (templateData && nextIdData) {
@@ -423,30 +469,38 @@ export default function MaterialIdentificationCreatePage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <FormField
                       control={form.control}
-                      name="projectId"
+                      name="projectNumber"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Project No.</FormLabel>
-                          <Select
-                            value={field.value?.toString()}
-                            onValueChange={handleProjectSelect}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Select project number" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {projects
-                                .filter(project => project.status === 'active')
-                                .map((project) => (
-                                  <SelectItem key={project.id} value={project.id.toString()}>
-                                    {project.code || project.projectCode || project.projectNumber || `Project ${project.id}`}
-                                  </SelectItem>
-                                ))
-                              }
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            {isAutoPopulated.projectNumber ? (
+                              <Input 
+                                {...field} 
+                                readOnly 
+                                className="bg-gray-50 text-gray-700"
+                              />
+                            ) : (
+                              <Select
+                                value={form.watch('projectId')?.toString()}
+                                onValueChange={handleProjectSelect}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Select project number" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {projects
+                                    .filter(project => project.status === 'active')
+                                    .map((project) => (
+                                      <SelectItem key={project.id} value={project.id.toString()}>
+                                        {project.code || project.projectCode || project.projectNumber || `Project ${project.id}`}
+                                      </SelectItem>
+                                    ))
+                                  }
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -459,7 +513,11 @@ export default function MaterialIdentificationCreatePage() {
                         <FormItem>
                           <FormLabel>Project Name</FormLabel>
                           <FormControl>
-                            <Input {...field} readOnly />
+                            <Input 
+                              {...field} 
+                              readOnly 
+                              className={isAutoPopulated.projectName ? "bg-gray-50 text-gray-700" : ""}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
