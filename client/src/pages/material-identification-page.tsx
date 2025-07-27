@@ -56,6 +56,11 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   const recordId = params?.id || (routeParams as any)?.id;
   const isNewRecord = recordId === 'new';
   
+  // Debug immediately on component load
+  console.log('🚀 Material Identification Page Loaded - recordId:', recordId, 'isNewRecord:', isNewRecord);
+  console.log('🌐 Current location:', location);
+  console.log('📍 Route params:', routeParams);
+  
   // SIMPLIFIED APPROACH: Only use View Mode for determining when to disable fields
   // New or Edit modes should always be enabled
   const [isEditModeState, setIsEditModeState] = useState(false);
