@@ -42,6 +42,12 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
             // Don't return early, try to read the error body
             const errorText = await response.text();
             console.error(`Error response body: ${errorText}`);
+            
+            // If it's a 404 (no photo available), clear the preview to show placeholder
+            if (response.status === 404) {
+              console.log(`No photo available for welder, clearing preview to show placeholder`);
+              setPreview(null);
+            }
             return;
           }
           
