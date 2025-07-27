@@ -755,10 +755,12 @@ router.get("/:id/documents", async (req: Request, res: Response) => {
     // Clean up database by removing references to files that don't exist in GCS
     if (invalidDocumentIds.length > 0) {
       try {
-        await db.execute(sql`
-          DELETE FROM material_identification_documents
-          WHERE id = ANY(${invalidDocumentIds})
-        `);
+        for (const invalidId of invalidDocumentIds) {
+          await db.execute(sql`
+            DELETE FROM material_identification_documents
+            WHERE id = ${invalidId}
+          `);
+        }
         console.log(`Cleaned up ${invalidDocumentIds.length} invalid document references`);
       } catch (err) {
         console.error("Error cleaning up invalid document references:", err);
