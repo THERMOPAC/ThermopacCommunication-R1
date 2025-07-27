@@ -998,4 +998,48 @@ router.get("/:id/documents/:documentId/download", async (req: Request, res: Resp
   }
 });
 
+// Get all available materials for selection and auto-population
+router.get('/materials/available', async (req: Request, res: Response) => {
+  try {
+    console.log('🔍 Fetching available materials for selection dropdown');
+    
+    const materials = await db.execute(sql`
+      SELECT 
+        id,
+        material_identification_id,
+        material_description,
+        material_code,
+        specification,
+        material_grade,
+        heat_number,
+        mill_test_certificate_number,
+        unit,
+        material_status
+      FROM material_identification
+      ORDER BY CAST(SPLIT_PART(material_identification_id, '-', 3) AS INTEGER) ASC
+    `) as any;
+
+    console.log(`📦 Found ${materials.rows?.length || 0} available materials`);
+    
+    // Transform to match expected format
+    const formattedMaterials = materials.rows?.map((row: any) => ({
+      id: row.id,
+      material_identification_id: row.material_identification_id,
+      material_description: row.material_description,
+      material_code: row.material_code,
+      specification: row.specification,
+      material_grade: row.material_grade,
+      heat_number: row.heat_number,
+      mill_test_certificate_number: row.mill_test_certificate_number,
+      unit: row.unit,
+      material_status: row.material_status
+    })) || [];
+
+    res.json(formattedMaterials);
+  } catch (error) {
+    console.error('Error fetching available materials:', error);
+    res.status(500).json({ error: 'Failed to fetch available materials' });
+  }
+});
+
 export default router;

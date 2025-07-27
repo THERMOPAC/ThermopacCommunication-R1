@@ -10879,11 +10879,13 @@ export default function InspectionsPage() {
                       const heatField = form.querySelector('#heatNumber') as HTMLInputElement;
                       const gradeField = form.querySelector('#materialGrade') as HTMLInputElement;
                       const specField = form.querySelector('#materialSpecification') as HTMLInputElement;
+                      const unitField = form.querySelector('#quantityUnit') as HTMLInputElement; // Added unit field auto-population
                       
                       if (certificateField) certificateField.value = selectedMaterial.mill_test_certificate_number || '';
                       if (heatField) heatField.value = selectedMaterial.heat_number || '';
                       if (gradeField) gradeField.value = selectedMaterial.material_grade || '';
                       if (specField) specField.value = selectedMaterial.specification || '';
+                      if (unitField) unitField.value = selectedMaterial.unit || 'Pcs'; // Auto-populate unit field
                     }
                   }}
                 >

@@ -443,6 +443,8 @@ router.get('/materials/available', async (req: Request, res: Response) => {
         specification: materialIdentification.specification,
         materialGrade: materialIdentification.materialGrade,
         heatNumber: materialIdentification.heatNumber,
+        millTestCertificateNumber: materialIdentification.millTestCertificateNumber,
+        unit: materialIdentification.unit, // Added missing unit field
         materialStatus: materialIdentification.materialStatus,
       })
       .from(materialIdentification)
