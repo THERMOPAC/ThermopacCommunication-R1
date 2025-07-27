@@ -257,6 +257,9 @@ export default function MaterialIdentificationCreatePage() {
       form.setValue('projectName', projectName);
       form.setValue('projectNumber', projectCode);
       
+      // Trigger form validation and re-render
+      form.trigger(['projectId', 'projectName', 'projectNumber']);
+      
       // Mark fields as auto-populated for styling
       setIsAutoPopulated({
         projectId: true,
@@ -282,6 +285,13 @@ export default function MaterialIdentificationCreatePage() {
           projectName: form.getValues('projectName'),
           projectNumber: form.getValues('projectNumber')
         });
+        
+        // Force a complete form update
+        form.setValue('projectId', parseInt(projectId), { shouldValidate: true, shouldDirty: true });
+        form.setValue('projectName', projectName, { shouldValidate: true, shouldDirty: true });
+        form.setValue('projectNumber', projectCode, { shouldValidate: true, shouldDirty: true });
+        
+        console.log('🔄 Forced form update with validation flags');
       }, 100);
       
       // Clean up URL parameters after use to avoid confusion
