@@ -332,15 +332,40 @@ export async function generateFinalDossierPDF(
         const materialRecords = JSON.parse(inspectionOrder.materialTraceabilityData || '[]');
         console.log(`🔍 Fetching actual Material documents for ${materialRecords.length} records`);
         
+        // Get properly initialized GCS bucket
+        const { bucket } = await initializeGCS();
+        if (!bucket) {
+          console.error('❌ Failed to initialize GCS bucket for Material document check');
+          return materialDocs;
+        }
+        
         for (const material of materialRecords) {
           // Use materialIdentificationId (e.g., "MI-2025-29") instead of materialId (database ID)
           if (material.materialIdentificationId) {
-            const materialPath = `QMS/Material_Identification/${inspectionOrder.projectCode}/${material.materialIdentificationId}/`;
-            console.log(`📁 Checking Material path: ${materialPath} for Material ID: ${material.materialIdentificationId}`);
-            const materialFiles = await listFilesInDirectory(materialPath);
-            const pdfFiles = materialFiles.filter(f => f && f.toLowerCase().endsWith('.pdf'));
-            console.log(`📋 Found ${pdfFiles.length} PDF files for material ${material.materialIdentificationId}:`, pdfFiles);
-            materialDocs.push(...pdfFiles);
+            // Try the new standardized path format first: Inspection_Report.{extension}
+            const standardizedPath = `QMS/Material_Identification/${inspectionOrder.projectCode}/${material.materialIdentificationId}/Inspection_Report.pdf`;
+            console.log(`📁 Checking standardized Material path: ${standardizedPath} for Material ID: ${material.materialIdentificationId}`);
+            
+            try {
+              // Check if the standardized file exists
+              const file = bucket.file(standardizedPath);
+              const [exists] = await file.exists();
+              if (exists) {
+                console.log(`✅ Found standardized Material document: ${standardizedPath}`);
+                materialDocs.push(standardizedPath);
+              } else {
+                console.log(`❌ Standardized Material document not found: ${standardizedPath}`);
+                // Fallback: try scanning the directory for any PDF files (for backward compatibility)
+                const materialPath = `QMS/Material_Identification/${inspectionOrder.projectCode}/${material.materialIdentificationId}/`;
+                console.log(`📁 Fallback: Checking Material directory: ${materialPath}`);
+                const materialFiles = await listFilesInDirectory(materialPath);
+                const pdfFiles = materialFiles.filter(f => f && f.toLowerCase().endsWith('.pdf'));
+                console.log(`📋 Found ${pdfFiles.length} PDF files for material ${material.materialIdentificationId}:`, pdfFiles);
+                materialDocs.push(...pdfFiles);
+              }
+            } catch (error) {
+              console.error(`❌ Error checking Material document for ${material.materialIdentificationId}:`, error);
+            }
           }
         }
         

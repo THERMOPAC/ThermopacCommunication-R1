@@ -107,8 +107,8 @@ export const uploadMaterialIdentificationDocument = async (req: Request): Promis
     console.log(`uploadMaterialIdentificationDocument: Using Material Identification ID: ${miId}`);
     console.log(`uploadMaterialIdentificationDocument: Using Project Number: ${projectNumber}`);
     
-    // Format: QMS/Material_Identification/{projectNumber}/{MI ID}/{Document Type}.{extension}
-    const filePath = `QMS/Material_Identification/${projectNumber}/${miId}/${documentTypeName}.${fileExtension}`;
+    // Format: QMS/Material_Identification/{projectNumber}/{MI ID}/Inspection_Report.{extension}
+    const filePath = `QMS/Material_Identification/${projectNumber}/${miId}/Inspection_Report.${fileExtension}`;
     console.log(`uploadMaterialIdentificationDocument: File path: ${filePath}`);
     
     // Create a new blob in the bucket and upload the file data
