@@ -38,6 +38,7 @@ interface MaterialIdentification {
   mill_name: string;
   mill_test_certificate_number: string;
   quantity: string;
+  unit: string;
   dimensions: string;
   material_status: string;
   inspector_name: string;
@@ -399,11 +400,15 @@ export default function MaterialIdentificationViewNewPage({ params }: MaterialId
                 </div>
               </div>
 
-              {/* Quantity/Dimensions Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 pb-6 border-b">
+              {/* Quantity/Unit/Dimensions Information */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 pb-6 border-b">
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Quantity</h3>
                   <p className="mt-1">{record.quantity}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Unit</h3>
+                  <p className="mt-1">{record.unit || 'Pcs'}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Dimensions</h3>

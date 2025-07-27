@@ -70,6 +70,7 @@ const materialIdentificationSchema = z.object({
   millName: z.string().min(1, "Mill Name is required"),
   millTestCertificateNumber: z.string().min(1, "Mill Test Certificate Number is required"),
   quantity: z.string().min(1, "Quantity is required"),
+  unit: z.string().min(1, "Unit is required"),
   dimensions: z.string().min(1, "Dimensions are required"),
   materialStatus: z.string().min(1, "Material Status is required"),
   inspectorName: z.string().min(1, "Inspector's Name is required"),
@@ -188,6 +189,7 @@ export default function MaterialIdentificationCreatePage() {
     mill_name: string;
     mill_test_certificate_number: string;
     quantity: string;
+    unit: string;
     dimensions: string;
     material_status: string;
     inspector_name: string;
@@ -231,6 +233,7 @@ export default function MaterialIdentificationCreatePage() {
       millName: "",
       millTestCertificateNumber: "",
       quantity: "",
+      unit: "Pcs", // Default unit that will be auto-populated
       dimensions: "",
       materialStatus: "",
       inspectorName: "",
@@ -341,6 +344,7 @@ export default function MaterialIdentificationCreatePage() {
         millName: templateData.mill_name || "",
         millTestCertificateNumber: templateData.mill_test_certificate_number || "",
         quantity: templateData.quantity || "",
+        unit: templateData.unit || "Pcs", // Default to "Pcs" if not provided
         dimensions: templateData.dimensions || "",
         materialStatus: templateData.material_status || "",
         inspectorName: templateData.inspector_name || "",
@@ -752,8 +756,8 @@ export default function MaterialIdentificationCreatePage() {
                     />
                   </div>
                   
-                  {/* Quantity and Dimensions */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Quantity, Unit, and Dimensions */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <FormField
                       control={form.control}
                       name="quantity"
@@ -761,7 +765,26 @@ export default function MaterialIdentificationCreatePage() {
                         <FormItem>
                           <FormLabel>Quantity</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="e.g., 10 Pcs" />
+                            <Input {...field} placeholder="e.g., 10" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="unit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Unit</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              placeholder="Pcs"
+                              className="bg-gray-50 text-gray-700"
+                              readOnly 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

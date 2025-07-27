@@ -4904,6 +4904,7 @@ export const materialIdentification = pgTable('material_identification', {
   millName: varchar('mill_name', { length: 255 }).notNull(),
   millTestCertificateNumber: varchar('mill_test_certificate_number', { length: 255 }).notNull(),
   quantity: varchar('quantity', { length: 255 }).notNull(),
+  unit: varchar('unit', { length: 50 }).notNull(),
   dimensions: varchar('dimensions', { length: 255 }).notNull(),
   materialStatus: varchar('material_status', { length: 255 }).notNull(),
   

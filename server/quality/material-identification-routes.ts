@@ -253,6 +253,7 @@ interface MaterialIdentification {
   mill_name: string;
   mill_test_certificate_number: string;
   quantity: string;
+  unit: string;
   dimensions: string;
   material_status: string;
   inspector_name: string;
@@ -292,6 +293,7 @@ router.post("/", validateSchema(materialIdentificationSchema), async (req, res) 
         mill_name,
         mill_test_certificate_number,
         quantity,
+        unit,
         dimensions,
         material_status,
         inspector_name,
@@ -314,6 +316,7 @@ router.post("/", validateSchema(materialIdentificationSchema), async (req, res) 
         ${data.millName},
         ${data.millTestCertificateNumber},
         ${data.quantity},
+        ${data.unit},
         ${data.dimensions},
         ${data.materialStatus},
         ${data.inspectorName},
@@ -380,6 +383,7 @@ router.get("/new", async (req, res) => {
       mill_name: '',
       mill_test_certificate_number: '',
       quantity: '',
+      unit: 'Pcs',
       dimensions: '',
       material_status: '',
       inspector_name: '',
@@ -462,6 +466,7 @@ router.put("/:id", validateSchema(materialIdentificationSchema), async (req, res
         mill_name = ${data.millName},
         mill_test_certificate_number = ${data.millTestCertificateNumber},
         quantity = ${data.quantity},
+        unit = ${data.unit},
         dimensions = ${data.dimensions},
         material_status = ${data.materialStatus},
         inspector_name = ${data.inspectorName},

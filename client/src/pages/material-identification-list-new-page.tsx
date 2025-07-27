@@ -64,6 +64,8 @@ interface MaterialIdentification {
   inspection_date: string;
   inspector_name: string;
   heat_number: string;
+  quantity: string;
+  unit: string;
   created_at: string;
 }
 
@@ -453,6 +455,8 @@ export default function MaterialIdentificationListNewPage() {
                         <TableHead>Material Description</TableHead>
                         <TableHead>Material Grade</TableHead>
                         <TableHead>Heat Number</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>Unit</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Inspection Date</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -466,6 +470,8 @@ export default function MaterialIdentificationListNewPage() {
                           <TableCell>{record.material_description}</TableCell>
                           <TableCell>{record.material_grade}</TableCell>
                           <TableCell>{record.heat_number}</TableCell>
+                          <TableCell>{record.quantity}</TableCell>
+                          <TableCell>{record.unit || 'Pcs'}</TableCell>
                           <TableCell>
                             <Badge className={getStatusColor(record.material_status)}>
                               {record.material_status}
