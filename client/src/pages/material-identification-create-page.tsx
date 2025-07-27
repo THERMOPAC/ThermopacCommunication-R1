@@ -425,6 +425,16 @@ export default function MaterialIdentificationCreatePage() {
   
   // Handle form submission
   const onSubmit = async (data: MaterialIdentificationFormValues) => {
+    // Validate file selection (mandatory)
+    if (!selectedFile) {
+      toast({
+        title: "File Required",
+        description: "Please select an Inspection Report file before creating the record.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       // Format date for API
       const formattedData = {
@@ -1025,11 +1035,13 @@ export default function MaterialIdentificationCreatePage() {
                   </div>
                   
                   {/* File Upload Section */}
-                  <div className="border rounded-lg p-4 bg-gray-50">
+                  <div className="border rounded-lg p-4 bg-blue-50 border-blue-200">
                     <div className="mb-4">
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Inspection Report Upload (Optional)</h3>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        Inspection Report Upload <span className="text-red-500">*</span>
+                      </h3>
                       <p className="text-sm text-gray-600 mb-4">
-                        You can optionally upload an Inspection Report with this Material Identification record. 
+                        Please upload an Inspection Report for this Material Identification record. 
                         Supported formats: PDF, DOC, DOCX (Max size: 10MB)
                       </p>
                     </div>
@@ -1125,17 +1137,17 @@ export default function MaterialIdentificationCreatePage() {
                       </Button>
                       <Button 
                         type="submit" 
-                        disabled={form.formState.isSubmitting || isUploading}
+                        disabled={form.formState.isSubmitting || isUploading || !selectedFile}
                         className="flex items-center gap-2"
                       >
                         {form.formState.isSubmitting || isUploading ? (
                           <>
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            {selectedFile ? 'Creating & Uploading...' : 'Creating Record...'}
+                            Creating & Uploading...
                           </>
                         ) : (
                           <>
-                            {selectedFile ? 'Create & Upload File' : 'Create Material Identification'}
+                            {!selectedFile ? 'Select File to Continue' : 'Create & Upload File'}
                           </>
                         )}
                       </Button>
