@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit2, Trash2, FileText, Search, Download } from "lucide-react";
+import { Plus, Edit2, FileText, Search, Download } from "lucide-react";
 import type { TestProcedure, TestProcedureInsert } from "@/shared/schema";
 
 export default function TestProceduresPage() {
@@ -91,29 +91,7 @@ export default function TestProceduresPage() {
     },
   });
 
-  // Delete procedure mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const response = await fetch(`/api/quality/test-procedures/${id}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error("Failed to delete procedure");
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/quality/test-procedures"] });
-      toast({
-        title: "Success",
-        description: "Test procedure deleted successfully",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+
 
   // Form state
   const [formData, setFormData] = useState({
@@ -269,11 +247,7 @@ export default function TestProceduresPage() {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm("Are you sure you want to delete this test procedure?")) {
-      deleteMutation.mutate(id);
-    }
-  };
+
 
   const handleDownload = async (procedure: TestProcedure) => {
     try {
@@ -617,6 +591,7 @@ export default function TestProceduresPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => handleEdit(procedure)}
+                            className="text-green-600 hover:text-green-800"
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
@@ -627,14 +602,6 @@ export default function TestProceduresPage() {
                             className="text-blue-600 hover:text-blue-700"
                           >
                             <Download className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(procedure.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
