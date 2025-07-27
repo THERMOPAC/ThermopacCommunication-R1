@@ -91,7 +91,7 @@ function ensureAuthenticated(req: Request, res: Response, next: Function) {
 // Helper to generate a unique certificate number
 async function generateCertificateNumber() {
   const result = await db.execute(sql`
-    SELECT MAX(CAST(SUBSTRING("certificate_no" FROM 5) AS INTEGER)) as max_id
+    SELECT MAX(CAST(SUBSTRING("certificate_no" FROM 6) AS INTEGER)) as max_id
     FROM welder_certificates
   `);
   
