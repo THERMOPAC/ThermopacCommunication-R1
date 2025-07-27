@@ -207,6 +207,11 @@ export function MaterialFileInfoSection({
                         {formatDate(document.created_at)}
                       </div>
                     </div>
+                    {document.file_path && (
+                      <p className="text-xs text-gray-500 mt-1 font-mono bg-gray-100 px-2 py-1 rounded text-wrap break-all">
+                        <span className="text-gray-400">Path:</span> {document.file_path}
+                      </p>
+                    )}
                     {document.description && (
                       <p className="text-xs text-gray-500 mt-1 truncate">
                         {document.description}
