@@ -804,8 +804,31 @@ export default function WelderManagementPage() {
               <CardDescription>Within next 30 days</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{expiringSoonCertificates.length}</div>
-              <div className="mt-2 text-sm text-gray-500">
+              <div className="text-3xl font-bold text-yellow-600">
+                {weldersWithExpiringSoonCertificates.reduce((total, { certificates }) => 
+                  total + certificates.filter(cert => {
+                    try {
+                      const expiryDateStr = cert.expiryDate || cert.expiry_date;
+                      if (!expiryDateStr) return false;
+                      
+                      const expiryDate = new Date(expiryDateStr);
+                      const currentDate = new Date();
+                      
+                      const expiryDateOnly = new Date(expiryDate.getFullYear(), expiryDate.getMonth(), expiryDate.getDate());
+                      const todayOnly = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+                      
+                      const thirtyDaysFromNowOnly = new Date(todayOnly);
+                      thirtyDaysFromNowOnly.setDate(todayOnly.getDate() + 30);
+                      
+                      return expiryDateOnly > todayOnly && expiryDateOnly <= thirtyDaysFromNowOnly;
+                    } catch (e) {
+                      return false;
+                    }
+                  }).length, 0
+                )}
+              </div>
+              <div className="mt-2 text-sm text-gray-500 flex items-center gap-1">
+                <AlertTriangle className="h-4 w-4 text-yellow-500" />
                 {weldersWithExpiringSoonCertificates.length} welders affected
               </div>
             </CardContent>
