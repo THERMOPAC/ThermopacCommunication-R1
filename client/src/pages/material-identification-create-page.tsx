@@ -146,6 +146,44 @@ const materialGradeOptions = [
   }
 ];
 
+// Function to determine unit based on material grade
+const getUnitForMaterialGrade = (materialGrade: string): string => {
+  // Bolts and Nuts are typically counted as individual pieces
+  if (materialGrade.includes('SA-193') || materialGrade.includes('SA-194') || 
+      materialGrade.includes('SA-325') || materialGrade.includes('SA-490') || 
+      materialGrade.includes('SA-563')) {
+    return 'Nos';
+  }
+  
+  // Gaskets are typically counted as individual pieces  
+  if (materialGrade.includes('AF 159') || materialGrade.toLowerCase().includes('gasket')) {
+    return 'Nos';
+  }
+  
+  // Pipes and tubes are typically measured in meters
+  if (materialGrade.includes('SA-106') || materialGrade.includes('SA-312') || 
+      materialGrade.includes('SA-213') || materialGrade.includes('SA-335') || 
+      materialGrade.includes('API 5L')) {
+    return 'Mtr';
+  }
+  
+  // Plates and sheets are typically measured in square meters or pieces
+  if (materialGrade.includes('SA-516') || materialGrade.includes('SA-240') || 
+      materialGrade.includes('SA-36') || materialGrade.includes('SA-537') || 
+      materialGrade.includes('ASTM A36') || materialGrade.includes('SA-387')) {
+    return 'Sqm';
+  }
+  
+  // Fittings and flanges are typically counted as pieces
+  if (materialGrade.includes('SA-234') || materialGrade.includes('SA-182') || 
+      materialGrade.includes('SA-403')) {
+    return 'Pcs';
+  }
+  
+  // Default to pieces for all other materials
+  return 'Pcs';
+};
+
 export default function MaterialIdentificationCreatePage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -666,7 +704,16 @@ export default function MaterialIdentificationCreatePage() {
                           <FormLabel>Material Grade</FormLabel>
                           <Select
                             value={field.value}
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              // Auto-populate unit based on selected material grade
+                              const autoUnit = getUnitForMaterialGrade(value);
+                              form.setValue('unit', autoUnit, { 
+                                shouldValidate: true, 
+                                shouldDirty: true 
+                              });
+                              console.log(`🔧 Material Grade selected: ${value}, Auto-populated Unit: ${autoUnit}`);
+                            }}
                           >
                             <FormControl>
                               <SelectTrigger className="w-full">
@@ -782,8 +829,7 @@ export default function MaterialIdentificationCreatePage() {
                             <Input 
                               {...field} 
                               placeholder="Pcs"
-                              className="bg-gray-50 text-gray-700"
-                              readOnly 
+                              className={field.value && field.value !== 'Pcs' ? "bg-blue-50 text-blue-700 border-blue-200" : ""}
                             />
                           </FormControl>
                           <FormMessage />
