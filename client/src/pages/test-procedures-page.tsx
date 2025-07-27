@@ -617,8 +617,6 @@ export default function TestProceduresPage() {
                     <TableHead>Title</TableHead>
                     <TableHead>Revision</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Approved By</TableHead>
-                    <TableHead>Effective Date</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -632,8 +630,6 @@ export default function TestProceduresPage() {
                         <Badge variant="outline">{procedure.procedureRevision || "R1"}</Badge>
                       </TableCell>
                       <TableCell>{getStatusBadge(procedure.status)}</TableCell>
-                      <TableCell>{procedure.approvedByUser || "-"}</TableCell>
-                      <TableCell>{procedure.approvedAt ? new Date(procedure.approvedAt).toLocaleDateString() : "-"}</TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
                           <Button
