@@ -88,11 +88,12 @@ function ensureAuthenticated(req: Request, res: Response, next: Function) {
   res.status(401).json({ error: 'Unauthorized' });
 }
 
-// Helper to generate a unique certificate number
-async function generateCertificateNumber() {
+// Helper to generate a unique certificate number for a specific welder
+async function generateCertificateNumber(welderId: number) {
   const result = await db.execute(sql`
     SELECT MAX(CAST(SUBSTRING("certificate_no" FROM 6) AS INTEGER)) as max_id
     FROM welder_certificates
+    WHERE welder_id = ${welderId}
   `);
   
   const maxIdStr = result.rows[0]?.max_id as string | undefined;
@@ -266,8 +267,8 @@ router.post('/:welderId', ensureAuthenticated, upload.single('file'), async (req
       return res.status(400).json({ error: 'No certificate file uploaded' });
     }
     
-    // Generate a unique certificate number
-    const certificateNo = await generateCertificateNumber();
+    // Generate a unique certificate number for this specific welder
+    const certificateNo = await generateCertificateNumber(welderIdInt);
     
     // Count existing certificates for this welder to determine file number in sequence
     const countResult = await db.execute(sql`
