@@ -16,7 +16,7 @@ import { toast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit2, Trash2, Search, Eye, Download, FileIcon, Upload } from 'lucide-react';
+import { Plus, Edit2, Search, Eye, Download, FileIcon, Upload } from 'lucide-react';
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 
@@ -242,35 +242,7 @@ export default function PMAPage() {
     },
   });
 
-  // Delete PMA mutation
-  const deletePMAMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const response = await fetch(`/api/quality/pma/${id}`, {
-        method: 'DELETE',
-      });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to delete PMA document');
-      }
-
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/quality/pma'] });
-      toast({
-        title: 'Success',
-        description: 'PMA document deleted successfully',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
 
   // Handlers
   const handleAddPMA = (data: PMAFormData) => {
@@ -298,11 +270,7 @@ export default function PMAPage() {
     }
   };
 
-  const handleDeletePMA = (id: number) => {
-    if (window.confirm('Are you sure you want to delete this PMA document?')) {
-      deletePMAMutation.mutate(id);
-    }
-  };
+
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -323,6 +291,47 @@ export default function PMAPage() {
 
   const handleDownload = (fileUrl: string, fileName: string) => {
     window.open(fileUrl, '_blank');
+  };
+
+  // Handle file upload for PMA document
+  const handlePMAFileUpload = (pmaDocument: any) => {
+    // Create a file input element
+    const input = window.document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx';
+    input.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const file = target.files?.[0];
+      if (file) {
+        try {
+          const formData = new FormData();
+          formData.append('document', file);
+          
+          const response = await fetch(`/api/quality/pma/${pmaDocument.id}/upload`, {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (response.ok) {
+            toast({
+              title: "File Uploaded",
+              description: "The document file was uploaded successfully.",
+            });
+            queryClient.invalidateQueries({ queryKey: ['/api/quality/pma'] });
+          } else {
+            const errorData = await response.json();
+            throw new Error(errorData.error || "Failed to upload file");
+          }
+        } catch (error) {
+          toast({
+            title: "Upload Error",
+            description: error instanceof Error ? error.message : "Failed to upload file",
+            variant: "destructive",
+          });
+        }
+      }
+    };
+    input.click();
   };
 
   // Filter documents based on search
@@ -673,10 +682,10 @@ export default function PMAPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleDeletePMA(doc.id)}
-                              className="text-red-600 hover:text-red-800"
+                              onClick={() => handlePMAFileUpload(doc)}
+                              className="text-blue-600 hover:text-blue-800"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Upload className="w-4 h-4" />
                             </Button>
                           </div>
                         </TableCell>

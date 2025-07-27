@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { db } from '../db';
-import { pmaDocuments, users } from '@shared/schema';
+import { pmaDocuments, users, materialIdentification } from '@shared/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 import { pmaDocumentSchema, InsertPmaDocument } from '@shared/schema';
 import { uploadFileWithDiagnostics } from '../utils/gcs-enhanced-upload';
@@ -283,6 +283,83 @@ router.put('/:id', upload.single('file'), async (req: Request, res: Response) =>
   } catch (error) {
     console.error('Error updating PMA document:', error);
     res.status(500).json({ error: 'Failed to update PMA document' });
+  }
+});
+
+// Upload file to existing PMA document
+router.post('/:id/upload', upload.single('document'), async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid PMA document ID' });
+    }
+
+    const user = req.user as any;
+    if (!user?.id) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
+
+    // Validate file type (PDF, DOC, DOCX only)
+    const allowedTypes = [
+      'application/pdf', 
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword'
+    ];
+    if (!allowedTypes.includes(file.mimetype)) {
+      return res.status(400).json({ error: 'Only PDF, DOC, and DOCX files are allowed' });
+    }
+
+    // Get existing PMA document
+    const existingDoc = await db
+      .select()
+      .from(pmaDocuments)
+      .where(eq(pmaDocuments.id, id))
+      .limit(1);
+
+    if (existingDoc.length === 0) {
+      return res.status(404).json({ error: 'PMA document not found' });
+    }
+
+    // Create GCS path
+    const fileExtension = file.originalname.split('.').pop();
+    const gcsPath = `QMS/PMA_Records/${existingDoc[0].pmaNumber}.${fileExtension}`;
+
+    // Upload file to GCS
+    const uploadResult = await uploadFileWithDiagnostics(
+      gcsPath,
+      file.buffer,
+      file.mimetype
+    );
+
+    if (!uploadResult.successful) {
+      return res.status(500).json({ error: 'Failed to upload file to cloud storage' });
+    }
+
+    // Update PMA document with new file info
+    const updatedDocument = await db
+      .update(pmaDocuments)
+      .set({
+        filePath: gcsPath,
+        fileUrl: uploadResult.url,
+        originalFileName: file.originalname,
+        updatedAt: new Date(),
+      })
+      .where(eq(pmaDocuments.id, id))
+      .returning();
+
+    res.json({
+      message: 'File uploaded successfully',
+      document: updatedDocument[0],
+      uploadResult: uploadResult
+    });
+  } catch (error) {
+    console.error('Error uploading file to PMA document:', error);
+    res.status(500).json({ error: 'Failed to upload file' });
   }
 });
 
