@@ -298,6 +298,39 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
     }
   }, [isEditMode, formDisabled, formKey]);
 
+  // Auto-populate project fields from sessionStorage for new records
+  useEffect(() => {
+    if (isNewRecord) {
+      const storedProject = sessionStorage.getItem('materialId_selectedProject');
+      if (storedProject) {
+        try {
+          const projectData = JSON.parse(storedProject);
+          console.log('Auto-populating project fields:', projectData);
+          
+          // Set the selected project state
+          setSelectedProject(projectData.id);
+          
+          // Auto-populate the form fields with read-only styling
+          form.setValue('projectId', projectData.id);
+          form.setValue('projectNumber', projectData.code);
+          form.setValue('projectName', projectData.name);
+          
+          // Mark fields as touched to ensure they're included in submission
+          form.trigger('projectId');
+          form.trigger('projectNumber');
+          form.trigger('projectName');
+          
+          // Clear the stored data after use
+          sessionStorage.removeItem('materialId_selectedProject');
+          
+          console.log('Project fields auto-populated successfully');
+        } catch (error) {
+          console.error('Error parsing stored project data:', error);
+        }
+      }
+    }
+  }, [isNewRecord, form]);
+
   // Set next MI ID from API (for new records) or populate form with existing data (for edit/view)
   useEffect(() => {
     console.log('nextIdData:', nextIdData, 'isNewRecord:', isNewRecord, 'recordId:', recordId);
@@ -591,47 +624,67 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                   <FormField
                     control={form.control}
                     name="projectNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Project No.</FormLabel>
-                        <Select
-                          onValueChange={(value) => handleProjectSelect(value)}
-                          value={selectedProject?.toString() || ""}
-                          disabled={isViewMode && !isEditMode}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select project number" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {projects
-                              .filter(project => project.status === 'active')
-                              .map((project) => (
-                                <SelectItem key={project.id} value={project.id.toString()}>
-                                  {project.code || project.projectCode || project.projectNumber || `Project ${project.id}`}
-                                </SelectItem>
-                              ))
-                            }
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const isAutoPopulated = isNewRecord && selectedProject && field.value;
+                      return (
+                        <FormItem>
+                          <FormLabel>Project No.</FormLabel>
+                          {isAutoPopulated ? (
+                            <FormControl>
+                              <Input 
+                                {...field} 
+                                readOnly={true}
+                                className="bg-gray-50 text-gray-700"
+                              />
+                            </FormControl>
+                          ) : (
+                            <Select
+                              onValueChange={(value) => handleProjectSelect(value)}
+                              value={selectedProject?.toString() || ""}
+                              disabled={isViewMode && !isEditMode}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Select project number" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {projects
+                                  .filter(project => project.status === 'active')
+                                  .map((project) => (
+                                    <SelectItem key={project.id} value={project.id.toString()}>
+                                      {project.code || project.projectCode || project.projectNumber || `Project ${project.id}`}
+                                    </SelectItem>
+                                  ))
+                                }
+                              </SelectContent>
+                            </Select>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                   
                   <FormField
                     control={form.control}
                     name="projectName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Project Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly={true} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const isAutoPopulated = isNewRecord && selectedProject && field.value;
+                      return (
+                        <FormItem>
+                          <FormLabel>Project Name</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              readOnly={true}
+                              className={isAutoPopulated ? "bg-gray-50 text-gray-700" : ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                   
                   <FormField

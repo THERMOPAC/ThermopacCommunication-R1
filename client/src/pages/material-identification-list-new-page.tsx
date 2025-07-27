@@ -216,6 +216,18 @@ export default function MaterialIdentificationListNewPage() {
   };
   
   const handleCreate = () => {
+    // Pass selected project information to the new record page
+    if (selectedProjectId) {
+      const selectedProject = activeProjects.find(p => p.id === selectedProjectId);
+      if (selectedProject) {
+        // Store project data in sessionStorage for auto-population
+        sessionStorage.setItem('materialId_selectedProject', JSON.stringify({
+          id: selectedProject.id,
+          code: selectedProject.code,
+          name: selectedProject.name
+        }));
+      }
+    }
     navigate('/quality/material-identification/new');
   };
   
@@ -299,7 +311,11 @@ export default function MaterialIdentificationListNewPage() {
                 Manage and view all material identification records.
               </CardDescription>
             </div>
-            <Button onClick={handleCreate}>
+            <Button 
+              onClick={handleCreate}
+              disabled={!selectedProjectId}
+              className={!selectedProjectId ? "opacity-50 cursor-not-allowed" : ""}
+            >
               <PlusCircle className="h-4 w-4 mr-2" />
               Add New Record
             </Button>
