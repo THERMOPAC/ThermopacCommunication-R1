@@ -9965,7 +9965,14 @@ export default function InspectionsPage() {
                     (editInspectionOrderDetails?.description || 
                      (editInspectionOrderDetails?.items && editInspectionOrderDetails.items.length > 0 ? 
                       editInspectionOrderDetails.items[0].description : ""))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={!editingApprovedDrawingRecord && (editInspectionOrderDetails?.description || 
+                    (editInspectionOrderDetails?.items && editInspectionOrderDetails.items.length > 0 && 
+                     editInspectionOrderDetails.items[0].description))}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    !editingApprovedDrawingRecord && (editInspectionOrderDetails?.description || 
+                    (editInspectionOrderDetails?.items && editInspectionOrderDetails.items.length > 0 && 
+                     editInspectionOrderDetails.items[0].description)) ? 'bg-gray-50 text-gray-700' : ''
+                  }`}
                   placeholder="Enter drawing title"
                 />
               </div>
@@ -9980,7 +9987,12 @@ export default function InspectionsPage() {
                   defaultValue={editingApprovedDrawingRecord?.drawingNumber || 
                     (editInspectionOrderDetails?.drawingNo || 
                      editInspectionOrderDetails?.drawingNumber || "")}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly={!editingApprovedDrawingRecord && (editInspectionOrderDetails?.drawingNo || 
+                    editInspectionOrderDetails?.drawingNumber)}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    !editingApprovedDrawingRecord && (editInspectionOrderDetails?.drawingNo || 
+                    editInspectionOrderDetails?.drawingNumber) ? 'bg-gray-50 text-gray-700' : ''
+                  }`}
                   placeholder="Enter drawing number"
                 />
               </div>
