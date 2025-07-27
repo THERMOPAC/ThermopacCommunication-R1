@@ -400,10 +400,10 @@ export default function MaterialIdentificationListNewPage() {
 
       // If there are multiple documents, download the first one
       // In the future, we could show a selection dialog
-      const document = documents[0];
+      const documentRecord = documents[0];
       
       // Download the document
-      const downloadResponse = await fetch(`/api/quality/material-identification/${recordId}/documents/${document.id}/download`, {
+      const downloadResponse = await fetch(`/api/quality/material-identification/${recordId}/documents/${documentRecord.id}/download`, {
         credentials: 'include',
       });
 
@@ -416,7 +416,7 @@ export default function MaterialIdentificationListNewPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = document.file_name || 'document';
+      a.download = documentRecord.file_name || 'document';
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -424,7 +424,7 @@ export default function MaterialIdentificationListNewPage() {
 
       toast({
         title: "Download successful",
-        description: `Downloaded ${document.file_name}`,
+        description: `Downloaded ${documentRecord.file_name}`,
       });
     } catch (error) {
       toast({
