@@ -715,7 +715,96 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId/dow
   }
 });
 
-// Delete inspection document
+// Simple DELETE endpoint for direct document ID deletion (used by Drawing tab)
+router.delete("/:documentId", ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { documentId } = req.params;
+    
+    console.log(`🎯 DIRECT DELETE REQUEST - Document ID: ${documentId}`);
+    console.log(`🎯 User: ${(req.user as any)?.username || 'Unknown'}`);
+    
+    if (!documentId) {
+      return res.status(400).json({ error: "Document ID is required" });
+    }
+    
+    // Get the document record
+    const document = await db.query.inspectionDocuments.findFirst({
+      where: eq(inspectionDocuments.id, parseInt(documentId))
+    });
+    
+    if (!document) {
+      return res.status(404).json({ error: "Document not found" });
+    }
+    
+    console.log(`🎯 Found document: ${document.fileName}`);
+    console.log(`🎯 File path: ${document.filePath}`);
+    
+    // Get the inspection order for project context
+    const inspection = await db.query.inspectionOrders.findFirst({
+      where: eq(inspectionOrders.id, document.inspectionOrderId)
+    });
+    
+    let fileDeleted = false;
+    let gcsError = null;
+    
+    // Try to delete from GCS
+    try {
+      console.log(`🎯 Initializing GCS for file deletion...`);
+      const { initializeGCS } = await import('../utils/gcs-operations');
+      const { bucket } = await initializeGCS();
+      
+      if (bucket && document.filePath) {
+        console.log(`🎯 Attempting to delete file: ${document.filePath}`);
+        const file = bucket.file(document.filePath);
+        const [exists] = await file.exists();
+        
+        if (exists) {
+          await file.delete();
+          console.log(`🎯 ✅ Successfully deleted GCS file: ${document.filePath}`);
+          fileDeleted = true;
+        } else {
+          console.log(`🎯 ⚠️ File not found in GCS: ${document.filePath}`);
+          fileDeleted = true; // Consider it deleted if it doesn't exist
+        }
+      } else {
+        console.log(`🎯 ⚠️ GCS not available or no file path stored`);
+      }
+    } catch (error: any) {
+      console.error(`🎯 ❌ GCS deletion failed for ${document.fileName}:`, error);
+      gcsError = error.message;
+    }
+    
+    // Always delete from database regardless of GCS success
+    await db.delete(inspectionDocuments)
+      .where(eq(inspectionDocuments.id, parseInt(documentId)));
+    
+    console.log(`🎯 ✅ Database record deleted for document ${documentId}`);
+    
+    if (fileDeleted) {
+      return res.status(200).json({ 
+        success: true,
+        message: "Document deleted successfully",
+        details: "Both database record and GCS file removed"
+      });
+    } else {
+      return res.status(200).json({ 
+        success: true,
+        message: "Partial success: Database record deleted, but GCS file removal failed",
+        warning: gcsError ? `GCS error: ${gcsError}` : "GCS file could not be deleted",
+        details: "Database record removed successfully"
+      });
+    }
+    
+  } catch (error) {
+    console.error('🎯 Error in direct document deletion:', error);
+    return res.status(500).json({ 
+      error: "Internal server error",
+      message: error instanceof Error ? error.message : "Unknown error occurred"
+    });
+  }
+});
+
+// Delete inspection document (full path version)
 router.delete("/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId", ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { inspectionOrderNumber, tabName, recordId, documentId } = req.params;
