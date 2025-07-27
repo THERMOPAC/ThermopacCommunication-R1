@@ -239,6 +239,19 @@ export default function MaterialIdentificationCreatePage() {
     },
   });
   
+  // Store navigation parameters for returning to list
+  const [keepVisibleState, setKeepVisibleState] = useState<string | null>(null);
+  const [projectIdForNavigation, setProjectIdForNavigation] = useState<string | null>(null);
+  
+  // Helper function to navigate back to list with proper parameters
+  const navigateBackToList = () => {
+    if (projectIdForNavigation && keepVisibleState === 'true') {
+      navigate(`/quality/material-identification?project=${projectIdForNavigation}&keep=true`);
+    } else {
+      navigate('/quality/material-identification');
+    }
+  };
+  
   // Auto-population from URL parameters (from Material Identification list page)
   useEffect(() => {
     console.log('🔍 Checking URL parameters for project data...');
@@ -246,8 +259,13 @@ export default function MaterialIdentificationCreatePage() {
     const projectId = urlParams.get('projectId');
     const projectCode = urlParams.get('projectCode');
     const projectName = urlParams.get('projectName');
+    const keepParam = urlParams.get('keep');
     
-    console.log('📦 URL parameters:', { projectId, projectCode, projectName });
+    // Store navigation parameters for returning to list
+    setKeepVisibleState(keepParam);
+    setProjectIdForNavigation(projectId);
+    
+    console.log('📦 URL parameters:', { projectId, projectCode, projectName, keep: keepParam });
     
     if (projectId && projectCode && projectName) {
       console.log('📋 Found project data in URL parameters');
@@ -879,7 +897,7 @@ export default function MaterialIdentificationCreatePage() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => navigate('/quality/material-identification')}
+                      onClick={navigateBackToList}
                     >
                       Back to List
                     </Button>
@@ -907,7 +925,7 @@ export default function MaterialIdentificationCreatePage() {
         <Dialog open={uploadDialogOpen} onOpenChange={(open) => {
           if (!open) {
             // If dialog is being closed, navigate to list
-            navigate('/quality/material-identification');
+            navigateBackToList();
           }
           setUploadDialogOpen(open);
         }}>
