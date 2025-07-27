@@ -63,9 +63,9 @@ export function MaterialFileInfoSection({
   };
 
   // Handle file download
-  const handleDownload = async (document: Document) => {
+  const handleDownload = async (documentRecord: Document) => {
     try {
-      const response = await fetch(`/api/quality/material-identification/${materialId}/documents/${document.id}/download`, {
+      const response = await fetch(`/api/quality/material-identification/${materialId}/documents/${documentRecord.id}/download`, {
         credentials: 'include',
       });
 
@@ -77,7 +77,7 @@ export function MaterialFileInfoSection({
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = document.file_name || 'document';
+      a.download = documentRecord.file_name || 'document';
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -85,7 +85,7 @@ export function MaterialFileInfoSection({
 
       toast({
         title: "Download successful",
-        description: `Downloaded ${document.file_name}`,
+        description: `Downloaded ${documentRecord.file_name}`,
       });
     } catch (error) {
       toast({
