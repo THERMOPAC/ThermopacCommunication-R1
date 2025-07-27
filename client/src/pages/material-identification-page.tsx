@@ -300,20 +300,33 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
 
   // Auto-populate project fields from sessionStorage for new records
   useEffect(() => {
+    console.log('🔍 Checking auto-population conditions:', {
+      isNewRecord,
+      pathIncludes: window.location.pathname.includes('/new')
+    });
+    
     if (isNewRecord) {
       const storedProject = sessionStorage.getItem('materialId_selectedProject');
+      console.log('📦 SessionStorage data:', storedProject);
+      
       if (storedProject) {
         try {
           const projectData = JSON.parse(storedProject);
-          console.log('Auto-populating project fields:', projectData);
+          console.log('🎯 Auto-populating project fields with:', projectData);
           
           // Set the selected project state
           setSelectedProject(projectData.id);
+          console.log('✅ Set selectedProject to:', projectData.id);
           
           // Auto-populate the form fields with read-only styling
           form.setValue('projectId', projectData.id);
           form.setValue('projectNumber', projectData.code);
           form.setValue('projectName', projectData.name);
+          console.log('✅ Form values set:', {
+            projectId: projectData.id,
+            projectNumber: projectData.code,
+            projectName: projectData.name
+          });
           
           // Mark fields as touched to ensure they're included in submission
           form.trigger('projectId');
@@ -322,12 +335,17 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
           
           // Clear the stored data after use
           sessionStorage.removeItem('materialId_selectedProject');
+          console.log('🧹 SessionStorage cleared');
           
-          console.log('Project fields auto-populated successfully');
+          console.log('🎉 Project fields auto-populated successfully');
         } catch (error) {
-          console.error('Error parsing stored project data:', error);
+          console.error('❌ Error parsing stored project data:', error);
         }
+      } else {
+        console.log('💡 No stored project data found');
       }
+    } else {
+      console.log('💡 Not a new record, skipping auto-population');
     }
   }, [isNewRecord, form]);
 

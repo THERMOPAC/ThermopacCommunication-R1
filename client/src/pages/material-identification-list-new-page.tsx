@@ -221,12 +221,19 @@ export default function MaterialIdentificationListNewPage() {
       const selectedProject = activeProjects.find(p => p.id === selectedProjectId);
       if (selectedProject) {
         // Store project data in sessionStorage for auto-population
-        sessionStorage.setItem('materialId_selectedProject', JSON.stringify({
+        const projectData = {
           id: selectedProject.id,
           code: selectedProject.code,
           name: selectedProject.name
-        }));
+        };
+        console.log('🔄 Storing project data in sessionStorage:', projectData);
+        sessionStorage.setItem('materialId_selectedProject', JSON.stringify(projectData));
+        console.log('✅ Data stored successfully');
+      } else {
+        console.log('❌ No selected project found for ID:', selectedProjectId);
       }
+    } else {
+      console.log('❌ No project selected');
     }
     navigate('/quality/material-identification/new');
   };
