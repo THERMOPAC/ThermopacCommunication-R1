@@ -3142,89 +3142,7 @@ export default function InspectionsPage() {
     }
   };
 
-  // Function to clean up all orphaned Drawing documents when no records exist
-  const cleanupOrphanedDrawingDocuments = async () => {
-    try {
-      console.log(`🧹 Starting cleanup of orphaned Drawing documents`);
-      console.log(`Inspection Order Number: ${editInspectionOrderDetails?.inspectionOrderNumber}`);
-      
-      // Fetch ALL documents for the Drawing tab regardless of recordId
-      const documentsUrl = `/api/quality/inspection-documents/${editInspectionOrderDetails?.inspectionOrderNumber}/Approved%20Drawing/ALL/documents`;
-      console.log(`Fetching all Drawing documents from: ${documentsUrl}`);
-      
-      const response = await fetch(documentsUrl, {
-        credentials: 'include'
-      });
-      
-      if (response.ok) {
-        const documents = await response.json();
-        console.log(`Found ${documents.length} orphaned documents to delete:`, documents);
-        
-        if (documents.length === 0) {
-          toast({
-            title: "No Documents",
-            description: "No orphaned documents found to delete",
-          });
-          return;
-        }
-        
-        let deletedCount = 0;
-        let failedCount = 0;
-        
-        // Delete all orphaned GCS files
-        for (const document of documents) {
-          try {
-            console.log(`🗑️ Attempting to delete orphaned document ${document.id}: ${document.fileName}`);
-            
-            const deleteResponse = await fetch(`/api/quality/inspection-documents/${document.id}`, {
-              method: 'DELETE',
-              credentials: 'include'
-            });
-            
-            if (deleteResponse.ok) {
-              deletedCount++;
-              console.log(`✅ Orphaned document ${document.fileName} deleted successfully`);
-            } else {
-              failedCount++;
-              console.warn(`❌ Failed to delete orphaned document ${document.fileName}`);
-            }
-          } catch (docError) {
-            failedCount++;
-            console.warn(`❌ Exception deleting orphaned document ${document.fileName}:`, docError);
-          }
-        }
-        
-        console.log(`🧹 Orphaned document cleanup summary: ${deletedCount} successful, ${failedCount} failed`);
-        
-        if (failedCount === 0) {
-          toast({
-            title: "Success",
-            description: `${deletedCount} orphaned drawing documents deleted successfully`,
-          });
-        } else {
-          toast({
-            title: "Partial Success",
-            description: `${deletedCount} documents removed, ${failedCount} documents may remain in storage`,
-            variant: "destructive"
-          });
-        }
-      } else {
-        toast({
-          title: "Error",
-          description: "Could not fetch orphaned documents for cleanup",
-          variant: "destructive"
-        });
-      }
-      
-    } catch (error) {
-      console.error('Error cleaning up orphaned drawing documents:', error);
-      toast({
-        title: "Error",
-        description: "Error occurred during orphaned document cleanup",
-        variant: "destructive"
-      });
-    }
-  };
+
 
   // Function to delete a DVR record with GCS cleanup
   const deleteDvrRecord = async (recordId: string) => {
@@ -6280,44 +6198,26 @@ export default function InspectionsPage() {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-medium">Approved Drawing</h3>
-                        <div className="flex items-center gap-2">
-                          {/* Clean up orphaned documents button - only show when no records exist */}
-                          {approvedDrawingRecords.length === 0 && (
-                            <Button 
-                              type="button" 
-                              variant="outline" 
-                              size="sm"
-                              className="flex items-center text-xs text-orange-600 border-orange-300 hover:bg-orange-50"
-                              onClick={() => {
-                                if (window.confirm("This will delete all orphaned drawing documents in cloud storage that don't have corresponding database records.\n\nAre you sure you want to proceed?")) {
-                                  cleanupOrphanedDrawingDocuments();
-                                }
-                              }}
-                            >
-                              <Trash2 className="h-3.5 w-3.5 mr-1" /> Clean Up Documents
-                            </Button>
-                          )}
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            size="sm"
-                            className="flex items-center text-xs"
-                            onClick={() => {
-                              // Check if we have valid project code before opening dialog
-                              if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
-                                toast({
-                                  title: "Cannot Create Record",
-                                  description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
-                                  variant: "destructive",
-                                });
-                                return;
-                              }
-                              setIsApprovedDrawingDialogOpen(true);
-                            }}
-                          >
-                            <Plus className="h-3.5 w-3.5 mr-1" /> Add Approved Drawing Record
-                          </Button>
-                        </div>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          className="flex items-center text-xs"
+                          onClick={() => {
+                            // Check if we have valid project code before opening dialog
+                            if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
+                              toast({
+                                title: "Cannot Create Record",
+                                description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            setIsApprovedDrawingDialogOpen(true);
+                          }}
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Add Approved Drawing Record
+                        </Button>
                       </div>
                       
                       {/* Approved Drawing Records Table */}
