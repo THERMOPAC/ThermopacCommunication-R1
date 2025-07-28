@@ -319,11 +319,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const XLSX = await import('xlsx');
       
-      // Create sample data for project items with only required columns
+      // Create sample data for project items with required columns
       const sampleData = [
         {
           'Item Code': 'PUMP-CPS-001',
           'Description': 'Centrifugal Pump for CPS System 100HP',
+          'Quantity': 2,
           'UOM': 'Nos',
           'Make/Buy': 'Buy',
           'Drawing No': 'DWG-CPS-PUMP-001'
@@ -331,6 +332,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           'Item Code': 'VLV-GATE-002',
           'Description': 'Gate Valve DN150 PN16 Carbon Steel',
+          'Quantity': 8,
           'UOM': 'Nos',
           'Make/Buy': 'Buy',
           'Drawing No': 'DWG-CPS-VLV-002'
@@ -338,6 +340,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           'Item Code': 'PIPE-CS-003',
           'Description': 'Carbon Steel Pipe 6" Sch40 ASTM A106 Gr.B',
+          'Quantity': 120,
           'UOM': 'Meter',
           'Make/Buy': 'Buy',
           'Drawing No': 'DWG-CPS-PIPE-003'
@@ -345,6 +348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           'Item Code': 'TANK-SS-004',
           'Description': 'Storage Tank 2000L SS316L Vertical',
+          'Quantity': 1,
           'UOM': 'Nos',
           'Make/Buy': 'Make',
           'Drawing No': 'DWG-CPS-TANK-004'
@@ -352,6 +356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           'Item Code': 'MTR-ELEC-005',
           'Description': 'Electric Motor 75HP 415V 50Hz IE3',
+          'Quantity': 3,
           'UOM': 'Nos',
           'Make/Buy': 'Buy',
           'Drawing No': 'DWG-CPS-MTR-005'
@@ -365,7 +370,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set column widths for better readability
       const columnWidths = [
         { wch: 18 }, // Item Code
-        { wch: 45 }, // Description
+        { wch: 40 }, // Description
+        { wch: 10 }, // Quantity
         { wch: 12 }, // UOM
         { wch: 15 }, // Make/Buy
         { wch: 25 }  // Drawing No
