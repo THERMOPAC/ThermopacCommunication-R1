@@ -91,26 +91,6 @@ const workOrderSchema = z.object({
 
 type WorkOrderFormValues = z.infer<typeof workOrderSchema>;
 
-// Function to determine work order category and return appropriate badge
-const getWorkOrderCategoryBadge = (workOrder: any) => {
-  const title = workOrder.title || '';
-  const isComponent = title.includes('Components for') || title.includes('Component') || title.includes('Sub-assembly');
-  
-  if (isComponent) {
-    return (
-      <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
-        🟪 Component
-      </Badge>
-    );
-  } else {
-    return (
-      <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
-        🟩 Parent Assembly
-      </Badge>
-    );
-  }
-};
-
 export default function ProductionPlanningPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -461,6 +441,45 @@ export default function ProductionPlanningPage() {
         return <Badge variant="outline">Low</Badge>;
       default:
         return <Badge variant="outline">{priority}</Badge>;
+    }
+  };
+
+  // Function to determine work order category and return appropriate badge
+  const getWorkOrderCategoryBadge = (workOrder: any) => {
+    // Use the type field if available (from hierarchical organization)
+    if (workOrder.type) {
+      if (workOrder.type === 'component') {
+        return (
+          <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
+            🟪 Component
+          </Badge>
+        );
+      } else {
+        return (
+          <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+            🟩 Parent Assembly
+          </Badge>
+        );
+      }
+    }
+    
+    // Fallback to pattern-based logic for search results
+    const workOrderNumber = workOrder.workOrderNumber || '';
+    const workOrderParts = workOrderNumber.split('-');
+    const isComponent = workOrderParts.length === 4 && /WO-\d{4}-\d+-\d+-\d+/.test(workOrderNumber);
+    
+    if (isComponent) {
+      return (
+        <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
+          🟪 Component
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+          🟩 Parent Assembly
+        </Badge>
+      );
     }
   };
   
