@@ -772,6 +772,20 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
     let foundFile = null;
     let foundPath = '';
 
+    // First, let's see what files actually exist in the Test_Procedures directory
+    console.log('📁 Scanning GCS for Test Procedures files...');
+    try {
+      const [files] = await bucket.getFiles({
+        prefix: 'QMS/Test_Procedures/'
+      });
+      console.log('📋 Found files in Test_Procedures directory:');
+      files.forEach((file, index) => {
+        console.log(`${index + 1}. ${file.name}`);
+      });
+    } catch (e) {
+      console.log('⚠️ Could not scan GCS directory:', e.message);
+    }
+
     // Try each path strategy
     for (const strategy of pathStrategies) {
       try {
