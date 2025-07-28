@@ -56,16 +56,24 @@ const PMAFileInfo: React.FC<PMAFileInfoProps> = ({ pmaId, showEmptyState = false
         throw new Error(`Download failed: ${response.status} ${errorText}`);
       }
       
-      // Get file content as blob
-      const blob = await response.blob();
-      console.log('File blob received, size:', blob.size);
+      const result = await response.json();
+      console.log('Download result:', result);
       
-      // Create download link
+      if (!result.downloadUrl) {
+        throw new Error('No download URL provided');
+      }
+      
+      // Use the signed URL from the response
+      const downloadResponse = await fetch(result.downloadUrl);
+      if (!downloadResponse.ok) {
+        throw new Error('Failed to fetch file from signed URL');
+      }
+      
+      const blob = await downloadResponse.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = fileName;
-      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -73,7 +81,7 @@ const PMAFileInfo: React.FC<PMAFileInfoProps> = ({ pmaId, showEmptyState = false
       
       toast({
         title: "Download Started",
-        description: `Downloaded ${fileName}`,
+        description: `Downloading ${fileName}`,
       });
     } catch (error) {
       console.error('Download error:', error);
