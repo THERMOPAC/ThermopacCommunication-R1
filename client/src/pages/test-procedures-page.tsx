@@ -281,12 +281,53 @@ export default function TestProceduresPage() {
 
   const handleDownload = async (procedure: TestProcedure) => {
     try {
-      // Use window.open for direct download
-      window.open(`/api/quality/test-procedures/${procedure.id}/download`, '_blank');
+      console.log('Downloading test procedure:', procedure.id);
+      
+      const response = await fetch(`/api/quality/test-procedures/${procedure.id}/download`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+      
+      console.log('Download response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Download failed:', errorText);
+        throw new Error(`Download failed: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('Download result:', result);
+      
+      if (!result.downloadUrl) {
+        throw new Error('No download URL provided');
+      }
+      
+      // Use the signed URL from the response
+      const downloadResponse = await fetch(result.downloadUrl);
+      if (!downloadResponse.ok) {
+        throw new Error('Failed to fetch file from signed URL');
+      }
+      
+      const blob = await downloadResponse.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = result.fileName || `${procedure.procedureNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Download Started",
+        description: `Downloading ${result.fileName}`,
+      });
     } catch (error) {
+      console.error('Download error:', error);
       toast({
         title: "Error",
-        description: "Failed to download procedure file",
+        description: error instanceof Error ? error.message : "Failed to download procedure file",
         variant: "destructive",
       });
     }

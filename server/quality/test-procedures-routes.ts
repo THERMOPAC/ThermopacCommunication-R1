@@ -643,6 +643,7 @@ router.post('/:id/approve', ensureAuthenticated, async (req: Request, res: Respo
 router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
+    console.log('🔍 Test Procedure Download request for ID:', id);
     
     if (isNaN(id)) {
       return res.status(400).json({ error: 'Invalid procedure ID' });
@@ -722,8 +723,12 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
         expires: Date.now() + 15 * 60 * 1000, // 15 minutes
       });
       
-      // Redirect to signed URL
-      res.redirect(signedUrl);
+      // Return JSON with download URL and metadata
+      res.json({
+        downloadUrl: signedUrl,
+        fileName: `${procedureData.procedureNumber}.${fileExtension}`,
+        procedureNumber: procedureData.procedureNumber
+      });
       
     } catch (gcsError) {
       console.error('GCS error:', gcsError);
