@@ -9,11 +9,11 @@ import {
  * Preview inspection orders for a project
  */
 export const previewInspectionOrders = async (req: Request, res: Response) => {
-  console.log("previewInspectionOrders called with projectId:", req.params.projectId);
+  console.log("[PREVIEW] previewInspectionOrders called with projectId:", req.params.projectId);
   try {
     const projectId = parseInt(req.params.projectId);
     const { newItemsOnly } = req.body;
-    console.log("Parsed projectId:", projectId, "newItemsOnly:", newItemsOnly);
+    console.log("[PREVIEW] Parsed projectId:", projectId, "newItemsOnly:", newItemsOnly);
     
     if (isNaN(projectId)) {
       return res.status(400).json({ error: 'Invalid project ID' });
@@ -97,6 +97,12 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     const componentItems = projectItemsList.filter(item => 
       masterItemChildToParentMap.has(item.itemId)
     );
+    
+    console.log(`[PREVIEW] Make parent items: ${makeParentItems.length}, Buy parent items: ${buyParentItems.length}, Component items: ${componentItems.length}`);
+    console.log(`[PREVIEW] masterItemChildToParentMap has ${masterItemChildToParentMap.size} entries`);
+    if (componentItems.length > 0) {
+      console.log('[PREVIEW] Sample component items:', componentItems.slice(0, 3).map(item => ({ id: item.id, itemId: item.itemId, masterItem: masterItemsMap.get(item.itemId)?.itemCode })));
+    }
     
     // Map project items to their parents for display
     const projectItemParentMap = new Map<number, number>();
