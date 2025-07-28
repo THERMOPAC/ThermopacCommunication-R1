@@ -43,8 +43,15 @@ export default function TestProceduresPage() {
       if (!response.ok) throw new Error("Failed to create procedure");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (newProcedure) => {
       queryClient.invalidateQueries({ queryKey: ["/api/quality/test-procedures"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quality/test-procedures/next-number"] });
+      
+      // If there's a pending file upload, upload it immediately
+      if (fileUpload) {
+        handleImmediateUpload(fileUpload, newProcedure.id);
+      }
+      
       setIsDialogOpen(false);
       resetForm();
       toast({
@@ -119,6 +126,8 @@ export default function TestProceduresPage() {
 
   // File upload state
   const [fileUpload, setFileUpload] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
 
   const resetForm = () => {
     setFormData({
@@ -144,6 +153,55 @@ export default function TestProceduresPage() {
       tags: ""
     });
     setFileUpload(null);
+    setUploadSuccess(false);
+  };
+
+  // Immediate file upload function
+  const handleImmediateUpload = async (file: File, procedureId?: number) => {
+    if (!file || (!editingProcedure && !procedureId)) {
+      toast({
+        title: "Error",
+        description: "No procedure selected for upload",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const targetId = editingProcedure?.id || procedureId;
+      const response = await fetch(`/api/quality/test-procedures/${targetId}/upload`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      setUploadSuccess(true);
+      setFileUpload(null);
+      
+      toast({
+        title: "Success",
+        description: "Document uploaded successfully!",
+      });
+
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload document",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -159,87 +217,18 @@ export default function TestProceduresPage() {
       return;
     }
 
-    // For create, require file upload
-    if (!editingProcedure && !fileUpload) {
-      toast({
-        title: "Error",
-        description: "Please upload a procedure document",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       if (editingProcedure) {
-        // Update existing procedure with optional file upload
-        if (fileUpload) {
-          // If user selected a new file, upload it
-          const updateFormData = new FormData();
-          
-          // Append form fields
-          Object.entries(formData).forEach(([key, value]) => {
-            updateFormData.append(key, value);
-          });
-          
-          // Append file
-          updateFormData.append('file', fileUpload);
-
-          const response = await fetch(`/api/quality/test-procedures/${editingProcedure.id}`, {
-            method: "PUT",
-            body: updateFormData,
-          });
-          
-          if (!response.ok) throw new Error("Failed to update procedure");
-          
-          queryClient.invalidateQueries({ queryKey: ["/api/quality/test-procedures"] });
-          setIsDialogOpen(false);
-          setEditingProcedure(null);
-          resetForm();
-          toast({
-            title: "Success",
-            description: "Test procedure updated successfully with new file",
-          });
-        } else {
-          // No file upload, just update the record
-          const updateData = { ...formData };
-          updateMutation.mutate({ id: editingProcedure.id, data: updateData });
-        }
+        // Update existing procedure
+        const updateData = { ...formData };
+        updateMutation.mutate({ id: editingProcedure.id, data: updateData });
       } else {
-        // Create new procedure with file upload
-        const createFormData = new FormData();
-        
-        // Auto-populate procedure number from API
+        // Create new procedure
         const finalFormData = {
           ...formData,
           procedureNumber: nextProcedureNumber?.procedureNumber || formData.procedureNumber
         };
-        
-        // Append form fields
-        Object.entries(finalFormData).forEach(([key, value]) => {
-          createFormData.append(key, value);
-        });
-        
-        // Append file
-        if (fileUpload) {
-          createFormData.append('file', fileUpload);
-        }
-
-        // Call mutation with FormData
-        const response = await fetch("/api/quality/test-procedures", {
-          method: "POST",
-          body: createFormData,
-        });
-        
-        if (!response.ok) throw new Error("Failed to create procedure");
-        
-        queryClient.invalidateQueries({ queryKey: ["/api/quality/test-procedures"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/quality/test-procedures/next-number"] });
-        setIsDialogOpen(false);
-        resetForm();
-        toast({
-          title: "Success",
-          description: "Test procedure created successfully",
-        });
+        createMutation.mutate(finalFormData);
       }
     } catch (error: any) {
       toast({
@@ -595,22 +584,53 @@ export default function TestProceduresPage() {
                   <Input
                     id="fileUpload"
                     type="file"
-                    onChange={(e) => setFileUpload(e.target.files?.[0] || null)}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0] || null;
+                      setFileUpload(file);
+                      
+                      // For editing procedures, upload immediately
+                      if (editingProcedure && file) {
+                        await handleImmediateUpload(file);
+                      }
+                    }}
                     accept=".pdf,.doc,.docx"
                     className="bg-white dark:bg-gray-900"
+                    disabled={isUploading}
                   />
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     <p>📄 Supported formats: PDF, DOC, DOCX files only</p>
                     <p>📦 Max file size: 10MB</p>
-                    {editingProcedure && (
-                      <p>🔄 Upload a new file to replace the existing document</p>
+                    {editingProcedure ? (
+                      <p>🔄 Files upload immediately upon selection</p>
+                    ) : (
+                      <p>📋 File will upload after procedure creation</p>
                     )}
                   </div>
-                  {fileUpload && (
+                  
+                  {/* Upload Status */}
+                  {isUploading && (
+                    <div className="flex items-center space-x-2 p-2 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                      <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                        Uploading document...
+                      </p>
+                    </div>
+                  )}
+                  
+                  {uploadSuccess && (
                     <div className="flex items-center space-x-2 p-2 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded">
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       <p className="text-sm text-green-700 dark:text-green-300 font-medium">
-                        Selected: {fileUpload.name} ({Math.round(fileUpload.size / 1024)} KB)
+                        ✅ Document uploaded successfully!
+                      </p>
+                    </div>
+                  )}
+                  
+                  {fileUpload && !editingProcedure && (
+                    <div className="flex items-center space-x-2 p-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded">
+                      <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                      <p className="text-sm text-amber-700 dark:text-amber-300 font-medium">
+                        Ready: {fileUpload.name} ({Math.round(fileUpload.size / 1024)} KB)
                       </p>
                     </div>
                   )}
@@ -661,13 +681,15 @@ export default function TestProceduresPage() {
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                <Button 
+                  type="submit" 
+                  disabled={createMutation.isPending || updateMutation.isPending || isUploading || (!editingProcedure && !fileUpload)}
+                >
                   {createMutation.isPending || updateMutation.isPending ? (
                     editingProcedure ? "Updating..." : "Creating..."
                   ) : (
-                    editingProcedure ? 
-                      (fileUpload ? "Update & Upload File" : "Update Procedure") : 
-                      (fileUpload ? "Create & Upload File" : "Select File to Continue")
+                    editingProcedure ? "Update Procedure" : 
+                    fileUpload ? "Create Procedure & Upload File" : "Select File to Continue"
                   )}
                 </Button>
               </div>
