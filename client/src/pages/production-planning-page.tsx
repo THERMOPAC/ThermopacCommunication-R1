@@ -178,9 +178,6 @@ export default function ProductionPlanningPage() {
   // State for searching
   const [searchTerm, setSearchTerm] = useState('');
   const [open, setOpen] = useState(false);
-  const [masterItems, setMasterItems] = useState<any[]>([]);
-  const [projectItems, setProjectItems] = useState<any[]>([]);
-
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [isItemDetailOpen, setIsItemDetailOpen] = useState(false);
   
@@ -189,21 +186,9 @@ export default function ProductionPlanningPage() {
     queryKey: ['/api/projects'],
   });
   
-  // Fetch master items
-  const { data: allMasterItems = [], isLoading: isLoadingMasterItems } = useQuery<any[]>({
-    queryKey: ['/api/master-items'],
-  });
-  
-  // Update masterItems state when the data changes
-  useEffect(() => {
-    if (allMasterItems) {
-      setMasterItems(allMasterItems);
-    }
-  }, [allMasterItems]);
-  
   // Fetch project items when a project is selected
   const { 
-    data: selectedProjectItems = [], 
+    data: projectItems = [], 
     isLoading: isLoadingProjectItems,
     refetch: refetchProjectItems
   } = useQuery<any[]>({
@@ -221,13 +206,6 @@ export default function ProductionPlanningPage() {
     },
     enabled: !!selectedProject,
   });
-  
-  // Update project items when data changes
-  useEffect(() => {
-    if (selectedProjectItems) {
-      setProjectItems(selectedProjectItems);
-    }
-  }, [selectedProjectItems]);
 
   // Fetch work orders based on selected project
   const { 
