@@ -244,13 +244,6 @@ export function ProjectItemsImport({
               <div><strong>Make/Buy</strong> - Manufacturing classification (required)</div>
               <div><strong>Drawing No</strong> - Associated drawing number (required)</div>
             </div>
-            <h4 className="text-sm font-medium mt-4">Optional Excel columns:</h4>
-            <div className="grid grid-cols-1 gap-2 text-sm">
-              <div><strong>Specification</strong> - Technical specifications</div>
-              <div><strong>Make</strong> - Manufacturer information</div>
-              <div><strong>Source Type</strong> - Sourcing classification</div>
-              <div><strong>Supplier</strong> - Supplier details</div>
-            </div>
           </div>
 
           <Separator />
