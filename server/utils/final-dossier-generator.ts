@@ -633,24 +633,20 @@ export async function generateFinalDossierPDF(
       }
     }
 
-    // Section 6: Test Procedures - Database Records
-    console.log('🚀 STARTING PROCEDURES SECTION 6 PROCESSING...');
-    const procedureRecords = JSON.parse(inspectionOrder.procedureData || '[]');
-    const hasProcedureRecords = procedureRecords.length > 0;
+    // Section 6: Test Procedures - PDF Documents Only (no database records)
+    console.log('🚀 STARTING PROCEDURES SECTION 6 PROCESSING (PDF documents only)...');
     const hasProcedureDocs = procedureDocs.length > 0;
     
     console.log(`🔍 Procedures Section Debug:`, {
-      procedureDataField: inspectionOrder.procedureData,
-      parsedProcedureRecords: procedureRecords,
-      hasProcedureRecords,
       procedureDocs: procedureDocs.length,
       hasProcedureDocs,
-      willShowProceduresSection: hasProcedureRecords || hasProcedureDocs
+      willShowProceduresSection: hasProcedureDocs
     });
     
-    console.log(`📄 CREATING PROCEDURES SECTION 6 with ${procedureRecords.length} database records and ${procedureDocs.length} PDF documents`);
+    console.log(`📄 CREATING PROCEDURES SECTION 6 with ${procedureDocs.length} PDF documents (database records excluded)`);
     
-    if (hasProcedureRecords || hasProcedureDocs) {
+    // Only create section if there are PDF documents
+    if (hasProcedureDocs) {
       const sectionPage = pdfDoc.addPage();
       sectionPage.drawText('SECTION 6: TEST PROCEDURES', {
         x: pageMargin,
@@ -660,65 +656,10 @@ export async function generateFinalDossierPDF(
         color: rgb(0, 0, 0),
       });
       
-      let currentY = 700;
-      
-      // Display Procedure records if they exist
-      if (hasProcedureRecords) {
-        sectionPage.drawText('Test Procedure Records:', {
-          x: pageMargin,
-          y: currentY,
-          size: 14,
-          font: helveticaBold,
-          color: rgb(0, 0, 0),
-        });
-        currentY -= 30;
-        
-        for (let i = 0; i < procedureRecords.length; i++) {
-          const procedure = procedureRecords[i];
-          const recordText = `${i + 1}. Procedure Number: ${procedure.procedureNumber || 'N/A'}, ` +
-                           `Procedure Name: ${procedure.procedureName || 'N/A'}, ` +
-                           `NDT Method: ${procedure.ndtMethod || 'N/A'}, ` +
-                           `Applicable Standard: ${procedure.applicableStandard || 'N/A'}`;
-          
-          sectionPage.drawText(recordText, {
-            x: pageMargin + 20,
-            y: currentY,
-            size: 10,
-            font: helvetica,
-            color: rgb(0, 0, 0),
-          });
-          currentY -= 20;
-          
-          // Add additional details if available
-          if (procedure.linkedBy || procedure.linkedDate) {
-            const detailText = `   Linked By: ${procedure.linkedBy || 'N/A'}, ` +
-                             `Linked Date: ${procedure.linkedDate || 'N/A'}`;
-            
-            sectionPage.drawText(detailText, {
-              x: pageMargin + 20,
-              y: currentY,
-              size: 9,
-              font: helvetica,
-              color: rgb(0.3, 0.3, 0.3),
-            });
-            currentY -= 15;
-          }
-          
-          // Ensure we don't go off the page
-          if (currentY < 100) {
-            break;
-          }
-        }
-        
-        currentY -= 20; // Add some space between records and documents
-      }
-      
       addFooterToPage(sectionPage);
       
-      // Embed PDF documents if they exist
-      if (hasProcedureDocs) {
-        await embedPDFDocuments(procedureDocs, 'Test Procedures');
-      }
+      // Embed PDF documents
+      await embedPDFDocuments(procedureDocs, 'Test Procedures');
     }
 
     // COMPREHENSIVE PDF DOCUMENT EMBEDDING APPROACH
