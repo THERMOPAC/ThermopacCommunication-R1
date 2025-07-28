@@ -241,11 +241,11 @@ export function ProjectItemsImport({
               <div><strong>Description</strong> - Detailed item description (required)</div>
               <div><strong>Quantity</strong> - Numeric quantity value (required)</div>
               <div><strong>UOM</strong> - Unit of measurement (required)</div>
+              <div><strong>Make/Buy</strong> - Manufacturing classification (required)</div>
+              <div><strong>Drawing No</strong> - Associated drawing number (required)</div>
             </div>
             <h4 className="text-sm font-medium mt-4">Optional Excel columns:</h4>
             <div className="grid grid-cols-1 gap-2 text-sm">
-              <div><strong>Make or Buy</strong> - Manufacturing classification</div>
-              <div><strong>Drawing No</strong> - Associated drawing number</div>
               <div><strong>Specification</strong> - Technical specifications</div>
               <div><strong>Make</strong> - Manufacturer information</div>
               <div><strong>Source Type</strong> - Sourcing classification</div>
