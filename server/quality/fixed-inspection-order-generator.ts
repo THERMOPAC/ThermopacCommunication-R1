@@ -484,6 +484,29 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
         const makeOrderNumber = makeNumberStart + index;
         const makeInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-M-${makeOrderNumber}`;
         
+        // Extract drawing number from masterItem data
+        let drawingNumber = masterItem?.drawingNo || "";
+        if (!drawingNumber && masterItem?.itemCode) {
+          const itemCode = masterItem.itemCode;
+          if (/^\d+$/.test(itemCode)) {
+            // For numeric drawing numbers, use as-is
+            drawingNumber = itemCode;
+          } else if (itemCode.includes('-')) {
+            // For alpha-numeric with hyphens, extract the part before the last segment
+            const parts = itemCode.split('-');
+            if (parts.length >= 2) {
+              drawingNumber = parts.slice(0, -1).join('-');
+            } else {
+              drawingNumber = itemCode;
+            }
+          } else {
+            // If no hyphen, use as-is
+            drawingNumber = itemCode;
+          }
+        }
+        
+        console.log(`Make order ${makeInspectionOrderNumber}: Drawing number extracted: "${drawingNumber}" from itemCode: "${masterItem?.itemCode}"`);
+        
         // Create individual inspection order for this item
         const makeItemOrder = await db.insert(inspectionOrders).values({
           projectId: project.id,
@@ -491,6 +514,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           inspectionOrderNumber: makeInspectionOrderNumber,
           title: `Make Item Inspection - ${masterItem?.itemCode || 'Unknown'}`,
           description: masterItem?.description || 'No description',
+          drawingNo: drawingNumber,
           status: 'pending',
           inspectionType: 'in-process',
           quantity: parseInt(String(item.quantity)),
@@ -533,6 +557,29 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
         const buyOrderNumber = buyNumberStart + index;
         const buyInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-B-${buyOrderNumber}`;
         
+        // Extract drawing number from masterItem data
+        let drawingNumber = masterItem?.drawingNo || "";
+        if (!drawingNumber && masterItem?.itemCode) {
+          const itemCode = masterItem.itemCode;
+          if (/^\d+$/.test(itemCode)) {
+            // For numeric drawing numbers, use as-is
+            drawingNumber = itemCode;
+          } else if (itemCode.includes('-')) {
+            // For alpha-numeric with hyphens, extract the part before the last segment
+            const parts = itemCode.split('-');
+            if (parts.length >= 2) {
+              drawingNumber = parts.slice(0, -1).join('-');
+            } else {
+              drawingNumber = itemCode;
+            }
+          } else {
+            // If no hyphen, use as-is
+            drawingNumber = itemCode;
+          }
+        }
+        
+        console.log(`Buy order ${buyInspectionOrderNumber}: Drawing number extracted: "${drawingNumber}" from itemCode: "${masterItem?.itemCode}"`);
+        
         // Create individual inspection order for this item
         const buyItemOrder = await db.insert(inspectionOrders).values({
           projectId: project.id,
@@ -540,6 +587,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           inspectionOrderNumber: buyInspectionOrderNumber,
           title: `Buy Item Inspection - ${masterItem?.itemCode || 'Unknown'}`,
           description: masterItem?.description || 'No description',
+          drawingNo: drawingNumber,
           status: 'pending',
           inspectionType: 'incoming',
           quantity: parseInt(String(item.quantity)),
@@ -585,6 +633,29 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
         const componentOrderNumber = componentNumberStart + index;
         const componentInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-C-${componentOrderNumber}`;
         
+        // Extract drawing number from masterItem data
+        let drawingNumber = masterItem?.drawingNo || "";
+        if (!drawingNumber && masterItem?.itemCode) {
+          const itemCode = masterItem.itemCode;
+          if (/^\d+$/.test(itemCode)) {
+            // For numeric drawing numbers, use as-is
+            drawingNumber = itemCode;
+          } else if (itemCode.includes('-')) {
+            // For alpha-numeric with hyphens, extract the part before the last segment
+            const parts = itemCode.split('-');
+            if (parts.length >= 2) {
+              drawingNumber = parts.slice(0, -1).join('-');
+            } else {
+              drawingNumber = itemCode;
+            }
+          } else {
+            // If no hyphen, use as-is
+            drawingNumber = itemCode;
+          }
+        }
+        
+        console.log(`Component order ${componentInspectionOrderNumber}: Drawing number extracted: "${drawingNumber}" from itemCode: "${masterItem?.itemCode}"`);
+        
         // Create individual inspection order for this component
         const componentItemOrder = await db.insert(inspectionOrders).values({
           projectId: project.id,
@@ -592,6 +663,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           inspectionOrderNumber: componentInspectionOrderNumber,
           title: `Component Inspection - ${masterItem?.itemCode || 'Unknown'}`,
           description: `${masterItem?.description || 'No description'} (for ${parentMasterItem?.itemCode || 'Unknown'})`,
+          drawingNo: drawingNumber,
           status: 'pending',
           inspectionType: 'in-process',
           quantity: parseInt(String(item.quantity)),
@@ -599,7 +671,6 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           makeOrBuy: masterItem?.makeOrBuy || 'Unknown',
           itemId: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
-          parentItemId: parentProjectItemId || undefined,
           sequenceNumber: componentOrderNumber,
           createdBy: req.user!.id
         }).returning();
