@@ -426,21 +426,63 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       (filteredMakeParentItems.length + filteredBuyParentItems.length + filteredComponentItems.length) : 
       0;
     
-    // Generate unique inspection order numbers
-    const nextSeqNumber = existingInspectionOrders.length + 1;
+    // Extract project number from the project code
+    const [financialYear, projectNumber] = project.code.split('-');
+    
+    // Find the next available numbers for each type
+    const existingMakeNumbers = existingInspectionOrders
+      .filter(order => order.inspectionOrderNumber?.includes(`IO-${financialYear}-${projectNumber}-M-`))
+      .map(order => {
+        const match = order.inspectionOrderNumber?.match(/IO-\d+-\d+-M-(\d+)$/);
+        return match ? parseInt(match[1]) : 0;
+      })
+      .sort((a, b) => a - b);
+    
+    const existingBuyNumbers = existingInspectionOrders
+      .filter(order => order.inspectionOrderNumber?.includes(`IO-${financialYear}-${projectNumber}-B-`))
+      .map(order => {
+        const match = order.inspectionOrderNumber?.match(/IO-\d+-\d+-B-(\d+)$/);
+        return match ? parseInt(match[1]) : 0;
+      })
+      .sort((a, b) => a - b);
+    
+    const existingComponentNumbers = existingInspectionOrders
+      .filter(order => order.inspectionOrderNumber?.includes(`IO-${financialYear}-${projectNumber}-C-`))
+      .map(order => {
+        const match = order.inspectionOrderNumber?.match(/IO-\d+-\d+-C-(\d+)$/);
+        return match ? parseInt(match[1]) : 0;
+      })
+      .sort((a, b) => a - b);
+    
+    console.log(`Existing Make numbers: [${existingMakeNumbers.join(', ')}]`);
+    console.log(`Existing Buy numbers: [${existingBuyNumbers.join(', ')}]`);
+    console.log(`Existing Component numbers: [${existingComponentNumbers.join(', ')}]`);
+    
+    // Function to get next available number
+    const getNextNumber = (existingNumbers: number[]) => {
+      let nextNum = 1;
+      for (const num of existingNumbers) {
+        if (num === nextNum) {
+          nextNum++;
+        } else {
+          break;
+        }
+      }
+      return nextNum;
+    };
     
     // Create individual inspection orders for each Make parent item
     if (filteredMakeParentItems.length > 0) {
-      // Extract project number from the project code
-      const [financialYear, projectNumber] = project.code.split('-');
-      
       console.log(`Creating ${filteredMakeParentItems.length} make item inspection orders`);
+      
+      let makeNumberStart = getNextNumber(existingMakeNumbers);
       
       // Create individual inspection orders for each make item
       for (const [index, item] of filteredMakeParentItems.entries()) {
         console.log(`Creating make item order ${index + 1}/${filteredMakeParentItems.length}: Item ID ${item.id}`);
         const masterItem = masterItemsMap.get(item.itemId);
-        const makeInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-M-${index + 1}`;
+        const makeOrderNumber = makeNumberStart + index;
+        const makeInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-M-${makeOrderNumber}`;
         
         // Create individual inspection order for this item
         const makeItemOrder = await db.insert(inspectionOrders).values({
@@ -456,7 +498,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           makeOrBuy: 'Make',
           itemId: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
-          sequenceNumber: nextSeqNumber + index,
+          sequenceNumber: makeOrderNumber,
           createdBy: req.user!.id
         }).returning();
         
@@ -480,16 +522,16 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     
     // Create individual inspection orders for each Buy parent item
     if (filteredBuyParentItems.length > 0) {
-      // Extract project number from the project code
-      const [financialYear, projectNumber] = project.code.split('-');
-      
       console.log(`Creating ${filteredBuyParentItems.length} buy item inspection orders`);
+      
+      let buyNumberStart = getNextNumber(existingBuyNumbers);
       
       // Create individual inspection orders for each buy item
       for (const [index, item] of filteredBuyParentItems.entries()) {
         console.log(`Creating buy item order ${index + 1}/${filteredBuyParentItems.length}: Item ID ${item.id}`);
         const masterItem = masterItemsMap.get(item.itemId);
-        const buyInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-B-${index + 1}`;
+        const buyOrderNumber = buyNumberStart + index;
+        const buyInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-B-${buyOrderNumber}`;
         
         // Create individual inspection order for this item
         const buyItemOrder = await db.insert(inspectionOrders).values({
@@ -505,7 +547,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           makeOrBuy: 'Buy',
           itemId: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
-          sequenceNumber: nextSeqNumber + filteredMakeParentItems.length + index,
+          sequenceNumber: buyOrderNumber,
           createdBy: req.user!.id
         }).returning();
         
@@ -529,10 +571,9 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     
     // Create individual inspection orders for each component item
     if (filteredComponentItems.length > 0) {
-      // Extract project number from the project code
-      const [financialYear, projectNumber] = project.code.split('-');
-      
       console.log(`Creating ${filteredComponentItems.length} component inspection orders`);
+      
+      let componentNumberStart = getNextNumber(existingComponentNumbers);
       
       // Create individual inspection orders for each component item
       for (const [index, item] of filteredComponentItems.entries()) {
@@ -541,7 +582,8 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
         const parentProjectItemId = projectItemParentMap.get(item.id);
         const parentItem = parentProjectItemId ? projectItemsList.find(pi => pi.id === parentProjectItemId) : null;
         const parentMasterItem = parentItem ? masterItemsMap.get(parentItem.itemId) : null;
-        const componentInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-C-${index + 1}`;
+        const componentOrderNumber = componentNumberStart + index;
+        const componentInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-C-${componentOrderNumber}`;
         
         // Create individual inspection order for this component
         const componentItemOrder = await db.insert(inspectionOrders).values({
@@ -558,7 +600,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           itemId: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
           parentItemId: parentProjectItemId || undefined,
-          sequenceNumber: nextSeqNumber + filteredMakeParentItems.length + filteredBuyParentItems.length + index,
+          sequenceNumber: componentOrderNumber,
           createdBy: req.user!.id
         }).returning();
         
