@@ -798,10 +798,28 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
 
     if (!foundFile) {
       console.log('❌ No file found with any strategy for procedure:', procedure.procedureNumber);
+      
+      // Additional debugging information
+      let attachmentInfo = 'No attachments data';
+      if (procedure.attachments) {
+        try {
+          const attachments = JSON.parse(procedure.attachments);
+          attachmentInfo = `Found ${attachments.length} attachment(s): ${attachments.map(a => a.fileName || a.filename || 'unnamed').join(', ')}`;
+        } catch (e) {
+          attachmentInfo = 'Could not parse attachments';
+        }
+      }
+      
+      console.log('📎 Attachment status:', attachmentInfo);
+      console.log('🎯 Expected primary path:', `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${procedure.procedureNumber}.pdf`);
+      
       return res.status(404).json({ 
         error: 'File not found in storage',
         procedureNumber: procedure.procedureNumber,
-        triedPaths: pathStrategies.map(s => s.path)
+        expectedPath: `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${procedure.procedureNumber}.pdf`,
+        attachmentInfo: attachmentInfo,
+        triedPaths: pathStrategies.map(s => s.path),
+        suggestion: 'The file may need to be uploaded. Use the Upload button to add the document.'
       });
     }
 
