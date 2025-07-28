@@ -8,12 +8,56 @@ import {
 /**
  * Preview inspection orders for a project
  */
+/**
+ * Automatically add missing component items to a project based on item_components relationships
+ */
+async function addMissingComponentItems(projectId: number): Promise<{ added: number, componentIds: number[] }> {
+  // Get all project items
+  const projectItemsList = await db.query.projectItems.findMany({
+    where: eq(projectItems.projectId, projectId)
+  });
+  
+  const masterItemIds = projectItemsList.map(item => item.itemId);
+  
+  // Get component relationships for items in this project
+  const itemComponentRelationships = await db.query.itemComponents.findMany({
+    where: inArray(itemComponents.parentItemId, masterItemIds)
+  });
+  
+  // Find component items that are missing from the project
+  const componentItemIds = itemComponentRelationships.map(rel => rel.componentItemId);
+  const existingItemIds = new Set(projectItemsList.map(item => item.itemId));
+  const missingComponentItemIds = componentItemIds.filter(id => !existingItemIds.has(id));
+  
+  console.log(`[AUTO-ADD] Found ${missingComponentItemIds.length} missing component items for project ${projectId}`);
+  
+  if (missingComponentItemIds.length > 0) {
+    // Add missing component items to the project
+    const newComponentProjectItems = missingComponentItemIds.map(itemId => ({
+      projectId,
+      itemId,
+      quantity: 1
+    }));
+    
+    await db.insert(projectItems).values(newComponentProjectItems);
+    console.log(`[AUTO-ADD] Successfully added ${missingComponentItemIds.length} component items to project ${projectId}`);
+  }
+  
+  return { added: missingComponentItemIds.length, componentIds: missingComponentItemIds };
+}
+
 export const previewInspectionOrders = async (req: Request, res: Response) => {
   console.log("[PREVIEW] previewInspectionOrders called with projectId:", req.params.projectId);
   try {
     const projectId = parseInt(req.params.projectId);
     const { newItemsOnly } = req.body;
     console.log("[PREVIEW] Parsed projectId:", projectId, "newItemsOnly:", newItemsOnly);
+    
+    // Automatically add missing component items
+    const addResult = await addMissingComponentItems(projectId);
+    if (addResult.added > 0) {
+      console.log(`[PREVIEW] Auto-added ${addResult.added} missing component items: ${addResult.componentIds.join(', ')}`);
+    }
     
     if (isNaN(projectId)) {
       return res.status(400).json({ error: 'Invalid project ID' });
@@ -103,6 +147,15 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     if (componentItems.length > 0) {
       console.log('[PREVIEW] Sample component items:', componentItems.slice(0, 3).map(item => ({ id: item.id, itemId: item.itemId, masterItem: masterItemsMap.get(item.itemId)?.itemCode })));
     }
+    
+    // Check if components are missing from project
+    const componentItemIds = itemComponentRelationships.map(rel => rel.componentItemId);
+    const existingComponentItemIds = new Set(projectItemsList.map(item => item.itemId));
+    const missingComponentItemIds = componentItemIds.filter(id => !existingComponentItemIds.has(id));
+    
+    console.log(`[PREVIEW] Component item IDs from relationships: ${componentItemIds.join(', ')}`);
+    console.log(`[PREVIEW] Missing component items not in project: ${missingComponentItemIds.join(', ')}`);
+    console.log(`[PREVIEW] This explains why Component items = 0 despite having ${itemComponentRelationships.length} relationships`);
     
     // Map project items to their parents for display
     const projectItemParentMap = new Map<number, number>();
@@ -230,12 +283,18 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
  * Generate inspection orders for a project
  */
 export const generateInspectionOrders = async (req: Request, res: Response) => {
-  console.log("generateInspectionOrders called with projectId:", req.params.projectId);
-  console.log("Request body:", req.body);
+  console.log("[GENERATE] generateInspectionOrders called with projectId:", req.params.projectId);
+  console.log("[GENERATE] Request body:", req.body);
   try {
     const projectId = parseInt(req.params.projectId);
     const { newItemsOnly } = req.body;
-    console.log("Parsed projectId:", projectId, "newItemsOnly:", newItemsOnly);
+    console.log("[GENERATE] Parsed projectId:", projectId, "newItemsOnly:", newItemsOnly);
+    
+    // Automatically add missing component items
+    const addResult = await addMissingComponentItems(projectId);
+    if (addResult.added > 0) {
+      console.log(`[GENERATE] Auto-added ${addResult.added} missing component items: ${addResult.componentIds.join(', ')}`);
+    }
     
     if (isNaN(projectId)) {
       return res.status(400).json({ error: 'Invalid project ID' });
