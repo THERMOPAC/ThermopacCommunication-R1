@@ -676,32 +676,47 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
       hasAttachments: !!procedure.attachments
     });
 
-    // Try multiple file path strategies to find the file
+    // Helper function to determine standard type
+    const getStandardType = (standard: string | undefined): string => {
+      if (!standard) return 'ASME';
+      if (standard.includes('EN')) return 'EN';
+      if (standard.includes('ASTM')) return 'ASTM';
+      return 'ASME';
+    };
+
+    const standardType = getStandardType(procedure.applicableStandard);
+    console.log('🎯 Standard type determined:', standardType, 'from:', procedure.applicableStandard);
+
+    // Build comprehensive path strategies based on your GCS structure documentation
     const pathStrategies = [];
-    
-    // Strategy 1: Use attachments metadata if available
+
+    // Strategy 1: Official GCS path structure (most likely correct)
+    const officialPath = `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${procedure.procedureNumber}.pdf`;
+    pathStrategies.push({
+      name: 'Official GCS Structure',
+      path: officialPath
+    });
+
+    // Strategy 2: Try with different extensions for official structure
+    const extensions = ['PDF', 'doc', 'docx', 'DOC', 'DOCX'];
+    extensions.forEach(ext => {
+      pathStrategies.push({
+        name: `Official Structure (${ext})`,
+        path: `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${procedure.procedureNumber}.${ext}`
+      });
+    });
+
+    // Strategy 3: Try with uploaded filename from database if available
     if (procedure.attachments) {
       try {
         const attachments = JSON.parse(procedure.attachments);
         console.log('📎 Parsed attachments:', attachments);
         if (attachments.length > 0) {
           const attachment = attachments[0];
-          
-          // Try original file path if available
-          const originalPath = attachment.filePath || attachment.path;
-          if (originalPath) {
-            pathStrategies.push({
-              name: 'Original Attachment Path',
-              path: originalPath
-            });
-          }
-          
-          // Also try using the actual filename that was uploaded
           const uploadedFileName = attachment.fileName || attachment.filename || attachment.originalName;
           if (uploadedFileName) {
-            const standardType = getStandardType(procedure.applicableStandard);
             pathStrategies.push({
-              name: 'Uploaded Filename Path',
+              name: 'Using Uploaded Filename',
               path: `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${uploadedFileName}`
             });
           }
@@ -711,60 +726,24 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
       }
     }
 
-    // Strategy 2: Standard path construction
-    const getStandardType = (standard: string | undefined): string => {
-      if (!standard) return 'ASME';
-      if (standard.includes('EN')) return 'EN';
-      if (standard.includes('ASTM')) return 'ASTM';
-      return 'ASME';
-    };
-
-    const standardType = getStandardType(procedure.applicableStandard);
-    const basePath = `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${procedure.procedureNumber}`;
-    
-    // Try different file extensions
-    const extensions = ['pdf', 'PDF', 'doc', 'docx', 'DOC', 'DOCX'];
-    extensions.forEach(ext => {
+    // Strategy 4: Alternative standard types (in case of misclassification)
+    const alternativeStandards = ['ASME', 'EN', 'ASTM'].filter(s => s !== standardType);
+    alternativeStandards.forEach(altStandard => {
       pathStrategies.push({
-        name: `Standard Path (${ext})`,
-        path: `${basePath}.${ext}`
+        name: `Alternative ${altStandard} Standard`,
+        path: `QMS/Test_Procedures/${procedure.ndtMethod}/${altStandard}/${procedure.procedureNumber}.pdf`
       });
     });
 
-    // Strategy 3: Most likely actual path based on upload system
-    if (procedure.attachments) {
-      try {
-        const attachments = JSON.parse(procedure.attachments);
-        if (attachments.length > 0) {
-          const attachment = attachments[0];
-          const uploadedFileName = attachment.fileName || attachment.filename || attachment.originalName;
-          if (uploadedFileName) {
-            const standardType = getStandardType(procedure.applicableStandard);
-            // This is the most likely correct path based on how files are uploaded
-            pathStrategies.unshift({
-              name: 'Most Likely Correct Path',
-              path: `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${uploadedFileName}`
-            });
-          }
-        }
-      } catch (e) {
-        console.log('⚠️ Could not parse attachments for most likely path:', e);
-      }
-    }
-
-    // Strategy 4: Alternative paths
+    // Strategy 5: Legacy or alternative structures
     pathStrategies.push(
       {
-        name: 'Alternative ASME Path',
-        path: `QMS/Test_Procedures/${procedure.ndtMethod}/ASME/${procedure.procedureNumber}.pdf`
-      },
-      {
-        name: 'Alternative EN Path', 
-        path: `QMS/Test_Procedures/${procedure.ndtMethod}/EN/${procedure.procedureNumber}.pdf`
-      },
-      {
-        name: 'Flat Structure Path',
+        name: 'Flat Structure',
         path: `QMS/Test_Procedures/${procedure.procedureNumber}.pdf`
+      },
+      {
+        name: 'Method Only Structure',
+        path: `QMS/Test_Procedures/${procedure.ndtMethod}/${procedure.procedureNumber}.pdf`
       }
     );
 
@@ -774,13 +753,26 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
 
     // First, let's see what files actually exist in the Test_Procedures directory
     console.log('📁 Scanning GCS for Test Procedures files...');
+    let allFiles = [];
     try {
       const [files] = await bucket.getFiles({
         prefix: 'QMS/Test_Procedures/'
       });
+      allFiles = files.map(f => f.name);
       console.log('📋 Found files in Test_Procedures directory:');
       files.forEach((file, index) => {
         console.log(`${index + 1}. ${file.name}`);
+      });
+      
+      // Also check if our specific procedure file exists in any form
+      const relatedFiles = files.filter(f => 
+        f.name.includes('TP-2025-001') || 
+        f.name.includes('PT') || 
+        f.name.includes('NDT PRO')
+      );
+      console.log('🔍 Files related to TP-2025-001 or PT or NDT PRO:');
+      relatedFiles.forEach((file, index) => {
+        console.log(`  ${index + 1}. ${file.name}`);
       });
     } catch (e) {
       console.log('⚠️ Could not scan GCS directory:', e.message);
