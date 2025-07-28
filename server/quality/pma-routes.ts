@@ -158,12 +158,27 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
       console.log('📦 GCS Storage imported successfully');
       
       // Initialize storage with service account credentials
-      const storage = new Storage({
-        projectId: 'thermopac-communication-system',
-        keyFilename: process.env.GOOGLE_CLOUD_CREDENTIALS
-      });
+      // Handle both JSON string and file path for GOOGLE_CLOUD_CREDENTIALS
+      let storageOptions: any = {
+        projectId: 'thermopac-communication-system'
+      };
 
-      console.log('🔧 GCS Storage client initialized');
+      if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
+        try {
+          // Try to parse as JSON first (direct credentials)
+          const credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS);
+          storageOptions.credentials = credentials;
+          console.log('🔧 Using direct JSON credentials');
+        } catch (parseError) {
+          // If parsing fails, treat as file path
+          storageOptions.keyFilename = process.env.GOOGLE_CLOUD_CREDENTIALS;
+          console.log('🔧 Using keyFilename credentials');
+        }
+      }
+
+      const storage = new Storage(storageOptions);
+
+      console.log('🔧 GCS Storage client initialized with options:', Object.keys(storageOptions));
 
       const bucket = storage.bucket('thermopac_storage');
       const file = bucket.file(pmaDoc.filePath);
