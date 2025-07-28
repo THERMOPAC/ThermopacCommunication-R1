@@ -298,7 +298,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
   console.log("[GENERATE] Request body:", req.body);
   try {
     const projectId = parseInt(req.params.projectId);
-    const { newItemsOnly } = req.body;
+    const { newItemsOnly = true } = req.body; // Default to true to prevent duplicates
     console.log("[GENERATE] Parsed projectId:", projectId, "newItemsOnly:", newItemsOnly);
     
     // Automatically add missing component items
@@ -373,6 +373,10 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       }
     });
     
+    console.log(`[DUPLICATE CHECK] Found ${existingInspectionOrders.length} existing inspection orders for project ${projectId}`);
+    console.log(`[DUPLICATE CHECK] Item IDs with existing inspection orders: [${Array.from(itemsWithInspectionOrders).join(', ')}]`);
+    console.log(`[DUPLICATE CHECK] newItemsOnly flag: ${newItemsOnly}`);
+    
     // Separate items into parent "Make" items, "Buy" items, and component items
     const makeParentItems = projectItemsList.filter(item => {
       const masterItem = masterItemsMap.get(item.itemId);
@@ -416,7 +420,8 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       componentItems.filter(item => !itemsWithInspectionOrders.has(item.id)) : 
       componentItems;
     
-    console.log(`After filtering: ${filteredMakeParentItems.length} make parents, ${filteredBuyParentItems.length} buy parents, ${filteredComponentItems.length} components`);
+    console.log(`[FILTERING] Before filtering: ${makeParentItems.length} make parents, ${buyParentItems.length} buy parents, ${componentItems.length} components`);
+    console.log(`[FILTERING] After filtering: ${filteredMakeParentItems.length} make parents, ${filteredBuyParentItems.length} buy parents, ${filteredComponentItems.length} components`);
     
     // Arrays to store created inspection orders
     const createdInspectionOrders = [];
@@ -425,6 +430,10 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       (makeParentItems.length + buyParentItems.length + componentItems.length) - 
       (filteredMakeParentItems.length + filteredBuyParentItems.length + filteredComponentItems.length) : 
       0;
+    
+    if (skippedItemCount > 0) {
+      console.log(`[FILTERING] Skipped ${skippedItemCount} items that already have inspection orders`);
+    }
     
     // Extract project number from the project code
     const [financialYear, projectNumber] = project.code.split('-');
