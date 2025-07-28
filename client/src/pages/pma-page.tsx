@@ -294,8 +294,50 @@ export default function PMAPage() {
     }
   };
 
-  const handleDownload = (fileUrl: string, fileName: string) => {
-    window.open(fileUrl, '_blank');
+  const handleDownload = async (documentId: number, fileName: string) => {
+    try {
+      console.log('Attempting to download:', { documentId, fileName });
+      
+      const response = await fetch(`/api/quality/pma/${documentId}/download`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+      
+      console.log('Download response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Download failed with response:', errorText);
+        throw new Error(`Download failed: ${response.status} ${errorText}`);
+      }
+      
+      // Get file content as blob
+      const blob = await response.blob();
+      console.log('File blob received, size:', blob.size);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Download Started",
+        description: `Downloaded ${fileName}`,
+      });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: "Download Error",
+        description: error instanceof Error ? error.message : "Failed to download file",
+        variant: "destructive",
+      });
+    }
   };
 
   // Handle file upload for PMA document
@@ -685,7 +727,7 @@ export default function PMAPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDownload(
-                                doc.fileUrl || doc.file_url, 
+                                doc.id, 
                                 doc.originalFileName || doc.original_file_name || 'document'
                               )}
                             >
@@ -718,7 +760,7 @@ export default function PMAPage() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDownload(
-                                  doc.fileUrl || doc.file_url, 
+                                  doc.id, 
                                   doc.originalFileName || doc.original_file_name || 'document'
                                 )}
                                 className="text-purple-600 hover:text-purple-800"

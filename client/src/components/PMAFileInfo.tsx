@@ -56,25 +56,24 @@ const PMAFileInfo: React.FC<PMAFileInfoProps> = ({ pmaId, showEmptyState = false
         throw new Error(`Download failed: ${response.status} ${errorText}`);
       }
       
-      const result = await response.json();
-      console.log('Download result:', result);
+      // Get file content as blob
+      const blob = await response.blob();
+      console.log('File blob received, size:', blob.size);
       
-      if (!result.downloadUrl) {
-        throw new Error('No download URL provided');
-      }
-      
-      // Use the signed URL directly for download (avoid CORS issues)
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = result.downloadUrl;
+      link.href = url;
       link.download = fileName;
       link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
       
       toast({
         title: "Download Started",
-        description: `Downloading ${fileName}`,
+        description: `Downloaded ${fileName}`,
       });
     } catch (error) {
       console.error('Download error:', error);

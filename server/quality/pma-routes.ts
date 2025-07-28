@@ -194,21 +194,22 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
         return res.status(404).json({ error: 'File not found in storage' });
       }
 
-      console.log('🔗 Generating signed URL...');
+      console.log('🔗 Downloading file from GCS...');
 
-      // Generate signed URL for download
-      const [signedUrl] = await file.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 15 * 60 * 1000, // 15 minutes
-      });
-
-      console.log('✅ Signed URL generated successfully');
-
-      res.json({ 
-        downloadUrl: signedUrl,
-        fileName: pmaDoc.originalFileName,
-        pmaNumber: pmaDoc.pmaNumber
-      });
+      // Download file and stream it to the user
+      const [fileBuffer] = await file.download();
+      
+      console.log('✅ File downloaded from GCS successfully');
+      
+      // Set proper headers for file download
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${pmaDoc.originalFileName}"`);
+      res.setHeader('Content-Length', fileBuffer.length);
+      
+      console.log('✅ Headers set, sending file');
+      
+      // Send the file buffer
+      res.send(fileBuffer);
     } catch (error) {
       console.error('❌ Error generating download link:', error);
       res.status(500).json({ error: 'Failed to generate download link' });
