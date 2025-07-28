@@ -41,19 +41,34 @@ const PMAFileInfo: React.FC<PMAFileInfoProps> = ({ pmaId, showEmptyState = false
 
   const handleDownload = async (documentId: number, fileName: string) => {
     try {
+      console.log('Attempting to download:', { documentId, fileName });
+      
       const response = await fetch(`/api/quality/pma/${documentId}/download`, {
         method: 'GET',
         credentials: 'include'
       });
       
+      console.log('Download response status:', response.status);
+      
       if (!response.ok) {
-        throw new Error('Download failed');
+        const errorText = await response.text();
+        console.error('Download failed with response:', errorText);
+        throw new Error(`Download failed: ${response.status} ${errorText}`);
       }
       
       const result = await response.json();
+      console.log('Download result:', result);
+      
+      if (!result.downloadUrl) {
+        throw new Error('No download URL provided');
+      }
       
       // Use the signed URL from the response
       const downloadResponse = await fetch(result.downloadUrl);
+      if (!downloadResponse.ok) {
+        throw new Error('Failed to fetch file from signed URL');
+      }
+      
       const blob = await downloadResponse.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -72,7 +87,7 @@ const PMAFileInfo: React.FC<PMAFileInfoProps> = ({ pmaId, showEmptyState = false
       console.error('Download error:', error);
       toast({
         title: "Download Error",
-        description: "Failed to download file",
+        description: error instanceof Error ? error.message : "Failed to download file",
         variant: "destructive",
       });
     }

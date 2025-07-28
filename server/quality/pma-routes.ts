@@ -4,6 +4,7 @@ import { pmaDocuments, users, materialIdentification } from '@shared/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 import { pmaDocumentSchema, InsertPmaDocument } from '@shared/schema';
 import { uploadFileWithDiagnostics } from '../utils/gcs-enhanced-upload';
+import { ensureAuthenticated } from '../middleware/auth-middleware';
 import multer from 'multer';
 
 const router = express.Router();
@@ -485,9 +486,11 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // GET /api/quality/pma/:id/download - Download PMA document file
-router.get('/:id/download', async (req: Request, res: Response) => {
+router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
+    console.log('🔍 PMA Download request for ID:', id);
+    
     if (isNaN(id)) {
       return res.status(400).json({ error: 'Invalid PMA document ID' });
     }
@@ -496,6 +499,8 @@ router.get('/:id/download', async (req: Request, res: Response) => {
     if (!user?.id) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
+
+    console.log('👤 User authenticated:', user.username);
 
     // Get PMA document
     const document = await db
@@ -510,6 +515,8 @@ router.get('/:id/download', async (req: Request, res: Response) => {
       .where(eq(pmaDocuments.id, id))
       .limit(1);
 
+    console.log('📄 Found document:', document.length > 0 ? document[0] : 'None');
+
     if (document.length === 0) {
       return res.status(404).json({ error: 'PMA document not found' });
     }
@@ -517,6 +524,7 @@ router.get('/:id/download', async (req: Request, res: Response) => {
     const pmaDoc = document[0];
 
     if (!pmaDoc.filePath || !pmaDoc.originalFileName) {
+      console.log('❌ Missing file info:', { filePath: pmaDoc.filePath, originalFileName: pmaDoc.originalFileName });
       return res.status(404).json({ error: 'No file associated with this PMA document' });
     }
 
