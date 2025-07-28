@@ -467,32 +467,8 @@ export default function ProductionPlanningPage() {
   // Function to organize work orders hierarchically and filter them
   const { filteredWorkOrders, organizedWorkOrders } = useMemo(() => {
     if (!selectedProject || !workOrders) {
-      return { filteredWorkOrders: [], organizedWorkOrders: { parentAssemblies: [], components: [] } };
+      return { filteredWorkOrders: [], organizedWorkOrders: [] };
     }
-    
-    // Separate work orders into parent assemblies and components
-    const parentAssemblies: any[] = [];
-    const components: any[] = [];
-    
-    workOrders.forEach((workOrder: any) => {
-      const title = workOrder.title || '';
-      const workOrderNumber = workOrder.workOrderNumber || '';
-      
-      // Check if it's a component work order by:
-      // 1. Title contains "Components for", "Component", or "Sub-assembly"
-      // 2. Work order number pattern indicates sub-component (e.g., WO-2025-1-1-1, WO-2025-1-1-2)
-      const isComponent = 
-        title.includes('Components for') || 
-        title.includes('Component') || 
-        title.includes('Sub-assembly') ||
-        /WO-\d{4}-\d+-\d+-\d+/.test(workOrderNumber); // Pattern: WO-YYYY-X-X-X (has extra dash indicating sub-component)
-      
-      if (isComponent) {
-        components.push(workOrder);
-      } else {
-        parentAssemblies.push(workOrder);
-      }
-    });
     
     // If there's a search term, filter the work orders
     if (searchTerm.trim() !== '') {
@@ -523,9 +499,30 @@ export default function ProductionPlanningPage() {
       
       return { 
         filteredWorkOrders: filtered, 
-        organizedWorkOrders: { parentAssemblies: [], components: [] }
+        organizedWorkOrders: []
       };
     }
+    
+    // Separate work orders into parent assemblies and components
+    const parentAssemblies: any[] = [];
+    const components: any[] = [];
+    
+    workOrders.forEach((workOrder: any) => {
+      const title = workOrder.title || '';
+      const workOrderNumber = workOrder.workOrderNumber || '';
+      
+      // Check if it's a component work order by work order number pattern
+      // Component pattern: WO-YYYY-X-Y-Z (has 4 parts separated by dashes)
+      // Parent pattern: WO-YYYY-X-Y (has 3 parts separated by dashes)
+      const workOrderParts = workOrderNumber.split('-');
+      const isComponent = workOrderParts.length === 4 && /WO-\d{4}-\d+-\d+-\d+/.test(workOrderNumber);
+      
+      if (isComponent) {
+        components.push(workOrder);
+      } else {
+        parentAssemblies.push(workOrder);
+      }
+    });
     
     // Sort both categories in descending order by work order number
     const sortByWorkOrderNumber = (a: any, b: any) => {
@@ -537,9 +534,33 @@ export default function ProductionPlanningPage() {
     parentAssemblies.sort(sortByWorkOrderNumber);
     components.sort(sortByWorkOrderNumber);
     
+    // Create hierarchical structure: each parent followed by its components
+    const hierarchicalWorkOrders: any[] = [];
+    
+    parentAssemblies.forEach((parent: any) => {
+      // Add the parent assembly
+      hierarchicalWorkOrders.push({ ...parent, type: 'parent' });
+      
+      // Find and add components that belong to this parent
+      const parentNumber = parent.workOrderNumber;
+      const relatedComponents = components.filter((component: any) => {
+        const componentNumber = component.workOrderNumber;
+        // Component belongs to parent if it starts with parent number + dash
+        return componentNumber.startsWith(parentNumber + '-');
+      });
+      
+      // Sort related components in descending order
+      relatedComponents.sort(sortByWorkOrderNumber);
+      
+      // Add components with type marker
+      relatedComponents.forEach((component: any) => {
+        hierarchicalWorkOrders.push({ ...component, type: 'component' });
+      });
+    });
+    
     return { 
       filteredWorkOrders: [], 
-      organizedWorkOrders: { parentAssemblies, components }
+      organizedWorkOrders: hierarchicalWorkOrders
     };
   }, [searchTerm, selectedProject, workOrders]);
 
@@ -743,58 +764,27 @@ export default function ProductionPlanningPage() {
               </div>
             ) : searchTerm.trim() !== '' ? null : (
               <div className="space-y-2">
-                {/* Parent Assemblies */}
-                {organizedWorkOrders.parentAssemblies.map((workOrder: any) => (
-                  <div key={`parent-${workOrder.id}`} className="flex items-center justify-between p-4 bg-green-50 rounded border border-green-200">
+                {/* Hierarchical Work Orders */}
+                {organizedWorkOrders.map((workOrder: any) => (
+                  <div 
+                    key={`${workOrder.type}-${workOrder.id}`} 
+                    className={`flex items-center justify-between p-4 rounded border ${
+                      workOrder.type === 'parent' 
+                        ? 'bg-green-50 border-green-200' 
+                        : 'bg-purple-50 border-purple-200 ml-6'
+                    }`}
+                  >
                     <div className="flex items-center gap-3">
-                      <ClipboardList className="w-4 h-4 text-green-600" />
-                      <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
-                        🟩 Parent Assembly
-                      </Badge>
-                      <div>
-                        <div className="font-medium text-gray-900">{workOrder.workOrderNumber}</div>
-                        <div className="text-sm text-gray-600">{workOrder.title}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-sm">
-                        {getStatusBadge(workOrder.status)}
-                      </div>
-                      <div className="text-sm">
-                        {getPriorityBadge(workOrder.priority)}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {workOrder.startDate && new Date(workOrder.startDate).toLocaleDateString()}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => window.location.href = `/production/work-orders/${workOrder.id}`}
-                          title="View Work Order"
-                        >
-                          <Eye className="w-3 h-3" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => window.location.href = `/production/work-orders/edit/${workOrder.id}`}
-                          title="Edit Work Order"
-                        >
-                          <Edit className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Components (indented) */}
-                {organizedWorkOrders.components.map((workOrder: any) => (
-                  <div key={`component-${workOrder.id}`} className="flex items-center justify-between p-4 bg-purple-50 rounded border border-purple-200 ml-6">
-                    <div className="flex items-center gap-3">
-                      <ClipboardList className="w-4 h-4 text-purple-600" />
-                      <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
-                        🟪 Component
+                      <ClipboardList className={`w-4 h-4 ${workOrder.type === 'parent' ? 'text-green-600' : 'text-purple-600'}`} />
+                      <Badge 
+                        variant="outline" 
+                        className={
+                          workOrder.type === 'parent'
+                            ? 'bg-green-100 text-green-700 border-green-300'
+                            : 'bg-purple-100 text-purple-700 border-purple-300'
+                        }
+                      >
+                        {workOrder.type === 'parent' ? '🟩 Parent Assembly' : '🟪 Component'}
                       </Badge>
                       <div>
                         <div className="font-medium text-gray-900">{workOrder.workOrderNumber}</div>
@@ -834,7 +824,7 @@ export default function ProductionPlanningPage() {
                 ))}
 
                 {/* Message when no work orders exist */}
-                {organizedWorkOrders.parentAssemblies.length === 0 && organizedWorkOrders.components.length === 0 && (
+                {organizedWorkOrders.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
                     No work orders found for this project.
                   </div>
