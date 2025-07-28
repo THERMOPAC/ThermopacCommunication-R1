@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Edit2, FileText, Search, Download, File, Calendar, User } from "lucide-react";
-import type { TestProcedure, TestProcedureInsert } from "@/shared/schema";
+import type { TestProcedure, TestProcedureInsert } from "../../../shared/schema";
 
 export default function TestProceduresPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -23,12 +23,12 @@ export default function TestProceduresPage() {
   const queryClient = useQueryClient();
 
   // Fetch test procedures
-  const { data: procedures = [], isLoading } = useQuery({
+  const { data: procedures = [], isLoading } = useQuery<TestProcedure[]>({
     queryKey: ["/api/quality/test-procedures"],
   });
 
   // Fetch next procedure ID
-  const { data: nextProcedureNumber } = useQuery({
+  const { data: nextProcedureNumber } = useQuery<{ procedureNumber: string }>({
     queryKey: ["/api/quality/test-procedures/next-number"],
   });
 
@@ -303,21 +303,14 @@ export default function TestProceduresPage() {
         throw new Error('No download URL provided');
       }
       
-      // Use the signed URL from the response
-      const downloadResponse = await fetch(result.downloadUrl);
-      if (!downloadResponse.ok) {
-        throw new Error('Failed to fetch file from signed URL');
-      }
-      
-      const blob = await downloadResponse.blob();
-      const url = window.URL.createObjectURL(blob);
+      // Use the signed URL to download the file
       const link = document.createElement('a');
-      link.href = url;
+      link.href = result.downloadUrl;
       link.download = result.fileName || `${procedure.procedureNumber}.pdf`;
+      link.target = '_blank';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
       
       toast({
         title: "Download Started",
