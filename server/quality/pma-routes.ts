@@ -390,6 +390,59 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
 
 
+// Get PMA documents/files by PMA ID - for file info component
+router.get('/:id/documents', async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid PMA document ID' });
+    }
+
+    const document = await db
+      .select({
+        id: pmaDocuments.id,
+        pmaNumber: pmaDocuments.pmaNumber,
+        filePath: pmaDocuments.filePath,
+        fileUrl: pmaDocuments.fileUrl,
+        originalFileName: pmaDocuments.originalFileName,
+        createdBy: pmaDocuments.createdBy,
+        createdAt: pmaDocuments.createdAt,
+        updatedAt: pmaDocuments.updatedAt,
+        creatorName: users.username,
+      })
+      .from(pmaDocuments)
+      .leftJoin(users, eq(pmaDocuments.createdBy, users.id))
+      .where(eq(pmaDocuments.id, id))
+      .limit(1);
+
+    if (document.length === 0) {
+      return res.status(404).json({ error: 'PMA document not found' });
+    }
+
+    // Return as array to match expected format for file info components
+    const documentInfo = document[0];
+    if (documentInfo.filePath && documentInfo.originalFileName) {
+      res.json([{
+        id: documentInfo.id,
+        fileName: documentInfo.originalFileName,
+        filePath: documentInfo.filePath,
+        fileUrl: documentInfo.fileUrl,
+        uploadDate: documentInfo.createdAt,
+        uploadedBy: documentInfo.creatorName,
+        lastModified: documentInfo.updatedAt,
+        documentType: 'PMA Document',
+        description: `PMA Document: ${documentInfo.pmaNumber}`,
+        fileSize: null // Not stored in database
+      }]);
+    } else {
+      res.json([]);
+    }
+  } catch (error) {
+    console.error('Error fetching PMA documents:', error);
+    res.status(500).json({ error: 'Failed to fetch PMA documents' });
+  }
+});
+
 // Get PMA document by ID
 router.get('/:id', async (req: Request, res: Response) => {
   try {
@@ -428,6 +481,82 @@ router.get('/:id', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching PMA document:', error);
     res.status(500).json({ error: 'Failed to fetch PMA document' });
+  }
+});
+
+// GET /api/quality/pma/:id/download - Download PMA document file
+router.get('/:id/download', async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid PMA document ID' });
+    }
+
+    const user = req.user as any;
+    if (!user?.id) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Get PMA document
+    const document = await db
+      .select({
+        id: pmaDocuments.id,
+        pmaNumber: pmaDocuments.pmaNumber,
+        filePath: pmaDocuments.filePath,
+        fileUrl: pmaDocuments.fileUrl,
+        originalFileName: pmaDocuments.originalFileName,
+      })
+      .from(pmaDocuments)
+      .where(eq(pmaDocuments.id, id))
+      .limit(1);
+
+    if (document.length === 0) {
+      return res.status(404).json({ error: 'PMA document not found' });
+    }
+
+    const pmaDoc = document[0];
+
+    if (!pmaDoc.filePath || !pmaDoc.originalFileName) {
+      return res.status(404).json({ error: 'No file associated with this PMA document' });
+    }
+
+    try {
+      // Import Google Cloud Storage dynamically
+      const { Storage } = await import('@google-cloud/storage');
+      
+      // Initialize storage with service account credentials
+      const storage = new Storage({
+        projectId: 'thermopac-communication-system',
+        keyFilename: process.env.GOOGLE_CLOUD_CREDENTIALS
+      });
+
+      const bucket = storage.bucket('thermopac_storage');
+      const file = bucket.file(pmaDoc.filePath);
+
+      // Check if file exists
+      const [exists] = await file.exists();
+      if (!exists) {
+        return res.status(404).json({ error: 'File not found in storage' });
+      }
+
+      // Generate signed URL for download
+      const [signedUrl] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+      });
+
+      res.json({ 
+        downloadUrl: signedUrl,
+        fileName: pmaDoc.originalFileName,
+        pmaNumber: pmaDoc.pmaNumber
+      });
+    } catch (error) {
+      console.error('Error generating download link:', error);
+      res.status(500).json({ error: 'Failed to generate download link' });
+    }
+  } catch (error) {
+    console.error('Error downloading PMA document:', error);
+    res.status(500).json({ error: 'Failed to download PMA document' });
   }
 });
 

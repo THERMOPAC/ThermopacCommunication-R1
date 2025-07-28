@@ -16,7 +16,8 @@ import { toast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit2, Search, Eye, Download, FileIcon, Upload } from 'lucide-react';
+import { Plus, Edit2, Search, Eye, Download, FileIcon, Upload, File, Calendar, User } from 'lucide-react';
+import PMAFileInfo from '@/components/PMAFileInfo';
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 
@@ -34,12 +35,15 @@ const pmaFormSchema = z.object({
 
 type PMAFormData = z.infer<typeof pmaFormSchema>;
 
+
+
 export default function PMAPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedPMA, setSelectedPMA] = useState<any>(null);
   const [fileUpload, setFileUpload] = useState<File | null>(null);
+  const [createdPMAId, setCreatedPMAId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -174,15 +178,16 @@ export default function PMAPage() {
 
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/quality/pma'] });
-      setIsAddDialogOpen(false);
+      setCreatedPMAId(data.id?.toString() || null);
       setFileUpload(null);
       form.reset();
       toast({
         title: 'Success',
         description: 'PMA document created successfully',
       });
+      // Don't close dialog immediately to show uploaded files info
     },
     onError: (error: Error) => {
       toast({
@@ -365,7 +370,13 @@ export default function PMAPage() {
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle>PMA (Particular Material Appraisal) Documents</CardTitle>
-              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+                setIsAddDialogOpen(open);
+                if (!open) {
+                  setCreatedPMAId(null);
+                  setFileUpload(null);
+                }
+              }}>
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="w-4 h-4 mr-2" />
@@ -566,8 +577,22 @@ export default function PMAPage() {
                         )}
                       </div>
 
+                      {/* Uploaded Files Information Section */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-gray-700">Uploaded Files Information</Label>
+                        <PMAFileInfo pmaId={createdPMAId} showEmptyState={true} />
+                      </div>
+
                       <div className="flex justify-end space-x-2">
-                        <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => {
+                            setIsAddDialogOpen(false);
+                            setCreatedPMAId(null);
+                            setFileUpload(null);
+                          }}
+                        >
                           Cancel
                         </Button>
                         <Button type="submit" disabled={createPMAMutation.isPending || !fileUpload}>
@@ -893,6 +918,12 @@ export default function PMAPage() {
                   {fileUpload && (
                     <p className="text-sm text-green-600">New file selected: {fileUpload.name}</p>
                   )}
+                </div>
+
+                {/* Uploaded Files Information Section */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">Uploaded Files Information</Label>
+                  <PMAFileInfo pmaId={selectedPMA?.id?.toString() || null} showEmptyState={true} />
                 </div>
 
                 <div className="flex justify-end space-x-2">
