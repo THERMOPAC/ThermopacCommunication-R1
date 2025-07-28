@@ -44,6 +44,14 @@ export async function generateFinalDossierPDF(
     // Helper function to fetch uploaded documents for each tab
     const fetchTabDocuments = async (tabName: string): Promise<string[]> => {
       try {
+        // Handle special cases for PMA and Procedures which have different storage locations
+        if (tabName === 'PMA') {
+          return await fetchPMADocuments();
+        }
+        if (tabName === 'Procedures') {
+          return await fetchProceduresDocuments();
+        }
+        
         const basePath = `QMS/Inspections_Records/${inspectionOrder.projectCode || 'UNKNOWN'}/${inspectionOrder.inspectionOrderNumber}/${tabName}/`;
         console.log(`🔍 Fetching documents for tab: ${tabName} at path: ${basePath}`);
         
@@ -54,6 +62,108 @@ export async function generateFinalDossierPDF(
         return pdfFiles;
       } catch (error) {
         console.error(`❌ Error fetching documents for ${tabName}:`, error);
+        return [];
+      }
+    };
+
+    // Helper function to fetch PMA documents from their actual storage location
+    const fetchPMADocuments = async (): Promise<string[]> => {
+      try {
+        const pmaRecords = JSON.parse(inspectionOrder.pmaData || '[]');
+        const pmaDocs: string[] = [];
+        
+        console.log(`🔍 Fetching PMA documents for ${pmaRecords.length} PMA records`);
+        
+        for (const pma of pmaRecords) {
+          if (pma.pmaNumber) {
+            // PMA documents are stored at QMS/PMA_Records/{pmaNumber}.pdf
+            const pmaPath = `QMS/PMA_Records/${pma.pmaNumber}.pdf`;
+            try {
+              const { bucket } = await initializeGCS();
+              if (bucket) {
+                const [exists] = await bucket.file(pmaPath).exists();
+                if (exists) {
+                  pmaDocs.push(pmaPath);
+                  console.log(`✅ Found PMA document: ${pmaPath}`);
+                } else {
+                  console.log(`❌ PMA document not found: ${pmaPath}`);
+                }
+              }
+            } catch (e) {
+              console.log(`❌ Error checking PMA document: ${pmaPath}`, e);
+            }
+          }
+        }
+        
+        console.log(`📁 Found ${pmaDocs.length} PMA PDF documents total`);
+        return pmaDocs;
+      } catch (error) {
+        console.error(`❌ Error fetching PMA documents:`, error);
+        return [];
+      }
+    };
+
+    // Helper function to fetch Test Procedures documents from their actual storage location
+    const fetchProceduresDocuments = async (): Promise<string[]> => {
+      try {
+        const procedureRecords = JSON.parse(inspectionOrder.procedureData || '[]');
+        const procedureDocs: string[] = [];
+        
+        console.log(`🔍 Fetching Procedures documents for ${procedureRecords.length} procedure records`);
+        
+        for (const procedure of procedureRecords) {
+          if (procedure.procedureNumber) {
+            // Try to fetch from test procedures table to get NDT method and standard
+            const testProcedure = await db.query.testProcedures.findFirst({
+              where: eq(testProcedures.procedureNumber, procedure.procedureNumber)
+            });
+            
+            if (testProcedure?.ndtMethod && testProcedure?.applicableStandard) {
+              // Determine standard type from applicableStandard field
+              const getStandardType = (standard: string | undefined): string => {
+                if (!standard) return 'Other';
+                
+                // ASME Standards
+                if (standard.includes('ASME') || standard.includes('ASTM') || 
+                    standard.includes('API') || standard.includes('AWS')) {
+                  return 'ASME';
+                }
+                
+                // EN Standards  
+                if (standard.includes('EN')) {
+                  return 'EN';
+                }
+                
+                return 'Other';
+              };
+              
+              const standardType = getStandardType(testProcedure.applicableStandard);
+              const procedurePath = `QMS/Test_Procedures/${testProcedure.ndtMethod}/${standardType}/${procedure.procedureNumber}.pdf`;
+              
+              try {
+                const { bucket } = await initializeGCS();
+                if (bucket) {
+                  const [exists] = await bucket.file(procedurePath).exists();
+                  if (exists) {
+                    procedureDocs.push(procedurePath);
+                    console.log(`✅ Found Procedure document: ${procedurePath}`);
+                  } else {
+                    console.log(`❌ Procedure document not found: ${procedurePath}`);
+                  }
+                }
+              } catch (e) {
+                console.log(`❌ Error checking Procedure document: ${procedurePath}`, e);
+              }
+            } else {
+              console.log(`❌ Missing NDT method or standard for procedure: ${procedure.procedureNumber}`);
+            }
+          }
+        }
+        
+        console.log(`📁 Found ${procedureDocs.length} Procedure PDF documents total`);
+        return procedureDocs;
+      } catch (error) {
+        console.error(`❌ Error fetching Procedures documents:`, error);
         return [];
       }
     };
@@ -382,6 +492,8 @@ export async function generateFinalDossierPDF(
 
     // Fetch documents from all sources
     console.log('🚀 Starting comprehensive document compilation for Final Dossier...');
+    console.log('📋 About to fetch PMA documents using specialized function...');
+    console.log('📋 About to fetch Procedures documents using specialized function...');
     const [
       approvedDrawingDocs,
       dvrDocs,
