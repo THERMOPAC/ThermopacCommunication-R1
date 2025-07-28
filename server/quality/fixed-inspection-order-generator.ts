@@ -12,6 +12,16 @@ import {
  * Automatically add missing component items to a project based on item_components relationships
  */
 async function addMissingComponentItems(projectId: number): Promise<{ added: number, componentIds: number[] }> {
+  // Get project details first
+  const project = await db.query.projects.findFirst({
+    where: eq(projects.id, projectId)
+  });
+  
+  if (!project) {
+    console.log(`[AUTO-ADD] Project ${projectId} not found`);
+    return { added: 0, componentIds: [] };
+  }
+  
   // Get all project items
   const projectItemsList = await db.query.projectItems.findMany({
     where: eq(projectItems.projectId, projectId)
@@ -35,12 +45,13 @@ async function addMissingComponentItems(projectId: number): Promise<{ added: num
     // Add missing component items to the project
     const newComponentProjectItems = missingComponentItemIds.map(itemId => ({
       projectId,
+      projectCode: project.code,
       itemId,
       quantity: 1
     }));
     
     await db.insert(projectItems).values(newComponentProjectItems);
-    console.log(`[AUTO-ADD] Successfully added ${missingComponentItemIds.length} component items to project ${projectId}`);
+    console.log(`[AUTO-ADD] Successfully added ${missingComponentItemIds.length} component items to project ${projectId} (${project.code})`);
   }
   
   return { added: missingComponentItemIds.length, componentIds: missingComponentItemIds };
