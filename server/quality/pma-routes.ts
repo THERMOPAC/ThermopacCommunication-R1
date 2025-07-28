@@ -106,6 +106,104 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/quality/pma/:id/download - Download PMA document file (Route order critical!)
+router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    console.log('🔍 PMA Download request for ID:', id);
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid PMA document ID' });
+    }
+
+    const user = req.user as any;
+    if (!user?.id) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    console.log('👤 User authenticated:', user.username);
+
+    // Get PMA document
+    const document = await db
+      .select({
+        id: pmaDocuments.id,
+        pmaNumber: pmaDocuments.pmaNumber,
+        filePath: pmaDocuments.filePath,
+        fileUrl: pmaDocuments.fileUrl,
+        originalFileName: pmaDocuments.originalFileName,
+      })
+      .from(pmaDocuments)
+      .where(eq(pmaDocuments.id, id))
+      .limit(1);
+
+    console.log('📄 Found document:', document.length > 0 ? document[0] : 'None');
+
+    if (document.length === 0) {
+      return res.status(404).json({ error: 'PMA document not found' });
+    }
+
+    const pmaDoc = document[0];
+
+    if (!pmaDoc.filePath || !pmaDoc.originalFileName) {
+      console.log('❌ Missing file info:', { filePath: pmaDoc.filePath, originalFileName: pmaDoc.originalFileName });
+      return res.status(404).json({ error: 'No file associated with this PMA document' });
+    }
+
+    console.log('🔧 Starting GCS download process for:', pmaDoc.filePath);
+
+    try {
+      // Import Google Cloud Storage dynamically
+      const { Storage } = await import('@google-cloud/storage');
+      
+      console.log('📦 GCS Storage imported successfully');
+      
+      // Initialize storage with service account credentials
+      const storage = new Storage({
+        projectId: 'thermopac-communication-system',
+        keyFilename: process.env.GOOGLE_CLOUD_CREDENTIALS
+      });
+
+      console.log('🔧 GCS Storage client initialized');
+
+      const bucket = storage.bucket('thermopac_storage');
+      const file = bucket.file(pmaDoc.filePath);
+
+      console.log('📁 Checking file existence for:', pmaDoc.filePath);
+
+      // Check if file exists
+      const [exists] = await file.exists();
+      console.log('🔍 File exists check result:', exists);
+      
+      if (!exists) {
+        console.log('❌ File not found in storage:', pmaDoc.filePath);
+        return res.status(404).json({ error: 'File not found in storage' });
+      }
+
+      console.log('🔗 Generating signed URL...');
+
+      // Generate signed URL for download
+      const [signedUrl] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+      });
+
+      console.log('✅ Signed URL generated successfully');
+
+      res.json({ 
+        downloadUrl: signedUrl,
+        fileName: pmaDoc.originalFileName,
+        pmaNumber: pmaDoc.pmaNumber
+      });
+    } catch (error) {
+      console.error('❌ Error generating download link:', error);
+      res.status(500).json({ error: 'Failed to generate download link' });
+    }
+  } catch (error) {
+    console.error('Error downloading PMA document:', error);
+    res.status(500).json({ error: 'Failed to download PMA document' });
+  }
+});
+
 // Get PMA document by ID
 router.get('/:id', async (req: Request, res: Response) => {
   try {
@@ -485,88 +583,7 @@ router.get('/:id', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/quality/pma/:id/download - Download PMA document file
-router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Response) => {
-  try {
-    const id = parseInt(req.params.id);
-    console.log('🔍 PMA Download request for ID:', id);
-    
-    if (isNaN(id)) {
-      return res.status(400).json({ error: 'Invalid PMA document ID' });
-    }
 
-    const user = req.user as any;
-    if (!user?.id) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
-
-    console.log('👤 User authenticated:', user.username);
-
-    // Get PMA document
-    const document = await db
-      .select({
-        id: pmaDocuments.id,
-        pmaNumber: pmaDocuments.pmaNumber,
-        filePath: pmaDocuments.filePath,
-        fileUrl: pmaDocuments.fileUrl,
-        originalFileName: pmaDocuments.originalFileName,
-      })
-      .from(pmaDocuments)
-      .where(eq(pmaDocuments.id, id))
-      .limit(1);
-
-    console.log('📄 Found document:', document.length > 0 ? document[0] : 'None');
-
-    if (document.length === 0) {
-      return res.status(404).json({ error: 'PMA document not found' });
-    }
-
-    const pmaDoc = document[0];
-
-    if (!pmaDoc.filePath || !pmaDoc.originalFileName) {
-      console.log('❌ Missing file info:', { filePath: pmaDoc.filePath, originalFileName: pmaDoc.originalFileName });
-      return res.status(404).json({ error: 'No file associated with this PMA document' });
-    }
-
-    try {
-      // Import Google Cloud Storage dynamically
-      const { Storage } = await import('@google-cloud/storage');
-      
-      // Initialize storage with service account credentials
-      const storage = new Storage({
-        projectId: 'thermopac-communication-system',
-        keyFilename: process.env.GOOGLE_CLOUD_CREDENTIALS
-      });
-
-      const bucket = storage.bucket('thermopac_storage');
-      const file = bucket.file(pmaDoc.filePath);
-
-      // Check if file exists
-      const [exists] = await file.exists();
-      if (!exists) {
-        return res.status(404).json({ error: 'File not found in storage' });
-      }
-
-      // Generate signed URL for download
-      const [signedUrl] = await file.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 15 * 60 * 1000, // 15 minutes
-      });
-
-      res.json({ 
-        downloadUrl: signedUrl,
-        fileName: pmaDoc.originalFileName,
-        pmaNumber: pmaDoc.pmaNumber
-      });
-    } catch (error) {
-      console.error('Error generating download link:', error);
-      res.status(500).json({ error: 'Failed to generate download link' });
-    }
-  } catch (error) {
-    console.error('Error downloading PMA document:', error);
-    res.status(500).json({ error: 'Failed to download PMA document' });
-  }
-});
 
 // Get all available materials for linking
 router.get('/materials/available', async (req: Request, res: Response) => {
