@@ -463,16 +463,12 @@ export default function ProductionPlanningPage() {
   
   // Function to organize work orders hierarchically and filter them
   const { filteredWorkOrders, organizedWorkOrders } = useMemo(() => {
-    console.log('🔍 useMemo executing:', { selectedProject, workOrdersLength: workOrders?.length, searchTerm });
-    
     if (!selectedProject || !workOrders) {
-      console.log('❌ Early return: no project or work orders');
       return { filteredWorkOrders: [], organizedWorkOrders: [] };
     }
     
     // If there's a search term, filter the work orders
     if (searchTerm.trim() !== '') {
-      console.log('🔍 Search mode active');
       const lowercaseSearch = searchTerm.toLowerCase();
       
       const filtered = workOrders.filter((workOrder: any) => {
@@ -498,20 +494,17 @@ export default function ProductionPlanningPage() {
         return false;
       });
       
-      console.log('🔍 Filtered results:', filtered.length);
       return { 
         filteredWorkOrders: filtered, 
         organizedWorkOrders: []
       };
     }
     
-    console.log('🏗️ Building hierarchical structure');
     // Separate work orders into parent assemblies and components
     const parentAssemblies: any[] = [];
     const components: any[] = [];
     
     workOrders.forEach((workOrder: any) => {
-      const title = workOrder.title || '';
       const workOrderNumber = workOrder.workOrderNumber || '';
       
       // Check if it's a component work order by work order number pattern
@@ -520,16 +513,12 @@ export default function ProductionPlanningPage() {
       const workOrderParts = workOrderNumber.split('-');
       const isComponent = workOrderParts.length === 5 && /WO-\d{4}-\d+-\d+-\d+/.test(workOrderNumber);
       
-      console.log(`📋 ${workOrderNumber}: ${workOrderParts.length} parts, isComponent: ${isComponent}`);
-      
       if (isComponent) {
         components.push(workOrder);
       } else {
         parentAssemblies.push(workOrder);
       }
     });
-    
-    console.log(`📊 Found ${parentAssemblies.length} parents, ${components.length} components`);
     
     // Sort both categories in descending order by work order number
     const sortByWorkOrderNumber = (a: any, b: any) => {
@@ -547,7 +536,6 @@ export default function ProductionPlanningPage() {
     parentAssemblies.forEach((parent: any) => {
       // Add the parent assembly
       hierarchicalWorkOrders.push({ ...parent, type: 'parent' });
-      console.log(`✅ Added parent: ${parent.workOrderNumber}`);
       
       // Find and add components that belong to this parent
       const parentNumber = parent.workOrderNumber;
@@ -557,19 +545,15 @@ export default function ProductionPlanningPage() {
         return componentNumber.startsWith(parentNumber + '-');
       });
       
-      console.log(`🔗 Found ${relatedComponents.length} components for ${parentNumber}`);
-      
       // Sort related components in descending order
       relatedComponents.sort(sortByWorkOrderNumber);
       
       // Add components with type marker
       relatedComponents.forEach((component: any) => {
         hierarchicalWorkOrders.push({ ...component, type: 'component' });
-        console.log(`  ➡️ Added component: ${component.workOrderNumber}`);
       });
     });
     
-    console.log(`🎯 Final hierarchical structure: ${hierarchicalWorkOrders.length} items`);
     return { 
       filteredWorkOrders: [], 
       organizedWorkOrders: hierarchicalWorkOrders
