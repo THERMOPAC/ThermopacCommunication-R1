@@ -661,11 +661,14 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
       .where(eq(testProcedures.id, id))
       .limit(1);
     
+    console.log('📄 Found procedure:', procedure.length > 0 ? procedure[0] : 'None');
+    
     if (procedure.length === 0) {
       return res.status(404).json({ error: 'Test procedure not found' });
     }
     
     const procedureData = procedure[0];
+    console.log('📋 Procedure data:', procedureData);
     
     // Determine standard type from applicableStandard field
     const getStandardType = (standard: string | undefined): string => {
@@ -686,12 +689,14 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
     };
     
     const standardType = getStandardType(procedureData.applicableStandard);
+    console.log('🔍 Standard type determined:', standardType, 'from standard:', procedureData.applicableStandard);
     
     // Parse attachments to get file extension
     let fileExtension = 'pdf';
     if (procedureData.attachments) {
       try {
         const attachments = JSON.parse(procedureData.attachments);
+        console.log('📎 Parsed attachments:', attachments);
         if (attachments.length > 0) {
           const fileName = attachments[0].filename || attachments[0].originalName;
           if (fileName) {
@@ -706,6 +711,7 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
     
     // Construct file path using new three-level structure
     const filePath = `QMS/Test_Procedures/${procedureData.ndtMethod}/${standardType}/${procedureData.procedureNumber}.${fileExtension}`;
+    console.log('📁 Constructed file path:', filePath);
     
     try {
       const { bucket } = await initializeGCS();
@@ -713,7 +719,9 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
       
       // Check if file exists
       const [exists] = await file.exists();
+      console.log('🔍 File exists check:', exists, 'for path:', filePath);
       if (!exists) {
+        console.log('❌ File not found at:', filePath);
         return res.status(404).json({ error: 'File not found in storage' });
       }
       
