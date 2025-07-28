@@ -319,67 +319,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const XLSX = await import('xlsx');
       
-      // Create sample data for project items
+      // Create sample data for project items with only required columns
       const sampleData = [
         {
           'Item Code': 'PUMP-CPS-001',
           'Description': 'Centrifugal Pump for CPS System 100HP',
-          'Quantity': 2,
           'UOM': 'Nos',
-          'Make or Buy': 'Buy',
-          'Drawing No': 'DWG-CPS-PUMP-001',
-          'Specification': 'ANSI B73.1 End Suction Pump',
-          'Make': 'Grundfos',
-          'Source Type': 'Vendor',
-          'Supplier': 'Grundfos India Pvt Ltd'
+          'Make/Buy': 'Buy',
+          'Drawing No': 'DWG-CPS-PUMP-001'
         },
         {
           'Item Code': 'VLV-GATE-002',
           'Description': 'Gate Valve DN150 PN16 Carbon Steel',
-          'Quantity': 8,
           'UOM': 'Nos',
-          'Make or Buy': 'Buy',
-          'Drawing No': 'DWG-CPS-VLV-002',
-          'Specification': 'API 600 Class 150',
-          'Make': 'L&T Valves',
-          'Source Type': 'Vendor',
-          'Supplier': 'L&T Valves Limited'
+          'Make/Buy': 'Buy',
+          'Drawing No': 'DWG-CPS-VLV-002'
         },
         {
           'Item Code': 'PIPE-CS-003',
           'Description': 'Carbon Steel Pipe 6" Sch40 ASTM A106 Gr.B',
-          'Quantity': 120,
           'UOM': 'Meter',
-          'Make or Buy': 'Buy',
-          'Drawing No': 'DWG-CPS-PIPE-003',
-          'Specification': 'ASTM A106 Grade B Seamless',
-          'Make': 'Jindal Steel',
-          'Source Type': 'Mill',
-          'Supplier': 'Jindal Steel & Power Ltd'
+          'Make/Buy': 'Buy',
+          'Drawing No': 'DWG-CPS-PIPE-003'
         },
         {
           'Item Code': 'TANK-SS-004',
           'Description': 'Storage Tank 2000L SS316L Vertical',
-          'Quantity': 1,
           'UOM': 'Nos',
-          'Make or Buy': 'Make',
-          'Drawing No': 'DWG-CPS-TANK-004',
-          'Specification': 'ASME VIII Div 1 Design',
-          'Make': 'Thermopac',
-          'Source Type': 'In-house',
-          'Supplier': 'Internal Manufacturing'
+          'Make/Buy': 'Make',
+          'Drawing No': 'DWG-CPS-TANK-004'
         },
         {
           'Item Code': 'MTR-ELEC-005',
           'Description': 'Electric Motor 75HP 415V 50Hz IE3',
-          'Quantity': 3,
           'UOM': 'Nos',
-          'Make or Buy': 'Buy',
-          'Drawing No': 'DWG-CPS-MTR-005',
-          'Specification': 'IE3 Efficiency TEFC Enclosure',
-          'Make': 'ABB',
-          'Source Type': 'OEM',
-          'Supplier': 'ABB India Limited'
+          'Make/Buy': 'Buy',
+          'Drawing No': 'DWG-CPS-MTR-005'
         }
       ];
 
@@ -390,15 +365,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set column widths for better readability
       const columnWidths = [
         { wch: 18 }, // Item Code
-        { wch: 40 }, // Description
-        { wch: 10 }, // Quantity
-        { wch: 10 }, // UOM
-        { wch: 12 }, // Make or Buy
-        { wch: 20 }, // Drawing No
-        { wch: 30 }, // Specification
-        { wch: 15 }, // Make
-        { wch: 12 }, // Source Type
-        { wch: 25 }  // Supplier
+        { wch: 45 }, // Description
+        { wch: 12 }, // UOM
+        { wch: 15 }, // Make/Buy
+        { wch: 25 }  // Drawing No
       ];
       worksheet['!cols'] = columnWidths;
 
