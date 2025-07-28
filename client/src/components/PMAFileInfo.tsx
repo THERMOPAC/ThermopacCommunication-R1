@@ -63,21 +63,14 @@ const PMAFileInfo: React.FC<PMAFileInfoProps> = ({ pmaId, showEmptyState = false
         throw new Error('No download URL provided');
       }
       
-      // Use the signed URL from the response
-      const downloadResponse = await fetch(result.downloadUrl);
-      if (!downloadResponse.ok) {
-        throw new Error('Failed to fetch file from signed URL');
-      }
-      
-      const blob = await downloadResponse.blob();
-      const url = window.URL.createObjectURL(blob);
+      // Use the signed URL directly for download (avoid CORS issues)
       const link = document.createElement('a');
-      link.href = url;
+      link.href = result.downloadUrl;
       link.download = fileName;
+      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
       
       toast({
         title: "Download Started",
