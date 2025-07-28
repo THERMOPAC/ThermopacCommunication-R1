@@ -641,7 +641,12 @@ router.post('/:id/approve', ensureAuthenticated, async (req: Request, res: Respo
 
 // GET /api/quality/test-procedures/:id/download - Download test procedure file
 router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Response) => {
-  console.log('🔥 TEST PROCEDURES DOWNLOAD ENDPOINT HIT - ID:', req.params.id);
+  console.log('='.repeat(80));
+  console.log('🔥🔥🔥 TEST PROCEDURES DOWNLOAD ENDPOINT HIT!!! 🔥🔥🔥');
+  console.log('Request ID:', req.params.id);
+  console.log('Request URL:', req.url);
+  console.log('Request Path:', req.path);
+  console.log('='.repeat(80));
   
   try {
     const id = parseInt(req.params.id);
@@ -678,13 +683,26 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
     if (procedure.attachments) {
       try {
         const attachments = JSON.parse(procedure.attachments);
+        console.log('📎 Parsed attachments:', attachments);
         if (attachments.length > 0) {
           const attachment = attachments[0];
+          
+          // Try original file path if available
           const originalPath = attachment.filePath || attachment.path;
           if (originalPath) {
             pathStrategies.push({
               name: 'Original Attachment Path',
               path: originalPath
+            });
+          }
+          
+          // Also try using the actual filename that was uploaded
+          const uploadedFileName = attachment.fileName || attachment.filename || attachment.originalName;
+          if (uploadedFileName) {
+            const standardType = getStandardType(procedure.applicableStandard);
+            pathStrategies.push({
+              name: 'Uploaded Filename Path',
+              path: `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${uploadedFileName}`
             });
           }
         }
@@ -713,7 +731,28 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
       });
     });
 
-    // Strategy 3: Alternative paths
+    // Strategy 3: Most likely actual path based on upload system
+    if (procedure.attachments) {
+      try {
+        const attachments = JSON.parse(procedure.attachments);
+        if (attachments.length > 0) {
+          const attachment = attachments[0];
+          const uploadedFileName = attachment.fileName || attachment.filename || attachment.originalName;
+          if (uploadedFileName) {
+            const standardType = getStandardType(procedure.applicableStandard);
+            // This is the most likely correct path based on how files are uploaded
+            pathStrategies.unshift({
+              name: 'Most Likely Correct Path',
+              path: `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${uploadedFileName}`
+            });
+          }
+        }
+      } catch (e) {
+        console.log('⚠️ Could not parse attachments for most likely path:', e);
+      }
+    }
+
+    // Strategy 4: Alternative paths
     pathStrategies.push(
       {
         name: 'Alternative ASME Path',
