@@ -527,6 +527,16 @@ export default function ProductionPlanningPage() {
       };
     }
     
+    // Sort both categories in descending order by work order number
+    const sortByWorkOrderNumber = (a: any, b: any) => {
+      const numA = a.workOrderNumber || '';
+      const numB = b.workOrderNumber || '';
+      return numB.localeCompare(numA); // Descending order
+    };
+    
+    parentAssemblies.sort(sortByWorkOrderNumber);
+    components.sort(sortByWorkOrderNumber);
+    
     return { 
       filteredWorkOrders: [], 
       organizedWorkOrders: { parentAssemblies, components }
