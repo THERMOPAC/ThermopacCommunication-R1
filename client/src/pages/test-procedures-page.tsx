@@ -592,6 +592,110 @@ export default function TestProceduresPage() {
         </CardContent>
       </Card>
 
+      {/* GCS Storage Path Information */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <FileText className="h-5 w-5 mr-2" />
+            GCS Storage Paths for NDT Methods
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground mb-4">
+              Test procedure documents are stored in Google Cloud Storage using the following path structure:
+            </p>
+            
+            <div className="grid gap-3">
+              {/* HT - Hydraulic Testing */}
+              <div className="flex items-start space-x-3 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                  HT
+                </Badge>
+                <div className="flex-1">
+                  <p className="font-medium text-sm">Hydraulic Testing</p>
+                  <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono">
+                    QMS/Test_Procedures/HT/ASME/{`{procedureNumber}`}.pdf
+                  </code>
+                </div>
+              </div>
+
+              {/* PNT - Pneumatic Testing */}
+              <div className="flex items-start space-x-3 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                  PNT
+                </Badge>
+                <div className="flex-1">
+                  <p className="font-medium text-sm">Pneumatic Testing</p>
+                  <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono">
+                    QMS/Test_Procedures/PNT/ASME/{`{procedureNumber}`}.pdf
+                  </code>
+                </div>
+              </div>
+
+              {/* RT - Radiographic Testing */}
+              <div className="flex items-start space-x-3 p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
+                <Badge variant="outline" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                  RT
+                </Badge>
+                <div className="flex-1">
+                  <p className="font-medium text-sm">Radiographic Testing</p>
+                  <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono">
+                    QMS/Test_Procedures/RT/ASME/{`{procedureNumber}`}.pdf
+                  </code>
+                </div>
+              </div>
+
+              {/* PT - Penetrant Testing */}
+              <div className="flex items-start space-x-3 p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
+                <Badge variant="outline" className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">
+                  PT
+                </Badge>
+                <div className="flex-1">
+                  <p className="font-medium text-sm">Penetrant Testing</p>
+                  <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono">
+                    QMS/Test_Procedures/PT/EN/{`{procedureNumber}`}.pdf
+                  </code>
+                </div>
+              </div>
+
+              {/* UT - Ultrasonic Testing */}
+              <div className="flex items-start space-x-3 p-3 bg-cyan-50 dark:bg-cyan-950/20 rounded-lg">
+                <Badge variant="outline" className="bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200">
+                  UT
+                </Badge>
+                <div className="flex-1">
+                  <p className="font-medium text-sm">Ultrasonic Testing</p>
+                  <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono">
+                    QMS/Test_Procedures/UT/ASME/{`{procedureNumber}`}.pdf
+                  </code>
+                </div>
+              </div>
+
+              {/* MT - Magnetic Testing */}
+              <div className="flex items-start space-x-3 p-3 bg-pink-50 dark:bg-pink-950/20 rounded-lg">
+                <Badge variant="outline" className="bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200">
+                  MT
+                </Badge>
+                <div className="flex-1">
+                  <p className="font-medium text-sm">Magnetic Testing</p>
+                  <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono">
+                    QMS/Test_Procedures/MT/ASTM/{`{procedureNumber}`}.pdf
+                  </code>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+              <p className="text-xs text-muted-foreground">
+                <strong>Note:</strong> The standard type (ASME, EN, ASTM) in the path is determined by the "Applicable Standards" field selection. 
+                For example, a PT procedure with "EN ISO 3452" standard will be stored in the EN subdirectory.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Procedures Table */}
       <Card>
         <CardHeader>
