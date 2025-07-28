@@ -431,8 +431,186 @@ export async function generateFinalDossierPDF(
       Additional: additionalDocs.length
     });
 
+    // PROCESS DATABASE RECORD SECTIONS FIRST
+    // Section 5: Particular Material Appraisal (PMA) - Database Records
+    console.log('🚀 STARTING PMA SECTION 5 PROCESSING...');
+    const pmaRecords = JSON.parse(inspectionOrder.pmaData || '[]');
+    const hasPmaRecords = pmaRecords.length > 0;
+    const hasPmaDocs = pmaDocs.length > 0;
+    
+    console.log(`🔍 PMA Section Debug:`, {
+      pmaDataField: inspectionOrder.pmaData,
+      parsedPmaRecords: pmaRecords,
+      hasPmaRecords,
+      pmaDocs: pmaDocs.length,
+      hasPmaDocs,
+      willShowPmaSection: hasPmaRecords || hasPmaDocs
+    });
+    
+    console.log(`📄 CREATING PMA SECTION 5 with ${pmaRecords.length} database records and ${pmaDocs.length} PDF documents`);
+    
+    if (hasPmaRecords || hasPmaDocs) {
+      const sectionPage = pdfDoc.addPage();
+      sectionPage.drawText('SECTION 5: PARTICULAR MATERIAL APPRAISAL (PMA)', {
+        x: pageMargin,
+        y: 750,
+        size: 16,
+        font: helveticaBold,
+        color: rgb(0, 0, 0),
+      });
+      
+      let currentY = 700;
+      
+      // Display PMA records if they exist
+      if (hasPmaRecords) {
+        sectionPage.drawText('PMA Records:', {
+          x: pageMargin,
+          y: currentY,
+          size: 14,
+          font: helveticaBold,
+          color: rgb(0, 0, 0),
+        });
+        currentY -= 30;
+        
+        for (let i = 0; i < pmaRecords.length; i++) {
+          const pma = pmaRecords[i];
+          const recordText = `${i + 1}. PMA Number: ${pma.pmaNumber || 'N/A'}, ` +
+                           `Material Specification: ${pma.materialSpecification || 'N/A'}, ` +
+                           `Material Grade: ${pma.materialGrade || 'N/A'}, ` +
+                           `Status: ${pma.status || 'N/A'}`;
+          
+          sectionPage.drawText(recordText, {
+            x: pageMargin + 20,
+            y: currentY,
+            size: 10,
+            font: helvetica,
+            color: rgb(0, 0, 0),
+          });
+          currentY -= 20;
+          
+          // Add additional details if available
+          if (pma.certifiedBy || pma.issueDate || pma.expiryDate) {
+            const detailText = `   Certified By: ${pma.certifiedBy || 'N/A'}, ` +
+                             `Issue Date: ${pma.issueDate || 'N/A'}, ` +
+                             `Expiry Date: ${pma.expiryDate || 'N/A'}`;
+            
+            sectionPage.drawText(detailText, {
+              x: pageMargin + 20,
+              y: currentY,
+              size: 9,
+              font: helvetica,
+              color: rgb(0.3, 0.3, 0.3),
+            });
+            currentY -= 15;
+          }
+          
+          // Ensure we don't go off the page
+          if (currentY < 100) {
+            break;
+          }
+        }
+        
+        currentY -= 20; // Add some space between records and documents
+      }
+      
+      addFooterToPage(sectionPage);
+      
+      // Embed PDF documents if they exist
+      if (hasPmaDocs) {
+        await embedPDFDocuments(pmaDocs, 'Particular Material Appraisal');
+      }
+    }
+
+    // Section 6: Test Procedures - Database Records
+    console.log('🚀 STARTING PROCEDURES SECTION 6 PROCESSING...');
+    const procedureRecords = JSON.parse(inspectionOrder.procedureData || '[]');
+    const hasProcedureRecords = procedureRecords.length > 0;
+    const hasProcedureDocs = procedureDocs.length > 0;
+    
+    console.log(`🔍 Procedures Section Debug:`, {
+      procedureDataField: inspectionOrder.procedureData,
+      parsedProcedureRecords: procedureRecords,
+      hasProcedureRecords,
+      procedureDocs: procedureDocs.length,
+      hasProcedureDocs,
+      willShowProceduresSection: hasProcedureRecords || hasProcedureDocs
+    });
+    
+    console.log(`📄 CREATING PROCEDURES SECTION 6 with ${procedureRecords.length} database records and ${procedureDocs.length} PDF documents`);
+    
+    if (hasProcedureRecords || hasProcedureDocs) {
+      const sectionPage = pdfDoc.addPage();
+      sectionPage.drawText('SECTION 6: TEST PROCEDURES', {
+        x: pageMargin,
+        y: 750,
+        size: 16,
+        font: helveticaBold,
+        color: rgb(0, 0, 0),
+      });
+      
+      let currentY = 700;
+      
+      // Display Procedure records if they exist
+      if (hasProcedureRecords) {
+        sectionPage.drawText('Test Procedure Records:', {
+          x: pageMargin,
+          y: currentY,
+          size: 14,
+          font: helveticaBold,
+          color: rgb(0, 0, 0),
+        });
+        currentY -= 30;
+        
+        for (let i = 0; i < procedureRecords.length; i++) {
+          const procedure = procedureRecords[i];
+          const recordText = `${i + 1}. Procedure Number: ${procedure.procedureNumber || 'N/A'}, ` +
+                           `Procedure Name: ${procedure.procedureName || 'N/A'}, ` +
+                           `NDT Method: ${procedure.ndtMethod || 'N/A'}, ` +
+                           `Applicable Standard: ${procedure.applicableStandard || 'N/A'}`;
+          
+          sectionPage.drawText(recordText, {
+            x: pageMargin + 20,
+            y: currentY,
+            size: 10,
+            font: helvetica,
+            color: rgb(0, 0, 0),
+          });
+          currentY -= 20;
+          
+          // Add additional details if available
+          if (procedure.linkedBy || procedure.linkedDate) {
+            const detailText = `   Linked By: ${procedure.linkedBy || 'N/A'}, ` +
+                             `Linked Date: ${procedure.linkedDate || 'N/A'}`;
+            
+            sectionPage.drawText(detailText, {
+              x: pageMargin + 20,
+              y: currentY,
+              size: 9,
+              font: helvetica,
+              color: rgb(0.3, 0.3, 0.3),
+            });
+            currentY -= 15;
+          }
+          
+          // Ensure we don't go off the page
+          if (currentY < 100) {
+            break;
+          }
+        }
+        
+        currentY -= 20; // Add some space between records and documents
+      }
+      
+      addFooterToPage(sectionPage);
+      
+      // Embed PDF documents if they exist
+      if (hasProcedureDocs) {
+        await embedPDFDocuments(procedureDocs, 'Test Procedures');
+      }
+    }
+
     // COMPREHENSIVE PDF DOCUMENT EMBEDDING APPROACH
-    // Instead of generating table-based pages, embed actual PDF documents from GCS
+    // Now embed PDF documents from other sections
     
     console.log('🔗 Starting systematic PDF document embedding...');
 
@@ -536,181 +714,6 @@ export async function generateFinalDossierPDF(
       // Embed PDF documents if they exist
       if (hasMaterialDocs) {
         await embedPDFDocuments(materialTraceabilityDocs, 'Material Traceability');
-      }
-    }
-
-    // Section 5: Particular Material Appraisal (PMA)
-    const pmaRecords = JSON.parse(inspectionOrder.pmaData || '[]');
-    const hasPmaRecords = pmaRecords.length > 0;
-    const hasPmaDocs = pmaDocs.length > 0;
-    
-    console.log(`🔍 PMA Section Debug:`, {
-      pmaDataField: inspectionOrder.pmaData,
-      parsedPmaRecords: pmaRecords,
-      hasPmaRecords,
-      pmaDocs: pmaDocs.length,
-      hasPmaDocs,
-      willShowPmaSection: hasPmaRecords || hasPmaDocs
-    });
-    
-    console.log(`📄 CREATING PMA SECTION 5 with ${pmaRecords.length} database records and ${pmaDocs.length} PDF documents`);
-    
-    if (hasPmaRecords || hasPmaDocs) {
-      const sectionPage = pdfDoc.addPage();
-      sectionPage.drawText('SECTION 5: PARTICULAR MATERIAL APPRAISAL (PMA)', {
-        x: pageMargin,
-        y: 750,
-        size: 16,
-        font: helveticaBold,
-        color: rgb(0, 0, 0),
-      });
-      
-      let currentY = 700;
-      
-      // Display PMA records if they exist
-      if (hasPmaRecords) {
-        sectionPage.drawText('PMA Records:', {
-          x: pageMargin,
-          y: currentY,
-          size: 14,
-          font: helveticaBold,
-          color: rgb(0, 0, 0),
-        });
-        currentY -= 30;
-        
-        for (let i = 0; i < pmaRecords.length; i++) {
-          const pma = pmaRecords[i];
-          const recordText = `${i + 1}. PMA Number: ${pma.pmaNumber || 'N/A'}, ` +
-                           `Material Specification: ${pma.materialSpecification || 'N/A'}, ` +
-                           `Material Grade: ${pma.materialGrade || 'N/A'}, ` +
-                           `Status: ${pma.status || 'N/A'}`;
-          
-          sectionPage.drawText(recordText, {
-            x: pageMargin + 20,
-            y: currentY,
-            size: 10,
-            font: helvetica,
-            color: rgb(0, 0, 0),
-          });
-          currentY -= 20;
-          
-          // Add additional details if available
-          if (pma.certifiedBy || pma.issueDate || pma.expiryDate) {
-            const detailText = `   Certified By: ${pma.certifiedBy || 'N/A'}, ` +
-                             `Issue Date: ${pma.issueDate || 'N/A'}, ` +
-                             `Expiry Date: ${pma.expiryDate || 'N/A'}`;
-            
-            sectionPage.drawText(detailText, {
-              x: pageMargin + 20,
-              y: currentY,
-              size: 9,
-              font: helvetica,
-              color: rgb(0.3, 0.3, 0.3),
-            });
-            currentY -= 15;
-          }
-          
-          // Ensure we don't go off the page
-          if (currentY < 100) {
-            break;
-          }
-        }
-        
-        currentY -= 20; // Add some space between records and documents
-      }
-      
-      addFooterToPage(sectionPage);
-      
-      // Embed PDF documents if they exist
-      if (hasPmaDocs) {
-        await embedPDFDocuments(pmaDocs, 'Particular Material Appraisal');
-      }
-    }
-
-    // Section 6: Test Procedures
-    const procedureRecords = JSON.parse(inspectionOrder.procedureData || '[]');
-    const hasProcedureRecords = procedureRecords.length > 0;
-    const hasProcedureDocs = procedureDocs.length > 0;
-    
-    console.log(`🔍 Procedures Section Debug:`, {
-      procedureDataField: inspectionOrder.procedureData,
-      parsedProcedureRecords: procedureRecords,
-      hasProcedureRecords,
-      procedureDocs: procedureDocs.length,
-      hasProcedureDocs,
-      willShowProceduresSection: hasProcedureRecords || hasProcedureDocs
-    });
-    
-    console.log(`📄 CREATING PROCEDURES SECTION 6 with ${procedureRecords.length} database records and ${procedureDocs.length} PDF documents`);
-    
-    if (hasProcedureRecords || hasProcedureDocs) {
-      const sectionPage = pdfDoc.addPage();
-      sectionPage.drawText('SECTION 6: TEST PROCEDURES', {
-        x: pageMargin,
-        y: 750,
-        size: 16,
-        font: helveticaBold,
-        color: rgb(0, 0, 0),
-      });
-      
-      let currentY = 700;
-      
-      // Display Procedure records if they exist
-      if (hasProcedureRecords) {
-        sectionPage.drawText('Test Procedure Records:', {
-          x: pageMargin,
-          y: currentY,
-          size: 14,
-          font: helveticaBold,
-          color: rgb(0, 0, 0),
-        });
-        currentY -= 30;
-        
-        for (let i = 0; i < procedureRecords.length; i++) {
-          const procedure = procedureRecords[i];
-          const recordText = `${i + 1}. Procedure Number: ${procedure.procedureNumber || 'N/A'}, ` +
-                           `Procedure Name: ${procedure.procedureName || 'N/A'}, ` +
-                           `NDT Method: ${procedure.ndtMethod || 'N/A'}, ` +
-                           `Applicable Standard: ${procedure.applicableStandard || 'N/A'}`;
-          
-          sectionPage.drawText(recordText, {
-            x: pageMargin + 20,
-            y: currentY,
-            size: 10,
-            font: helvetica,
-            color: rgb(0, 0, 0),
-          });
-          currentY -= 20;
-          
-          // Add additional details if available
-          if (procedure.linkedBy || procedure.linkedDate) {
-            const detailText = `   Linked By: ${procedure.linkedBy || 'N/A'}, ` +
-                             `Linked Date: ${procedure.linkedDate || 'N/A'}`;
-            
-            sectionPage.drawText(detailText, {
-              x: pageMargin + 20,
-              y: currentY,
-              size: 9,
-              font: helvetica,
-              color: rgb(0.3, 0.3, 0.3),
-            });
-            currentY -= 15;
-          }
-          
-          // Ensure we don't go off the page
-          if (currentY < 100) {
-            break;
-          }
-        }
-        
-        currentY -= 20; // Add some space between records and documents
-      }
-      
-      addFooterToPage(sectionPage);
-      
-      // Embed PDF documents if they exist
-      if (hasProcedureDocs) {
-        await embedPDFDocuments(procedureDocs, 'Test Procedures');
       }
     }
 
