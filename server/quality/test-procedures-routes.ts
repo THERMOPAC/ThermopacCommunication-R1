@@ -641,110 +641,142 @@ router.post('/:id/approve', ensureAuthenticated, async (req: Request, res: Respo
 
 // GET /api/quality/test-procedures/:id/download - Download test procedure file
 router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Response) => {
+  console.log('🔥 TEST PROCEDURES DOWNLOAD ENDPOINT HIT - ID:', req.params.id);
+  
   try {
     const id = parseInt(req.params.id);
-    console.log('🔍 Test Procedure Download request for ID:', id);
     
     if (isNaN(id)) {
+      console.log('❌ Invalid ID provided:', req.params.id);
       return res.status(400).json({ error: 'Invalid procedure ID' });
     }
-    
-    // Get the test procedure details
-    const procedure = await db
-      .select({
-        procedureNumber: testProcedures.procedureNumber,
-        ndtMethod: testProcedures.ndtMethod,
-        applicableStandard: testProcedures.applicableStandard,
-        attachments: testProcedures.attachments
-      })
+
+    // Get procedure from database
+    const [procedure] = await db
+      .select()
       .from(testProcedures)
       .where(eq(testProcedures.id, id))
       .limit(1);
-    
-    console.log('📄 Found procedure:', procedure.length > 0 ? procedure[0] : 'None');
-    
-    if (procedure.length === 0) {
+
+    if (!procedure) {
+      console.log('❌ Procedure not found for ID:', id);
       return res.status(404).json({ error: 'Test procedure not found' });
     }
+
+    console.log('✅ Found procedure:', {
+      id: procedure.id,
+      procedureNumber: procedure.procedureNumber,
+      ndtMethod: procedure.ndtMethod,
+      applicableStandard: procedure.applicableStandard,
+      hasAttachments: !!procedure.attachments
+    });
+
+    // Try multiple file path strategies to find the file
+    const pathStrategies = [];
     
-    const procedureData = procedure[0];
-    console.log('📋 Procedure data:', procedureData);
-    
-    // Determine standard type from applicableStandard field
-    const getStandardType = (standard: string | undefined): string => {
-      if (!standard) return 'Other';
-      
-      // ASME Standards
-      if (standard.includes('ASME') || standard.includes('ASTM') || 
-          standard.includes('API') || standard.includes('AWS')) {
-        return 'ASME';
-      }
-      
-      // EN Standards  
-      if (standard.includes('EN')) {
-        return 'EN';
-      }
-      
-      return 'Other';
-    };
-    
-    const standardType = getStandardType(procedureData.applicableStandard);
-    console.log('🔍 Standard type determined:', standardType, 'from standard:', procedureData.applicableStandard);
-    
-    // Parse attachments to get file extension
-    let fileExtension = 'pdf';
-    if (procedureData.attachments) {
+    // Strategy 1: Use attachments metadata if available
+    if (procedure.attachments) {
       try {
-        const attachments = JSON.parse(procedureData.attachments);
-        console.log('📎 Parsed attachments:', attachments);
+        const attachments = JSON.parse(procedure.attachments);
         if (attachments.length > 0) {
-          const fileName = attachments[0].filename || attachments[0].originalName;
-          if (fileName) {
-            const ext = fileName.split('.').pop();
-            if (ext) fileExtension = ext;
+          const attachment = attachments[0];
+          const originalPath = attachment.filePath || attachment.path;
+          if (originalPath) {
+            pathStrategies.push({
+              name: 'Original Attachment Path',
+              path: originalPath
+            });
           }
         }
       } catch (e) {
-        console.warn('Could not parse attachments:', e);
+        console.log('⚠️ Could not parse attachments:', e);
       }
     }
+
+    // Strategy 2: Standard path construction
+    const getStandardType = (standard: string | undefined): string => {
+      if (!standard) return 'ASME';
+      if (standard.includes('EN')) return 'EN';
+      if (standard.includes('ASTM')) return 'ASTM';
+      return 'ASME';
+    };
+
+    const standardType = getStandardType(procedure.applicableStandard);
+    const basePath = `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${procedure.procedureNumber}`;
     
-    // Construct file path using new three-level structure
-    const filePath = `QMS/Test_Procedures/${procedureData.ndtMethod}/${standardType}/${procedureData.procedureNumber}.${fileExtension}`;
-    console.log('📁 Constructed file path:', filePath);
-    
-    try {
-      const { bucket } = await initializeGCS();
-      const file = bucket.file(filePath);
-      
-      // Check if file exists
-      const [exists] = await file.exists();
-      console.log('🔍 File exists check:', exists, 'for path:', filePath);
-      if (!exists) {
-        console.log('❌ File not found at:', filePath);
-        return res.status(404).json({ error: 'File not found in storage' });
+    // Try different file extensions
+    const extensions = ['pdf', 'PDF', 'doc', 'docx', 'DOC', 'DOCX'];
+    extensions.forEach(ext => {
+      pathStrategies.push({
+        name: `Standard Path (${ext})`,
+        path: `${basePath}.${ext}`
+      });
+    });
+
+    // Strategy 3: Alternative paths
+    pathStrategies.push(
+      {
+        name: 'Alternative ASME Path',
+        path: `QMS/Test_Procedures/${procedure.ndtMethod}/ASME/${procedure.procedureNumber}.pdf`
+      },
+      {
+        name: 'Alternative EN Path', 
+        path: `QMS/Test_Procedures/${procedure.ndtMethod}/EN/${procedure.procedureNumber}.pdf`
+      },
+      {
+        name: 'Flat Structure Path',
+        path: `QMS/Test_Procedures/${procedure.procedureNumber}.pdf`
       }
-      
-      // Generate signed URL for download
-      const [signedUrl] = await file.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 15 * 60 * 1000, // 15 minutes
-      });
-      
-      // Return JSON with download URL and metadata
-      res.json({
-        downloadUrl: signedUrl,
-        fileName: `${procedureData.procedureNumber}.${fileExtension}`,
-        procedureNumber: procedureData.procedureNumber
-      });
-      
-    } catch (gcsError) {
-      console.error('GCS error:', gcsError);
-      res.status(500).json({ error: 'Failed to generate download link' });
+    );
+
+    const { bucket } = await initializeGCS();
+    let foundFile = null;
+    let foundPath = '';
+
+    // Try each path strategy
+    for (const strategy of pathStrategies) {
+      try {
+        console.log(`🔍 Trying ${strategy.name}: ${strategy.path}`);
+        const file = bucket.file(strategy.path);
+        const [exists] = await file.exists();
+        
+        if (exists) {
+          console.log(`✅ Found file using ${strategy.name}: ${strategy.path}`);
+          foundFile = file;
+          foundPath = strategy.path;
+          break;
+        }
+      } catch (e) {
+        console.log(`❌ Error checking ${strategy.name}:`, e.message);
+      }
     }
-    
+
+    if (!foundFile) {
+      console.log('❌ No file found with any strategy for procedure:', procedure.procedureNumber);
+      return res.status(404).json({ 
+        error: 'File not found in storage',
+        procedureNumber: procedure.procedureNumber,
+        triedPaths: pathStrategies.map(s => s.path)
+      });
+    }
+
+    // Generate signed URL
+    const [signedUrl] = await foundFile.getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+    });
+
+    console.log('✅ Generated signed URL for:', foundPath);
+
+    res.json({
+      downloadUrl: signedUrl,
+      fileName: foundPath.split('/').pop() || `${procedure.procedureNumber}.pdf`,
+      procedureNumber: procedure.procedureNumber,
+      foundPath: foundPath
+    });
+
   } catch (error) {
-    console.error('Error downloading test procedure:', error);
+    console.error('❌ Error in test procedure download:', error);
     res.status(500).json({ error: 'Failed to download test procedure' });
   }
 });
