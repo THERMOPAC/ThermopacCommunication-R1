@@ -302,8 +302,8 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req: Request
   }
 });
 
-// PUT /api/quality/test-procedures/:id - Update test procedure
-router.put('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+// PUT /api/quality/test-procedures/:id - Update test procedure (with optional file upload)
+router.put('/:id', ensureAuthenticated, upload.single('file'), async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     const userId = (req.user as any)?.id;
@@ -358,6 +358,76 @@ router.put('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     
     const data = validation.data;
     
+    // Handle file upload if provided
+    let attachmentData = null;
+    if (req.file) {
+      console.log('File provided for update:', req.file.originalname);
+      
+      // Get current procedure data for file path construction
+      const currentProcedure = await db
+        .select({
+          procedureNumber: testProcedures.procedureNumber,
+          ndtMethod: testProcedures.ndtMethod,
+          applicableStandard: testProcedures.applicableStandard
+        })
+        .from(testProcedures)
+        .where(eq(testProcedures.id, id))
+        .limit(1);
+      
+      if (currentProcedure.length === 0) {
+        return res.status(404).json({ error: 'Test procedure not found' });
+      }
+      
+      // Use data from form or existing procedure for file path
+      const procedureNumber = data.procedureNumber || currentProcedure[0].procedureNumber;
+      const ndtMethod = data.ndtMethod || currentProcedure[0].ndtMethod;
+      const applicableStandard = data.applicableStandard || currentProcedure[0].applicableStandard;
+      
+      // Determine standard type from applicableStandard field
+      const getStandardType = (standard: string | undefined): string => {
+        if (!standard) return 'Other';
+        
+        // ASME Standards
+        if (standard.includes('ASME') || standard.includes('ASTM') || 
+            standard.includes('API') || standard.includes('AWS')) {
+          return 'ASME';
+        }
+        
+        // EN Standards  
+        if (standard.includes('EN')) {
+          return 'EN';
+        }
+        
+        return 'Other';
+      };
+      
+      const fileExtension = req.file.originalname.split('.').pop();
+      const fileName = `${procedureNumber}.${fileExtension}`;
+      const standardType = getStandardType(applicableStandard);
+      const gcsPath = `QMS/Test_Procedures/${ndtMethod}/${standardType}/${fileName}`;
+      
+      console.log('Uploading updated file to GCS path:', gcsPath);
+      const uploadResult = await uploadFileWithDiagnostics(
+        gcsPath,
+        req.file.buffer,
+        req.file.mimetype
+      );
+
+      if (!uploadResult.successful) {
+        console.error('File upload failed:', uploadResult.error);
+        return res.status(500).json({ error: 'Failed to upload procedure document' });
+      }
+
+      console.log('File uploaded successfully:', uploadResult.fileUrl);
+      
+      attachmentData = JSON.stringify([{
+        fileName: req.file.originalname,
+        fileUrl: uploadResult.fileUrl,
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: userId
+      }]);
+    }
+    
     // Check if procedure exists
     const existingProcedure = await db
       .select({ id: testProcedures.id })
@@ -387,13 +457,20 @@ router.put('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
       }
     }
     
+    const updatePayload: any = {
+      ...data,
+      updatedBy: userId,
+      updatedAt: new Date(),
+    };
+    
+    // Include attachment data if file was uploaded
+    if (attachmentData) {
+      updatePayload.attachments = attachmentData;
+    }
+    
     const [updatedProcedure] = await db
       .update(testProcedures)
-      .set({
-        ...data,
-        updatedBy: userId,
-        updatedAt: new Date(),
-      })
+      .set(updatePayload)
       .where(eq(testProcedures.id, id))
       .returning();
     

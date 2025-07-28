@@ -171,9 +171,39 @@ export default function TestProceduresPage() {
 
     try {
       if (editingProcedure) {
-        // Update existing procedure
-        const updateData = { ...formData };
-        updateMutation.mutate({ id: editingProcedure.id, data: updateData });
+        // Update existing procedure with optional file upload
+        if (fileUpload) {
+          // If user selected a new file, upload it
+          const updateFormData = new FormData();
+          
+          // Append form fields
+          Object.entries(formData).forEach(([key, value]) => {
+            updateFormData.append(key, value);
+          });
+          
+          // Append file
+          updateFormData.append('file', fileUpload);
+
+          const response = await fetch(`/api/quality/test-procedures/${editingProcedure.id}`, {
+            method: "PUT",
+            body: updateFormData,
+          });
+          
+          if (!response.ok) throw new Error("Failed to update procedure");
+          
+          queryClient.invalidateQueries({ queryKey: ["/api/quality/test-procedures"] });
+          setIsDialogOpen(false);
+          setEditingProcedure(null);
+          resetForm();
+          toast({
+            title: "Success",
+            description: "Test procedure updated successfully with new file",
+          });
+        } else {
+          // No file upload, just update the record
+          const updateData = { ...formData };
+          updateMutation.mutate({ id: editingProcedure.id, data: updateData });
+        }
       } else {
         // Create new procedure with file upload
         const createFormData = new FormData();
@@ -492,19 +522,35 @@ export default function TestProceduresPage() {
 
 
 
-              <div>
-                <Label htmlFor="fileUpload">Procedure Document * (Required)</Label>
-                <Input
-                  id="fileUpload"
-                  type="file"
-                  onChange={(e) => setFileUpload(e.target.files?.[0] || null)}
-                  accept=".pdf,.doc,.docx"
-                  className="mb-2"
-                />
-                <p className="text-sm text-gray-600">Upload procedure document (PDF, DOC, DOCX formats only)</p>
-                {fileUpload && (
-                  <p className="text-sm text-green-600 mt-1">Selected: {fileUpload.name}</p>
-                )}
+              {/* File Upload Section */}
+              <div className="bg-blue-50 border-2 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800 rounded-lg p-4">
+                <Label htmlFor="fileUpload" className="text-base font-semibold">
+                  {editingProcedure ? "Upload New Document (Optional)" : "Procedure Document * (Required)"}
+                </Label>
+                <div className="mt-2 space-y-2">
+                  <Input
+                    id="fileUpload"
+                    type="file"
+                    onChange={(e) => setFileUpload(e.target.files?.[0] || null)}
+                    accept=".pdf,.doc,.docx"
+                    className="bg-white dark:bg-gray-900"
+                  />
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <p>📄 Supported formats: PDF, DOC, DOCX files only</p>
+                    <p>📦 Max file size: 10MB</p>
+                    {editingProcedure && (
+                      <p>🔄 Upload a new file to replace the existing document</p>
+                    )}
+                  </div>
+                  {fileUpload && (
+                    <div className="flex items-center space-x-2 p-2 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <p className="text-sm text-green-700 dark:text-green-300 font-medium">
+                        Selected: {fileUpload.name} ({Math.round(fileUpload.size / 1024)} KB)
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -549,7 +595,13 @@ export default function TestProceduresPage() {
                   Cancel
                 </Button>
                 <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-                  {editingProcedure ? "Update Procedure" : "Create Procedure"}
+                  {createMutation.isPending || updateMutation.isPending ? (
+                    editingProcedure ? "Updating..." : "Creating..."
+                  ) : (
+                    editingProcedure ? 
+                      (fileUpload ? "Update & Upload File" : "Update Procedure") : 
+                      (fileUpload ? "Create & Upload File" : "Select File to Continue")
+                  )}
                 </Button>
               </div>
             </form>
