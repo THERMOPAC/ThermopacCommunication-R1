@@ -7,7 +7,7 @@ import materialIdentificationRoutes from './quality/material-identification-rout
 import inspectionDocumentRoutes from './quality/inspection-document-routes';
 import finalDossierRoutes from './quality/final-dossier-routes';
 import calibrationRoutes from './quality/calibration-routes';
-import { previewInspectionOrders, generateInspectionOrders } from './quality/inspection-order-generator';
+import { previewInspectionOrders, generateInspectionOrders } from './quality/fixed-inspection-order-generator';
 import { db } from './db';
 import { inspectionOrders, inspectionOrderItems, materialInspectionLinks } from '@shared/schema';
 import { eq, and, sql } from 'drizzle-orm';
