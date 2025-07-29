@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -114,6 +114,7 @@ export default function PaymentAllocationPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteAllocationId, setDeleteAllocationId] = useState<number | null>(null);
   const { toast } = useToast();
+  const queryClientInstance = useQueryClient();
 
   // Format currency values
   const formatCurrency = (amount: number) => {
@@ -464,11 +465,16 @@ export default function PaymentAllocationPage() {
     form.reset();
   };
 
+  // Force cache invalidation on component mount
+  useEffect(() => {
+    queryClientInstance.invalidateQueries({ queryKey: ['/api/finance/unallocated-advances'] });
+  }, [queryClientInstance]);
+
   // Get payments with unallocated amounts that can be allocated to invoices
   const { data: paymentsData, isLoading: paymentsLoading, refetch: refetchPayments } = useQuery({
-    queryKey: ['/api/finance/unallocated-advances'],
+    queryKey: ['/api/finance/unallocated-advances', new Date().getTime()],
     staleTime: 0,
-    cacheTime: 0,
+    gcTime: 0,
     queryFn: async () => {
       console.log('🔧 Fetching unallocated advances from fixed endpoint with credentials');
       const response = await fetch('/api/finance/unallocated-advances', {
@@ -613,6 +619,22 @@ export default function PaymentAllocationPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="mb-4 flex gap-2 items-center">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      console.log('🔧 MANUAL REFRESH: Invalidating queries and refetching...');
+                      queryClientInstance.invalidateQueries({ queryKey: ['/api/finance/unallocated-advances'] });
+                      refetchPayments();
+                    }}
+                  >
+                    🔄 Refresh Payments
+                  </Button>
+                  <div className="text-sm text-muted-foreground">
+                    Total payments loaded: {payments.length}
+                  </div>
+                </div>
                 {paymentsLoading ? (
                   <div className="text-center py-4">Loading payments...</div>
                 ) : payments.length === 0 ? (
