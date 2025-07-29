@@ -111,7 +111,7 @@ export class LLMPromptEngine {
           model: modelName,
           messages: [{ role: 'user', content: prompt }],
           max_tokens: Math.min(maxTokens, config.max_tokens),
-          temperature: config.temperature,
+          temperature: parseFloat(config.temperature.toString()),
         });
 
         const result = response.choices[0]?.message?.content || '';
@@ -129,7 +129,7 @@ export class LLMPromptEngine {
         const response = await this.anthropic.messages.create({
           model: DEFAULT_ANTHROPIC_MODEL, // Use latest Claude model
           max_tokens: Math.min(maxTokens, config.max_tokens),
-          temperature: config.temperature,
+          temperature: parseFloat(config.temperature.toString()),
           messages: [{ role: 'user', content: prompt }],
         });
 
