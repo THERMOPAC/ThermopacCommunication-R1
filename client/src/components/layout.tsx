@@ -49,7 +49,8 @@ import {
   Gavel,
   Database,
   Compass,
-  ClipboardCheck
+  ClipboardCheck,
+  Brain
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -197,6 +198,11 @@ function Layout({ children }: LayoutProps) {
       icon: BarChart3, 
       label: "Business Intelligence", 
       href: "/business-intelligence" 
+    }] : []),
+    ...(user?.role === "Superuser" ? [{ 
+      icon: Brain, 
+      label: "LLM Prompt Engine", 
+      href: "/llm-prompt-engine" 
     }] : []),
     ...(hasViewPermission("Meetings & Commitments") ? [{ 
       icon: CalendarDays, 
@@ -388,7 +394,7 @@ function Layout({ children }: LayoutProps) {
             <div>
               <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-2 px-3">Main</h3>
               <ul className="space-y-1">
-                {menuItems.filter(item => !item.isSubmenu && (item.href === '/attendance' || item.href === '/' || item.href === '/tasks' || item.href === '/recurring-tasks' || item.href === '/business-intelligence' || item.href === '/messages')).map((item, index) => {
+                {menuItems.filter(item => !item.isSubmenu && (item.href === '/attendance' || item.href === '/' || item.href === '/tasks' || item.href === '/recurring-tasks' || item.href === '/business-intelligence' || item.href === '/llm-prompt-engine' || item.href === '/messages')).map((item, index) => {
                   const Icon = item.icon;
                   const isActive = item.href ? location === item.href : false;
                   

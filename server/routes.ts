@@ -53,6 +53,7 @@ import { default as cleanPaymentRoutes } from "./clean-payment-routes";
 import { default as basicAllocationApi } from "./basic-allocation-api";
 import { default as workLocationRoutes } from "./work-location-routes";
 import { default as testCaspianEndpoint } from "./test-caspian-endpoint";
+import { default as llmRoutes } from "./llm-routes";
 import { default as attendanceRoutes } from "./attendance-routes";
 import { default as dwarRoutes } from "./dwar-routes";
 import { default as payrollRoutes } from "./payroll-routes-simple";
@@ -73,6 +74,7 @@ import { default as tripManagementRoutes } from "./trip-management-routes";
 import { default as visaManagementRoutes } from "./visa-management-routes";
 import { default as schengenRoutes } from "./schengen-routes";
 import { default as legalManagementRoutes } from "./legal-management-routes";
+import { default as llmRoutes } from "./llm-routes";
 import { default as googleCalendarRoutes } from "./google-calendar-routes";
 import { default as designManagementRoutes } from "./design-management-routes";
 import { businessIntelligenceRoutes } from "./business-intelligence/business-intelligence-routes";
@@ -763,6 +765,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up Business Intelligence routes (Superuser only)
   app.use('/api/business-intelligence', businessIntelligenceRoutes);
   console.log('Business Intelligence routes registered at /api/business-intelligence');
+
+  // LLM Prompt Engine routes registered at /api/llm
+  app.use('/api/llm', llmRoutes);
+  console.log('LLM Prompt Engine routes registered at /api/llm');
 
   // Timezone Detection API
   app.get('/api/timezone/detect', ensureAuthenticated, async (req: any, res: any) => {
