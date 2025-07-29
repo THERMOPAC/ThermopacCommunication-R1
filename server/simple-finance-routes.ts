@@ -126,6 +126,9 @@ router.post('/reject-writeoff/:id', ensureAuthenticated, async (req: Request, re
 router.get('/customers-with-outstanding', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     console.log('=== CUSTOMERS WITH OUTSTANDING ENDPOINT HIT ===');
+    console.log('Request URL:', req.url);
+    console.log('Request method:', req.method);
+    console.log('User authenticated:', !!req.user);
     
     const query = `
       SELECT DISTINCT
@@ -155,6 +158,7 @@ router.get('/customers-with-outstanding', ensureAuthenticated, async (req: Reque
     console.log('Found customers with outstanding invoices OR unallocated payments:', result.rows);
     console.log('Customer names found:', result.rows.map(r => r.name));
     
+    console.log('Sending response with customers:', result.rows.length);
     res.json({
       customers: result.rows
     });
