@@ -788,13 +788,16 @@ export default function LLMPromptEnginePage() {
         
         {/* A/B Test Results Dialog */}
         <Dialog open={!!testResults} onOpenChange={() => setTestResults(null)}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto" aria-describedby="ab-test-results-description">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <TestTube className="w-5 h-5 text-blue-600" />
                 A/B Test Results
               </DialogTitle>
             </DialogHeader>
+            <div id="ab-test-results-description" className="sr-only">
+              View A/B test comparison results between different AI models
+            </div>
             
             {testResults && (
               <div className="space-y-4">
@@ -852,13 +855,16 @@ export default function LLMPromptEnginePage() {
 
         {/* Optimization Results Dialog */}
         <Dialog open={!!optimizationResults} onOpenChange={() => setOptimizationResults(null)}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto" aria-describedby="optimization-results-description">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Lightbulb className="w-5 h-5 text-yellow-600" />
                 Prompt Optimization Results
               </DialogTitle>
             </DialogHeader>
+            <div id="optimization-results-description" className="sr-only">
+              View AI-powered optimization suggestions for prompt improvement
+            </div>
             
             {optimizationResults && (
               <div className="space-y-6">
