@@ -543,7 +543,7 @@ router.get('/payments', ensureAuthenticated, async (req: Request, res: Response)
 });
 
 /**
- * Get unallocated advance payments for a specific customer
+ * Get unallocated advance payments for a specific customer - FIXED to use payment_allocations table
  */
 router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
@@ -560,40 +560,76 @@ router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, as
       ? req.query.invoiceType as string 
       : null;
     
-    console.log(`Fetching unallocated advance payments for customer ID: ${customerIdNum}, invoice type: ${invoiceType || 'all'}`);
+    console.log(`🔧 Fetching unallocated advance payments for customer ID: ${customerIdNum}, invoice type: ${invoiceType || 'all'}`);
+    console.log('🔍 DEBUG: Using CORRECTED payment_allocations table calculation...');
     
-    // Get advance payments for the specific customer with unallocated amounts
-    // If invoiceType is specified, filter by payment_type matching invoice_type
+    // First, let's debug Payment ID 63 specifically for this customer
+    if (customerIdNum === 12) { // CASPIAN LUBRICANTS customer ID
+      const debugQuery = `
+        SELECT 
+          p.id, 
+          p.irm_no,
+          p.amount,
+          COALESCE(SUM(pa.amount_applied), 0) as calculated_allocated,
+          p.amount - COALESCE(SUM(pa.amount_applied), 0) as remaining_amount,
+          c.bp_name as customer_name
+        FROM 
+          payments p
+        JOIN 
+          customers c ON p.customer_id = c.id
+        LEFT JOIN 
+          payment_allocations pa ON p.id = pa.payment_id
+        WHERE 
+          p.id = 63 AND p.customer_id = $1
+        GROUP BY 
+          p.id, c.bp_name, p.irm_no, p.amount
+      `;
+      
+      const debugResult = await pool.query(debugQuery, [customerIdNum]);
+      if (debugResult.rows.length > 0) {
+        const debug63 = debugResult.rows[0];
+        console.log('🔍 Payment ID 63 Debug for Customer:', {
+          id: debug63.id,
+          irm_no: debug63.irm_no,
+          total_amount: debug63.amount,
+          calculated_allocated: debug63.calculated_allocated,
+          remaining_amount: debug63.remaining_amount,
+          should_be_excluded: debug63.remaining_amount <= 0.01,
+          customer_name: debug63.customer_name
+        });
+      }
+    }
+    
+    // Use payment_allocations table to calculate actual unallocated amounts
     const query = `
       SELECT 
         p.id,
-        p.reference_number as "referenceNumber",
+        p.irm_no as "paymentReference",
         p.customer_id as "customerId",
         c.bp_name as "customerName",
         p.payment_date as "paymentDate",
         p.amount,
-        p.allocated_amount as "allocatedAmount",
-        p.unallocated_amount as "unallocatedAmount",
+        COALESCE(SUM(pa.amount_applied), 0) as "calculatedAllocatedAmount",
         p.payment_method as "paymentMethod",
         p.payment_type as "paymentType",
         p.currency,
         p.notes,
-        p.is_advance_payment as "isAdvancePayment",
-        CASE WHEN p.unallocated_amount = p.amount THEN 'Unallocated'
-             WHEN p.unallocated_amount > 0 THEN 'Partially Allocated'
-             ELSE 'Fully Allocated' END as "allocationStatus",
-        p.created_by as "createdBy",
-        p.created_at as "createdAt",
-        p.updated_at as "updatedAt"
+        p.is_advance_payment as "isAdvancePayment"
       FROM 
         payments p
       JOIN 
         customers c ON p.customer_id = c.id
+      LEFT JOIN 
+        payment_allocations pa ON p.id = pa.payment_id
       WHERE 
         p.customer_id = $1
         AND p.is_advance_payment = true
-        AND p.unallocated_amount > 0
         ${invoiceType ? 'AND p.payment_type = $2' : ''}
+      GROUP BY 
+        p.id, c.bp_name, p.irm_no, p.customer_id, p.payment_date, p.amount, 
+        p.payment_method, p.payment_type, p.currency, p.notes, p.is_advance_payment
+      HAVING 
+        p.amount - COALESCE(SUM(pa.amount_applied), 0) > 0.01
       ORDER BY 
         p.payment_date DESC
     `;
@@ -601,19 +637,43 @@ router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, as
     // Add the invoice type parameter if it's provided
     const params = invoiceType ? [customerIdNum, invoiceType] : [customerIdNum];
     const result = await pool.query(query, params);
-    const customerAdvances = result.rows;
+    const advances = result.rows;
     
-    console.log(`Found ${customerAdvances.length} unallocated advance payments for customer ${customerIdNum}`);
+    console.log(`Found ${advances.length} unallocated advance payments for customer ${customerIdNum}`);
+    console.log('🔍 Payment IDs in result:', advances.map(p => p.id));
+    
+    // Format the response with calculated values
+    const formattedAdvances = advances.map(payment => {
+      const totalAmount = parseFloat(payment.amount);
+      const calculatedAllocated = parseFloat(payment.calculatedAllocatedAmount || '0');
+      const remainingAmount = totalAmount - calculatedAllocated;
+      
+      return {
+        id: payment.id,
+        paymentReference: payment.paymentReference,
+        customerId: payment.customerId,
+        customerName: payment.customerName,
+        paymentDate: payment.paymentDate,
+        amount: totalAmount.toString(),
+        allocatedAmount: calculatedAllocated.toString(),
+        unallocatedAmount: remainingAmount.toString(),
+        paymentMethod: payment.paymentMethod,
+        paymentType: payment.paymentType,
+        currency: payment.currency,
+        notes: payment.notes,
+        isAdvancePayment: payment.isAdvancePayment
+      };
+    });
     
     // Calculate total unallocated amount
-    const totalUnallocatedAmount = customerAdvances.reduce((sum, payment) => 
+    const totalUnallocatedAmount = formattedAdvances.reduce((sum, payment) => 
       sum + parseFloat(payment.unallocatedAmount), 0).toFixed(2);
     
     // Return the advances and total
     res.json({
-      advances: customerAdvances,
+      advances: formattedAdvances,
       totalUnallocatedAmount,
-      currency: customerAdvances.length > 0 ? customerAdvances[0].currency : 'USD'
+      currency: formattedAdvances.length > 0 ? formattedAdvances[0].currency : 'USD'
     });
   } catch (error) {
     console.error(`Error getting unallocated advances for customer ${req.params.customerId}:`, error);
@@ -2908,11 +2968,47 @@ router.get('/customers-with-outstanding', ensureAuthenticated, async (req: Reque
 });
 
 /**
- * Get unallocated advance payments - fixed to calculate from payment_invoice_links
+ * Get unallocated advance payments - FIXED to use payment_allocations table
  */
 router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    console.log('Fetching unallocated advance payments with calculated allocation amounts...');
+    console.log('🔧 Fetching unallocated advance payments using CORRECT payment_allocations table...');
+    console.log('🔍 DEBUG: Checking Payment ID 63 specifically...');
+    
+    // First, let's debug Payment ID 63 specifically
+    const debugQuery = `
+      SELECT 
+        p.id, 
+        p.irm_no,
+        p.amount,
+        COALESCE(SUM(pa.amount_applied), 0) as calculated_allocated,
+        p.amount - COALESCE(SUM(pa.amount_applied), 0) as remaining_amount,
+        c.bp_name as customer_name
+      FROM 
+        payments p
+      JOIN 
+        customers c ON p.customer_id = c.id
+      LEFT JOIN 
+        payment_allocations pa ON p.id = pa.payment_id
+      WHERE 
+        p.id = 63
+      GROUP BY 
+        p.id, c.bp_name, p.irm_no, p.amount
+    `;
+    
+    const debugResult = await pool.query(debugQuery);
+    if (debugResult.rows.length > 0) {
+      const debug63 = debugResult.rows[0];
+      console.log('🔍 Payment ID 63 Debug:', {
+        id: debug63.id,
+        irm_no: debug63.irm_no,
+        total_amount: debug63.amount,
+        calculated_allocated: debug63.calculated_allocated,
+        remaining_amount: debug63.remaining_amount,
+        should_be_excluded: debug63.remaining_amount <= 0.01,
+        customer_name: debug63.customer_name
+      });
+    }
     
     const query = `
       SELECT 
@@ -2922,7 +3018,7 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
         c.bp_name as "customerName",
         p.payment_date as "paymentDate",
         p.amount,
-        COALESCE(SUM(pil.amount_applied), 0) as "calculatedAllocatedAmount",
+        COALESCE(SUM(pa.amount_applied), 0) as "calculatedAllocatedAmount",
         p.payment_method as "paymentMethod",
         p.payment_type as "paymentType",
         p.currency,
@@ -2933,14 +3029,14 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
       JOIN 
         customers c ON p.customer_id = c.id
       LEFT JOIN 
-        payment_invoice_links pil ON p.id = pil.payment_id
+        payment_allocations pa ON p.id = pa.payment_id
       WHERE 
         p.is_advance_payment = true
       GROUP BY 
         p.id, c.bp_name, p.irm_no, p.customer_id, p.payment_date, p.amount, 
         p.payment_method, p.payment_type, p.currency, p.notes, p.is_advance_payment
       HAVING 
-        p.amount - COALESCE(SUM(pil.amount_applied), 0) > 0.01
+        p.amount - COALESCE(SUM(pa.amount_applied), 0) > 0.01
       ORDER BY 
         p.payment_date DESC
     `;
@@ -2949,6 +3045,7 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
     const advances = result.rows;
     
     console.log(`Found ${advances.length} unallocated advance payments`);
+    console.log('🔍 Payment IDs in result:', advances.map(p => p.id));
     
     // Format the response with calculated values
     const formattedAdvances = advances.map(payment => {
