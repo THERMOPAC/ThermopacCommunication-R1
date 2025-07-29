@@ -108,6 +108,67 @@ router.get('/prompts', ensureAuthenticated, async (req: Request, res: Response) 
   }
 });
 
+// Get prompts organized by modules
+router.get('/prompts/by-modules', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const query = `
+      SELECT 
+        p.category,
+        COUNT(*) as prompt_count,
+        ARRAY_AGG(
+          JSON_BUILD_OBJECT(
+            'id', p.id,
+            'name', p.name,
+            'description', p.description,
+            'frequency', p.frequency,
+            'priority', p.priority,
+            'model', p.model,
+            'active', p.active,
+            'template', p.template,
+            'avg_rating', COALESCE(pp.avg_rating, 0),
+            'total_executions', COALESCE(pp.total_executions, 0),
+            'last_executed', pp.last_executed,
+            'created_by_name', u.username,
+            'created_at', p.created_at
+          ) ORDER BY p.name
+        ) as prompts
+      FROM llm_prompts_registry p
+      LEFT JOIN users u ON p.created_by = u.id
+      LEFT JOIN llm_prompt_performance pp ON p.id = pp.prompt_id
+      WHERE p.active = true
+      GROUP BY p.category
+      ORDER BY 
+        CASE p.category
+          WHEN 'meetings' THEN 1
+          WHEN 'sap_integration' THEN 2
+          WHEN 'administration' THEN 3
+          WHEN 'finance' THEN 4
+          WHEN 'sales_marketing' THEN 5
+          WHEN 'projects' THEN 6
+          WHEN 'design_management' THEN 7
+          WHEN 'procurement' THEN 8
+          WHEN 'production' THEN 9
+          WHEN 'quality' THEN 10
+          WHEN 'commissioning' THEN 11
+          WHEN 'dispatch_shipping' THEN 12
+          WHEN 'after_sales' THEN 13
+          WHEN 'hr' THEN 14
+          WHEN 'system' THEN 15
+          ELSE 16
+        END
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      moduleGroups: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching module groups:', error);
+    res.status(500).json({ error: 'Failed to fetch module groups' });
+  }
+});
+
 // Create new prompt
 router.post('/prompts', ensureAuthenticated, async (req: Request, res: Response) => {
   try {

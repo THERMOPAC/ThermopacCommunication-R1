@@ -67,6 +67,12 @@ interface LLMPrompt {
   created_by_name?: string;
 }
 
+interface ModuleGroup {
+  category: string;
+  prompt_count: number;
+  prompts: LLMPrompt[];
+}
+
 interface BusinessInsight {
   id: number;
   title: string;
@@ -106,7 +112,7 @@ export default function LLMPromptEnginePage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch prompts
+  // Fetch prompts grouped by modules
   const { data: promptsData, isLoading: promptsLoading } = useQuery({
     queryKey: ['/api/llm/prompts', { category: selectedCategory === 'all' ? undefined : selectedCategory }],
     queryFn: async () => {
@@ -120,6 +126,18 @@ export default function LLMPromptEnginePage() {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch prompts');
+      return response.json();
+    }
+  });
+
+  // Fetch prompts organized by modules
+  const { data: moduleGroupsData, isLoading: moduleGroupsLoading } = useQuery({
+    queryKey: ['/api/llm/prompts/by-modules'],
+    queryFn: async () => {
+      const response = await fetch(`/api/llm/prompts/by-modules`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch module groups');
       return response.json();
     }
   });
@@ -390,13 +408,64 @@ export default function LLMPromptEnginePage() {
 
   const categories = [
     { value: 'all', label: 'All Categories' },
-    { value: 'projects', label: 'Projects' },
-    { value: 'quality', label: 'Quality' },
+    { value: 'meetings', label: 'Meetings & Commitments' },
+    { value: 'sap_integration', label: 'SAP B1 Integration' },
+    { value: 'administration', label: 'Administration' },
     { value: 'finance', label: 'Finance' },
-    { value: 'hr', label: 'HR' },
+    { value: 'sales_marketing', label: 'Sales & Marketing' },
+    { value: 'projects', label: 'Project Management' },
+    { value: 'design_management', label: 'Design Management' },
     { value: 'procurement', label: 'Procurement' },
-    { value: 'system', label: 'System' }
+    { value: 'production', label: 'Production' },
+    { value: 'quality', label: 'Quality Management' },
+    { value: 'commissioning', label: 'Project Commissioning' },
+    { value: 'dispatch_shipping', label: 'Dispatch & Shipping' },
+    { value: 'after_sales', label: 'After-Sales' },
+    { value: 'hr', label: 'HR Management' },
+    { value: 'system', label: 'System Administration' }
   ];
+
+  const getModuleDisplayName = (category: string) => {
+    const categoryMap: Record<string, string> = {
+      'meetings': 'Meetings & Commitments',
+      'sap_integration': 'SAP B1 Integration',
+      'administration': 'Administration',
+      'finance': 'Finance',
+      'sales_marketing': 'Sales & Marketing',
+      'projects': 'Project Management',
+      'design_management': 'Design Management',
+      'procurement': 'Procurement Management',
+      'production': 'Production Management',
+      'quality': 'Quality Management',
+      'commissioning': 'Project Commissioning',
+      'dispatch_shipping': 'Dispatch & Shipping',
+      'after_sales': 'After-Sales',
+      'hr': 'HR Management',
+      'system': 'System Administration'
+    };
+    return categoryMap[category] || category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const getModuleIcon = (category: string) => {
+    const iconMap: Record<string, any> = {
+      'meetings': MessageSquare,
+      'sap_integration': Settings,
+      'administration': Settings,
+      'finance': TrendingUp,
+      'sales_marketing': Target,
+      'projects': BarChart3,
+      'design_management': Lightbulb,
+      'procurement': Plus,
+      'production': Settings,
+      'quality': CheckCircle,
+      'commissioning': Star,
+      'dispatch_shipping': RefreshCw,
+      'after_sales': ThumbsUp,
+      'hr': Clock,
+      'system': Settings
+    };
+    return iconMap[category] || Brain;
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -514,14 +583,149 @@ export default function LLMPromptEnginePage() {
       )}
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue="prompts" className="space-y-4">
+      <Tabs defaultValue="modules" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="prompts">Prompts</TabsTrigger>
+          <TabsTrigger value="modules">Business Modules</TabsTrigger>
+          <TabsTrigger value="prompts">All Prompts</TabsTrigger>
           <TabsTrigger value="insights">Generated Insights</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
-        {/* Prompts Tab */}
+        {/* Business Modules Tab */}
+        <TabsContent value="modules" className="space-y-4">
+          {moduleGroupsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin" />
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {moduleGroupsData?.moduleGroups?.map((moduleGroup: ModuleGroup) => {
+                const ModuleIcon = getModuleIcon(moduleGroup.category);
+                return (
+                  <Card key={moduleGroup.category} className="overflow-hidden">
+                    <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-blue-100 rounded-lg">
+                            <ModuleIcon className="w-6 h-6 text-blue-600" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-xl text-gray-800">
+                              {getModuleDisplayName(moduleGroup.category)}
+                            </CardTitle>
+                            <p className="text-sm text-gray-600">
+                              {moduleGroup.prompt_count} active prompt{moduleGroup.prompt_count !== 1 ? 's' : ''}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="bg-white">
+                          {moduleGroup.prompts.length} prompt{moduleGroup.prompts.length !== 1 ? 's' : ''}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {moduleGroup.prompts.map((prompt: LLMPrompt) => (
+                          <Card key={prompt.id} className="hover:shadow-md transition-shadow border">
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between">
+                                <div className="space-y-1">
+                                  <CardTitle className="text-base">{prompt.name}</CardTitle>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="secondary" className="text-xs">
+                                      {prompt.frequency}
+                                    </Badge>
+                                    <Badge variant="outline" className="text-xs">
+                                      {prompt.model}
+                                    </Badge>
+                                    <Badge 
+                                      variant="outline" 
+                                      className={`text-xs ${getPriorityColor(prompt.priority)}`}
+                                    >
+                                      P{prompt.priority}
+                                    </Badge>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  {prompt.avg_rating && (
+                                    <div className="flex items-center text-sm text-yellow-600">
+                                      <Star className="w-3 h-3 fill-current" />
+                                      <span className="ml-1">{prompt.avg_rating.toFixed(1)}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="pt-0">
+                              <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                                {prompt.description}
+                              </p>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleExecutePrompt(prompt.id)}
+                                    disabled={executingPrompts.has(prompt.id)}
+                                    className="flex-1"
+                                  >
+                                    {executingPrompts.has(prompt.id) ? (
+                                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                                    ) : (
+                                      <Play className="w-3 h-3 mr-1" />
+                                    )}
+                                    Execute
+                                  </Button>
+                                  
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleABTest(prompt.id)}
+                                    disabled={testingPrompts.has(prompt.id)}
+                                  >
+                                    {testingPrompts.has(prompt.id) ? (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <TestTube className="w-3 h-3" />
+                                    )}
+                                  </Button>
+                                  
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleOptimizePrompt(prompt.id)}
+                                    disabled={optimizingPrompts.has(prompt.id)}
+                                  >
+                                    {optimizingPrompts.has(prompt.id) ? (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <Lightbulb className="w-3 h-3" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+                              
+                              {prompt.total_executions > 0 && (
+                                <div className="mt-3 text-xs text-gray-500 flex items-center justify-between">
+                                  <span>{prompt.total_executions} execution{prompt.total_executions !== 1 ? 's' : ''}</span>
+                                  {prompt.last_executed && (
+                                    <span>Last: {new Date(prompt.last_executed).toLocaleDateString()}</span>
+                                  )}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* All Prompts Tab */}
         <TabsContent value="prompts" className="space-y-4">
           {promptsLoading ? (
             <div className="flex items-center justify-center py-12">
