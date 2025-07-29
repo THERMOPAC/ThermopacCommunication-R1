@@ -485,11 +485,13 @@ router.get('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
 });
 
 /**
- * Get all payments
+ * Get all payments - FIXED to calculate allocations from payment_allocations table
  */
 router.get('/payments', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    // Query payments from the database
+    console.log('🔧 MAIN PAYMENTS PAGE: Using CORRECTED payment_allocations table calculation...');
+    
+    // Query payments with calculated allocations from payment_allocations table
     const query = `
       SELECT 
         p.id,
@@ -498,16 +500,12 @@ router.get('/payments', ensureAuthenticated, async (req: Request, res: Response)
         c.bp_name as "customerName",
         p.payment_date as "paymentDate",
         p.amount,
-        p.allocated_amount as "allocatedAmount",
-        p.unallocated_amount as "unallocatedAmount",
+        COALESCE(SUM(pa.amount_applied), 0) as "calculatedAllocatedAmount",
         p.payment_method as "paymentMethod",
         p.payment_type as "paymentType",
         p.currency,
         p.notes,
         p.is_advance_payment as "isAdvancePayment",
-        CASE WHEN p.unallocated_amount = p.amount THEN 'Unallocated'
-             WHEN p.unallocated_amount > 0 THEN 'Partially Allocated'
-             ELSE 'Fully Allocated' END as "allocationStatus",
         p.created_by as "createdBy",
         p.created_at as "createdAt",
         p.updated_at as "updatedAt"
@@ -515,24 +513,59 @@ router.get('/payments', ensureAuthenticated, async (req: Request, res: Response)
         payments p
       LEFT JOIN 
         customers c ON p.customer_id = c.id
+      LEFT JOIN 
+        payment_allocations pa ON p.id = pa.payment_id
+      GROUP BY 
+        p.id, c.bp_name, p.irm_no, p.customer_id, p.payment_date, p.amount, 
+        p.payment_method, p.payment_type, p.currency, p.notes, p.is_advance_payment,
+        p.created_by, p.created_at, p.updated_at
       ORDER BY 
         p.payment_date DESC
     `;
     
     const result = await pool.query(query);
-    const payments = result.rows;
+    const rawPayments = result.rows;
     
-    // Format payments to ensure payment numbers are always displayed
-    const formattedPayments = payments.map(payment => {
-      // Use payment number from irm_no, fallback to formatted ID if not available
-      if (!payment.paymentNumber) {
-        payment.paymentNumber = `PAY-${payment.id}`;
-      }
-      return payment;
+    console.log(`🔍 Raw query returned ${rawPayments.length} payments`);
+    if (rawPayments.find(p => p.id === 63)) {
+      const payment63 = rawPayments.find(p => p.id === 63);
+      console.log('🔍 Payment ID 63 in main payments query:', {
+        id: payment63.id,
+        amount: payment63.amount,
+        calculatedAllocatedAmount: payment63.calculatedAllocatedAmount,
+        calculated_unallocated: parseFloat(payment63.amount) - parseFloat(payment63.calculatedAllocatedAmount || '0')
+      });
+    }
+    
+    // Format payments with calculated allocated and unallocated amounts
+    const formattedPayments = rawPayments.map(payment => {
+      const totalAmount = parseFloat(payment.amount);
+      const calculatedAllocated = parseFloat(payment.calculatedAllocatedAmount || '0');
+      const calculatedUnallocated = totalAmount - calculatedAllocated;
+      
+      return {
+        id: payment.id,
+        paymentNumber: payment.paymentNumber || `PAY-${payment.id}`,
+        customerId: payment.customerId,
+        customerName: payment.customerName,
+        paymentDate: payment.paymentDate,
+        amount: totalAmount.toString(),
+        allocatedAmount: calculatedAllocated.toString(),
+        unallocatedAmount: calculatedUnallocated.toString(),
+        paymentMethod: payment.paymentMethod,
+        paymentType: payment.paymentType,
+        currency: payment.currency,
+        notes: payment.notes,
+        isAdvancePayment: payment.isAdvancePayment,
+        allocationStatus: calculatedUnallocated === totalAmount ? 'Unallocated' :
+                         calculatedUnallocated > 0 ? 'Partially Allocated' : 'Fully Allocated',
+        createdBy: payment.createdBy,
+        createdAt: payment.createdAt,
+        updatedAt: payment.updatedAt
+      };
     });
     
-    // Log the number of payments being returned from the database
-    console.log(`Retrieved ${formattedPayments.length} payments from database`);
+    console.log(`✅ Formatted ${formattedPayments.length} payments with correct allocation calculations`);
     
     // Return payments in a format the client expects
     res.json({ payments: formattedPayments });
