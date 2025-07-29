@@ -383,6 +383,11 @@ export default function LLMPromptEnginePage() {
     optimizationMutation.mutate(promptId);
   };
 
+  const handleEditPrompt = (prompt: LLMPrompt) => {
+    setEditingPrompt(prompt);
+    setIsEditDialogOpen(true);
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'success':
@@ -635,6 +640,124 @@ export default function LLMPromptEnginePage() {
                   </Button>
                 </div>
               </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Edit Prompt Dialog */}
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Edit LLM Prompt</DialogTitle>
+              </DialogHeader>
+              {editingPrompt && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-name">Prompt Name</Label>
+                      <Input id="edit-name" defaultValue={editingPrompt.name} />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-category">Category</Label>
+                      <Select defaultValue={editingPrompt.category}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="meetings">Meetings & Commitments</SelectItem>
+                          <SelectItem value="sap_integration">SAP B1 Integration</SelectItem>
+                          <SelectItem value="administration">Administration</SelectItem>
+                          <SelectItem value="finance">Finance</SelectItem>
+                          <SelectItem value="sales_marketing">Sales & Marketing</SelectItem>
+                          <SelectItem value="projects">Project Management</SelectItem>
+                          <SelectItem value="design_management">Design Management</SelectItem>
+                          <SelectItem value="procurement">Procurement</SelectItem>
+                          <SelectItem value="production">Production</SelectItem>
+                          <SelectItem value="quality">Quality Management</SelectItem>
+                          <SelectItem value="commissioning">Project Commissioning</SelectItem>
+                          <SelectItem value="dispatch_shipping">Dispatch & Shipping</SelectItem>
+                          <SelectItem value="after_sales">After-Sales</SelectItem>
+                          <SelectItem value="hr">HR Management</SelectItem>
+                          <SelectItem value="system">System Administration</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="edit-description">Description</Label>
+                    <Textarea 
+                      id="edit-description"
+                      defaultValue={editingPrompt.description}
+                      className="min-h-[80px]"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="edit-model">AI Model</Label>
+                      <Select defaultValue={editingPrompt.model}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                          <SelectItem value="claude-sonnet-4-20250514">Claude Sonnet 4</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="edit-frequency">Frequency</Label>
+                      <Select defaultValue={editingPrompt.frequency}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select frequency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                          <SelectItem value="manual">Manual Only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="edit-priority">Priority (1-10)</Label>
+                      <Input 
+                        id="edit-priority"
+                        type="number" 
+                        min="1" 
+                        max="10" 
+                        defaultValue={editingPrompt.priority}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-template">Prompt Template</Label>
+                    <Textarea 
+                      id="edit-template"
+                      defaultValue={editingPrompt.template}
+                      className="min-h-[120px]"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={() => {
+                      toast({
+                        title: "Feature Coming Soon",
+                        description: "Prompt editing functionality will be available in the next update.",
+                      });
+                      setIsEditDialogOpen(false);
+                    }}>
+                      Save Changes
+                    </Button>
+                  </div>
+                </div>
+              )}
             </DialogContent>
           </Dialog>
         </div>
@@ -950,7 +1073,11 @@ export default function LLMPromptEnginePage() {
                         Optimize
                       </Button>
                       
-                      <Button size="sm" variant="outline">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleEditPrompt(prompt)}
+                      >
                         <Edit className="w-3 h-3 mr-1" />
                         Edit
                       </Button>
