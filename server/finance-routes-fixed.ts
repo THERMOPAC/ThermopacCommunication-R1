@@ -807,7 +807,7 @@ router.get('/payment-invoice-links', ensureAuthenticated, async (req: Request, r
   try {
     const query = `
       SELECT payment_id, invoice_id, amount_applied, created_at
-      FROM payment_invoice_links
+      FROM payment_allocations
       ORDER BY created_at DESC
     `;
     
@@ -834,8 +834,8 @@ router.get('/payments/:id/allocations', ensureAuthenticated, async (req: Request
     
     const query = `
       SELECT 
-        pil.amount_applied,
-        pil.created_at,
+        pa.amount_applied,
+        pa.created_at,
         i.id as invoice_id,
         i.invoice_number,
         i.total_amount as invoice_total,
@@ -844,11 +844,11 @@ router.get('/payments/:id/allocations', ensureAuthenticated, async (req: Request
         i.due_date,
         i.currency,
         c.bp_name as customer_name
-      FROM payment_invoice_links pil
-      JOIN invoices i ON pil.invoice_id = i.id
+      FROM payment_allocations pa
+      JOIN invoices i ON pa.invoice_id = i.id
       LEFT JOIN customers c ON i.customer_id = c.id
-      WHERE pil.payment_id = $1
-      ORDER BY pil.created_at DESC
+      WHERE pa.payment_id = $1
+      ORDER BY pa.created_at DESC
     `;
     
     const result = await pool.query(query, [paymentId]);
@@ -888,8 +888,8 @@ router.get('/invoices/:id/allocations', ensureAuthenticated, async (req: Request
     
     const query = `
       SELECT 
-        pil.amount_applied,
-        pil.created_at,
+        pa.amount_applied,
+        pa.created_at,
         p.id as payment_id,
         p.irm_no,
         p.payment_date,
@@ -897,11 +897,11 @@ router.get('/invoices/:id/allocations', ensureAuthenticated, async (req: Request
         p.sap_payment_no,
         p.currency,
         c.bp_name as customer_name
-      FROM payment_invoice_links pil
-      JOIN payments p ON pil.payment_id = p.id
+      FROM payment_allocations pa
+      JOIN payments p ON pa.payment_id = p.id
       LEFT JOIN customers c ON p.customer_id = c.id
-      WHERE pil.invoice_id = $1
-      ORDER BY pil.created_at DESC
+      WHERE pa.invoice_id = $1
+      ORDER BY pa.created_at DESC
     `;
     
     const result = await pool.query(query, [invoiceId]);

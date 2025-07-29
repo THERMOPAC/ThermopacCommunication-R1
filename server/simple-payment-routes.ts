@@ -118,22 +118,22 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
   try {
     console.log('Fetching unallocated payments with calculated allocation amounts');
     
-    // Query payments with customer names and calculated allocated amounts from payment_invoice_links
+    // Query payments with customer names and calculated allocated amounts from payment_allocations
     const payments = await pool.query(`
       SELECT 
         p.*,
         c.bp_name as customer_name,
-        COALESCE(SUM(pil.amount_applied), 0) as calculated_allocated_amount
+        COALESCE(SUM(pa.amount_applied), 0) as calculated_allocated_amount
       FROM 
         payments p
       LEFT JOIN 
         customers c ON p.customer_id = c.id
       LEFT JOIN 
-        payment_invoice_links pil ON p.id = pil.payment_id
+        payment_allocations pa ON p.id = pa.payment_id
       GROUP BY 
         p.id, c.bp_name
       HAVING 
-        p.amount - COALESCE(SUM(pil.amount_applied), 0) > 0
+        p.amount - COALESCE(SUM(pa.amount_applied), 0) > 0
       ORDER BY 
         p.payment_date DESC
       LIMIT 10

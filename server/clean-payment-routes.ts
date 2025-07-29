@@ -13,7 +13,7 @@ const ensureAuthenticated = (req: Request, res: Response, next: any) => {
 };
 
 /**
- * Get unallocated advance payments - fixed calculation from payment_invoice_links
+ * Get unallocated advance payments - standardized calculation from payment_allocations
  */
 router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
@@ -27,7 +27,7 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
         c.bp_name as "customerName",
         p.payment_date as "paymentDate",
         p.amount,
-        COALESCE(SUM(pil.amount_applied), 0) as "calculatedAllocatedAmount",
+        COALESCE(SUM(pa.amount_applied), 0) as "calculatedAllocatedAmount",
         p.payment_method as "paymentMethod",
         p.payment_type as "paymentType",
         p.currency,
@@ -38,14 +38,14 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
       JOIN 
         customers c ON p.customer_id = c.id
       LEFT JOIN 
-        payment_invoice_links pil ON p.id = pil.payment_id
+        payment_allocations pa ON p.id = pa.payment_id
       WHERE 
         p.is_advance_payment = true
       GROUP BY 
         p.id, c.bp_name, p.irm_no, p.customer_id, p.payment_date, p.amount, 
         p.payment_method, p.payment_type, p.currency, p.notes, p.is_advance_payment
       HAVING 
-        p.amount - COALESCE(SUM(pil.amount_applied), 0) > 0.01
+        p.amount - COALESCE(SUM(pa.amount_applied), 0) > 0.01
       ORDER BY 
         p.payment_date DESC
     `);

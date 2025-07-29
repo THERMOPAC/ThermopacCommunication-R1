@@ -2484,7 +2484,7 @@ router.post('/payments/:id/allocate', ensureAuthenticated, async (req: Request, 
     // Check 3: Verify existing allocations match database constraints
     const existingAllocationsQuery = `
       SELECT COALESCE(SUM(amount_applied), 0) as total_existing
-      FROM payment_invoice_links 
+      FROM payment_allocations 
       WHERE payment_id = $1
     `;
     

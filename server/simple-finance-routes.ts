@@ -143,10 +143,10 @@ router.get('/customers-with-outstanding', ensureAuthenticated, async (req: Reque
         -- Customers with unallocated advance payments
         SELECT DISTINCT p.customer_id
         FROM payments p
-        LEFT JOIN payment_invoice_links pil ON p.id = pil.payment_id
+        LEFT JOIN payment_allocations pa ON p.id = pa.payment_id
         WHERE p.is_advance_payment = true
         GROUP BY p.id, p.customer_id, p.amount
-        HAVING p.amount - COALESCE(SUM(pil.amount_applied), 0) > 0.01
+        HAVING p.amount - COALESCE(SUM(pa.amount_applied), 0) > 0.01
       )
       ORDER BY c.bp_name ASC
     `;
@@ -786,9 +786,9 @@ router.post('/allocate-payment', ensureAuthenticated, async (req: Request, res: 
         WHERE id = $2
       `, [amount, paymentId]);
       
-      // Insert payment-invoice link
+      // Insert payment allocation link
       await client.query(`
-        INSERT INTO payment_invoice_links (payment_id, invoice_id, amount_applied, created_at, updated_at)
+        INSERT INTO payment_allocations (payment_id, invoice_id, amount_applied, created_at, updated_at)
         VALUES ($1, $2, $3, NOW(), NOW())
       `, [paymentId, invoiceId, amount]);
       
