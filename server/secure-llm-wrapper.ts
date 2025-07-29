@@ -6,7 +6,8 @@
 import DataMasker from './data-masker';
 import ModelRouter, { RoutingDecision } from './model-router';
 import PromptLogger, { LogEntry } from './prompt-logger';
-import LLMPromptEngine from './llm-prompt-engine';
+import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 
 export interface SecureExecutionOptions {
   promptId: number;
@@ -106,12 +107,10 @@ export class SecureLLMWrapper {
         );
         executionTime = Date.now() - startTime;
       } else {
-        // Use existing LLM engine with selected model
-        const llmEngine = new LLMPromptEngine();
-        executionResult = await llmEngine.executePromptWithModel(
+        // Execute with selected model directly
+        executionResult = await SecureLLMWrapper.executeWithModel(
           routingDecision.selectedModel,
-          finalPrompt,
-          options.promptId
+          finalPrompt
         );
         executionTime = Date.now() - startTime;
       }
@@ -197,6 +196,93 @@ export class SecureLLMWrapper {
         isTestMode: options.isTestMode || false
       };
     }
+  }
+
+  /**
+   * Execute with selected model directly
+   */
+  private static async executeWithModel(model: string, prompt: string): Promise<any> {
+    try {
+      if (model.startsWith('gpt-')) {
+        return await SecureLLMWrapper.executeOpenAI(model, prompt);
+      } else if (model.startsWith('claude-')) {
+        return await SecureLLMWrapper.executeAnthropic(model, prompt);
+      } else {
+        throw new Error(`Unsupported model: ${model}`);
+      }
+    } catch (error) {
+      console.error(`Error executing with model ${model}:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown execution error',
+        tokens: { input: 0, output: 0 },
+        cost: 0
+      };
+    }
+  }
+
+  /**
+   * Execute OpenAI models
+   */
+  private static async executeOpenAI(model: string, prompt: string): Promise<any> {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OpenAI API key not configured');
+    }
+
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
+    const response = await openai.chat.completions.create({
+      model: model,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 2000,
+      temperature: 0.7,
+    });
+
+    const result = response.choices[0]?.message?.content || '';
+    
+    return {
+      success: true,
+      result: result,
+      tokens: {
+        input: response.usage?.prompt_tokens || 0,
+        output: response.usage?.completion_tokens || 0
+      },
+      cost: 0.01 // Rough estimate
+    };
+  }
+
+  /**
+   * Execute Anthropic Claude models
+   */
+  private static async executeAnthropic(model: string, prompt: string): Promise<any> {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error('Anthropic API key not configured');
+    }
+
+    const anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
+
+    const response = await anthropic.messages.create({
+      model: model,
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+    });
+
+    const result = response.content[0]?.type === 'text' ? response.content[0].text : '';
+    
+    return {
+      success: true,
+      result: result,
+      tokens: {
+        input: response.usage?.input_tokens || 0,
+        output: response.usage?.output_tokens || 0
+      },
+      cost: 0.01 // Rough estimate
+    };
   }
 
   /**

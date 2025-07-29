@@ -1,5 +1,5 @@
 import { pool } from './db';
-import { secureLLMWrapper } from './secure-llm-wrapper';
+import { SecureLLMWrapper } from './secure-llm-wrapper';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -186,17 +186,25 @@ export class LLMPromptEngine {
       const modelToUse = modelOverride || prompt.model;
       
       // Use secure wrapper for LLM call with comprehensive logging and security
-      const llmResponse = await secureLLMWrapper({
-        prompt: finalPrompt,
+      const llmResponse = await SecureLLMWrapper.executeSecurePrompt({
         promptId: promptId,
         userId: 1, // TODO: Get actual user ID from session context
+        promptName: prompt.name,
+        category: prompt.category,
+        frequency: prompt.frequency,
+        template: finalPrompt,
+        data: data,
         preferredModel: modelToUse,
         isTestMode: false,
-        isSensitive: prompt.is_sensitive || false,
         customMaskingRules: prompt.masking_rules ? JSON.parse(prompt.masking_rules) : undefined
       });
       
       const executionDuration = Date.now() - startTime;
+
+      // Check if execution was successful
+      if (!llmResponse.success) {
+        throw new Error(llmResponse.error || 'LLM execution failed');
+      }
 
       // Save execution to database
       const executionResult = await pool.query(`
@@ -206,12 +214,12 @@ export class LLMPromptEngine {
         RETURNING *
       `, [
         promptId,
-        modelToUse,
+        llmResponse.model,
         JSON.stringify(data),
-        llmResponse.response,
+        llmResponse.result,
         executionDuration,
-        llmResponse.tokenUsage.inputTokens || 0,
-        llmResponse.tokenUsage.outputTokens || 0,
+        llmResponse.tokens?.input || 0,
+        llmResponse.tokens?.output || 0,
         llmResponse.cost || 0,
         triggeredBy,
         'success'
@@ -223,7 +231,7 @@ export class LLMPromptEngine {
       await this.updatePromptPerformance(promptId);
 
       // Create business insight if the result is meaningful
-      await this.createBusinessInsight(execution.id, prompt.category, prompt.name, llmResponse.response);
+      await this.createBusinessInsight(execution.id, prompt.category, prompt.name, llmResponse.result);
 
       console.log(`✅ Prompt executed successfully in ${executionDuration}ms`);
       return execution;
