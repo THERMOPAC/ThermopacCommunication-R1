@@ -3004,6 +3004,42 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
 router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     console.log('🔧 Fetching unallocated advance payments using CORRECT payment_allocations table...');
+    console.log('🔍 DEBUG: Checking Payment ID 63 specifically...');
+    
+    // First, let's debug Payment ID 63 specifically
+    const debugQuery = `
+      SELECT 
+        p.id, 
+        p.irm_no,
+        p.amount,
+        COALESCE(SUM(pa.amount_applied), 0) as calculated_allocated,
+        p.amount - COALESCE(SUM(pa.amount_applied), 0) as remaining_amount,
+        c.bp_name as customer_name
+      FROM 
+        payments p
+      JOIN 
+        customers c ON p.customer_id = c.id
+      LEFT JOIN 
+        payment_allocations pa ON p.id = pa.payment_id
+      WHERE 
+        p.id = 63
+      GROUP BY 
+        p.id, c.bp_name, p.irm_no, p.amount
+    `;
+    
+    const debugResult = await pool.query(debugQuery);
+    if (debugResult.rows.length > 0) {
+      const debug63 = debugResult.rows[0];
+      console.log('🔍 Payment ID 63 Debug:', {
+        id: debug63.id,
+        irm_no: debug63.irm_no,
+        total_amount: debug63.amount,
+        calculated_allocated: debug63.calculated_allocated,
+        remaining_amount: debug63.remaining_amount,
+        should_be_excluded: debug63.remaining_amount <= 0.01,
+        customer_name: debug63.customer_name
+      });
+    }
     
     const query = `
       SELECT 
@@ -3040,6 +3076,7 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
     const advances = result.rows;
     
     console.log(`Found ${advances.length} unallocated advance payments`);
+    console.log('🔍 Payment IDs in result:', advances.map(p => p.id));
     
     // Format the response with calculated values
     const formattedAdvances = advances.map(payment => {
