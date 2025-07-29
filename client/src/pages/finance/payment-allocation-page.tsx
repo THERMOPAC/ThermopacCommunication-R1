@@ -633,6 +633,11 @@ export default function PaymentAllocationPage() {
                   </Button>
                   <div className="text-sm text-muted-foreground">
                     Total payments loaded: {payments.length}
+                    {payments.length > 0 && (
+                      <div className="mt-1">
+                        Sample Payment ID: {payments[0]?.id} | Ref: {payments[0]?.paymentReference}
+                      </div>
+                    )}
                   </div>
                 </div>
                 {paymentsLoading ? (
@@ -651,7 +656,7 @@ export default function PaymentAllocationPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Select</TableHead>
-                          <TableHead>Payment ID</TableHead>
+                          <TableHead className="w-20 min-w-[80px]">Payment ID</TableHead>
                           <TableHead>Reference</TableHead>
                           <TableHead>Type</TableHead>
                           <TableHead>Customer</TableHead>
@@ -682,7 +687,7 @@ export default function PaymentAllocationPage() {
                                   disabled={payment.remainingAmount <= 0}
                                 />
                               </TableCell>
-                              <TableCell className="font-mono text-sm">{payment.id}</TableCell>
+                              <TableCell className="font-mono text-sm font-bold bg-blue-50">{payment.id}</TableCell>
                               <TableCell className="font-medium">{payment.paymentReference}</TableCell>
                               <TableCell>{payment.paymentType}</TableCell>
                               <TableCell>{payment.customerName}</TableCell>
