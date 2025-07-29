@@ -6,7 +6,9 @@ const router = Router();
 
 // Middleware to ensure user is authenticated
 const ensureAuthenticated = (req: Request, res: Response, next: any) => {
-  if (req.user) {
+  console.log('Auth check for:', req.path, 'Authenticated:', req.isAuthenticated?.(), 'User:', req.user?.username);
+  
+  if (req.isAuthenticated && req.isAuthenticated()) {
     return next();
   }
   res.status(401).json({ error: 'Unauthorized' });
