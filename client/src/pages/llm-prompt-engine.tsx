@@ -50,7 +50,8 @@ import {
   Lock,
   EyeOff,
   Database,
-  Activity
+  Activity,
+  CheckSquare
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
@@ -426,6 +427,7 @@ export default function LLMPromptEnginePage() {
     { value: 'finance', label: 'Finance' },
     { value: 'sales_marketing', label: 'Sales & Marketing' },
     { value: 'projects', label: 'Project Management' },
+    { value: 'task_management', label: 'Task Management' },
     { value: 'design_management', label: 'Design Management' },
     { value: 'procurement', label: 'Procurement' },
     { value: 'production', label: 'Production' },
@@ -445,6 +447,7 @@ export default function LLMPromptEnginePage() {
       'finance': 'Finance',
       'sales_marketing': 'Sales & Marketing',
       'projects': 'Project Management',
+      'task_management': 'Task Management',
       'design_management': 'Design Management',
       'procurement': 'Procurement Management',
       'production': 'Production Management',
@@ -466,6 +469,7 @@ export default function LLMPromptEnginePage() {
       'finance': TrendingUp,
       'sales_marketing': Target,
       'projects': BarChart3,
+      'task_management': CheckSquare,
       'design_management': Lightbulb,
       'procurement': Plus,
       'production': Settings,
