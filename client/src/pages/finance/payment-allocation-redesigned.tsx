@@ -235,8 +235,10 @@ export default function PaymentAllocationRedesigned() {
     });
   };
 
-  // Get customers from the API (same as write-off management)
-  const customersWithOutstanding = customersData.customers || [];
+  // Get customers from the API and sort alphabetically by name
+  const customersWithOutstanding = (customersData.customers || []).sort((a: any, b: any) => 
+    a.name.localeCompare(b.name)
+  );
 
   // Filter payments by selected customer
   const filteredPayments = selectedCustomerId 

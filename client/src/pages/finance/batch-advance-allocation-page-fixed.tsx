@@ -393,14 +393,17 @@ export default function BatchAdvanceAllocationPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Customers</SelectItem>
-                {customers && Array.isArray(customers) && customers.map((customer) => (
-                  <SelectItem 
-                    key={customer.id} 
-                    value={customer.id.toString()}
-                  >
-                    {customer.bpName}
-                  </SelectItem>
-                ))}
+                {customers && Array.isArray(customers) && 
+                  customers
+                    .sort((a, b) => a.bpName.localeCompare(b.bpName))
+                    .map((customer) => (
+                      <SelectItem 
+                        key={customer.id} 
+                        value={customer.id.toString()}
+                      >
+                        {customer.bpName}
+                      </SelectItem>
+                    ))}
               </SelectContent>
             </Select>
           </div>

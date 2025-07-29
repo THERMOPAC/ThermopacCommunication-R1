@@ -66,7 +66,9 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
     queryKey: ['/api/simple-finance/customers-with-outstanding'],
   });
   
-  const customersWithOutstanding = customersData.customers || [];
+  const customersWithOutstanding = (customersData.customers || []).sort((a: any, b: any) => 
+    a.name.localeCompare(b.name)
+  );
 
   // Fetch outstanding invoices for write-off - load all invoices, then filter by customer
   const { data: outstandingInvoices = [], isLoading: loadingInvoices } = useQuery({
