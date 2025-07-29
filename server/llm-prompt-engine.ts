@@ -1,4 +1,5 @@
 import { pool } from './db';
+import { secureLLMWrapper } from './secure-llm-wrapper';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -183,7 +184,18 @@ export class LLMPromptEngine {
 
       // Use model override if provided, otherwise use prompt configuration
       const modelToUse = modelOverride || prompt.model;
-      const llmResponse = await this.callLLM(modelToUse, finalPrompt);
+      
+      // Use secure wrapper for LLM call with comprehensive logging and security
+      const llmResponse = await secureLLMWrapper({
+        prompt: finalPrompt,
+        promptId: promptId,
+        userId: 1, // TODO: Get actual user ID from session context
+        preferredModel: modelToUse,
+        isTestMode: false,
+        isSensitive: prompt.is_sensitive || false,
+        customMaskingRules: prompt.masking_rules ? JSON.parse(prompt.masking_rules) : undefined
+      });
+      
       const executionDuration = Date.now() - startTime;
 
       // Save execution to database
@@ -196,10 +208,10 @@ export class LLMPromptEngine {
         promptId,
         modelToUse,
         JSON.stringify(data),
-        llmResponse.result,
+        llmResponse.response,
         executionDuration,
-        llmResponse.inputTokens || 0,
-        llmResponse.outputTokens || 0,
+        llmResponse.tokenUsage.inputTokens || 0,
+        llmResponse.tokenUsage.outputTokens || 0,
         llmResponse.cost || 0,
         triggeredBy,
         'success'
@@ -211,7 +223,7 @@ export class LLMPromptEngine {
       await this.updatePromptPerformance(promptId);
 
       // Create business insight if the result is meaningful
-      await this.createBusinessInsight(execution.id, prompt.category, prompt.name, llmResponse.result);
+      await this.createBusinessInsight(execution.id, prompt.category, prompt.name, llmResponse.response);
 
       console.log(`✅ Prompt executed successfully in ${executionDuration}ms`);
       return execution;
@@ -413,3 +425,4 @@ export class LLMPromptEngine {
 }
 
 export const llmEngine = new LLMPromptEngine();
+export default LLMPromptEngine;

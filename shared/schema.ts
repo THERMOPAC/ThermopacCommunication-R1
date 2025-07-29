@@ -8349,3 +8349,110 @@ export type InsertUserComplianceMetrics = z.infer<typeof insertUserComplianceMet
 
 export type UserProductivityMetrics = typeof userProductivityMetrics.$inferSelect;
 export type InsertUserProductivityMetrics = z.infer<typeof insertUserProductivityMetricsSchema>;
+
+// ==================== LLM PROMPT ENGINE ====================
+
+// LLM Prompts table
+export const llmPrompts = pgTable('llm_prompts', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull().unique(),  
+  description: text('description'),
+  template: text('template').notNull(),
+  category: varchar('category', { length: 100 }).notNull(),
+  model: varchar('model', { length: 50 }).default('gpt-4o'),
+  frequency: varchar('frequency', { length: 20 }).default('daily'),
+  active: boolean('active').default(true),
+  version: integer('version').default(1),
+  priority: integer('priority').default(5),
+  dataQuery: text('data_query'),
+  dataParameters: jsonb('data_parameters'),
+  outputFormat: varchar('output_format', { length: 50 }).default('markdown'),
+  preferredModel: varchar('preferred_model', { length: 100 }),
+  maskingRules: jsonb('masking_rules'),
+  isSensitive: boolean('is_sensitive').default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  createdBy: integer('created_by').references(() => users.id),
+  updatedBy: integer('updated_by').references(() => users.id),
+});
+
+// LLM Logs audit table for comprehensive logging
+export const llmLogs = pgTable('llm_logs', {
+  id: serial('id').primaryKey(),
+  promptId: integer('prompt_id').notNull().references(() => llmPrompts.id),
+  userId: integer('user_id').notNull().references(() => users.id),
+  model: varchar('model', { length: 100 }).notNull(),
+  executionTimestamp: timestamp('execution_timestamp').defaultNow().notNull(),
+  maskedInput: text('masked_input'),
+  llmResponse: text('llm_response'),
+  executionStatus: varchar('execution_status', { length: 50 }).notNull(),
+  executionTimeMs: integer('execution_time_ms'),
+  tokenUsageInput: integer('token_usage_input'),
+  tokenUsageOutput: integer('token_usage_output'),
+  costUsd: decimal('cost_usd', { precision: 10, scale: 6 }),
+  errorMessage: text('error_message'),
+  isTestMode: boolean('is_test_mode').default(false),
+  routingReason: varchar('routing_reason', { length: 200 }),
+  originalModelRequest: varchar('original_model_request', { length: 100 }),
+  fallbackUsed: boolean('fallback_used').default(false),
+  maskingRulesApplied: jsonb('masking_rules_applied'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// LLM Prompt Engine Relations
+export const llmPromptsRelations = relations(llmPrompts, ({ one, many }) => ({
+  createdByUser: one(users, {
+    fields: [llmPrompts.createdBy],
+    references: [users.id],
+  }),
+  updatedByUser: one(users, {
+    fields: [llmPrompts.updatedBy],
+    references: [users.id],
+  }),
+  logs: many(llmLogs),
+}));
+
+export const llmLogsRelations = relations(llmLogs, ({ one }) => ({
+  prompt: one(llmPrompts, {
+    fields: [llmLogs.promptId],
+    references: [llmPrompts.id],
+  }),
+  user: one(users, {
+    fields: [llmLogs.userId],
+    references: [users.id],
+  }),
+}));
+
+// LLM Prompt Engine Zod Schemas
+export const insertLlmPromptSchema = createInsertSchema(llmPrompts)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    description: z.string().optional(),
+    dataQuery: z.string().optional(),
+    dataParameters: z.any().optional(),
+    preferredModel: z.string().optional(),
+    maskingRules: z.any().optional(),
+    createdBy: z.number().optional(),
+    updatedBy: z.number().optional(),
+  });
+
+export const insertLlmLogSchema = createInsertSchema(llmLogs)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    maskedInput: z.string().optional(),
+    llmResponse: z.string().optional(),
+    executionTimeMs: z.number().optional(),
+    tokenUsageInput: z.number().optional(),
+    tokenUsageOutput: z.number().optional(),
+    costUsd: z.string().optional(),
+    errorMessage: z.string().optional(),
+    routingReason: z.string().optional(),
+    originalModelRequest: z.string().optional(),
+    maskingRulesApplied: z.any().optional(),
+  });
+
+// LLM Types
+export type LlmPrompt = typeof llmPrompts.$inferSelect;
+export type InsertLlmPrompt = z.infer<typeof insertLlmPromptSchema>;
+export type LlmLog = typeof llmLogs.$inferSelect;
+export type InsertLlmLog = z.infer<typeof insertLlmLogSchema>;

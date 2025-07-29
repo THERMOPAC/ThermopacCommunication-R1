@@ -696,4 +696,85 @@ Please provide actionable system improvement suggestions in JSON format:
   }
 });
 
+// Security logs endpoint
+router.get('/security-logs', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    // Import secure wrapper dynamically to avoid circular dependencies
+    const { secureLLMWrapper } = await import('./secure-llm-wrapper');
+    const analytics = await secureLLMWrapper.getAnalytics(7);
+    
+    res.json({
+      masking: {
+        applied: analytics.security?.masking_events || 0
+      },
+      audit: {
+        total: analytics.execution?.total_executions || 0
+      },
+      routing: {
+        optimized: analytics.routing?.optimized_routes || 0
+      }
+    });
+  } catch (error) {
+    console.error('Failed to fetch security logs:', error);
+    res.status(500).json({ 
+      masking: { applied: 0 },
+      audit: { total: 0 },
+      routing: { optimized: 0 }
+    });
+  }
+});
+
+// Test execution endpoint
+router.post('/prompts/:promptId/test-execute', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const promptId = parseInt(req.params.promptId);
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Import dependencies dynamically
+    const { db } = await import('./db');
+    const { llmPrompts } = await import('../shared/schema');
+    const { eq } = await import('drizzle-orm');
+    const { secureLLMWrapper } = await import('./secure-llm-wrapper');
+
+    // Get prompt details
+    const prompt = await db.select().from(llmPrompts).where(eq(llmPrompts.id, promptId)).limit(1);
+    if (prompt.length === 0) {
+      return res.status(404).json({ error: 'Prompt not found' });
+    }
+
+    const promptData = prompt[0];
+
+    // Execute in test mode using secure wrapper
+    const result = await secureLLMWrapper.executeSecurePrompt({
+      promptId: promptData.id,
+      userId,
+      promptName: promptData.name,
+      category: promptData.category,
+      frequency: promptData.frequency,
+      template: promptData.template,
+      data: {},
+      isTestMode: true,
+      preferredModel: promptData.model
+    });
+
+    res.json({
+      success: result.success,
+      testMode: true,
+      model: result.model,
+      executionTime: result.executionTime,
+      logId: result.logId,
+      maskingApplied: result.maskingApplied,
+      routingDecision: result.routingDecision
+    });
+
+  } catch (error) {
+    console.error('Test execution failed:', error);
+    res.status(500).json({ error: 'Test execution failed', details: error.message });
+  }
+});
+
 export default router;

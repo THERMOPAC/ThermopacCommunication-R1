@@ -45,7 +45,12 @@ import {
   RefreshCw,
   Target,
   Lightbulb,
-  TestTube
+  TestTube,
+  Shield,
+  Lock,
+  EyeOff,
+  Database,
+  Activity
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
@@ -108,6 +113,8 @@ export default function LLMPromptEnginePage() {
   const [optimizingPrompts, setOptimizingPrompts] = useState<Set<number>>(new Set());
   const [testResults, setTestResults] = useState<any>(null);
   const [optimizationResults, setOptimizationResults] = useState<any>(null);
+  const [testMode, setTestMode] = useState(false);
+  const [showSecurityLogs, setShowSecurityLogs] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -472,6 +479,135 @@ export default function LLMPromptEnginePage() {
     return iconMap[category] || Brain;
   };
 
+  // Security Dashboard Component
+  const SecurityDashboard = ({ testMode }: { testMode: boolean }) => {
+    const { data: securityLogs, isLoading } = useQuery({
+      queryKey: ['/api/llm/security-logs'],
+      queryFn: async () => {
+        const response = await fetch('/api/llm/security-logs', {
+          credentials: 'include'
+        });
+        if (!response.ok) throw new Error('Failed to fetch security logs');
+        return response.json();
+      }
+    });
+
+    return (
+      <Card className="mb-6">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-blue-600" />
+              <CardTitle>Security Dashboard</CardTitle>
+              {testMode && (
+                <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                  <TestTube className="w-3 h-3 mr-1" />
+                  Test Mode Active
+                </Badge>
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowSecurityLogs(false)}
+            >
+              <EyeOff className="w-4 h-4 mr-1" />
+              Hide
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-green-600" />
+                    Data Masking
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-lg font-bold text-green-600">
+                    {securityLogs?.masking?.applied || 0}
+                  </div>
+                  <p className="text-xs text-gray-500">Rules applied today</p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Database className="w-4 h-4 text-blue-600" />
+                    Audit Logs
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-lg font-bold text-blue-600">
+                    {securityLogs?.audit?.total || 0}
+                  </div>
+                  <p className="text-xs text-gray-500">Total executions logged</p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-purple-600" />
+                    Model Routing
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-lg font-bold text-purple-600">
+                    {securityLogs?.routing?.optimized || 0}
+                  </div>
+                  <p className="text-xs text-gray-500">Intelligent routes today</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Test execution handler
+  const handleTestExecution = async (promptId: number) => {
+    try {
+      setExecutingPrompts(prev => new Set(prev).add(promptId));
+      
+      const response = await apiRequest(`/api/llm/prompts/${promptId}/test-execute`, {
+        method: 'POST',
+        body: JSON.stringify({ testMode: true })
+      });
+
+      toast({
+        title: "Test Execution Completed",
+        description: "Prompt executed in test mode with security monitoring.",
+      });
+
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/llm/prompts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/llm/security-logs'] });
+      
+    } catch (error) {
+      toast({
+        title: "Test Execution Failed",
+        description: error instanceof Error ? error.message : "An error occurred during test execution.",
+        variant: "destructive",
+      });
+    } finally {
+      setExecutingPrompts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(promptId);
+        return newSet;
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
@@ -499,6 +635,38 @@ export default function LLMPromptEnginePage() {
               ))}
             </SelectContent>
           </Select>
+          
+          {/* Test Mode Toggle */}
+          <div className="flex items-center gap-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <TestTube className="w-4 h-4 text-yellow-600" />
+            <Label htmlFor="test-mode" className="text-sm text-yellow-700">Test Mode</Label>
+            <Switch 
+              id="test-mode"
+              checked={testMode}
+              onCheckedChange={setTestMode}
+            />
+          </div>
+          
+          {/* Security Dashboard Toggle */}
+          <Button 
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSecurityLogs(!showSecurityLogs)}
+            className="flex items-center gap-2"
+          >
+            <Shield className="w-4 h-4" />
+            Security Dashboard
+          </Button>
+          
+          {/* Security Dashboard Toggle */}
+          <Button
+            onClick={() => setShowSecurityLogs(!showSecurityLogs)}
+            variant={showSecurityLogs ? "default" : "outline"}
+            size="sm"
+          >
+            <Shield className="w-4 h-4 mr-2" />
+            Security
+          </Button>
           
           <Button 
             onClick={() => triggerScheduledMutation.mutate('daily')}
@@ -833,6 +1001,11 @@ export default function LLMPromptEnginePage() {
         </div>
       )}
 
+      {/* Security Dashboard */}
+      {showSecurityLogs && (
+        <SecurityDashboard testMode={testMode} />
+      )}
+
       {/* Main Content Tabs */}
       <Tabs defaultValue="modules" className="space-y-4">
         <TabsList>
@@ -1061,6 +1234,23 @@ export default function LLMPromptEnginePage() {
                         )}
                         A/B Test
                       </Button>
+                      
+                      {testMode && (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100"
+                          onClick={() => handleTestExecution(prompt.id)}
+                          disabled={executingPrompts.has(prompt.id)}
+                        >
+                          {executingPrompts.has(prompt.id) ? (
+                            <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                          ) : (
+                            <TestTube className="w-3 h-3 mr-1" />
+                          )}
+                          Test Mode
+                        </Button>
+                      )}
                       
                       <Button 
                         size="sm" 
