@@ -148,8 +148,8 @@ export class LLMPromptEngine {
     }
   }
 
-  // Execute a single prompt
-  async executePrompt(promptId: number, triggeredBy: string = 'manual'): Promise<PromptExecution> {
+  // Execute a single prompt with optional model override
+  async executePrompt(promptId: number, triggeredBy: string = 'manual', modelOverride?: string): Promise<PromptExecution> {
     const startTime = Date.now();
 
     try {
@@ -181,8 +181,9 @@ export class LLMPromptEngine {
         finalPrompt = finalPrompt.replace(/\{\{time\}\}/g, new Date().toLocaleTimeString());
       }
 
-      // Call LLM
-      const llmResponse = await this.callLLM(prompt.model, finalPrompt);
+      // Use model override if provided, otherwise use prompt configuration
+      const modelToUse = modelOverride || prompt.model;
+      const llmResponse = await this.callLLM(modelToUse, finalPrompt);
       const executionDuration = Date.now() - startTime;
 
       // Save execution to database
@@ -193,7 +194,7 @@ export class LLMPromptEngine {
         RETURNING *
       `, [
         promptId,
-        prompt.model,
+        modelToUse,
         JSON.stringify(data),
         llmResponse.result,
         executionDuration,
@@ -343,6 +344,70 @@ export class LLMPromptEngine {
     } catch (error) {
       console.error('Error fetching recent insights:', error);
       return [];
+    }
+  }
+
+  // Execute custom prompt for optimization and system analysis
+  async executeCustomPrompt(promptText: string, model: string, category: string): Promise<any> {
+    const startTime = Date.now();
+    
+    try {
+      console.log(`🤖 Executing custom prompt with ${model} for ${category}`);
+
+      let result: string;
+      let inputTokens = 0;
+      let outputTokens = 0;
+      let cost = 0;
+
+      if (model.startsWith('gpt-') && this.openai) {
+        const response = await this.openai.chat.completions.create({
+          model: model,
+          messages: [{ role: 'user', content: promptText }],
+          max_tokens: 2000,
+          temperature: 0.7,
+        });
+
+        result = response.choices[0]?.message?.content || '';
+        inputTokens = response.usage?.prompt_tokens || 0;
+        outputTokens = response.usage?.completion_tokens || 0;
+        
+        // Rough cost calculation for GPT-4o
+        cost = (inputTokens * 0.00001) + (outputTokens * 0.00003);
+        
+      } else if (model.startsWith('claude-') && this.anthropic) {
+        const response = await this.anthropic.messages.create({
+          model: model,
+          max_tokens: 2000,
+          temperature: 0.7,
+          messages: [{ role: 'user', content: promptText }]
+        });
+
+        result = response.content[0]?.type === 'text' ? response.content[0].text : '';
+        inputTokens = response.usage?.input_tokens || 0;
+        outputTokens = response.usage?.output_tokens || 0;
+        
+        // Rough cost calculation for Claude
+        cost = (inputTokens * 0.000008) + (outputTokens * 0.000024);
+        
+      } else {
+        throw new Error(`Unsupported model or missing API key: ${model}`);
+      }
+
+      const executionDuration = Date.now() - startTime;
+
+      return {
+        result,
+        execution_time: new Date(),
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        cost_usd: cost,
+        execution_duration_ms: executionDuration,
+        model_used: model
+      };
+
+    } catch (error) {
+      console.error(`Error executing custom prompt:`, error);
+      throw error;
     }
   }
 }

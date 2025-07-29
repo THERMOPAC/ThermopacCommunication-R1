@@ -38,7 +38,14 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
-  Loader2
+  Loader2,
+  ThumbsUp,
+  ThumbsDown,
+  MessageSquare,
+  RefreshCw,
+  Target,
+  Lightbulb,
+  TestTube
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
@@ -69,6 +76,13 @@ interface BusinessInsight {
   generated_at: string;
   prompt_name: string;
   model_used: string;
+  execution_id?: number;
+  user_feedback?: {
+    rating: number;
+    feedback_type: 'useful' | 'needs_action' | 'too_long' | 'irrelevant';
+    feedback_text?: string;
+    action_taken?: boolean;
+  };
 }
 
 interface DashboardStats {
@@ -84,6 +98,10 @@ export default function LLMPromptEnginePage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<LLMPrompt | null>(null);
   const [executingPrompts, setExecutingPrompts] = useState<Set<number>>(new Set());
+  const [testingPrompts, setTestingPrompts] = useState<Set<number>>(new Set());
+  const [optimizingPrompts, setOptimizingPrompts] = useState<Set<number>>(new Set());
+  const [testResults, setTestResults] = useState<any>(null);
+  const [optimizationResults, setOptimizationResults] = useState<any>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -204,6 +222,149 @@ export default function LLMPromptEnginePage() {
     executePromptMutation.mutate(promptId);
   };
 
+  // Feedback submission mutation
+  const feedbackMutation = useMutation({
+    mutationFn: async ({ executionId, rating, feedback_type, feedback_text }: {
+      executionId: number;
+      rating: number;
+      feedback_type: string;
+      feedback_text?: string;
+    }) => {
+      const response = await fetch(`/api/llm/executions/${executionId}/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          rating,
+          feedback_type,
+          feedback_text,
+          action_taken: false
+        })
+      });
+      if (!response.ok) throw new Error('Failed to submit feedback');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Feedback Submitted",
+        description: "Thank you for your feedback! This will help improve our AI insights.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/llm/insights'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Feedback Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleFeedback = (insight: BusinessInsight, feedbackType: string, rating: number) => {
+    if (!insight.execution_id) {
+      toast({
+        title: "Cannot Submit Feedback",
+        description: "This insight doesn't have an associated execution ID.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    feedbackMutation.mutate({
+      executionId: insight.execution_id,
+      rating,
+      feedback_type: feedbackType,
+      feedback_text: `User feedback: ${feedbackType}`
+    });
+  };
+
+  // A/B Test mutation
+  const abTestMutation = useMutation({
+    mutationFn: async (promptId: number) => {
+      const response = await fetch(`/api/llm/prompts/${promptId}/test`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          models: ['gpt-4o', 'claude-sonnet-4-20250514']
+        })
+      });
+      if (!response.ok) throw new Error('Failed to run A/B test');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setTestResults(data);
+      toast({
+        title: "A/B Test Complete",
+        description: `Compared ${data.test_results.length} models successfully.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "A/B Test Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+    onSettled: (data, error, promptId) => {
+      setTestingPrompts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(promptId);
+        return newSet;
+      });
+    }
+  });
+
+  // Optimization mutation
+  const optimizationMutation = useMutation({
+    mutationFn: async (promptId: number) => {
+      const response = await fetch(`/api/llm/prompts/${promptId}/optimize`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to optimize prompt');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setOptimizationResults(data);
+      toast({
+        title: "Prompt Optimization Complete",
+        description: "AI has analyzed and suggested improvements for your prompt.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Optimization Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+    onSettled: (data, error, promptId) => {
+      setOptimizingPrompts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(promptId);
+        return newSet;
+      });
+    }
+  });
+
+  const handleABTest = (promptId: number) => {
+    setTestingPrompts(prev => new Set(prev.add(promptId)));
+    abTestMutation.mutate(promptId);
+  };
+
+  const handleOptimizePrompt = (promptId: number) => {
+    setOptimizingPrompts(prev => new Set(prev.add(promptId)));
+    optimizationMutation.mutate(promptId);
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'success':
@@ -222,7 +383,8 @@ export default function LLMPromptEnginePage() {
     return 'text-gray-600 bg-gray-50';
   };
 
-  const formatCurrency = (amount: string | number) => {
+  const formatCurrency = (amount: string | number | null | undefined) => {
+    if (!amount && amount !== 0) return '$0.0000';
     return `$${parseFloat(amount.toString()).toFixed(4)}`;
   };
 
@@ -431,14 +593,37 @@ export default function LLMPromptEnginePage() {
                         Execute
                       </Button>
                       
-                      <Button size="sm" variant="outline">
-                        <Edit className="w-3 h-3 mr-1" />
-                        Edit
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleABTest(prompt.id)}
+                        disabled={testingPrompts.has(prompt.id)}
+                      >
+                        {testingPrompts.has(prompt.id) ? (
+                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                        ) : (
+                          <TestTube className="w-3 h-3 mr-1" />
+                        )}
+                        A/B Test
+                      </Button>
+                      
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleOptimizePrompt(prompt.id)}
+                        disabled={optimizingPrompts.has(prompt.id)}
+                      >
+                        {optimizingPrompts.has(prompt.id) ? (
+                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                        ) : (
+                          <Lightbulb className="w-3 h-3 mr-1 text-yellow-600" />
+                        )}
+                        Optimize
                       </Button>
                       
                       <Button size="sm" variant="outline">
-                        <Eye className="w-3 h-3 mr-1" />
-                        View
+                        <Edit className="w-3 h-3 mr-1" />
+                        Edit
                       </Button>
                     </div>
                   </CardContent>
@@ -483,6 +668,57 @@ export default function LLMPromptEnginePage() {
                       <pre className="whitespace-pre-wrap text-sm">
                         {insight.insight_text}
                       </pre>
+                    </div>
+                    
+                    {/* User Feedback Section */}
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-gray-600">Was this insight helpful?</div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-3"
+                            onClick={() => handleFeedback(insight, 'useful', 5)}
+                          >
+                            <ThumbsUp className="w-3 h-3 mr-1" />
+                            Useful
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-3"
+                            onClick={() => handleFeedback(insight, 'needs_action', 3)}
+                          >
+                            <Target className="w-3 h-3 mr-1" />
+                            Needs Action
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-3"
+                            onClick={() => handleFeedback(insight, 'too_long', 2)}
+                          >
+                            <MessageSquare className="w-3 h-3 mr-1" />
+                            Too Long
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-3"
+                            onClick={() => handleFeedback(insight, 'irrelevant', 1)}
+                          >
+                            <ThumbsDown className="w-3 h-3 mr-1" />
+                            Not Useful
+                          </Button>
+                        </div>
+                      </div>
+                      {insight.user_feedback && (
+                        <div className="mt-2 text-sm text-green-600 flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" />
+                          Thank you for your feedback! ({insight.user_feedback.feedback_type})
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -549,6 +785,149 @@ export default function LLMPromptEnginePage() {
             )}
           </div>
         </TabsContent>
+        
+        {/* A/B Test Results Dialog */}
+        <Dialog open={!!testResults} onOpenChange={() => setTestResults(null)}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <TestTube className="w-5 h-5 text-blue-600" />
+                A/B Test Results
+              </DialogTitle>
+            </DialogHeader>
+            
+            {testResults && (
+              <div className="space-y-4">
+                <div className="text-sm text-gray-600">
+                  Tested Prompt ID: {testResults.prompt_id} | 
+                  Generated: {new Date(testResults.timestamp).toLocaleString()}
+                </div>
+                
+                <div className="grid gap-4">
+                  {testResults.test_results?.map((result: any, index: number) => (
+                    <Card key={index} className={`border-l-4 ${
+                      result.success ? 'border-l-green-500' : 'border-l-red-500'
+                    }`}>
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            {result.model}
+                            {result.success ? (
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-red-600" />
+                            )}
+                          </CardTitle>
+                          {result.success && (
+                            <div className="flex gap-2 text-sm text-gray-600">
+                              <Badge variant="outline">{result.execution_time}ms</Badge>
+                              <Badge variant="outline">${result.cost?.toFixed(4)}</Badge>
+                              <Badge variant="outline">
+                                {result.tokens?.input}→{result.tokens?.output} tokens
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        {result.success ? (
+                          <div className="prose max-w-none">
+                            <pre className="whitespace-pre-wrap text-sm bg-gray-50 p-3 rounded">
+                              {result.result}
+                            </pre>
+                          </div>
+                        ) : (
+                          <div className="text-red-600 bg-red-50 p-3 rounded">
+                            <strong>Error:</strong> {result.error}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Optimization Results Dialog */}
+        <Dialog open={!!optimizationResults} onOpenChange={() => setOptimizationResults(null)}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Lightbulb className="w-5 h-5 text-yellow-600" />
+                Prompt Optimization Results
+              </DialogTitle>
+            </DialogHeader>
+            
+            {optimizationResults && (
+              <div className="space-y-6">
+                <div className="text-sm text-gray-600">
+                  Generated: {new Date(optimizationResults.timestamp).toLocaleString()}
+                </div>
+
+                {/* Current Prompt */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Current Prompt</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div>
+                        <strong>Template:</strong>
+                        <pre className="mt-1 text-sm bg-gray-50 p-3 rounded whitespace-pre-wrap">
+                          {optimizationResults.original_prompt?.template}
+                        </pre>
+                      </div>
+                      <div>
+                        <strong>Description:</strong> {optimizationResults.original_prompt?.description}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* AI Suggestions */}
+                <Card className="border-l-4 border-l-blue-500">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Brain className="w-5 h-5 text-blue-600" />
+                      AI Optimization Suggestions
+                      <Badge variant="secondary">
+                        Confidence: {optimizationResults.optimization_suggestions?.confidence_score}/10
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <strong>Improved Template:</strong>
+                      <pre className="mt-1 text-sm bg-blue-50 p-3 rounded whitespace-pre-wrap border-l-4 border-l-blue-500">
+                        {optimizationResults.optimization_suggestions?.improved_template}
+                      </pre>
+                    </div>
+
+                    <div>
+                      <strong>Changes Made:</strong>
+                      <ul className="mt-1 list-disc list-inside space-y-1">
+                        {optimizationResults.optimization_suggestions?.changes_made?.map((change: string, index: number) => (
+                          <li key={index} className="text-sm">{change}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <strong>Expected Benefits:</strong>
+                      <ul className="mt-1 list-disc list-inside space-y-1">
+                        {optimizationResults.optimization_suggestions?.expected_benefits?.map((benefit: string, index: number) => (
+                          <li key={index} className="text-sm text-green-700">{benefit}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </Tabs>
     </div>
   );

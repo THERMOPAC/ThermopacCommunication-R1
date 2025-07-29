@@ -249,10 +249,43 @@ router.get('/insights', ensureAuthenticated, async (req: Request, res: Response)
   try {
     const { category, limit = 20 } = req.query;
     
-    const insights = await llmEngine.getRecentInsights(
-      parseInt(limit as string), 
-      category as string
-    );
+    // Get insights with feedback information
+    let query = `
+      SELECT 
+        i.*,
+        e.id as execution_id,
+        f.rating,
+        f.feedback_type,
+        f.feedback_text,
+        f.action_taken
+      FROM llm_business_insights i
+      LEFT JOIN llm_prompt_executions e ON i.execution_id = e.id
+      LEFT JOIN llm_prompt_feedback f ON e.id = f.execution_id
+      WHERE i.id IS NOT NULL
+    `;
+    
+    const params: any[] = [];
+    
+    if (category && category !== 'all') {
+      query += ` AND i.category = $${params.length + 1}`;
+      params.push(category);
+    }
+    
+    query += ` ORDER BY i.generated_at DESC LIMIT $${params.length + 1}`;
+    params.push(parseInt(limit as string));
+
+    const result = await pool.query(query, params);
+    
+    // Format the response to include user feedback
+    const insights = result.rows.map(row => ({
+      ...row,
+      user_feedback: row.rating ? {
+        rating: row.rating,
+        feedback_type: row.feedback_type,
+        feedback_text: row.feedback_text,
+        action_taken: row.action_taken
+      } : null
+    }));
 
     res.json(insights);
   } catch (error) {
@@ -360,6 +393,245 @@ router.post('/scheduler/trigger/:frequency', ensureAuthenticated, async (req: Re
   } catch (error) {
     console.error('Error triggering scheduler:', error);
     res.status(500).json({ error: 'Failed to trigger scheduler' });
+  }
+});
+
+// A/B Testing endpoint - Compare prompt outputs across models
+router.post('/prompts/:id/test', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { models = ['gpt-4o', 'claude-sonnet-4-20250514'] } = req.body;
+    
+    console.log(`🧪 A/B Testing prompt ${id} across models:`, models);
+
+    const results = await Promise.all(
+      models.map(async (model: string) => {
+        try {
+          const execution = await llmEngine.executePrompt(parseInt(id), 'test', model);
+          return {
+            model,
+            success: true,
+            result: execution.result,
+            execution_time: execution.execution_time,
+            cost: execution.cost_usd,
+            tokens: {
+              input: execution.input_tokens,
+              output: execution.output_tokens
+            }
+          };
+        } catch (error) {
+          return {
+            model,
+            success: false,
+            error: error.message
+          };
+        }
+      })
+    );
+
+    res.json({
+      success: true,
+      prompt_id: parseInt(id),
+      test_results: results,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error running A/B test:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to run A/B test' 
+    });
+  }
+});
+
+// Smart prompt optimization endpoint
+router.post('/prompts/:id/optimize', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    console.log(`🎯 Starting smart optimization for prompt ${id}`);
+
+    // Get prompt performance data
+    const performanceResult = await pool.query(`
+      SELECT 
+        p.*,
+        perf.avg_rating,
+        perf.total_feedback,
+        STRING_AGG(f.feedback_text, ' | ') as feedback_summary
+      FROM llm_prompts_registry p
+      LEFT JOIN llm_prompt_performance perf ON p.id = perf.prompt_id
+      LEFT JOIN llm_prompt_executions e ON p.id = e.prompt_id
+      LEFT JOIN llm_prompt_feedback f ON e.id = f.execution_id
+      WHERE p.id = $1
+      GROUP BY p.id, perf.avg_rating, perf.total_feedback
+    `, [id]);
+
+    if (performanceResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Prompt not found' });
+    }
+
+    const prompt = performanceResult.rows[0];
+    
+    // Use LLM to suggest improvements
+    const optimizationPrompt = `
+Analyze this business intelligence prompt and suggest improvements based on performance data:
+
+CURRENT PROMPT:
+Template: ${prompt.template}
+Description: ${prompt.description}
+Category: ${prompt.category}
+
+PERFORMANCE DATA:
+Average Rating: ${prompt.avg_rating || 'No ratings yet'}
+Total Feedback: ${prompt.total_feedback || 0}
+User Feedback: ${prompt.feedback_summary || 'No feedback yet'}
+
+Please provide specific recommendations to improve:
+1. Clarity and specificity
+2. Output format and structure
+3. Data utilization
+4. Actionability of insights
+
+Return your response as JSON with:
+- improved_template: A revised prompt template
+- changes_made: List of specific improvements
+- expected_benefits: What improvements this should bring
+- confidence_score: 1-10 rating of expected improvement
+`;
+
+    const optimizationResult = await llmEngine.executeCustomPrompt(
+      optimizationPrompt,
+      'gpt-4o',
+      'optimization'
+    );
+
+    // Parse the AI response
+    let suggestions;
+    try {
+      suggestions = JSON.parse(optimizationResult.result);
+    } catch (parseError) {
+      suggestions = {
+        improved_template: optimizationResult.result,
+        changes_made: ['AI-generated optimization'],
+        expected_benefits: ['Improved clarity and effectiveness'],
+        confidence_score: 7
+      };
+    }
+
+    res.json({
+      success: true,
+      original_prompt: {
+        template: prompt.template,
+        description: prompt.description
+      },
+      performance_data: {
+        avg_rating: prompt.avg_rating,
+        total_feedback: prompt.total_feedback,
+        feedback_summary: prompt.feedback_summary
+      },
+      optimization_suggestions: suggestions,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error optimizing prompt:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to optimize prompt' 
+    });
+  }
+});
+
+// System improvement suggestions endpoint
+router.get('/system/suggestions', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    console.log('🔍 Generating system improvement suggestions');
+
+    // Gather system-wide performance data
+    const systemData = await pool.query(`
+      SELECT 
+        COUNT(DISTINCT p.id) as total_prompts,
+        COUNT(e.id) as total_executions,
+        AVG(f.rating) as avg_system_rating,
+        COUNT(f.id) as total_feedback,
+        STRING_AGG(DISTINCT f.feedback_type, ', ') as feedback_types,
+        AVG(e.execution_duration_ms) as avg_execution_time,
+        SUM(e.cost_usd) as total_cost
+      FROM llm_prompts_registry p
+      LEFT JOIN llm_prompt_executions e ON p.id = e.prompt_id
+      LEFT JOIN llm_prompt_feedback f ON e.id = f.execution_id
+      WHERE p.active = true
+    `);
+
+    const systemMetrics = systemData.rows[0];
+
+    const suggestionPrompt = `
+Analyze this LLM Prompt Engine system performance and suggest improvements:
+
+SYSTEM METRICS:
+- Total Active Prompts: ${systemMetrics.total_prompts}
+- Total Executions: ${systemMetrics.total_executions}  
+- Average User Rating: ${systemMetrics.avg_system_rating || 'No ratings'}
+- Total User Feedback: ${systemMetrics.total_feedback}
+- Common Feedback Types: ${systemMetrics.feedback_types || 'None'}
+- Average Execution Time: ${systemMetrics.avg_execution_time}ms
+- Total API Cost: $${systemMetrics.total_cost}
+
+Please provide actionable system improvement suggestions in JSON format:
+{
+  "priority_improvements": [
+    {
+      "area": "Performance|User Experience|Cost Optimization|Content Quality",
+      "issue": "Description of the issue",
+      "solution": "Specific solution recommendation",
+      "impact": "Expected impact",
+      "difficulty": "Low|Medium|High"
+    }
+  ],
+  "new_feature_suggestions": [
+    {
+      "feature": "Feature name",
+      "description": "What it would do",
+      "business_value": "Why it's valuable",
+      "effort_estimate": "Low|Medium|High"
+    }
+  ],
+  "system_health_score": "1-10 rating",
+  "key_metrics_to_track": ["metric1", "metric2"]
+}
+`;
+
+    const suggestionResult = await llmEngine.executeCustomPrompt(
+      suggestionPrompt,
+      'gpt-4o',
+      'system_analysis'
+    );
+
+    let suggestions;
+    try {
+      suggestions = JSON.parse(suggestionResult.result);
+    } catch (parseError) {
+      suggestions = {
+        priority_improvements: [],
+        new_feature_suggestions: [],
+        system_health_score: 7,
+        key_metrics_to_track: ['user_satisfaction', 'execution_success_rate', 'cost_per_insight']
+      };
+    }
+
+    res.json({
+      success: true,
+      system_metrics: systemMetrics,
+      suggestions,
+      generated_at: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error generating system suggestions:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to generate system suggestions' 
+    });
   }
 });
 
