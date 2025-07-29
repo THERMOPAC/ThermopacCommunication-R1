@@ -1283,7 +1283,7 @@ export default function LLMPromptEnginePage() {
                           {result.success && (
                             <div className="flex gap-2 text-sm text-gray-600">
                               <Badge variant="outline">{result.execution_time}ms</Badge>
-                              <Badge variant="outline">${result.cost?.toFixed(4)}</Badge>
+                              <Badge variant="outline">${typeof result.cost === 'number' ? result.cost.toFixed(4) : '0.0000'}</Badge>
                               <Badge variant="outline">
                                 {result.tokens?.input}→{result.tokens?.output} tokens
                               </Badge>
