@@ -421,13 +421,13 @@ export default function LLMPromptEnginePage() {
 
   const categories = [
     { value: 'all', label: 'All Categories' },
+    { value: 'task_management', label: 'Task Management' },
     { value: 'meetings', label: 'Meetings & Commitments' },
     { value: 'sap_integration', label: 'SAP B1 Integration' },
     { value: 'administration', label: 'Administration' },
     { value: 'finance', label: 'Finance' },
     { value: 'sales_marketing', label: 'Sales & Marketing' },
     { value: 'projects', label: 'Project Management' },
-    { value: 'task_management', label: 'Task Management' },
     { value: 'design_management', label: 'Design Management' },
     { value: 'procurement', label: 'Procurement' },
     { value: 'production', label: 'Production' },
