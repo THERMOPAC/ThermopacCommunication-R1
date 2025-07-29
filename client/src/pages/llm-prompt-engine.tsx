@@ -508,10 +508,135 @@ export default function LLMPromptEnginePage() {
             Run Daily
           </Button>
           
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Prompt
-          </Button>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Prompt
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Create New LLM Prompt</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="name">Prompt Name</Label>
+                    <Input id="name" placeholder="e.g., Daily Project Health Check" />
+                  </div>
+                  <div>
+                    <Label htmlFor="category">Category</Label>
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="meetings">Meetings & Commitments</SelectItem>
+                        <SelectItem value="sap_integration">SAP B1 Integration</SelectItem>
+                        <SelectItem value="administration">Administration</SelectItem>
+                        <SelectItem value="finance">Finance</SelectItem>
+                        <SelectItem value="sales_marketing">Sales & Marketing</SelectItem>
+                        <SelectItem value="projects">Project Management</SelectItem>
+                        <SelectItem value="design_management">Design Management</SelectItem>
+                        <SelectItem value="procurement">Procurement</SelectItem>
+                        <SelectItem value="production">Production</SelectItem>
+                        <SelectItem value="quality">Quality Management</SelectItem>
+                        <SelectItem value="commissioning">Project Commissioning</SelectItem>
+                        <SelectItem value="dispatch_shipping">Dispatch & Shipping</SelectItem>
+                        <SelectItem value="after_sales">After-Sales</SelectItem>
+                        <SelectItem value="hr">HR Management</SelectItem>
+                        <SelectItem value="system">System Administration</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea 
+                    id="description"
+                    placeholder="Describe what this prompt analyzes and generates..."
+                    className="min-h-[80px]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="model">AI Model</Label>
+                    <Select defaultValue="gpt-4o">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select model" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                        <SelectItem value="claude-sonnet-4-20250514">Claude Sonnet 4</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="frequency">Frequency</Label>
+                    <Select defaultValue="daily">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select frequency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="manual">Manual Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="priority">Priority (1-10)</Label>
+                    <Input 
+                      id="priority"
+                      type="number" 
+                      min="1" 
+                      max="10" 
+                      defaultValue="5"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="template">Prompt Template</Label>
+                  <Textarea 
+                    id="template"
+                    placeholder="Enter the prompt template with placeholders like {{data}} where needed..."
+                    className="min-h-[120px]"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="data_query">Data Query (Optional)</Label>
+                  <Textarea 
+                    id="data_query"
+                    placeholder="SQL query to fetch data for this prompt..."
+                    className="min-h-[80px]"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={() => {
+                    toast({
+                      title: "Feature Coming Soon",
+                      description: "Prompt creation functionality will be available in the next update.",
+                    });
+                    setIsCreateDialogOpen(false);
+                  }}>
+                    Create Prompt
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
