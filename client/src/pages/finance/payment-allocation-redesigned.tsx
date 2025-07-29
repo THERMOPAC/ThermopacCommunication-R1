@@ -306,6 +306,7 @@ export default function PaymentAllocationRedesigned() {
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="font-medium">{payment.paymentReference}</p>
+                          <p className="text-sm text-gray-600">Payment ID: {payment.id}</p>
                           <p className="text-sm text-gray-600">Customer: {payment.customerName}</p>
                           <p className="text-sm text-gray-600">Date: {payment.paymentDate}</p>
                           <p className="text-sm text-gray-600">Type: {payment.paymentType}</p>
