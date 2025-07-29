@@ -52,6 +52,7 @@ import { default as adminRoutes } from "./admin-routes";
 import { default as cleanPaymentRoutes } from "./clean-payment-routes";
 import { default as basicAllocationApi } from "./basic-allocation-api";
 import { default as workLocationRoutes } from "./work-location-routes";
+import { default as testCaspianEndpoint } from "./test-caspian-endpoint";
 import { default as attendanceRoutes } from "./attendance-routes";
 import { default as dwarRoutes } from "./dwar-routes";
 import { default as payrollRoutes } from "./payroll-routes-simple";
@@ -1242,6 +1243,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up simplified finance routes (no database connection required)
   app.use('/api/simple-finance', simpleFinanceRoutes);
+  
+  // Set up CASPIAN payment filtering test endpoint
+  app.use('/api', testCaspianEndpoint);
+  console.log('CASPIAN payment test endpoint registered at /api/test/caspian-payments');
   
   // Mount simple finance routes at /api/finance as well for write-off approvals
   app.use('/api/finance', simpleFinanceRoutes);
