@@ -651,6 +651,7 @@ export default function PaymentAllocationPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Select</TableHead>
+                          <TableHead>Payment ID</TableHead>
                           <TableHead>Reference</TableHead>
                           <TableHead>Type</TableHead>
                           <TableHead>Customer</TableHead>
@@ -681,6 +682,7 @@ export default function PaymentAllocationPage() {
                                   disabled={payment.remainingAmount <= 0}
                                 />
                               </TableCell>
+                              <TableCell className="font-mono text-sm">{payment.id}</TableCell>
                               <TableCell className="font-medium">{payment.paymentReference}</TableCell>
                               <TableCell>{payment.paymentType}</TableCell>
                               <TableCell>{payment.customerName}</TableCell>
