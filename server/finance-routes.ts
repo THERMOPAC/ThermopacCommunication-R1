@@ -560,7 +560,7 @@ router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, as
       ? req.query.invoiceType as string 
       : null;
     
-    console.log(`🔧 FIXED Customer-specific unallocated advance payments for customer ID: ${customerIdNum}, invoice type: ${invoiceType || 'all'}`);
+    console.log(`Fetching unallocated advance payments for customer ID: ${customerIdNum}, invoice type: ${invoiceType || 'all'}`);
     
     // Get advance payments for the specific customer with unallocated amounts
     // If invoiceType is specified, filter by payment_type matching invoice_type
@@ -2908,11 +2908,11 @@ router.get('/customers-with-outstanding', ensureAuthenticated, async (req: Reque
 });
 
 /**
- * Get unallocated advance payments - FIXED to use payment_allocations table
+ * Get unallocated advance payments - fixed to calculate from payment_invoice_links
  */
 router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    console.log('🔧 Fetching unallocated advance payments using CORRECT payment_allocations table...');
+    console.log('Fetching unallocated advance payments with calculated allocation amounts...');
     
     const query = `
       SELECT 
@@ -2922,7 +2922,7 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
         c.bp_name as "customerName",
         p.payment_date as "paymentDate",
         p.amount,
-        COALESCE(SUM(pa.amount_applied), 0) as "calculatedAllocatedAmount",
+        COALESCE(SUM(pil.amount_applied), 0) as "calculatedAllocatedAmount",
         p.payment_method as "paymentMethod",
         p.payment_type as "paymentType",
         p.currency,
@@ -2933,7 +2933,7 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
       JOIN 
         customers c ON p.customer_id = c.id
       LEFT JOIN 
-        payment_allocations pa ON p.id = pa.payment_id
+        payment_invoice_links pil ON p.id = pil.payment_id
       WHERE 
         p.is_advance_payment = true
       GROUP BY 

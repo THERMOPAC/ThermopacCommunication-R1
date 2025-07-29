@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -114,7 +114,6 @@ export default function PaymentAllocationPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteAllocationId, setDeleteAllocationId] = useState<number | null>(null);
   const { toast } = useToast();
-  const queryClientInstance = useQueryClient();
 
   // Format currency values
   const formatCurrency = (amount: number) => {
@@ -465,70 +464,34 @@ export default function PaymentAllocationPage() {
     form.reset();
   };
 
-  // Force cache invalidation on component mount
-  useEffect(() => {
-    queryClientInstance.invalidateQueries({ queryKey: ['/api/finance/unallocated-advances'] });
-  }, [queryClientInstance]);
-
   // Get payments with unallocated amounts that can be allocated to invoices
-  const { data: paymentsData, isLoading: paymentsLoading, refetch: refetchPayments } = useQuery({
-    queryKey: ['/api/finance/unallocated-advances', new Date().getTime()],
-    staleTime: 0,
-    gcTime: 0,
+  const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
+    queryKey: ['/api/finance/unallocated-advances'],
     queryFn: async () => {
-      console.log('🔧 Fetching unallocated advances from fixed endpoint with credentials');
-      const response = await fetch('/api/finance/unallocated-advances', {
-        credentials: 'include',
-        cache: 'no-cache',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
+      const response = await fetch('/api/finance/unallocated-advances');
       if (!response.ok) {
-        console.error('Failed to fetch unallocated payments:', response.status, response.statusText);
         throw new Error('Failed to fetch unallocated payments');
       }
-      const data = await response.json();
-      console.log('🔧 Raw API response:', data);
-      return data;
+      return await response.json();
     }
   });
 
   // Transform the API response to match our component's expected format
   const payments: Payment[] = useMemo(() => {
-    if (!paymentsData || !paymentsData.advances) {
-      console.log('🔧 No payments data available');
-      return [];
-    }
+    if (!paymentsData || !paymentsData.advances) return [];
     
-    console.log('🔧 Processing payments data:', paymentsData.advances.length, 'payments');
-    
-    const processed = paymentsData.advances.map((payment: any) => {
-      const processedPayment = {
-        id: payment.id,
-        paymentReference: payment.paymentReference || payment.irm_no || `PAY-${payment.id}`,
-        paymentType: payment.paymentType,
-        paymentDate: payment.paymentDate,
-        amount: parseFloat(payment.amount),
-        allocatedAmount: parseFloat(payment.allocatedAmount || '0'),
-        remainingAmount: parseFloat(payment.unallocatedAmount || '0'),
-        currency: payment.currency || 'USD',
-        status: payment.allocationStatus || 'Unallocated',
-        customerName: payment.customerName
-      };
-      
-      // Log specific payment for debugging
-      if (payment.id === 63) {
-        console.log('🔧 PAYMENT 63 DATA:', payment);
-        console.log('🔧 PAYMENT 63 PROCESSED:', processedPayment);
-      }
-      
-      return processedPayment;
-    });
-    
-    console.log('🔧 Total processed payments:', processed.length);
-    return processed;
+    return paymentsData.advances.map((payment: any) => ({
+      id: payment.id,
+      paymentReference: payment.paymentReference || payment.irm_no || `PAY-${payment.id}`,
+      paymentType: payment.paymentType,
+      paymentDate: payment.paymentDate,
+      amount: parseFloat(payment.amount),
+      allocatedAmount: parseFloat(payment.allocatedAmount || '0'),
+      remainingAmount: parseFloat(payment.unallocatedAmount || '0'),
+      currency: payment.currency || 'USD',
+      status: payment.allocationStatus || 'Unallocated',
+      customerName: payment.customerName
+    }));
   }, [paymentsData]);
 
   // Get outstanding invoices that can receive payment allocations
@@ -619,27 +582,6 @@ export default function PaymentAllocationPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="mb-4 flex gap-2 items-center">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      console.log('🔧 MANUAL REFRESH: Invalidating queries and refetching...');
-                      queryClientInstance.invalidateQueries({ queryKey: ['/api/finance/unallocated-advances'] });
-                      refetchPayments();
-                    }}
-                  >
-                    🔄 Refresh Payments
-                  </Button>
-                  <div className="text-sm text-muted-foreground">
-                    Total payments loaded: {payments.length}
-                    {payments.length > 0 && (
-                      <div className="mt-1">
-                        Sample Payment ID: {payments[0]?.id} | Ref: {payments[0]?.paymentReference}
-                      </div>
-                    )}
-                  </div>
-                </div>
                 {paymentsLoading ? (
                   <div className="text-center py-4">Loading payments...</div>
                 ) : payments.length === 0 ? (
@@ -656,7 +598,6 @@ export default function PaymentAllocationPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Select</TableHead>
-                          <TableHead className="w-20 min-w-[80px]">Payment ID</TableHead>
                           <TableHead>Reference</TableHead>
                           <TableHead>Type</TableHead>
                           <TableHead>Customer</TableHead>
@@ -687,7 +628,6 @@ export default function PaymentAllocationPage() {
                                   disabled={payment.remainingAmount <= 0}
                                 />
                               </TableCell>
-                              <TableCell className="font-mono text-sm font-bold bg-blue-50">{payment.id}</TableCell>
                               <TableCell className="font-medium">{payment.paymentReference}</TableCell>
                               <TableCell>{payment.paymentType}</TableCell>
                               <TableCell>{payment.customerName}</TableCell>
