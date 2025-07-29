@@ -465,33 +465,64 @@ export default function PaymentAllocationPage() {
   };
 
   // Get payments with unallocated amounts that can be allocated to invoices
-  const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
+  const { data: paymentsData, isLoading: paymentsLoading, refetch: refetchPayments } = useQuery({
     queryKey: ['/api/finance/unallocated-advances'],
+    staleTime: 0,
+    cacheTime: 0,
     queryFn: async () => {
-      const response = await fetch('/api/finance/unallocated-advances');
+      console.log('🔧 Fetching unallocated advances from fixed endpoint with credentials');
+      const response = await fetch('/api/finance/unallocated-advances', {
+        credentials: 'include',
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       if (!response.ok) {
+        console.error('Failed to fetch unallocated payments:', response.status, response.statusText);
         throw new Error('Failed to fetch unallocated payments');
       }
-      return await response.json();
+      const data = await response.json();
+      console.log('🔧 Raw API response:', data);
+      return data;
     }
   });
 
   // Transform the API response to match our component's expected format
   const payments: Payment[] = useMemo(() => {
-    if (!paymentsData || !paymentsData.advances) return [];
+    if (!paymentsData || !paymentsData.advances) {
+      console.log('🔧 No payments data available');
+      return [];
+    }
     
-    return paymentsData.advances.map((payment: any) => ({
-      id: payment.id,
-      paymentReference: payment.paymentReference || payment.irm_no || `PAY-${payment.id}`,
-      paymentType: payment.paymentType,
-      paymentDate: payment.paymentDate,
-      amount: parseFloat(payment.amount),
-      allocatedAmount: parseFloat(payment.allocatedAmount || '0'),
-      remainingAmount: parseFloat(payment.unallocatedAmount || '0'),
-      currency: payment.currency || 'USD',
-      status: payment.allocationStatus || 'Unallocated',
-      customerName: payment.customerName
-    }));
+    console.log('🔧 Processing payments data:', paymentsData.advances.length, 'payments');
+    
+    const processed = paymentsData.advances.map((payment: any) => {
+      const processedPayment = {
+        id: payment.id,
+        paymentReference: payment.paymentReference || payment.irm_no || `PAY-${payment.id}`,
+        paymentType: payment.paymentType,
+        paymentDate: payment.paymentDate,
+        amount: parseFloat(payment.amount),
+        allocatedAmount: parseFloat(payment.allocatedAmount || '0'),
+        remainingAmount: parseFloat(payment.unallocatedAmount || '0'),
+        currency: payment.currency || 'USD',
+        status: payment.allocationStatus || 'Unallocated',
+        customerName: payment.customerName
+      };
+      
+      // Log specific payment for debugging
+      if (payment.id === 63) {
+        console.log('🔧 PAYMENT 63 DATA:', payment);
+        console.log('🔧 PAYMENT 63 PROCESSED:', processedPayment);
+      }
+      
+      return processedPayment;
+    });
+    
+    console.log('🔧 Total processed payments:', processed.length);
+    return processed;
   }, [paymentsData]);
 
   // Get outstanding invoices that can receive payment allocations
