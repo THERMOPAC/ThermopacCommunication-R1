@@ -10,7 +10,8 @@ import {
   insertProjectDocumentSchema,
   insertProjectItemSchema,
   insertCustomerSchema,
-  workOrders
+  workOrders,
+  inspectionOrders
 } from '@shared/schema';
 import { canManage } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
@@ -1173,11 +1174,69 @@ export function setupProjectRoutes(app: express.Express) {
             } else {
               console.log(`ℹ️ AUTO-SYNC: No related work orders found for item code: ${masterItem.itemCode}`);
             }
+
+            // AUTO-SYNC: Also find and update related inspection orders
+            console.log(`🔍 AUTO-SYNC: Looking for inspection orders related to project item ${itemId}`);
+            
+            const relatedInspectionOrders = await db.select()
+              .from(inspectionOrders)
+              .where(eq(inspectionOrders.itemId, itemId));
+            
+            console.log(`🔍 AUTO-SYNC: Found ${relatedInspectionOrders.length} related inspection orders`);
+            
+            if (relatedInspectionOrders.length > 0) {
+              // Map project item status to inspection order status
+              let inspectionOrderStatus = otherData.status;
+              
+              // Status mapping logic for inspection orders
+              switch (otherData.status) {
+                case 'active':
+                case 'Active':
+                  inspectionOrderStatus = 'pending';
+                  break;
+                case 'cancelled':
+                case 'Cancelled':
+                  inspectionOrderStatus = 'cancelled';
+                  break;
+                case 'completed':
+                case 'Completed':
+                  inspectionOrderStatus = 'completed';
+                  break;
+                case 'in_progress':
+                case 'In Progress':
+                  inspectionOrderStatus = 'in_progress';
+                  break;
+                default:
+                  inspectionOrderStatus = 'pending';
+              }
+              
+              console.log(`🔄 AUTO-SYNC: Updating ${relatedInspectionOrders.length} inspection orders to status: ${inspectionOrderStatus}`);
+              
+              // Update all related inspection orders
+              for (const inspectionOrder of relatedInspectionOrders) {
+                try {
+                  await db.update(inspectionOrders)
+                    .set({ 
+                      status: inspectionOrderStatus, 
+                      updatedAt: new Date()
+                    })
+                    .where(eq(inspectionOrders.id, inspectionOrder.id));
+                  
+                  console.log(`✅ AUTO-SYNC: Updated inspection order ${inspectionOrder.inspectionOrderNumber} to status: ${inspectionOrderStatus}`);
+                } catch (ioError) {
+                  console.error(`❌ AUTO-SYNC: Failed to update inspection order ${inspectionOrder.inspectionOrderNumber}:`, ioError);
+                }
+              }
+              
+              console.log(`🎯 AUTO-SYNC: Successfully synchronized ${relatedInspectionOrders.length} inspection orders with project item status`);
+            } else {
+              console.log(`ℹ️ AUTO-SYNC: No related inspection orders found for project item ${itemId}`);
+            }
           } else {
             console.log(`⚠️ AUTO-SYNC: Could not find master item for project item ${itemId}`);
           }
         } catch (syncError) {
-          console.error(`❌ AUTO-SYNC ERROR: Failed to synchronize work orders:`, syncError);
+          console.error(`❌ AUTO-SYNC ERROR: Failed to synchronize work orders and inspection orders:`, syncError);
           // Don't fail the entire request - just log the sync error
         }
       }
