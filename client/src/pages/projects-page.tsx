@@ -194,7 +194,6 @@ export default function ProjectsPage() {
                           <TableHead>Quantity</TableHead>
                           <TableHead>UOM</TableHead>
                           <TableHead>Make/Buy</TableHead>
-                          <TableHead>Supplier</TableHead>
                           <TableHead>Status</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -210,7 +209,6 @@ export default function ProjectsPage() {
                                 {item.masterItem?.makeOrBuy || 'N/A'}
                               </Badge>
                             </TableCell>
-                            <TableCell>{item.masterItem?.supplier || '-'}</TableCell>
                             <TableCell>
                               <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
                                 {item.status || 'Not Started'}
