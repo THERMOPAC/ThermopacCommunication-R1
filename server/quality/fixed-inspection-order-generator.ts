@@ -128,16 +128,17 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
       masterItemChildToParentMap.set(rel.componentItemId, rel.parentItemId);
     });
     
-    // Create a set of item IDs that already have inspection orders
-    const itemsWithInspectionOrders = new Set();
+    // Create a set of PROJECT ITEM IDs that already have inspection orders
+    // CRITICAL: inspection_orders.item_id references project_items.id, NOT master_items.id
+    const projectItemsWithInspectionOrders = new Set();
     existingInspectionOrders.forEach(order => {
       if (order.itemId) {
-        itemsWithInspectionOrders.add(order.itemId);
+        projectItemsWithInspectionOrders.add(order.itemId);
       }
     });
 
     console.log(`[PREVIEW DEBUG] Found ${existingInspectionOrders.length} existing inspection orders for project ${projectId}`);
-    console.log(`[PREVIEW DEBUG] Master item IDs with existing inspection orders: [${Array.from(itemsWithInspectionOrders).join(', ')}]`);
+    console.log(`[PREVIEW DEBUG] Project item IDs with existing inspection orders: [${Array.from(projectItemsWithInspectionOrders).join(', ')}]`);
     console.log(`[PREVIEW DEBUG] newItemsOnly parameter: ${newItemsOnly}`);
     
     // Separate items into parent "Make" items, "Buy" items, and component items
@@ -187,17 +188,17 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     });
     
     // Filter out items that already have inspection orders if newItemsOnly is true
-    // BUGFIX: Check item.itemId (master item ID) instead of item.id (project item ID)
+    // FIXED: Check item.id (project item ID) since inspection_orders.item_id references project_items.id
     const filteredMakeParentItems = newItemsOnly ? 
-      makeParentItems.filter(item => !itemsWithInspectionOrders.has(item.itemId)) : 
+      makeParentItems.filter(item => !projectItemsWithInspectionOrders.has(item.id)) : 
       makeParentItems;
       
     const filteredBuyParentItems = newItemsOnly ? 
-      buyParentItems.filter(item => !itemsWithInspectionOrders.has(item.itemId)) : 
+      buyParentItems.filter(item => !projectItemsWithInspectionOrders.has(item.id)) : 
       buyParentItems;
       
     const filteredComponentItems = newItemsOnly ? 
-      componentItems.filter(item => !itemsWithInspectionOrders.has(item.itemId)) : 
+      componentItems.filter(item => !projectItemsWithInspectionOrders.has(item.id)) : 
       componentItems;
     
     console.log(`[PREVIEW] After filtering: Make=${filteredMakeParentItems.length}/${makeParentItems.length}, Buy=${filteredBuyParentItems.length}/${buyParentItems.length}, Component=${filteredComponentItems.length}/${componentItems.length}`);
@@ -372,16 +373,17 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       masterItemChildToParentMap.set(rel.componentItemId, rel.parentItemId);
     });
     
-    // Create a set of item IDs that already have inspection orders
-    const itemsWithInspectionOrders = new Set();
+    // Create a set of PROJECT ITEM IDs that already have inspection orders
+    // CRITICAL: inspection_orders.item_id references project_items.id, NOT master_items.id
+    const projectItemsWithInspectionOrders = new Set();
     existingInspectionOrders.forEach(order => {
       if (order.itemId) {
-        itemsWithInspectionOrders.add(order.itemId);
+        projectItemsWithInspectionOrders.add(order.itemId);
       }
     });
     
     console.log(`[DUPLICATE CHECK] Found ${existingInspectionOrders.length} existing inspection orders for project ${projectId}`);
-    console.log(`[DUPLICATE CHECK] Item IDs with existing inspection orders: [${Array.from(itemsWithInspectionOrders).join(', ')}]`);
+    console.log(`[DUPLICATE CHECK] Project item IDs with existing inspection orders: [${Array.from(projectItemsWithInspectionOrders).join(', ')}]`);
     console.log(`[DUPLICATE CHECK] newItemsOnly flag: ${newItemsOnly}`);
     
     // Separate items into parent "Make" items, "Buy" items, and component items
@@ -415,17 +417,17 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     });
     
     // Filter out items that already have inspection orders if newItemsOnly is true
-    // BUGFIX: Check item.itemId (master item ID) instead of item.id (project item ID)
+    // FIXED: Check item.id (project item ID) since inspection_orders.item_id references project_items.id
     const filteredMakeParentItems = newItemsOnly ? 
-      makeParentItems.filter(item => !itemsWithInspectionOrders.has(item.itemId)) : 
+      makeParentItems.filter(item => !projectItemsWithInspectionOrders.has(item.id)) : 
       makeParentItems;
       
     const filteredBuyParentItems = newItemsOnly ? 
-      buyParentItems.filter(item => !itemsWithInspectionOrders.has(item.itemId)) : 
+      buyParentItems.filter(item => !projectItemsWithInspectionOrders.has(item.id)) : 
       buyParentItems;
       
     const filteredComponentItems = newItemsOnly ? 
-      componentItems.filter(item => !itemsWithInspectionOrders.has(item.itemId)) : 
+      componentItems.filter(item => !projectItemsWithInspectionOrders.has(item.id)) : 
       componentItems;
     
     console.log(`[FILTERING] Before filtering: ${makeParentItems.length} make parents, ${buyParentItems.length} buy parents, ${componentItems.length} components`);
