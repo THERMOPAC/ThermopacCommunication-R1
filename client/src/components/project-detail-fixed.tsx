@@ -1463,7 +1463,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                       if (item.masterItem?.id) {
                                         // Store the master item ID and return page in sessionStorage
                                         sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
-                                        sessionStorage.setItem('returnToPage', location);
+                                        sessionStorage.setItem('returnToPage', window.location.pathname + window.location.search);
                                         // Navigate to Item Master page
                                         navigate("/item-master");
                                       } else {
@@ -2248,7 +2248,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                 if (item.masterItem?.id) {
                                   // Store the master item ID and return page in sessionStorage
                                   sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
-                                  sessionStorage.setItem('returnToPage', location);
+                                  sessionStorage.setItem('returnToPage', window.location.pathname + window.location.search);
                                   // Navigate to Item Master page
                                   navigate("/item-master");
                                 } else {
