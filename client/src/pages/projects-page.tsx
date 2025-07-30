@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Package, Building2, Calendar, User, Edit, Save } from "lucide-react";
+import { Loader2, Package, Building2, Calendar, User, Edit, Save, Search } from "lucide-react";
 import Layout from "@/components/layout";
 import { Helmet } from "react-helmet";
 import { useToast } from "@/hooks/use-toast";
@@ -50,6 +50,7 @@ export default function ProjectsPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ProjectItem | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState({
     quantity: "",
     estimatedCost: "",
@@ -73,6 +74,22 @@ export default function ProjectsPage() {
   });
 
   const selectedProject = projects?.find(p => p.id.toString() === selectedProjectId);
+
+  // Filter project items based on search query
+  const filteredProjectItems = projectItems?.filter(item => {
+    if (!searchQuery) return true;
+    
+    const searchLower = searchQuery.toLowerCase();
+    const itemCode = item.masterItem?.itemCode?.toLowerCase() || '';
+    const description = item.masterItem?.description?.toLowerCase() || '';
+    const status = item.status?.toLowerCase() || '';
+    const makeOrBuy = item.masterItem?.makeOrBuy?.toLowerCase() || '';
+    
+    return itemCode.includes(searchLower) || 
+           description.includes(searchLower) || 
+           status.includes(searchLower) || 
+           makeOrBuy.includes(searchLower);
+  });
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -244,12 +261,27 @@ export default function ProjectsPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold">Project Items</h3>
-                  {projectItems && (
-                    <Badge variant="outline" className="px-3 py-1">
-                      {projectItems.length} {projectItems.length === 1 ? 'item' : 'items'}
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-4">
+                    {projectItems && (
+                      <Badge variant="outline" className="px-3 py-1">
+                        {filteredProjectItems?.length || 0} of {projectItems.length} {projectItems.length === 1 ? 'item' : 'items'}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
+
+                {/* Search Field */}
+                {projectItems && projectItems.length > 0 && (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      placeholder="Search items by code, name, status, or make/buy..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                )}
 
                 {itemsLoading ? (
                   <div className="flex items-center justify-center py-12">
@@ -263,6 +295,21 @@ export default function ProjectsPage() {
                     <p className="text-gray-600">
                       This project doesn't have any items associated with it yet.
                     </p>
+                  </div>
+                ) : !filteredProjectItems || filteredProjectItems.length === 0 ? (
+                  <div className="text-center py-12 border rounded-lg">
+                    <Search className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Items Match Your Search</h3>
+                    <p className="text-gray-600">
+                      Try adjusting your search terms or clear the search to see all items.
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={() => setSearchQuery("")}
+                      className="mt-4"
+                    >
+                      Clear Search
+                    </Button>
                   </div>
                 ) : (
                   <div className="border rounded-lg overflow-hidden">
@@ -279,7 +326,7 @@ export default function ProjectsPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {projectItems.map((item) => (
+                        {filteredProjectItems.map((item) => (
                           <TableRow key={item.id}>
                             <TableCell className="font-medium">{item.masterItem?.itemCode || 'N/A'}</TableCell>
                             <TableCell>{item.masterItem?.description || 'N/A'}</TableCell>
