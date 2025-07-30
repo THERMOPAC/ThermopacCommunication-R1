@@ -117,6 +117,17 @@ export default function LLMPromptEnginePage() {
   const [testMode, setTestMode] = useState(false);
   const [showSecurityLogs, setShowSecurityLogs] = useState(false);
   
+  // Edit form state
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    category: '',
+    description: '',
+    model: '',
+    frequency: '',
+    priority: 5,
+    template: ''
+  });
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -381,6 +392,39 @@ export default function LLMPromptEnginePage() {
     }
   });
 
+  // Update prompt mutation
+  const updatePromptMutation = useMutation({
+    mutationFn: async (data: { id: number; promptData: any }) => {
+      const response = await fetch(`/api/llm/prompts/${data.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(data.promptData)
+      });
+      if (!response.ok) throw new Error('Failed to update prompt');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Prompt Updated Successfully",
+        description: "Your changes have been saved.",
+      });
+      setIsEditDialogOpen(false);
+      // Invalidate queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: ['/api/llm/prompts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/llm/prompts/by-modules'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Update Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
   const handleABTest = (promptId: number) => {
     setTestingPrompts(prev => new Set(prev.add(promptId)));
     abTestMutation.mutate(promptId);
@@ -393,7 +437,34 @@ export default function LLMPromptEnginePage() {
 
   const handleEditPrompt = (prompt: LLMPrompt) => {
     setEditingPrompt(prompt);
+    setEditFormData({
+      name: prompt.name,
+      category: prompt.category,
+      description: prompt.description || '',
+      model: prompt.model,
+      frequency: prompt.frequency,
+      priority: prompt.priority,
+      template: prompt.template
+    });
     setIsEditDialogOpen(true);
+  };
+
+  const handleSavePrompt = () => {
+    if (!editingPrompt) return;
+    
+    updatePromptMutation.mutate({
+      id: editingPrompt.id,
+      promptData: {
+        name: editFormData.name,
+        description: editFormData.description,
+        template: editFormData.template,
+        category: editFormData.category,
+        model: editFormData.model,
+        frequency: editFormData.frequency,
+        priority: editFormData.priority,
+        active: true
+      }
+    });
   };
 
   const getStatusIcon = (status: string) => {
@@ -829,11 +900,15 @@ export default function LLMPromptEnginePage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="edit-name">Prompt Name</Label>
-                      <Input id="edit-name" defaultValue={editingPrompt.name} />
+                      <Input 
+                        id="edit-name" 
+                        value={editFormData.name}
+                        onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                      />
                     </div>
                     <div>
                       <Label htmlFor="edit-category">Category</Label>
-                      <Select defaultValue={editingPrompt.category}>
+                      <Select value={editFormData.category} onValueChange={(value) => setEditFormData(prev => ({ ...prev, category: value }))}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
@@ -862,7 +937,8 @@ export default function LLMPromptEnginePage() {
                     <Label htmlFor="edit-description">Description</Label>
                     <Textarea 
                       id="edit-description"
-                      defaultValue={editingPrompt.description}
+                      value={editFormData.description}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
                       className="min-h-[80px]"
                     />
                   </div>
@@ -870,7 +946,7 @@ export default function LLMPromptEnginePage() {
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <Label htmlFor="edit-model">AI Model</Label>
-                      <Select defaultValue={editingPrompt.model}>
+                      <Select value={editFormData.model} onValueChange={(value) => setEditFormData(prev => ({ ...prev, model: value }))}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select model" />
                         </SelectTrigger>
@@ -883,7 +959,7 @@ export default function LLMPromptEnginePage() {
                     
                     <div>
                       <Label htmlFor="edit-frequency">Frequency</Label>
-                      <Select defaultValue={editingPrompt.frequency}>
+                      <Select value={editFormData.frequency} onValueChange={(value) => setEditFormData(prev => ({ ...prev, frequency: value }))}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select frequency" />
                         </SelectTrigger>
@@ -903,7 +979,8 @@ export default function LLMPromptEnginePage() {
                         type="number" 
                         min="1" 
                         max="10" 
-                        defaultValue={editingPrompt.priority}
+                        value={editFormData.priority}
+                        onChange={(e) => setEditFormData(prev => ({ ...prev, priority: parseInt(e.target.value) || 5 }))}
                       />
                     </div>
                   </div>
@@ -912,7 +989,8 @@ export default function LLMPromptEnginePage() {
                     <Label htmlFor="edit-template">Prompt Template</Label>
                     <Textarea 
                       id="edit-template"
-                      defaultValue={editingPrompt.template}
+                      value={editFormData.template}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, template: e.target.value }))}
                       className="min-h-[120px]"
                     />
                   </div>
@@ -921,14 +999,11 @@ export default function LLMPromptEnginePage() {
                     <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={() => {
-                      toast({
-                        title: "Feature Coming Soon",
-                        description: "Prompt editing functionality will be available in the next update.",
-                      });
-                      setIsEditDialogOpen(false);
-                    }}>
-                      Save Changes
+                    <Button 
+                      onClick={handleSaveEdit}
+                      disabled={updatePromptMutation.isPending}
+                    >
+                      {updatePromptMutation.isPending ? "Saving..." : "Save Changes"}
                     </Button>
                   </div>
                 </div>
