@@ -415,7 +415,9 @@ export default function ProjectsPage() {
                                   if (item.masterItem?.id) {
                                     // Store the master item ID and return page in sessionStorage
                                     sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
-                                    sessionStorage.setItem('returnToPage', location.pathname + location.search);
+                                    const returnPath = window.location.pathname + window.location.search;
+                                    console.log('Storing return path (projects page):', returnPath);
+                                    sessionStorage.setItem('returnToPage', returnPath);
                                     // Navigate to Item Master page
                                     navigate("/item-master");
                                   } else {
