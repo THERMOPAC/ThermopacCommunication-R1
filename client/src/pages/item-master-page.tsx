@@ -9,8 +9,12 @@ const ItemMasterPage = () => {
       <Helmet>
         <title>Item Master | THERMOPAC Communication System</title>
       </Helmet>
-      <div>
-        <h1 className="text-3xl font-bold mb-6 pl-4">Item Master</h1>
+
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold tracking-tight pl-4">Item Master</h1>
+        </div>
+        
         <ItemMasterManagement />
       </div>
     </Layout>
