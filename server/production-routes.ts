@@ -535,7 +535,12 @@ export function setupProductionRoutes(app: Router) {
   });
   
   // Generate work orders for a project with direct implementation that properly handles sub-assemblies
-  app.post('/api/production/work-orders/generate-for-project/:projectId', ensureAuthenticated, generateDirectWorkOrders);
+  app.post('/api/production/work-orders/generate-for-project/:projectId', ensureAuthenticated, (req: Request, res: Response) => {
+    console.log(`🎯 ROUTE HIT: /api/production/work-orders/generate-for-project/${req.params.projectId}`);
+    console.log(`Request body:`, req.body);
+    console.log(`User:`, req.user?.username);
+    return generateDirectWorkOrders(req, res);
+  });
   
   // Alternative implementations (kept as fallback)
   app.post('/api/production/work-orders/generate-for-project-improved/:projectId', ensureAuthenticated, generateImprovedWorkOrders);
