@@ -1,12 +1,18 @@
 import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Package, Building2, Calendar, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Package, Building2, Calendar, User, Edit, Save } from "lucide-react";
 import Layout from "@/components/layout";
 import { Helmet } from "react-helmet";
+import { useToast } from "@/hooks/use-toast";
 
 interface Project {
   id: number;
@@ -26,19 +32,34 @@ interface ProjectItem {
   itemId: number;
   quantity: number;
   status: string;
+  estimatedCost?: number;
+  actualCost?: number;
+  notes?: string;
   masterItem?: {
     id: number;
-    item_code: string;
+    itemCode: string;
     description: string;
     specification: string;
     uom: string;
-    make_or_buy: string;
+    makeOrBuy: string;
     supplier: string;
   };
 }
 
 export default function ProjectsPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<ProjectItem | null>(null);
+  const [formData, setFormData] = useState({
+    quantity: "",
+    estimatedCost: "",
+    actualCost: "",
+    notes: "",
+    status: ""
+  });
+  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Fetch all projects for the dropdown
   const { data: projects, isLoading: projectsLoading } = useQuery<Project[]>({
@@ -69,6 +90,65 @@ export default function ProjectsPage() {
       case 'buy': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  // Mutation for updating project item
+  const updateItemMutation = useMutation({
+    mutationFn: async (data: { id: number; updates: any }) => {
+      const response = await fetch(`/api/projects/items/${data.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data.updates),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update project item');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/items`] });
+      toast({
+        title: "Success",
+        description: "Project item updated successfully",
+      });
+      setEditDialogOpen(false);
+      setEditingItem(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update project item",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEditClick = (item: ProjectItem) => {
+    setEditingItem(item);
+    setFormData({
+      quantity: item.quantity.toString(),
+      estimatedCost: item.estimatedCost?.toString() || "",
+      actualCost: item.actualCost?.toString() || "",
+      notes: item.notes || "",
+      status: item.status || "Not Started"
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingItem) return;
+
+    const updates = {
+      quantity: parseFloat(formData.quantity) || 0,
+      estimatedCost: formData.estimatedCost ? parseFloat(formData.estimatedCost) : null,
+      actualCost: formData.actualCost ? parseFloat(formData.actualCost) : null,
+      notes: formData.notes,
+      status: formData.status
+    };
+
+    updateItemMutation.mutate({ id: editingItem.id, updates });
   };
 
   return (
@@ -195,6 +275,7 @@ export default function ProjectsPage() {
                           <TableHead>UOM</TableHead>
                           <TableHead>Make/Buy</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -214,6 +295,16 @@ export default function ProjectsPage() {
                                 {item.status || 'Not Started'}
                               </Badge>
                             </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEditClick(item)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -224,6 +315,134 @@ export default function ProjectsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Edit Project Item Dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Edit Project Item</DialogTitle>
+              <DialogDescription>
+                Update the details for this project item.
+              </DialogDescription>
+            </DialogHeader>
+            {editingItem && (
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="item-code" className="text-right">
+                    Item Code
+                  </Label>
+                  <Input
+                    id="item-code"
+                    value={editingItem.masterItem?.itemCode || 'N/A'}
+                    className="col-span-3"
+                    disabled
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="item-name" className="text-right">
+                    Item Name
+                  </Label>
+                  <Input
+                    id="item-name"
+                    value={editingItem.masterItem?.description || 'N/A'}
+                    className="col-span-3"
+                    disabled
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="quantity" className="text-right">
+                    Quantity *
+                  </Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
+                    className="col-span-3"
+                    placeholder="Enter quantity"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="estimated-cost" className="text-right">
+                    Estimated Cost
+                  </Label>
+                  <Input
+                    id="estimated-cost"
+                    type="number"
+                    value={formData.estimatedCost}
+                    onChange={(e) => setFormData(prev => ({ ...prev, estimatedCost: e.target.value }))}
+                    className="col-span-3"
+                    placeholder="Enter estimated cost"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="actual-cost" className="text-right">
+                    Actual Cost
+                  </Label>
+                  <Input
+                    id="actual-cost"
+                    type="number"
+                    value={formData.actualCost}
+                    onChange={(e) => setFormData(prev => ({ ...prev, actualCost: e.target.value }))}
+                    className="col-span-3"
+                    placeholder="Enter actual cost"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="status" className="text-right">
+                    Status
+                  </Label>
+                  <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Not Started">Not Started</SelectItem>
+                      <SelectItem value="In Progress">In Progress</SelectItem>
+                      <SelectItem value="Completed">Completed</SelectItem>
+                      <SelectItem value="On Hold">On Hold</SelectItem>
+                      <SelectItem value="Cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="notes" className="text-right">
+                    Notes
+                  </Label>
+                  <Textarea
+                    id="notes"
+                    value={formData.notes}
+                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    className="col-span-3"
+                    placeholder="Enter any notes or comments"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSaveEdit} 
+                disabled={updateItemMutation.isPending || !formData.quantity}
+              >
+                {updateItemMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
