@@ -1000,7 +1000,7 @@ export default function LLMPromptEnginePage() {
                       Cancel
                     </Button>
                     <Button 
-                      onClick={handleSaveEdit}
+                      onClick={handleSavePrompt}
                       disabled={updatePromptMutation.isPending}
                     >
                       {updatePromptMutation.isPending ? "Saving..." : "Save Changes"}
