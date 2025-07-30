@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { format } from 'date-fns';
@@ -140,10 +140,11 @@ const editProjectSchema = z.object({
   estimatedBudget: z.number().optional(),
   // Project code is read-only, but required for the form
   code: z.string().optional(),
-  // Financial year is now required
-  financialYear: z.string().min(1, "Financial year is required"),
+
   // Currency for project budget
   currency: z.enum(["USD", "EUR", "INR"]).default("USD"),
+  // Project Items Search field
+  projectItemsSearch: z.string().optional(),
   // Additional fields for logistics tab
   shippingAddress: z.string().optional(),
   deliveryMethod: z.enum(["standard", "express", "pickup"]).optional(),
@@ -189,8 +190,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       targetEndDate: "",
       estimatedBudget: undefined,
       code: "",
-      financialYear: "",
       currency: "USD",
+      projectItemsSearch: "",
       shippingAddress: "",
       deliveryMethod: "standard",
       client: "",
@@ -328,8 +329,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         targetEndDate: project.targetEndDate || "",
         estimatedBudget: project.estimatedBudget || undefined,
         code: project.code || "",
-        financialYear: project.financialYear || "",
         currency: project.currency || "USD",
+        projectItemsSearch: "",
         shippingAddress: project.shippingAddress || "",
         deliveryMethod: project.deliveryMethod || "standard",
         client: project.client || "",
@@ -395,6 +396,27 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     },
     enabled: !!project
   });
+
+  // Watch the search term from the form
+  const searchTerm = form.watch("projectItemsSearch");
+
+  // Filter project items based on search term
+  const filteredProjectItems = useMemo(() => {
+    if (!projectItems || !searchTerm?.trim()) {
+      return projectItems || [];
+    }
+
+    const searchLower = searchTerm.toLowerCase().trim();
+    return projectItems.filter((item: any) => {
+      const itemCode = item.itemCode?.toLowerCase() || "";
+      const description = item.description?.toLowerCase() || "";
+      const drawingNo = item.drawingNo?.toLowerCase() || "";
+      
+      return itemCode.includes(searchLower) || 
+             description.includes(searchLower) || 
+             drawingNo.includes(searchLower);
+    });
+  }, [projectItems, searchTerm]);
   
   // Fetch customers for use in edit form
   const { data: customers, isLoading: isLoadingCustomers } = useQuery({
@@ -416,12 +438,14 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   // Submit handler for editing project
   const updateProjectMutation = useMutation({
     mutationFn: async (data: EditProjectValues) => {
+      // Remove search field from data before sending to backend
+      const { projectItemsSearch, ...projectData } = data;
       const res = await fetch(`/api/projects/${projectId}`, {
         method: "PUT",
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(projectData)
       });
       
       if (!res.ok) {
@@ -1322,32 +1346,22 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 )}
               />
 
-              {/* Financial Year - Now Editable */}
+              {/* Project Items Search Field */}
               <FormField
                 control={form.control}
-                name="financialYear"
+                name="projectItemsSearch"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Financial Year <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Project Items Search</FormLabel>
                     <FormControl>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select financial year" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="2023-2024">2023-2024</SelectItem>
-                          <SelectItem value="2024-2025">2024-2025</SelectItem>
-                          <SelectItem value="2025-2026">2025-2026</SelectItem>
-                          <SelectItem value="2026-2027">2026-2027</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Input 
+                        placeholder="Search project items by code, description, or drawing number..." 
+                        {...field}
+                      />
                     </FormControl>
+                    <FormDescription>
+                      Filter project items in the table below by typing keywords
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1377,7 +1391,14 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   {/* Project Items Section */}
                   <div className="space-y-3 border rounded-md p-4">
                     <div className="flex justify-between items-center">
-                      <h3 className="text-sm font-medium">Project Items</h3>
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-sm font-medium">Project Items</h3>
+                        {searchTerm && (
+                          <Badge variant="secondary">
+                            {filteredProjectItems.length} of {projectItems?.length || 0} items shown
+                          </Badge>
+                        )}
+                      </div>
                       <Button 
                         type="button" 
                         variant="outline" 
@@ -1405,8 +1426,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {projectItems && projectItems.length > 0 ? (
-                            projectItems.map((item) => (
+                          {filteredProjectItems && filteredProjectItems.length > 0 ? (
+                            filteredProjectItems.map((item) => (
                               <TableRow key={item.id}>
                                 <TableCell className="w-6">
                                   <Button
