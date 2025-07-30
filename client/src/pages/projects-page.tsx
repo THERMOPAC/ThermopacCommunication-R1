@@ -111,31 +111,20 @@ export default function ProjectsPage() {
 
   const selectedProject = projects?.find(p => p.id.toString() === selectedProjectId);
 
-  // Organize project items hierarchically (similar to production planning and inspections)
+  // Fetch virtual components for the selected project
+  const { data: virtualComponents } = useQuery<any[]>({
+    queryKey: [`/api/projects/${selectedProjectId}/virtual-components`],
+    enabled: !!selectedProjectId,
+  });
+
+  // Organize project items hierarchically (including virtual components)
   const organizedProjectItems = React.useMemo(() => {
     if (!projectItems || projectItems.length === 0) return [];
 
-    const parentAssemblies: ProjectItem[] = [];
-    const components: ProjectItem[] = [];
+    // All project items are parent assemblies
+    const parentAssemblies = projectItems;
 
-    projectItems.forEach((item: ProjectItem) => {
-      const itemCode = item.masterItem?.itemCode || '';
-      
-      // Look for hierarchical patterns in item codes
-      // Component pattern: codes with specific separators or patterns indicating sub-assemblies
-      // This will depend on your item code structure - adjust as needed
-      const codeSegments = itemCode.split('-');
-      const isComponent = codeSegments.length > 3 && itemCode.includes('-') && 
-                         (itemCode.includes('WPC-') || itemCode.includes('C10165'));
-      
-      if (isComponent) {
-        components.push(item);
-      } else {
-        parentAssemblies.push(item);
-      }
-    });
-
-    // Sort both categories by item code
+    // Sort parent assemblies by item code (descending)
     const sortByItemCode = (a: ProjectItem, b: ProjectItem) => {
       const codeA = a.masterItem?.itemCode || '';
       const codeB = b.masterItem?.itemCode || '';
@@ -143,32 +132,54 @@ export default function ProjectsPage() {
     };
 
     parentAssemblies.sort(sortByItemCode);
-    components.sort(sortByItemCode);
 
-    // Create hierarchical structure: each parent followed by its components
-    const hierarchicalItems: (ProjectItem & { type?: string })[] = [];
+    // Create hierarchical structure: each parent followed by its virtual components
+    const hierarchicalItems: (ProjectItem & { type?: string, isVirtual?: boolean })[] = [];
 
     parentAssemblies.forEach((parent: ProjectItem) => {
       // Add the parent assembly
       hierarchicalItems.push({ ...parent, type: 'parent' });
 
-      // Find and add components that belong to this parent
-      const parentCode = parent.masterItem?.itemCode || '';
-      const relatedComponents = components.filter((component: ProjectItem) => {
-        const componentCode = component.masterItem?.itemCode || '';
-        // Component belongs to parent if it shares a common prefix pattern
-        return componentCode.startsWith(parentCode.split('-')[0]) && componentCode !== parentCode;
-      });
+      // Find and add virtual components that belong to this parent
+      if (virtualComponents) {
+        const relatedVirtualComponents = virtualComponents.filter((component: any) => 
+          component.parent_item_id === parent.masterItem?.id
+        );
 
-      // Add related components with proper sorting
-      relatedComponents.sort(sortByItemCode);
-      relatedComponents.forEach((component: ProjectItem) => {
-        hierarchicalItems.push({ ...component, type: 'component' });
-      });
+        // Sort virtual components by component code
+        relatedVirtualComponents.sort((a: any, b: any) => {
+          const codeA = a.component_code || '';
+          const codeB = b.component_code || '';
+          return codeB.localeCompare(codeA); // Descending order
+        });
+
+        // Add virtual components as project items
+        relatedVirtualComponents.forEach((component: any) => {
+          const virtualItem: ProjectItem & { type?: string, isVirtual?: boolean } = {
+            id: component.id + 10000, // Use unique numeric ID for virtual components
+            projectId: parent.projectId,
+            itemId: component.component_item_id,
+            quantity: component.quantity || 1,
+            status: 'Active', // Default status for virtual components
+            masterItem: {
+              id: component.component_item_id,
+              itemCode: component.component_code,
+              description: component.component_description,
+              specification: '',
+              uom: component.unit || 'Nos',
+              makeOrBuy: 'Make',
+              supplier: ''
+            },
+            type: 'component',
+            isVirtual: true
+          };
+          hierarchicalItems.push(virtualItem);
+        });
+      }
     });
 
     return hierarchicalItems;
-  }, [projectItems]);
+  }, [projectItems, virtualComponents]);
 
   // Filter project items based on search query
   const filteredProjectItems = projectItems?.filter(item => {

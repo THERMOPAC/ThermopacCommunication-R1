@@ -938,6 +938,34 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
+  // Get virtual components for a project
+  app.get('/api/projects/:projectId/virtual-components', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      
+      const virtualComponents = await db.execute(sql`
+        SELECT 
+          ic.id,
+          ic.parent_item_id,
+          ic.component_item_id,
+          mi_component.item_code as component_code,
+          mi_component.description as component_description,
+          ic.quantity,
+          mi_component.uom as unit
+        FROM item_components ic
+        JOIN project_items pi ON ic.parent_item_id = pi.item_id
+        JOIN master_items mi_component ON ic.component_item_id = mi_component.id
+        WHERE pi.project_id = ${projectId}
+        ORDER BY mi_component.item_code
+      `);
+
+      res.json(virtualComponents.rows);
+    } catch (error) {
+      console.error(`Error fetching virtual components for project ${req.params.projectId}:`, error);
+      res.status(500).json({ error: 'Failed to fetch virtual components' });
+    }
+  });
+
   app.get('/api/projects/code/:projectCode/items', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const projectCode = req.params.projectCode;
