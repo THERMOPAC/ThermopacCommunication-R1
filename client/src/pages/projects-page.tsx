@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Package, Building2, Calendar, User, Edit, Save, Search, Eye } from "lucide-react";
+import { Loader2, Package, Building2, Calendar, User, Edit, Save, Search, Eye, ArrowRight } from "lucide-react";
 import Layout from "@/components/layout";
 import { Helmet } from "react-helmet";
 import { useToast } from "@/hooks/use-toast";
@@ -391,6 +391,7 @@ export default function ProjectsPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-[4%]"></TableHead>
                           <TableHead>Item Code</TableHead>
                           <TableHead>Item Name</TableHead>
                           <TableHead>Quantity</TableHead>
@@ -403,6 +404,33 @@ export default function ProjectsPage() {
                       <TableBody>
                         {filteredProjectItems.map((item) => (
                           <TableRow key={item.id}>
+                            <TableCell className="w-6">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  console.log("Navigate to master item:", item);
+                                  if (item.masterItem?.id) {
+                                    // Store the master item ID in sessionStorage
+                                    sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
+                                    // Navigate to Item Master page
+                                    navigate("/item-master");
+                                  } else {
+                                    toast({
+                                      title: "Error",
+                                      description: "Could not find master item information",
+                                      variant: "destructive",
+                                    });
+                                  }
+                                }}
+                                className="h-6 w-6 p-0"
+                                title="Edit in Master Items"
+                              >
+                                <ArrowRight className="h-4 w-4 text-amber-500" />
+                              </Button>
+                            </TableCell>
                             <TableCell className="font-medium">{item.masterItem?.itemCode || 'N/A'}</TableCell>
                             <TableCell>{item.masterItem?.description || 'N/A'}</TableCell>
                             <TableCell>{item.quantity.toLocaleString()}</TableCell>
