@@ -558,7 +558,7 @@ export default function ProjectsPage() {
                                   <Badge className={isComponent ? 'bg-purple-500 hover:bg-purple-600' : 'bg-green-600 hover:bg-green-700'}>
                                     {isComponent ? '🟪 Component' : '🟩 Parent Assembly'}
                                   </Badge>
-                                  <span className="font-mono font-bold text-lg">
+                                  <span className="font-medium text-gray-900">
                                     {item.masterItem?.itemCode || 'N/A'}
                                   </span>
                                 </div>
