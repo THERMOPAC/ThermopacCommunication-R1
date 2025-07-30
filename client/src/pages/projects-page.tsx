@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Package, Building2, Calendar, User, Edit, Save, Search, ArrowRight } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Layout from "@/components/layout";
 import { Helmet } from "react-helmet";
 import { useToast } from "@/hooks/use-toast";
@@ -126,6 +127,40 @@ export default function ProjectsPage() {
            status.includes(searchLower) || 
            makeOrBuy.includes(searchLower);
   });
+
+  // Organize project items hierarchically by Make/Buy type
+  const organizedProjectItems = React.useMemo(() => {
+    if (!filteredProjectItems || filteredProjectItems.length === 0) return [];
+
+    const makeItems: ProjectItem[] = [];
+    const buyItems: ProjectItem[] = [];
+    const otherItems: ProjectItem[] = [];
+
+    filteredProjectItems.forEach((item: ProjectItem) => {
+      const makeOrBuy = item.masterItem?.makeOrBuy?.toLowerCase() || '';
+      
+      if (makeOrBuy === 'make') {
+        makeItems.push(item);
+      } else if (makeOrBuy === 'buy') {
+        buyItems.push(item);
+      } else {
+        otherItems.push(item);
+      }
+    });
+
+    // Sort each category by item code
+    const sortByItemCode = (a: ProjectItem, b: ProjectItem) => {
+      const codeA = a.masterItem?.itemCode || '';
+      const codeB = b.masterItem?.itemCode || '';
+      return codeA.localeCompare(codeB);
+    };
+
+    makeItems.sort(sortByItemCode);
+    buyItems.sort(sortByItemCode);
+    otherItems.sort(sortByItemCode);
+
+    return { makeItems, buyItems, otherItems };
+  }, [filteredProjectItems]);
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -387,85 +422,404 @@ export default function ProjectsPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="border rounded-lg overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[4%]"></TableHead>
-                          <TableHead>Item Code</TableHead>
-                          <TableHead>Item Name</TableHead>
-                          <TableHead>Quantity</TableHead>
-                          <TableHead>UOM</TableHead>
-                          <TableHead>Make/Buy</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredProjectItems.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell className="w-6">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  console.log("Navigate to master item:", item);
-                                  if (item.masterItem?.id) {
-                                    // Store the master item ID and return page in sessionStorage
-                                    sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
-                                    const returnPath = window.location.pathname + window.location.search;
-                                    console.log('Storing return path (projects page):', returnPath);
-                                    sessionStorage.setItem('returnToPage', returnPath);
-                                    // Navigate to Item Master page
-                                    navigate("/item-master");
-                                  } else {
-                                    toast({
-                                      title: "Error",
-                                      description: "Could not find master item information",
-                                      variant: "destructive",
-                                    });
-                                  }
-                                }}
-                                className="h-6 w-6 p-0"
-                                title="Edit in Master Items"
-                              >
-                                <ArrowRight className="h-4 w-4 text-amber-500" />
-                              </Button>
-                            </TableCell>
-                            <TableCell className="font-medium">{item.masterItem?.itemCode || 'N/A'}</TableCell>
-                            <TableCell>{item.masterItem?.description || 'N/A'}</TableCell>
-                            <TableCell>{item.quantity.toLocaleString()}</TableCell>
-                            <TableCell>{item.masterItem?.uom || 'N/A'}</TableCell>
-                            <TableCell>
-                              <Badge className={getMakeOrBuyColor(item.masterItem?.makeOrBuy || '')}>
-                                {item.masterItem?.makeOrBuy || 'N/A'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className={getStatusColor(item.status || 'Not Started')}>
-                                {item.status || 'Not Started'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleEditClick(item)}
-                                  className="h-8 w-8 p-0"
-                                  title="Edit Item"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
+                  <Tabs defaultValue={searchQuery ? "table" : "hierarchical"} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="hierarchical">Hierarchical View</TabsTrigger>
+                      <TabsTrigger value="table">Table View</TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="hierarchical" className="space-y-4">
+                      {searchQuery ? (
+                        <div className="border rounded-lg overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-[4%]"></TableHead>
+                                <TableHead>Item Code</TableHead>
+                                <TableHead>Item Name</TableHead>
+                                <TableHead>Quantity</TableHead>
+                                <TableHead>UOM</TableHead>
+                                <TableHead>Make/Buy</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {filteredProjectItems.map((item) => (
+                                <TableRow key={item.id}>
+                                  <TableCell className="w-6">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        console.log("Navigate to master item:", item);
+                                        if (item.masterItem?.id) {
+                                          sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
+                                          const returnPath = window.location.pathname + window.location.search;
+                                          console.log('Storing return path (projects page):', returnPath);
+                                          sessionStorage.setItem('returnToPage', returnPath);
+                                          navigate("/item-master");
+                                        } else {
+                                          toast({
+                                            title: "Error",
+                                            description: "Could not find master item information",
+                                            variant: "destructive",
+                                          });
+                                        }
+                                      }}
+                                      className="h-6 w-6 p-0"
+                                      title="Edit in Master Items"
+                                    >
+                                      <ArrowRight className="h-4 w-4 text-amber-500" />
+                                    </Button>
+                                  </TableCell>
+                                  <TableCell className="font-medium">{item.masterItem?.itemCode || 'N/A'}</TableCell>
+                                  <TableCell>{item.masterItem?.description || 'N/A'}</TableCell>
+                                  <TableCell>{item.quantity.toLocaleString()}</TableCell>
+                                  <TableCell>{item.masterItem?.uom || 'N/A'}</TableCell>
+                                  <TableCell>
+                                    <Badge className={getMakeOrBuyColor(item.masterItem?.makeOrBuy || '')}>
+                                      {item.masterItem?.makeOrBuy || 'N/A'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge className={getStatusColor(item.status || 'Not Started')}>
+                                      {item.status || 'Not Started'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleEditClick(item)}
+                                        className="h-8 w-8 p-0"
+                                        title="Edit Item"
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      ) : (
+                        <div className="space-y-6">
+                          {/* Make Items Section */}
+                          {organizedProjectItems.makeItems.length > 0 && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-4">
+                                <Badge className="bg-blue-100 text-blue-800 font-semibold">
+                                  🔧 Make Items ({organizedProjectItems.makeItems.length})
+                                </Badge>
                               </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                              <div className="grid gap-4">
+                                {organizedProjectItems.makeItems.map((item) => (
+                                  <Card key={item.id} className="border-l-4 border-l-blue-400">
+                                    <CardContent className="p-4">
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex-1 space-y-1">
+                                          <div className="flex items-center gap-2">
+                                            <h4 className="font-semibold text-base">
+                                              {item.masterItem?.itemCode || 'N/A'}
+                                            </h4>
+                                            <Badge className={getMakeOrBuyColor(item.masterItem?.makeOrBuy || '')}>
+                                              {item.masterItem?.makeOrBuy || 'N/A'}
+                                            </Badge>
+                                            <Badge className={getStatusColor(item.status || 'Not Started')}>
+                                              {item.status || 'Not Started'}
+                                            </Badge>
+                                          </div>
+                                          <p className="text-sm text-gray-600">
+                                            {item.masterItem?.description || 'N/A'}
+                                          </p>
+                                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                                            <span>Quantity: {item.quantity.toLocaleString()}</span>
+                                            <span>UOM: {item.masterItem?.uom || 'N/A'}</span>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              if (item.masterItem?.id) {
+                                                sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
+                                                const returnPath = window.location.pathname + window.location.search;
+                                                sessionStorage.setItem('returnToPage', returnPath);
+                                                navigate("/item-master");
+                                              } else {
+                                                toast({
+                                                  title: "Error",
+                                                  description: "Could not find master item information",
+                                                  variant: "destructive",
+                                                });
+                                              }
+                                            }}
+                                            className="h-8 w-8 p-0"
+                                            title="Edit in Master Items"
+                                          >
+                                            <ArrowRight className="h-4 w-4 text-amber-500" />
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleEditClick(item)}
+                                            className="h-8 w-8 p-0"
+                                            title="Edit Item"
+                                          >
+                                            <Edit className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Buy Items Section */}
+                          {organizedProjectItems.buyItems.length > 0 && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-4">
+                                <Badge className="bg-green-100 text-green-800 font-semibold">
+                                  🛒 Buy Items ({organizedProjectItems.buyItems.length})
+                                </Badge>
+                              </div>
+                              <div className="grid gap-4">
+                                {organizedProjectItems.buyItems.map((item) => (
+                                  <Card key={item.id} className="border-l-4 border-l-green-400">
+                                    <CardContent className="p-4">
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex-1 space-y-1">
+                                          <div className="flex items-center gap-2">
+                                            <h4 className="font-semibold text-base">
+                                              {item.masterItem?.itemCode || 'N/A'}
+                                            </h4>
+                                            <Badge className={getMakeOrBuyColor(item.masterItem?.makeOrBuy || '')}>
+                                              {item.masterItem?.makeOrBuy || 'N/A'}
+                                            </Badge>
+                                            <Badge className={getStatusColor(item.status || 'Not Started')}>
+                                              {item.status || 'Not Started'}
+                                            </Badge>
+                                          </div>
+                                          <p className="text-sm text-gray-600">
+                                            {item.masterItem?.description || 'N/A'}
+                                          </p>
+                                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                                            <span>Quantity: {item.quantity.toLocaleString()}</span>
+                                            <span>UOM: {item.masterItem?.uom || 'N/A'}</span>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              if (item.masterItem?.id) {
+                                                sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
+                                                const returnPath = window.location.pathname + window.location.search;
+                                                sessionStorage.setItem('returnToPage', returnPath);
+                                                navigate("/item-master");
+                                              } else {
+                                                toast({
+                                                  title: "Error",
+                                                  description: "Could not find master item information",
+                                                  variant: "destructive",
+                                                });
+                                              }
+                                            }}
+                                            className="h-8 w-8 p-0"
+                                            title="Edit in Master Items"
+                                          >
+                                            <ArrowRight className="h-4 w-4 text-amber-500" />
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleEditClick(item)}
+                                            className="h-8 w-8 p-0"
+                                            title="Edit Item"
+                                          >
+                                            <Edit className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Other Items Section */}
+                          {organizedProjectItems.otherItems.length > 0 && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-4">
+                                <Badge className="bg-gray-100 text-gray-800 font-semibold">
+                                  📦 Other Items ({organizedProjectItems.otherItems.length})
+                                </Badge>
+                              </div>
+                              <div className="grid gap-4">
+                                {organizedProjectItems.otherItems.map((item) => (
+                                  <Card key={item.id} className="border-l-4 border-l-gray-400">
+                                    <CardContent className="p-4">
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex-1 space-y-1">
+                                          <div className="flex items-center gap-2">
+                                            <h4 className="font-semibold text-base">
+                                              {item.masterItem?.itemCode || 'N/A'}
+                                            </h4>
+                                            <Badge className={getMakeOrBuyColor(item.masterItem?.makeOrBuy || '')}>
+                                              {item.masterItem?.makeOrBuy || 'N/A'}
+                                            </Badge>
+                                            <Badge className={getStatusColor(item.status || 'Not Started')}>
+                                              {item.status || 'Not Started'}
+                                            </Badge>
+                                          </div>
+                                          <p className="text-sm text-gray-600">
+                                            {item.masterItem?.description || 'N/A'}
+                                          </p>
+                                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                                            <span>Quantity: {item.quantity.toLocaleString()}</span>
+                                            <span>UOM: {item.masterItem?.uom || 'N/A'}</span>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              if (item.masterItem?.id) {
+                                                sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
+                                                const returnPath = window.location.pathname + window.location.search;
+                                                sessionStorage.setItem('returnToPage', returnPath);
+                                                navigate("/item-master");
+                                              } else {
+                                                toast({
+                                                  title: "Error",
+                                                  description: "Could not find master item information",
+                                                  variant: "destructive",
+                                                });
+                                              }
+                                            }}
+                                            className="h-8 w-8 p-0"
+                                            title="Edit in Master Items"
+                                          >
+                                            <ArrowRight className="h-4 w-4 text-amber-500" />
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleEditClick(item)}
+                                            className="h-8 w-8 p-0"
+                                            title="Edit Item"
+                                          >
+                                            <Edit className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </TabsContent>
+                    
+                    <TabsContent value="table">
+                      <div className="border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[4%]"></TableHead>
+                              <TableHead>Item Code</TableHead>
+                              <TableHead>Item Name</TableHead>
+                              <TableHead>Quantity</TableHead>
+                              <TableHead>UOM</TableHead>
+                              <TableHead>Make/Buy</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredProjectItems.map((item) => (
+                              <TableRow key={item.id}>
+                                <TableCell className="w-6">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      console.log("Navigate to master item:", item);
+                                      if (item.masterItem?.id) {
+                                        sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
+                                        const returnPath = window.location.pathname + window.location.search;
+                                        console.log('Storing return path (projects page):', returnPath);
+                                        sessionStorage.setItem('returnToPage', returnPath);
+                                        navigate("/item-master");
+                                      } else {
+                                        toast({
+                                          title: "Error",
+                                          description: "Could not find master item information",
+                                          variant: "destructive",
+                                        });
+                                      }
+                                    }}
+                                    className="h-6 w-6 p-0"
+                                    title="Edit in Master Items"
+                                  >
+                                    <ArrowRight className="h-4 w-4 text-amber-500" />
+                                  </Button>
+                                </TableCell>
+                                <TableCell className="font-medium">{item.masterItem?.itemCode || 'N/A'}</TableCell>
+                                <TableCell>{item.masterItem?.description || 'N/A'}</TableCell>
+                                <TableCell>{item.quantity.toLocaleString()}</TableCell>
+                                <TableCell>{item.masterItem?.uom || 'N/A'}</TableCell>
+                                <TableCell>
+                                  <Badge className={getMakeOrBuyColor(item.masterItem?.makeOrBuy || '')}>
+                                    {item.masterItem?.makeOrBuy || 'N/A'}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className={getStatusColor(item.status || 'Not Started')}>
+                                    {item.status || 'Not Started'}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleEditClick(item)}
+                                      className="h-8 w-8 p-0"
+                                      title="Edit Item"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 )}
               </div>
             )}
