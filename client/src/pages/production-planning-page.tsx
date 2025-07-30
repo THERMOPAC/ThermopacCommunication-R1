@@ -54,6 +54,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, ClipboardList, Calendar as CalendarIcon, CheckCircle2, Hourglass, AlertTriangle, XCircle, Trash2, Loader2, Search, Info as InfoIcon, Eye, Edit } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
@@ -100,6 +101,7 @@ export default function ProductionPlanningPage() {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [keepVisible, setKeepVisible] = useState(false);
   
   // Function to reset all work order generation states
   const resetWorkOrderGenerationState = () => {
@@ -180,6 +182,52 @@ export default function ProductionPlanningPage() {
   const [open, setOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [isItemDetailOpen, setIsItemDetailOpen] = useState(false);
+
+  // Initialize from URL parameters and localStorage
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectParam = urlParams.get('project');
+    const keepParam = urlParams.get('keep');
+    
+    // Check localStorage for keep visible preference
+    const storedKeepVisible = localStorage.getItem('production-planning-keep-visible');
+    
+    if (projectParam) {
+      const projectId = parseInt(projectParam);
+      if (!isNaN(projectId)) {
+        setSelectedProject(projectId);
+      }
+    }
+    
+    if (keepParam === 'true') {
+      setKeepVisible(true);
+    } else if (storedKeepVisible === 'true') {
+      setKeepVisible(true);
+    }
+  }, []);
+
+  // Save keep visible preference to localStorage
+  useEffect(() => {
+    localStorage.setItem('production-planning-keep-visible', keepVisible.toString());
+  }, [keepVisible]);
+
+  // Function to update URL with current state
+  const updateURL = (projectId: number | null, keep: boolean) => {
+    const url = new URL(window.location.href);
+    
+    if (projectId && keep) {
+      url.searchParams.set('project', projectId.toString());
+      url.searchParams.set('keep', 'true');
+    } else if (projectId) {
+      url.searchParams.set('project', projectId.toString());
+      url.searchParams.delete('keep');
+    } else {
+      url.searchParams.delete('project');
+      url.searchParams.delete('keep');
+    }
+    
+    window.history.replaceState({}, '', url.toString());
+  };
   
   // Fetch projects for dropdown
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery<any[]>({
@@ -591,10 +639,13 @@ export default function ProductionPlanningPage() {
                   <Label htmlFor="project-filter">Select Project</Label>
                   <Select 
                     onValueChange={(value) => {
-                      setSelectedProject(parseInt(value));
+                      const projectId = parseInt(value);
+                      setSelectedProject(projectId);
                       setSearchTerm(''); // Clear search term when project changes
+                      updateURL(projectId, keepVisible);
                     }}
                     disabled={isLoadingProjects}
+                    value={selectedProject?.toString() || ""}
                   >
                     <SelectTrigger className="w-full md:w-[300px]">
                       <SelectValue placeholder="Select a project" />
@@ -607,6 +658,25 @@ export default function ProductionPlanningPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Keep Visible checkbox */}
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="keep-visible" 
+                    checked={keepVisible}
+                    onCheckedChange={(checked) => {
+                      const isChecked = checked === true;
+                      setKeepVisible(isChecked);
+                      updateURL(selectedProject, isChecked);
+                    }}
+                  />
+                  <Label htmlFor="keep-visible" className="text-sm font-medium">
+                    Keep Visible
+                  </Label>
+                  <span className="text-xs text-gray-500">
+                    (Maintain project filter when returning from production planning pages)
+                  </span>
                 </div>
                 
                 {selectedProject && (
@@ -709,14 +779,24 @@ export default function ProductionPlanningPage() {
                                 <Button 
                                   variant="outline" 
                                   size="sm"
-                                  onClick={() => window.location.href = `/production/work-orders/${workOrder.id}`}
+                                  onClick={() => {
+                                    const url = keepVisible && selectedProject 
+                                      ? `/production/work-orders/${workOrder.id}?return=production-planning&project=${selectedProject}&keep=true`
+                                      : `/production/work-orders/${workOrder.id}`;
+                                    window.location.href = url;
+                                  }}
                                 >
                                   View
                                 </Button>
                                 <Button 
                                   variant="outline" 
                                   size="sm"
-                                  onClick={() => window.location.href = `/production/work-orders/edit/${workOrder.id}`}
+                                  onClick={() => {
+                                    const url = keepVisible && selectedProject 
+                                      ? `/production/work-orders/edit/${workOrder.id}?return=production-planning&project=${selectedProject}&keep=true`
+                                      : `/production/work-orders/edit/${workOrder.id}`;
+                                    window.location.href = url;
+                                  }}
                                 >
                                   Edit
                                 </Button>
@@ -801,7 +881,12 @@ export default function ProductionPlanningPage() {
                         <Button 
                           size="sm" 
                           variant="outline"
-                          onClick={() => window.location.href = `/production/work-orders/${workOrder.id}`}
+                          onClick={() => {
+                            const url = keepVisible && selectedProject 
+                              ? `/production/work-orders/${workOrder.id}?return=production-planning&project=${selectedProject}&keep=true`
+                              : `/production/work-orders/${workOrder.id}`;
+                            window.location.href = url;
+                          }}
                           title="View Work Order"
                         >
                           <Eye className="w-3 h-3" />
@@ -809,7 +894,12 @@ export default function ProductionPlanningPage() {
                         <Button 
                           size="sm" 
                           variant="outline"
-                          onClick={() => window.location.href = `/production/work-orders/edit/${workOrder.id}`}
+                          onClick={() => {
+                            const url = keepVisible && selectedProject 
+                              ? `/production/work-orders/edit/${workOrder.id}?return=production-planning&project=${selectedProject}&keep=true`
+                              : `/production/work-orders/edit/${workOrder.id}`;
+                            window.location.href = url;
+                          }}
                           title="Edit Work Order"
                         >
                           <Edit className="w-3 h-3" />
