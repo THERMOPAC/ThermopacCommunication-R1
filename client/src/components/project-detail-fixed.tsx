@@ -156,7 +156,7 @@ const editProjectSchema = z.object({
 type EditProjectValues = z.infer<typeof editProjectSchema>;
 
 export default function ProjectDetail({ id }: ProjectDetailProps) {
-  const [_, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
@@ -176,6 +176,19 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   
   // Use the provided ID directly
   const projectId = id;
+
+  // Handle Back to Projects navigation with Keep Visible functionality
+  const handleBackToProjects = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectParam = urlParams.get('project');
+    const keepParam = urlParams.get('keep');
+    
+    if (keepParam === 'true' && projectParam) {
+      navigate(`/projects?project=${projectParam}&keep=true`);
+    } else {
+      navigate('/projects');
+    }
+  };
   
   // Initialize form with empty values first (will be updated later)
   const form = useForm<EditProjectValues>({
@@ -1810,7 +1823,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         <Button 
           variant="ghost" 
           className="mb-4" 
-          onClick={() => navigate("/projects")}
+          onClick={handleBackToProjects}
         >
           <ChevronLeft className="mr-1 h-4 w-4" /> Back to Projects
         </Button>

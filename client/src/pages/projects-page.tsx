@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation, Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Package, Building2, Calendar, User, Edit, Save, Search } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2, Package, Building2, Calendar, User, Edit, Save, Search, Eye } from "lucide-react";
 import Layout from "@/components/layout";
 import { Helmet } from "react-helmet";
 import { useToast } from "@/hooks/use-toast";
@@ -47,10 +49,12 @@ interface ProjectItem {
 }
 
 export default function ProjectsPage() {
+  const [location, navigate] = useLocation();
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ProjectItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [keepVisible, setKeepVisible] = useState(false);
   const [formData, setFormData] = useState({
     quantity: "",
     estimatedCost: "",
@@ -61,6 +65,38 @@ export default function ProjectsPage() {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Parse URL parameters on component mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectParam = urlParams.get('project');
+    const keepParam = urlParams.get('keep');
+    
+    if (projectParam) {
+      setSelectedProjectId(projectParam);
+    }
+    
+    if (keepParam === 'true') {
+      setKeepVisible(true);
+    }
+  }, [location]);
+
+  // Update URL when project filter changes
+  const updateURL = (projectId: string, keep: boolean) => {
+    const params = new URLSearchParams();
+    if (projectId) {
+      params.set('project', projectId);
+      if (keep) {
+        params.set('keep', 'true');
+      }
+    }
+    
+    const newUrl = params.toString() ? 
+      `/projects?${params.toString()}` : 
+      '/projects';
+    
+    window.history.replaceState({}, '', newUrl);
+  };
 
   // Fetch all projects for the dropdown
   const { data: projects, isLoading: projectsLoading } = useQuery<Project[]>({
@@ -176,6 +212,16 @@ export default function ProjectsPage() {
     updateItemMutation.mutate({ id: editingItem.id, updates });
   };
 
+  const handleViewDetails = (project: Project | undefined) => {
+    if (!project) return;
+    
+    if (keepVisible && selectedProjectId) {
+      navigate(`/projects/${project.id}?project=${selectedProjectId}&keep=true`);
+    } else {
+      navigate(`/projects/${project.id}`);
+    }
+  };
+
   return (
     <Layout>
       <Helmet>
@@ -200,33 +246,57 @@ export default function ProjectsPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Project Dropdown */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Select Project</label>
-              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={projectsLoading ? "Loading projects..." : "Choose a project..."} />
-                </SelectTrigger>
-                <SelectContent>
-                  {projectsLoading ? (
-                    <SelectItem value="loading" disabled>
-                      <div className="flex items-center">
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Loading projects...
-                      </div>
-                    </SelectItem>
-                  ) : !projects || projects.length === 0 ? (
-                    <SelectItem value="no-projects" disabled>
-                      No projects available
-                    </SelectItem>
-                  ) : (
-                    projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id.toString()}>
-                        {project.projectName} ({project.projectCode}) – {project.customerName}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Select Project</label>
+                <Select value={selectedProjectId} onValueChange={(value) => {
+                  setSelectedProjectId(value);
+                  updateURL(value, keepVisible);
+                }}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={projectsLoading ? "Loading projects..." : "Choose a project..."} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projectsLoading ? (
+                      <SelectItem value="loading" disabled>
+                        <div className="flex items-center">
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Loading projects...
+                        </div>
                       </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+                    ) : !projects || projects.length === 0 ? (
+                      <SelectItem value="no-projects" disabled>
+                        No projects available
+                      </SelectItem>
+                    ) : (
+                      projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id.toString()}>
+                          {project.projectName} ({project.projectCode}) – {project.customerName}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Keep Visible checkbox */}
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="keep-visible" 
+                  checked={keepVisible}
+                  onCheckedChange={(checked) => {
+                    const isChecked = checked === true;
+                    setKeepVisible(isChecked);
+                    updateURL(selectedProjectId, isChecked);
+                  }}
+                />
+                <Label htmlFor="keep-visible" className="text-sm font-medium">
+                  Keep Visible
+                </Label>
+                <span className="text-xs text-gray-500">
+                  (Maintain project filter when returning from project detail pages)
+                </span>
+              </div>
             </div>
 
             {/* Selected Project Info */}
@@ -348,14 +418,27 @@ export default function ProjectsPage() {
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleEditClick(item)}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleViewDetails(selectedProject)}
+                                  className="h-8 px-2"
+                                  title="View Project Details"
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  Details
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleEditClick(item)}
+                                  className="h-8 w-8 p-0"
+                                  title="Edit Item"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
