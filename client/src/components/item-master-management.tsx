@@ -1172,7 +1172,16 @@ const ItemMasterManagement: React.FC = () => {
         onOpenChange={(open) => {
           setIsEditDialogOpen(open);
           if (!open) {
-            setActiveTab("details");
+            // Check if there's a return page stored in sessionStorage
+            const returnToPage = sessionStorage.getItem('returnToPage');
+            if (returnToPage) {
+              // Clear the sessionStorage and navigate back to the originating page
+              sessionStorage.removeItem('returnToPage');
+              navigate(returnToPage);
+            } else {
+              // Default behavior - just reset the tab
+              setActiveTab("details");
+            }
           }
         }}>
         <DialogContent className="sm:max-w-[95%] max-h-[80vh] overflow-y-auto">

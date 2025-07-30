@@ -1461,8 +1461,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                       e.stopPropagation();
                                       console.log("Navigate to master item:", item);
                                       if (item.masterItem?.id) {
-                                        // Store the master item ID in sessionStorage
+                                        // Store the master item ID and return page in sessionStorage
                                         sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
+                                        sessionStorage.setItem('returnToPage', location);
                                         // Navigate to Item Master page
                                         navigate("/item-master");
                                       } else {
@@ -2245,8 +2246,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                 e.stopPropagation();
                                 console.log("Navigate to master item:", item);
                                 if (item.masterItem?.id) {
-                                  // Store the master item ID in sessionStorage
+                                  // Store the master item ID and return page in sessionStorage
                                   sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
+                                  sessionStorage.setItem('returnToPage', location);
                                   // Navigate to Item Master page
                                   navigate("/item-master");
                                 } else {
