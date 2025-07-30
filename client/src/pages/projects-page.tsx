@@ -181,15 +181,12 @@ export default function ProjectsPage() {
       <Helmet>
         <title>Projects | THERMOPAC Communication System</title>
       </Helmet>
-      <div className="container mx-auto p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 pl-4">Projects</h1>
-            <p className="text-gray-600 mt-2">Select a project to view associated items and details</p>
-          </div>
-        </div>
 
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold tracking-tight pl-4">Projects</h1>
+        </div>
+        
         {/* Available Projects Section */}
         <Card>
           <CardHeader>
