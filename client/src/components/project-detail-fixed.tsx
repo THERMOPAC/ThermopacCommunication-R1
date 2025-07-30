@@ -1462,8 +1462,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                       console.log("Navigate to master item:", item);
                                       if (item.masterItem?.id) {
                                         // Store the master item ID and return page in sessionStorage
+                                        const returnPath = window.location.pathname + window.location.search;
+                                        console.log('Storing return path:', returnPath);
                                         sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
-                                        sessionStorage.setItem('returnToPage', window.location.pathname + window.location.search);
+                                        sessionStorage.setItem('returnToPage', returnPath);
                                         // Navigate to Item Master page
                                         navigate("/item-master");
                                       } else {
@@ -2247,8 +2249,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                 console.log("Navigate to master item:", item);
                                 if (item.masterItem?.id) {
                                   // Store the master item ID and return page in sessionStorage
+                                  const returnPath = window.location.pathname + window.location.search;
+                                  console.log('Storing return path (second instance):', returnPath);
                                   sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
-                                  sessionStorage.setItem('returnToPage', window.location.pathname + window.location.search);
+                                  sessionStorage.setItem('returnToPage', returnPath);
                                   // Navigate to Item Master page
                                   navigate("/item-master");
                                 } else {

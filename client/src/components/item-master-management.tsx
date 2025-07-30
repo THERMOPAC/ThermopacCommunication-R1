@@ -1174,12 +1174,15 @@ const ItemMasterManagement: React.FC = () => {
           if (!open) {
             // Check if there's a return page stored in sessionStorage
             const returnToPage = sessionStorage.getItem('returnToPage');
+            console.log('Retrieved return page from sessionStorage:', returnToPage);
             if (returnToPage) {
               // Clear the sessionStorage and navigate back to the originating page
               sessionStorage.removeItem('returnToPage');
+              console.log('Navigating to return page:', returnToPage);
               navigate(returnToPage);
             } else {
               // Default behavior - just reset the tab
+              console.log('No return page found, staying on Item Master page');
               setActiveTab("details");
             }
           }
