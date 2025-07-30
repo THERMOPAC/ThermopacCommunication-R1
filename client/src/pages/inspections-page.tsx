@@ -1917,7 +1917,7 @@ export default function InspectionsPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({}) // Empty body for preview
+        body: JSON.stringify({ newItemsOnly: true }) // Only show items that don't have inspection orders
       });
       
       if (!response.ok) {

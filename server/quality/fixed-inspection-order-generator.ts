@@ -135,6 +135,10 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
         itemsWithInspectionOrders.add(order.itemId);
       }
     });
+
+    console.log(`[PREVIEW DEBUG] Found ${existingInspectionOrders.length} existing inspection orders for project ${projectId}`);
+    console.log(`[PREVIEW DEBUG] Master item IDs with existing inspection orders: [${Array.from(itemsWithInspectionOrders).join(', ')}]`);
+    console.log(`[PREVIEW DEBUG] newItemsOnly parameter: ${newItemsOnly}`);
     
     // Separate items into parent "Make" items, "Buy" items, and component items
     // Parent items are those that are not components of other items according to item_components table
