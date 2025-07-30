@@ -5351,8 +5351,8 @@ export default function InspectionsPage() {
                                 {order.type === 'parent' ? '🟩 Parent Assembly' : '🟪 Component'}
                               </Badge>
                               <div>
-                                <div className="font-medium text-gray-900">{order.inspection_order_number || order.inspectionOrderNumber}</div>
-                                <div className="text-sm text-gray-600">{order.description || order.title}</div>
+                                <div className="font-mono font-bold text-lg">{order.inspection_order_number || order.inspectionOrderNumber}</div>
+                                <div className="font-medium text-gray-900">{order.description || order.title}</div>
                                 <div className="text-xs text-gray-500 mt-1">
                                   Drawing: {order.drawing_no || order.drawingNo || 'N/A'} | 
                                   Qty: {order.quantity} {order.unit} | 
