@@ -407,14 +407,29 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     }
 
     const searchLower = searchTerm.toLowerCase().trim();
+    
+    // Debug logging to understand data structure
+    if (projectItems.length > 0) {
+      console.log("Sample project item structure:", projectItems[0]);
+      console.log("Search term:", searchTerm);
+    }
+    
     return projectItems.filter((item: any) => {
-      const itemCode = item.itemCode?.toLowerCase() || "";
-      const description = item.description?.toLowerCase() || "";
-      const drawingNo = item.drawingNo?.toLowerCase() || "";
+      // Check both direct properties and nested masterItem properties
+      const itemCode = (item.itemCode || item.masterItem?.itemCode || "").toLowerCase();
+      const description = (item.description || item.masterItem?.description || "").toLowerCase();
+      const drawingNo = (item.drawingNo || item.masterItem?.drawingNo || "").toLowerCase();
       
-      return itemCode.includes(searchLower) || 
-             description.includes(searchLower) || 
-             drawingNo.includes(searchLower);
+      const matches = itemCode.includes(searchLower) || 
+                     description.includes(searchLower) || 
+                     drawingNo.includes(searchLower);
+      
+      // Debug logging for search matching
+      if (matches) {
+        console.log("Found match:", { itemCode, description, drawingNo, searchTerm: searchLower });
+      }
+      
+      return matches;
     });
   }, [projectItems, searchTerm]);
   
