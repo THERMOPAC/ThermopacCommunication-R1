@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Package, Building2, Calendar, User, Edit, Save, Search, Eye, ArrowRight } from "lucide-react";
+import { Loader2, Package, Building2, Calendar, User, Edit, Save, Search, ArrowRight } from "lucide-react";
 import Layout from "@/components/layout";
 import { Helmet } from "react-helmet";
 import { useToast } from "@/hooks/use-toast";
@@ -447,16 +447,6 @@ export default function ProjectsPage() {
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleViewDetails(selectedProject)}
-                                  className="h-8 px-2"
-                                  title="View Project Details"
-                                >
-                                  <Eye className="h-4 w-4 mr-1" />
-                                  Details
-                                </Button>
                                 <Button
                                   size="sm"
                                   variant="outline"
