@@ -113,15 +113,18 @@ export async function cleanupDuplicateWorkOrders(projectId: number) {
 }
 
 export async function generateDirectWorkOrders(req: Request, res: Response) {
+  console.log(`🚀 ENDPOINT HIT: Direct Work Order Generation started`);
   try {
     console.log(`🚀 ENDPOINT CALLED: Starting Direct Work Order Generation`);
     const projectId = parseInt(req.params.projectId);
     const { confirm } = req.body;
     console.log(`Project ID: ${projectId}, Confirm: ${confirm}`);
+    console.log(`Request body:`, JSON.stringify(req.body));
     // Always skip components that already have work orders
     const newComponentsOnly = true;
     
     if (isNaN(projectId)) {
+      console.log(`❌ Invalid project ID: ${req.params.projectId}`);
       return res.status(400).json({ error: 'Invalid project ID' });
     }
     
@@ -1268,7 +1271,10 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       crossProjectComponents: crossProjectInfo
     });
   } catch (error: any) {
-    console.error('Error generating direct work orders:', error);
+    console.error('❌ CRITICAL ERROR in generateDirectWorkOrders:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
     
     // Special handling for PostgreSQL constraint violations
     if (error.code === '23505') {
