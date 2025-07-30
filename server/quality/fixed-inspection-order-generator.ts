@@ -636,79 +636,109 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       }
     }
     
-    // Create individual inspection orders for each component item
+    // Create individual inspection orders for each component item using hierarchical numbering
     if (filteredComponentItems.length > 0) {
-      console.log(`Creating ${filteredComponentItems.length} component inspection orders`);
+      console.log(`Creating ${filteredComponentItems.length} component inspection orders with hierarchical numbering`);
       
-      let componentNumberStart = getNextNumber(existingComponentNumbers);
+      // Group components by their parent items for hierarchical numbering
+      const componentsByParent = new Map<number, typeof filteredComponentItems>();
       
-      // Create individual inspection orders for each component item
-      for (const [index, item] of filteredComponentItems.entries()) {
-        console.log(`Creating component order ${index + 1}/${filteredComponentItems.length}: Item ID ${item.id}`);
-        const masterItem = masterItemsMap.get(item.itemId);
+      filteredComponentItems.forEach(item => {
         const parentProjectItemId = projectItemParentMap.get(item.id);
-        const parentItem = parentProjectItemId ? projectItemsList.find(pi => pi.id === parentProjectItemId) : null;
+        if (parentProjectItemId) {
+          if (!componentsByParent.has(parentProjectItemId)) {
+            componentsByParent.set(parentProjectItemId, []);
+          }
+          componentsByParent.get(parentProjectItemId)!.push(item);
+        }
+      });
+      
+      console.log(`[HIERARCHICAL] Grouped ${filteredComponentItems.length} components into ${componentsByParent.size} parent groups`);
+      
+      // Create hierarchical inspection orders for each parent group
+      for (const [parentProjectItemId, parentComponents] of componentsByParent.entries()) {
+        const parentItem = projectItemsList.find(pi => pi.id === parentProjectItemId);
         const parentMasterItem = parentItem ? masterItemsMap.get(parentItem.itemId) : null;
-        const componentOrderNumber = componentNumberStart + index;
-        const componentInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-C-${componentOrderNumber}`;
         
-        // Extract drawing number from masterItem data
-        let drawingNumber = masterItem?.drawingNo || "";
-        if (!drawingNumber && masterItem?.itemCode) {
-          const itemCode = masterItem.itemCode;
-          if (/^\d+$/.test(itemCode)) {
-            // For numeric drawing numbers, use as-is
-            drawingNumber = itemCode;
-          } else if (itemCode.includes('-')) {
-            // For alpha-numeric with hyphens, extract the part before the last segment
-            const parts = itemCode.split('-');
-            if (parts.length >= 2) {
-              drawingNumber = parts.slice(0, -1).join('-');
-            } else {
-              drawingNumber = itemCode;
-            }
-          } else {
-            // If no hyphen, use as-is
-            drawingNumber = itemCode;
+        // Find the parent inspection order to determine the base number
+        const parentInspectionOrder = existingInspectionOrders.find(order => order.itemId === parentProjectItemId);
+        
+        let parentNumber = 1;
+        if (parentInspectionOrder?.inspectionOrderNumber) {
+          const match = parentInspectionOrder.inspectionOrderNumber.match(/IO-\d+-(\d+)-[MB]-(\d+)$/);
+          if (match) {
+            parentNumber = parseInt(match[2]);
           }
         }
         
-        console.log(`Component order ${componentInspectionOrderNumber}: Drawing number extracted: "${drawingNumber}" from itemCode: "${masterItem?.itemCode}"`);
+        console.log(`[HIERARCHICAL] Processing ${parentComponents.length} components for parent ${parentMasterItem?.itemCode} (IO number: ${parentNumber})`);
         
-        // Create individual inspection order for this component
-        const componentItemOrder = await db.insert(inspectionOrders).values({
-          projectId: project.id,
-          projectCode: project.code,
-          inspectionOrderNumber: componentInspectionOrderNumber,
-          title: `Component Inspection - ${masterItem?.itemCode || 'Unknown'}`,
-          description: `${masterItem?.description || 'No description'} (for ${parentMasterItem?.itemCode || 'Unknown'})`,
-          drawingNo: drawingNumber,
-          status: 'pending',
-          inspectionType: 'in-process',
-          quantity: parseInt(String(item.quantity)),
-          unit: masterItem?.uom || 'Nos',
-          makeOrBuy: masterItem?.makeOrBuy || 'Unknown',
-          itemId: item.id,
-          itemCode: masterItem?.itemCode || 'Unknown',
-          sequenceNumber: componentOrderNumber,
-          createdBy: req.user!.id
-        }).returning();
+        // Create hierarchical inspection orders for each component
+        for (const [componentIndex, item] of parentComponents.entries()) {
+          const masterItem = masterItemsMap.get(item.itemId);
+          const componentNumber = componentIndex + 1;
+          const componentInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-M-${parentNumber}-${componentNumber}`;
+          
+          console.log(`[HIERARCHICAL] Creating component order ${componentInspectionOrderNumber} for ${masterItem?.itemCode} (${componentIndex + 1}/${parentComponents.length})`);
         
-        createdInspectionOrders.push(componentItemOrder[0]);
-        
-        // Create inspection order item record
-        const orderItem = await db.insert(inspectionOrderItems).values({
-          inspectionOrderId: componentItemOrder[0].id,
-          itemId: item.id,
-          itemCode: masterItem?.itemCode || 'Unknown',
-          description: `${masterItem?.description || 'No description'} (for ${parentMasterItem?.itemCode || 'Unknown'})`,
-          quantity: parseInt(String(item.quantity)),
-          unit: masterItem?.uom || 'Nos',
-          makeOrBuy: masterItem?.makeOrBuy || 'Unknown',
-          sequenceNumber: 1 // Only one item per order
-        }).returning();
-        
-        createdInspectionOrderItems.push(orderItem[0]);
+          // Extract drawing number from masterItem data
+          let drawingNumber = masterItem?.drawingNo || "";
+          if (!drawingNumber && masterItem?.itemCode) {
+            const itemCode = masterItem.itemCode;
+            if (/^\d+$/.test(itemCode)) {
+              // For numeric drawing numbers, use as-is
+              drawingNumber = itemCode;
+            } else if (itemCode.includes('-')) {
+              // For alpha-numeric with hyphens, extract the part before the last segment
+              const parts = itemCode.split('-');
+              if (parts.length >= 2) {
+                drawingNumber = parts.slice(0, -1).join('-');
+              } else {
+                drawingNumber = itemCode;
+              }
+            } else {
+              // If no hyphen, use as-is
+              drawingNumber = itemCode;
+            }
+          }
+          
+          console.log(`Component order ${componentInspectionOrderNumber}: Drawing number extracted: "${drawingNumber}" from itemCode: "${masterItem?.itemCode}"`);
+          
+          // Create individual inspection order for this component
+          const componentItemOrder = await db.insert(inspectionOrders).values({
+            projectId: project.id,
+            projectCode: project.code,
+            inspectionOrderNumber: componentInspectionOrderNumber,
+            title: `Component Inspection - ${masterItem?.itemCode || 'Unknown'}`,
+            description: `${masterItem?.description || 'No description'} (for ${parentMasterItem?.itemCode || 'Unknown'})`,
+            drawingNo: drawingNumber,
+            status: 'pending',
+            inspectionType: 'in-process',
+            quantity: parseInt(String(item.quantity)),
+            unit: masterItem?.uom || 'Nos',
+            makeOrBuy: masterItem?.makeOrBuy || 'Unknown',
+            itemId: item.id,
+            itemCode: masterItem?.itemCode || 'Unknown',
+            sequenceNumber: componentNumber,
+            createdBy: req.user!.id
+          }).returning();
+          
+          createdInspectionOrders.push(componentItemOrder[0]);
+          
+          // Create inspection order item record
+          const orderItem = await db.insert(inspectionOrderItems).values({
+            inspectionOrderId: componentItemOrder[0].id,
+            itemId: item.id,
+            itemCode: masterItem?.itemCode || 'Unknown',
+            description: `${masterItem?.description || 'No description'} (for ${parentMasterItem?.itemCode || 'Unknown'})`,
+            quantity: parseInt(String(item.quantity)),
+            unit: masterItem?.uom || 'Nos',
+            makeOrBuy: masterItem?.makeOrBuy || 'Unknown',
+            sequenceNumber: 1 // Only one item per order
+          }).returning();
+          
+          createdInspectionOrderItems.push(orderItem[0]);
+        }
       }
     }
     
