@@ -1119,9 +1119,9 @@ export function setupProjectRoutes(app: express.Express) {
             console.log(`🔍 AUTO-SYNC: Looking for work orders with item code: ${masterItem.itemCode}`);
             
             // Find related work orders by matching item code in title
-            const relatedWorkOrders = await db.query.workOrders.findMany({
-              where: sql`project_id = ${item.projectId} AND title LIKE ${masterItem.itemCode + '%'}`
-            });
+            const relatedWorkOrders = await db.select()
+              .from(workOrders)
+              .where(sql`${workOrders.projectId} = ${item.projectId} AND ${workOrders.title} LIKE ${`%${masterItem.itemCode}%`}`);
             
             console.log(`🔍 AUTO-SYNC: Found ${relatedWorkOrders.length} related work orders`);
             
