@@ -114,8 +114,10 @@ export async function cleanupDuplicateWorkOrders(projectId: number) {
 
 export async function generateDirectWorkOrders(req: Request, res: Response) {
   try {
+    console.log(`🚀 ENDPOINT CALLED: Starting Direct Work Order Generation`);
     const projectId = parseInt(req.params.projectId);
     const { confirm } = req.body;
+    console.log(`Project ID: ${projectId}, Confirm: ${confirm}`);
     // Always skip components that already have work orders
     const newComponentsOnly = true;
     
@@ -984,6 +986,12 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     console.log(`Project ${projectId} already has work orders for ${masterItemsWithWorkOrdersInProject.size} master items and ${itemCodesWithWorkOrdersInProject.size} item codes`);
     
     // Step 13: Create component work orders
+    console.log(`🔧 Found ${virtualComponentItems.length} virtual component items to process:`);
+    virtualComponentItems.forEach((comp, index) => {
+      const masterItem = masterItemsMap.get(comp.itemId);
+      console.log(`  ${index + 1}. Component ID: ${comp.itemId}, Parent: ${comp.parentItemId}, Make/Buy: ${masterItem?.makeOrBuy || 'unknown'}, Code: ${masterItem?.itemCode || 'unknown'}`);
+    });
+    
     for (const component of virtualComponentItems) {
       const masterItem = masterItemsMap.get(component.itemId);
       const parentItemId = component.parentItemId;
@@ -991,29 +999,9 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       // ENHANCED MULTILAYER PREVENTION
       // Before going any further, check multiple sources to prevent duplicates
       
-      if (masterItem) {
-        // SIMPLIFIED DUPLICATE PREVENTION: Only check if this exact component already has a work order
-        // Use direct database query to check for existing work orders for this specific item code
-        if (masterItem.itemCode) {
-          try {
-            const existingWorkOrderCheck = await db.execute(sql`
-              SELECT id, work_order_number, title
-              FROM work_orders 
-              WHERE project_id = ${projectId}
-                AND title LIKE ${masterItem.itemCode + ' - %'}
-            `);
-            
-            const existingResults = existingWorkOrderCheck.rows || existingWorkOrderCheck;
-            
-            if (existingResults && Array.isArray(existingResults) && existingResults.length > 0) {
-              console.log(`SIMPLIFIED CHECK: Component ${masterItem.itemCode} already has work order ${existingResults[0].work_order_number} - skipping`);
-              continue;
-            }
-          } catch (error) {
-            console.error(`Error checking existing work order for ${masterItem.itemCode}:`, error);
-            // Continue anyway - don't let error prevent work order creation
-          }
-        }
+      if (!masterItem) {
+        console.log(`Skipping component - no master item found`);
+        continue;
       }
       
       // Find parent's work order - either from current session or existing orders
