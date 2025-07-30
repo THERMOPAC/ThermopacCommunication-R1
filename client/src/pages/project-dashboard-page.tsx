@@ -357,7 +357,7 @@ export default function ProjectDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {projects.slice(0, 5).map((project: ProjectData) => (
+              {projects.map((project: ProjectData) => (
                 <div key={project.id} className="flex items-center gap-4 p-3 border rounded-lg">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                   <div className="flex-1">
