@@ -95,8 +95,15 @@ export default function ProjectsPage() {
     switch (status?.toLowerCase()) {
       case 'active': return 'bg-green-500 text-white';
       case 'completed': return 'bg-blue-500 text-white';
-      case 'on_hold': return 'bg-yellow-500 text-black';
-      case 'cancelled': return 'bg-red-500 text-white';
+      case 'on_hold': 
+      case 'on hold': return 'bg-yellow-500 text-black';
+      case 'cancelled': 
+      case 'canceled': return 'bg-red-500 text-white';
+      case 'not started': 
+      case 'drawing received':
+      case 'material received': return 'bg-gray-500 text-white';
+      case 'under construction':
+      case 'in progress': return 'bg-orange-500 text-white';
       default: return 'bg-gray-500 text-white';
     }
   };
@@ -338,7 +345,7 @@ export default function ProjectsPage() {
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+                              <Badge className={getStatusColor(item.status || 'Not Started')}>
                                 {item.status || 'Not Started'}
                               </Badge>
                             </TableCell>
