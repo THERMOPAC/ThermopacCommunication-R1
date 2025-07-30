@@ -111,6 +111,65 @@ export default function ProjectsPage() {
 
   const selectedProject = projects?.find(p => p.id.toString() === selectedProjectId);
 
+  // Organize project items hierarchically (similar to production planning and inspections)
+  const organizedProjectItems = React.useMemo(() => {
+    if (!projectItems || projectItems.length === 0) return [];
+
+    const parentAssemblies: ProjectItem[] = [];
+    const components: ProjectItem[] = [];
+
+    projectItems.forEach((item: ProjectItem) => {
+      const itemCode = item.masterItem?.itemCode || '';
+      
+      // Look for hierarchical patterns in item codes
+      // Component pattern: codes with specific separators or patterns indicating sub-assemblies
+      // This will depend on your item code structure - adjust as needed
+      const codeSegments = itemCode.split('-');
+      const isComponent = codeSegments.length > 3 && itemCode.includes('-') && 
+                         (itemCode.includes('WPC-') || itemCode.includes('C10165'));
+      
+      if (isComponent) {
+        components.push(item);
+      } else {
+        parentAssemblies.push(item);
+      }
+    });
+
+    // Sort both categories by item code
+    const sortByItemCode = (a: ProjectItem, b: ProjectItem) => {
+      const codeA = a.masterItem?.itemCode || '';
+      const codeB = b.masterItem?.itemCode || '';
+      return codeB.localeCompare(codeA); // Descending order
+    };
+
+    parentAssemblies.sort(sortByItemCode);
+    components.sort(sortByItemCode);
+
+    // Create hierarchical structure: each parent followed by its components
+    const hierarchicalItems: (ProjectItem & { type?: string })[] = [];
+
+    parentAssemblies.forEach((parent: ProjectItem) => {
+      // Add the parent assembly
+      hierarchicalItems.push({ ...parent, type: 'parent' });
+
+      // Find and add components that belong to this parent
+      const parentCode = parent.masterItem?.itemCode || '';
+      const relatedComponents = components.filter((component: ProjectItem) => {
+        const componentCode = component.masterItem?.itemCode || '';
+        // Component belongs to parent if it shares a common prefix pattern
+        return componentCode.startsWith(parentCode.split('-')[0]) && componentCode !== parentCode;
+      });
+
+      // Add related components with proper sorting
+      relatedComponents.sort(sortByItemCode);
+      relatedComponents.forEach((component: ProjectItem) => {
+        hierarchicalItems.push({ ...component, type: 'component' });
+      });
+    });
+
+    return hierarchicalItems;
+  }, [projectItems]);
+
   // Filter project items based on search query
   const filteredProjectItems = projectItems?.filter(item => {
     if (!searchQuery) return true;
@@ -386,7 +445,8 @@ export default function ProjectsPage() {
                       Clear Search
                     </Button>
                   </div>
-                ) : (
+                ) : searchQuery ? (
+                  // Show table view when searching
                   <div className="border rounded-lg overflow-hidden">
                     <Table>
                       <TableHeader>
@@ -465,6 +525,96 @@ export default function ProjectsPage() {
                         ))}
                       </TableBody>
                     </Table>
+                  </div>
+                ) : (
+                  // Show hierarchical card view when not searching
+                  <div className="space-y-3">
+                    {organizedProjectItems.map((item, index) => {
+                      const itemWithType = item as ProjectItem & { type?: string };
+                      const isComponent = itemWithType.type === 'component';
+                      
+                      return (
+                        <Card 
+                          key={`${item.id}-${index}`} 
+                          className={`transition-all duration-200 hover:shadow-md ${
+                            isComponent ? 'ml-6 bg-purple-50/30 border-purple-200' : 'bg-green-50/30 border-green-200'
+                          }`}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1 space-y-2">
+                                <div className="flex items-center gap-3">
+                                  <Badge className={isComponent ? 'bg-purple-500 hover:bg-purple-600' : 'bg-green-600 hover:bg-green-700'}>
+                                    {isComponent ? '🟪 Component' : '🟩 Parent Assembly'}
+                                  </Badge>
+                                  <span className="font-mono font-bold text-lg">
+                                    {item.masterItem?.itemCode || 'N/A'}
+                                  </span>
+                                </div>
+                                
+                                <div className="space-y-1">
+                                  <p className="font-medium text-gray-900">
+                                    {item.masterItem?.description || 'N/A'}
+                                  </p>
+                                  
+                                  <div className="flex items-center gap-4 text-sm text-gray-600">
+                                    <span>Qty: <strong>{item.quantity.toLocaleString()}</strong></span>
+                                    <span>Unit: <strong>{item.masterItem?.uom || 'N/A'}</strong></span>
+                                    <Badge className={getMakeOrBuyColor(item.masterItem?.makeOrBuy || '')}>
+                                      {item.masterItem?.makeOrBuy || 'N/A'}
+                                    </Badge>
+                                    <Badge className={getStatusColor(item.status || 'Not Started')}>
+                                      {item.status || 'Not Started'}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 ml-4">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    console.log("Navigate to master item:", item);
+                                    if (item.masterItem?.id) {
+                                      // Store the master item ID and return page in sessionStorage
+                                      sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
+                                      const returnPath = window.location.pathname + window.location.search;
+                                      console.log('Storing return path (projects page):', returnPath);
+                                      sessionStorage.setItem('returnToPage', returnPath);
+                                      // Navigate to Item Master page
+                                      navigate("/item-master");
+                                    } else {
+                                      toast({
+                                        title: "Error",
+                                        description: "Could not find master item information",
+                                        variant: "destructive",
+                                      });
+                                    }
+                                  }}
+                                  className="h-8 w-8 p-0"
+                                  title="Edit in Master Items"
+                                >
+                                  <ArrowRight className="h-4 w-4 text-amber-500" />
+                                </Button>
+                                
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleEditClick(item)}
+                                  className="h-8 w-8 p-0"
+                                  title="Edit Item"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 )}
               </div>
