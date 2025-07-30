@@ -83,7 +83,8 @@ import {
   Package, 
   Search, 
   Trash2,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -822,71 +823,78 @@ const ItemMasterManagement: React.FC = () => {
   
   return (
     <div className="container mx-auto p-4">
+      {/* Header with filters and actions - outside of Card */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Item Master</h1>
+          <p className="text-muted-foreground">Manage master items in the system</p>
+        </div>
+        <div className="flex gap-2">
+          {canCreate && (
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Create Item
+            </Button>
+          )}
+          {canCreate && <MasterItemsImport />}
+        </div>
+      </div>
+
+      {/* Search and Filter fields - outside of Card */}
+      <div className="mb-4 flex gap-4 flex-wrap items-center">
+        {/* Project Filter */}
+        <div className="flex-shrink-0">
+          <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+            <SelectTrigger className="w-64">
+              <SelectValue placeholder="Filter by Project" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Projects</SelectItem>
+              {projects?.map((project: any) => (
+                <SelectItem key={project.id} value={project.id.toString()}>
+                  {project.name} ({project.code}) {project.customerName ? `- ${project.customerName}` : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        {/* Search field */}
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+          <Input
+            type="search"
+            placeholder="Search items by code, description, make/buy..."
+            className="pl-8 w-full"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        
+        {/* Clear buttons */}
+        {(searchQuery || selectedProjectId !== 'all') && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="flex-shrink-0" 
+            onClick={() => {
+              setSearchQuery('');
+              setSelectedProjectId('all');
+            }}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+
+      {/* Items Table - in its own Card */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Item Master</CardTitle>
-              <CardDescription>Manage master items in the system</CardDescription>
-            </div>
-            <div className="flex gap-2">
-              {canCreate && (
-                <Button onClick={() => setIsCreateDialogOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" /> Create Item
-                </Button>
-              )}
-              {canCreate && <MasterItemsImport />}
-            </div>
-          </div>
+          <CardTitle>Items</CardTitle>
+          <CardDescription>
+            Manage your master items with full CRUD operations.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Search and Filter fields */}
-          <div className="mb-4 flex gap-4 flex-wrap items-center">
-            {/* Project Filter */}
-            <div className="flex-shrink-0">
-              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                <SelectTrigger className="w-64">
-                  <SelectValue placeholder="Filter by Project" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Projects</SelectItem>
-                  {projects?.map((project: any) => (
-                    <SelectItem key={project.id} value={project.id.toString()}>
-                      {project.name} ({project.code}) {project.customerName ? `- ${project.customerName}` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {/* Search field */}
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-              <Input
-                type="search"
-                placeholder="Search items by code, description, make/buy..."
-                className="pl-8 w-full"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            
-            {/* Clear buttons */}
-            {(searchQuery || selectedProjectId !== 'all') && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="flex-shrink-0" 
-                onClick={() => {
-                  setSearchQuery('');
-                  setSelectedProjectId('all');
-                }}
-              >
-                Clear All Filters
-              </Button>
-            )}
-          </div>
-          
           {filteredItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-center">
               <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
