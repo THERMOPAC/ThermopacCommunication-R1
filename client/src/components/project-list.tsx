@@ -33,7 +33,7 @@ import { z } from "zod";
 import { 
   Loader2, Plus, Search, Calendar, Info, Users, CheckSquare, FileText, RefreshCw,
   Upload, Truck, LayoutList, Settings, ClipboardList, BadgePercent, Pencil, X, 
-  FileSpreadsheet, Eye, Edit, Package
+  FileSpreadsheet
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -1224,56 +1224,20 @@ export default function ProjectList() {
               {sortedProjects.map((project) => (
                 <div 
                   key={`project-${project.id}`} 
-                  className="flex items-center justify-between p-3 rounded border hover:bg-gray-50 min-w-0"
+                  className="flex items-center justify-between p-3 rounded border hover:bg-gray-50 cursor-pointer"
                   onClick={() => navigate(`/projects/${project.id}`)}
                 >
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <div className={`w-3 h-3 rounded-full flex-shrink-0 ${project.status === 'active' ? 'bg-green-500' : project.status === 'completed' ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
-                    <span className="text-xs text-gray-500 flex-shrink-0">ID: {project.id}</span>
-                    <span className="font-medium text-sm truncate">{project.name}</span>
-                    <span className="text-xs text-gray-500 flex-shrink-0">{project.code}</span>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${project.status === 'active' ? 'bg-green-500' : project.status === 'completed' ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
+                    <span className="text-sm text-gray-500">ID: {project.id}</span>
+                    <span className="font-medium">{project.name}</span>
+                    <span className="text-sm text-gray-500">{project.code}</span>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={`text-xs rounded-full px-1.5 py-0.5 ${getPriorityColor(project.priority)}`}>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs rounded-full px-2 py-0.5 ${getPriorityColor(project.priority)}`}>
                       {project.priority}
                     </span>
-                    
-                    {/* Action Buttons - Compact Layout */}
-                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 text-xs"
-                        onClick={() => {
-                          navigate(`/projects/${project.id}`);
-                        }}
-                      >
-                        <Eye className="h-3 w-3" />
-                        <span className="sr-only">View</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 text-xs"
-                        onClick={() => {
-                          navigate(`/projects/${project.id}`);
-                        }}
-                      >
-                        <Edit className="h-3 w-3" />
-                        <span className="sr-only">Edit</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                        onClick={() => {
-                          navigate(`/projects/${project.id}?tab=items`);
-                        }}
-                      >
-                        <Package className="h-3 w-3" />
-                        <span className="sr-only">Items</span>
-                      </Button>
-                    </div>
+                    <span className="text-xs text-gray-500">{formatDate(project.targetEndDate)}</span>
                   </div>
                 </div>
               ))}
