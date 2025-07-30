@@ -2207,21 +2207,30 @@ export default function InspectionsPage() {
         }
       }
       
-      // Success message with detailed information
-      let description = responseData.message || `Successfully created ${responseData.count || 'multiple'} inspection orders for the project`;
-      
-      // Show detailed breakdown of what was created
-      if (responseData.makeParentCount > 0 || responseData.buyParentCount > 0 || responseData.componentCount > 0) {
-        description = `Successfully created ${responseData.count} inspection orders:\n` +
-          `${responseData.makeParentCount > 0 ? `- ${responseData.makeParentCount} Make item(s)\n` : ''}` +
-          `${responseData.buyParentCount > 0 ? `- ${responseData.buyParentCount} Buy item(s)\n` : ''}` +
-          `${responseData.componentCount > 0 ? `- ${responseData.componentCount} Component item(s)` : ''}`;
+      // Handle case when no new orders were created (all items already have orders)
+      if (responseData.ordersCreated === 0 && responseData.message?.includes("already have inspection orders")) {
+        toast({
+          title: "No New Orders Needed",
+          description: responseData.message || "All project items already have inspection orders",
+          variant: "default", // Use default variant for informational message
+        });
+      } else {
+        // Success message with detailed information for actual order creation
+        let description = responseData.message || `Successfully created ${responseData.count || responseData.ordersCreated || 'multiple'} inspection orders for the project`;
+        
+        // Show detailed breakdown of what was created
+        if (responseData.makeParentCount > 0 || responseData.buyParentCount > 0 || responseData.componentCount > 0) {
+          description = `Successfully created ${responseData.count || responseData.ordersCreated} inspection orders:\n` +
+            `${responseData.makeParentCount > 0 ? `- ${responseData.makeParentCount} Make item(s)\n` : ''}` +
+            `${responseData.buyParentCount > 0 ? `- ${responseData.buyParentCount} Buy item(s)\n` : ''}` +
+            `${responseData.componentCount > 0 ? `- ${responseData.componentCount} Component item(s)` : ''}`;
+        }
+        
+        toast({
+          title: "Inspection Orders Generated",
+          description: description,
+        });
       }
-      
-      toast({
-        title: "Inspection Orders Generated",
-        description: description,
-      });
       
       // Refresh the inspection orders list and reset states
       await refetchInspectionOrders();

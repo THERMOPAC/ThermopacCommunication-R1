@@ -143,6 +143,28 @@ export const generateInspectionOrdersForProject3 = async (req: Request, res: Res
     
     console.log(`After filtering: ${filteredMakeItems.length} of ${makeItems.length} make items and ${filteredBuyItems.length} of ${buyItems.length} buy items will be processed`);
     
+    // CHECK: If no new items to process, return appropriate message
+    if (filteredMakeItems.length === 0 && filteredBuyItems.length === 0) {
+      console.log('🔄 No new items to process - all items already have inspection orders');
+      return res.status(200).json({
+        success: true,
+        message: "All project items already have inspection orders - no new orders needed",
+        ordersCreated: 0,
+        itemsCreated: 0,
+        makeItemCount: {
+          total: makeItems.length,
+          processed: 0,
+          skipped: makeItems.length
+        },
+        buyItemCount: {
+          total: buyItems.length,
+          processed: 0,
+          skipped: buyItems.length
+        },
+        existingOrders: existingInspectionOrders.length
+      });
+    }
+    
     // 11. Generate orders for Make items
     if (filteredMakeItems.length > 0) {
       console.log(`Creating ${filteredMakeItems.length} make inspection orders`);
