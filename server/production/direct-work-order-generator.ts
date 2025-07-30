@@ -557,11 +557,9 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         // Ensure componentId is a number
         componentId = Number(componentId);
         
-        // Skip if component already exists as a project item
-        if (projectItemsSet.has(componentId)) {
-          console.log(`Component ${componentId} already exists as project item`);
-          continue;
-        }
+        // NOTE: Components from item_components table are virtual and don't exist as project items
+        // This check was incorrectly preventing virtual components from being processed
+        // Removing this check allows virtual components to have work orders created
         
         // Skip components that already have work orders when in newComponentsOnly mode
         if (newComponentsOnly && existingComponentIds.has(componentId)) {
