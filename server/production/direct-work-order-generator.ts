@@ -992,39 +992,27 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       // Before going any further, check multiple sources to prevent duplicates
       
       if (masterItem) {
-        // MODIFIED: Only check global database for CURRENT project items
-        // NOT for other projects (this was too restrictive and blocks legitimate components)
-        if (masterItem.itemCode && currentProjectItemCodes && currentProjectItemCodes.has(masterItem.itemCode)) {
-          console.log(`MODIFIED LAYER 1: Component ${masterItem.itemCode} found in current project work orders - skipping`);
-          continue;
-        }
-        
-        // Layer 2: Check by current title extraction
-        if (masterItem.itemCode && allExistingItemCodesFromTitles && allExistingItemCodesFromTitles.has(masterItem.itemCode)) {
-          console.log(`LAYER 2 PREVENTION: Component ${masterItem.itemCode} found in title extraction - skipping`);
-          continue;
-        }
-        
-        // Layer 3: Check by ID in master items with work orders
-        if (masterItemsWithWorkOrdersInProject.has(masterItem.id)) {
-          console.log(`LAYER 3 PREVENTION: Component ${masterItem.itemCode} (ID: ${masterItem.id}) already has a work order in project ${projectId} (checked by ID)`);
-          continue;
-        }
-        
-        // Layer 4: Check by item code in current project
-        if (masterItem.itemCode && itemCodesWithWorkOrdersInProject.has(masterItem.itemCode)) {
-          console.log(`LAYER 4 PREVENTION: Component ${masterItem.itemCode} - already has a work order in project ${projectId} (checked by item code)`);
-          continue;
-        }
-        
-        // REMOVED LAYER 5: We no longer check the existingItemCodesWithWorkOrders
-        // This was causing legitimate components to be blocked
-        // The tracking set should only be used for components within the same run
-        
-        // Layer 6: Check current project item codes
-        if (masterItem.itemCode && currentProjectItemCodes && currentProjectItemCodes.has(masterItem.itemCode)) {
-          console.log(`LAYER 6 PREVENTION: Component ${masterItem.itemCode} already in current project tracking - skipping`);
-          continue;
+        // SIMPLIFIED DUPLICATE PREVENTION: Only check if this exact component already has a work order
+        // Use direct database query to check for existing work orders for this specific item code
+        if (masterItem.itemCode) {
+          try {
+            const existingWorkOrderCheck = await db.execute(sql`
+              SELECT id, work_order_number, title
+              FROM work_orders 
+              WHERE project_id = ${projectId}
+                AND title LIKE ${masterItem.itemCode + ' - %'}
+            `);
+            
+            const existingResults = existingWorkOrderCheck.rows || existingWorkOrderCheck;
+            
+            if (existingResults && Array.isArray(existingResults) && existingResults.length > 0) {
+              console.log(`SIMPLIFIED CHECK: Component ${masterItem.itemCode} already has work order ${existingResults[0].work_order_number} - skipping`);
+              continue;
+            }
+          } catch (error) {
+            console.error(`Error checking existing work order for ${masterItem.itemCode}:`, error);
+            // Continue anyway - don't let error prevent work order creation
+          }
         }
       }
       
@@ -1062,85 +1050,20 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         continue;
       }
       
-      // SIGNIFICANTLY SIMPLIFIED DUPLICATE DETECTION
-      // Create a unique composite key for parent+component pair - this is the most reliable way to prevent duplicates
+      // BASIC DUPLICATE PREVENTION: Only prevent duplicates within this session
       if (masterItem.itemCode) {
         const parentItemCode = masterItemsMap.get(parentItemId)?.itemCode || 'unknown';
         const uniqueKey = `${parentItemCode}:${masterItem.itemCode}`;
         
-        // If we've already processed this exact parent+component combination, skip it
+        // If we've already processed this exact parent+component combination in this session, skip it
         if (processedComponentKeys.has(uniqueKey)) {
-          console.log(`Skipping duplicate component: ${masterItem.itemCode} under parent ${parentItemCode} - already processed`);
+          console.log(`Skipping duplicate component: ${masterItem.itemCode} under parent ${parentItemCode} - already processed in this session`);
           continue;
-        }
-        
-        // MUCH MORE RELIABLE CHECK: Look directly at work order titles to find duplicates
-        // This is the most reliable check as item codes are in the title
-        try {
-          // First check: Look for exact item code in work order titles
-          const titleCheckQuery = await db.execute(sql`
-            SELECT id, work_order_number, title
-            FROM work_orders 
-            WHERE project_id = ${projectId}
-              AND title LIKE ${masterItem.itemCode + ' - %'}
-          `);
-          
-          const titleResults = titleCheckQuery.rows || titleCheckQuery;
-          
-          if (titleResults && Array.isArray(titleResults) && titleResults.length > 0) {
-            const existingWorkOrder = titleResults[0];
-            console.log(`CRITICAL TITLE CHECK: Found existing work order ${existingWorkOrder.work_order_number} for component ${masterItem.itemCode} in title "${existingWorkOrder.title}"`);
-            console.log(`Skipping duplicate component - already exists with work order ID: ${existingWorkOrder.id}`);
-            continue;
-          }
-          
-          // Second check: Look for work orders under this specific parent (hierarchical relationship)
-          const parentChildQuery = await db.execute(sql`
-            SELECT id, work_order_number, title
-            FROM work_orders
-            WHERE project_id = ${projectId}
-              AND work_order_number LIKE ${parentInfo.workOrderNumber + '-%'}
-              AND title LIKE ${masterItem.itemCode + ' - %'} 
-          `);
-          
-          const parentChildResults = parentChildQuery.rows || parentChildQuery;
-          
-          if (parentChildResults && Array.isArray(parentChildResults) && parentChildResults.length > 0) {
-            const existingChildWorkOrder = parentChildResults[0];
-            console.log(`PARENT-CHILD CHECK: Found existing child work order ${existingChildWorkOrder.work_order_number} for component ${masterItem.itemCode} under parent ${parentInfo.workOrderNumber}`);
-            console.log(`Skipping duplicate component - already exists with work order ID: ${existingChildWorkOrder.id}`);
-            continue;
-          }
-          
-          // Third check: Look for any work order where this item code is part of the title
-          // This handles cases where the item might be a parent in one work order and a child in another
-          const fuzzyTitleCheck = await db.execute(sql`
-            SELECT id, work_order_number, title
-            FROM work_orders
-            WHERE project_id = ${projectId}
-              AND (
-                title LIKE ${'% ' + masterItem.itemCode + ' %'} OR
-                title LIKE ${masterItem.itemCode + ' %'} OR
-                title LIKE ${'% ' + masterItem.itemCode}
-              )
-          `);
-          
-          const fuzzyResults = fuzzyTitleCheck.rows || fuzzyTitleCheck;
-          
-          if (fuzzyResults && Array.isArray(fuzzyResults) && fuzzyResults.length > 0) {
-            const existingFuzzyWorkOrder = fuzzyResults[0];
-            console.log(`FUZZY TITLE CHECK: Found work order containing item code ${masterItem.itemCode} in title "${existingFuzzyWorkOrder.title}"`);
-            console.log(`Skipping duplicate component - found in work order: ${existingFuzzyWorkOrder.work_order_number}`);
-            continue;
-          }
-        } catch (error) {
-          console.error('Error performing direct database checks for duplicate components:', error);
-          // Continue with other checks if this one fails
         }
         
         // Mark this parent+component combination as processed
         processedComponentKeys.add(uniqueKey);
-        console.log(`Marking composite key ${uniqueKey} as processed to prevent duplicates`);
+        console.log(`Creating work order for component ${masterItem.itemCode} under parent ${parentItemCode}`);
       }
       
       console.log(`Will create work order for component ${masterItem.itemCode}`);
