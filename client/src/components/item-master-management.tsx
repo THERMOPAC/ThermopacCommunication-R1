@@ -70,6 +70,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { 
+  AlertCircle,
   AlertTriangle,
   ArrowUpRight,
   ClipboardList, 
@@ -886,26 +887,30 @@ const ItemMasterManagement: React.FC = () => {
             )}
           </div>
           
-          {isLoading ? (
-            <div className="flex justify-center p-4">
-              <div className="animate-spin h-8 w-8 border-t-2 border-b-2 border-primary rounded-full"></div>
+          {filteredItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-32 text-center">
+              <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
+              <p className="text-muted-foreground">
+                {searchQuery
+                  ? "No items found matching your search"
+                  : "No items found. Create your first item!"}
+              </p>
             </div>
           ) : (
-            <Table>
-              <TableCaption>List of master items</TableCaption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Item Code</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>UOM</TableHead>
-                  <TableHead>Make/Buy</TableHead>
-                  <TableHead>Drawing No.</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredItems.length > 0 ? (
-                  filteredItems.map((item: MasterItem) => (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Item Code</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>UOM</TableHead>
+                    <TableHead>Make/Buy</TableHead>
+                    <TableHead>Drawing No.</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredItems.map((item: MasterItem) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.itemCode}</TableCell>
                       <TableCell>{item.description}</TableCell>
@@ -913,10 +918,10 @@ const ItemMasterManagement: React.FC = () => {
                       <TableCell>{item.makeOrBuy || '-'}</TableCell>
                       <TableCell>{item.drawingNo || '-'}</TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
+                        <div className="flex space-x-2">
                           {canEdit && (
                             <Button
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
                               onClick={() => handleEdit(item)}
                             >
@@ -925,42 +930,20 @@ const ItemMasterManagement: React.FC = () => {
                           )}
                           {canDelete && (
                             <Button
-                              variant="destructive"
+                              variant="ghost"
                               size="sm"
                               onClick={() => handleDelete(item)}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           )}
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-6">
-                      {searchQuery ? (
-                        <div className="flex flex-col items-center gap-2">
-                          <Search className="h-12 w-12 text-muted-foreground mb-2" />
-                          <p className="text-lg font-medium">No items match your search</p>
-                          <p className="text-muted-foreground">
-                            Try adjusting your search query or clear the search to see all items.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center gap-2">
-                          <Package className="h-12 w-12 text-muted-foreground mb-2" />
-                          <p className="text-lg font-medium">No items found</p>
-                          <p className="text-muted-foreground">
-                            Create your first item to get started.
-                          </p>
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
