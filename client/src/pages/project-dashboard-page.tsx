@@ -33,7 +33,8 @@ import {
   Activity,
   Briefcase,
   Edit,
-  Eye
+  Eye,
+  Package
 } from "lucide-react";
 
 interface ProjectStats {
@@ -396,6 +397,17 @@ export default function ProjectDashboardPage() {
                       >
                         <Edit className="h-3 w-3 mr-1" />
                         Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        onClick={() => {
+                          window.location.href = `/projects/${project.id}?tab=items`;
+                        }}
+                      >
+                        <Package className="h-3 w-3 mr-1" />
+                        Items
                       </Button>
                     </div>
                   </div>

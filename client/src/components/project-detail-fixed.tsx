@@ -159,7 +159,21 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [_, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("overview");
+  
+  // Handle URL parameters for tab navigation
+  const urlParams = new URLSearchParams(window.location.search);
+  const tabParam = urlParams.get('tab');
+  const initialTab = tabParam === 'items' ? 'details' : 'overview';
+  
+  const [activeTab, setActiveTab] = useState(initialTab);
+  
+  // Clean up URL parameters after processing
+  useEffect(() => {
+    if (tabParam) {
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [tabParam]);
   const [isItemsImportOpen, setIsItemsImportOpen] = useState(false);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
   const [isEditItemOpen, setIsEditItemOpen] = useState(false);
