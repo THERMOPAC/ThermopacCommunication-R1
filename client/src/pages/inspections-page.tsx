@@ -809,7 +809,7 @@ export default function InspectionsPage() {
     quantityUnit?: string;
     description?: string;
   }[]>([]);
-  
+
 
   
   // Helper function to get weld type display name
@@ -1649,6 +1649,63 @@ export default function InspectionsPage() {
     staleTime: 0, // Force fresh data
     gcTime: 0, // Don't cache
   });
+
+  // Organize inspection orders hierarchically (similar to production planning)
+  const organizedInspectionOrders = React.useMemo(() => {
+    if (!inspectionOrders || inspectionOrders.length === 0) return [];
+
+    const parentAssemblies: any[] = [];
+    const components: any[] = [];
+
+    inspectionOrders.forEach((order: any) => {
+      const orderNumber = order.inspection_order_number || order.inspectionOrderNumber || '';
+      
+      // Component pattern: IO-YYYY-X-M-Y-Z (has 6 parts, with M in 4th position)
+      // Parent pattern: IO-YYYY-X-M-Y (has 5 parts, with M in 4th position)
+      const orderParts = orderNumber.split('-');
+      const isComponent = orderParts.length === 6 && orderParts[3] === 'M' && /IO-\d{4}-\d+-M-\d+-\d+/.test(orderNumber);
+      
+      if (isComponent) {
+        components.push(order);
+      } else {
+        parentAssemblies.push(order);
+      }
+    });
+
+    // Sort both categories in descending order by inspection order number
+    const sortByOrderNumber = (a: any, b: any) => {
+      const numA = a.inspection_order_number || a.inspectionOrderNumber || '';
+      const numB = b.inspection_order_number || b.inspectionOrderNumber || '';
+      return numB.localeCompare(numA); // Descending order
+    };
+
+    parentAssemblies.sort(sortByOrderNumber);
+    components.sort(sortByOrderNumber);
+
+    // Create hierarchical structure: each parent followed by its components
+    const hierarchicalOrders: any[] = [];
+
+    parentAssemblies.forEach((parent: any) => {
+      // Add the parent assembly
+      hierarchicalOrders.push({ ...parent, type: 'parent' });
+
+      // Find and add components that belong to this parent
+      const parentNumber = parent.inspection_order_number || parent.inspectionOrderNumber;
+      const relatedComponents = components.filter((component: any) => {
+        const componentNumber = component.inspection_order_number || component.inspectionOrderNumber;
+        // Component belongs to parent if it starts with parent number + dash
+        return componentNumber.startsWith(parentNumber + '-');
+      });
+
+      // Add related components with proper sorting
+      relatedComponents.sort(sortByOrderNumber);
+      relatedComponents.forEach((component: any) => {
+        hierarchicalOrders.push({ ...component, type: 'component' });
+      });
+    });
+
+    return hierarchicalOrders;
+  }, [inspectionOrders]);
   
   // Fetch active Test Procedures
   const {
@@ -5162,7 +5219,7 @@ export default function InspectionsPage() {
                     <TabsTrigger value="export">Export</TabsTrigger>
                   </TabsList>
                   
-                  {/* List View Tab - Original Table View */}
+                  {/* List View Tab - Hierarchical Card View */}
                   <TabsContent value="list" className="mt-4">
                     <div className="mb-4">
                       <div className="relative w-full md:w-[300px]">
@@ -5175,11 +5232,13 @@ export default function InspectionsPage() {
                         />
                       </div>
                     </div>
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableCaption>
-                          {searchQuery ? 
-                            `Showing ${inspectionOrders.filter((order: any) => {
+                    
+                    {searchQuery.trim() !== '' ? (
+                      // Show filtered table view for search results
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableCaption>
+                            {`Showing ${inspectionOrders.filter((order: any) => {
                               const query = searchQuery.toLowerCase();
                               return (
                                 (order.inspection_order_number && order.inspection_order_number.toLowerCase().includes(query)) ||
@@ -5190,85 +5249,147 @@ export default function InspectionsPage() {
                                 (order.drawingNo && order.drawingNo.toLowerCase().includes(query)) ||
                                 (order.status && order.status.toLowerCase().includes(query))
                               );
-                            }).length} of ${inspectionOrders.length} inspection orders` 
-                            : 
-                            `Showing all ${inspectionOrders.length} inspection orders`
-                          }
-                        </TableCaption>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-[300px]">Order #</TableHead>
-                            <TableHead className="w-[600px]">Description</TableHead>
-                            <TableHead>Drawing No</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Quantity</TableHead>
-                            <TableHead className="w-[150px]">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {inspectionOrders
-                            .filter((order: any) => {
-                              if (!searchQuery) return true;
-                              const query = searchQuery.toLowerCase();
-                              return (
-                                (order.inspection_order_number && order.inspection_order_number.toLowerCase().includes(query)) ||
-                                (order.inspectionOrderNumber && order.inspectionOrderNumber.toLowerCase().includes(query)) ||
-                                (order.description && order.description.toLowerCase().includes(query)) ||
-                                (order.title && order.title.toLowerCase().includes(query)) ||
-                                (order.drawing_no && order.drawing_no.toLowerCase().includes(query)) ||
-                                (order.drawingNo && order.drawingNo.toLowerCase().includes(query)) ||
-                                (order.status && order.status.toLowerCase().includes(query))
-                              );
-                            })
-                            .map((order: any) => (
-                            <TableRow key={order.id}>
-                              <TableCell className="font-medium">{order.inspection_order_number || order.inspectionOrderNumber}</TableCell>
-                              <TableCell>{order.description || order.title}</TableCell>
-                              <TableCell>{order.drawing_no || order.drawingNo || 'N/A'}</TableCell>
-                              <TableCell>{getStatusBadge(order.status)}</TableCell>
-                              <TableCell>{order.quantity} {order.unit}</TableCell>
-                              <TableCell>
-                                <div className="flex gap-1 justify-center">
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    title="View"
-                                    onClick={() => {
-                                      setSelectedInspectionOrder(order.id);
-                                      setIsDetailsDialogOpen(true);
-                                    }}
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    title="Edit"
-                                    onClick={() => {
-                                      setEditingInspectionOrder(order.id);
-                                      setIsEditDialogOpen(true);
-                                    }}
-                                  >
-                                    <Edit2 className="h-4 w-4" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon"
-                                    className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                    title="Delete"
-                                    onClick={() => handleDeleteInspectionOrder(order.id)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
+                            }).length} of ${inspectionOrders.length} inspection orders`}
+                          </TableCaption>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[300px]">Order #</TableHead>
+                              <TableHead className="w-[600px]">Description</TableHead>
+                              <TableHead>Drawing No</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Quantity</TableHead>
+                              <TableHead className="w-[150px]">Actions</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                          </TableHeader>
+                          <TableBody>
+                            {inspectionOrders
+                              .filter((order: any) => {
+                                if (!searchQuery) return true;
+                                const query = searchQuery.toLowerCase();
+                                return (
+                                  (order.inspection_order_number && order.inspection_order_number.toLowerCase().includes(query)) ||
+                                  (order.inspectionOrderNumber && order.inspectionOrderNumber.toLowerCase().includes(query)) ||
+                                  (order.description && order.description.toLowerCase().includes(query)) ||
+                                  (order.title && order.title.toLowerCase().includes(query)) ||
+                                  (order.drawing_no && order.drawing_no.toLowerCase().includes(query)) ||
+                                  (order.drawingNo && order.drawingNo.toLowerCase().includes(query)) ||
+                                  (order.status && order.status.toLowerCase().includes(query))
+                                );
+                              })
+                              .map((order: any) => (
+                              <TableRow key={order.id}>
+                                <TableCell className="font-medium">{order.inspection_order_number || order.inspectionOrderNumber}</TableCell>
+                                <TableCell>{order.description || order.title}</TableCell>
+                                <TableCell>{order.drawing_no || order.drawingNo || 'N/A'}</TableCell>
+                                <TableCell>{getStatusBadge(order.status)}</TableCell>
+                                <TableCell>{order.quantity} {order.unit}</TableCell>
+                                <TableCell>
+                                  <div className="flex gap-1 justify-center">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      title="View"
+                                      onClick={() => {
+                                        setSelectedInspectionOrder(order.id);
+                                        setIsDetailsDialogOpen(true);
+                                      }}
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      title="Edit"
+                                      onClick={() => {
+                                        setEditingInspectionOrder(order.id);
+                                        setIsEditDialogOpen(true);
+                                      }}
+                                    >
+                                      <Edit2 className="h-4 w-4" />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                      title="Delete"
+                                      onClick={() => handleDeleteInspectionOrder(order.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      // Show hierarchical card view for normal display
+                      <div className="space-y-2">
+                        {/* Hierarchical Inspection Orders */}
+                        {organizedInspectionOrders.map((order: any) => (
+                          <div 
+                            key={`${order.type}-${order.id}`} 
+                            className={`flex items-center justify-between p-4 rounded border ${
+                              order.type === 'parent' 
+                                ? 'bg-green-50 border-green-200' 
+                                : 'bg-purple-50 border-purple-200 ml-6'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <ClipboardCheck className={`w-4 h-4 ${order.type === 'parent' ? 'text-green-600' : 'text-purple-600'}`} />
+                              <Badge 
+                                variant="outline" 
+                                className={
+                                  order.type === 'parent'
+                                    ? 'bg-green-100 text-green-700 border-green-300'
+                                    : 'bg-purple-100 text-purple-700 border-purple-300'
+                                }
+                              >
+                                {order.type === 'parent' ? '🟩 Parent Assembly' : '🟪 Component'}
+                              </Badge>
+                              <div>
+                                <div className="font-medium text-gray-900">{order.inspection_order_number || order.inspectionOrderNumber}</div>
+                                <div className="text-sm text-gray-600">{order.description || order.title}</div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  Drawing: {order.drawing_no || order.drawingNo || 'N/A'} | 
+                                  Qty: {order.quantity} {order.unit} | 
+                                  Status: {getStatusBadge(order.status)}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-gray-600 hover:text-gray-800"
+                                onClick={() => {
+                                  setSelectedInspectionOrder(order.id);
+                                  setIsDetailsDialogOpen(true);
+                                }}
+                              >
+                                <Eye className="w-4 h-4 mr-1" />
+                                View
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-gray-600 hover:text-gray-800"
+                                onClick={() => {
+                                  setEditingInspectionOrder(order.id);
+                                  setIsEditDialogOpen(true);
+                                }}
+                              >
+                                <Edit className="w-4 h-4 mr-1" />
+                                Edit
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </TabsContent>
                   
                   {/* Dashboard Tab - Analytics View */}
