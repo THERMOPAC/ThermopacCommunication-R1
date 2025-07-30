@@ -33,7 +33,7 @@ import { z } from "zod";
 import { 
   Loader2, Plus, Search, Calendar, Info, Users, CheckSquare, FileText, RefreshCw,
   Upload, Truck, LayoutList, Settings, ClipboardList, BadgePercent, Pencil, X, 
-  FileSpreadsheet
+  FileSpreadsheet, Eye, Edit, Package
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -1238,6 +1238,43 @@ export default function ProjectList() {
                       {project.priority}
                     </span>
                     <span className="text-xs text-gray-500">{formatDate(project.targetEndDate)}</span>
+                    
+                    {/* Action Buttons */}
+                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3"
+                        onClick={() => {
+                          navigate(`/projects/${project.id}`);
+                        }}
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        View
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3"
+                        onClick={() => {
+                          navigate(`/projects/${project.id}`);
+                        }}
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        onClick={() => {
+                          navigate(`/projects/${project.id}?tab=items`);
+                        }}
+                      >
+                        <Package className="h-3 w-3 mr-1" />
+                        Items
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
