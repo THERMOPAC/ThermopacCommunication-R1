@@ -1159,7 +1159,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       <TableHead>Quantity</TableHead>
                       <TableHead>UOM</TableHead>
                       <TableHead>Make</TableHead>
-                      <TableHead>Source</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1172,11 +1171,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                         <TableCell>{item.quantity}</TableCell>
                         <TableCell>{item.uom}</TableCell>
                         <TableCell>{item.make || '-'}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {item.sourceType || 'Unknown'}
-                          </Badge>
-                        </TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm">Edit</Button>
                         </TableCell>
