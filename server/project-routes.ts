@@ -9,9 +9,12 @@ import {
   insertPhaseApprovalSchema,
   insertProjectDocumentSchema,
   insertProjectItemSchema,
-  insertCustomerSchema
+  insertCustomerSchema,
+  workOrders
 } from '@shared/schema';
 import { canManage } from '@shared/roles';
+import { eq, sql } from 'drizzle-orm';
+import { db } from './db';
 import { checkModulePermissionMiddleware } from './middlewares/auth';
 import { checkModulePermission } from './utils/permission-utils';
 
@@ -1103,6 +1106,81 @@ export function setupProjectRoutes(app: express.Express) {
       console.log(`Updating project item ${itemId} with data:`, projectItemUpdateData);
       const updatedItem = await storage.updateProjectItem(itemId, projectItemUpdateData);
       console.log(`Project item updated successfully:`, updatedItem);
+      
+      // AUTO-SYNC: Check if status is being updated and sync with related work orders
+      if (otherData.status && otherData.status !== item.status) {
+        console.log(`🔄 AUTO-SYNC: Project item status changed from "${item.status}" to "${otherData.status}"`);
+        
+        try {
+          // Get the master item to find the item code
+          const masterItem = await storage.getMasterItem(item.itemId);
+          
+          if (masterItem) {
+            console.log(`🔍 AUTO-SYNC: Looking for work orders with item code: ${masterItem.itemCode}`);
+            
+            // Find related work orders by matching item code in title
+            const relatedWorkOrders = await db.query.workOrders.findMany({
+              where: sql`project_id = ${item.projectId} AND title LIKE ${masterItem.itemCode + '%'}`
+            });
+            
+            console.log(`🔍 AUTO-SYNC: Found ${relatedWorkOrders.length} related work orders`);
+            
+            if (relatedWorkOrders.length > 0) {
+              // Map project item status to work order status
+              let workOrderStatus = otherData.status;
+              
+              // Status mapping logic
+              switch (otherData.status) {
+                case 'active':
+                case 'Active':
+                  workOrderStatus = 'planned';
+                  break;
+                case 'cancelled':
+                case 'Cancelled':
+                  workOrderStatus = 'cancelled';
+                  break;
+                case 'completed':
+                case 'Completed':
+                  workOrderStatus = 'completed';
+                  break;
+                case 'in_progress':
+                case 'In Progress':
+                  workOrderStatus = 'in_progress';
+                  break;
+                default:
+                  workOrderStatus = 'planned';
+              }
+              
+              console.log(`🔄 AUTO-SYNC: Updating ${relatedWorkOrders.length} work orders to status: ${workOrderStatus}`);
+              
+              // Update all related work orders
+              for (const workOrder of relatedWorkOrders) {
+                try {
+                  await db.update(workOrders)
+                    .set({ 
+                      status: workOrderStatus, 
+                      updatedAt: new Date()
+                    })
+                    .where(eq(workOrders.id, workOrder.id));
+                  
+                  console.log(`✅ AUTO-SYNC: Updated work order ${workOrder.workOrderNumber} to status: ${workOrderStatus}`);
+                } catch (woError) {
+                  console.error(`❌ AUTO-SYNC: Failed to update work order ${workOrder.workOrderNumber}:`, woError);
+                }
+              }
+              
+              console.log(`🎯 AUTO-SYNC: Successfully synchronized ${relatedWorkOrders.length} work orders with project item status`);
+            } else {
+              console.log(`ℹ️ AUTO-SYNC: No related work orders found for item code: ${masterItem.itemCode}`);
+            }
+          } else {
+            console.log(`⚠️ AUTO-SYNC: Could not find master item for project item ${itemId}`);
+          }
+        } catch (syncError) {
+          console.error(`❌ AUTO-SYNC ERROR: Failed to synchronize work orders:`, syncError);
+          // Don't fail the entire request - just log the sync error
+        }
+      }
       
       // Return the full updated item with master item data
       const fullUpdatedItem = await storage.getProjectItem(itemId);
