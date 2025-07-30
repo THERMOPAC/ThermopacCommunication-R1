@@ -119,7 +119,7 @@ export default function ProjectsPage() {
   // Mutation for updating project item
   const updateItemMutation = useMutation({
     mutationFn: async (data: { id: number; updates: any }) => {
-      const response = await fetch(`/api/projects/items/${data.id}`, {
+      const response = await fetch(`/api/project-items/${data.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -172,6 +172,7 @@ export default function ProjectsPage() {
       status: formData.status
     };
 
+    console.log('🔄 Updating project item:', { id: editingItem.id, updates });
     updateItemMutation.mutate({ id: editingItem.id, updates });
   };
 
