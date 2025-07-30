@@ -822,7 +822,7 @@ const ItemMasterManagement: React.FC = () => {
   }
   
   return (
-    <div className="container mx-auto p-4">
+    <div className="p-4">
       {/* Header with filters and actions - outside of Card */}
       <div className="flex items-center justify-between mb-6">
         <div>
