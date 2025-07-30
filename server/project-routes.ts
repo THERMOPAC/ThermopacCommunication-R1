@@ -959,7 +959,7 @@ export function setupProjectRoutes(app: express.Express) {
         ORDER BY mi_component.item_code
       `);
 
-      res.json(virtualComponents);
+      res.json(virtualComponents.rows || virtualComponents);
     } catch (error) {
       console.error(`Error fetching virtual components for project ${req.params.projectId}:`, error);
       res.status(500).json({ error: 'Failed to fetch virtual components' });

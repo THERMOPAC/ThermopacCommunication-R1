@@ -141,7 +141,7 @@ export default function ProjectsPage() {
       hierarchicalItems.push({ ...parent, type: 'parent' });
 
       // Find and add virtual components that belong to this parent
-      if (virtualComponents) {
+      if (virtualComponents && Array.isArray(virtualComponents)) {
         const relatedVirtualComponents = virtualComponents.filter((component: any) => 
           component.parent_item_id === parent.masterItem?.id
         );
