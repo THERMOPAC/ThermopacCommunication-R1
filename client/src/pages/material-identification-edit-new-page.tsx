@@ -67,7 +67,7 @@ const materialIdentificationSchema = z.object({
   projectId: z.number().nullable().or(z.string().transform(id => parseInt(id, 10))).optional(),
   projectName: z.string().min(1, "Project Name is required"),
   projectNumber: z.string().min(1, "Project Number is required"),
-  inspectionOrderNumber: z.string().optional(),
+  inspectionOrderNumber: z.string().min(1, "Inspection Order Number is required"),
   materialType: z.string().min(1, "Material Type is required"),
   materialDescription: z.string().min(1, "Material Description is required"),
   materialCode: z.string().min(1, "Material Code is required"),
@@ -79,7 +79,7 @@ const materialIdentificationSchema = z.object({
   millTestCertificateNumber: z.string().min(1, "Mill Test Certificate Number is required"),
   quantity: z.string().min(1, "Quantity is required"),
   unit: z.string().min(1, "Unit is required"),
-  dimensions: z.string().min(1, "Dimensions are required"),
+  dimensions: z.string().optional(),
   materialStatus: z.string().min(1, "Material Status is required"),
   inspectorName: z.string().min(1, "Inspector's Name is required"),
   inspectionDate: z.date({
@@ -780,7 +780,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
                       name="dimensions"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Dimensions</FormLabel>
+                          <FormLabel>Dimensions (Optional)</FormLabel>
                           <FormControl>
                             <Input {...field} placeholder="Size, Dimensions, or Thickness" />
                           </FormControl>
