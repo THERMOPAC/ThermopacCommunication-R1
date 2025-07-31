@@ -605,15 +605,6 @@ export default function WpqrPage() {
                           >
                             <DownloadCloud className="h-3.5 w-3.5" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="px-1 h-7"
-                            onClick={() => handleFileUpload(document)}
-                            title="Upload File"
-                          >
-                            <Upload className="h-3.5 w-3.5 text-blue-600" />
-                          </Button>
                         </div>
                       </td>
                     </tr>
