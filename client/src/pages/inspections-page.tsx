@@ -421,6 +421,8 @@ export default function InspectionsPage() {
   // NDT file upload states
   const [ndtFiles, setNdtFiles] = useState<File[]>([]);
   const [isUploadingNdtFiles, setIsUploadingNdtFiles] = useState(false);
+  const [hasExistingNdtFiles, setHasExistingNdtFiles] = useState(false);
+  const [isCheckingExistingNdtFiles, setIsCheckingExistingNdtFiles] = useState(false);
   
   // NCR file upload states
   const [ncrFiles, setNcrFiles] = useState<File[]>([]);
@@ -4384,6 +4386,29 @@ export default function InspectionsPage() {
     }
   };
 
+  // Function to check existing files for NDT record
+  const checkExistingNdtFiles = async (recordId: string) => {
+    if (!editInspectionOrderDetails?.inspectionOrderNumber) return false;
+    
+    setIsCheckingExistingNdtFiles(true);
+    try {
+      const response = await fetch(
+        `/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/NDT/${recordId}/documents`
+      );
+      
+      if (response.ok) {
+        const documents = await response.json();
+        return documents.length > 0;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking existing NDT files:", error);
+      return false;
+    } finally {
+      setIsCheckingExistingNdtFiles(false);
+    }
+  };
+
   // PMA helper functions
   const generatePmaId = () => {
     const existingIds = pmaRecords.map(record => record.id);
@@ -5243,7 +5268,7 @@ export default function InspectionsPage() {
   };
 
   // Edit NDT record via dialog
-  const editNdtRecord = (recordData: {
+  const editNdtRecord = async (recordData: {
     ndtMethod: string;
     ndtStandard: string;
     ndtExtent: string;
@@ -5253,6 +5278,7 @@ export default function InspectionsPage() {
   }) => {
     if (!editingNdtRecord) return;
     
+    // Update the record data first
     setNdtRecords(prev => 
       prev.map(record => 
         record.id === editingNdtRecord.id 
@@ -5261,18 +5287,102 @@ export default function InspectionsPage() {
       )
     );
     
+    // Handle file replacement if files are selected
+    if (ndtFiles.length > 0) {
+      console.log(`🔄 Starting file replacement for NDT record: ${editingNdtRecord.id}`);
+      setIsUploadingNdtFiles(true);
+      
+      try {
+        // First, delete existing files if any
+        if (hasExistingNdtFiles) {
+          console.log(`🗑️ Deleting existing files for NDT record ${editingNdtRecord.id}`);
+          
+          // Fetch existing documents
+          const documentsResponse = await fetch(
+            `/api/quality/inspection-documents/${editInspectionOrderDetails?.inspectionOrderNumber}/NDT/${editingNdtRecord.id}/documents`
+          );
+          
+          if (documentsResponse.ok) {
+            const existingDocuments = await documentsResponse.json();
+            console.log(`🗑️ Found ${existingDocuments.length} existing documents to delete`);
+            
+            // Delete each existing document
+            for (const doc of existingDocuments) {
+              console.log(`🗑️ Deleting document ${doc.id}: ${doc.fileName}`);
+              try {
+                const deleteResponse = await fetch(`/api/quality/inspection-documents/delete/${doc.id}`, {
+                  method: 'DELETE',
+                  credentials: 'include'
+                });
+                
+                if (deleteResponse.ok) {
+                  console.log(`🗑️ ✅ Successfully deleted ${doc.fileName}`);
+                } else {
+                  console.log(`🗑️ ❌ Failed to delete ${doc.fileName}: ${deleteResponse.status}`);
+                }
+              } catch (deleteError) {
+                console.error(`🗑️ ❌ Error deleting ${doc.fileName}:`, deleteError);
+              }
+            }
+          }
+        }
+        
+        // Upload replacement files
+        console.log(`📤 Uploading ${ndtFiles.length} replacement files`);
+        for (const file of ndtFiles) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('inspectionOrderNumber', editInspectionOrderDetails?.inspectionOrderNumber || '');
+          formData.append('tabName', 'NDT');
+          formData.append('recordId', editingNdtRecord.id);
+          
+          const response = await fetch('/api/quality/inspection-documents/upload', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData,
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Failed to upload ${file.name}`);
+          }
+          
+          console.log(`📤 ✅ Successfully uploaded ${file.name}`);
+        }
+        
+        toast({
+          title: "Success",
+          description: `NDT record updated with ${ndtFiles.length} replacement file(s) uploaded`,
+        });
+      } catch (error) {
+        console.error('🔄 ❌ File replacement error:', error);
+        toast({
+          title: "Warning", 
+          description: "Record updated but some files failed to upload. Please try uploading files again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsUploadingNdtFiles(false);
+        setNdtFiles([]);
+      }
+    } else {
+      toast({
+        title: "Success",
+        description: "NDT record updated successfully",
+      });
+    }
+    
     setIsNdtDialogOpen(false);
     setEditingNdtRecord(null);
-    
-    toast({
-      title: "Success",
-      description: "NDT record updated successfully",
-    });
   };
 
   // Function to start editing an NDT record
-  const startEditingNdtRecord = (record: typeof ndtRecords[0]) => {
+  const startEditingNdtRecord = async (record: typeof ndtRecords[0]) => {
     setEditingNdtRecord(record);
+    
+    // Check for existing files
+    const hasFiles = await checkExistingNdtFiles(record.id);
+    setHasExistingNdtFiles(hasFiles);
+    
     setIsNdtDialogOpen(true);
   };
 
@@ -9977,6 +10087,8 @@ export default function InspectionsPage() {
         if (!open) {
           setEditingNdtRecord(null);
           setNdtFiles([]); // Clear selected files when dialog closes
+          setHasExistingNdtFiles(false); // Reset file existence state
+          setIsCheckingExistingNdtFiles(false); // Reset checking state
         }
       }}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
@@ -10118,41 +10230,60 @@ export default function InspectionsPage() {
                 </div>
               </div>
 
-              {/* File Upload Section - Only for new records */}
-              {!editingNdtRecord && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Upload NDT Reports (Optional)
-                  </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                    <input
-                      type="file"
-                      multiple
-                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files || []);
-                        setNdtFiles(files);
-                      }}
-                      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                    />
-                    <p className="text-xs text-gray-500 mt-2">
-                      Select PDF, DOC, DOCX, JPG, JPEG, or PNG files
-                    </p>
-                    {ndtFiles.length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-sm font-medium text-gray-700">Selected files:</p>
-                        <ul className="text-sm text-gray-600">
-                          {ndtFiles.map((file, index) => (
-                            <li key={index} className="truncate">
-                              • {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                            </li>
-                          ))}
-                        </ul>
+              {/* File Upload Section */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  {editingNdtRecord ? 'Upload Replacement Files *' : 'Upload Files *'}
+                </label>
+                
+                {/* File existence status for edit mode */}
+                {editingNdtRecord && (
+                  <div className="mb-3">
+                    {isCheckingExistingNdtFiles ? (
+                      <div className="flex items-center space-x-2 text-blue-600">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Checking for existing files...</span>
+                      </div>
+                    ) : hasExistingNdtFiles ? (
+                      <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded">
+                        ⚠️ New files will replace existing ones
+                      </div>
+                    ) : (
+                      <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+                        ❌ No existing files found. Please add files to proceed.
                       </div>
                     )}
                   </div>
+                )}
+                
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      setNdtFiles(files);
+                    }}
+                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Select PDF, DOC, DOCX, JPG, JPEG, or PNG files (max 10MB each)
+                  </p>
+                  {ndtFiles.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-sm font-medium text-gray-700">Selected files:</p>
+                      <ul className="text-sm text-gray-600">
+                        {ndtFiles.map((file, index) => (
+                          <li key={index} className="truncate">
+                            • {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
 
             <DialogFooter>
@@ -10167,14 +10298,19 @@ export default function InspectionsPage() {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isUploadingNdtFiles}>
+              <Button 
+                type="submit" 
+                disabled={isUploadingNdtFiles || (editingNdtRecord && ndtFiles.length === 0)}
+              >
                 {isUploadingNdtFiles ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Uploading...
+                    {editingNdtRecord ? 'Updating & Replacing...' : 'Adding & Uploading...'}
                   </>
+                ) : ndtFiles.length === 0 && !isUploadingNdtFiles ? (
+                  'Select Files to Continue'
                 ) : (
-                  editingNdtRecord ? 'Update Record' : 'Add Record'
+                  editingNdtRecord ? 'Update & Replace Files' : 'Add Record & Upload Files'
                 )}
               </Button>
             </DialogFooter>
