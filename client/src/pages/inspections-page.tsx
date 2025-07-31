@@ -4698,11 +4698,11 @@ export default function InspectionsPage() {
   }) => {
     if (!editingItpRecord) return;
 
-    // Validate either existing files or new files selected
-    if (!hasExistingItpFiles && itpFiles.length === 0) {
+    // Validate files are selected (mandatory for edit)
+    if (itpFiles.length === 0) {
       toast({
-        title: "Files Required",
-        description: "Please select additional files before updating the ITP record.",
+        title: "Files Required", 
+        description: "Please select at least one file to replace the existing files for this ITP record.",
         variant: "destructive"
       });
       return;
@@ -4720,9 +4720,41 @@ export default function InspectionsPage() {
       record.id === editingItpRecord.id ? updatedRecord : record
     ));
     
-    // Upload new files if selected
+    // Handle file replacement if any files are selected
     try {
       if (itpFiles.length > 0) {
+        // First, delete all existing files for this record
+        console.log(`🗑️ Deleting existing files for ITP record ${editingItpRecord.id}...`);
+        
+        // Get existing documents to delete them
+        const existingDocsResponse = await fetch(
+          `/api/quality/inspection-documents/${editInspectionOrderDetails?.inspection_order_number}/ITP/${editingItpRecord.id}/documents`
+        );
+        
+        if (existingDocsResponse.ok) {
+          const existingDocs = await existingDocsResponse.json();
+          console.log(`🗑️ Found ${existingDocs.length} existing documents to delete`);
+          
+          // Delete each existing document
+          for (const doc of existingDocs) {
+            try {
+              const deleteResponse = await fetch(`/api/quality/inspection-documents/delete/${doc.id}`, {
+                method: 'DELETE',
+              });
+              
+              if (deleteResponse.ok) {
+                console.log(`✅ Deleted existing document ${doc.id}`);
+              } else {
+                console.warn(`⚠️ Failed to delete document ${doc.id}, continuing with replacement...`);
+              }
+            } catch (deleteError) {
+              console.warn(`⚠️ Error deleting document ${doc.id}:`, deleteError);
+            }
+          }
+        }
+        
+        // Now upload the new replacement files
+        console.log(`📤 Uploading ${itpFiles.length} replacement files...`);
         const uploadPromises = itpFiles.map(async (file) => {
           const formData = new FormData();
           formData.append('file', file);
@@ -4750,8 +4782,8 @@ export default function InspectionsPage() {
       setHasExistingItpFiles(false);
       
       toast({
-        title: "Success",
-        description: itpFiles.length > 0 ? "ITP record updated and additional files uploaded successfully" : "ITP record updated successfully",
+        title: "Files Replaced Successfully",
+        description: `${itpFiles.length} replacement file(s) uploaded for ITP record ${editingItpRecord.id}`,
       });
     } catch (error) {
       console.error('File upload error:', error);
@@ -11583,7 +11615,7 @@ export default function InspectionsPage() {
             {/* File Upload Section */}
             <div className="space-y-4 border-t pt-4">
               <h3 className="text-lg font-medium">
-                {editingItpRecord ? 'Upload Additional Files *' : 'Upload Files *'}
+                {editingItpRecord ? 'Upload Replacement Files *' : 'Upload Files *'}
               </h3>
               
               {/* File existence status for Edit mode */}
@@ -11595,8 +11627,8 @@ export default function InspectionsPage() {
                       <span>Checking for existing files...</span>
                     </div>
                   ) : hasExistingItpFiles ? (
-                    <div className="text-green-600 font-medium">
-                      ✓ Existing files found on GCS. You can add additional files.
+                    <div className="text-orange-600 font-medium">
+                      ⚠️ Existing files found on GCS. New files will replace existing ones.
                     </div>
                   ) : (
                     <div className="text-red-600 font-medium">
@@ -11689,7 +11721,7 @@ export default function InspectionsPage() {
                 {isUploadingItpFiles ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {editingItpRecord ? 'Updating & Uploading...' : 'Creating & Uploading...'}
+                    {editingItpRecord ? 'Updating & Replacing...' : 'Creating & Uploading...'}
                   </>
                 ) : isCheckingExistingItpFiles ? (
                   <>
@@ -11699,7 +11731,7 @@ export default function InspectionsPage() {
                 ) : (!hasExistingItpFiles && itpFiles.length === 0) ? (
                   editingItpRecord ? 'Select Files to Continue' : 'Select Files to Continue'
                 ) : (
-                  editingItpRecord ? 'Update & Upload Files' : 'Add & Upload Files'
+                  editingItpRecord ? 'Update & Replace Files' : 'Add & Upload Files'
                 )}
               </Button>
             </div>
