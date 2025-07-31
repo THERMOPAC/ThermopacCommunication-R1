@@ -4002,7 +4002,7 @@ export default function InspectionsPage() {
   };
 
   // Function to edit an approved drawing record
-  const editApprovedDrawingRecord = (recordData: {
+  const editApprovedDrawingRecord = async (recordData: {
     drawingTitle: string;
     drawingNumber: string;
     revision: string;
@@ -4012,6 +4012,58 @@ export default function InspectionsPage() {
     remarks: string;
   }) => {
     if (!editingApprovedDrawingRecord) return;
+
+    // Check if we have valid inspection order details with project code
+    if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
+      toast({
+        title: "Cannot Update Record",
+        description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Handle file uploads if any files are selected
+    if (approvedDrawingFiles.length > 0) {
+      setIsUploadingApprovedDrawingFiles(true);
+      
+      try {
+        // Upload files for this specific record
+        for (const file of approvedDrawingFiles) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('inspectionOrderNumber', editInspectionOrderDetails.inspectionOrderNumber);
+          formData.append('tabName', 'Approved Drawing');
+          formData.append('recordId', editingApprovedDrawingRecord.id);
+          formData.append('projectCode', editInspectionOrderDetails.projectCode);
+
+          const uploadResponse = await fetch('/api/quality/inspection-documents/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json();
+            throw new Error(errorData.error || `Failed to upload ${file.name}`);
+          }
+        }
+
+        toast({
+          title: "Files Uploaded Successfully",
+          description: `${approvedDrawingFiles.length} additional file(s) uploaded for Approved Drawing record ${editingApprovedDrawingRecord.id}`,
+        });
+      } catch (error: any) {
+        console.error("Error uploading files:", error);
+        toast({
+          title: "File Upload Error",
+          description: error.message || "Some files could not be uploaded. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsUploadingApprovedDrawingFiles(false);
+        setApprovedDrawingFiles([]); // Clear files after upload
+      }
+    }
     
     setApprovedDrawingRecords(prev => 
       prev.map(record => 
@@ -4026,7 +4078,7 @@ export default function InspectionsPage() {
     
     toast({
       title: "Success",
-      description: "Approved drawing record updated successfully",
+      description: "Approved drawing record updated successfully" + (approvedDrawingFiles.length > 0 ? " with additional files" : ""),
     });
   };
 
@@ -10260,43 +10312,41 @@ export default function InspectionsPage() {
               />
             </div>
 
-            {/* File Upload Section - Only for new records */}
-            {!editingApprovedDrawingRecord && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  Upload Files (Optional)
-                </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                  <input
-                    type="file"
-                    multiple
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || []);
-                      setApprovedDrawingFiles(files);
-                    }}
-                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  />
-                  <p className="text-xs text-gray-500 mt-2">
-                    Select PDF, DOC, DOCX, JPG, JPEG, or PNG files
-                  </p>
-                  {approvedDrawingFiles.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-sm text-green-600">
-                        {approvedDrawingFiles.length} file(s) selected
-                      </p>
-                      <ul className="text-xs text-gray-600 mt-1">
-                        {approvedDrawingFiles.map((file, index) => (
-                          <li key={index} className="truncate">
-                            {file.name} ({Math.round(file.size / 1024)} KB)
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
+            {/* File Upload Section - Available for both new and edit */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                {editingApprovedDrawingRecord ? 'Upload Additional Files (Optional)' : 'Upload Files (Optional)'}
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setApprovedDrawingFiles(files);
+                  }}
+                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Select PDF, DOC, DOCX, JPG, JPEG, or PNG files
+                </p>
+                {approvedDrawingFiles.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-sm text-green-600">
+                      {approvedDrawingFiles.length} file(s) selected
+                    </p>
+                    <ul className="text-xs text-gray-600 mt-1">
+                      {approvedDrawingFiles.map((file, index) => (
+                        <li key={index} className="truncate">
+                          {file.name} ({Math.round(file.size / 1024)} KB)
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
 
             <div className="flex justify-end space-x-2">
               <Button 
