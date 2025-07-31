@@ -62,7 +62,7 @@ const materialIdentificationSchema = z.object({
   projectId: z.number().nullable().or(z.string().transform(id => parseInt(id, 10))).optional(),
   projectName: z.string().min(1, "Project Name is required"),
   projectNumber: z.string().min(1, "Project Number is required"),
-  inspectionOrderNumber: z.string().min(1, "Inspection Order Number is required"),
+  inspectionOrderNumber: z.string().optional().or(z.literal("")),
   materialType: z.string().min(1, "Material Type is required"),
   materialDescription: z.string().min(1, "Material Description is required"),
   specification: z.string().min(1, "Specification is required"),
