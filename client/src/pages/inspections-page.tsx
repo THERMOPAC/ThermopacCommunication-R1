@@ -326,6 +326,7 @@ export default function InspectionsPage() {
 
   // Material Traceability dialog states
   const [isMaterialDialogOpen, setIsMaterialDialogOpen] = useState(false);
+  const [selectedMaterialType, setSelectedMaterialType] = useState<string>("");
   const [editingMaterialRecord, setEditingMaterialRecord] = useState<{
     id?: number;
     materialId?: number;
@@ -1736,8 +1737,10 @@ export default function InspectionsPage() {
     mill_name: string;
     mill_test_certificate_number: string;
     quantity: string;
+    unit: string;
     dimensions: string;
     material_status: string;
+    material_type: string;
     project_id: number;
     project_number: string;
     project_name: string;
@@ -10954,6 +10957,7 @@ export default function InspectionsPage() {
         setIsMaterialDialogOpen(open);
         if (!open) {
           setEditingMaterialRecord(null);
+          setSelectedMaterialType("");
         }
       }}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -10973,7 +10977,10 @@ export default function InspectionsPage() {
             e.preventDefault();
             const formData = new FormData(e.currentTarget);
             const materialId = formData.get('materialId') as string;
-            const selectedMaterial = availableMaterials.find(m => m.id === parseInt(materialId));
+            const filteredMaterials = selectedMaterialType 
+              ? availableMaterials.filter(m => m.material_type === selectedMaterialType)
+              : availableMaterials;
+            const selectedMaterial = filteredMaterials.find(m => m.id === parseInt(materialId));
             
             const recordData = {
               materialId: selectedMaterial?.id,
@@ -10996,6 +11003,49 @@ export default function InspectionsPage() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
+                <label htmlFor="materialType" className="text-sm font-medium">Material Type *</label>
+                <select
+                  id="materialType"
+                  name="materialType"
+                  required
+                  value={selectedMaterialType}
+                  onChange={(e) => {
+                    setSelectedMaterialType(e.target.value);
+                    // Reset material selection when material type changes
+                    const form = e.target.closest('form') as HTMLFormElement;
+                    const materialField = form.querySelector('#materialId') as HTMLSelectElement;
+                    if (materialField) materialField.value = "";
+                    
+                    // Clear auto-populated fields
+                    const certificateField = form.querySelector('#materialCertificateNumber') as HTMLInputElement;
+                    const heatField = form.querySelector('#heatNumber') as HTMLInputElement;
+                    const gradeField = form.querySelector('#materialGrade') as HTMLInputElement;
+                    const specField = form.querySelector('#materialSpecification') as HTMLInputElement;
+                    const unitField = form.querySelector('#quantityUnit') as HTMLInputElement;
+                    
+                    if (certificateField) certificateField.value = '';
+                    if (heatField) heatField.value = '';
+                    if (gradeField) gradeField.value = '';
+                    if (specField) specField.value = '';
+                    if (unitField) unitField.value = '';
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select material type...</option>
+                  <option value="Bars">Bars</option>
+                  <option value="Flanges">Flanges</option>
+                  <option value="Nut Bolts">Nut Bolts</option>
+                  <option value="Pipe Fittings">Pipe Fittings</option>
+                  <option value="Pipes">Pipes</option>
+                  <option value="Plates">Plates</option>
+                  <option value="Sheets">Sheets</option>
+                  <option value="Structural Materials">Structural Materials</option>
+                  <option value="Valves">Valves</option>
+                  <option value="Others">Others</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
                 <label htmlFor="materialId" className="text-sm font-medium">Material *</label>
                 <select
                   id="materialId"
@@ -11004,7 +11054,10 @@ export default function InspectionsPage() {
                   defaultValue={editingMaterialRecord?.materialId?.toString() || ""}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   onChange={(e) => {
-                    const selectedMaterial = availableMaterials.find(m => m.id === parseInt(e.target.value));
+                    const filteredMaterials = selectedMaterialType 
+                      ? availableMaterials.filter(m => m.material_type === selectedMaterialType)
+                      : availableMaterials;
+                    const selectedMaterial = filteredMaterials.find(m => m.id === parseInt(e.target.value));
                     if (selectedMaterial) {
                       // Update other fields based on selected material
                       const form = e.target.closest('form') as HTMLFormElement;
@@ -11023,14 +11076,25 @@ export default function InspectionsPage() {
                   }}
                 >
                   <option value="">Select a material...</option>
-                  {availableMaterials
-                    .sort((a, b) => (a.material_identification_id || '').localeCompare(b.material_identification_id || '', undefined, { numeric: true, sensitivity: 'base' }))
-                    .map((material) => (
-                    <option key={material.id} value={material.id}>
-                      {material.material_identification_id} - {material.material_description}
-                    </option>
-                  ))}
+                  {(() => {
+                    const filteredMaterials = selectedMaterialType 
+                      ? availableMaterials.filter(m => m.material_type === selectedMaterialType)
+                      : availableMaterials;
+                    
+                    return filteredMaterials
+                      .sort((a, b) => (a.material_identification_id || '').localeCompare(b.material_identification_id || '', undefined, { numeric: true, sensitivity: 'base' }))
+                      .map((material) => (
+                        <option key={material.id} value={material.id}>
+                          {material.material_identification_id} - {material.material_description}
+                        </option>
+                      ));
+                  })()}
                 </select>
+                {selectedMaterialType && (
+                  <p className="text-xs text-gray-500">
+                    Showing {availableMaterials.filter(m => m.material_type === selectedMaterialType).length} materials of type "{selectedMaterialType}"
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
