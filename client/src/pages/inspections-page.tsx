@@ -431,6 +431,8 @@ export default function InspectionsPage() {
   // NCR file upload states
   const [ncrFiles, setNcrFiles] = useState<File[]>([]);
   const [isUploadingNcrFiles, setIsUploadingNcrFiles] = useState(false);
+  const [hasExistingNcrFiles, setHasExistingNcrFiles] = useState(false);
+  const [isCheckingExistingNcrFiles, setIsCheckingExistingNcrFiles] = useState(false);
   
   // Approved Drawing file upload states
   const [approvedDrawingFiles, setApprovedDrawingFiles] = useState<File[]>([]);
@@ -1621,7 +1623,7 @@ export default function InspectionsPage() {
   };
 
   // Update NCR record via dialog
-  const updateNcrRecord = (recordData: {
+  const updateNcrRecord = async (recordData: {
     ncrDate: string;
     ncrStatus: string;
     ncrDescription: string;
@@ -1630,21 +1632,117 @@ export default function InspectionsPage() {
   }) => {
     if (!editingNcrRecord) return;
     
-    setNcrRecords(prev => 
-      prev.map(record => 
-        record.id === editingNcrRecord.id 
-          ? { ...record, ...recordData }
-          : record
-      )
-    );
-    
-    setIsNcrDialogOpen(false);
-    setEditingNcrRecord(null);
-    
-    toast({
-      title: "Success",
-      description: "NCR record updated successfully",
-    });
+    if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
+      toast({
+        title: "Cannot Update Record",
+        description: "Project code not found. Please refresh the page and try again.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsUploadingNcrFiles(true);
+
+      // Delete existing files before uploading new ones if files are being replaced
+      if (ncrFiles.length > 0) {
+        console.log("🗑️ Deleting existing NCR files before uploading replacements...");
+        
+        try {
+          // Fetch existing documents for this record
+          const documentsResponse = await fetch(
+            `/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/NCR/${editingNcrRecord.id}/documents`
+          );
+          
+          if (documentsResponse.ok) {
+            const existingDocuments = await documentsResponse.json();
+            console.log(`📄 Found ${existingDocuments.length} existing NCR documents to delete`);
+            
+            // Delete each existing document
+            for (const doc of existingDocuments) {
+              try {
+                const deleteResponse = await fetch(`/api/quality/inspection-documents/delete/${doc.id}`, {
+                  method: 'DELETE'
+                });
+                
+                if (deleteResponse.ok) {
+                  console.log(`✅ Successfully deleted NCR document ${doc.id}`);
+                } else {
+                  console.error(`❌ Failed to delete NCR document ${doc.id}`);
+                }
+              } catch (deleteError) {
+                console.error(`❌ Error deleting NCR document ${doc.id}:`, deleteError);
+              }
+            }
+          }
+        } catch (documentsError) {
+          console.error("Error fetching existing NCR documents:", documentsError);
+        }
+      }
+      
+      setNcrRecords(prev => 
+        prev.map(record => 
+          record.id === editingNcrRecord.id 
+            ? { ...record, ...recordData }
+            : record
+        )
+      );
+
+      // Upload replacement files if any were selected
+      if (ncrFiles.length > 0) {
+        console.log(`📤 Uploading ${ncrFiles.length} replacement NCR file(s)...`);
+        
+        for (const file of ncrFiles) {
+          const formData = new FormData();
+          formData.append('files', file);
+          formData.append('tabName', 'NCR');
+          formData.append('recordId', editingNcrRecord.id);
+
+          try {
+            const response = await fetch(`/api/quality/inspection-documents/upload/${editInspectionOrderDetails.inspectionOrderNumber}`, {
+              method: 'POST',
+              body: formData,
+            });
+
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            console.log(`✅ Successfully uploaded replacement NCR file: ${file.name}`);
+          } catch (error) {
+            console.error(`❌ Error uploading NCR file ${file.name}:`, error);
+            throw error;
+          }
+        }
+
+        toast({
+          title: "Success",
+          description: `NCR record updated successfully with ${ncrFiles.length} replacement file(s).`,
+        });
+      } else {
+        toast({
+          title: "Success", 
+          description: "NCR record updated successfully.",
+        });
+      }
+      
+      setIsNcrDialogOpen(false);
+      setEditingNcrRecord(null);
+      setNcrFiles([]);
+      setHasExistingNcrFiles(false);
+      setIsCheckingExistingNcrFiles(false);
+      
+    } catch (error) {
+      console.error("Error updating NCR record:", error);
+      toast({
+        title: "Update Failed",
+        description: "Failed to update NCR record. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploadingNcrFiles(false);
+    }
   };
 
   // Add new Material Traceability record via dialog
@@ -4648,6 +4746,28 @@ export default function InspectionsPage() {
       return false;
     } finally {
       setIsCheckingExistingHydrotestFiles(false);
+    }
+  };
+
+  const checkExistingNcrFiles = async (recordId: string) => {
+    if (!editInspectionOrderDetails?.inspectionOrderNumber) return false;
+    
+    setIsCheckingExistingNcrFiles(true);
+    try {
+      const response = await fetch(
+        `/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/NCR/${recordId}/documents`
+      );
+      
+      if (response.ok) {
+        const documents = await response.json();
+        return documents.length > 0;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking existing NCR files:", error);
+      return false;
+    } finally {
+      setIsCheckingExistingNcrFiles(false);
     }
   };
 
@@ -9352,9 +9472,13 @@ export default function InspectionsPage() {
                                         size="icon"
                                         className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
                                         title="Edit"
-                                        onClick={() => {
+                                        onClick={async () => {
                                           setEditingNcrRecord(record);
                                           setIsNcrDialogOpen(true);
+                                          
+                                          // Check for existing files
+                                          const hasFiles = await checkExistingNcrFiles(record.id);
+                                          setHasExistingNcrFiles(hasFiles);
                                         }}
                                       >
                                         <Edit2 className="h-3 w-3" />
@@ -10852,7 +10976,9 @@ export default function InspectionsPage() {
         setIsNcrDialogOpen(open);
         if (!open) {
           setEditingNcrRecord(null);
-          setNcrFiles([]); // Clear selected files when dialog closes
+          setNcrFiles([]);
+          setHasExistingNcrFiles(false);
+          setIsCheckingExistingNcrFiles(false);
         }
       }}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -10975,42 +11101,61 @@ export default function InspectionsPage() {
               />
             </div>
 
-            {/* File Upload Section - Only for new records */}
-            {!editingNcrRecord && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  Upload NCR Documents (Optional)
-                </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                  <input
-                    type="file"
-                    multiple
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || []);
-                      setNcrFiles(files);
-                    }}
-                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  />
-                  <p className="text-xs text-gray-500 mt-2">
-                    Select PDF, DOC, DOCX, JPG, JPEG, or PNG files
-                  </p>
-                  {ncrFiles.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-sm font-medium text-gray-700">Selected files:</p>
-                      <ul className="text-sm text-gray-600">
-                        {ncrFiles.map((file, index) => (
-                          <li key={index} className="flex items-center gap-2">
-                            <span>• {file.name}</span>
-                            <span className="text-gray-400">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                          </li>
-                        ))}
-                      </ul>
+            {/* File Upload Section */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                {editingNcrRecord ? 'Upload Replacement Files *' : 'Upload NCR Documents *'}
+              </label>
+              
+              {/* File existence status for editing records */}
+              {editingNcrRecord && (
+                <div className="mb-2">
+                  {isCheckingExistingNcrFiles ? (
+                    <div className="flex items-center gap-2 text-blue-600">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      <span className="text-sm">Checking for existing files...</span>
+                    </div>
+                  ) : hasExistingNcrFiles ? (
+                    <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded">
+                      ⚠️ New files will replace existing ones
+                    </div>
+                  ) : (
+                    <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+                      ❌ No existing files found. Please add files to proceed.
                     </div>
                   )}
                 </div>
+              )}
+              
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setNcrFiles(files);
+                  }}
+                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Select PDF, DOC, DOCX, JPG, JPEG, or PNG files (max 10MB each)
+                </p>
+                {ncrFiles.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-sm font-medium text-gray-700">Selected files:</p>
+                    <ul className="text-sm text-gray-600">
+                      {ncrFiles.map((file, index) => (
+                        <li key={index} className="flex items-center gap-2">
+                          <span>• {file.name}</span>
+                          <span className="text-gray-400">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
 
             <div className="flex justify-end space-x-2">
               <Button 
@@ -11019,13 +11164,23 @@ export default function InspectionsPage() {
                 onClick={() => {
                   setIsNcrDialogOpen(false);
                   setEditingNcrRecord(null);
-                  setNcrFiles([]); // Clear files when canceling
+                  setNcrFiles([]);
+                  setHasExistingNcrFiles(false);
+                  setIsCheckingExistingNcrFiles(false);
                 }}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isUploadingNcrFiles}>
-                {isUploadingNcrFiles ? 'Uploading...' : (editingNcrRecord ? 'Update Record' : 'Add Record')}
+              <Button 
+                type="submit" 
+                disabled={isUploadingNcrFiles || ncrFiles.length === 0}
+              >
+                {isUploadingNcrFiles 
+                  ? (editingNcrRecord ? 'Updating & Replacing...' : 'Uploading...')
+                  : ncrFiles.length === 0 
+                    ? 'Select Files to Continue'
+                    : (editingNcrRecord ? 'Update & Replace Files' : 'Add Record')
+                }
               </Button>
             </div>
           </form>
