@@ -413,6 +413,8 @@ export default function InspectionsPage() {
   const [isUploadingHydrotestFiles, setIsUploadingHydrotestFiles] = useState(false);
   const [visualInspectionFiles, setVisualInspectionFiles] = useState<File[]>([]);
   const [isUploadingVisualFiles, setIsUploadingVisualFiles] = useState(false);
+  const [hasExistingVisualFiles, setHasExistingVisualFiles] = useState(false);
+  const [isCheckingExistingVisualFiles, setIsCheckingExistingVisualFiles] = useState(false);
   const [weldingFiles, setWeldingFiles] = useState<File[]>([]);
   const [isUploadingWeldFiles, setIsUploadingWeldFiles] = useState(false);
   const [hasExistingWeldFiles, setHasExistingWeldFiles] = useState(false);
@@ -1065,8 +1067,8 @@ export default function InspectionsPage() {
     });
   };
 
-  // Edit Visual Inspection record via dialog
-  const editVisualRecord = (recordData: {
+  // Edit Visual Inspection record via dialog with file replacement support
+  const editVisualRecord = async (recordData: {
     id: string;
     standard: string;
     dimensionalChecks: string;
@@ -1075,21 +1077,117 @@ export default function InspectionsPage() {
     inspectionDate: string;
     observations: string;
   }) => {
-    setVisualRecords(prev => prev.map(record => 
-      record.id === recordData.id ? recordData : record
-    ));
-    setIsVisualDialogOpen(false);
-    setEditingVisualRecord(null);
-    toast({
-      title: "Visual Inspection Record Updated",
-      description: `Visual inspection record ${recordData.id} has been updated successfully.`
-    });
+    if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
+      toast({
+        title: "Cannot Update Record",
+        description: "Project code not found. Please refresh the page and try again.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsUploadingVisualFiles(true);
+
+      // Delete existing files before uploading new ones if files are being replaced
+      if (visualInspectionFiles.length > 0) {
+        console.log("🗑️ Deleting existing Visual Inspection files before uploading replacements...");
+        
+        try {
+          // Fetch existing documents for this record
+          const documentsResponse = await fetch(
+            `/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/VisualInspection/${recordData.id}/documents`
+          );
+          
+          if (documentsResponse.ok) {
+            const existingDocuments = await documentsResponse.json();
+            console.log(`📄 Found ${existingDocuments.length} existing Visual Inspection documents to delete`);
+            
+            // Delete each existing document
+            for (const doc of existingDocuments) {
+              try {
+                const deleteResponse = await fetch(`/api/quality/inspection-documents/delete/${doc.id}`, {
+                  method: 'DELETE'
+                });
+                
+                if (deleteResponse.ok) {
+                  console.log(`✅ Successfully deleted Visual Inspection document: ${doc.fileName}`);
+                } else {
+                  console.log(`⚠️ Failed to delete Visual Inspection document: ${doc.fileName}`);
+                }
+              } catch (deleteError) {
+                console.log(`❌ Error deleting Visual Inspection document ${doc.fileName}:`, deleteError);
+              }
+            }
+          }
+        } catch (error) {
+          console.log("⚠️ Error fetching existing Visual Inspection documents:", error);
+          // Continue with upload even if deletion fails
+        }
+
+        // Upload replacement files
+        for (const file of visualInspectionFiles) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('tabName', 'VisualInspection');
+          formData.append('recordId', recordData.id);
+          formData.append('projectCode', editInspectionOrderDetails.projectCode);
+          formData.append('inspectionOrderNumber', editInspectionOrderDetails.inspectionOrderNumber);
+
+          const uploadResponse = await fetch('/api/quality/inspection-documents/upload', {
+            method: 'POST',
+            body: formData
+          });
+
+          if (!uploadResponse.ok) {
+            const error = await uploadResponse.text();
+            throw new Error(`Failed to upload ${file.name}: ${error}`);
+          }
+        }
+
+        toast({
+          title: "Files Replaced Successfully",
+          description: `Visual inspection record updated with ${visualInspectionFiles.length} replacement file(s) uploaded.`,
+        });
+      }
+
+      // Update the record in state
+      setVisualRecords(prev => prev.map(record => 
+        record.id === recordData.id ? recordData : record
+      ));
+
+      // Close dialog and clean up state
+      setIsVisualDialogOpen(false);
+      setEditingVisualRecord(null);
+      setVisualInspectionFiles([]);
+      setHasExistingVisualFiles(false);
+      setIsCheckingExistingVisualFiles(false);
+
+      toast({
+        title: "Visual Inspection Record Updated",
+        description: `Visual inspection record ${recordData.id} has been updated successfully${visualInspectionFiles.length > 0 ? ' with replacement files' : ''}.`
+      });
+
+    } catch (error) {
+      console.error("Error updating visual inspection record:", error);
+      toast({
+        title: "Update Failed",
+        description: error instanceof Error ? error.message : "Failed to update visual inspection record. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploadingVisualFiles(false);
+    }
   };
 
   // Start editing Visual Inspection record
-  const startEditingVisualRecord = (record: any) => {
+  const startEditingVisualRecord = async (record: any) => {
     setEditingVisualRecord(record);
     setIsVisualDialogOpen(true);
+    
+    // Check for existing files when editing
+    const hasFiles = await checkExistingVisualFiles(record.id);
+    setHasExistingVisualFiles(hasFiles);
   };
 
   // Helper function to generate hydrotest record ID
@@ -4406,6 +4504,29 @@ export default function InspectionsPage() {
       return false;
     } finally {
       setIsCheckingExistingNdtFiles(false);
+    }
+  };
+
+  // Function to check existing files for Visual Inspection record
+  const checkExistingVisualFiles = async (recordId: string) => {
+    if (!editInspectionOrderDetails?.inspectionOrderNumber) return false;
+    
+    setIsCheckingExistingVisualFiles(true);
+    try {
+      const response = await fetch(
+        `/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/VisualInspection/${recordId}/documents`
+      );
+      
+      if (response.ok) {
+        const documents = await response.json();
+        return documents.length > 0;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking existing Visual Inspection files:", error);
+      return false;
+    } finally {
+      setIsCheckingExistingVisualFiles(false);
     }
   };
 
@@ -10513,44 +10634,63 @@ export default function InspectionsPage() {
               </div>
             </div>
 
-            {/* File Upload Section - Only for new records */}
-            {!editingVisualRecord && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  Upload Photos/Files (Optional)
-                </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                  <input
-                    type="file"
-                    multiple
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || []);
-                      setVisualInspectionFiles(files);
-                    }}
-                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  />
-                  <p className="text-xs text-gray-500 mt-2">
-                    Select PDF, DOC, DOCX, JPG, JPEG, or PNG files
-                  </p>
-                  {visualInspectionFiles.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-sm font-medium text-gray-700">Selected files:</p>
-                      <ul className="text-sm text-gray-600">
-                        {visualInspectionFiles.map((file, index) => (
-                          <li key={index} className="flex items-center">
-                            <span className="truncate">{file.name}</span>
-                            <span className="ml-2 text-xs text-gray-400">
-                              ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
+            {/* File Upload Section */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                {editingVisualRecord ? 'Upload Replacement Files *' : 'Upload Files *'}
+              </label>
+              
+              {/* File existence status for edit mode */}
+              {editingVisualRecord && (
+                <div className="mb-3">
+                  {isCheckingExistingVisualFiles ? (
+                    <div className="flex items-center space-x-2 text-blue-600">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm">Checking for existing files...</span>
+                    </div>
+                  ) : hasExistingVisualFiles ? (
+                    <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded">
+                      ⚠️ New files will replace existing ones
+                    </div>
+                  ) : (
+                    <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+                      ❌ No existing files found. Please add files to proceed.
                     </div>
                   )}
                 </div>
+              )}
+              
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setVisualInspectionFiles(files);
+                  }}
+                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Select PDF, DOC, DOCX, JPG, JPEG, or PNG files (max 10MB each)
+                </p>
+                {visualInspectionFiles.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-sm font-medium text-gray-700">Selected files:</p>
+                    <ul className="text-sm text-gray-600">
+                      {visualInspectionFiles.map((file, index) => (
+                        <li key={index} className="flex items-center">
+                          <span className="truncate">{file.name}</span>
+                          <span className="ml-2 text-xs text-gray-400">
+                            ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
 
             <DialogFooter>
               <Button 
@@ -10559,19 +10699,26 @@ export default function InspectionsPage() {
                 onClick={() => {
                   setIsVisualDialogOpen(false);
                   setEditingVisualRecord(null);
-                  setVisualInspectionFiles([]); // Clear selected files
+                  setVisualInspectionFiles([]);
+                  setHasExistingVisualFiles(false);
+                  setIsCheckingExistingVisualFiles(false);
                 }}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isUploadingVisualFiles}>
+              <Button 
+                type="submit" 
+                disabled={isUploadingVisualFiles || (visualInspectionFiles.length === 0)}
+              >
                 {isUploadingVisualFiles ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Uploading...
+                    {editingVisualRecord ? 'Updating & Replacing...' : 'Adding & Uploading...'}
                   </>
+                ) : visualInspectionFiles.length === 0 && !isUploadingVisualFiles ? (
+                  'Select Files to Continue'
                 ) : (
-                  editingVisualRecord ? 'Update Record' : 'Add Record'
+                  editingVisualRecord ? 'Update & Replace Files' : 'Add Record & Upload Files'
                 )}
               </Button>
             </DialogFooter>
