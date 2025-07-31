@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, DownloadCloud, FileText, RefreshCw, Trash2, Plus, Eye, PencilLine, Upload } from "lucide-react";
+import { Loader2, DownloadCloud, FileText, RefreshCw, Trash2, Plus, Eye, PencilLine, Upload, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -21,20 +21,59 @@ import Layout from "@/components/layout";
 
 // Define form schema for WPQR document upload
 const wpqrFormSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters").max(100, "Title must be 100 characters or less"),
-  description: z.string().optional(),
-  welderProcess: z.string().min(1, "Welder process is required"),
-  baseMetalGrade: z.string().min(1, "Base metal grade is required"),
-  jointType: z.string().min(1, "Joint type is required"),
-  certificateNo: z.string().max(100, "Certificate Number must be 100 characters or less").optional(),
+  title: z.string().min(1, "Title is required").min(3, "Title must be at least 3 characters").max(100, "Title must be 100 characters or less"),
+  description: z.string().min(1, "Description is required").min(3, "Description must be at least 3 characters"),
+  welderProcess: z.string().min(1, "Welding Process is required"),
+  baseMetalGrade: z.string().min(1, "Base Metal Grade is required"),
+  jointType: z.string().min(1, "Joint Type is required"),
+  certificateNo: z.string().min(1, "Certificate Number is required").max(100, "Certificate Number must be 100 characters or less"),
   inspectionAuthority: z.string().max(50, "Inspection Authority must be 50 characters or less").optional(),
   welderIds: z.array(z.number()).min(1, "At least one welder must be associated with the WPQR document"),
-  document: z.instanceof(FileList).refine(files => files.length > 0, {
-    message: "Document file is required",
-  }),
+  document: z.instanceof(FileList).optional(),
 });
 
 type WpqrFormValues = z.infer<typeof wpqrFormSchema>;
+
+// Validation Error Summary Component
+const ValidationErrorSummary = ({ errors }: { errors: Record<string, any> }) => {
+  const fieldLabels: Record<string, string> = {
+    title: "Title",
+    description: "Description", 
+    welderProcess: "Welding Process",
+    baseMetalGrade: "Base Metal Grade",
+    jointType: "Joint Type",
+    certificateNo: "Certificate Number",
+    welderIds: "Associated Welders"
+  };
+
+  const errorMessages = Object.entries(errors)
+    .filter(([_, error]) => error?.message)
+    .map(([field, error]) => ({
+      field: fieldLabels[field] || field,
+      message: error.message
+    }));
+
+  if (errorMessages.length === 0) return null;
+
+  return (
+    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+      <div className="flex items-center mb-2">
+        <AlertTriangle className="h-4 w-4 text-red-600 mr-2" />
+        <h4 className="text-sm font-medium text-red-800">
+          Please fix the following errors:
+        </h4>
+      </div>
+      <ul className="text-sm text-red-700 space-y-1">
+        {errorMessages.map((error, index) => (
+          <li key={index} className="flex items-start">
+            <span className="mr-2">•</span>
+            <span><strong>{error.field}:</strong> {error.message}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
 
 // WPQR document type matching our database schema
 type WpqrDocument = {
@@ -595,14 +634,19 @@ export default function WpqrPage() {
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <ValidationErrorSummary errors={form.formState.errors} />
                 <FormField
                   control={form.control}
                   name="title"
-                  render={({ field }) => (
+                  render={({ field, fieldState }) => (
                     <FormItem>
-                      <FormLabel>Title</FormLabel>
+                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>Title</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter document title" {...field} />
+                        <Input 
+                          placeholder="Enter document title" 
+                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""} 
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -611,12 +655,13 @@ export default function WpqrPage() {
                 <FormField
                   control={form.control}
                   name="description"
-                  render={({ field }) => (
+                  render={({ field, fieldState }) => (
                     <FormItem>
-                      <FormLabel>Description</FormLabel>
+                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>Description</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Enter a description (optional)"
+                          placeholder="Enter a description"
+                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                           {...field}
                         />
                       </FormControl>
@@ -628,15 +673,15 @@ export default function WpqrPage() {
                   <FormField
                     control={form.control}
                     name="welderProcess"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem>
-                        <FormLabel>Welding Process</FormLabel>
+                        <FormLabel className={fieldState.error ? "text-red-600" : ""}>Welding Process</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
                           defaultValue={field.value}
                         >
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}>
                               <SelectValue placeholder="Select process" />
                             </SelectTrigger>
                           </FormControl>
@@ -664,15 +709,15 @@ export default function WpqrPage() {
                   <FormField
                     control={form.control}
                     name="baseMetalGrade"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem>
-                        <FormLabel>Base Metal Grade</FormLabel>
+                        <FormLabel className={fieldState.error ? "text-red-600" : ""}>Base Metal Grade</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
                           defaultValue={field.value}
                         >
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}>
                               <SelectValue placeholder="Select grade" />
                             </SelectTrigger>
                           </FormControl>
@@ -732,15 +777,15 @@ export default function WpqrPage() {
                   <FormField
                     control={form.control}
                     name="jointType"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem>
-                        <FormLabel>Joint Type</FormLabel>
+                        <FormLabel className={fieldState.error ? "text-red-600" : ""}>Joint Type</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
                           defaultValue={field.value}
                         >
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}>
                               <SelectValue placeholder="Select joint type" />
                             </SelectTrigger>
                           </FormControl>
@@ -759,11 +804,15 @@ export default function WpqrPage() {
                   <FormField
                     control={form.control}
                     name="certificateNo"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem>
-                        <FormLabel>Certificate Number</FormLabel>
+                        <FormLabel className={fieldState.error ? "text-red-600" : ""}>Certificate Number</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter certificate number (optional)" {...field} />
+                          <Input 
+                            placeholder="Enter certificate number" 
+                            className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""} 
+                            {...field} 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -788,9 +837,9 @@ export default function WpqrPage() {
                 <FormField
                   control={form.control}
                   name="welderIds"
-                  render={({ field }) => (
+                  render={({ field, fieldState }) => (
                     <FormItem>
-                      <FormLabel>Associated Welders *</FormLabel>
+                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>Associated Welders *</FormLabel>
                       <FormDescription>
                         Select welders who are qualified for this WPQR document
                       </FormDescription>
