@@ -7963,7 +7963,7 @@ export default function InspectionsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
-                                        title="View Documents"
+                                        title="View"
                                         onClick={() => {
                                           setDocumentViewerConfig({
                                             inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
@@ -7979,25 +7979,8 @@ export default function InspectionsPage() {
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
-                                        title="Upload Document"
-                                        onClick={() => {
-                                          setDocumentUploadConfig({
-                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
-                                            tabName: "ShopInspection",
-                                            recordId: record.id
-                                          });
-                                          setShowDocumentUpload(true);
-                                        }}
-                                      >
-                                        <FileText className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
                                         className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
-                                        title="Edit Record"
+                                        title="Edit"
                                         onClick={() => startEditingShopRecord(record)}
                                       >
                                         <Edit2 className="h-3 w-3" />
@@ -8007,7 +7990,7 @@ export default function InspectionsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
-                                        title="Delete Record and Documents"
+                                        title="Delete"
                                         onClick={() => {
                                           if (window.confirm(`Are you sure you want to delete Shop Inspection record "${record.id}"?\n\nThis will permanently delete:\n• The inspection record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
                                             deleteShopInspectionRecord(record.id);
@@ -8108,7 +8091,7 @@ export default function InspectionsPage() {
                                       variant="ghost"
                                       size="icon"
                                       className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
-                                      title="View Documents"
+                                      title="View"
                                       onClick={() => {
                                         setDocumentViewerConfig({
                                           inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
@@ -8124,25 +8107,8 @@ export default function InspectionsPage() {
                                       type="button"
                                       variant="ghost"
                                       size="icon"
-                                      className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
-                                      title="Upload Document"
-                                      onClick={() => {
-                                        setDocumentUploadConfig({
-                                          inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
-                                          tabName: "Welding",
-                                          recordId: weld.id
-                                        });
-                                        setShowDocumentUpload(true);
-                                      }}
-                                    >
-                                      <FileText className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
                                       className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
-                                      title="Edit Record"
+                                      title="Edit"
                                       onClick={() => startEditingWeldRecord(weld)}
                                     >
                                       <Edit2 className="h-3 w-3" />
@@ -8152,7 +8118,7 @@ export default function InspectionsPage() {
                                       variant="ghost"
                                       size="icon"
                                       className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
-                                      title="Delete Record and Documents"
+                                      title="Delete"
                                       onClick={() => {
                                         if (window.confirm(`Are you sure you want to delete Welding record "${weld.id}"?\n\nThis will permanently delete:\n• The welding record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
                                           deleteWeld(index);
@@ -8291,7 +8257,7 @@ export default function InspectionsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
-                                        title="View Documents"
+                                        title="View"
                                         onClick={() => {
                                           setDocumentViewerConfig({
                                             inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
@@ -8307,25 +8273,8 @@ export default function InspectionsPage() {
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
-                                        title="Upload Document"
-                                        onClick={() => {
-                                          setDocumentUploadConfig({
-                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
-                                            tabName: "NDT",
-                                            recordId: record.id
-                                          });
-                                          setShowDocumentUpload(true);
-                                        }}
-                                      >
-                                        <FileText className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
                                         className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
-                                        title="Edit Record"
+                                        title="Edit"
                                         onClick={() => startEditingNdtRecord(record)}
                                       >
                                         <Edit2 className="h-3 w-3" />
@@ -8335,7 +8284,7 @@ export default function InspectionsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
-                                        title="Delete Record and Documents"
+                                        title="Delete"
                                         onClick={() => {
                                           if (window.confirm(`Are you sure you want to delete NDT record "${record.id}"?\n\nThis will permanently delete:\n• The NDT record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
                                             deleteNdtRecord(record.id);
@@ -8450,7 +8399,7 @@ export default function InspectionsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
-                                        title="View Documents"
+                                        title="View"
                                         onClick={() => {
                                           setDocumentViewerConfig({
                                             inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
@@ -8466,25 +8415,8 @@ export default function InspectionsPage() {
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
-                                        title="Upload Document"
-                                        onClick={() => {
-                                          setDocumentUploadConfig({
-                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
-                                            tabName: "Visual",
-                                            recordId: record.id
-                                          });
-                                          setShowDocumentUpload(true);
-                                        }}
-                                      >
-                                        <FileText className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
                                         className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
-                                        title="Edit Record"
+                                        title="Edit"
                                         onClick={() => startEditingVisualRecord(record)}
                                       >
                                         <Edit2 className="h-3 w-3" />
@@ -8494,7 +8426,7 @@ export default function InspectionsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
-                                        title="Delete Record and Documents"
+                                        title="Delete"
                                         onClick={() => {
                                           if (window.confirm(`Are you sure you want to delete Visual Inspection record "${record.id}"?\n\nThis will permanently delete:\n• The inspection record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
                                             deleteVisualRecord(record.id);
@@ -8628,7 +8560,7 @@ export default function InspectionsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
-                                        title="View Documents"
+                                        title="View"
                                         onClick={() => {
                                           setDocumentViewerConfig({
                                             inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
@@ -8644,25 +8576,8 @@ export default function InspectionsPage() {
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
-                                        title="Upload Document"
-                                        onClick={() => {
-                                          setDocumentUploadConfig({
-                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
-                                            tabName: "Hydrotest",
-                                            recordId: record.id
-                                          });
-                                          setShowDocumentUpload(true);
-                                        }}
-                                      >
-                                        <FileText className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
                                         className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
-                                        title="Edit Record"
+                                        title="Edit"
                                         onClick={() => {
                                           setEditingHydrotestRecord(record);
                                           setIsHydrotestDialogOpen(true);
@@ -8675,7 +8590,7 @@ export default function InspectionsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
-                                        title="Delete Record and Documents"
+                                        title="Delete"
                                         onClick={() => {
                                           if (window.confirm(`Are you sure you want to delete Hydrotest record "${record.id}"?\n\nThis will permanently delete:\n• The inspection record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
                                             deleteHydrotestRecord(record.id);
@@ -8811,7 +8726,7 @@ export default function InspectionsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
-                                        title="View Documents"
+                                        title="View"
                                         onClick={() => {
                                           setDocumentViewerConfig({
                                             inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
@@ -8827,25 +8742,8 @@ export default function InspectionsPage() {
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
-                                        title="Upload Document"
-                                        onClick={() => {
-                                          setDocumentUploadConfig({
-                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
-                                            tabName: "NonConformance",
-                                            recordId: record.id
-                                          });
-                                          setShowDocumentUpload(true);
-                                        }}
-                                      >
-                                        <FileText className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
                                         className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
-                                        title="Edit Record"
+                                        title="Edit"
                                         onClick={() => {
                                           setEditingNcrRecord(record);
                                           setIsNcrDialogOpen(true);
@@ -8858,7 +8756,7 @@ export default function InspectionsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
-                                        title="Delete Record and Documents"
+                                        title="Delete"
                                         onClick={() => {
                                           if (window.confirm(`Are you sure you want to delete NCR record "${record.id}"?\n\nThis will permanently delete:\n• The NCR record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
                                             deleteNcrRecord(record.id);
