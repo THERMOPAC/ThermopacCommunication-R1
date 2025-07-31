@@ -66,6 +66,7 @@ interface LLMPrompt {
   frequency: string;
   active: boolean;
   priority: number;
+  temperature?: number;
   avg_rating?: number;
   total_executions?: number;
   last_executed?: string;
@@ -125,6 +126,7 @@ export default function LLMPromptEnginePage() {
     model: '',
     frequency: '',
     priority: 5,
+    temperature: 0.7,
     template: ''
   });
   
@@ -444,6 +446,7 @@ export default function LLMPromptEnginePage() {
       model: prompt.model,
       frequency: prompt.frequency,
       priority: prompt.priority,
+      temperature: prompt.temperature || 0.7,
       template: prompt.template
     });
     setIsEditDialogOpen(true);
@@ -462,6 +465,7 @@ export default function LLMPromptEnginePage() {
         model: editFormData.model,
         frequency: editFormData.frequency,
         priority: editFormData.priority,
+        temperature: editFormData.temperature,
         active: true
       }
     });
@@ -943,7 +947,7 @@ export default function LLMPromptEnginePage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-4 gap-4">
                     <div>
                       <Label htmlFor="edit-model">AI Model</Label>
                       <Select value={editFormData.model} onValueChange={(value) => setEditFormData(prev => ({ ...prev, model: value }))}>
@@ -981,6 +985,19 @@ export default function LLMPromptEnginePage() {
                         max="10" 
                         value={editFormData.priority}
                         onChange={(e) => setEditFormData(prev => ({ ...prev, priority: parseInt(e.target.value) || 5 }))}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="edit-temperature">Temperature (0.0-2.0)</Label>
+                      <Input 
+                        id="edit-temperature"
+                        type="number" 
+                        step="0.1"
+                        min="0.0" 
+                        max="2.0" 
+                        value={editFormData.temperature}
+                        onChange={(e) => setEditFormData(prev => ({ ...prev, temperature: parseFloat(e.target.value) || 0.7 }))}
                       />
                     </div>
                   </div>

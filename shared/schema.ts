@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
@@ -8372,7 +8372,7 @@ export type InsertUserProductivityMetrics = z.infer<typeof insertUserProductivit
 // ==================== LLM PROMPT ENGINE ====================
 
 // LLM Prompts table
-export const llmPrompts = pgTable('llm_prompts', {
+export const llmPrompts = pgTable('llm_prompts_registry', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull().unique(),  
   description: text('description'),
@@ -8383,6 +8383,7 @@ export const llmPrompts = pgTable('llm_prompts', {
   active: boolean('active').default(true),
   version: integer('version').default(1),
   priority: integer('priority').default(5),
+  temperature: numeric('temperature', { precision: 3, scale: 2 }).default('0.70'),
   dataQuery: text('data_query'),
   dataParameters: jsonb('data_parameters'),
   outputFormat: varchar('output_format', { length: 50 }).default('markdown'),
