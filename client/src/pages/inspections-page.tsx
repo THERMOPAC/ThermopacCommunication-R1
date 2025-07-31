@@ -4047,32 +4047,53 @@ export default function InspectionsPage() {
       return;
     }
 
-    // Check if files already exist for this record
-    if (!hasExistingApprovedDrawingFiles) {
-      toast({
-        title: "No Existing Files Found",
-        description: "This record does not have any existing files on GCS. Please add files before updating the record.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate that additional files are selected (mandatory for edit)
+    // Validate that replacement files are selected (mandatory for edit)
     if (approvedDrawingFiles.length === 0) {
       toast({
-        title: "Additional Files Required",
-        description: "Please select at least one additional file to upload for this Approved Drawing record.",
+        title: "Files Required",
+        description: "Please select at least one file to replace the existing files for this Approved Drawing record.",
         variant: "destructive",
       });
       return;
     }
     
-    // Handle file uploads if any files are selected
+    // Handle file replacement if any files are selected
     if (approvedDrawingFiles.length > 0) {
       setIsUploadingApprovedDrawingFiles(true);
       
       try {
-        // Upload files for this specific record
+        // First, delete all existing files for this record
+        console.log(`🗑️ Deleting existing files for Approved Drawing record ${editingApprovedDrawingRecord.id}...`);
+        
+        // Get existing documents to delete them
+        const existingDocsResponse = await fetch(
+          `/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/Approved%20Drawing/${editingApprovedDrawingRecord.id}/documents`
+        );
+        
+        if (existingDocsResponse.ok) {
+          const existingDocs = await existingDocsResponse.json();
+          console.log(`🗑️ Found ${existingDocs.length} existing documents to delete`);
+          
+          // Delete each existing document
+          for (const doc of existingDocs) {
+            try {
+              const deleteResponse = await fetch(`/api/quality/inspection-documents/delete/${doc.id}`, {
+                method: 'DELETE',
+              });
+              
+              if (deleteResponse.ok) {
+                console.log(`✅ Deleted existing document ${doc.id}`);
+              } else {
+                console.warn(`⚠️ Failed to delete document ${doc.id}, continuing with replacement...`);
+              }
+            } catch (deleteError) {
+              console.warn(`⚠️ Error deleting document ${doc.id}:`, deleteError);
+            }
+          }
+        }
+        
+        // Now upload the new replacement files
+        console.log(`📤 Uploading ${approvedDrawingFiles.length} replacement files...`);
         for (const file of approvedDrawingFiles) {
           const formData = new FormData();
           formData.append('file', file);
@@ -4093,8 +4114,8 @@ export default function InspectionsPage() {
         }
 
         toast({
-          title: "Files Uploaded Successfully",
-          description: `${approvedDrawingFiles.length} additional file(s) uploaded for Approved Drawing record ${editingApprovedDrawingRecord.id}`,
+          title: "Files Replaced Successfully",
+          description: `${approvedDrawingFiles.length} replacement file(s) uploaded for Approved Drawing record ${editingApprovedDrawingRecord.id}`,
         });
       } catch (error: any) {
         console.error("Error uploading files:", error);
@@ -4121,8 +4142,8 @@ export default function InspectionsPage() {
     setEditingApprovedDrawingRecord(null);
     
     toast({
-      title: "Success",
-      description: "Approved drawing record updated successfully" + (approvedDrawingFiles.length > 0 ? " with additional files" : ""),
+      title: "Success", 
+      description: "Approved drawing record updated successfully" + (approvedDrawingFiles.length > 0 ? " with replacement files" : ""),
     });
   };
 
@@ -10631,7 +10652,7 @@ export default function InspectionsPage() {
             {/* File Upload Section - Available for both new and edit */}
             <div className="space-y-2">
               <label className="text-sm font-medium">
-                {editingApprovedDrawingRecord ? 'Upload Additional Files *' : 'Upload Files *'}
+                {editingApprovedDrawingRecord ? 'Upload Replacement Files *' : 'Upload Files *'}
               </label>
               {editingApprovedDrawingRecord && (
                 <div className="text-sm">
@@ -10641,8 +10662,8 @@ export default function InspectionsPage() {
                       Checking for existing files...
                     </div>
                   ) : hasExistingApprovedDrawingFiles ? (
-                    <div className="text-green-600">
-                      ✓ Existing files found on GCS. You can add additional files.
+                    <div className="text-orange-600">
+                      ⚠️ Existing files found on GCS. New files will replace existing ones.
                     </div>
                   ) : (
                     <div className="text-red-600">
@@ -10702,7 +10723,7 @@ export default function InspectionsPage() {
                 {isUploadingApprovedDrawingFiles ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {editingApprovedDrawingRecord ? 'Updating & Uploading...' : 'Creating & Uploading...'}
+                    {editingApprovedDrawingRecord ? 'Updating & Replacing...' : 'Creating & Uploading...'}
                   </>
                 ) : isCheckingExistingFiles ? (
                   <>
@@ -10712,7 +10733,7 @@ export default function InspectionsPage() {
                 ) : approvedDrawingFiles.length === 0 ? (
                   editingApprovedDrawingRecord ? 'Select Files to Continue' : 'Select Files to Continue'
                 ) : (
-                  editingApprovedDrawingRecord ? 'Update & Upload Files' : 'Add & Upload Files'
+                  editingApprovedDrawingRecord ? 'Update & Replace Files' : 'Add & Upload Files'
                 )}
               </Button>
             </div>
