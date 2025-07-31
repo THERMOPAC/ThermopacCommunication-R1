@@ -195,6 +195,7 @@ export class LLMPromptEngine {
         template: finalPrompt,
         data: data,
         preferredModel: modelToUse,
+        temperature: prompt.temperature || 0.7,
         isTestMode: false,
         customMaskingRules: prompt.masking_rules ? JSON.parse(prompt.masking_rules) : undefined
       });
