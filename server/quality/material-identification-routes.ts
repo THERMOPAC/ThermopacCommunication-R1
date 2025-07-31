@@ -61,7 +61,8 @@ const materialIdentificationSchema = z.object({
   projectId: z.number().or(z.string().transform(id => parseInt(id))),
   projectNumber: z.string(),
   projectName: z.string(),
-  inspectionOrderNumber: z.string().optional(), // Made optional
+  inspectionOrderNumber: z.string().min(1, "Inspection Order Number is required"),
+  materialType: z.string().min(1, "Material Type is required"),
   materialDescription: z.string(),
   materialCode: z.string(),
   specification: z.string(),
@@ -245,6 +246,7 @@ interface MaterialIdentification {
   project_number: string;
   project_name: string;
   inspection_order_number: string;
+  material_type: string;
   material_description: string;
   material_code: string;
   specification: string;
@@ -285,6 +287,7 @@ router.post("/", validateSchema(materialIdentificationSchema), async (req, res) 
         project_number,
         project_name,
         inspection_order_number,
+        material_type,
         material_description,
         material_code,
         specification,
@@ -308,6 +311,7 @@ router.post("/", validateSchema(materialIdentificationSchema), async (req, res) 
         ${data.projectNumber},
         ${data.projectName},
         ${data.inspectionOrderNumber || ''},
+        ${data.materialType || ''},
         ${data.materialDescription},
         ${data.materialCode},
         ${data.specification},
@@ -458,6 +462,7 @@ router.put("/:id", validateSchema(materialIdentificationSchema), async (req, res
         project_number = ${data.projectNumber},
         project_name = ${data.projectName},
         inspection_order_number = ${data.inspectionOrderNumber || ''},
+        material_type = ${data.materialType || ''},
         material_description = ${data.materialDescription},
         material_code = ${data.materialCode},
         specification = ${data.specification},
@@ -482,7 +487,7 @@ router.put("/:id", validateSchema(materialIdentificationSchema), async (req, res
     // Log the query details and response
     console.log("UPDATE query complete for fields:", [
       'material_identification_id', 'project_id', 'project_number', 'project_name',
-      'inspection_order_number', 'material_description', 'material_code', 'specification',
+      'inspection_order_number', 'material_type', 'material_description', 'material_code', 'specification',
       'material_grade', 'heat_number', 'batch_number', 'mill_name', 'mill_test_certificate_number',
       'quantity', 'dimensions', 'material_status', 'inspector_name', 'inspection_date',
       'remarks', 'updated_by', 'updated_at'
