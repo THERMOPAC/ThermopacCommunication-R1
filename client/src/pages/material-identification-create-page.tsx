@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Upload, X, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { materialTypes } from "../../../shared/schema";
 import { 
   Dialog, 
   DialogContent, 
@@ -62,6 +63,7 @@ const materialIdentificationSchema = z.object({
   projectName: z.string().min(1, "Project Name is required"),
   projectNumber: z.string().min(1, "Project Number is required"),
   inspectionOrderNumber: z.string().optional(),
+  materialType: z.string().optional(),
   materialDescription: z.string().min(1, "Material Description is required"),
   materialCode: z.string().min(1, "Material Code is required"),
   specification: z.string().min(1, "Specification is required"),
@@ -264,6 +266,7 @@ export default function MaterialIdentificationCreatePage() {
       projectName: "",
       projectNumber: "",
       inspectionOrderNumber: "",
+      materialType: "",
       materialDescription: "",
       materialCode: "",
       specification: "",
@@ -375,6 +378,7 @@ export default function MaterialIdentificationCreatePage() {
         projectName: templateData.project_name || "",
         projectNumber: templateData.project_number || "",
         inspectionOrderNumber: templateData.inspection_order_number || "",
+        materialType: templateData.material_type || "",
         materialDescription: templateData.material_description || "",
         materialCode: templateData.material_code || "",
         specification: templateData.specification || "",
@@ -699,8 +703,36 @@ export default function MaterialIdentificationCreatePage() {
                     />
                   </div>
                   
-                  {/* Material details */}
+                  {/* Material Types */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="materialType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Material Type</FormLabel>
+                          <Select
+                            value={field.value}
+                            onValueChange={field.onChange}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select material type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {materialTypes.map((materialType) => (
+                                <SelectItem key={materialType} value={materialType}>
+                                  {materialType}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
                     <FormField
                       control={form.control}
                       name="materialDescription"
@@ -714,7 +746,10 @@ export default function MaterialIdentificationCreatePage() {
                         </FormItem>
                       )}
                     />
-                    
+                  </div>
+                  
+                  {/* Material Code */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="materialCode"

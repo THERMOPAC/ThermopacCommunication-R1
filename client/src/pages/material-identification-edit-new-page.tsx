@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, AlertCircle, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { materialTypes } from "../../../shared/schema";
 import { Label } from "@/components/ui/label";
 import { MaterialFileInfoSection } from "@/components/MaterialFileInfoSection";
 
@@ -67,6 +68,7 @@ const materialIdentificationSchema = z.object({
   projectName: z.string().min(1, "Project Name is required"),
   projectNumber: z.string().min(1, "Project Number is required"),
   inspectionOrderNumber: z.string().optional(),
+  materialType: z.string().min(1, "Material Type is required"),
   materialDescription: z.string().min(1, "Material Description is required"),
   materialCode: z.string().min(1, "Material Code is required"),
   specification: z.string().min(1, "Specification is required"),
@@ -110,6 +112,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
   const [specificationValue, setSpecificationValue] = useState("");
   const [materialGradeValue, setMaterialGradeValue] = useState("");
   const [materialStatusValue, setMaterialStatusValue] = useState("");
+  const [materialTypeValue, setMaterialTypeValue] = useState("");
   
 
   
@@ -143,6 +146,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
       projectName: "",
       projectNumber: "",
       inspectionOrderNumber: "",
+      materialType: "",
       materialDescription: "",
       materialCode: "",
       specification: "",
@@ -173,6 +177,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
         projectName: recordData.project_name,
         projectNumber: recordData.project_number,
         inspectionOrderNumber: recordData.inspection_order_number,
+        materialType: recordData.material_type || "",
         materialDescription: recordData.material_description,
         materialCode: recordData.material_code,
         specification: recordData.specification,
@@ -199,11 +204,13 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
       form.setValue("specification", formattedData.specification);
       form.setValue("materialStatus", formattedData.materialStatus);
       form.setValue("materialGrade", formattedData.materialGrade);
+      form.setValue("materialType", formattedData.materialType);
       
       // Also set our state variables
       setSpecificationValue(formattedData.specification);
       setMaterialGradeValue(formattedData.materialGrade);
       setMaterialStatusValue(formattedData.materialStatus);
+      setMaterialTypeValue(formattedData.materialType);
       
       console.log("Set dropdown values:", {
         specification: formattedData.specification,
@@ -245,6 +252,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
         
         // All other fields with explicit values
         inspectionOrderNumber: data.inspectionOrderNumber || "",
+        materialType: materialTypeValue,
         materialDescription: data.materialDescription,
         materialCode: data.materialCode,
         
@@ -469,8 +477,39 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
                     />
                   </div>
                   
-                  {/* Material details */}
+                  {/* Material Types */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="materialType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Material Type</FormLabel>
+                          <Select
+                            value={materialTypeValue}
+                            onValueChange={(value) => {
+                              setMaterialTypeValue(value);
+                              field.onChange(value);
+                            }}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select material type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {materialTypes.map((materialType) => (
+                                <SelectItem key={materialType} value={materialType}>
+                                  {materialType}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
                     <FormField
                       control={form.control}
                       name="materialDescription"
@@ -484,7 +523,10 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
                         </FormItem>
                       )}
                     />
-                    
+                  </div>
+                  
+                  {/* Material Code */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="materialCode"

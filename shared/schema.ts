@@ -110,6 +110,22 @@ export const meetingTypes = [
 
 export type MeetingType = typeof meetingTypes[number];
 
+// Material Types
+export const materialTypes = [
+  "Bars",
+  "Flanges", 
+  "Nut Bolts",
+  "Pipe Fittings",
+  "Pipes",
+  "Plates",
+  "Sheets",
+  "Structural Materials",
+  "Valves",
+  "Others"
+] as const;
+
+export type MaterialType = typeof materialTypes[number];
+
 // Commitment status values
 export const commitmentStatuses = [
   "Pending",
@@ -4900,6 +4916,7 @@ export const materialIdentification = pgTable('material_identification', {
   inspectionOrderNumber: varchar('inspection_order_number', { length: 255 }),
   
   // Material Identification details
+  materialType: varchar('material_type', { length: 255 }),
   materialDescription: text('material_description').notNull(),
   materialCode: varchar('material_code', { length: 255 }).notNull(),
   specification: varchar('specification', { length: 255 }).notNull(),
