@@ -425,6 +425,8 @@ export default function InspectionsPage() {
   // Approved Drawing file upload states
   const [approvedDrawingFiles, setApprovedDrawingFiles] = useState<File[]>([]);
   const [isUploadingApprovedDrawingFiles, setIsUploadingApprovedDrawingFiles] = useState(false);
+  const [hasExistingApprovedDrawingFiles, setHasExistingApprovedDrawingFiles] = useState(false);
+  const [isCheckingExistingFiles, setIsCheckingExistingFiles] = useState(false);
   
   const [approvedDrawingRecords, setApprovedDrawingRecords] = useState<{
     id: string;
@@ -3944,6 +3946,16 @@ export default function InspectionsPage() {
       return;
     }
 
+    // Validate that files are selected (mandatory for new records)
+    if (approvedDrawingFiles.length === 0) {
+      toast({
+        title: "Files Required",
+        description: "Please select at least one file to upload for this Approved Drawing record.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const newRecordId = generateApprovedDrawingId();
     const newRecord = {
       id: newRecordId,
@@ -4022,6 +4034,26 @@ export default function InspectionsPage() {
       });
       return;
     }
+
+    // Check if files already exist for this record
+    if (!hasExistingApprovedDrawingFiles) {
+      toast({
+        title: "No Existing Files Found",
+        description: "This record does not have any existing files on GCS. Please add files before updating the record.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate that additional files are selected (mandatory for edit)
+    if (approvedDrawingFiles.length === 0) {
+      toast({
+        title: "Additional Files Required",
+        description: "Please select at least one additional file to upload for this Approved Drawing record.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     // Handle file uploads if any files are selected
     if (approvedDrawingFiles.length > 0) {
@@ -4082,9 +4114,37 @@ export default function InspectionsPage() {
     });
   };
 
+  // Function to check existing files for approved drawing record
+  const checkExistingApprovedDrawingFiles = async (recordId: string) => {
+    if (!editInspectionOrderDetails?.inspectionOrderNumber) return false;
+    
+    setIsCheckingExistingFiles(true);
+    try {
+      const response = await fetch(
+        `/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/Approved%20Drawing/${recordId}/documents`
+      );
+      
+      if (response.ok) {
+        const documents = await response.json();
+        return documents.length > 0;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking existing files:", error);
+      return false;
+    } finally {
+      setIsCheckingExistingFiles(false);
+    }
+  };
+
   // Function to start editing an approved drawing record
-  const startEditingApprovedDrawingRecord = (record: typeof approvedDrawingRecords[0]) => {
+  const startEditingApprovedDrawingRecord = async (record: typeof approvedDrawingRecords[0]) => {
     setEditingApprovedDrawingRecord(record);
+    
+    // Check if files already exist for this record
+    const hasFiles = await checkExistingApprovedDrawingFiles(record.id);
+    setHasExistingApprovedDrawingFiles(hasFiles);
+    
     setIsApprovedDrawingDialogOpen(true);
   };
 
@@ -10315,8 +10375,26 @@ export default function InspectionsPage() {
             {/* File Upload Section - Available for both new and edit */}
             <div className="space-y-2">
               <label className="text-sm font-medium">
-                {editingApprovedDrawingRecord ? 'Upload Additional Files (Optional)' : 'Upload Files (Optional)'}
+                {editingApprovedDrawingRecord ? 'Upload Additional Files *' : 'Upload Files *'}
               </label>
+              {editingApprovedDrawingRecord && (
+                <div className="text-sm">
+                  {isCheckingExistingFiles ? (
+                    <div className="flex items-center text-blue-600">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Checking for existing files...
+                    </div>
+                  ) : hasExistingApprovedDrawingFiles ? (
+                    <div className="text-green-600">
+                      ✓ Existing files found on GCS. You can add additional files.
+                    </div>
+                  ) : (
+                    <div className="text-red-600">
+                      ⚠️ No existing files found. Please add files to proceed.
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
                 <input
                   type="file"
@@ -10355,19 +10433,30 @@ export default function InspectionsPage() {
                 onClick={() => {
                   setIsApprovedDrawingDialogOpen(false);
                   setEditingApprovedDrawingRecord(null);
-                  setApprovedDrawingFiles([]); // Clear selected files
+                  setApprovedDrawingFiles([]);
+                  setHasExistingApprovedDrawingFiles(false);
                 }}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isUploadingApprovedDrawingFiles}>
+              <Button 
+                type="submit" 
+                disabled={isUploadingApprovedDrawingFiles || isCheckingExistingFiles || approvedDrawingFiles.length === 0}
+              >
                 {isUploadingApprovedDrawingFiles ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Uploading...
+                    {editingApprovedDrawingRecord ? 'Updating & Uploading...' : 'Creating & Uploading...'}
                   </>
+                ) : isCheckingExistingFiles ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Checking existing files...
+                  </>
+                ) : approvedDrawingFiles.length === 0 ? (
+                  editingApprovedDrawingRecord ? 'Select Files to Continue' : 'Select Files to Continue'
                 ) : (
-                  editingApprovedDrawingRecord ? 'Update Record' : 'Add Record'
+                  editingApprovedDrawingRecord ? 'Update & Upload Files' : 'Add & Upload Files'
                 )}
               </Button>
             </div>
