@@ -6843,6 +6843,7 @@ export default function InspectionsPage() {
                           variant="outline" 
                           size="sm"
                           className="flex items-center text-xs"
+                          disabled={approvedDrawingRecords.length >= 1}
                           onClick={() => {
                             // Check if we have valid project code before opening dialog
                             if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
@@ -6855,8 +6856,10 @@ export default function InspectionsPage() {
                             }
                             setIsApprovedDrawingDialogOpen(true);
                           }}
+                          title={approvedDrawingRecords.length >= 1 ? "Only one Drawing record is allowed per inspection order" : "Add Approved Drawing Record"}
                         >
-                          <Plus className="h-3.5 w-3.5 mr-1" /> Add Approved Drawing Record
+                          <Plus className="h-3.5 w-3.5 mr-1" /> 
+                          {approvedDrawingRecords.length >= 1 ? "Drawing Record Added" : "Add Approved Drawing Record"}
                         </Button>
                       </div>
                       
@@ -7042,6 +7045,7 @@ export default function InspectionsPage() {
                           variant="outline" 
                           size="sm"
                           className="flex items-center text-xs"
+                          disabled={dvrRecords.length >= 1}
                           onClick={() => {
                             // Check if we have valid project code before opening dialog
                             if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
@@ -7055,8 +7059,10 @@ export default function InspectionsPage() {
                             setEditingDvrRecord(null);
                             setIsDvrDialogOpen(true);
                           }}
+                          title={dvrRecords.length >= 1 ? "Only one DVR record is allowed per inspection order" : "Add DVR Record"}
                         >
-                          <Plus className="h-3.5 w-3.5 mr-1" /> Add DVR Record
+                          <Plus className="h-3.5 w-3.5 mr-1" /> 
+                          {dvrRecords.length >= 1 ? "DVR Record Added" : "Add DVR Record"}
                         </Button>
                       </div>
                       
@@ -7243,6 +7249,7 @@ export default function InspectionsPage() {
                           type="button" 
                           variant="outline" 
                           size="sm"
+                          disabled={itpRecords.length >= 1}
                           onClick={() => {
                             // Check if we have valid project code before opening dialog
                             if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
@@ -7257,8 +7264,10 @@ export default function InspectionsPage() {
                             setIsItpDialogOpen(true);
                           }}
                           className="flex items-center text-xs"
+                          title={itpRecords.length >= 1 ? "Only one ITP record is allowed per inspection order" : "Add ITP Record"}
                         >
-                          <Plus className="h-3.5 w-3.5 mr-1" /> Add ITP Record
+                          <Plus className="h-3.5 w-3.5 mr-1" /> 
+                          {itpRecords.length >= 1 ? "ITP Record Added" : "Add ITP Record"}
                         </Button>
                       </div>
                       
