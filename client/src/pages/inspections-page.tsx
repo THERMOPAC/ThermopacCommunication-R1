@@ -95,6 +95,7 @@ const materialRowSchema = z.object({
   id: z.number().optional(), // For existing links, optional for new rows
   materialId: z.number().optional(), // Material ID from the database
   materialIdentificationId: z.string().optional(), // MI ID (e.g., "MI-2025-001")
+  materialType: z.string().optional(), // Material Type
   materialCertificateNumber: z.string().optional(),
   heatNumber: z.string().optional(),
   materialGrade: z.string().optional(),
@@ -2369,6 +2370,7 @@ export default function InspectionsPage() {
         id: material.id,
         materialId: material.materialId,
         materialIdentificationId: material.materialIdentificationId,
+        materialType: material.material?.materialType || material.materialType || '',
         materialCertificateNumber: material.materialCertificateNumber,
         heatNumber: material.heatNumber,
         materialGrade: material.materialGrade,
@@ -7196,6 +7198,7 @@ export default function InspectionsPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
+                              <TableHead className="text-xs font-medium">Material Type</TableHead>
                               <TableHead className="text-xs font-medium">Description</TableHead>
                               <TableHead className="text-xs font-medium">Material ID</TableHead>
                               <TableHead className="text-xs font-medium">Certificate #</TableHead>
@@ -7211,6 +7214,9 @@ export default function InspectionsPage() {
                             {materialRows.length > 0 ? (
                               materialRows.map((materialRow, index) => (
                                 <TableRow key={index} className="hover:bg-gray-50">
+                                  <TableCell className="text-xs">
+                                    {materialRow.materialType || '-'}
+                                  </TableCell>
                                   <TableCell className="text-xs">
                                     {materialRow.description || '-'}
                                   </TableCell>
@@ -7270,7 +7276,7 @@ export default function InspectionsPage() {
                               ))
                             ) : (
                               <TableRow>
-                                <TableCell colSpan={9} className="text-center py-10">
+                                <TableCell colSpan={10} className="text-center py-10">
                                   <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
                                   <p className="mt-2 text-xs text-muted-foreground">
                                     No materials linked to this inspection order.
