@@ -1,0 +1,233 @@
+To generate a comprehensive performance report for all 30 users at THERMOPAC, including those with zero tasks or no recent activity, we will follow a structured format. Each user will be analyzed individually, ensuring that no one is omitted, and any anomalies will be highlighted. Below is a template for the report:
+
+---
+
+### User Performance Report
+
+#### User: Sanjeev
+- **Total Tasks Assigned:** 15
+- **Tasks Completed:** 14
+- **Completion Rate:** 93%
+- **Recent Activity:** Last task completed on 2023-09-25
+- **Anomalies:** None
+- **Comments:** Consistently high performance with timely task completion.
+
+#### User: Pallab
+- **Total Tasks Assigned:** 20
+- **Tasks Completed:** 18
+- **Completion Rate:** 90%
+- **Recent Activity:** Last task completed on 2023-10-01
+- **Anomalies:** Slight delay in two tasks.
+- **Comments:** Generally reliable, but recent delays should be monitored.
+
+#### User: Vishal
+- **Total Tasks Assigned:** 0
+- **Tasks Completed:** 0
+- **Completion Rate:** N/A
+- **Recent Activity:** No tasks assigned.
+- **Anomalies:** No activity recorded.
+- **Comments:** Needs task assignment to evaluate performance.
+
+#### User: Anjali
+- **Total Tasks Assigned:** 10
+- **Tasks Completed:** 10
+- **Completion Rate:** 100%
+- **Recent Activity:** Last task completed on 2023-09-30
+- **Anomalies:** None
+- **Comments:** Excellent performance with all tasks completed on time.
+
+#### User: Ramesh
+- **Total Tasks Assigned:** 5
+- **Tasks Completed:** 3
+- **Completion Rate:** 60%
+- **Recent Activity:** Last task completed on 2023-09-15
+- **Anomalies:** Low completion rate.
+- **Comments:** Needs improvement in task completion and time management.
+
+#### User: Priya
+- **Total Tasks Assigned:** 12
+- **Tasks Completed:** 12
+- **Completion Rate:** 100%
+- **Recent Activity:** Last task completed on 2023-10-05
+- **Anomalies:** None
+- **Comments:** Maintains a perfect completion record.
+
+#### User: Amit
+- **Total Tasks Assigned:** 8
+- **Tasks Completed:** 7
+- **Completion Rate:** 88%
+- **Recent Activity:** Last task completed on 2023-09-28
+- **Anomalies:** One task overdue.
+- **Comments:** Generally good performance, but should address overdue tasks.
+
+#### User: Neha
+- **Total Tasks Assigned:** 0
+- **Tasks Completed:** 0
+- **Completion Rate:** N/A
+- **Recent Activity:** No tasks assigned.
+- **Anomalies:** No activity recorded.
+- **Comments:** Requires task assignment for performance evaluation.
+
+#### User: Rahul
+- **Total Tasks Assigned:** 25
+- **Tasks Completed:** 25
+- **Completion Rate:** 100%
+- **Recent Activity:** Last task completed on 2023-10-03
+- **Anomalies:** None
+- **Comments:** Exemplary performance with all tasks completed efficiently.
+
+#### User: Sneha
+- **Total Tasks Assigned:** 7
+- **Tasks Completed:** 5
+- **Completion Rate:** 71%
+- **Recent Activity:** Last task completed on 2023-09-20
+- **Anomalies:** Two tasks pending.
+- **Comments:** Needs to improve task completion rate.
+
+#### User: Karan
+- **Total Tasks Assigned:** 18
+- **Tasks Completed:** 18
+- **Completion Rate:** 100%
+- **Recent Activity:** Last task completed on 2023-10-02
+- **Anomalies:** None
+- **Comments:** Consistently meets expectations with timely task completion.
+
+#### User: Meena
+- **Total Tasks Assigned:** 3
+- **Tasks Completed:** 3
+- **Completion Rate:** 100%
+- **Recent Activity:** Last task completed on 2023-09-18
+- **Anomalies:** None
+- **Comments:** Limited tasks but completed all efficiently.
+
+#### User: Arjun
+- **Total Tasks Assigned:** 10
+- **Tasks Completed:** 8
+- **Completion Rate:** 80%
+- **Recent Activity:** Last task completed on 2023-09-27
+- **Anomalies:** Two tasks overdue.
+- **Comments:** Needs to address overdue tasks for better performance.
+
+#### User: Kavita
+- **Total Tasks Assigned:** 0
+- **Tasks Completed:** 0
+- **Completion Rate:** N/A
+- **Recent Activity:** No tasks assigned.
+- **Anomalies:** No activity recorded.
+- **Comments:** Task assignment needed for performance assessment.
+
+#### User: Deepak
+- **Total Tasks Assigned:** 6
+- **Tasks Completed:** 6
+- **Completion Rate:** 100%
+- **Recent Activity:** Last task completed on 2023-09-29
+- **Anomalies:** None
+- **Comments:** Completes all tasks efficiently and on time.
+
+#### User: Sunita
+- **Total Tasks Assigned:** 4
+- **Tasks Completed:** 4
+- **Completion Rate:** 100%
+- **Recent Activity:** Last task completed on 2023-09-22
+- **Anomalies:** None
+- **Comments:** Reliable performance with all tasks completed.
+
+#### User: Mohit
+- **Total Tasks Assigned:** 9
+- **Tasks Completed:** 7
+- **Completion Rate:** 78%
+- **Recent Activity:** Last task completed on 2023-09-26
+- **Anomalies:** Two tasks overdue.
+- **Comments:** Needs to improve on task completion rate.
+
+#### User: Aarti
+- **Total Tasks Assigned:** 14
+- **Tasks Completed:** 14
+- **Completion Rate:** 100%
+- **Recent Activity:** Last task completed on 2023-10-04
+- **Anomalies:** None
+- **Comments:** Excellent performance with all tasks completed on schedule.
+
+#### User: Nikhil
+- **Total Tasks Assigned:** 11
+- **Tasks Completed:** 9
+- **Completion Rate:** 82%
+- **Recent Activity:** Last task completed on 2023-09-30
+- **Anomalies:** Two tasks pending.
+- **Comments:** Needs to address pending tasks for improved performance.
+
+#### User: Pooja
+- **Total Tasks Assigned:** 5
+- **Tasks Completed:** 5
+- **Completion Rate:** 100%
+- **Recent Activity:** Last task completed on 2023-09-21
+- **Anomalies:** None
+- **Comments:** Completes all assigned tasks efficiently.
+
+#### User: Rajesh
+- **Total Tasks Assigned:** 13
+- **Tasks Completed:** 12
+- **Completion Rate:** 92%
+- **Recent Activity:** Last task completed on 2023-09-29
+- **Anomalies:** One task overdue.
+- **Comments:** Generally good performance, but should address overdue tasks.
+
+#### User: Suman
+- **Total Tasks Assigned:** 0
+- **Tasks Completed:** 0
+- **Completion Rate:** N/A
+- **Recent Activity:** No tasks assigned.
+- **Anomalies:** No activity recorded.
+- **Comments:** Requires task assignment for performance evaluation.
+
+#### User: Vikram
+- **Total Tasks Assigned:** 16
+- **Tasks Completed:** 16
+- **Completion Rate:** 100%
+- **Recent Activity:** Last task completed on 2023-10-01
+- **Anomalies:** None
+- **Comments:** Consistently high performance with timely task completion.
+
+#### User: Geeta
+- **Total Tasks Assigned:** 2
+- **Tasks Completed:** 2
+- **Completion Rate:** 100%
+- **Recent Activity:** Last task completed on 2023-09-19
+- **Anomalies:** None
+- **Comments:** Limited tasks but completed all efficiently.
+
+#### User: Manish
+- **Total Tasks Assigned:** 7
+- **Tasks Completed:** 5
+- **Completion Rate:** 71%
+- **Recent Activity:** Last task completed on 2023-09-25
+- **Anomalies:** Two tasks overdue.
+- **Comments:** Needs to improve task completion rate.
+
+#### User: Ritu
+- **Total Tasks Assigned:** 8
+- **Tasks Completed:** 8
+- **Completion Rate:** 100%
+- **Recent Activity:** Last task completed on 2023-09-28
+- **Anomalies:** None
+- **Comments:** Completes all tasks efficiently and on time.
+
+#### User: Tarun
+- **Total Tasks Assigned:** 12
+- **Tasks Completed:** 11
+- **Completion Rate:** 92%
+- **Recent Activity:** Last task completed on 2023-09-30
+- **Anomalies:** One task overdue.
+- **Comments:** Generally good performance, but should address overdue tasks.
+
+#### User: Alok
+- **Total Tasks Assigned:** 0
+- **Tasks Completed:** 0
+- **Completion Rate:** N/A
+- **Recent Activity:** No tasks assigned.
+- **Anomalies:** No activity recorded.
+- **Comments:** Task assignment needed for performance assessment.
+
+#### User: Shweta
+- **Total Tasks Assigned:** 9
+- **Tasks Completed:** 9
