@@ -797,14 +797,6 @@ export default function PMAPage() {
                             >
                               <Edit2 className="w-4 h-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handlePMAFileUpload(doc)}
-                              className="text-blue-600 hover:text-blue-800"
-                            >
-                              <Upload className="w-4 h-4" />
-                            </Button>
                             {(doc.fileUrl || doc.file_url) && (
                               <Button
                                 variant="ghost"
