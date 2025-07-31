@@ -517,6 +517,12 @@ export default function InspectionsPage() {
     status: string;
     remarks: string;
   } | null>(null);
+
+  // ITP file upload state
+  const [itpFiles, setItpFiles] = useState<File[]>([]);
+  const [isUploadingItpFiles, setIsUploadingItpFiles] = useState(false);
+  const [hasExistingItpFiles, setHasExistingItpFiles] = useState(false);
+  const [isCheckingExistingItpFiles, setIsCheckingExistingItpFiles] = useState(false);
   
   // Load project selection and keep visible state from localStorage on component mount
   useEffect(() => {
@@ -4177,6 +4183,29 @@ export default function InspectionsPage() {
     }
   };
 
+  // Function to check existing files for ITP record
+  const checkExistingItpFiles = async (recordId: string) => {
+    if (!editInspectionOrderDetails?.inspectionOrderNumber) return false;
+    
+    setIsCheckingExistingItpFiles(true);
+    try {
+      const response = await fetch(
+        `/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/ITP/${recordId}/documents`
+      );
+      
+      if (response.ok) {
+        const documents = await response.json();
+        return documents.length > 0;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking existing ITP files:", error);
+      return false;
+    } finally {
+      setIsCheckingExistingItpFiles(false);
+    }
+  };
+
   // PMA helper functions
   const generatePmaId = () => {
     const existingIds = pmaRecords.map(record => record.id);
@@ -4535,7 +4564,7 @@ export default function InspectionsPage() {
     return `ITP-${maxId + 1}`;
   };
 
-  const addItpRecord = (recordData: {
+  const addItpRecord = async (recordData: {
     itpNumber: string;
     itemDescription: string;
     inspectionStage: string;
@@ -4544,6 +4573,18 @@ export default function InspectionsPage() {
     status: string;
     remarks?: string;
   }) => {
+    // Validate files are selected
+    if (itpFiles.length === 0) {
+      toast({
+        title: "Files Required",
+        description: "Please select files before creating the ITP record.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsUploadingItpFiles(true);
+
     const newRecord = {
       id: generateItpId(),
       ...recordData,
@@ -4551,15 +4592,49 @@ export default function InspectionsPage() {
     };
     
     setItpRecords(prev => [...prev, newRecord]);
-    setIsItpDialogOpen(false);
     
-    toast({
-      title: "Success",
-      description: "ITP record added successfully",
-    });
+    // Upload files
+    try {
+      const uploadPromises = itpFiles.map(async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('inspectionOrderNumber', editInspectionOrderDetails?.inspection_order_number || '');
+        formData.append('tabName', 'ITP');
+        formData.append('recordId', newRecord.id);
+
+        const response = await fetch('/api/quality/inspection-documents/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Upload failed for ${file.name}`);
+        }
+        return response.json();
+      });
+
+      await Promise.all(uploadPromises);
+
+      setIsItpDialogOpen(false);
+      setItpFiles([]);
+      
+      toast({
+        title: "Success",
+        description: "ITP record added and files uploaded successfully",
+      });
+    } catch (error) {
+      console.error('File upload error:', error);
+      toast({
+        title: "Upload Error",
+        description: "ITP record created but file upload failed. Please try uploading files again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploadingItpFiles(false);
+    }
   };
 
-  const editItpRecord = (recordData: {
+  const editItpRecord = async (recordData: {
     itpNumber: string;
     itemDescription: string;
     inspectionStage: string;
@@ -4569,6 +4644,18 @@ export default function InspectionsPage() {
     remarks?: string;
   }) => {
     if (!editingItpRecord) return;
+
+    // Validate either existing files or new files selected
+    if (!hasExistingItpFiles && itpFiles.length === 0) {
+      toast({
+        title: "Files Required",
+        description: "Please select additional files before updating the ITP record.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsUploadingItpFiles(true);
 
     const updatedRecord = {
       ...editingItpRecord,
@@ -4580,17 +4667,58 @@ export default function InspectionsPage() {
       record.id === editingItpRecord.id ? updatedRecord : record
     ));
     
-    setIsItpDialogOpen(false);
-    setEditingItpRecord(null);
-    
-    toast({
-      title: "Success",
-      description: "ITP record updated successfully",
-    });
+    // Upload new files if selected
+    try {
+      if (itpFiles.length > 0) {
+        const uploadPromises = itpFiles.map(async (file) => {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('inspectionOrderNumber', editInspectionOrderDetails?.inspection_order_number || '');
+          formData.append('tabName', 'ITP');
+          formData.append('recordId', editingItpRecord.id);
+
+          const response = await fetch('/api/quality/inspection-documents/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Upload failed for ${file.name}`);
+          }
+          return response.json();
+        });
+
+        await Promise.all(uploadPromises);
+      }
+
+      setIsItpDialogOpen(false);
+      setEditingItpRecord(null);
+      setItpFiles([]);
+      setHasExistingItpFiles(false);
+      
+      toast({
+        title: "Success",
+        description: itpFiles.length > 0 ? "ITP record updated and additional files uploaded successfully" : "ITP record updated successfully",
+      });
+    } catch (error) {
+      console.error('File upload error:', error);
+      toast({
+        title: "Upload Error",
+        description: "ITP record updated but file upload failed. Please try uploading files again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploadingItpFiles(false);
+    }
   };
 
-  const startEditingItpRecord = (record: typeof itpRecords[0]) => {
+  const startEditingItpRecord = async (record: typeof itpRecords[0]) => {
     setEditingItpRecord(record);
+    
+    // Check if files already exist for this record
+    const hasFiles = await checkExistingItpFiles(record.id);
+    setHasExistingItpFiles(hasFiles);
+    
     setIsItpDialogOpen(true);
   };
 
@@ -11399,6 +11527,95 @@ export default function InspectionsPage() {
               />
             </div>
 
+            {/* File Upload Section */}
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="text-lg font-medium">
+                {editingItpRecord ? 'Upload Additional Files *' : 'Upload Files *'}
+              </h3>
+              
+              {/* File existence status for Edit mode */}
+              {editingItpRecord && (
+                <div className="mb-4 p-3 border rounded-lg">
+                  {isCheckingExistingItpFiles ? (
+                    <div className="flex items-center space-x-2 text-blue-600">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Checking for existing files...</span>
+                    </div>
+                  ) : hasExistingItpFiles ? (
+                    <div className="text-green-600 font-medium">
+                      ✓ Existing files found on GCS. You can add additional files.
+                    </div>
+                  ) : (
+                    <div className="text-red-600 font-medium">
+                      ⚠ No existing files found. Please add files to proceed.
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50">
+                <div className="text-center">
+                  <FileText className="mx-auto h-12 w-12 text-gray-400" />
+                  <div className="mt-4">
+                    <label htmlFor="itp-file-upload" className="cursor-pointer">
+                      <span className="mt-2 block text-sm font-medium text-gray-900">
+                        Click to upload files or drag and drop
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        PDF, DOC, DOCX, JPG, JPEG, PNG files up to 10MB each
+                      </span>
+                    </label>
+                    <input
+                      id="itp-file-upload"
+                      type="file"
+                      multiple
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        const validFiles = files.filter(file => {
+                          const maxSize = 10 * 1024 * 1024; // 10MB
+                          if (file.size > maxSize) {
+                            toast({
+                              title: "File too large",
+                              description: `${file.name} is larger than 10MB`,
+                              variant: "destructive"
+                            });
+                            return false;
+                          }
+                          return true;
+                        });
+                        setItpFiles(validFiles);
+                      }}
+                      className="hidden"
+                    />
+                  </div>
+                  
+                  {itpFiles.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">Selected Files:</h4>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        {itpFiles.map((file, index) => (
+                          <li key={index} className="flex items-center justify-between bg-white p-2 rounded border">
+                            <span>{file.name}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setItpFiles(prev => prev.filter((_, i) => i !== index));
+                              }}
+                            >
+                              ×
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div className="flex justify-end space-x-2">
               <Button 
                 type="button" 
@@ -11406,12 +11623,31 @@ export default function InspectionsPage() {
                 onClick={() => {
                   setIsItpDialogOpen(false);
                   setEditingItpRecord(null);
+                  setItpFiles([]);
+                  setHasExistingItpFiles(false);
                 }}
               >
                 Cancel
               </Button>
-              <Button type="submit">
-                {editingItpRecord ? 'Update Record' : 'Add Record'}
+              <Button 
+                type="submit" 
+                disabled={isUploadingItpFiles || isCheckingExistingItpFiles || (!hasExistingItpFiles && itpFiles.length === 0)}
+              >
+                {isUploadingItpFiles ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {editingItpRecord ? 'Updating & Uploading...' : 'Creating & Uploading...'}
+                  </>
+                ) : isCheckingExistingItpFiles ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Checking existing files...
+                  </>
+                ) : (!hasExistingItpFiles && itpFiles.length === 0) ? (
+                  editingItpRecord ? 'Select Files to Continue' : 'Select Files to Continue'
+                ) : (
+                  editingItpRecord ? 'Update & Upload Files' : 'Add & Upload Files'
+                )}
               </Button>
             </div>
           </form>
