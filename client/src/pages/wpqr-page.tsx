@@ -29,7 +29,7 @@ const wpqrFormSchema = z.object({
   certificateNo: z.string().min(1, "Certificate Number is required").max(100, "Certificate Number must be 100 characters or less"),
   inspectionAuthority: z.string().max(50, "Inspection Authority must be 50 characters or less").optional(),
   welderIds: z.array(z.number()).min(1, "At least one welder must be associated with the WPQR document"),
-  document: z.instanceof(FileList).optional(),
+  document: z.instanceof(FileList).refine((files) => files.length > 0, "Document file is required"),
 });
 
 type WpqrFormValues = z.infer<typeof wpqrFormSchema>;
@@ -43,7 +43,8 @@ const ValidationErrorSummary = ({ errors }: { errors: Record<string, any> }) => 
     baseMetalGrade: "Base Metal Grade",
     jointType: "Joint Type",
     certificateNo: "Certificate Number",
-    welderIds: "Associated Welders"
+    welderIds: "Associated Welders",
+    document: "Document File"
   };
 
   const errorMessages = Object.entries(errors)
@@ -884,13 +885,14 @@ export default function WpqrPage() {
                 <FormField
                   control={form.control}
                   name="document"
-                  render={({ field: { onChange, value, ...rest } }) => (
+                  render={({ field: { onChange, value, ...rest }, fieldState }) => (
                     <FormItem>
-                      <FormLabel>Document File</FormLabel>
+                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>Document File *</FormLabel>
                       <FormControl>
                         <Input
                           type="file"
                           accept=".pdf"
+                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                           onChange={(e) => onChange(e.target.files)}
                           {...rest}
                         />
