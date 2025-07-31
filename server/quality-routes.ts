@@ -108,13 +108,14 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       orderBy: (items) => [items.sequenceNumber]
     });
     
-    // Fetch material links for this inspection order with material description
+    // Fetch material links for this inspection order with material description and type
     const materials = await db.query.materialInspectionLinks.findMany({
       where: eq(materialInspectionLinks.inspectionOrderId, orderId),
       with: {
         material: {
           columns: {
-            materialDescription: true
+            materialDescription: true,
+            materialType: true
           }
         }
       }
