@@ -144,9 +144,28 @@ export default function PMAPage() {
   // Auto-populate PMA number when it's available
   useEffect(() => {
     if (nextPmaNumber?.pmaNumber && isAddDialogOpen) {
-      form.setValue('pmaNumber', nextPmaNumber.pmaNumber);
+      form.setValue('pmaNumber', nextPmaNumber.pmaNumber, { 
+        shouldValidate: true, 
+        shouldDirty: true 
+      });
     }
   }, [nextPmaNumber, isAddDialogOpen, form]);
+
+  // Reset form when dialog opens
+  useEffect(() => {
+    if (isAddDialogOpen) {
+      form.reset({
+        pmaNumber: nextPmaNumber?.pmaNumber || '',
+        specification: '',
+        grade: '',
+        certifiedBy: '',
+        status: 'Draft',
+        remarks: '',
+        issueDate: '',
+        expiryDate: '',
+      });
+    }
+  }, [isAddDialogOpen, nextPmaNumber?.pmaNumber, form]);
 
   // Create PMA mutation
   const createPMAMutation = useMutation({
@@ -385,6 +404,7 @@ export default function PMAPage() {
                 if (!open) {
                   setCreatedPMAId(null);
                   setFileUpload(null);
+                  form.reset(); // Reset form when dialog closes
                 }
               }}>
                 <DialogTrigger asChild>
