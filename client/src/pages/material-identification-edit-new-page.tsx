@@ -310,11 +310,12 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
           description: `Material Identification ${formData.materialIdentificationId} has been updated successfully.`,
         });
         
-        // Option 1: Refresh page to get the latest data instead of navigating
-        window.location.reload();
-        
-        // Option 2: Uncomment to navigate to view page instead
-        // navigate(`/quality/material-identification/view/${recordId}`);
+        // Navigate back to list page while preserving project filter context
+        if (projectParam && keepParam === 'true') {
+          navigate(`/quality/material-identification?project=${projectParam}&keep=true`);
+        } else {
+          navigate('/quality/material-identification');
+        }
       } else {
         // Show error information
         console.error("API Error Status:", response.status);
