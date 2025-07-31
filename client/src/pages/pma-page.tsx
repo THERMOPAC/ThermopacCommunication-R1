@@ -251,6 +251,16 @@ export default function PMAPage() {
 
   // Handlers
   const handleAddPMA = (data: PMAFormData) => {
+    // Check if file is uploaded
+    if (!fileUpload) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please upload a file before creating the PMA document.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     createPMAMutation.mutate(data);
   };
 
@@ -389,13 +399,48 @@ export default function PMAPage() {
                   </DialogHeader>
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleAddPMA)} className="space-y-4">
+                      {/* Validation Error Summary */}
+                      {Object.keys(form.formState.errors).length > 0 && (
+                        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0">
+                              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <div className="ml-3">
+                              <h3 className="text-sm font-medium text-red-800">
+                                Please correct the following errors:
+                              </h3>
+                              <div className="mt-2 text-sm text-red-700">
+                                <ul className="list-disc pl-5 space-y-1">
+                                  {Object.entries(form.formState.errors).map(([field, error]) => (
+                                    <li key={field}>
+                                      <strong>{field === 'pmaNumber' ? 'PMA Number' : 
+                                              field === 'certifiedBy' ? 'Certified By' :
+                                              field === 'issueDate' ? 'Issue Date' :
+                                              field === 'expiryDate' ? 'Expiry Date' :
+                                              field.charAt(0).toUpperCase() + field.slice(1)}:</strong> {error.message}
+                                    </li>
+                                  ))}
+                                  {!fileUpload && (
+                                    <li><strong>File Upload:</strong> File upload is required</li>
+                                  )}
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       {/* PMA Number - Auto-generated */}
                       <FormField
                         control={form.control}
                         name="pmaNumber"
-                        render={({ field }) => (
+                        render={({ field, fieldState }) => (
                           <FormItem>
-                            <FormLabel>PMA Number (Auto-generated) *</FormLabel>
+                            <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                              PMA Number (Auto-generated) *
+                            </FormLabel>
                             <FormControl>
                               <Input 
                                 {...field} 
@@ -414,12 +459,14 @@ export default function PMAPage() {
                       <FormField
                         control={form.control}
                         name="specification"
-                        render={({ field }) => (
+                        render={({ field, fieldState }) => (
                           <FormItem>
-                            <FormLabel>Specification *</FormLabel>
+                            <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                              Specification *
+                            </FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}>
                                   <SelectValue placeholder="Select specification" />
                                 </SelectTrigger>
                               </FormControl>
@@ -440,12 +487,14 @@ export default function PMAPage() {
                       <FormField
                         control={form.control}
                         name="grade"
-                        render={({ field }) => (
+                        render={({ field, fieldState }) => (
                           <FormItem>
-                            <FormLabel>Grade *</FormLabel>
+                            <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                              Grade *
+                            </FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}>
                                   <SelectValue placeholder="Select grade" />
                                 </SelectTrigger>
                               </FormControl>
@@ -473,13 +522,16 @@ export default function PMAPage() {
                       <FormField
                         control={form.control}
                         name="certifiedBy"
-                        render={({ field }) => (
+                        render={({ field, fieldState }) => (
                           <FormItem>
-                            <FormLabel>Certified By *</FormLabel>
+                            <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                              Certified By *
+                            </FormLabel>
                             <FormControl>
                               <Input 
                                 {...field} 
-                                placeholder="Enter certifying authority/person" 
+                                placeholder="Enter certifying authority/person"
+                                className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                               />
                             </FormControl>
                             <FormMessage />
@@ -491,12 +543,14 @@ export default function PMAPage() {
                       <FormField
                         control={form.control}
                         name="status"
-                        render={({ field }) => (
+                        render={({ field, fieldState }) => (
                           <FormItem>
-                            <FormLabel>Status *</FormLabel>
+                            <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                              Status *
+                            </FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}>
                                   <SelectValue placeholder="Select status" />
                                 </SelectTrigger>
                               </FormControl>
@@ -515,11 +569,18 @@ export default function PMAPage() {
                       <FormField
                         control={form.control}
                         name="remarks"
-                        render={({ field }) => (
+                        render={({ field, fieldState }) => (
                           <FormItem>
-                            <FormLabel>Remarks</FormLabel>
+                            <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                              Remarks
+                            </FormLabel>
                             <FormControl>
-                              <Textarea {...field} rows={3} placeholder="Enter remarks" />
+                              <Textarea 
+                                {...field} 
+                                rows={3} 
+                                placeholder="Enter remarks"
+                                className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""} 
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -530,13 +591,16 @@ export default function PMAPage() {
                       <FormField
                         control={form.control}
                         name="issueDate"
-                        render={({ field }) => (
+                        render={({ field, fieldState }) => (
                           <FormItem>
-                            <FormLabel>Issue Date *</FormLabel>
+                            <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                              Issue Date *
+                            </FormLabel>
                             <FormControl>
                               <Input 
                                 {...field} 
-                                type="date" 
+                                type="date"
+                                className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                               />
                             </FormControl>
                             <FormMessage />
@@ -548,13 +612,16 @@ export default function PMAPage() {
                       <FormField
                         control={form.control}
                         name="expiryDate"
-                        render={({ field }) => (
+                        render={({ field, fieldState }) => (
                           <FormItem>
-                            <FormLabel>Expiry Date *</FormLabel>
+                            <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                              Expiry Date *
+                            </FormLabel>
                             <FormControl>
                               <Input 
                                 {...field} 
-                                type="date" 
+                                type="date"
+                                className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                               />
                             </FormControl>
                             <FormMessage />
@@ -564,14 +631,19 @@ export default function PMAPage() {
 
                       {/* File Upload */}
                       <div className="space-y-2">
-                        <Label>File Upload * (PDF or DOCX only)</Label>
+                        <Label className={!fileUpload ? "text-red-600" : ""}>
+                          File Upload * (PDF or DOCX only)
+                        </Label>
                         <input
                           ref={fileInputRef}
                           type="file"
                           accept=".pdf,.docx"
                           onChange={handleFileUpload}
-                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                          className={`block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 ${!fileUpload ? "border border-red-500 rounded-md" : ""}`}
                         />
+                        {!fileUpload && (
+                          <p className="text-sm text-red-600">File upload is required</p>
+                        )}
                         {fileUpload && (
                           <p className="text-sm text-green-600">Selected: {fileUpload.name}</p>
                         )}
