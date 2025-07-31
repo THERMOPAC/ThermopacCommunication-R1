@@ -339,6 +339,7 @@ export default function InspectionsPage() {
     allocatedQuantity?: string;
     quantityUnit?: string;
     description?: string;
+    materialType?: string;
   } | null>(null);
 
   // Hydrotest dialog states
@@ -1437,6 +1438,7 @@ export default function InspectionsPage() {
     allocatedQuantity?: string;
     quantityUnit?: string;
     description?: string;
+    materialType?: string;
   }) => {
     const newRecord = {
       id: Date.now(), // Generate unique ID
@@ -1462,6 +1464,7 @@ export default function InspectionsPage() {
     allocatedQuantity?: string;
     quantityUnit?: string;
     description?: string;
+    materialType?: string;
   }) => {
     if (!editingMaterialRecord) return;
     
@@ -7250,6 +7253,8 @@ export default function InspectionsPage() {
                                         className="h-7 w-7 text-green-600 hover:text-green-800 hover:bg-green-50"
                                         onClick={() => {
                                           setEditingMaterialRecord(materialRow);
+                                          // Set the material type for editing
+                                          setSelectedMaterialType(materialRow.materialType || "");
                                           setIsMaterialDialogOpen(true);
                                         }}
                                         title="Edit Material Record"
@@ -10997,7 +11002,8 @@ export default function InspectionsPage() {
               materialSpecification: selectedMaterial?.specification || '',
               allocatedQuantity: formData.get('allocatedQuantity') as string,
               quantityUnit: formData.get('quantityUnit') as string,
-              description: selectedMaterial?.material_description || ''
+              description: selectedMaterial?.material_description || '',
+              materialType: selectedMaterialType // Include material type from state
             };
             
             if (editingMaterialRecord) {
