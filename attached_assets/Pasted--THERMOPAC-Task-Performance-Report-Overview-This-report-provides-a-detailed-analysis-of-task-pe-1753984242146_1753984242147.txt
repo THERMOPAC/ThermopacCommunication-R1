@@ -1,0 +1,220 @@
+# THERMOPAC Task Performance Report
+
+## Overview
+This report provides a detailed analysis of task performance for each user in the THERMOPAC database. The data includes metrics such as total tasks, completed tasks, pending tasks, overdue tasks, and average completion time. Observations and performance flags are also provided to highlight any anomalies or trends.
+
+---
+
+### 1. Saurabh
+- **Role**: Employee
+- **Department**: N/A
+- **Total Tasks**: 226
+- **Completed Tasks**: 204
+- **In Progress Tasks**: 0
+- **Pending Tasks**: 22
+- **Completion Rate**: 90.27%
+- **Overdue Tasks**: 0
+- **Average Completion Time**: 9.77 days
+- **Observations**: High completion rate with no overdue tasks. Average completion time is moderate.
+
+### 2. Sagar
+- **Role**: Employee
+- **Department**: N/A
+- **Total Tasks**: 222
+- **Completed Tasks**: 180
+- **In Progress Tasks**: 0
+- **Pending Tasks**: 42
+- **Completion Rate**: 81.08%
+- **Overdue Tasks**: 0
+- **Average Completion Time**: 7.11 days
+- **Observations**: Good completion rate and efficiency in task completion.
+
+### 3. Dipesh
+- **Role**: Employee
+- **Department**: N/A
+- **Total Tasks**: 205
+- **Completed Tasks**: 178
+- **In Progress Tasks**: 0
+- **Pending Tasks**: 27
+- **Completion Rate**: 86.83%
+- **Overdue Tasks**: 0
+- **Average Completion Time**: 13.20 days
+- **Observations**: Longer average completion time; potential area for improvement.
+
+### 4. Rohan
+- **Role**: Employee
+- **Department**: N/A
+- **Total Tasks**: 186
+- **Completed Tasks**: 140
+- **In Progress Tasks**: 0
+- **Pending Tasks**: 46
+- **Completion Rate**: 75.27%
+- **Overdue Tasks**: 8
+- **Average Completion Time**: 11.50 days
+- **Observations**: High number of overdue tasks; needs attention to improve timeliness.
+
+### 5. Pravin
+- **Role**: Employee
+- **Department**: N/A
+- **Total Tasks**: 119
+- **Completed Tasks**: 119
+- **In Progress Tasks**: 0
+- **Pending Tasks**: 0
+- **Completion Rate**: 100%
+- **Overdue Tasks**: 0
+- **Average Completion Time**: 2.14 days
+- **Observations**: Excellent performance with quick task completion.
+
+### 6. Manjusha
+- **Role**: Manager
+- **Department**: N/A
+- **Total Tasks**: 91
+- **Completed Tasks**: 71
+- **In Progress Tasks**: 0
+- **Pending Tasks**: 20
+- **Completion Rate**: 78.02%
+- **Overdue Tasks**: 0
+- **Average Completion Time**: 6.47 days
+- **Observations**: Good performance with room for improvement in pending tasks.
+
+### 7. Pallab
+- **Role**: Senior Manager
+- **Department**: N/A
+- **Total Tasks**: 78
+- **Completed Tasks**: 69
+- **In Progress Tasks**: 0
+- **Pending Tasks**: 9
+- **Completion Rate**: 88.46%
+- **Overdue Tasks**: 2
+- **Average Completion Time**: 27.43 days
+- **Observations**: High average completion time; needs to address overdue tasks.
+
+### 8. Jawahar
+- **Role**: Manager
+- **Department**: N/A
+- **Total Tasks**: 67
+- **Completed Tasks**: 55
+- **In Progress Tasks**: 0
+- **Pending Tasks**: 12
+- **Completion Rate**: 82.09%
+- **Overdue Tasks**: 0
+- **Average Completion Time**: 8.09 days
+- **Observations**: Consistent performance with no overdue tasks.
+
+### 9. Mangesh
+- **Role**: Employee
+- **Department**: N/A
+- **Total Tasks**: 63
+- **Completed Tasks**: 61
+- **In Progress Tasks**: 0
+- **Pending Tasks**: 2
+- **Completion Rate**: 96.83%
+- **Overdue Tasks**: 0
+- **Average Completion Time**: 4.26 days
+- **Observations**: High completion rate with efficient task handling.
+
+### 10. Akash
+- **Role**: Employee
+- **Department**: N/A
+- **Total Tasks**: 61
+- **Completed Tasks**: 53
+- **In Progress Tasks**: 0
+- **Pending Tasks**: 8
+- **Completion Rate**: 86.89%
+- **Overdue Tasks**: 0
+- **Average Completion Time**: 5.49 days
+- **Observations**: Good performance with potential to reduce pending tasks.
+
+### 11. Mangesh DME
+- **Role**: Employee
+- **Department**: N/A
+- **Total Tasks**: 60
+- **Completed Tasks**: 59
+- **In Progress Tasks**: 0
+- **Pending Tasks**: 1
+- **Completion Rate**: 98.33%
+- **Overdue Tasks**: 0
+- **Average Completion Time**: 0.29 days
+- **Observations**: Exceptional performance with rapid task completion.
+
+### 12. Sitaram
+- **Role**: Employee
+- **Department**: N/A
+- **Total Tasks**: 60
+- **Completed Tasks**: 52
+- **In Progress Tasks**: 0
+- **Pending Tasks**: 8
+- **Completion Rate**: 86.67%
+- **Overdue Tasks**: 0
+- **Average Completion Time**: 5.65 days
+- **Observations**: Good performance with efficient task management.
+
+### 13. Vijaynathan
+- **Role**: Senior Manager
+- **Department**: N/A
+- **Total Tasks**: 59
+- **Completed Tasks**: 57
+- **In Progress Tasks**: 0
+- **Pending Tasks**: 2
+- **Completion Rate**: 96.61%
+- **Overdue Tasks**: 0
+- **Average Completion Time**: 2.63 days
+- **Observations**: High completion rate with quick task turnaround.
+
+### 14. Bhushan
+- **Role**: Employee
+- **Department**: N/A
+- **Total Tasks**: 56
+- **Completed Tasks**: 56
+- **In Progress Tasks**: 0
+- **Pending Tasks**: 0
+- **Completion Rate**: 100%
+- **Overdue Tasks**: 0
+- **Average Completion Time**: 5.81 days
+- **Observations**: Excellent performance with consistent task completion.
+
+### 15. Nilesh
+- **Role**: Employee
+- **Department**: N/A
+- **Total Tasks**: 54
+- **Completed Tasks**: 49
+- **In Progress Tasks**: 0
+- **Pending Tasks**: 5
+- **Completion Rate**: 90.74%
+- **Overdue Tasks**: 0
+- **Average Completion Time**: 1.41 days
+- **Observations**: High efficiency with potential to address pending tasks.
+
+### 16. Abhay
+- **Role**: Employee
+- **Department**: N/A
+- **Total Tasks**: 41
+- **Completed Tasks**: 32
+- **In Progress Tasks**: 0
+- **Pending Tasks**: 9
+- **Completion Rate**: 78.05%
+- **Overdue Tasks**: 1
+- **Average Completion Time**: 27.35 days
+- **Observations**: Needs improvement in reducing completion time and overdue tasks.
+
+### 17. Mansi
+- **Role**: Manager
+- **Department**: N/A
+- **Total Tasks**: 39
+- **Completed Tasks**: 36
+- **In Progress Tasks**: 0
+- **Pending Tasks**: 3
+- **Completion Rate**: 92.31%
+- **Overdue Tasks**: 1
+- **Average Completion Time**: 24.72 days
+- **Observations**: High completion rate but needs to address overdue tasks and completion time.
+
+### 18. Vishal
+- **Role**: Employee
+- **Department**: N/A
+- **Total Tasks**: 37
+- **Completed Tasks**: 33
+- **In Progress Tasks**: 0
+- **Pending Tasks**: 4
+- **Completion Rate**: 89.19%
+- **Overdue Tasks**: 0
