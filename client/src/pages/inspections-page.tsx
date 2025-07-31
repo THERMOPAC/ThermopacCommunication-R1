@@ -4498,11 +4498,11 @@ export default function InspectionsPage() {
   }) => {
     if (!editingDvrRecord) return;
 
-    // Validate files are selected if no existing files
-    if (!hasExistingDvrFiles && dvrFiles.length === 0) {
+    // Validate files are selected (mandatory for edit)
+    if (dvrFiles.length === 0) {
       toast({
-        title: "Additional Files Required",
-        description: "Please select additional files before updating the DVR record.",
+        title: "Files Required",
+        description: "Please select at least one file to replace the existing files for this DVR record.",
         variant: "destructive"
       });
       return;
@@ -4520,9 +4520,41 @@ export default function InspectionsPage() {
       record.id === editingDvrRecord.id ? updatedRecord : record
     ));
     
-    // Upload additional files if any selected
+    // Handle file replacement if any files are selected
     try {
       if (dvrFiles.length > 0) {
+        // First, delete all existing files for this record
+        console.log(`🗑️ Deleting existing files for DVR record ${editingDvrRecord.id}...`);
+        
+        // Get existing documents to delete them
+        const existingDocsResponse = await fetch(
+          `/api/quality/inspection-documents/${editInspectionOrderDetails?.inspection_order_number}/DVR/${editingDvrRecord.id}/documents`
+        );
+        
+        if (existingDocsResponse.ok) {
+          const existingDocs = await existingDocsResponse.json();
+          console.log(`🗑️ Found ${existingDocs.length} existing documents to delete`);
+          
+          // Delete each existing document
+          for (const doc of existingDocs) {
+            try {
+              const deleteResponse = await fetch(`/api/quality/inspection-documents/delete/${doc.id}`, {
+                method: 'DELETE',
+              });
+              
+              if (deleteResponse.ok) {
+                console.log(`✅ Deleted existing document ${doc.id}`);
+              } else {
+                console.warn(`⚠️ Failed to delete document ${doc.id}, continuing with replacement...`);
+              }
+            } catch (deleteError) {
+              console.warn(`⚠️ Error deleting document ${doc.id}:`, deleteError);
+            }
+          }
+        }
+        
+        // Now upload the new replacement files
+        console.log(`📤 Uploading ${dvrFiles.length} replacement files...`);
         const uploadPromises = dvrFiles.map(async (file) => {
           const formData = new FormData();
           formData.append('file', file);
@@ -4550,8 +4582,8 @@ export default function InspectionsPage() {
       setHasExistingDvrFiles(false);
       
       toast({
-        title: "Success",
-        description: dvrFiles.length > 0 ? "DVR record updated and additional files uploaded successfully" : "DVR record updated successfully",
+        title: "Files Replaced Successfully",
+        description: `${dvrFiles.length} replacement file(s) uploaded for DVR record ${editingDvrRecord.id}`,
       });
     } catch (error) {
       console.error('File upload error:', error);
@@ -11306,7 +11338,7 @@ export default function InspectionsPage() {
             {/* File Upload Section - Available for both new and edit */}
             <div className="space-y-2">
               <label className="text-sm font-medium">
-                {editingDvrRecord ? 'Upload Additional Files *' : 'Upload Files *'}
+                {editingDvrRecord ? 'Upload Replacement Files *' : 'Upload Files *'}
               </label>
               {editingDvrRecord && (
                 <div className="text-sm">
@@ -11316,8 +11348,8 @@ export default function InspectionsPage() {
                       Checking for existing files...
                     </div>
                   ) : hasExistingDvrFiles ? (
-                    <div className="text-green-600">
-                      ✓ Existing files found on GCS. You can add additional files.
+                    <div className="text-orange-600">
+                      ⚠️ Existing files found on GCS. New files will replace existing ones.
                     </div>
                   ) : (
                     <div className="text-red-600">
@@ -11377,7 +11409,7 @@ export default function InspectionsPage() {
                 {isUploadingDvrFiles ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {editingDvrRecord ? 'Updating & Uploading...' : 'Creating & Uploading...'}
+                    {editingDvrRecord ? 'Updating & Replacing...' : 'Creating & Uploading...'}
                   </>
                 ) : isCheckingExistingDvrFiles ? (
                   <>
@@ -11387,7 +11419,7 @@ export default function InspectionsPage() {
                 ) : dvrFiles.length === 0 ? (
                   editingDvrRecord ? 'Select Files to Continue' : 'Select Files to Continue'
                 ) : (
-                  editingDvrRecord ? 'Update & Upload Files' : 'Add & Upload Files'
+                  editingDvrRecord ? 'Update & Replace Files' : 'Add & Upload Files'
                 )}
               </Button>
             </div>
