@@ -1,0 +1,83 @@
+To generate a comprehensive performance report for all 30 users at THERMOPAC, including those with zero tasks or no recent activity, we need to ensure that each user is analyzed individually with a consistent format. Below is a template that can be used to create the report for each user. Since I don't have access to the actual dataset, I'll provide a hypothetical example for a few users. You can replicate this format for all 30 users in your dataset.
+
+---
+
+### User Performance Report
+
+#### User: Sanjeev
+
+- **Total Tasks Assigned:** 15
+- **Tasks Completed:** 12
+- **Tasks Pending:** 3
+- **Completion Rate:** 80%
+- **Recent Activity:** Last task completed on 2023-09-25
+- **Average Completion Time:** 3 days
+- **Flags:** 
+  - High completion rate
+  - Consistent performance
+
+#### User: Pallab
+
+- **Total Tasks Assigned:** 0
+- **Tasks Completed:** 0
+- **Tasks Pending:** 0
+- **Completion Rate:** N/A
+- **Recent Activity:** No activity recorded
+- **Average Completion Time:** N/A
+- **Flags:** 
+  - No tasks assigned
+  - Requires task assignment for performance evaluation
+
+#### User: Vishal
+
+- **Total Tasks Assigned:** 5
+- **Tasks Completed:** 2
+- **Tasks Pending:** 3
+- **Completion Rate:** 40%
+- **Recent Activity:** Last task completed on 2023-10-01
+- **Average Completion Time:** 5 days
+- **Flags:** 
+  - Low completion rate
+  - Delayed task completion
+
+#### User: Anjali
+
+- **Total Tasks Assigned:** 10
+- **Tasks Completed:** 10
+- **Tasks Pending:** 0
+- **Completion Rate:** 100%
+- **Recent Activity:** Last task completed on 2023-10-10
+- **Average Completion Time:** 2 days
+- **Flags:** 
+  - Excellent performance
+  - Quick task turnaround
+
+#### User: Rajesh
+
+- **Total Tasks Assigned:** 3
+- **Tasks Completed:** 1
+- **Tasks Pending:** 2
+- **Completion Rate:** 33%
+- **Recent Activity:** Last task completed on 2023-09-15
+- **Average Completion Time:** 7 days
+- **Flags:** 
+  - Needs improvement in task completion
+  - Potential bottleneck in task processing
+
+---
+
+### Anomalies and Observations
+
+- **High Performers:** Anjali with a 100% completion rate and quick turnaround.
+- **Low Activity Users:** Pallab with no tasks assigned, indicating a need for engagement.
+- **Potential Bottlenecks:** Rajesh with a low completion rate and high average completion time.
+
+### Recommendations
+
+1. **Task Assignment:** Ensure users like Pallab are assigned tasks to evaluate their performance.
+2. **Performance Improvement Plans:** Develop strategies for users with low completion rates, such as Vishal and Rajesh, to enhance productivity.
+3. **Recognition and Motivation:** Acknowledge high performers like Anjali to maintain morale and encourage others.
+
+---
+
+This format ensures that each user is evaluated individually, highlighting their performance metrics and any anomalies. You can apply this template to all users in your dataset to create a comprehensive report.
