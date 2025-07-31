@@ -422,6 +422,10 @@ export default function InspectionsPage() {
   const [ncrFiles, setNcrFiles] = useState<File[]>([]);
   const [isUploadingNcrFiles, setIsUploadingNcrFiles] = useState(false);
   
+  // Approved Drawing file upload states
+  const [approvedDrawingFiles, setApprovedDrawingFiles] = useState<File[]>([]);
+  const [isUploadingApprovedDrawingFiles, setIsUploadingApprovedDrawingFiles] = useState(false);
+  
   const [approvedDrawingRecords, setApprovedDrawingRecords] = useState<{
     id: string;
     drawingTitle: string;
@@ -3921,7 +3925,7 @@ export default function InspectionsPage() {
   };
 
   // Function to add a new approved drawing record
-  const addApprovedDrawingRecord = (recordData: {
+  const addApprovedDrawingRecord = async (recordData: {
     drawingTitle: string;
     drawingNumber: string;
     revision: string;
@@ -3940,16 +3944,60 @@ export default function InspectionsPage() {
       return;
     }
 
+    const newRecordId = generateApprovedDrawingId();
     const newRecord = {
-      id: generateApprovedDrawingId(),
+      id: newRecordId,
       ...recordData
     };
+
+    // Handle file uploads if any files are selected
+    if (approvedDrawingFiles.length > 0) {
+      setIsUploadingApprovedDrawingFiles(true);
+      
+      try {
+        // Upload files for this specific record
+        for (const file of approvedDrawingFiles) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('inspectionOrderNumber', editInspectionOrderDetails.inspectionOrderNumber);
+          formData.append('tabName', 'Approved Drawing');
+          formData.append('recordId', newRecordId);
+          formData.append('projectCode', editInspectionOrderDetails.projectCode);
+
+          const uploadResponse = await fetch('/api/quality/inspection-documents/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json();
+            throw new Error(errorData.error || `Failed to upload ${file.name}`);
+          }
+        }
+
+        toast({
+          title: "Files Uploaded Successfully",
+          description: `${approvedDrawingFiles.length} file(s) uploaded for Approved Drawing record ${newRecordId}`,
+        });
+      } catch (error: any) {
+        console.error("Error uploading files:", error);
+        toast({
+          title: "File Upload Error",
+          description: error.message || "Some files could not be uploaded. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsUploadingApprovedDrawingFiles(false);
+        setApprovedDrawingFiles([]); // Clear files after upload
+      }
+    }
+
     setApprovedDrawingRecords(prev => [...prev, newRecord]);
     setIsApprovedDrawingDialogOpen(false);
     setEditingApprovedDrawingRecord(null);
     toast({
       title: "Success",
-      description: "Approved drawing record added successfully",
+      description: "Approved drawing record added successfully" + (approvedDrawingFiles.length > 0 ? " with uploaded files" : ""),
     });
   };
 
@@ -10066,6 +10114,7 @@ export default function InspectionsPage() {
         setIsApprovedDrawingDialogOpen(open);
         if (!open) {
           setEditingApprovedDrawingRecord(null);
+          setApprovedDrawingFiles([]); // Clear selected files
         }
       }}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -10211,6 +10260,44 @@ export default function InspectionsPage() {
               />
             </div>
 
+            {/* File Upload Section - Only for new records */}
+            {!editingApprovedDrawingRecord && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Upload Files (Optional)
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      setApprovedDrawingFiles(files);
+                    }}
+                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Select PDF, DOC, DOCX, JPG, JPEG, or PNG files
+                  </p>
+                  {approvedDrawingFiles.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-sm text-green-600">
+                        {approvedDrawingFiles.length} file(s) selected
+                      </p>
+                      <ul className="text-xs text-gray-600 mt-1">
+                        {approvedDrawingFiles.map((file, index) => (
+                          <li key={index} className="truncate">
+                            {file.name} ({Math.round(file.size / 1024)} KB)
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end space-x-2">
               <Button 
                 type="button" 
@@ -10218,12 +10305,20 @@ export default function InspectionsPage() {
                 onClick={() => {
                   setIsApprovedDrawingDialogOpen(false);
                   setEditingApprovedDrawingRecord(null);
+                  setApprovedDrawingFiles([]); // Clear selected files
                 }}
               >
                 Cancel
               </Button>
-              <Button type="submit">
-                {editingApprovedDrawingRecord ? 'Update Record' : 'Add Record'}
+              <Button type="submit" disabled={isUploadingApprovedDrawingFiles}>
+                {isUploadingApprovedDrawingFiles ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  editingApprovedDrawingRecord ? 'Update Record' : 'Add Record'
+                )}
               </Button>
             </div>
           </form>
