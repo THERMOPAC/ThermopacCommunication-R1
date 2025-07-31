@@ -70,7 +70,6 @@ const materialIdentificationSchema = z.object({
   inspectionOrderNumber: z.string().min(1, "Inspection Order Number is required"),
   materialType: z.string().min(1, "Material Type is required"),
   materialDescription: z.string().min(1, "Material Description is required"),
-  materialCode: z.string().min(1, "Material Code is required"),
   specification: z.string().min(1, "Specification is required"),
   materialGrade: z.string().min(1, "Material Grade is required"),
   heatNumber: z.string().min(1, "Heat Number is required"),
@@ -148,7 +147,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
       inspectionOrderNumber: "",
       materialType: "",
       materialDescription: "",
-      materialCode: "",
+
       specification: "",
       materialGrade: "",
       heatNumber: "",
@@ -179,7 +178,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
         inspectionOrderNumber: recordData.inspection_order_number,
         materialType: recordData.material_type || "",
         materialDescription: recordData.material_description,
-        materialCode: recordData.material_code,
+
         specification: recordData.specification,
         materialGrade: recordData.material_grade,
         heatNumber: recordData.heat_number,
@@ -254,7 +253,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
         inspectionOrderNumber: data.inspectionOrderNumber || "",
         materialType: materialTypeValue,
         materialDescription: data.materialDescription,
-        materialCode: data.materialCode,
+
         
         // Use state values for dropdowns to ensure they're always included
         specification: specificationValue,
@@ -525,22 +524,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
                     />
                   </div>
                   
-                  {/* Material Code */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="materialCode"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Material Code</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+
                   
                   {/* Specification and Material Grade */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

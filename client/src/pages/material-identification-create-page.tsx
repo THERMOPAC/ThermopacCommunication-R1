@@ -65,7 +65,6 @@ const materialIdentificationSchema = z.object({
   inspectionOrderNumber: z.string().min(1, "Inspection Order Number is required"),
   materialType: z.string().min(1, "Material Type is required"),
   materialDescription: z.string().min(1, "Material Description is required"),
-  materialCode: z.string().min(1, "Material Code is required"),
   specification: z.string().min(1, "Specification is required"),
   materialGrade: z.string().min(1, "Material Grade is required"),
   heatNumber: z.string().min(1, "Heat Number is required"),
@@ -268,7 +267,7 @@ export default function MaterialIdentificationCreatePage() {
       inspectionOrderNumber: "",
       materialType: "",
       materialDescription: "",
-      materialCode: "",
+
       specification: "",
       materialGrade: "",
       heatNumber: "",
@@ -380,7 +379,7 @@ export default function MaterialIdentificationCreatePage() {
         inspectionOrderNumber: templateData.inspection_order_number || "",
         materialType: templateData.material_type || "",
         materialDescription: templateData.material_description || "",
-        materialCode: templateData.material_code || "",
+
         specification: templateData.specification || "",
         materialGrade: templateData.material_grade || "",
         heatNumber: templateData.heat_number || "",
@@ -748,22 +747,7 @@ export default function MaterialIdentificationCreatePage() {
                     />
                   </div>
                   
-                  {/* Material Code */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="materialCode"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Material Code</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+
                   
                   {/* Specification and Material Grade */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
