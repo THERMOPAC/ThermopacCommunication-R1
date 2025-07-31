@@ -72,28 +72,30 @@ router.get('/next-number', ensureAuthenticated, async (req: Request, res: Respon
   }
 });
 
-// Updated validation schema without removed fields
+// Updated validation schema - all fields mandatory except remarks
 const testProcedureSchema = z.object({
   procedureNumber: z.string().min(1, 'Procedure number is required'),
   procedureName: z.string().min(1, 'Procedure name is required'),
   ndtMethod: z.enum(['HT', 'PNT', 'RT', 'PT', 'UT', 'MT']),
-  applicableStandard: z.string().optional(),
-  procedureRevision: z.string().default('R1'),
-  scope: z.string().optional(),
-  technique: z.string().optional(),
-  sensitivity: z.string().optional(),
-  preparation: z.string().optional(),
-  procedureSteps: z.string().optional(),
-  evaluation: z.string().optional(),
-  documentation: z.string().optional(),
-  personnelQualification: z.string().optional(),
-  acceptanceCriteria: z.string().optional(),
-  limitations: z.string().optional(),
-  environmentalConditions: z.string().optional(),
+  applicableStandard: z.string().min(1, 'Applicable standard is required'),
+  procedureRevision: z.string().min(1, 'Procedure revision is required').default('R1'),
+  scope: z.string().min(1, 'Scope is required'),
+  technique: z.string().min(1, 'Technique is required'),
+  sensitivity: z.string().min(1, 'Sensitivity is required'),
+  preparation: z.string().min(1, 'Preparation is required'),
+  procedureSteps: z.string().min(1, 'Procedure steps are required'),
+  evaluation: z.string().min(1, 'Evaluation is required'),
+  documentation: z.string().min(1, 'Documentation is required'),
+  personnelQualification: z.string().min(1, 'Personnel qualification is required'),
+  acceptanceCriteria: z.string().min(1, 'Acceptance criteria is required'),
+  limitations: z.string().min(1, 'Limitations are required'),
+  environmentalConditions: z.string().min(1, 'Environmental conditions are required'),
   status: z.enum(['Draft', 'Under Review', 'Approved', 'Superseded']).default('Draft'),
-  approvalLevel: z.enum(['Level 1', 'Level 2', 'Level 3']).optional().or(z.literal('')),
-  remarks: z.string().optional(),
-  tags: z.string().optional(),
+  approvalLevel: z.enum(['Level 1', 'Level 2', 'Level 3'], {
+    errorMap: () => ({ message: 'Approval level is required' })
+  }),
+  remarks: z.string().optional(), // Only field that remains optional
+  tags: z.string().min(1, 'Tags are required'),
 }).transform((data) => ({
   ...data,
   approvalLevel: data.approvalLevel === '' ? undefined : data.approvalLevel

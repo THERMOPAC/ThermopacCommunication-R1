@@ -11,19 +11,78 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit2, FileText, Search, Download, File, Calendar, User } from "lucide-react";
-import type { TestProcedure, TestProcedureInsert } from "../../../shared/schema";
+import { Plus, Edit2, FileText, Search, Download, File, Calendar, User, AlertTriangle } from "lucide-react";
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import type { SelectTestProcedure, InsertTestProcedure, insertTestProcedureSchema } from "../../../shared/schema";
+import { z } from 'zod';
 
 export default function TestProceduresPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingProcedure, setEditingProcedure] = useState<TestProcedure | null>(null);
+  const [editingProcedure, setEditingProcedure] = useState<SelectTestProcedure | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterMethod, setFilterMethod] = useState<string>("all");
   
   const queryClient = useQueryClient();
 
+  // Form validation schema - all fields mandatory except remarks
+  const testProcedureFormSchema = z.object({
+    procedureNumber: z.string().min(1, "Procedure number is required"),
+    procedureName: z.string().min(1, "Procedure name is required"),
+    ndtMethod: z.enum(['HT', 'PNT', 'RT', 'PT', 'UT', 'MT']),
+    applicableStandard: z.string().min(1, "Applicable standard is required"),
+    procedureRevision: z.string().min(1, "Procedure revision is required"),
+    scope: z.string().min(1, "Scope is required"),
+    technique: z.string().min(1, "Technique is required"),
+    sensitivity: z.string().min(1, "Sensitivity is required"),
+    preparation: z.string().min(1, "Preparation is required"),
+    procedureSteps: z.string().min(1, "Procedure steps are required"),
+    evaluation: z.string().min(1, "Evaluation is required"),
+    documentation: z.string().min(1, "Documentation is required"),
+    personnelQualification: z.string().min(1, "Personnel qualification is required"),
+    acceptanceCriteria: z.string().min(1, "Acceptance criteria is required"),
+    limitations: z.string().min(1, "Limitations are required"),
+    environmentalConditions: z.string().min(1, "Environmental conditions are required"),
+    status: z.enum(['Draft', 'Under Review', 'Approved', 'Superseded']),
+    approvalLevel: z.enum(['Level 1', 'Level 2', 'Level 3'], {
+      errorMap: () => ({ message: "Approval level is required" })
+    }),
+    remarks: z.string().optional(), // Only field that remains optional
+    tags: z.string().min(1, "Tags are required"),
+  });
+
+  type TestProcedureFormData = z.infer<typeof testProcedureFormSchema>;
+
+  // React Hook Form setup
+  const form = useForm<TestProcedureFormData>({
+    resolver: zodResolver(testProcedureFormSchema),
+    defaultValues: {
+      procedureNumber: "",
+      procedureName: "",
+      ndtMethod: "HT",
+      applicableStandard: "",
+      procedureRevision: "R1",
+      scope: "",
+      technique: "",
+      sensitivity: "",
+      preparation: "",
+      procedureSteps: "",
+      evaluation: "",
+      documentation: "",
+      personnelQualification: "",
+      acceptanceCriteria: "",
+      limitations: "",
+      environmentalConditions: "",
+      status: "Draft",
+      approvalLevel: "Level 1",
+      remarks: "",
+      tags: "",
+    },
+  });
+
   // Fetch test procedures
-  const { data: procedures = [], isLoading } = useQuery<TestProcedure[]>({
+  const { data: procedures = [], isLoading } = useQuery<SelectTestProcedure[]>({
     queryKey: ["/api/quality/test-procedures"],
   });
 
@@ -34,7 +93,7 @@ export default function TestProceduresPage() {
 
   // Create procedure mutation
   const createMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: TestProcedureFormData) => {
       const response = await fetch("/api/quality/test-procedures", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -53,7 +112,8 @@ export default function TestProceduresPage() {
       }
       
       setIsDialogOpen(false);
-      resetForm();
+      form.reset();
+      setEditingProcedure(null);
       toast({
         title: "Success",
         description: "Test procedure created successfully",
@@ -70,7 +130,7 @@ export default function TestProceduresPage() {
 
   // Update procedure mutation
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+    mutationFn: async ({ id, data }: { id: number; data: TestProcedureFormData }) => {
       const response = await fetch(`/api/quality/test-procedures/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -83,7 +143,7 @@ export default function TestProceduresPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/quality/test-procedures"] });
       setIsDialogOpen(false);
       setEditingProcedure(null);
-      resetForm();
+      form.reset();
       toast({
         title: "Success",
         description: "Test procedure updated successfully",
@@ -100,60 +160,60 @@ export default function TestProceduresPage() {
 
 
 
-  // Form state
-  const [formData, setFormData] = useState({
-    procedureNumber: "",
-    procedureName: "",
-    ndtMethod: "HT",
-    applicableStandard: "",
-    procedureRevision: "R1",
-    scope: "",
-    technique: "",
-    sensitivity: "",
-    preparation: "",
-    procedureSteps: "",
-    evaluation: "",
-    documentation: "",
-    personnelQualification: "",
-    acceptanceCriteria: "",
-    limitations: "",
-    environmentalConditions: "",
-    status: "Draft" as const,
-    approvalLevel: "",
-    remarks: "",
-    tags: ""
-  });
-
   // File upload state
   const [fileUpload, setFileUpload] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
-  const resetForm = () => {
-    setFormData({
-      procedureNumber: nextProcedureNumber?.procedureNumber || "",
-      procedureName: "",
-      ndtMethod: "HT",
-      applicableStandard: "",
-      procedureRevision: "R1",
-      scope: "",
-      technique: "",
-      sensitivity: "",
-      preparation: "",
-      procedureSteps: "",
-      evaluation: "",
-      documentation: "",
-      personnelQualification: "",
-      acceptanceCriteria: "",
-      limitations: "",
-      environmentalConditions: "",
-      status: "Draft" as const,
-      approvalLevel: "",
-      remarks: "",
-      tags: ""
-    });
-    setFileUpload(null);
-    setUploadSuccess(false);
+  // ValidationErrorSummary component
+  const ValidationErrorSummary = ({ errors }: { errors: Record<string, any> }) => {
+    const fieldNameMap: Record<string, string> = {
+      procedureNumber: "Procedure Number",
+      procedureName: "Procedure Name",
+      ndtMethod: "NDT Method",
+      applicableStandard: "Applicable Standard",
+      procedureRevision: "Procedure Revision",
+      scope: "Scope",
+      technique: "Technique",
+      sensitivity: "Sensitivity",
+      preparation: "Preparation",
+      procedureSteps: "Procedure Steps",
+      evaluation: "Evaluation",
+      documentation: "Documentation",
+      personnelQualification: "Personnel Qualification",
+      acceptanceCriteria: "Acceptance Criteria",
+      limitations: "Limitations",
+      environmentalConditions: "Environmental Conditions",
+      status: "Status",
+      approvalLevel: "Approval Level",
+      tags: "Tags",
+    };
+
+    const errorEntries = Object.entries(errors).filter(([_, error]) => error?.message);
+    
+    if (errorEntries.length === 0) return null;
+
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+        <div className="flex">
+          <AlertTriangle className="h-5 w-5 text-red-400" />
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-red-800">
+              Please fix the following errors:
+            </h3>
+            <div className="mt-2 text-sm text-red-700">
+              <ul className="list-disc list-inside space-y-1">
+                {errorEntries.map(([field, error]) => (
+                  <li key={field}>
+                    {fieldNameMap[field] || field}: {error.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Immediate file upload function
@@ -204,47 +264,25 @@ export default function TestProceduresPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validate required fields
-    if (!formData.procedureName || !formData.ndtMethod) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      if (editingProcedure) {
-        // Update existing procedure
-        const updateData = { ...formData };
-        updateMutation.mutate({ id: editingProcedure.id, data: updateData });
-      } else {
-        // Create new procedure
-        const finalFormData = {
-          ...formData,
-          procedureNumber: nextProcedureNumber?.procedureNumber || formData.procedureNumber
-        };
-        createMutation.mutate(finalFormData);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+  // Form submission handlers
+  const onSubmit = (data: TestProcedureFormData) => {
+    if (editingProcedure) {
+      updateMutation.mutate({ id: editingProcedure.id, data });
+    } else {
+      const finalData = {
+        ...data,
+        procedureNumber: nextProcedureNumber?.procedureNumber || data.procedureNumber
+      };
+      createMutation.mutate(finalData);
     }
   };
 
-  const handleEdit = (procedure: any) => {
+  const handleEdit = (procedure: SelectTestProcedure) => {
     setEditingProcedure(procedure);
-    setFormData({
+    form.reset({
       procedureNumber: procedure.procedureNumber || "",
       procedureName: procedure.procedureName || "",
-      ndtMethod: procedure.ndtMethod || "LPT",
+      ndtMethod: procedure.ndtMethod || "HT",
       applicableStandard: procedure.applicableStandard || "",
       procedureRevision: procedure.procedureRevision || "R1",
       scope: procedure.scope || "",
@@ -259,9 +297,37 @@ export default function TestProceduresPage() {
       limitations: procedure.limitations || "",
       environmentalConditions: procedure.environmentalConditions || "",
       status: procedure.status || "Draft",
-      approvalLevel: procedure.approvalLevel || "",
+      approvalLevel: procedure.approvalLevel || "Level 1",
       remarks: procedure.remarks || "",
       tags: procedure.tags || ""
+    });
+    setIsDialogOpen(true);
+  };
+
+  // Reset form when opening new procedure dialog
+  const handleOpenDialog = () => {
+    setEditingProcedure(null);
+    form.reset({
+      procedureNumber: nextProcedureNumber?.procedureNumber || "",
+      procedureName: "",
+      ndtMethod: "HT",
+      applicableStandard: "",
+      procedureRevision: "R1",
+      scope: "",
+      technique: "",
+      sensitivity: "",
+      preparation: "",
+      procedureSteps: "",
+      evaluation: "",
+      documentation: "",
+      personnelQualification: "",
+      acceptanceCriteria: "",
+      limitations: "",
+      environmentalConditions: "",
+      status: "Draft",
+      approvalLevel: "Level 1",
+      remarks: "",
+      tags: "",
     });
     setIsDialogOpen(true);
   };
@@ -450,9 +516,15 @@ export default function TestProceduresPage() {
           <h1 className="text-3xl font-bold pl-4">Test Procedures</h1>
           <p className="text-muted-foreground">Manage NDT test procedures and standards</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) {
+            form.reset();
+            setEditingProcedure(null);
+          }
+        }}>
           <DialogTrigger asChild>
-            <Button onClick={() => { setEditingProcedure(null); resetForm(); }}>
+            <Button onClick={handleOpenDialog}>
               <Plus className="h-4 w-4 mr-2" />
               Add Test Procedure
             </Button>
@@ -466,234 +538,507 @@ export default function TestProceduresPage() {
                 {editingProcedure ? "Update the test procedure details" : "Create a new NDT test procedure"}
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="procedureNumber">Procedure ID *</Label>
-                  <Input
-                    id="procedureNumber"
-                    value={formData.procedureNumber}
-                    onChange={(e) => setFormData({ ...formData, procedureNumber: e.target.value })}
-                    placeholder={nextProcedureNumber?.procedureNumber || "Auto-generated"}
-                    className="bg-gray-50 text-gray-600"
-                    readOnly={!editingProcedure}
-                    title={editingProcedure ? "Procedure ID can be edited" : "Auto-generated (read-only)"}
+            
+            <ValidationErrorSummary errors={form.formState.errors} />
+            
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="procedureNumber"
+                    render={({ field, fieldState }) => (
+                      <FormItem>
+                        <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                          Procedure Number *
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder={nextProcedureNumber?.procedureNumber || "Auto-generated"}
+                            className={`bg-gray-50 text-gray-600 ${fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}`}
+                            readOnly={!editingProcedure}
+                            title={editingProcedure ? "Procedure ID can be edited" : "Auto-generated (read-only)"}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="ndtMethod"
+                    render={({ field, fieldState }) => (
+                      <FormItem>
+                        <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                          NDT Method *
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="HT">Hydraulic Testing (HT)</SelectItem>
+                            <SelectItem value="PNT">Pneumatic Testing (PNT)</SelectItem>
+                            <SelectItem value="RT">Radiographic Testing (RT)</SelectItem>
+                            <SelectItem value="PT">Penetrant Testing (PT)</SelectItem>
+                            <SelectItem value="UT">Ultrasonic Testing (UT)</SelectItem>
+                            <SelectItem value="MT">Magnetic Testing (MT)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="ndtMethod">NDT Method *</Label>
-                  <Select value={formData.ndtMethod} onValueChange={(value) => setFormData({ ...formData, ndtMethod: value as any })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="HT">Hydraulic Testing (HT)</SelectItem>
-                      <SelectItem value="PNT">Pneumatic Testing (PNT)</SelectItem>
-                      <SelectItem value="RT">Radiographic Testing (RT)</SelectItem>
-                      <SelectItem value="PT">Penetrant Testing (PT)</SelectItem>
-                      <SelectItem value="UT">Ultrasonic Testing (UT)</SelectItem>
-                      <SelectItem value="MT">Magnetic Testing (MT)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
 
-              <div>
-                <Label htmlFor="procedureName">Procedure Name *</Label>
-                <Input
-                  id="procedureName"
-                  value={formData.procedureName}
-                  onChange={(e) => setFormData({ ...formData, procedureName: e.target.value })}
-                  placeholder="Enter procedure name"
-                  required
+                <FormField
+                  control={form.control}
+                  name="procedureName"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                        Procedure Name *
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="Enter procedure name"
+                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
 
-              <div>
-                <Label htmlFor="scope">Scope</Label>
-                <Textarea
-                  id="scope"
-                  value={formData.scope}
-                  onChange={(e) => setFormData({ ...formData, scope: e.target.value })}
-                  placeholder="Define the scope and application of this procedure"
-                  rows={2}
+                <FormField
+                  control={form.control}
+                  name="scope"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                        Scope *
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Define the scope and application of this procedure"
+                          rows={2}
+                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
 
-              <div>
-                <Label htmlFor="applicableStandard">Applicable Standards</Label>
-                <Select value={formData.applicableStandard} onValueChange={(value) => setFormData({ ...formData, applicableStandard: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select applicable standard" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">ASME Standards</SelectLabel>
-                      <SelectItem value="ASME SEC V">ASME Section V</SelectItem>
-                      <SelectItem value="ASTM E165">ASTM E165 - Liquid Penetrant</SelectItem>
-                      <SelectItem value="ASTM E709">ASTM E709 - Magnetic Particle</SelectItem>
-                      <SelectItem value="ASTM E1444">ASTM E1444 - Magnetic Particle</SelectItem>
-                      <SelectItem value="ASTM E1417">ASTM E1417 - Liquid Penetrant</SelectItem>
-                      <SelectItem value="API 5L">API 5L - Line Pipe</SelectItem>
-                      <SelectItem value="AWS D1.1">AWS D1.1 - Structural Welding Code</SelectItem>
-                    </SelectGroup>
-                    <SelectGroup>
-                      <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">EN Standards</SelectLabel>
-                      <SelectItem value="EN 13445-5">EN 13445-5 - Unfired Pressure Vessels (LPT, MPT, RT, etc.)</SelectItem>
-                      <SelectItem value="EN ISO 3452">EN ISO 3452 - Penetrant Testing</SelectItem>
-                      <SelectItem value="EN ISO 9934">EN ISO 9934 - Magnetic Particle Testing</SelectItem>
-                    </SelectGroup>
-                    <SelectGroup>
-                      <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">Other</SelectLabel>
-                      <SelectItem value="Other">Other (specify in remarks)</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="procedureSteps">Procedure Steps</Label>
-                <Textarea
-                  id="procedureSteps"
-                  value={formData.procedureSteps}
-                  onChange={(e) => setFormData({ ...formData, procedureSteps: e.target.value })}
-                  placeholder="Detailed step-by-step procedure"
-                  rows={4}
+                <FormField
+                  control={form.control}
+                  name="applicableStandard"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                        Applicable Standards *
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}>
+                            <SelectValue placeholder="Select applicable standard" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">ASME Standards</SelectLabel>
+                            <SelectItem value="ASME SEC V">ASME Section V</SelectItem>
+                            <SelectItem value="ASTM E165">ASTM E165 - Liquid Penetrant</SelectItem>
+                            <SelectItem value="ASTM E709">ASTM E709 - Magnetic Particle</SelectItem>
+                            <SelectItem value="ASTM E1444">ASTM E1444 - Magnetic Particle</SelectItem>
+                            <SelectItem value="ASTM E1417">ASTM E1417 - Liquid Penetrant</SelectItem>
+                            <SelectItem value="API 5L">API 5L - Line Pipe</SelectItem>
+                            <SelectItem value="AWS D1.1">AWS D1.1 - Structural Welding Code</SelectItem>
+                          </SelectGroup>
+                          <SelectGroup>
+                            <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">EN Standards</SelectLabel>
+                            <SelectItem value="EN 13445-5">EN 13445-5 - Unfired Pressure Vessels (LPT, MPT, RT, etc.)</SelectItem>
+                            <SelectItem value="EN ISO 3452">EN ISO 3452 - Penetrant Testing</SelectItem>
+                            <SelectItem value="EN ISO 9934">EN ISO 9934 - Magnetic Particle Testing</SelectItem>
+                          </SelectGroup>
+                          <SelectGroup>
+                            <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">Other</SelectLabel>
+                            <SelectItem value="Other">Other (specify in remarks)</SelectItem>
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
 
-              <div>
-                <Label htmlFor="acceptanceCriteria">Acceptance Criteria</Label>
-                <Textarea
-                  id="acceptanceCriteria"
-                  value={formData.acceptanceCriteria}
-                  onChange={(e) => setFormData({ ...formData, acceptanceCriteria: e.target.value })}
-                  placeholder="Define acceptance criteria and reject limits"
-                  rows={3}
+                <FormField
+                  control={form.control}
+                  name="technique"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                        Technique *
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Technique details"
+                          rows={2}
+                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
+
+                <FormField
+                  control={form.control}
+                  name="sensitivity"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                        Sensitivity *
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Sensitivity requirements"
+                          rows={2}
+                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="preparation"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                        Preparation *
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Preparation procedures"
+                          rows={2}
+                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="procedureSteps"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                        Procedure Steps *
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Detailed step-by-step procedure"
+                          rows={4}
+                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="evaluation"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                        Evaluation *
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Evaluation criteria and methods"
+                          rows={3}
+                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="documentation"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                        Documentation *
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Documentation requirements"
+                          rows={2}
+                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="personnelQualification"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                        Personnel Qualification *
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Personnel qualification requirements"
+                          rows={2}
+                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="acceptanceCriteria"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                        Acceptance Criteria *
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Define acceptance criteria and reject limits"
+                          rows={3}
+                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="limitations"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                        Limitations *
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Procedure limitations"
+                          rows={2}
+                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="environmentalConditions"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                        Environmental Conditions *
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Environmental conditions requirements"
+                          rows={2}
+                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
 
 
-              {/* File Upload Section */}
-              <div className="bg-blue-50 border-2 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800 rounded-lg p-4">
-                <Label htmlFor="fileUpload" className="text-base font-semibold">
-                  {editingProcedure ? "Upload New Document (Optional)" : "Procedure Document * (Required)"}
-                </Label>
-                <div className="mt-2 space-y-2">
-                  <Input
-                    id="fileUpload"
-                    type="file"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0] || null;
-                      setFileUpload(file);
-                      
-                      // For editing procedures, upload immediately
-                      if (editingProcedure && file) {
-                        await handleImmediateUpload(file);
-                      }
-                    }}
-                    accept=".pdf,.doc,.docx"
-                    className="bg-white dark:bg-gray-900"
-                    disabled={isUploading}
-                  />
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <p>📄 Supported formats: PDF, DOC, DOCX files only</p>
-                    <p>📦 Max file size: 10MB</p>
-                    {editingProcedure ? (
-                      <p>🔄 Files upload immediately upon selection</p>
-                    ) : (
-                      <p>📋 File will upload after procedure creation</p>
+                {/* File Upload Section */}
+                <div className="bg-blue-50 border-2 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800 rounded-lg p-4">
+                  <Label htmlFor="fileUpload" className="text-base font-semibold">
+                    {editingProcedure ? "Upload New Document (Optional)" : "Procedure Document * (Required)"}
+                  </Label>
+                  <div className="mt-2 space-y-2">
+                    <Input
+                      id="fileUpload"
+                      type="file"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0] || null;
+                        setFileUpload(file);
+                        
+                        // For editing procedures, upload immediately
+                        if (editingProcedure && file) {
+                          await handleImmediateUpload(file);
+                        }
+                      }}
+                      accept=".pdf,.doc,.docx"
+                      className="bg-white dark:bg-gray-900"
+                      disabled={isUploading}
+                    />
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      <p>📄 Supported formats: PDF, DOC, DOCX files only</p>
+                      <p>📦 Max file size: 10MB</p>
+                      {editingProcedure ? (
+                        <p>🔄 Files upload immediately upon selection</p>
+                      ) : (
+                        <p>📋 File will upload after procedure creation</p>
+                      )}
+                    </div>
+                    
+                    {/* Upload Status */}
+                    {isUploading && (
+                      <div className="flex items-center space-x-2 p-2 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                        <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                          Uploading document...
+                        </p>
+                      </div>
+                    )}
+                    
+                    {uploadSuccess && (
+                      <div className="flex items-center space-x-2 p-2 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <p className="text-sm text-green-700 dark:text-green-300 font-medium">
+                          ✅ Document uploaded successfully!
+                        </p>
+                      </div>
+                    )}
+                    
+                    {fileUpload && !editingProcedure && (
+                      <div className="flex items-center space-x-2 p-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded">
+                        <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                        <p className="text-sm text-amber-700 dark:text-amber-300 font-medium">
+                          Ready: {fileUpload.name} ({Math.round(fileUpload.size / 1024)} KB)
+                        </p>
+                      </div>
                     )}
                   </div>
-                  
-                  {/* Upload Status */}
-                  {isUploading && (
-                    <div className="flex items-center space-x-2 p-2 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                      <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
-                        Uploading document...
-                      </p>
-                    </div>
-                  )}
-                  
-                  {uploadSuccess && (
-                    <div className="flex items-center space-x-2 p-2 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <p className="text-sm text-green-700 dark:text-green-300 font-medium">
-                        ✅ Document uploaded successfully!
-                      </p>
-                    </div>
-                  )}
-                  
-                  {fileUpload && !editingProcedure && (
-                    <div className="flex items-center space-x-2 p-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded">
-                      <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                      <p className="text-sm text-amber-700 dark:text-amber-300 font-medium">
-                        Ready: {fileUpload.name} ({Math.round(fileUpload.size / 1024)} KB)
-                      </p>
-                    </div>
-                  )}
                 </div>
-              </div>
 
-              {/* Uploaded Files Information Section */}
-              <ProcedureFileInfo procedure={editingProcedure} />
+                {/* Uploaded Files Information Section */}
+                <ProcedureFileInfo procedure={editingProcedure} />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="procedureRevision">Revision</Label>
-                  <Input
-                    id="procedureRevision"
-                    value={formData.procedureRevision}
-                    onChange={(e) => setFormData({ ...formData, procedureRevision: e.target.value })}
-                    placeholder="e.g., R1, R2"
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="procedureRevision"
+                    render={({ field, fieldState }) => (
+                      <FormItem>
+                        <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                          Revision *
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="e.g., R1, R2"
+                            className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field, fieldState }) => (
+                      <FormItem>
+                        <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                          Status *
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Draft">Draft</SelectItem>
+                            <SelectItem value="Under Review">Under Review</SelectItem>
+                            <SelectItem value="Approved">Approved</SelectItem>
+                            <SelectItem value="Superseded">Superseded</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="status">Status</Label>
-                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as any })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Draft">Draft</SelectItem>
-                      <SelectItem value="Under Review">Under Review</SelectItem>
-                      <SelectItem value="Approved">Approved</SelectItem>
-                      <SelectItem value="Superseded">Superseded</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
 
-              <div>
-                <Label htmlFor="remarks">Remarks</Label>
-                <Textarea
-                  id="remarks"
-                  value={formData.remarks}
-                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                  placeholder="Additional remarks or comments"
-                  rows={2}
-                />
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit" 
-                  disabled={createMutation.isPending || updateMutation.isPending || isUploading || (!editingProcedure && !fileUpload)}
-                >
-                  {createMutation.isPending || updateMutation.isPending ? (
-                    editingProcedure ? "Updating..." : "Creating..."
-                  ) : (
-                    editingProcedure ? "Update Procedure" : 
-                    fileUpload ? "Create Procedure & Upload File" : "Select File to Continue"
+                <FormField
+                  control={form.control}
+                  name="remarks"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormLabel>Remarks</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Additional remarks or comments"
+                          rows={2}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
                   )}
-                </Button>
-              </div>
-            </form>
+                />
+
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={createMutation.isPending || updateMutation.isPending || isUploading || (!editingProcedure && !fileUpload)}
+                  >
+                    {createMutation.isPending || updateMutation.isPending ? (
+                      editingProcedure ? "Updating..." : "Creating..."
+                    ) : (
+                      editingProcedure ? "Update Procedure" : 
+                      fileUpload ? "Create Procedure & Upload File" : "Select File to Continue"
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
       </div>
