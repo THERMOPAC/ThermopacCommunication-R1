@@ -411,6 +411,8 @@ export default function InspectionsPage() {
   const [isCheckingExistingShopFiles, setIsCheckingExistingShopFiles] = useState<boolean>(false);
   const [hydrotestFiles, setHydrotestFiles] = useState<File[]>([]);
   const [isUploadingHydrotestFiles, setIsUploadingHydrotestFiles] = useState(false);
+  const [hasExistingHydrotestFiles, setHasExistingHydrotestFiles] = useState(false);
+  const [isCheckingExistingHydrotestFiles, setIsCheckingExistingHydrotestFiles] = useState(false);
   const [visualInspectionFiles, setVisualInspectionFiles] = useState<File[]>([]);
   const [isUploadingVisualFiles, setIsUploadingVisualFiles] = useState(false);
   const [hasExistingVisualFiles, setHasExistingVisualFiles] = useState(false);
@@ -1284,8 +1286,8 @@ export default function InspectionsPage() {
     });
   };
 
-  // Edit Hydrotest record via dialog
-  const editHydrotestRecord = (recordData: {
+  // Edit Hydrotest record via dialog with file replacement support
+  const editHydrotestRecord = async (recordData: {
     id: string;
     pressure: string;
     duration: string;
@@ -1296,21 +1298,117 @@ export default function InspectionsPage() {
     result: string;
     notes: string;
   }) => {
-    setHydrotestRecords(prev => prev.map(record => 
-      record.id === recordData.id ? recordData : record
-    ));
-    setIsHydrotestDialogOpen(false);
-    setEditingHydrotestRecord(null);
-    toast({
-      title: "Hydrotest Record Updated",
-      description: `Hydrotest record ${recordData.id} has been updated successfully.`
-    });
+    if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
+      toast({
+        title: "Cannot Update Record",
+        description: "Project code not found. Please refresh the page and try again.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsUploadingHydrotestFiles(true);
+
+      // Delete existing files before uploading new ones if files are being replaced
+      if (hydrotestFiles.length > 0) {
+        console.log("🗑️ Deleting existing Hydrotest files before uploading replacements...");
+        
+        try {
+          // Fetch existing documents for this record
+          const documentsResponse = await fetch(
+            `/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/Hydrotest/${recordData.id}/documents`
+          );
+          
+          if (documentsResponse.ok) {
+            const existingDocuments = await documentsResponse.json();
+            console.log(`📄 Found ${existingDocuments.length} existing Hydrotest documents to delete`);
+            
+            // Delete each existing document
+            for (const doc of existingDocuments) {
+              try {
+                const deleteResponse = await fetch(`/api/quality/inspection-documents/delete/${doc.id}`, {
+                  method: 'DELETE'
+                });
+                
+                if (deleteResponse.ok) {
+                  console.log(`✅ Successfully deleted Hydrotest document: ${doc.fileName}`);
+                } else {
+                  console.log(`⚠️ Failed to delete Hydrotest document: ${doc.fileName}`);
+                }
+              } catch (deleteError) {
+                console.log(`❌ Error deleting Hydrotest document ${doc.fileName}:`, deleteError);
+              }
+            }
+          }
+        } catch (error) {
+          console.log("⚠️ Error fetching existing Hydrotest documents:", error);
+          // Continue with upload even if deletion fails
+        }
+
+        // Upload replacement files
+        for (const file of hydrotestFiles) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('tabName', 'Hydrotest');
+          formData.append('recordId', recordData.id);
+          formData.append('projectCode', editInspectionOrderDetails.projectCode);
+          formData.append('inspectionOrderNumber', editInspectionOrderDetails.inspectionOrderNumber);
+
+          const uploadResponse = await fetch('/api/quality/inspection-documents/upload', {
+            method: 'POST',
+            body: formData
+          });
+
+          if (!uploadResponse.ok) {
+            const error = await uploadResponse.text();
+            throw new Error(`Failed to upload ${file.name}: ${error}`);
+          }
+        }
+
+        toast({
+          title: "Files Replaced Successfully",
+          description: `Hydrotest record updated with ${hydrotestFiles.length} replacement file(s) uploaded.`,
+        });
+      }
+
+      // Update the record in state
+      setHydrotestRecords(prev => prev.map(record => 
+        record.id === recordData.id ? recordData : record
+      ));
+
+      // Close dialog and clean up state
+      setIsHydrotestDialogOpen(false);
+      setEditingHydrotestRecord(null);
+      setHydrotestFiles([]);
+      setHasExistingHydrotestFiles(false);
+      setIsCheckingExistingHydrotestFiles(false);
+
+      toast({
+        title: "Hydrotest Record Updated",
+        description: `Hydrotest record ${recordData.id} has been updated successfully${hydrotestFiles.length > 0 ? ' with replacement files' : ''}.`
+      });
+
+    } catch (error) {
+      console.error("Error updating hydrotest record:", error);
+      toast({
+        title: "Update Failed",
+        description: error instanceof Error ? error.message : "Failed to update hydrotest record. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploadingHydrotestFiles(false);
+    }
   };
 
   // Start editing Hydrotest record
-  const startEditingHydrotestRecord = (record: any) => {
+  const startEditingHydrotestRecord = async (record: any) => {
     setEditingHydrotestRecord(record);
     setIsHydrotestDialogOpen(true);
+    
+    // Check for existing files when editing
+    const hasFiles = await checkExistingHydrotestFiles(record.id);
+    setHasExistingHydrotestFiles(hasFiles);
   };
 
 
@@ -4527,6 +4625,29 @@ export default function InspectionsPage() {
       return false;
     } finally {
       setIsCheckingExistingVisualFiles(false);
+    }
+  };
+
+  // Function to check existing files for Hydrotest record
+  const checkExistingHydrotestFiles = async (recordId: string) => {
+    if (!editInspectionOrderDetails?.inspectionOrderNumber) return false;
+    
+    setIsCheckingExistingHydrotestFiles(true);
+    try {
+      const response = await fetch(
+        `/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/Hydrotest/${recordId}/documents`
+      );
+      
+      if (response.ok) {
+        const documents = await response.json();
+        return documents.length > 0;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking existing Hydrotest files:", error);
+      return false;
+    } finally {
+      setIsCheckingExistingHydrotestFiles(false);
     }
   };
 
@@ -11074,44 +11195,63 @@ export default function InspectionsPage() {
               />
             </div>
 
-            {/* File Upload Section - Only for new records */}
-            {!editingHydrotestRecord && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  Upload Files (Optional)
-                </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                  <input
-                    type="file"
-                    multiple
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || []);
-                      setHydrotestFiles(files);
-                    }}
-                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  />
-                  <p className="text-xs text-gray-500 mt-2">
-                    Select PDF, DOC, DOCX, JPG, JPEG, or PNG files
-                  </p>
-                  {hydrotestFiles.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-sm font-medium text-gray-700">Selected files:</p>
-                      <ul className="text-sm text-gray-600">
-                        {hydrotestFiles.map((file, index) => (
-                          <li key={index} className="flex items-center">
-                            <span className="truncate">{file.name}</span>
-                            <span className="ml-2 text-xs text-gray-400">
-                              ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
+            {/* File Upload Section */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                {editingHydrotestRecord ? 'Upload Replacement Files *' : 'Upload Files *'}
+              </label>
+              
+              {/* Status indicator for Edit mode */}
+              {editingHydrotestRecord && (
+                <div className="mb-2">
+                  {isCheckingExistingHydrotestFiles ? (
+                    <div className="flex items-center space-x-2 text-blue-600">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      <span className="text-sm">Checking for existing files...</span>
+                    </div>
+                  ) : hasExistingHydrotestFiles ? (
+                    <div className="text-orange-600 text-sm">
+                      ⚠️ New files will replace existing ones
+                    </div>
+                  ) : (
+                    <div className="text-red-600 text-sm">
+                      ❌ No existing files found. Please add files to proceed.
                     </div>
                   )}
                 </div>
+              )}
+              
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setHydrotestFiles(files);
+                  }}
+                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Select PDF, DOC, DOCX, JPG, JPEG, or PNG files (max 10MB each)
+                </p>
+                {hydrotestFiles.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-sm font-medium text-gray-700">Selected files:</p>
+                    <ul className="text-sm text-gray-600">
+                      {hydrotestFiles.map((file, index) => (
+                        <li key={index} className="flex items-center">
+                          <span className="truncate">{file.name}</span>
+                          <span className="ml-2 text-xs text-gray-400">
+                            ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
 
             <div className="flex justify-end space-x-2">
               <Button 
@@ -11120,19 +11260,32 @@ export default function InspectionsPage() {
                 onClick={() => {
                   setIsHydrotestDialogOpen(false);
                   setEditingHydrotestRecord(null);
-                  setHydrotestFiles([]); // Clear selected files
+                  setHydrotestFiles([]);
+                  setHasExistingHydrotestFiles(false);
+                  setIsCheckingExistingHydrotestFiles(false);
                 }}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isUploadingHydrotestFiles}>
+              <Button 
+                type="submit" 
+                disabled={
+                  isUploadingHydrotestFiles || 
+                  hydrotestFiles.length === 0 ||
+                  (editingHydrotestRecord && isCheckingExistingHydrotestFiles)
+                }
+              >
                 {isUploadingHydrotestFiles ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Uploading...
+                    {editingHydrotestRecord ? 'Updating & Replacing...' : 'Adding & Uploading...'}
                   </>
+                ) : hydrotestFiles.length === 0 ? (
+                  'Select Files to Continue'
+                ) : editingHydrotestRecord ? (
+                  'Update & Replace Files'
                 ) : (
-                  editingHydrotestRecord ? 'Update Record' : 'Add Record'
+                  'Add Record'
                 )}
               </Button>
             </div>
