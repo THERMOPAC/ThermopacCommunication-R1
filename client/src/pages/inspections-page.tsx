@@ -7308,7 +7308,7 @@ export default function InspectionsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
-                                        title="View Documents"
+                                        title="View"
                                         onClick={() => {
                                           setDocumentViewerConfig({
                                             inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
@@ -7324,25 +7324,8 @@ export default function InspectionsPage() {
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
-                                        title="Upload Document"
-                                        onClick={() => {
-                                          setDocumentUploadConfig({
-                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
-                                            tabName: "ITP",
-                                            recordId: record.id
-                                          });
-                                          setShowDocumentUpload(true);
-                                        }}
-                                      >
-                                        <FileText className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
                                         className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
-                                        title="Edit Record"
+                                        title="Edit"
                                         onClick={() => startEditingItpRecord(record)}
                                       >
                                         <Edit2 className="h-3 w-3" />
@@ -7351,15 +7334,62 @@ export default function InspectionsPage() {
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
-                                        title="Delete Record and Documents"
-                                        onClick={() => {
-                                          if (window.confirm(`Are you sure you want to delete ITP record "${record.id}"?\n\nThis will permanently delete:\n• The ITP record\n• All uploaded documents from cloud storage\n\nThis action cannot be undone.`)) {
-                                            deleteItpRecord(record.id);
+                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
+                                        title="File Download"
+                                        onClick={async () => {
+                                          try {
+                                            // Fetch documents for this record
+                                            const response = await fetch(
+                                              `/api/quality/inspection-documents/${editInspectionOrderDetails?.inspectionOrderNumber}/ITP/${record.id}/documents`
+                                            );
+                                            
+                                            if (response.ok) {
+                                              const documents = await response.json();
+                                              if (documents.length > 0) {
+                                                // Download the first document
+                                                const downloadResponse = await fetch(`/api/quality/inspection-documents/download/${documents[0].id}`);
+                                                if (downloadResponse.ok) {
+                                                  const blob = await downloadResponse.blob();
+                                                  const url = window.URL.createObjectURL(blob);
+                                                  const a = document.createElement('a');
+                                                  a.href = url;
+                                                  a.download = documents[0].originalFileName;
+                                                  document.body.appendChild(a);
+                                                  a.click();
+                                                  document.body.removeChild(a);
+                                                  window.URL.revokeObjectURL(url);
+                                                } else {
+                                                  toast({
+                                                    title: "Download Failed",
+                                                    description: "Failed to download the document",
+                                                    variant: "destructive"
+                                                  });
+                                                }
+                                              } else {
+                                                toast({
+                                                  title: "No Documents",
+                                                  description: "No documents found for this record",
+                                                  variant: "destructive"
+                                                });
+                                              }
+                                            } else {
+                                              toast({
+                                                title: "Error",
+                                                description: "Failed to fetch documents",
+                                                variant: "destructive"
+                                              });
+                                            }
+                                          } catch (error) {
+                                            console.error('Download error:', error);
+                                            toast({
+                                              title: "Download Error",
+                                              description: "An error occurred while downloading the document",
+                                              variant: "destructive"
+                                            });
                                           }
                                         }}
                                       >
-                                        <Trash2 className="h-3 w-3" />
+                                        <Download className="h-3 w-3" />
                                       </Button>
                                     </div>
                                   </TableCell>
