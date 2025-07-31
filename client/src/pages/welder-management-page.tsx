@@ -130,17 +130,17 @@ interface WelderFormData {
   photoPath?: string | null;
 }
 
-// Form validation schema - simplified for basic welder information
+// Form validation schema - all fields mandatory except remarks
 const welderFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   trade: z.string().min(1, "Please select a trade"),
   status: z.string().min(1, "Status is required"),
   remarks: z.string().optional().or(z.literal("")),
-  dateOfBirth: z.string().nullable().optional(),
-  contactNumber: z.string().optional(),
-  hireDate: z.string().nullable().optional(),
-  identificationType: z.string().optional(),
-  identificationNumber: z.string().optional(),
+  dateOfBirth: z.string().min(1, "Date of Birth is required"),
+  contactNumber: z.string().min(1, "Contact Number is required"),
+  hireDate: z.string().min(1, "Hire Date is required"),
+  identificationType: z.string().min(1, "Identification Type is required"),
+  identificationNumber: z.string().min(1, "Identification Number is required"),
   photoFile: z.instanceof(File).nullable().optional(),
   photoPath: z.string().nullable().optional(),
 });
@@ -159,6 +159,44 @@ export default function WelderManagementPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState("all_welders");
+
+  // ValidationErrorSummary component
+  const ValidationErrorSummary = ({ errors }: { errors: Record<string, any> }) => {
+    const fieldNameMap: Record<string, string> = {
+      name: "Welder Name",
+      trade: "Trade",
+      status: "Status",
+      dateOfBirth: "Date of Birth",
+      contactNumber: "Contact Number",
+      hireDate: "Hire Date",
+      identificationType: "Identification Type",
+      identificationNumber: "Identification Number",
+    };
+
+    const errorEntries = Object.entries(errors).filter(([_, error]) => error?.message);
+    
+    if (errorEntries.length === 0) return null;
+
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+        <div className="flex">
+          <AlertTriangle className="h-5 w-5 text-red-400 mt-0.5 mr-3 flex-shrink-0" />
+          <div>
+            <h3 className="text-sm font-medium text-red-800">
+              Please correct the following errors:
+            </h3>
+            <ul className="mt-2 text-sm text-red-700 list-disc list-inside space-y-1">
+              {errorEntries.map(([fieldName, error]) => (
+                <li key={fieldName}>
+                  <span className="font-medium">{fieldNameMap[fieldName] || fieldName}:</span> {error.message}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  };
   
   // Handle status filter selection
   const handleStatusFilterChange = (value: string) => {
@@ -173,9 +211,9 @@ export default function WelderManagementPage() {
       trade: "",
       status: "Active",
       remarks: "",
-      dateOfBirth: null,
+      dateOfBirth: "",
       contactNumber: "",
-      hireDate: null,
+      hireDate: "",
       identificationType: "",
       identificationNumber: "",
       photoFile: null,
@@ -191,9 +229,9 @@ export default function WelderManagementPage() {
       trade: "",
       status: "Active",
       remarks: "",
-      dateOfBirth: null,
+      dateOfBirth: "",
       contactNumber: "",
-      hireDate: null,
+      hireDate: "",
       identificationType: "",
       identificationNumber: "",
       photoFile: null,
@@ -555,6 +593,9 @@ export default function WelderManagementPage() {
               <DialogHeader>
                 <DialogTitle>Add New Welder</DialogTitle>
               </DialogHeader>
+              
+              <ValidationErrorSummary errors={form.formState.errors} />
+              
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <div className="flex mb-4">
@@ -588,11 +629,17 @@ export default function WelderManagementPage() {
                     <FormField
                       control={form.control}
                       name="name"
-                      render={({ field }) => (
+                      render={({ field, fieldState }) => (
                         <FormItem>
-                          <FormLabel>Welder Name*</FormLabel>
+                          <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                            Welder Name *
+                          </FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter welder's full name" {...field} />
+                            <Input 
+                              placeholder="Enter welder's full name" 
+                              className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                              {...field} 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -601,15 +648,17 @@ export default function WelderManagementPage() {
                     <FormField
                       control={form.control}
                       name="trade"
-                      render={({ field }) => (
+                      render={({ field, fieldState }) => (
                         <FormItem>
-                          <FormLabel>Trade*</FormLabel>
+                          <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                            Trade *
+                          </FormLabel>
                           <Select
                             onValueChange={field.onChange}
                             defaultValue={field.value}
                           >
                             <FormControl>
-                              <SelectTrigger>
+                              <SelectTrigger className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}>
                                 <SelectValue placeholder="Select trade" />
                               </SelectTrigger>
                             </FormControl>
@@ -630,15 +679,17 @@ export default function WelderManagementPage() {
                     <FormField
                       control={form.control}
                       name="status"
-                      render={({ field }) => (
+                      render={({ field, fieldState }) => (
                         <FormItem>
-                          <FormLabel>Status*</FormLabel>
+                          <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                            Status *
+                          </FormLabel>
                           <Select
                             onValueChange={field.onChange}
                             defaultValue={field.value}
                           >
                             <FormControl>
-                              <SelectTrigger>
+                              <SelectTrigger className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}>
                                 <SelectValue placeholder="Select status" />
                               </SelectTrigger>
                             </FormControl>
@@ -657,11 +708,17 @@ export default function WelderManagementPage() {
                     <FormField
                       control={form.control}
                       name="contactNumber"
-                      render={({ field }) => (
+                      render={({ field, fieldState }) => (
                         <FormItem>
-                          <FormLabel>Contact Number</FormLabel>
+                          <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                            Contact Number *
+                          </FormLabel>
                           <FormControl>
-                            <Input placeholder="Phone number" {...field} />
+                            <Input 
+                              placeholder="Phone number" 
+                              className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                              {...field} 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -673,15 +730,18 @@ export default function WelderManagementPage() {
                     <FormField
                       control={form.control}
                       name="dateOfBirth"
-                      render={({ field }) => (
+                      render={({ field, fieldState }) => (
                         <FormItem className="flex flex-col">
-                          <FormLabel>Date of Birth</FormLabel>
+                          <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                            Date of Birth *
+                          </FormLabel>
                           <FormControl>
                             <Input 
                               type="date" 
+                              className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                               {...field} 
                               value={field.value || ""}
-                              onChange={(e) => field.onChange(e.target.value || null)}
+                              onChange={(e) => field.onChange(e.target.value || "")}
                             />
                           </FormControl>
                           <FormMessage />
@@ -691,15 +751,18 @@ export default function WelderManagementPage() {
                     <FormField
                       control={form.control}
                       name="hireDate"
-                      render={({ field }) => (
+                      render={({ field, fieldState }) => (
                         <FormItem className="flex flex-col">
-                          <FormLabel>Hire Date</FormLabel>
+                          <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                            Hire Date *
+                          </FormLabel>
                           <FormControl>
                             <Input 
                               type="date" 
+                              className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                               {...field} 
                               value={field.value || ""}
-                              onChange={(e) => field.onChange(e.target.value || null)}
+                              onChange={(e) => field.onChange(e.target.value || "")}
                             />
                           </FormControl>
                           <FormMessage />
@@ -712,15 +775,17 @@ export default function WelderManagementPage() {
                     <FormField
                       control={form.control}
                       name="identificationType"
-                      render={({ field }) => (
+                      render={({ field, fieldState }) => (
                         <FormItem>
-                          <FormLabel>Identification Type</FormLabel>
+                          <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                            Identification Type *
+                          </FormLabel>
                           <Select
                             onValueChange={field.onChange}
                             value={field.value}
                           >
                             <FormControl>
-                              <SelectTrigger>
+                              <SelectTrigger className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}>
                                 <SelectValue placeholder="Select ID type" />
                               </SelectTrigger>
                             </FormControl>
@@ -739,11 +804,17 @@ export default function WelderManagementPage() {
                     <FormField
                       control={form.control}
                       name="identificationNumber"
-                      render={({ field }) => (
+                      render={({ field, fieldState }) => (
                         <FormItem>
-                          <FormLabel>Identification Number</FormLabel>
+                          <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                            Identification Number *
+                          </FormLabel>
                           <FormControl>
-                            <Input placeholder="ID number" {...field} />
+                            <Input 
+                              placeholder="ID number" 
+                              className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                              {...field} 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -1185,6 +1256,9 @@ export default function WelderManagementPage() {
             <DialogHeader>
               <DialogTitle>Edit Welder</DialogTitle>
             </DialogHeader>
+            
+            <ValidationErrorSummary errors={editForm.formState.errors} />
+            
             <Form {...editForm}>
               <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-6">
                 <div className="flex mb-4">
@@ -1221,11 +1295,17 @@ export default function WelderManagementPage() {
                   <FormField
                     control={editForm.control}
                     name="name"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem>
-                        <FormLabel>Welder Name*</FormLabel>
+                        <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                          Welder Name *
+                        </FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter welder's full name" {...field} />
+                          <Input 
+                            placeholder="Enter welder's full name" 
+                            className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                            {...field} 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -1234,16 +1314,18 @@ export default function WelderManagementPage() {
                   <FormField
                     control={editForm.control}
                     name="trade"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem>
-                        <FormLabel>Trade*</FormLabel>
+                        <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                          Trade *
+                        </FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
                           value={field.value}
                         >
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}>
                               <SelectValue placeholder="Select trade" />
                             </SelectTrigger>
                           </FormControl>
@@ -1264,16 +1346,18 @@ export default function WelderManagementPage() {
                   <FormField
                     control={editForm.control}
                     name="status"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem>
-                        <FormLabel>Status*</FormLabel>
+                        <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                          Status *
+                        </FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
                           value={field.value}
                         >
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}>
                               <SelectValue placeholder="Select status" />
                             </SelectTrigger>
                           </FormControl>
@@ -1292,11 +1376,17 @@ export default function WelderManagementPage() {
                   <FormField
                     control={editForm.control}
                     name="contactNumber"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem>
-                        <FormLabel>Contact Number</FormLabel>
+                        <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                          Contact Number *
+                        </FormLabel>
                         <FormControl>
-                          <Input placeholder="Phone number" {...field} />
+                          <Input 
+                            placeholder="Phone number" 
+                            className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                            {...field} 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -1308,15 +1398,18 @@ export default function WelderManagementPage() {
                   <FormField
                     control={editForm.control}
                     name="dateOfBirth"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem className="flex flex-col">
-                        <FormLabel>Date of Birth</FormLabel>
+                        <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                          Date of Birth *
+                        </FormLabel>
                         <FormControl>
                           <Input 
                             type="date" 
+                            className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                             {...field} 
                             value={field.value || ""}
-                            onChange={(e) => field.onChange(e.target.value || null)}
+                            onChange={(e) => field.onChange(e.target.value || "")}
                           />
                         </FormControl>
                         <FormMessage />
@@ -1326,15 +1419,18 @@ export default function WelderManagementPage() {
                   <FormField
                     control={editForm.control}
                     name="hireDate"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem className="flex flex-col">
-                        <FormLabel>Hire Date</FormLabel>
+                        <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                          Hire Date *
+                        </FormLabel>
                         <FormControl>
                           <Input 
                             type="date" 
+                            className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                             {...field} 
                             value={field.value || ""}
-                            onChange={(e) => field.onChange(e.target.value || null)}
+                            onChange={(e) => field.onChange(e.target.value || "")}
                           />
                         </FormControl>
                         <FormMessage />
@@ -1347,15 +1443,17 @@ export default function WelderManagementPage() {
                   <FormField
                     control={editForm.control}
                     name="identificationType"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem>
-                        <FormLabel>Identification Type</FormLabel>
+                        <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                          Identification Type *
+                        </FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           value={field.value}
                         >
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}>
                               <SelectValue placeholder="Select ID type" />
                             </SelectTrigger>
                           </FormControl>
@@ -1374,11 +1472,17 @@ export default function WelderManagementPage() {
                   <FormField
                     control={editForm.control}
                     name="identificationNumber"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <FormItem>
-                        <FormLabel>Identification Number</FormLabel>
+                        <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                          Identification Number *
+                        </FormLabel>
                         <FormControl>
-                          <Input placeholder="ID number" {...field} />
+                          <Input 
+                            placeholder="ID number" 
+                            className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                            {...field} 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
