@@ -174,19 +174,19 @@ router.post('/prompts', ensureAuthenticated, async (req: Request, res: Response)
   try {
     const {
       name, description, template, category, model, frequency,
-      priority, data_query, data_parameters, output_format
+      priority, temperature, data_query, data_parameters, output_format
     } = req.body;
 
     const userId = req.user?.id;
 
     const result = await pool.query(`
       INSERT INTO llm_prompts_registry 
-      (name, description, template, category, model, frequency, priority, data_query, data_parameters, output_format, created_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      (name, description, template, category, model, frequency, priority, temperature, data_query, data_parameters, output_format, created_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *
     `, [
       name, description, template, category, model || 'gpt-4o', frequency || 'daily',
-      priority || 5, data_query, data_parameters ? JSON.stringify(data_parameters) : null,
+      priority || 5, temperature || 0.7, data_query, data_parameters ? JSON.stringify(data_parameters) : null,
       output_format || 'markdown', userId
     ]);
 
@@ -203,7 +203,7 @@ router.put('/prompts/:id', ensureAuthenticated, async (req: Request, res: Respon
     const { id } = req.params;
     const {
       name, description, template, category, model, frequency,
-      priority, data_query, data_parameters, output_format, active
+      priority, temperature, data_query, data_parameters, output_format, active
     } = req.body;
 
     const userId = req.user?.id;
@@ -211,12 +211,12 @@ router.put('/prompts/:id', ensureAuthenticated, async (req: Request, res: Respon
     const result = await pool.query(`
       UPDATE llm_prompts_registry 
       SET name = $1, description = $2, template = $3, category = $4, model = $5, 
-          frequency = $6, priority = $7, data_query = $8, data_parameters = $9, 
-          output_format = $10, active = $11, updated_by = $12, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $13
+          frequency = $6, priority = $7, temperature = $8, data_query = $9, data_parameters = $10, 
+          output_format = $11, active = $12, updated_by = $13, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $14
       RETURNING *
     `, [
-      name, description, template, category, model, frequency, priority,
+      name, description, template, category, model, frequency, priority, temperature,
       data_query, data_parameters ? JSON.stringify(data_parameters) : null,
       output_format, active, userId, id
     ]);
