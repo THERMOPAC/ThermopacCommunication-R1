@@ -7513,7 +7513,7 @@ export default function InspectionsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
-                                        title="View Documents"
+                                        title="View"
                                         onClick={() => {
                                           setDocumentViewerConfig({
                                             inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
@@ -7529,25 +7529,8 @@ export default function InspectionsPage() {
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
-                                        title="Upload Document"
-                                        onClick={() => {
-                                          setDocumentUploadConfig({
-                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
-                                            tabName: "PMA",
-                                            recordId: record.id
-                                          });
-                                          setShowDocumentUpload(true);
-                                        }}
-                                      >
-                                        <FileText className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
                                         className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
-                                        title="Edit Record"
+                                        title="Edit"
                                         onClick={() => {
                                           setEditingPmaRecord(record);
                                           setIsPmaDialogOpen(true);
@@ -7560,7 +7543,7 @@ export default function InspectionsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
-                                        title="Delete Record"
+                                        title="Delete"
                                         onClick={() => {
                                           if (window.confirm(`Are you sure you want to delete PMA record ${record.id}? This action cannot be undone.`)) {
                                             deletePmaRecord(record.id);
@@ -7668,7 +7651,7 @@ export default function InspectionsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
-                                        title="View Documents"
+                                        title="View"
                                         onClick={() => {
                                           setDocumentViewerConfig({
                                             inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
@@ -7684,25 +7667,8 @@ export default function InspectionsPage() {
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
-                                        title="Upload Document"
-                                        onClick={() => {
-                                          setDocumentUploadConfig({
-                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
-                                            tabName: "TestProcedures",
-                                            recordId: record.id
-                                          });
-                                          setShowDocumentUpload(true);
-                                        }}
-                                      >
-                                        <FileText className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
                                         className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
-                                        title="Edit Record"
+                                        title="Edit"
                                         onClick={() => {
                                           setEditingProcedureRecord(record);
                                           setIsProceduresDialogOpen(true);
@@ -7715,7 +7681,7 @@ export default function InspectionsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
-                                        title="Delete Record"
+                                        title="Delete"
                                         onClick={() => {
                                           if (window.confirm(`Are you sure you want to delete Test Procedure record ${record.procedureNumber}? This action cannot be undone.`)) {
                                             removeProcedureRecord(index);
@@ -7846,6 +7812,23 @@ export default function InspectionsPage() {
                                   </TableCell>
                                   <TableCell>
                                     <div className="flex items-center gap-1">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
+                                        title="View"
+                                        onClick={() => {
+                                          setDocumentViewerConfig({
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
+                                            tabName: "Material Traceability",
+                                            recordId: materialRow.id
+                                          });
+                                          setShowDocumentViewer(true);
+                                        }}
+                                      >
+                                        <Eye className="h-3 w-3" />
+                                      </Button>
                                       <Button 
                                         type="button" 
                                         variant="ghost" 
@@ -7857,7 +7840,7 @@ export default function InspectionsPage() {
                                           setSelectedMaterialType(materialRow.materialType || "");
                                           setIsMaterialDialogOpen(true);
                                         }}
-                                        title="Edit Material Record"
+                                        title="Edit"
                                       >
                                         <Edit2 className="h-3.5 w-3.5" />
                                       </Button>
@@ -7866,7 +7849,7 @@ export default function InspectionsPage() {
                                         variant="ghost" 
                                         size="icon"
                                         className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
-                                        title="Delete Record"
+                                        title="Delete"
                                         onClick={() => {
                                           if (window.confirm(`Are you sure you want to delete material record ${materialRow.materialIdentificationId || materialRow.description || 'this record'}? This action cannot be undone.`)) {
                                             deleteMaterialRecord(materialRow.id);
