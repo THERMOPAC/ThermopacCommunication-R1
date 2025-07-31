@@ -428,6 +428,12 @@ export default function InspectionsPage() {
   const [hasExistingApprovedDrawingFiles, setHasExistingApprovedDrawingFiles] = useState(false);
   const [isCheckingExistingFiles, setIsCheckingExistingFiles] = useState(false);
   
+  // DVR file upload states
+  const [dvrFiles, setDvrFiles] = useState<File[]>([]);
+  const [isUploadingDvrFiles, setIsUploadingDvrFiles] = useState(false);
+  const [hasExistingDvrFiles, setHasExistingDvrFiles] = useState(false);
+  const [isCheckingExistingDvrFiles, setIsCheckingExistingDvrFiles] = useState(false);
+  
   const [approvedDrawingRecords, setApprovedDrawingRecords] = useState<{
     id: string;
     drawingTitle: string;
@@ -4148,6 +4154,29 @@ export default function InspectionsPage() {
     setIsApprovedDrawingDialogOpen(true);
   };
 
+  // Function to check existing files for DVR record
+  const checkExistingDvrFiles = async (recordId: string) => {
+    if (!editInspectionOrderDetails?.inspectionOrderNumber) return false;
+    
+    setIsCheckingExistingDvrFiles(true);
+    try {
+      const response = await fetch(
+        `/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/DVR/${recordId}/documents`
+      );
+      
+      if (response.ok) {
+        const documents = await response.json();
+        return documents.length > 0;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking existing DVR files:", error);
+      return false;
+    } finally {
+      setIsCheckingExistingDvrFiles(false);
+    }
+  };
+
   // PMA helper functions
   const generatePmaId = () => {
     const existingIds = pmaRecords.map(record => record.id);
@@ -4330,7 +4359,7 @@ export default function InspectionsPage() {
     return `DVR-${maxId + 1}`;
   };
 
-  const addDvrRecord = (recordData: {
+  const addDvrRecord = async (recordData: {
     designDocument: string;
     reviewType: string;
     reviewer: string;
@@ -4338,6 +4367,16 @@ export default function InspectionsPage() {
     status: string;
     comments?: string;
   }) => {
+    // Validate files are selected
+    if (dvrFiles.length === 0) {
+      toast({
+        title: "Files Required",
+        description: "Please select files before creating the DVR record.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Check if project code is valid
     if (editInspectionOrderDetails?.project_code === 'UNKNOWN') {
       toast({
@@ -4348,6 +4387,8 @@ export default function InspectionsPage() {
       return;
     }
 
+    setIsUploadingDvrFiles(true);
+
     const newRecord = {
       ...recordData,
       id: generateDvrId(),
@@ -4355,15 +4396,49 @@ export default function InspectionsPage() {
     };
     
     setDvrRecords([...dvrRecords, newRecord]);
-    setIsDvrDialogOpen(false);
     
-    toast({
-      title: "Success",
-      description: "DVR record added successfully",
-    });
+    // Upload files after creating record
+    try {
+      const uploadPromises = dvrFiles.map(async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('inspectionOrderNumber', editInspectionOrderDetails?.inspection_order_number || '');
+        formData.append('tabName', 'DVR');
+        formData.append('recordId', newRecord.id);
+
+        const response = await fetch('/api/quality/inspection-documents/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Upload failed for ${file.name}`);
+        }
+        return response.json();
+      });
+
+      await Promise.all(uploadPromises);
+
+      setIsDvrDialogOpen(false);
+      setDvrFiles([]);
+      
+      toast({
+        title: "Success",
+        description: "DVR record created and files uploaded successfully",
+      });
+    } catch (error) {
+      console.error('File upload error:', error);
+      toast({
+        title: "Upload Error",
+        description: "DVR record created but file upload failed. Please try uploading files again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploadingDvrFiles(false);
+    }
   };
 
-  const editDvrRecord = (recordData: {
+  const editDvrRecord = async (recordData: {
     designDocument: string;
     reviewType: string;
     reviewer: string;
@@ -4372,6 +4447,18 @@ export default function InspectionsPage() {
     comments?: string;
   }) => {
     if (!editingDvrRecord) return;
+
+    // Validate files are selected if no existing files
+    if (!hasExistingDvrFiles && dvrFiles.length === 0) {
+      toast({
+        title: "Additional Files Required",
+        description: "Please select additional files before updating the DVR record.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsUploadingDvrFiles(true);
 
     const updatedRecord = {
       ...editingDvrRecord,
@@ -4383,18 +4470,59 @@ export default function InspectionsPage() {
       record.id === editingDvrRecord.id ? updatedRecord : record
     ));
     
-    setIsDvrDialogOpen(false);
-    setEditingDvrRecord(null);
-    
-    toast({
-      title: "Success",
-      description: "DVR record updated successfully",
-    });
+    // Upload additional files if any selected
+    try {
+      if (dvrFiles.length > 0) {
+        const uploadPromises = dvrFiles.map(async (file) => {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('inspectionOrderNumber', editInspectionOrderDetails?.inspection_order_number || '');
+          formData.append('tabName', 'DVR');
+          formData.append('recordId', editingDvrRecord.id);
+
+          const response = await fetch('/api/quality/inspection-documents/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Upload failed for ${file.name}`);
+          }
+          return response.json();
+        });
+
+        await Promise.all(uploadPromises);
+      }
+
+      setIsDvrDialogOpen(false);
+      setEditingDvrRecord(null);
+      setDvrFiles([]);
+      setHasExistingDvrFiles(false);
+      
+      toast({
+        title: "Success",
+        description: dvrFiles.length > 0 ? "DVR record updated and additional files uploaded successfully" : "DVR record updated successfully",
+      });
+    } catch (error) {
+      console.error('File upload error:', error);
+      toast({
+        title: "Upload Error",
+        description: "DVR record updated but file upload failed. Please try uploading files again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploadingDvrFiles(false);
+    }
   };
 
   // Function to start editing a DVR record
-  const startEditingDvrRecord = (record: typeof dvrRecords[0]) => {
+  const startEditingDvrRecord = async (record: typeof dvrRecords[0]) => {
     setEditingDvrRecord(record);
+    
+    // Check if files already exist for this record
+    const hasFiles = await checkExistingDvrFiles(record.id);
+    setHasExistingDvrFiles(hasFiles);
+    
     setIsDvrDialogOpen(true);
   };
 
@@ -10902,6 +11030,26 @@ export default function InspectionsPage() {
           
           <form onSubmit={(e) => {
             e.preventDefault();
+            
+            // Validate files before proceeding
+            if (!editingDvrRecord && dvrFiles.length === 0) {
+              toast({
+                title: "Files Required",
+                description: "Please select files before creating the DVR record.",
+                variant: "destructive"
+              });
+              return;
+            }
+            
+            if (editingDvrRecord && !hasExistingDvrFiles && dvrFiles.length === 0) {
+              toast({
+                title: "Additional Files Required",
+                description: "Please select additional files before updating the DVR record.",
+                variant: "destructive"
+              });
+              return;
+            }
+
             const formData = new FormData(e.currentTarget);
             const recordData = {
               designDocument: formData.get('designDocument') as string,
@@ -11006,6 +11154,60 @@ export default function InspectionsPage() {
               />
             </div>
 
+            {/* File Upload Section - Available for both new and edit */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                {editingDvrRecord ? 'Upload Additional Files *' : 'Upload Files *'}
+              </label>
+              {editingDvrRecord && (
+                <div className="text-sm">
+                  {isCheckingExistingDvrFiles ? (
+                    <div className="flex items-center text-blue-600">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Checking for existing files...
+                    </div>
+                  ) : hasExistingDvrFiles ? (
+                    <div className="text-green-600">
+                      ✓ Existing files found on GCS. You can add additional files.
+                    </div>
+                  ) : (
+                    <div className="text-red-600">
+                      ⚠️ No existing files found. Please add files to proceed.
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setDvrFiles(files);
+                  }}
+                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Select PDF, DOC, DOCX, JPG, JPEG, or PNG files
+                </p>
+                {dvrFiles.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-sm text-green-600">
+                      {dvrFiles.length} file(s) selected
+                    </p>
+                    <ul className="text-xs text-gray-600 mt-1">
+                      {dvrFiles.map((file, index) => (
+                        <li key={index} className="truncate">
+                          {file.name} ({Math.round(file.size / 1024)} KB)
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="flex justify-end space-x-2">
               <Button 
                 type="button" 
@@ -11013,12 +11215,31 @@ export default function InspectionsPage() {
                 onClick={() => {
                   setIsDvrDialogOpen(false);
                   setEditingDvrRecord(null);
+                  setDvrFiles([]);
+                  setHasExistingDvrFiles(false);
                 }}
               >
                 Cancel
               </Button>
-              <Button type="submit">
-                {editingDvrRecord ? 'Update Record' : 'Add Record'}
+              <Button 
+                type="submit" 
+                disabled={isUploadingDvrFiles || isCheckingExistingDvrFiles || dvrFiles.length === 0}
+              >
+                {isUploadingDvrFiles ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {editingDvrRecord ? 'Updating & Uploading...' : 'Creating & Uploading...'}
+                  </>
+                ) : isCheckingExistingDvrFiles ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Checking existing files...
+                  </>
+                ) : dvrFiles.length === 0 ? (
+                  editingDvrRecord ? 'Select Files to Continue' : 'Select Files to Continue'
+                ) : (
+                  editingDvrRecord ? 'Update & Upload Files' : 'Add & Upload Files'
+                )}
               </Button>
             </div>
           </form>
