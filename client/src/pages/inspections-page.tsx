@@ -415,6 +415,8 @@ export default function InspectionsPage() {
   const [isUploadingVisualFiles, setIsUploadingVisualFiles] = useState(false);
   const [weldingFiles, setWeldingFiles] = useState<File[]>([]);
   const [isUploadingWeldFiles, setIsUploadingWeldFiles] = useState(false);
+  const [hasExistingWeldFiles, setHasExistingWeldFiles] = useState(false);
+  const [isCheckingExistingWeldFiles, setIsCheckingExistingWeldFiles] = useState(false);
   
   // NDT file upload states
   const [ndtFiles, setNdtFiles] = useState<File[]>([]);
@@ -4359,6 +4361,29 @@ export default function InspectionsPage() {
     }
   };
 
+  // Function to check existing files for Welding record
+  const checkExistingWeldFiles = async (recordId: string) => {
+    if (!editInspectionOrderDetails?.inspectionOrderNumber) return false;
+    
+    setIsCheckingExistingWeldFiles(true);
+    try {
+      const response = await fetch(
+        `/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/Welding/${recordId}/documents`
+      );
+      
+      if (response.ok) {
+        const documents = await response.json();
+        return documents.length > 0;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking existing Welding files:", error);
+      return false;
+    } finally {
+      setIsCheckingExistingWeldFiles(false);
+    }
+  };
+
   // PMA helper functions
   const generatePmaId = () => {
     const existingIds = pmaRecords.map(record => record.id);
@@ -5018,7 +5043,7 @@ export default function InspectionsPage() {
   };
 
   // Edit weld record via dialog
-  const editWeldRecord = (recordData: {
+  const editWeldRecord = async (recordData: {
     weldType: string;
     weldProcess: string;
     wpqrDocument: string;
@@ -5027,6 +5052,97 @@ export default function InspectionsPage() {
   }) => {
     if (!editingWeldRecord) return;
     
+    // Handle file replacement if files are selected
+    if (weldingFiles.length > 0) {
+      setIsUploadingWeldFiles(true);
+      
+      try {
+        // First, delete existing files if any exist
+        console.log('🔥 Starting file replacement for Welding record:', editingWeldRecord.id);
+        
+        if (hasExistingWeldFiles && editInspectionOrderDetails?.inspectionOrderNumber) {
+          console.log('🔥 Deleting existing files before upload...');
+          
+          try {
+            const documentsResponse = await fetch(
+              `/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/Welding/${editingWeldRecord.id}/documents`
+            );
+            
+            if (documentsResponse.ok) {
+              const documents = await documentsResponse.json();
+              console.log(`🔥 Found ${documents.length} existing documents to delete`);
+              
+              // Delete each existing document
+              for (const doc of documents) {
+                console.log(`🔥 Deleting document: ${doc.fileName} (ID: ${doc.id})`);
+                
+                const deleteResponse = await fetch(`/api/quality/inspection-documents/delete/${doc.id}`, {
+                  method: 'DELETE',
+                  credentials: 'include',
+                });
+                
+                if (deleteResponse.ok) {
+                  const result = await deleteResponse.json();
+                  if (result.success) {
+                    console.log(`🔥 ✅ Document ${doc.fileName} deleted successfully`);
+                  } else {
+                    console.log(`🔥 ❌ Failed to delete document ${doc.fileName}: ${result.message}`);
+                  }
+                } else {
+                  console.log(`🔥 ❌ Delete request failed for ${doc.fileName} with status ${deleteResponse.status}`);
+                }
+              }
+            } else {
+              console.log('🔥 Could not fetch existing documents for deletion');
+            }
+          } catch (deleteError) {
+            console.error('🔥 Error during file deletion:', deleteError);
+            // Continue with upload even if deletion fails
+          }
+        }
+        
+        // Upload replacement files
+        console.log(`🔥 Uploading ${weldingFiles.length} replacement files...`);
+        for (const file of weldingFiles) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('inspectionOrderNumber', editInspectionOrderDetails?.inspectionOrderNumber || '');
+          formData.append('tabName', 'Welding');
+          formData.append('recordId', editingWeldRecord.id);
+          
+          const response = await fetch('/api/quality/inspection-documents/upload', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData,
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Failed to upload file: ${file.name}`);
+          }
+          
+          console.log(`🔥 ✅ File uploaded successfully: ${file.name}`);
+        }
+        
+        setWeldingFiles([]);
+        setIsUploadingWeldFiles(false);
+        
+        toast({
+          title: "Success",
+          description: `Weld record updated with ${weldingFiles.length} replacement file(s) uploaded`,
+        });
+      } catch (error) {
+        console.error('🔥 Error during file replacement:', error);
+        setIsUploadingWeldFiles(false);
+        toast({
+          title: "File Replacement Error",
+          description: error instanceof Error ? error.message : "Failed to replace files",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
+    // Update the record in state
     setWelds(prev => 
       prev.map(record => 
         record.id === editingWeldRecord.id 
@@ -5038,15 +5154,23 @@ export default function InspectionsPage() {
     setIsWeldingDialogOpen(false);
     setEditingWeldRecord(null);
     
-    toast({
-      title: "Success",
-      description: "Weld record updated successfully",
-    });
+    // Toast message without file reference if no files were uploaded
+    if (weldingFiles.length === 0) {
+      toast({
+        title: "Success",
+        description: "Weld record updated successfully",
+      });
+    }
   };
 
   // Function to start editing a weld record
-  const startEditingWeldRecord = (record: typeof welds[0]) => {
+  const startEditingWeldRecord = async (record: typeof welds[0]) => {
     setEditingWeldRecord(record);
+    
+    // Check for existing files
+    const hasFiles = await checkExistingWeldFiles(record.id);
+    setHasExistingWeldFiles(hasFiles);
+    
     setIsWeldingDialogOpen(true);
   };
 
@@ -9604,6 +9728,8 @@ export default function InspectionsPage() {
           setEditingWeldRecord(null);
           setSelectedWpqrForDialog("");
           setWeldingFiles([]); // Clear selected files when dialog closes
+          setHasExistingWeldFiles(false);
+          setIsCheckingExistingWeldFiles(false);
         }
       }}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
@@ -9757,41 +9883,60 @@ export default function InspectionsPage() {
                 </select>
               </div>
 
-              {/* File Upload Section - Only for new records */}
-              {!editingWeldRecord && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Upload Weld Maps (Optional)
-                  </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                    <input
-                      type="file"
-                      multiple
-                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files || []);
-                        setWeldingFiles(files);
-                      }}
-                      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                    />
-                    <p className="text-xs text-gray-500 mt-2">
-                      Select PDF, DOC, DOCX, JPG, JPEG, or PNG files
-                    </p>
-                    {weldingFiles.length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-sm font-medium text-gray-700">Selected files:</p>
-                        <ul className="text-sm text-gray-600">
-                          {weldingFiles.map((file, index) => (
-                            <li key={index} className="truncate">
-                              • {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                            </li>
-                          ))}
-                        </ul>
+              {/* File Upload Section */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  {editingWeldRecord ? 'Upload Replacement Files *' : 'Upload Files *'}
+                </label>
+                
+                {/* File existence status for Edit mode */}
+                {editingWeldRecord && (
+                  <div className="mb-3">
+                    {isCheckingExistingWeldFiles ? (
+                      <div className="flex items-center space-x-2 text-blue-600">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Checking for existing files...</span>
+                      </div>
+                    ) : hasExistingWeldFiles ? (
+                      <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded border">
+                        ⚠️ New files will replace existing ones
+                      </div>
+                    ) : (
+                      <div className="text-sm text-red-600 bg-red-50 p-2 rounded border">
+                        ❌ No existing files found. Please add files to proceed.
                       </div>
                     )}
                   </div>
+                )}
+                
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      setWeldingFiles(files);
+                    }}
+                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Select PDF, DOC, DOCX, JPG, JPEG, or PNG files (max 10MB each)
+                  </p>
+                  {weldingFiles.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-sm font-medium text-gray-700">Selected files:</p>
+                      <ul className="text-sm text-gray-600">
+                        {weldingFiles.map((file, index) => (
+                          <li key={index} className="truncate">
+                            • {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
 
             <DialogFooter>
@@ -9806,14 +9951,19 @@ export default function InspectionsPage() {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isUploadingWeldFiles}>
+              <Button 
+                type="submit" 
+                disabled={isUploadingWeldFiles || (editingWeldRecord && weldingFiles.length === 0)}
+              >
                 {isUploadingWeldFiles ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Uploading...
+                    {editingWeldRecord ? 'Updating & Replacing...' : 'Adding & Uploading...'}
                   </>
+                ) : weldingFiles.length === 0 && !isUploadingWeldFiles ? (
+                  'Select Files to Continue'
                 ) : (
-                  editingWeldRecord ? 'Update Record' : 'Add Record'
+                  editingWeldRecord ? 'Update & Replace Files' : 'Add Record & Upload Files'
                 )}
               </Button>
             </DialogFooter>
