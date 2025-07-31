@@ -407,6 +407,8 @@ export default function InspectionsPage() {
   // Shop Inspection file upload states
   const [shopInspectionFiles, setShopInspectionFiles] = useState<File[]>([]);
   const [isUploadingShopFiles, setIsUploadingShopFiles] = useState(false);
+  const [hasExistingShopFiles, setHasExistingShopFiles] = useState<boolean>(false);
+  const [isCheckingExistingShopFiles, setIsCheckingExistingShopFiles] = useState<boolean>(false);
   const [hydrotestFiles, setHydrotestFiles] = useState<File[]>([]);
   const [isUploadingHydrotestFiles, setIsUploadingHydrotestFiles] = useState(false);
   const [visualInspectionFiles, setVisualInspectionFiles] = useState<File[]>([]);
@@ -3111,7 +3113,7 @@ export default function InspectionsPage() {
   };
 
   // Function to edit a shop inspection record
-  const editShopInspectionRecord = (recordData: {
+  const editShopInspectionRecord = async (recordData: {
     inspectionType: string;
     inspector: string;
     date: string;
@@ -3119,27 +3121,134 @@ export default function InspectionsPage() {
     remarks: string;
   }) => {
     if (!editingShopRecord) return;
-    
-    setShopInspectionRecords(prev => 
-      prev.map(record => 
-        record.id === editingShopRecord.id 
-          ? { ...record, ...recordData }
-          : record
-      )
-    );
-    
-    setIsShopInspectionDialogOpen(false);
-    setEditingShopRecord(null);
-    
-    toast({
-      title: "Success",
-      description: "Shop inspection record updated successfully",
-    });
+
+    // Validation: Check if files are selected for replacement
+    if (shopInspectionFiles.length === 0) {
+      toast({
+        title: "Files Required",
+        description: "Please select files to proceed with updating the Shop Inspection record.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if we have valid inspection order details with project code
+    if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
+      toast({
+        title: "Cannot Update Record",
+        description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploadingShopFiles(true);
+
+    try {
+      console.log("🔄 Starting Shop Inspection record update with file replacement...");
+      
+      // Step 1: Delete existing files if they exist
+      if (hasExistingShopFiles) {
+        console.log("🗑️ Deleting existing Shop Inspection files for replacement...");
+        
+        try {
+          const documentsResponse = await fetch(
+            `/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/ShopInspection/${editingShopRecord.id}/documents`
+          );
+          
+          if (documentsResponse.ok) {
+            const existingDocuments = await documentsResponse.json();
+            console.log(`📄 Found ${existingDocuments.length} existing documents to delete`);
+            
+            // Delete each document
+            for (const doc of existingDocuments) {
+              try {
+                const deleteResponse = await fetch(`/api/quality/inspection-documents/delete/${doc.id}`, {
+                  method: 'DELETE',
+                  credentials: 'include'
+                });
+                
+                if (deleteResponse.ok) {
+                  console.log(`✅ Successfully deleted document: ${doc.fileName}`);
+                } else {
+                  console.error(`❌ Failed to delete document: ${doc.fileName}`);
+                }
+              } catch (deleteError) {
+                console.error(`❌ Error deleting document ${doc.fileName}:`, deleteError);
+              }
+            }
+          }
+        } catch (error) {
+          console.error("❌ Error fetching existing documents for deletion:", error);
+          // Continue with replacement even if deletion fails
+        }
+      }
+
+      // Step 2: Upload replacement files
+      console.log("📤 Uploading replacement files...");
+      
+      const formData = new FormData();
+      formData.append('inspectionOrderNumber', editInspectionOrderDetails.inspectionOrderNumber);
+      formData.append('tabName', 'ShopInspection');
+      formData.append('recordId', editingShopRecord.id);
+      formData.append('projectCode', editInspectionOrderDetails.projectCode);
+
+      shopInspectionFiles.forEach((file) => {
+        formData.append('files', file);
+      });
+
+      const uploadResponse = await fetch('/api/quality/inspection-documents/upload', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      });
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.message || 'Failed to upload replacement files');
+      }
+
+      const uploadResult = await uploadResponse.json();
+      console.log("✅ Files uploaded successfully:", uploadResult);
+
+      // Step 3: Update the record data
+      setShopInspectionRecords(prev => 
+        prev.map(record => 
+          record.id === editingShopRecord.id 
+            ? { ...record, ...recordData }
+            : record
+        )
+      );
+
+      setIsShopInspectionDialogOpen(false);
+      setEditingShopRecord(null);
+      setShopInspectionFiles([]);
+
+      toast({
+        title: "Success",
+        description: `Shop Inspection record updated successfully with replacement file(s) uploaded`,
+      });
+
+    } catch (error: any) {
+      console.error("❌ Error updating Shop Inspection record:", error);
+      toast({
+        title: "Update Error",
+        description: error.message || "Failed to update Shop Inspection record. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingShopFiles(false);
+    }
   };
 
   // Function to start editing a shop inspection record
-  const startEditingShopRecord = (record: typeof shopInspectionRecords[0]) => {
+  const startEditingShopRecord = async (record: typeof shopInspectionRecords[0]) => {
     setEditingShopRecord(record);
+    
+    // Check if files already exist for this record
+    const hasFiles = await checkExistingShopFiles(record.id);
+    setHasExistingShopFiles(hasFiles);
+    
     setIsShopInspectionDialogOpen(true);
   };
 
@@ -4224,6 +4333,29 @@ export default function InspectionsPage() {
       return false;
     } finally {
       setIsCheckingExistingItpFiles(false);
+    }
+  };
+
+  // Function to check existing files for Shop Inspection record
+  const checkExistingShopFiles = async (recordId: string) => {
+    if (!editInspectionOrderDetails?.inspectionOrderNumber) return false;
+    
+    setIsCheckingExistingShopFiles(true);
+    try {
+      const response = await fetch(
+        `/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/ShopInspection/${recordId}/documents`
+      );
+      
+      if (response.ok) {
+        const documents = await response.json();
+        return documents.length > 0;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking existing Shop Inspection files:", error);
+      return false;
+    } finally {
+      setIsCheckingExistingShopFiles(false);
     }
   };
 
@@ -9252,6 +9384,8 @@ export default function InspectionsPage() {
         if (!open) {
           setEditingShopRecord(null);
           setShopInspectionFiles([]); // Clear selected files when dialog closes
+          setHasExistingShopFiles(false);
+          setIsCheckingExistingShopFiles(false);
         }
       }}>
         <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
@@ -9366,44 +9500,70 @@ export default function InspectionsPage() {
               />
             </div>
 
-            {/* File Upload Section - Only for new records */}
-            {!editingShopRecord && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  Upload Files (Optional)
-                </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                  <input
-                    type="file"
-                    multiple
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || []);
-                      setShopInspectionFiles(files);
-                    }}
-                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  />
-                  <p className="text-xs text-gray-500 mt-2">
-                    Select PDF, DOC, DOCX, JPG, JPEG, or PNG files
-                  </p>
-                  {shopInspectionFiles.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-sm font-medium text-gray-700">Selected files:</p>
-                      <ul className="text-sm text-gray-600">
-                        {shopInspectionFiles.map((file, index) => (
-                          <li key={index} className="flex items-center">
-                            <span className="truncate">{file.name}</span>
-                            <span className="ml-2 text-xs text-gray-400">
-                              ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
+            {/* File Upload Section */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                {editingShopRecord ? 'Upload Replacement Files *' : 'Upload Files *'}
+              </label>
+              
+              {/* File Status Indicator for Edit Mode */}
+              {editingShopRecord && (
+                <div className="mb-2">
+                  {isCheckingExistingShopFiles ? (
+                    <div className="flex items-center text-blue-600">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <span className="text-sm">Checking for existing files...</span>
+                    </div>
+                  ) : hasExistingShopFiles ? (
+                    <div className="text-sm text-green-600 bg-green-50 p-2 rounded border border-green-200">
+                      ✓ Existing files found on GCS. {editingShopRecord ? 'New files will replace existing ones.' : 'You can add additional files.'}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-red-600 bg-red-50 p-2 rounded border border-red-200">
+                      ⚠ No existing files found. Please add files to proceed.
                     </div>
                   )}
                 </div>
+              )}
+              
+              {/* Status message for edit mode */}
+              {editingShopRecord && (
+                <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded border border-orange-200 mb-2">
+                  ⚠ Warning: New files will replace existing ones
+                </div>
+              )}
+              
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setShopInspectionFiles(files);
+                  }}
+                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Select PDF, DOC, DOCX, JPG, JPEG, or PNG files (Max 10MB each)
+                </p>
+                {shopInspectionFiles.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-sm font-medium text-gray-700">Selected files:</p>
+                    <ul className="text-sm text-gray-600">
+                      {shopInspectionFiles.map((file, index) => (
+                        <li key={index} className="flex items-center">
+                          <span className="truncate">{file.name}</span>
+                          <span className="ml-2 text-xs text-gray-400">
+                            ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
 
             <DialogFooter>
               <Button 
@@ -9417,14 +9577,19 @@ export default function InspectionsPage() {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isUploadingShopFiles}>
+              <Button 
+                type="submit" 
+                disabled={isUploadingShopFiles || (editingShopRecord && shopInspectionFiles.length === 0)}
+              >
                 {isUploadingShopFiles ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Uploading...
+                    {editingShopRecord ? 'Updating & Replacing...' : 'Adding & Uploading...'}
                   </>
+                ) : shopInspectionFiles.length === 0 && !isUploadingShopFiles ? (
+                  'Select Files to Continue'
                 ) : (
-                  editingShopRecord ? 'Update Record' : 'Add Record'
+                  editingShopRecord ? 'Update & Replace Files' : 'Add Record & Upload Files'
                 )}
               </Button>
             </DialogFooter>
