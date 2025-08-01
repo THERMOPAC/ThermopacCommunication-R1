@@ -699,6 +699,7 @@ export default function LLMPromptEnginePage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include session cookies for authentication
         body: JSON.stringify({
           title: insight.title,
           content: insight.insight_text,

@@ -894,7 +894,18 @@ router.get('/test-route', ensureAuthenticated, async (req: Request, res: Respons
 });
 
 // PDF download endpoint for insights
-router.post('/download-pdf', ensureAuthenticated, async (req: Request, res: Response) => {
+router.post('/download-pdf', async (req: Request, res: Response) => {
+  console.log('=== PDF ROUTE REACHED ===');
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  console.log('Session:', req.session);
+  console.log('User:', req.user);
+  
+  // Check authentication manually
+  if (!req.isAuthenticated || !req.isAuthenticated()) {
+    console.log('Authentication failed for PDF download');
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
   try {
     console.log('PDF generation request received');
     console.log('Request body:', req.body);
