@@ -127,7 +127,8 @@ export default function LLMPromptEnginePage() {
     frequency: '',
     priority: 5,
     temperature: 0.7,
-    template: ''
+    template: '',
+    data_query: ''
   });
   
   const { toast } = useToast();
@@ -447,7 +448,8 @@ export default function LLMPromptEnginePage() {
       frequency: prompt.frequency,
       priority: prompt.priority,
       temperature: prompt.temperature || 0.7,
-      template: prompt.template
+      template: prompt.template,
+      data_query: (prompt as any).data_query || ''
     });
     setIsEditDialogOpen(true);
   };
@@ -466,6 +468,7 @@ export default function LLMPromptEnginePage() {
         frequency: editFormData.frequency,
         priority: editFormData.priority,
         temperature: editFormData.temperature,
+        data_query: editFormData.data_query,
         active: true
       }
     });
@@ -860,7 +863,7 @@ export default function LLMPromptEnginePage() {
                   <Textarea 
                     id="template"
                     placeholder="Enter the prompt template with placeholders like {{data}} where needed..."
-                    className="min-h-[120px]"
+                    className="min-h-[200px]"
                   />
                 </div>
 
@@ -1010,6 +1013,17 @@ export default function LLMPromptEnginePage() {
                       id="edit-template"
                       value={editFormData.template}
                       onChange={(e) => setEditFormData(prev => ({ ...prev, template: e.target.value }))}
+                      className="min-h-[200px]"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-data-query">Data Query (Optional)</Label>
+                    <Textarea 
+                      id="edit-data-query"
+                      value={editFormData.data_query}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, data_query: e.target.value }))}
+                      placeholder="SQL query to fetch data for this prompt..."
                       className="min-h-[120px]"
                     />
                   </div>
