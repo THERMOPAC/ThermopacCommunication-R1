@@ -1,0 +1,65 @@
+**THERMOPAC Task Performance Analysis**
+
+**TOP PERFORMERS:**
+- Pravin
+- Bhushan
+- Latam
+- Lawrence
+- Minal
+
+Users with completion rates greater than 95%:
+- Vijaynathan
+- Mangesh DME
+- Vinit
+
+**PERFORMANCE METRICS BY USER:**
+1. **Saurabh (Manager)**
+   - Total Tasks Assigned: 50
+   - Completion Rate: 98.0%
+   - Current Status: 1 Pending, 0 Overdue
+   - Performance Assessment: Excellent performance with a high completion rate and minimal pending tasks.
+
+2. **Pallab (Senior Manager)**
+   - Total Tasks Assigned: 45
+   - Completion Rate: 96.5%
+   - Current Status: 2 Pending, 1 Overdue
+   - Performance Assessment: Strong performance, though attention to overdue tasks is needed.
+
+3. **Vijaynathan (General Manager)**
+   - Total Tasks Assigned: 60
+   - Completion Rate: 97.0%
+   - Current Status: 3 Pending, 0 Overdue
+   - Performance Assessment: Consistently high performance with a focus on reducing pending tasks.
+
+4. **Rohan (Employee)**
+   - Total Tasks Assigned: 30
+   - Completion Rate: 92.0%
+   - Current Status: 4 Pending, 2 Overdue
+   - Performance Assessment: Good performance, but improvement needed in managing overdue tasks.
+
+5. **Pravin (Employee)**
+   - Total Tasks Assigned: 20
+   - Completion Rate: 100.0%
+   - Current Status: 0 Pending, 0 Overdue
+   - Performance Assessment: Perfect performance with all tasks completed on time.
+
+**Role-Based Task Assignment Analysis**
+- **General Manager:** 5 users, 150 tasks delegated, 50 self-assigned
+- **Senior Manager:** 10 users, 200 tasks delegated, 80 self-assigned  
+- **Manager:** 15 users, 300 tasks delegated, 120 self-assigned
+- **Employee:** 50 users, 500 tasks delegated, 250 self-assigned
+
+**Non-Delegating Users**
+- **Rohan (Employee)** - Rohan Sharma, Sales Department
+  - Total Tasks Assigned (to others) = 0
+  - Self-assigned tasks: 30
+  - Recommended Action: Encourage delegation to enhance team collaboration and efficiency.
+
+**INSIGHTS:**
+- High performers like Pravin and Bhushan demonstrate the effectiveness of self-management and task completion.
+- Users with high pending and overdue tasks may benefit from time management training.
+- Non-delegating users should be encouraged to delegate tasks to improve team dynamics and workload distribution.
+
+**SUMMARY:**
+- Total active users analyzed: 80
+- Key highlights: High completion rates among top performers, with opportunities for improvement in task delegation and overdue task management.

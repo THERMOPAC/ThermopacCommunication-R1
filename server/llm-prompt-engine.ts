@@ -82,6 +82,37 @@ export class LLMPromptEngine {
           return result.rows[0].comprehensive_data;
         }
         
+        // Special handling for Task Management Intelligence prompt (ID 18)
+        // Format the data for better LLM processing
+        if (result.rows.length > 0 && result.rows[0].section) {
+          const userDataRows = result.rows.filter(row => row.section === 'USER_DATA');
+          const roleSummaryRows = result.rows.filter(row => row.section === 'ROLE_SUMMARY');
+          
+          // Format as structured text for better LLM comprehension
+          let formattedData = "=== THERMOPAC TASK PERFORMANCE DATA ===\n\n";
+          
+          formattedData += "USER PERFORMANCE DATA:\n";
+          userDataRows.forEach((user, index) => {
+            formattedData += `${index + 1}. ${user.username} (${user.role})\n`;
+            formattedData += `   - Name: ${user.first_name || ''} ${user.last_name || ''}\n`;
+            formattedData += `   - Department: ${user.department || 'N/A'}\n`;
+            formattedData += `   - Total Tasks: ${user.total_tasks}\n`;
+            formattedData += `   - Completed: ${user.completed_tasks}\n`;
+            formattedData += `   - Pending: ${user.pending_tasks}\n`;
+            formattedData += `   - Overdue: ${user.overdue_tasks}\n`;
+            formattedData += `   - Completion Rate: ${user.completion_rate}%\n`;
+            formattedData += `   - Tasks Delegated: ${user.tasks_delegated}\n`;
+            formattedData += `   - Self-Assigned: ${user.self_assigned}\n\n`;
+          });
+          
+          formattedData += "ROLE SUMMARY DATA:\n";
+          roleSummaryRows.forEach(role => {
+            formattedData += `${role.role}: ${role.role_stat1} users, ${role.role_stat2} delegated, ${role.role_stat3} self-assigned, ${role.role_stat4} non-delegating\n`;
+          });
+          
+          return formattedData;
+        }
+        
         // Otherwise return all rows
         return result.rows;
       }
