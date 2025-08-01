@@ -177,7 +177,11 @@ export class LLMPromptEngine {
       // Prepare data for injection
       let data = {};
       if (prompt.data_query) {
+        console.log(`🔍 Executing data query for prompt ${prompt.name}...`);
         data = await this.preparePromptData(prompt.data_query, prompt.data_parameters || {});
+        console.log(`📊 Data prepared:`, typeof data, data ? Object.keys(data).length : 'empty', JSON.stringify(data).substring(0, 200) + '...');
+      } else {
+        console.log(`⚠️ No data query found for prompt ${prompt.name}`);
       }
 
       // Prepare data for SecureLLMWrapper injection

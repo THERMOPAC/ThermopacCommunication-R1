@@ -257,6 +257,61 @@ router.post('/prompts/:id/execute', ensureAuthenticated, async (req: Request, re
   }
 });
 
+// Debug endpoint for prompt 18 data testing only
+router.post('/prompts/debug-18-data', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    console.log('🔍 DEBUG: Testing data preparation for prompt 18');
+    
+    // Get the prompt
+    const promptResult = await pool.query('SELECT * FROM llm_prompts_registry WHERE id = 18');
+    if (promptResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Prompt not found' });
+    }
+    
+    const prompt = promptResult.rows[0];
+    console.log('🔍 DEBUG: Retrieved prompt:', prompt.name);
+    
+    // Test data preparation
+    if (prompt.data_query) {
+      console.log('🔍 DEBUG: Found data query, executing...');
+      const data = await llmEngine.preparePromptData(prompt.data_query, prompt.data_parameters || {});
+      console.log('🔍 DEBUG: Data preparation result type:', typeof data);
+      console.log('🔍 DEBUG: Data keys:', data ? Object.keys(data) : 'null');
+      console.log('🔍 DEBUG: Data preview:', JSON.stringify(data).substring(0, 500) + '...');
+      
+      res.json({
+        debug: true,
+        success: true,
+        dataStatus: 'prepared',
+        dataType: typeof data,
+        dataKeys: data ? Object.keys(data) : null,
+        hasUsers: data && data.users ? data.users.length : 0,
+        firstUserExample: data && data.users ? data.users[0] : null,
+        prompt: {
+          id: prompt.id,
+          name: prompt.name,
+          hasDataQuery: !!prompt.data_query
+        }
+      });
+    } else {
+      console.log('🔍 DEBUG: No data query found');
+      res.json({
+        debug: true,
+        success: false,
+        dataStatus: 'no_query',
+        prompt: { id: prompt.id, name: prompt.name }
+      });
+    }
+  } catch (error) {
+    console.error('🔍 DEBUG: Data preparation failed:', error);
+    res.status(500).json({ 
+      debug: true,
+      success: false, 
+      error: error.message || 'Data preparation test failed' 
+    });
+  }
+});
+
 // Get prompt execution history
 router.get('/prompts/:id/executions', ensureAuthenticated, async (req: Request, res: Response) => {
   try {

@@ -317,6 +317,9 @@ export class SecureLLMWrapper {
    */
   private static injectDataIntoTemplate(template: string, data: any): string {
     try {
+      console.log(`🔄 Injecting data into template. Data type:`, typeof data, 'Data preview:', JSON.stringify(data).substring(0, 150) + '...');
+      console.log(`📝 Template contains \${data}:`, template.includes('${data}'));
+      
       let processedTemplate = template;
 
       // Replace data injection placeholder
@@ -324,6 +327,9 @@ export class SecureLLMWrapper {
         const dataString = typeof data === 'string' ? 
           data : JSON.stringify(data, null, 2);
         processedTemplate = processedTemplate.replace('${data}', dataString);
+        console.log(`✅ Replaced \${data} with data string (length: ${dataString.length})`);
+      } else {
+        console.log(`⚠️ Template does not contain \${data} placeholder`);
       }
 
       // Replace other common placeholders
