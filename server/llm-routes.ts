@@ -3,6 +3,7 @@ import { ensureAuthenticated } from './auth-middleware';
 import { pool } from './db';
 import { llmEngine } from './llm-prompt-engine';
 import cron from 'node-cron';
+import PDFDocument from 'pdfkit';
 
 const router = Router();
 
@@ -890,15 +891,22 @@ router.post('/prompts/:promptId/test-execute', ensureAuthenticated, async (req: 
 // PDF download endpoint for insights
 router.post('/download-pdf', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    console.log('PDF generation request received:', { 
+      hasTitle: !!req.body?.title, 
+      hasContent: !!req.body?.content,
+      contentLength: req.body?.content?.length || 0,
+      bodyKeys: Object.keys(req.body || {})
+    });
+    
     const { title, content, generated_at, prompt_name, model_used } = req.body;
     
     // Validate required fields
     if (!title || !content) {
+      console.log('PDF validation failed:', { title: !!title, content: !!content });
       return res.status(400).json({ error: 'Missing required fields: title and content' });
     }
     
-    // Import PDF library
-    const PDFDocument = require('pdfkit');
+    // Create PDF document using imported PDFDocument
     
     // Create new PDF document with white background
     const doc = new PDFDocument({
