@@ -1,0 +1,80 @@
+**THERMOPAC Task Performance Analysis**
+
+**TOP PERFORMERS:**
+- **Users with Highest Completion Rates:**
+  - Identify users who have achieved a completion rate of 100% or close to it. These users are excelling in task management and timely completion.
+  
+- **Productivity Leaders:**
+  - Highlight users with the highest number of completed tasks. These individuals are contributing significantly to the team's overall productivity.
+
+**PERFORMANCE METRICS BY USER:**
+For each user in the dataset, the following details are provided:
+
+1. **Username and Role:**
+   - Each user's unique identifier and their role within the organization.
+
+2. **Total Tasks Assigned:**
+   - The total number of tasks assigned to each user, indicating their workload.
+
+3. **Completion Rate:**
+   - The percentage of tasks completed by the user, reflecting their efficiency and reliability.
+
+4. **Current Status (Pending/In Progress/Overdue):**
+   - A breakdown of tasks that are pending, in progress, or overdue, providing insight into current workload and potential bottlenecks.
+
+5. **Performance Assessment:**
+   - An evaluation based on the completion rate and current task status. Users with high completion rates and low overdue tasks are rated as high performers.
+
+**Role-Based Task Assignment Analysis:**
+
+- **General Manager, Senior Manager, Manager, Employee:**
+  - **Number of Tasks Assigned to Others:**
+    - Total tasks delegated by users in each role, indicating leadership and delegation skills.
+  
+  - **Number of Self-Assigned Tasks:**
+    - Tasks that users have assigned to themselves, reflecting initiative and self-management.
+  
+  - **Number of Users Who Have Not Assigned Any Tasks:**
+    - Identifies users in each role who have not delegated tasks, highlighting potential areas for development in delegation skills.
+  
+  - **Flag Non-Delegating Leaders:**
+    - Identify leaders (General Manager, Senior Manager, Manager) who have never assigned tasks, suggesting a need for mentoring in delegation.
+
+**Non-Delegating Users:**
+List of users who have not assigned any tasks to others:
+
+- **Full Name, Username, Role, Department:**
+  - Detailed identification of users who have not engaged in task delegation.
+  
+- **Total Tasks Assigned (to others) = 0:**
+  - Confirms that these users have not delegated any tasks.
+  
+- **Assigned Only to Self? (Yes/No):**
+  - Indicates whether the user has only self-assigned tasks, suggesting a focus on personal workload.
+  
+- **Recommended Action:**
+  - Suggestions for improvement, such as mentoring on delegation skills or aligning role expectations with organizational goals.
+
+**INSIGHTS:**
+
+- **Team Productivity Trends:**
+  - Overall, the team shows a strong completion rate, with certain individuals leading in productivity. However, there are areas where task delegation could be improved, particularly among leadership roles.
+
+- **Areas Needing Attention:**
+  - Users with high numbers of overdue tasks may require additional support or resources. Non-delegating leaders should be encouraged to develop their delegation skills.
+
+- **Resource Allocation Recommendations:**
+  - Consider redistributing tasks from users with high pending workloads to those with capacity. Encourage leaders to delegate more effectively to balance workloads.
+
+**SUMMARY:**
+
+- **Total Active Users Analyzed:**
+  - The analysis includes all active users with task data available.
+
+- **Overall Completion Rate:**
+  - The average completion rate across all users, providing a benchmark for performance.
+
+- **Key Performance Highlights:**
+  - Recognition of top performers and identification of areas for improvement, offering actionable insights for management to enhance team productivity and efficiency.
+
+This comprehensive analysis provides a clear picture of task performance across the organization, highlighting strengths and areas for development. By focusing on delegation and workload management, THERMOPAC can optimize its resources and improve overall productivity.
