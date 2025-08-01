@@ -325,6 +325,13 @@ export class LLMPromptEngine {
       // Use model override if provided, otherwise use prompt configuration
       const modelToUse = modelOverride || prompt.model;
       
+      // Debug: Log what we're passing to SecureLLMWrapper
+      console.log('🔍 DEBUG: About to call SecureLLMWrapper with:');
+      console.log('  - promptId:', promptId);
+      console.log('  - data type:', typeof data);
+      console.log('  - data length:', data && typeof data === 'string' ? data.length : 'not string');
+      console.log('  - data preview:', typeof data === 'string' ? data.substring(0, 150) + '...' : JSON.stringify(data));
+      
       // Use secure wrapper for LLM call with comprehensive logging and security
       const llmResponse = await SecureLLMWrapper.executeSecurePrompt({
         promptId: promptId,
@@ -339,6 +346,11 @@ export class LLMPromptEngine {
         isTestMode: false,
         customMaskingRules: prompt.masking_rules ? JSON.parse(prompt.masking_rules) : undefined
       });
+      
+      console.log('🔍 DEBUG: SecureLLMWrapper returned:');
+      console.log('  - success:', llmResponse.success);
+      console.log('  - result length:', llmResponse.result ? llmResponse.result.length : 'no result');
+      console.log('  - error:', llmResponse.error || 'none');
       
       const executionDuration = Date.now() - startTime;
 
