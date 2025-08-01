@@ -1465,7 +1465,9 @@ export default function LLMPromptEnginePage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {insight.prompt_name === 'Number of Users In Task Management System' && (
+                        {(insight.prompt_name === 'Number of Users In Task Management System' || 
+                          insight.title.toLowerCase().includes('user performance') ||
+                          insight.title.toLowerCase().includes('task management')) && (
                           <Button
                             size="sm"
                             variant="outline"
