@@ -185,11 +185,23 @@ export class LLMPromptEngine {
         if (promptId === 18) {
           console.log('🔍 DEBUG: Prompt 18 data preparation details:');
           console.log('  - Data type:', typeof data);
-          console.log('  - Data keys:', data ? Object.keys(data) : 'null');
-          console.log('  - Has users array:', !!(data && data.users));
-          console.log('  - User count:', data && data.users ? data.users.length : 0);
-          if (data && data.users && data.users.length > 0) {
-            console.log('  - First user sample:', JSON.stringify(data.users[0]).substring(0, 150) + '...');
+          console.log('  - Data is array:', Array.isArray(data));
+          console.log('  - Data length:', data && Array.isArray(data) ? data.length : 'not array');
+          console.log('  - First 3 rows:', data && Array.isArray(data) ? JSON.stringify(data.slice(0, 3), null, 2) : 'not array');
+          
+          // Check for USER_DATA and ROLE_SUMMARY sections
+          if (Array.isArray(data)) {
+            const userDataRows = data.filter(row => row.section === 'USER_DATA');
+            const roleSummaryRows = data.filter(row => row.section === 'ROLE_SUMMARY');
+            console.log('  - USER_DATA rows:', userDataRows.length);
+            console.log('  - ROLE_SUMMARY rows:', roleSummaryRows.length);
+            
+            if (userDataRows.length > 0) {
+              console.log('  - Sample USER_DATA:', JSON.stringify(userDataRows[0], null, 2));
+            }
+            if (roleSummaryRows.length > 0) {
+              console.log('  - Sample ROLE_SUMMARY:', JSON.stringify(roleSummaryRows[0], null, 2));
+            }
           }
         }
       } else {
