@@ -75,18 +75,29 @@ export class LLMPromptEngine {
     try {
       // If it's a SQL query
       if (dataQuery.trim().toLowerCase().startsWith('select')) {
+        console.log('🔍 Executing SQL query for data preparation...');
         const result = await pool.query(dataQuery, Object.values(parameters));
+        console.log(`📊 Query returned ${result.rows.length} rows`);
+        
+        if (result.rows.length > 0) {
+          console.log('🔍 First row structure:', Object.keys(result.rows[0]));
+          console.log('🔍 Sample row:', JSON.stringify(result.rows[0], null, 2));
+        }
         
         // If query returns a single row with a JSON column, extract the JSON value
         if (result.rows.length === 1 && result.rows[0].comprehensive_data) {
+          console.log('✅ Using comprehensive_data column');
           return result.rows[0].comprehensive_data;
         }
         
         // Special handling for Task Management Intelligence prompt (ID 18)
         // Format the data for better LLM processing
         if (result.rows.length > 0 && result.rows[0].section) {
+          console.log('🎯 Processing sectioned data for Task Management Intelligence');
           const userDataRows = result.rows.filter(row => row.section === 'USER_DATA');
           const roleSummaryRows = result.rows.filter(row => row.section === 'ROLE_SUMMARY');
+          
+          console.log(`📊 Found ${userDataRows.length} user data rows and ${roleSummaryRows.length} role summary rows`);
           
           // Validate that we have real user data
           if (userDataRows.length === 0) {
@@ -100,6 +111,8 @@ export class LLMPromptEngine {
             user.username !== '' && 
             (user.total_tasks > 0 || user.tasks_delegated > 0)
           );
+          
+          console.log(`✅ Found ${validUsers.length} valid users with task data`);
           
           if (validUsers.length === 0) {
             console.log('❌ No valid users with task data found');
@@ -129,10 +142,12 @@ export class LLMPromptEngine {
           });
           
           console.log(`✅ Formatted data for ${validUsers.length} valid users`);
+          console.log('📝 Formatted data preview:', formattedData.substring(0, 300) + '...');
           return formattedData;
         }
         
         // Otherwise return all rows
+        console.log('📊 Returning raw query results');
         return result.rows;
       }
       
