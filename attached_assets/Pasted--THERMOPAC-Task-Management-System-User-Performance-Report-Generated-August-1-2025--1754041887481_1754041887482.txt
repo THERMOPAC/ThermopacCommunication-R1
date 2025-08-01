@@ -1,0 +1,214 @@
+## THERMOPAC Task Management System - User Performance Report
+**Generated:** August 1, 2025
+
+### SUMMARY
+- **Total Tasks in System:** 1,899
+- **Total Active Users in Task Management:** 27
+- **Users with Assigned Tasks:** 27  
+- **Users Who Create/Delegate Tasks:** 27
+
+### BREAKDOWN BY ROLE
+- Employee: 21
+- Manager: 3
+- Senior Manager: 2
+- General Manager: 1
+- Superuser: 1
+
+### PERFORMANCE METRICS BY USER:
+
+**1. Pravin (Employee)**
+   - Total Tasks Assigned: 120
+   - Self-Assigned Tasks: 120 (100.0%)
+   - Completion Rate: 100.0%
+   - Current Status: 0 Pending, 0 In Progress
+   - Tasks Created: 123
+   - Assessment: Exemplary performance with full task completion and high self-assignment.
+
+**2. Bhushan (Employee)**
+   - Total Tasks Assigned: 56
+   - Self-Assigned Tasks: 43 (76.8%)
+   - Completion Rate: 100.0%
+   - Current Status: 0 Pending, 0 In Progress
+   - Tasks Created: 48
+   - Assessment: Excellent task management and completion rate.
+
+**3. Latam (Employee)**
+   - Total Tasks Assigned: 24
+   - Self-Assigned Tasks: 6 (25.0%)
+   - Completion Rate: 100.0%
+   - Current Status: 0 Pending, 0 In Progress
+   - Tasks Created: 6
+   - Assessment: Efficient task handling with full completion.
+
+**4. Minal (Employee)**
+   - Total Tasks Assigned: 14
+   - Self-Assigned Tasks: 0 (0.0%)
+   - Completion Rate: 100.0%
+   - Current Status: 0 Pending, 0 In Progress
+   - Tasks Created: 0
+   - Assessment: Consistent task completion with no self-assignment.
+
+**5. Mangesh DME (Employee)**
+   - Total Tasks Assigned: 61
+   - Self-Assigned Tasks: 59 (96.7%)
+   - Completion Rate: 98.4%
+   - Current Status: 1 Pending, 0 In Progress
+   - Tasks Created: 59
+   - Assessment: High self-assignment and near-perfect completion rate.
+
+**6. Vinit (Employee)**
+   - Total Tasks Assigned: 31
+   - Self-Assigned Tasks: 13 (41.9%)
+   - Completion Rate: 96.8%
+   - Current Status: 1 Pending, 0 In Progress
+   - Tasks Created: 13
+   - Assessment: Strong performance with minor pending tasks.
+
+**7. Vijaynathan (Senior Manager)**
+   - Total Tasks Assigned: 63
+   - Self-Assigned Tasks: 57 (90.5%)
+   - Completion Rate: 95.2%
+   - Current Status: 3 Pending, 0 In Progress
+   - Tasks Created: 79
+   - Assessment: Effective task management with high delegation.
+
+**8. Mansi (Manager)**
+   - Total Tasks Assigned: 39
+   - Self-Assigned Tasks: 9 (23.1%)
+   - Completion Rate: 92.3%
+   - Current Status: 3 Pending, 0 In Progress
+   - Tasks Created: 93
+   - Assessment: Strong delegation skills with high task creation.
+
+**9. Saurabh (Employee)**
+   - Total Tasks Assigned: 226
+   - Self-Assigned Tasks: 0 (0.0%)
+   - Completion Rate: 91.6%
+   - Current Status: 19 Pending, 0 In Progress
+   - Tasks Created: 1
+   - Assessment: High task volume with efficient completion.
+
+**10. Mangesh (Employee)**
+   - Total Tasks Assigned: 67
+   - Self-Assigned Tasks: 51 (76.1%)
+   - Completion Rate: 91.0%
+   - Current Status: 6 Pending, 0 In Progress
+   - Tasks Created: 71
+   - Assessment: Strong self-assignment and task creation.
+
+**11. Vishal (Employee)**
+   - Total Tasks Assigned: 37
+   - Self-Assigned Tasks: 26 (70.3%)
+   - Completion Rate: 89.2%
+   - Current Status: 4 Pending, 0 In Progress
+   - Tasks Created: 27
+   - Assessment: Good task management with high self-assignment.
+
+**12. Bhamble (Employee)**
+   - Total Tasks Assigned: 37
+   - Self-Assigned Tasks: 1 (2.7%)
+   - Completion Rate: 89.2%
+   - Current Status: 4 Pending, 0 In Progress
+   - Tasks Created: 1
+   - Assessment: Consistent performance with minimal self-assignment.
+
+**13. Pallab (Senior Manager)**
+   - Total Tasks Assigned: 78
+   - Self-Assigned Tasks: 4 (5.1%)
+   - Completion Rate: 88.5%
+   - Current Status: 9 Pending, 0 In Progress
+   - Tasks Created: 55
+   - Assessment: Effective delegation with moderate completion rate.
+
+**14. Dipesh (Employee)**
+   - Total Tasks Assigned: 205
+   - Self-Assigned Tasks: 3 (1.5%)
+   - Completion Rate: 87.3%
+   - Current Status: 26 Pending, 0 In Progress
+   - Tasks Created: 5
+   - Assessment: High task volume with efficient completion.
+
+**15. Akash (Employee)**
+   - Total Tasks Assigned: 61
+   - Self-Assigned Tasks: 36 (59.0%)
+   - Completion Rate: 86.9%
+   - Current Status: 8 Pending, 0 In Progress
+   - Tasks Created: 56
+   - Assessment: Strong self-assignment and task creation.
+
+**16. Nilesh (Employee)**
+   - Total Tasks Assigned: 57
+   - Self-Assigned Tasks: 39 (68.4%)
+   - Completion Rate: 86.0%
+   - Current Status: 8 Pending, 0 In Progress
+   - Tasks Created: 41
+   - Assessment: Good task management with high self-assignment.
+
+**17. Roshan (Employee)**
+   - Total Tasks Assigned: 26
+   - Self-Assigned Tasks: 10 (38.5%)
+   - Completion Rate: 84.6%
+   - Current Status: 4 Pending, 0 In Progress
+   - Tasks Created: 16
+   - Assessment: Efficient task handling with moderate self-assignment.
+
+**18. Sagar (Employee)**
+   - Total Tasks Assigned: 222
+   - Self-Assigned Tasks: 158 (71.2%)
+   - Completion Rate: 81.1%
+   - Current Status: 42 Pending, 0 In Progress
+   - Tasks Created: 159
+   - Assessment: High self-assignment with significant pending tasks.
+
+**19. Darshan (Employee)**
+   - Total Tasks Assigned: 29
+   - Self-Assigned Tasks: 3 (10.3%)
+   - Completion Rate: 79.3%
+   - Current Status: 6 Pending, 0 In Progress
+   - Tasks Created: 11
+   - Assessment: Moderate performance with room for improvement.
+
+**20. Manjusha (Manager)**
+   - Total Tasks Assigned: 91
+   - Self-Assigned Tasks: 70 (76.9%)
+   - Completion Rate: 78.0%
+   - Current Status: 20 Pending, 0 In Progress
+   - Tasks Created: 76
+   - Assessment: High self-assignment with significant pending tasks.
+
+**21. Abhay (Employee)**
+   - Total Tasks Assigned: 41
+   - Self-Assigned Tasks: 4 (9.8%)
+   - Completion Rate: 78.0%
+   - Current Status: 9 Pending, 0 In Progress
+   - Tasks Created: 26
+   - Assessment: Moderate performance with room for improvement.
+
+**22. Rohan (Employee)**
+   - Total Tasks Assigned: 188
+   - Self-Assigned Tasks: 167 (88.8%)
+   - Completion Rate: 75.0%
+   - Current Status: 47 Pending, 0 In Progress
+   - Tasks Created: 617
+   - Assessment: High task creation with significant pending tasks.
+
+**23. Sitaram (Employee)**
+   - Total Tasks Assigned: 74
+   - Self-Assigned Tasks: 44 (59.5%)
+   - Completion Rate: 74.3%
+   - Current Status: 19 Pending, 0 In Progress
+   - Tasks Created: 48
+   - Assessment: Moderate performance with room for improvement.
+
+**24. Jawahar (Manager)**
+   - Total Tasks Assigned: 81
+   - Self-Assigned Tasks: 67 (82.7%)
+   - Completion Rate: 72.8%
+   - Current Status: 22 Pending, 0 In Progress
+   - Tasks Created: 237
+   - Assessment: High task creation with significant pending tasks.
+
+**25. Lawrence (Employee)**
+   - Total Tasks Assigned: 33
+   - Self-Assigned Tasks: 0 (0.0%)
+   - Completion Rate: 69.

@@ -19,6 +19,7 @@ export interface SecureExecutionOptions {
   data: any;
   preferredModel?: string;
   temperature?: number;
+  maxTokens?: number;
   isTestMode?: boolean;
   maskingOverride?: boolean;
   customMaskingRules?: any[];
@@ -112,7 +113,8 @@ export class SecureLLMWrapper {
         executionResult = await SecureLLMWrapper.executeWithModel(
           routingDecision.selectedModel,
           finalPrompt,
-          options.temperature || 0.7
+          options.temperature || 0.7,
+          options.maxTokens
         );
         executionTime = Date.now() - startTime;
       }
@@ -203,12 +205,12 @@ export class SecureLLMWrapper {
   /**
    * Execute with selected model directly
    */
-  private static async executeWithModel(model: string, prompt: string, temperature: number = 0.7): Promise<any> {
+  private static async executeWithModel(model: string, prompt: string, temperature: number = 0.7, maxTokens?: number): Promise<any> {
     try {
       if (model.startsWith('gpt-')) {
-        return await SecureLLMWrapper.executeOpenAI(model, prompt, temperature);
+        return await SecureLLMWrapper.executeOpenAI(model, prompt, temperature, maxTokens);
       } else if (model.startsWith('claude-')) {
-        return await SecureLLMWrapper.executeAnthropic(model, prompt, temperature);
+        return await SecureLLMWrapper.executeAnthropic(model, prompt, temperature, maxTokens);
       } else {
         throw new Error(`Unsupported model: ${model}`);
       }
@@ -226,7 +228,7 @@ export class SecureLLMWrapper {
   /**
    * Execute OpenAI models
    */
-  private static async executeOpenAI(model: string, prompt: string, temperature: number = 0.7): Promise<any> {
+  private static async executeOpenAI(model: string, prompt: string, temperature: number = 0.7, maxTokens?: number): Promise<any> {
     if (!process.env.OPENAI_API_KEY) {
       throw new Error('OpenAI API key not configured');
     }
@@ -238,7 +240,7 @@ export class SecureLLMWrapper {
     const response = await openai.chat.completions.create({
       model: model,
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 2000,
+      max_tokens: maxTokens || 2000,
       temperature: temperature,
     });
 
@@ -258,7 +260,7 @@ export class SecureLLMWrapper {
   /**
    * Execute Anthropic Claude models
    */
-  private static async executeAnthropic(model: string, prompt: string, temperature: number = 0.7): Promise<any> {
+  private static async executeAnthropic(model: string, prompt: string, temperature: number = 0.7, maxTokens?: number): Promise<any> {
     if (!process.env.ANTHROPIC_API_KEY) {
       throw new Error('Anthropic API key not configured');
     }
@@ -269,7 +271,7 @@ export class SecureLLMWrapper {
 
     const response = await anthropic.messages.create({
       model: model,
-      max_tokens: 2000,
+      max_tokens: maxTokens || 2000,
       messages: [{ role: 'user', content: prompt }],
       temperature: temperature,
     });

@@ -333,6 +333,9 @@ export class LLMPromptEngine {
       console.log('  - data preview:', typeof data === 'string' ? data.substring(0, 150) + '...' : JSON.stringify(data));
       
       // Use secure wrapper for LLM call with comprehensive logging and security
+      // Special handling for Prompt 19 - Task Management User Performance (increase max tokens)
+      const maxTokens = promptId === 19 ? 8000 : undefined; // Ensure all 27 users are included
+      
       const llmResponse = await SecureLLMWrapper.executeSecurePrompt({
         promptId: promptId,
         userId: 1, // TODO: Get actual user ID from session context
@@ -343,6 +346,7 @@ export class LLMPromptEngine {
         data: data,
         preferredModel: modelToUse,
         temperature: parseFloat(prompt.temperature) || 0.7,
+        maxTokens: maxTokens, // Custom max tokens for comprehensive reports
         isTestMode: false,
         customMaskingRules: prompt.masking_rules ? JSON.parse(prompt.masking_rules) : undefined
       });
