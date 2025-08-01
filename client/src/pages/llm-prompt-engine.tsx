@@ -51,7 +51,8 @@ import {
   EyeOff,
   Database,
   Activity,
-  CheckSquare
+  CheckSquare,
+  Download
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
@@ -686,6 +687,51 @@ export default function LLMPromptEnginePage() {
         const newSet = new Set(prev);
         newSet.delete(promptId);
         return newSet;
+      });
+    }
+  };
+
+  // PDF download handler for User Performance Reports
+  const downloadPDF = async (insight: BusinessInsight) => {
+    try {
+      const response = await fetch('/api/llm/download-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: insight.title,
+          content: insight.insight_text,
+          generated_at: insight.generated_at,
+          prompt_name: insight.prompt_name,
+          model_used: insight.model_used
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `THERMOPAC_User_Performance_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "PDF Downloaded",
+        description: "User Performance Report has been downloaded successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: error instanceof Error ? error.message : "Failed to generate PDF.",
+        variant: "destructive",
       });
     }
   };
@@ -1418,9 +1464,22 @@ export default function LLMPromptEnginePage() {
                           </span>
                         </div>
                       </div>
-                      <span className="text-sm text-gray-500">
-                        {new Date(insight.generated_at).toLocaleString()}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {insight.prompt_name === 'Number of Users In Task Management System' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => downloadPDF(insight)}
+                            className="h-8 px-3 flex items-center gap-1"
+                          >
+                            <Download className="w-3 h-3" />
+                            PDF
+                          </Button>
+                        )}
+                        <span className="text-sm text-gray-500">
+                          {new Date(insight.generated_at).toLocaleString()}
+                        </span>
+                      </div>
                     </div>
                   </CardHeader>
                   

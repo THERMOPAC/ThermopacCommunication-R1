@@ -887,4 +887,122 @@ router.post('/prompts/:promptId/test-execute', ensureAuthenticated, async (req: 
   }
 });
 
+// PDF download endpoint for insights
+router.post('/download-pdf', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { title, content, generated_at, prompt_name, model_used } = req.body;
+    
+    // Import PDF library
+    const PDFDocument = require('pdfkit');
+    
+    // Create new PDF document with white background
+    const doc = new PDFDocument({
+      margin: 50,
+      size: 'A4'
+    });
+    
+    // Set response headers for PDF download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="THERMOPAC_User_Performance_Report_${new Date().toISOString().split('T')[0]}.pdf"`);
+    
+    // Pipe the PDF to response
+    doc.pipe(res);
+    
+    // Add THERMOPAC header
+    doc.fontSize(20)
+       .fillColor('#000000')
+       .text('THERMOPAC', 50, 50, { align: 'center' })
+       .fontSize(16)
+       .text('Task Management System', 50, 80, { align: 'center' })
+       .fontSize(14)
+       .text('User Performance Report', 50, 110, { align: 'center' });
+    
+    // Add horizontal line
+    doc.moveTo(50, 140)
+       .lineTo(545, 140)
+       .stroke('#cccccc');
+    
+    // Add report metadata
+    doc.fontSize(10)
+       .fillColor('#666666')
+       .text(`Generated: ${new Date(generated_at).toLocaleString()}`, 50, 160)
+       .text(`Source: ${prompt_name}`, 50, 175)
+       .text(`AI Model: ${model_used}`, 50, 190);
+    
+    // Add title
+    doc.fontSize(16)
+       .fillColor('#000000')
+       .text(title, 50, 220, { width: 495 });
+    
+    // Add content with proper formatting
+    const lines = content.split('\n');
+    let yPosition = 260;
+    
+    for (const line of lines) {
+      if (yPosition > 750) { // Add new page if needed
+        doc.addPage();
+        yPosition = 50;
+      }
+      
+      // Handle different text styles based on content
+      if (line.startsWith('##')) {
+        // Main headers
+        doc.fontSize(14)
+           .fillColor('#000000')
+           .font('Helvetica-Bold')
+           .text(line.replace('##', '').trim(), 50, yPosition);
+        yPosition += 25;
+      } else if (line.startsWith('**') && line.endsWith('**')) {
+        // Bold subheaders
+        doc.fontSize(12)
+           .fillColor('#000000')
+           .font('Helvetica-Bold')
+           .text(line.replace(/\*\*/g, ''), 50, yPosition);
+        yPosition += 20;
+      } else if (line.startsWith('- **')) {
+        // Top performers with bold
+        doc.fontSize(11)
+           .fillColor('#000000')
+           .font('Helvetica-Bold')
+           .text(line.replace(/\*\*/g, '').replace('- ', '• '), 50, yPosition);
+        yPosition += 18;
+      } else if (line.trim().startsWith('-')) {
+        // Regular bullet points
+        doc.fontSize(11)
+           .fillColor('#000000')
+           .font('Helvetica')
+           .text(line.replace('- ', '• '), 50, yPosition);
+        yPosition += 16;
+      } else if (line.trim() !== '') {
+        // Regular paragraphs
+        doc.fontSize(11)
+           .fillColor('#000000')
+           .font('Helvetica')
+           .text(line, 50, yPosition, { width: 495, align: 'left' });
+        yPosition += 16;
+      } else {
+        // Empty lines
+        yPosition += 10;
+      }
+    }
+    
+    // Add footer
+    const pageCount = doc.bufferedPageRange().count;
+    for (let i = 0; i < pageCount; i++) {
+      doc.switchToPage(i);
+      doc.fontSize(8)
+         .fillColor('#666666')
+         .text(`Page ${i + 1} of ${pageCount}`, 50, 780, { width: 495, align: 'center' })
+         .text('THERMOPAC - Confidential', 50, 790, { width: 495, align: 'center' });
+    }
+    
+    // Finalize the PDF
+    doc.end();
+    
+  } catch (error) {
+    console.error('PDF generation failed:', error);
+    res.status(500).json({ error: 'PDF generation failed', details: error.message });
+  }
+});
+
 export default router;
