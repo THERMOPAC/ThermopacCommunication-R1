@@ -180,6 +180,18 @@ export class LLMPromptEngine {
         console.log(`🔍 Executing data query for prompt ${prompt.name}...`);
         data = await this.preparePromptData(prompt.data_query, prompt.data_parameters || {});
         console.log(`📊 Data prepared:`, typeof data, data ? Object.keys(data).length : 'empty', JSON.stringify(data).substring(0, 200) + '...');
+        
+        // Extra debugging for prompt 18
+        if (promptId === 18) {
+          console.log('🔍 DEBUG: Prompt 18 data preparation details:');
+          console.log('  - Data type:', typeof data);
+          console.log('  - Data keys:', data ? Object.keys(data) : 'null');
+          console.log('  - Has users array:', !!(data && data.users));
+          console.log('  - User count:', data && data.users ? data.users.length : 0);
+          if (data && data.users && data.users.length > 0) {
+            console.log('  - First user sample:', JSON.stringify(data.users[0]).substring(0, 150) + '...');
+          }
+        }
       } else {
         console.log(`⚠️ No data query found for prompt ${prompt.name}`);
       }

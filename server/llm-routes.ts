@@ -238,7 +238,32 @@ router.post('/prompts/:id/execute', ensureAuthenticated, async (req: Request, re
     const { id } = req.params;
     console.log(`🚀 Manual execution requested for prompt ${id}`);
 
+    // Add detailed debug logging for prompt 18
+    if (parseInt(id) === 18) {
+      console.log('🔍 DEBUG: Executing prompt 18 - Task Intelligence');
+      
+      // Get the prompt first to check its details
+      const promptResult = await pool.query('SELECT * FROM llm_prompts_registry WHERE id = 18');
+      if (promptResult.rows.length > 0) {
+        const prompt = promptResult.rows[0];
+        console.log('🔍 DEBUG: Prompt details:');
+        console.log('  - Name:', prompt.name);
+        console.log('  - Category:', prompt.category);
+        console.log('  - Has data_query:', !!prompt.data_query);
+        console.log('  - Template has ${data} placeholder:', prompt.template.includes('${data}'));
+      }
+    }
+
     const execution = await llmEngine.executePrompt(parseInt(id), 'manual');
+    
+    // Add more debug info for prompt 18
+    if (parseInt(id) === 18) {
+      console.log('🔍 DEBUG: Execution completed for prompt 18');
+      console.log('  - Status:', execution.status);
+      console.log('  - Result preview:', execution.result ? execution.result.substring(0, 200) + '...' : 'null');
+      console.log('  - Result contains real names:', execution.result ? (execution.result.includes('Saurabh') || execution.result.includes('Pallab')) : false);
+    }
+    
     res.json({
       success: true,
       execution: {
@@ -257,12 +282,12 @@ router.post('/prompts/:id/execute', ensureAuthenticated, async (req: Request, re
   }
 });
 
-// Debug endpoint for prompt 18 data testing only
-router.post('/prompts/debug-18-data', ensureAuthenticated, async (req: Request, res: Response) => {
+// Complete debug endpoint for prompt 18 full execution pipeline
+router.post('/prompts/debug-18-complete', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    console.log('🔍 DEBUG: Testing data preparation for prompt 18');
+    console.log('🔍 DEBUG: Starting complete pipeline test for prompt 18');
     
-    // Get the prompt
+    // Step 1: Get the prompt
     const promptResult = await pool.query('SELECT * FROM llm_prompts_registry WHERE id = 18');
     if (promptResult.rows.length === 0) {
       return res.status(404).json({ error: 'Prompt not found' });
@@ -270,44 +295,58 @@ router.post('/prompts/debug-18-data', ensureAuthenticated, async (req: Request, 
     
     const prompt = promptResult.rows[0];
     console.log('🔍 DEBUG: Retrieved prompt:', prompt.name);
+    console.log('🔍 DEBUG: Prompt category:', prompt.category);
+    console.log('🔍 DEBUG: Prompt has data_query:', !!prompt.data_query);
     
-    // Test data preparation
+    // Step 2: Test data preparation
+    let preparedData = null;
     if (prompt.data_query) {
-      console.log('🔍 DEBUG: Found data query, executing...');
-      const data = await llmEngine.preparePromptData(prompt.data_query, prompt.data_parameters || {});
-      console.log('🔍 DEBUG: Data preparation result type:', typeof data);
-      console.log('🔍 DEBUG: Data keys:', data ? Object.keys(data) : 'null');
-      console.log('🔍 DEBUG: Data preview:', JSON.stringify(data).substring(0, 500) + '...');
-      
-      res.json({
-        debug: true,
-        success: true,
-        dataStatus: 'prepared',
-        dataType: typeof data,
-        dataKeys: data ? Object.keys(data) : null,
-        hasUsers: data && data.users ? data.users.length : 0,
-        firstUserExample: data && data.users ? data.users[0] : null,
-        prompt: {
-          id: prompt.id,
-          name: prompt.name,
-          hasDataQuery: !!prompt.data_query
-        }
-      });
-    } else {
-      console.log('🔍 DEBUG: No data query found');
-      res.json({
-        debug: true,
-        success: false,
-        dataStatus: 'no_query',
-        prompt: { id: prompt.id, name: prompt.name }
-      });
+      console.log('🔍 DEBUG: Executing data query...');
+      preparedData = await llmEngine.preparePromptData(prompt.data_query, prompt.data_parameters || {});
+      console.log('🔍 DEBUG: Data preparation result type:', typeof preparedData);
+      console.log('🔍 DEBUG: Data keys:', preparedData ? Object.keys(preparedData) : 'null');
+      console.log('🔍 DEBUG: Has users array:', !!(preparedData && preparedData.users));
+      console.log('🔍 DEBUG: User count:', preparedData && preparedData.users ? preparedData.users.length : 0);
     }
+    
+    // Step 3: Test template injection
+    console.log('🔍 DEBUG: Testing template injection...');
+    const testInjection = `Template has placeholder: ${prompt.template.includes('${data}')}`;
+    console.log('🔍 DEBUG:', testInjection);
+    
+    // Step 4: Test SecureLLMWrapper injection function directly
+    console.log('🔍 DEBUG: Testing SecureLLMWrapper injection function...');
+    const { SecureLLMWrapper } = require('./secure-llm-wrapper');
+    const injectedTemplate = SecureLLMWrapper.injectDataIntoTemplate(prompt.template, preparedData);
+    const stillHasPlaceholder = injectedTemplate.includes('${data}');
+    console.log('🔍 DEBUG: Template still has placeholder after injection:', stillHasPlaceholder);
+    console.log('🔍 DEBUG: Injected template preview:', injectedTemplate.substring(0, 500) + '...');
+    
+    res.json({
+      debug: true,
+      success: true,
+      steps: {
+        promptRetrieved: !!prompt,
+        dataQuery: !!prompt.data_query,
+        dataPrepared: !!preparedData,
+        hasUsers: !!(preparedData && preparedData.users),
+        userCount: preparedData && preparedData.users ? preparedData.users.length : 0,
+        templateHasPlaceholder: prompt.template.includes('${data}'),
+        injectionWorked: !stillHasPlaceholder,
+        finalTemplatePreview: injectedTemplate.substring(0, 200) + '...'
+      },
+      prompt: {
+        id: prompt.id,
+        name: prompt.name,
+        category: prompt.category
+      }
+    });
   } catch (error) {
-    console.error('🔍 DEBUG: Data preparation failed:', error);
+    console.error('🔍 DEBUG: Complete pipeline test failed:', error);
     res.status(500).json({ 
       debug: true,
       success: false, 
-      error: error.message || 'Data preparation test failed' 
+      error: error.message || 'Complete pipeline test failed' 
     });
   }
 });
