@@ -92,7 +92,7 @@ export class LLMPromptEngine {
         
         // Special handling for Task Management Intelligence prompt (ID 18)
         // Format the data for better LLM processing
-        if (result.rows.length > 0 && result.rows[0].section) {
+        if (result.rows.length > 0 && result.rows[0] && result.rows[0].section) {
           console.log('🎯 Processing sectioned data for Task Management Intelligence');
           const userDataRows = result.rows.filter(row => row.section === 'USER_DATA');
           const roleSummaryRows = result.rows.filter(row => row.section === 'ROLE_SUMMARY');
@@ -109,6 +109,7 @@ export class LLMPromptEngine {
           const validUsers = userDataRows.filter(user => 
             user.username && 
             user.username !== '' && 
+            user.username !== 'undefined' &&
             (user.total_tasks > 0 || user.tasks_delegated > 0)
           );
           
