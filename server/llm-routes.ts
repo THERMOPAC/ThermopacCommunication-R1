@@ -892,8 +892,8 @@ router.post('/download-pdf', ensureAuthenticated, async (req: Request, res: Resp
   try {
     const { title, content, generated_at, prompt_name, model_used } = req.body;
     
-    // Import PDF library
-    const PDFDocument = require('pdfkit');
+    // Import PDF library dynamically
+    const PDFDocument = (await import('pdfkit')).default;
     
     // Create new PDF document with white background
     const doc = new PDFDocument({
