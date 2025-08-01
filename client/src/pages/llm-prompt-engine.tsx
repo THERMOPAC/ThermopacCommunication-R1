@@ -784,6 +784,7 @@ export default function LLMPromptEnginePage() {
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="task_management">Task Management</SelectItem>
                         <SelectItem value="meetings">Meetings & Commitments</SelectItem>
                         <SelectItem value="sap_integration">SAP B1 Integration</SelectItem>
                         <SelectItem value="administration">Administration</SelectItem>
@@ -917,6 +918,7 @@ export default function LLMPromptEnginePage() {
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="task_management">Task Management</SelectItem>
                           <SelectItem value="meetings">Meetings & Commitments</SelectItem>
                           <SelectItem value="sap_integration">SAP B1 Integration</SelectItem>
                           <SelectItem value="administration">Administration</SelectItem>
