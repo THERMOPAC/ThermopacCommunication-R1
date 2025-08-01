@@ -88,11 +88,29 @@ export class LLMPromptEngine {
           const userDataRows = result.rows.filter(row => row.section === 'USER_DATA');
           const roleSummaryRows = result.rows.filter(row => row.section === 'ROLE_SUMMARY');
           
+          // Validate that we have real user data
+          if (userDataRows.length === 0) {
+            console.log('❌ No user performance data found in query results');
+            return "NO REAL DATA AVAILABLE - Query returned no user performance data";
+          }
+          
+          // Validate that users have meaningful data
+          const validUsers = userDataRows.filter(user => 
+            user.username && 
+            user.username !== '' && 
+            (user.total_tasks > 0 || user.tasks_delegated > 0)
+          );
+          
+          if (validUsers.length === 0) {
+            console.log('❌ No valid users with task data found');
+            return "NO VALID USER DATA - Users found but no task data available";
+          }
+          
           // Format as structured text for better LLM comprehension
           let formattedData = "=== THERMOPAC TASK PERFORMANCE DATA ===\n\n";
           
           formattedData += "USER PERFORMANCE DATA:\n";
-          userDataRows.forEach((user, index) => {
+          validUsers.forEach((user, index) => {
             formattedData += `${index + 1}. ${user.username} (${user.role})\n`;
             formattedData += `   - Name: ${user.first_name || ''} ${user.last_name || ''}\n`;
             formattedData += `   - Department: ${user.department || 'N/A'}\n`;
@@ -110,6 +128,7 @@ export class LLMPromptEngine {
             formattedData += `${role.role}: ${role.role_stat1} users, ${role.role_stat2} delegated, ${role.role_stat3} self-assigned, ${role.role_stat4} non-delegating\n`;
           });
           
+          console.log(`✅ Formatted data for ${validUsers.length} valid users`);
           return formattedData;
         }
         

@@ -1,0 +1,62 @@
+**THERMOPAC Task Performance Analysis**
+
+**TOP PERFORMERS:**
+- [List users with completion_rate = 100.0% from the USER PERFORMANCE DATA above]
+- [Then list users with completion_rate > 95% from the USER PERFORMANCE DATA above]
+
+**PERFORMANCE METRICS BY USER:**
+
+1. **[exact username] ([exact role])**
+   - Total Tasks Assigned: [exact total_tasks number]
+   - Completion Rate: [exact completion_rate]%
+   - Current Status: [exact pending_tasks] Pending, [exact overdue_tasks] Overdue
+   - Performance Assessment: [analysis based on actual numbers]
+
+[Continue for ALL users in the data]
+
+**Role-Based Task Assignment Analysis**
+- **General Manager:** 
+  - Total Users in Role: [exact number]
+  - Total Tasks Assigned by Role: [exact number]
+  - Total Self-Assigned by Role: [exact number]
+  - Users Never Assigned Tasks: [exact number]
+  - Non-Delegating Leaders: [exact number]
+
+- **Senior Manager:** 
+  - Total Users in Role: [exact number]
+  - Total Tasks Assigned by Role: [exact number]
+  - Total Self-Assigned by Role: [exact number]
+  - Users Never Assigned Tasks: [exact number]
+  - Non-Delegating Leaders: [exact number]
+
+- **Manager:** 
+  - Total Users in Role: [exact number]
+  - Total Tasks Assigned by Role: [exact number]
+  - Total Self-Assigned by Role: [exact number]
+  - Users Never Assigned Tasks: [exact number]
+  - Non-Delegating Leaders: [exact number]
+
+- **Employee:** 
+  - Total Users in Role: [exact number]
+  - Total Tasks Assigned by Role: [exact number]
+  - Total Self-Assigned by Role: [exact number]
+  - Users Never Assigned Tasks: [exact number]
+  - Non-Delegating Leaders: [exact number]
+
+**Non-Delegating Users**
+- **[exact username] ([exact role])** - [exact name], [exact department]
+  - Total Tasks Assigned (to others) = 0
+  - Self-assigned tasks: [exact self-assigned number]
+  - Recommended Action: [specific recommendation based on role]
+
+**INSIGHTS:**
+- [Analysis based on the actual data patterns from above]
+
+**SUMMARY:**
+- Total active users analyzed: [count from USER PERFORMANCE DATA]
+- Overall completion rate: [calculated from actual data]
+- Key highlights: [based on actual performance numbers]
+
+---
+
+Please note that the placeholders need to be filled with the exact data from the provided dataset. Since the actual data is not visible in the query, ensure to extract and use the exact figures from the dataset for the report.
