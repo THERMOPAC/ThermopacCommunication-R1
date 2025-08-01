@@ -267,8 +267,8 @@ export class LLMPromptEngine {
         if (promptId === 18 && Array.isArray(rawData)) {
           console.log('🎯 Formatting Task Management Intelligence data for LLM...');
           
-          const userDataRows = rawData.filter(row => row.section === 'USER_DATA');
-          const roleSummaryRows = rawData.filter(row => row.section === 'ROLE_SUMMARY');
+          const userDataRows = rawData.filter(row => row.data_type === 'USER_DATA');
+          const roleSummaryRows = rawData.filter(row => row.data_type === 'ROLE_SUMMARY');
           console.log(`📊 Found ${userDataRows.length} users and ${roleSummaryRows.length} role summaries`);
           
           if (userDataRows.length > 0) {
