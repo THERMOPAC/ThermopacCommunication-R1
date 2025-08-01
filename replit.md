@@ -5,13 +5,13 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 Preferred communication style: Simple, everyday language.
 
 # Recent Changes
-- **August 1, 2025: TASK MANAGEMENT INTELLIGENCE PROMPT FULLY RESTORED**: Fixed critical issue where Task Management Intelligence prompt (ID 18) reverted to generic template responses instead of detailed real-data reports.
-  ✅ Root cause identified: data_query field was NULL, preventing data retrieval
-  ✅ Restored comprehensive SQL query for real user task performance data  
-  ✅ Updated template to match excellent detailed format from previous working reports
-  ✅ Verified data pipeline returns real users (Saurabh: 226 tasks, Sagar: 222 tasks, etc.)
-  ✅ System now generates detailed performance reports with actual usernames and metrics
-  🎯 User confirmed previous excellent report format - system restored to that quality level
+- **August 1, 2025: TASK MANAGEMENT INTELLIGENCE ENHANCED WITH DELEGATION ANALYSIS**: Expanded Task Management Intelligence prompt (ID 18) with comprehensive delegation tracking and leadership effectiveness analysis.
+  ✅ Root cause identified and fixed: data_query field was NULL, preventing data retrieval
+  ✅ Enhanced SQL query with delegation analysis (tasks assigned to others vs self-assigned)
+  ✅ Added role-based delegation metrics and non-delegating leader identification
+  ✅ Updated template for detailed delegation insights and leadership effectiveness
+  ✅ Verified enhanced data pipeline captures delegation patterns (Rohan: 447 delegated, Sagar: 158 self-assigned)
+  🎯 User confirmed excellent report quality - system now includes advanced delegation analytics
 
 # System Architecture
 ## Core Architectural Decisions
