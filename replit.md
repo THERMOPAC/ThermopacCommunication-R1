@@ -4,6 +4,9 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 # User Preferences
 Preferred communication style: Simple, everyday language.
 
+# Recent Changes
+- **August 1, 2025: LLM PROMPT ENGINE DATA INJECTION FIXED**: Successfully resolved critical data pipeline issue in Task Management Intelligence prompt (ID 18). Fixed template placeholder format from `{{data}}` to `${data}`, corrected LLM Prompt Engine to pass raw templates to SecureLLMWrapper instead of pre-processing, and updated `preparePromptData` function to properly extract JSON data from `comprehensive_data` column. The system now properly injects real user performance data (Saurabh, Pallab, Vijaynathan, Prasad, etc.) into LLM prompts instead of returning empty placeholder templates. Task Management Intelligence reports now display actual task statistics, completion rates, and performance metrics for all 30+ THERMOPAC users.
+
 # System Architecture
 ## Core Architectural Decisions
 - Full-stack web application.

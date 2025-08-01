@@ -76,6 +76,13 @@ export class LLMPromptEngine {
       // If it's a SQL query
       if (dataQuery.trim().toLowerCase().startsWith('select')) {
         const result = await pool.query(dataQuery, Object.values(parameters));
+        
+        // If query returns a single row with a JSON column, extract the JSON value
+        if (result.rows.length === 1 && result.rows[0].comprehensive_data) {
+          return result.rows[0].comprehensive_data;
+        }
+        
+        // Otherwise return all rows
         return result.rows;
       }
       
@@ -173,14 +180,9 @@ export class LLMPromptEngine {
         data = await this.preparePromptData(prompt.data_query, prompt.data_parameters || {});
       }
 
-      // Inject data into template
-      let finalPrompt = prompt.template;
-      if (Object.keys(data).length > 0) {
-        // Simple template variable replacement - can be enhanced with a proper template engine
-        finalPrompt = finalPrompt.replace(/\{\{data\}\}/g, JSON.stringify(data, null, 2));
-        finalPrompt = finalPrompt.replace(/\{\{date\}\}/g, new Date().toISOString().split('T')[0]);
-        finalPrompt = finalPrompt.replace(/\{\{time\}\}/g, new Date().toLocaleTimeString());
-      }
+      // Prepare data for SecureLLMWrapper injection
+      // The SecureLLMWrapper will handle ${data} replacement, so we pass the original template
+      const finalPrompt = prompt.template;
 
       // Use model override if provided, otherwise use prompt configuration
       const modelToUse = modelOverride || prompt.model;
