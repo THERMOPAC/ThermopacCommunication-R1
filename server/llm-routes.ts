@@ -892,9 +892,13 @@ router.post('/download-pdf', ensureAuthenticated, async (req: Request, res: Resp
   try {
     const { title, content, generated_at, prompt_name, model_used } = req.body;
     
-    // Import PDF library dynamically
-    const pdfModule = await import('pdfkit');
-    const PDFDocument = pdfModule.default || pdfModule;
+    // Validate required fields
+    if (!title || !content) {
+      return res.status(400).json({ error: 'Missing required fields: title and content' });
+    }
+    
+    // Import PDF library
+    const PDFDocument = require('pdfkit');
     
     // Create new PDF document with white background
     const doc = new PDFDocument({
