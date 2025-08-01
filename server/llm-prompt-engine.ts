@@ -143,7 +143,8 @@ export class LLMPromptEngine {
           });
           
           console.log(`✅ Formatted data for ${validUsers.length} valid users`);
-          console.log('📝 Formatted data preview:', formattedData.substring(0, 300) + '...');
+          console.log('📝 Formatted data preview:', formattedData.substring(0, 500) + '...');
+          console.log('🔍 Full formatted data length:', formattedData.length);
           return formattedData;
         }
         
