@@ -888,23 +888,26 @@ router.post('/prompts/:promptId/test-execute', ensureAuthenticated, async (req: 
   }
 });
 
+// Simple test endpoint
+router.get('/test-route', ensureAuthenticated, async (req: Request, res: Response) => {
+  res.json({ message: 'LLM routes working', timestamp: new Date().toISOString() });
+});
+
 // PDF download endpoint for insights
 router.post('/download-pdf', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    console.log('PDF generation request received:', { 
-      hasTitle: !!req.body?.title, 
-      hasContent: !!req.body?.content,
-      contentLength: req.body?.content?.length || 0,
-      bodyKeys: Object.keys(req.body || {})
-    });
+    console.log('PDF generation request received');
+    console.log('Request body:', req.body);
     
     const { title, content, generated_at, prompt_name, model_used } = req.body;
     
     // Validate required fields
     if (!title || !content) {
-      console.log('PDF validation failed:', { title: !!title, content: !!content });
+      console.log('PDF validation failed:', { title, content });
       return res.status(400).json({ error: 'Missing required fields: title and content' });
     }
+    
+    console.log('PDF validation passed, generating PDF...');
     
     // Create PDF document using imported PDFDocument
     
@@ -999,15 +1002,10 @@ router.post('/download-pdf', ensureAuthenticated, async (req: Request, res: Resp
       }
     }
     
-    // Add footer
-    const pageCount = doc.bufferedPageRange().count;
-    for (let i = 0; i < pageCount; i++) {
-      doc.switchToPage(i);
-      doc.fontSize(8)
-         .fillColor('#666666')
-         .text(`Page ${i + 1} of ${pageCount}`, 50, 780, { width: 495, align: 'center' })
-         .text('THERMOPAC - Confidential', 50, 790, { width: 495, align: 'center' });
-    }
+    // Add footer to current page
+    doc.fontSize(8)
+       .fillColor('#666666')
+       .text('THERMOPAC - Confidential', 50, 790, { width: 495, align: 'center' });
     
     // Finalize the PDF
     doc.end();
