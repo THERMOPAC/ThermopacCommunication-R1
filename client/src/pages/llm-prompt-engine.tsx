@@ -662,10 +662,18 @@ export default function LLMPromptEnginePage() {
     try {
       setExecutingPrompts(prev => new Set(prev).add(promptId));
       
-      const response = await apiRequest(`/api/llm/prompts/${promptId}/test-execute`, {
+      const response = await fetch(`/api/llm/prompts/${promptId}/test-execute`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
         body: JSON.stringify({ testMode: true })
       });
+      
+      if (!response.ok) {
+        throw new Error('Test execution failed');
+      }
 
       toast({
         title: "Test Execution Completed",
@@ -1288,7 +1296,7 @@ export default function LLMPromptEnginePage() {
                                 </div>
                               </div>
                               
-                              {prompt.total_executions > 0 && (
+                              {prompt.total_executions && prompt.total_executions > 0 && (
                                 <div className="mt-3 text-xs text-gray-500 flex items-center justify-between">
                                   <span>{prompt.total_executions} execution{prompt.total_executions !== 1 ? 's' : ''}</span>
                                   {prompt.last_executed && (
@@ -1315,129 +1323,148 @@ export default function LLMPromptEnginePage() {
               <Loader2 className="w-6 h-6 animate-spin" />
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-              {promptsData?.prompts?.map((prompt: LLMPrompt) => (
-                <Card key={prompt.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <CardTitle className="text-base">{prompt.name}</CardTitle>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="text-xs">
-                            {prompt.category}
-                          </Badge>
-                          <Badge 
-                            variant="outline" 
-                            className={`text-xs ${getPriorityColor(prompt.priority)}`}
-                          >
-                            Priority {prompt.priority}
-                          </Badge>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
+                  All Prompts ({promptsData?.prompts?.length || 0})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="space-y-0">
+                  {promptsData?.prompts?.map((prompt: LLMPrompt, index: number) => (
+                    <div 
+                      key={prompt.id} 
+                      className={`flex items-center justify-between p-4 hover:bg-gray-50 transition-colors ${
+                        index !== promptsData.prompts.length - 1 ? 'border-b border-gray-100' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        {/* Prompt ID */}
+                        <div className="flex items-center justify-center w-10 h-10 bg-blue-100 text-blue-600 rounded-lg font-medium text-sm">
+                          #{prompt.id}
+                        </div>
+                        
+                        {/* Prompt Details */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-medium text-gray-900 truncate">{prompt.name}</h3>
+                            <Badge variant="secondary" className="text-xs">
+                              {prompt.category}
+                            </Badge>
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${getPriorityColor(prompt.priority)}`}
+                            >
+                              P{prompt.priority}
+                            </Badge>
+                            {prompt.avg_rating && (
+                              <div className="flex items-center text-sm text-yellow-600">
+                                <Star className="w-3 h-3 fill-current" />
+                                <span className="ml-1">{prompt.avg_rating.toFixed(1)}</span>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600 line-clamp-1 mb-1">
+                            {prompt.description}
+                          </p>
+                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <span>Model: {prompt.model}</span>
+                            <span>Frequency: {prompt.frequency}</span>
+                            {prompt.total_executions && prompt.total_executions > 0 ? (
+                              <span>{prompt.total_executions} executions</span>
+                            ) : null}
+                            {prompt.last_executed && (
+                              <span>Last: {new Date(prompt.last_executed).toLocaleDateString()}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        {prompt.avg_rating && (
-                          <div className="flex items-center text-sm text-yellow-600">
-                            <Star className="w-3 h-3 fill-current" />
-                            <span className="ml-1">{prompt.avg_rating.toFixed(1)}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="space-y-3">
-                    <p className="text-sm text-gray-600 line-clamp-2">
-                      {prompt.description}
-                    </p>
-                    
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>Model: {prompt.model}</span>
-                      <span>Frequency: {prompt.frequency}</span>
-                    </div>
-                    
-                    {prompt.total_executions && (
-                      <div className="text-xs text-gray-500">
-                        {prompt.total_executions} executions
-                        {prompt.last_executed && (
-                          <span className="ml-2">
-                            Last: {new Date(prompt.last_executed).toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center gap-2 pt-2">
-                      <Button
-                        size="sm"
-                        onClick={() => handleExecutePrompt(prompt.id)}
-                        disabled={executingPrompts.has(prompt.id)}
-                      >
-                        {executingPrompts.has(prompt.id) ? (
-                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                        ) : (
-                          <Play className="w-3 h-3 mr-1" />
-                        )}
-                        Execute
-                      </Button>
                       
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handleABTest(prompt.id)}
-                        disabled={testingPrompts.has(prompt.id)}
-                      >
-                        {testingPrompts.has(prompt.id) ? (
-                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                        ) : (
-                          <TestTube className="w-3 h-3 mr-1" />
-                        )}
-                        A/B Test
-                      </Button>
-                      
-                      {testMode && (
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          className="bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100"
-                          onClick={() => handleTestExecution(prompt.id)}
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 ml-4">
+                        <Button
+                          size="sm"
+                          onClick={() => handleExecutePrompt(prompt.id)}
                           disabled={executingPrompts.has(prompt.id)}
                         >
                           {executingPrompts.has(prompt.id) ? (
                             <Loader2 className="w-3 h-3 animate-spin mr-1" />
                           ) : (
-                            <TestTube className="w-3 h-3 mr-1" />
+                            <Play className="w-3 h-3 mr-1" />
                           )}
-                          Test Mode
+                          Execute
                         </Button>
-                      )}
-                      
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handleOptimizePrompt(prompt.id)}
-                        disabled={optimizingPrompts.has(prompt.id)}
-                      >
-                        {optimizingPrompts.has(prompt.id) ? (
-                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                        ) : (
-                          <Lightbulb className="w-3 h-3 mr-1 text-yellow-600" />
+                        
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleABTest(prompt.id)}
+                          disabled={testingPrompts.has(prompt.id)}
+                        >
+                          {testingPrompts.has(prompt.id) ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <TestTube className="w-3 h-3" />
+                          )}
+                        </Button>
+                        
+                        {testMode && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100"
+                            onClick={() => handleTestExecution(prompt.id)}
+                            disabled={executingPrompts.has(prompt.id)}
+                          >
+                            {executingPrompts.has(prompt.id) ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <TestTube className="w-3 h-3" />
+                            )}
+                          </Button>
                         )}
-                        Optimize
-                      </Button>
-                      
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handleEditPrompt(prompt)}
-                      >
-                        <Edit className="w-3 h-3 mr-1" />
-                        Edit
-                      </Button>
+                        
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleOptimizePrompt(prompt.id)}
+                          disabled={optimizingPrompts.has(prompt.id)}
+                        >
+                          {optimizingPrompts.has(prompt.id) ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Lightbulb className="w-3 h-3 text-yellow-600" />
+                          )}
+                        </Button>
+                        
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            setEditingPrompt(prompt);
+                            setEditFormData({
+                              name: prompt.name,
+                              category: prompt.category,
+                              description: prompt.description,
+                              template: prompt.template,
+                              model: prompt.model,
+                              frequency: prompt.frequency,
+                              priority: prompt.priority,
+                              temperature: prompt.temperature || 0.7,
+                              data_query: ''
+                            });
+                            setIsEditDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="w-3 h-3" />
+                        </Button>
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
 
