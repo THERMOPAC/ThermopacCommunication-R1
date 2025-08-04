@@ -1493,19 +1493,15 @@ export default function LLMPromptEnginePage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {(insight.prompt_name === 'Number of Users In Task Management System' || 
-                          insight.title.toLowerCase().includes('user performance') ||
-                          insight.title.toLowerCase().includes('task management')) && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => downloadPDF(insight)}
-                            className="h-8 px-3 flex items-center gap-1"
-                          >
-                            <Download className="w-3 h-3" />
-                            PDF
-                          </Button>
-                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => downloadPDF(insight)}
+                          className="h-8 px-3 flex items-center gap-1"
+                        >
+                          <Download className="w-3 h-3" />
+                          PDF
+                        </Button>
                         <span className="text-sm text-gray-500">
                           {new Date(insight.generated_at).toLocaleString()}
                         </span>
