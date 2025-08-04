@@ -321,29 +321,54 @@ export class SecureLLMWrapper {
     try {
       console.log(`🔄 Injecting data into template. Data type:`, typeof data, 'Data preview:', JSON.stringify(data).substring(0, 150) + '...');
       console.log(`📝 Template contains \${data}:`, template.includes('${data}'));
+      console.log(`📝 Template contains {{data}}:`, template.includes('{{data}}'));
       
       let processedTemplate = template;
 
-      // Replace data injection placeholder
+      // Replace data injection placeholder (both ${data} and {{data}} formats)
+      const dataString = typeof data === 'string' ? 
+        data : JSON.stringify(data, null, 2);
+        
       if (processedTemplate.includes('${data}')) {
-        const dataString = typeof data === 'string' ? 
-          data : JSON.stringify(data, null, 2);
         processedTemplate = processedTemplate.replace('${data}', dataString);
         console.log(`✅ Replaced \${data} with data string (length: ${dataString.length})`);
+      } else if (processedTemplate.includes('{{data}}')) {
+        processedTemplate = processedTemplate.replace('{{data}}', dataString);
+        console.log(`✅ Replaced {{data}} with data string (length: ${dataString.length})`);
       } else {
-        console.log(`⚠️ Template does not contain \${data} placeholder`);
+        console.log(`⚠️ Template does not contain \${data} or {{data}} placeholder`);
       }
 
-      // Replace other common placeholders
+      // Replace {{date}} placeholder with current date
+      if (processedTemplate.includes('{{date}}')) {
+        const currentDate = new Date().toISOString().split('T')[0];
+        processedTemplate = processedTemplate.replace('{{date}}', currentDate);
+        console.log(`✅ Replaced {{date}} with current date: ${currentDate}`);
+      }
+
+      // Replace other common placeholders (both formats)
       if (typeof data === 'object' && data !== null) {
         Object.keys(data).forEach(key => {
-          const placeholder = `\${${key}}`;
-          if (processedTemplate.includes(placeholder)) {
+          // Handle ${key} format
+          const dollarPlaceholder = `\${${key}}`;
+          if (processedTemplate.includes(dollarPlaceholder)) {
             const value = Array.isArray(data[key]) ? 
               JSON.stringify(data[key], null, 2) : 
               String(data[key]);
             processedTemplate = processedTemplate.replace(
               new RegExp(`\\$\\{${key}\\}`, 'g'), 
+              value
+            );
+          }
+          
+          // Handle {{key}} format
+          const braceePlaceholder = `{{${key}}}`;
+          if (processedTemplate.includes(braceePlaceholder)) {
+            const value = Array.isArray(data[key]) ? 
+              JSON.stringify(data[key], null, 2) : 
+              String(data[key]);
+            processedTemplate = processedTemplate.replace(
+              new RegExp(`\\{\\{${key}\\}\\}`, 'g'), 
               value
             );
           }
