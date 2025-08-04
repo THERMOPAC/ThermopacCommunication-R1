@@ -1,0 +1,344 @@
+## DETAILED OUTSTANDING INVOICES BREAKDOWN
+
+1. **Invoice INV-2021-003** - Bunorr Intergrated Energy Ltd
+   - Total Amount: USD 212,854
+   - Outstanding: USD 212,854
+   - Due Date: Sun Feb 28 2021
+   - Days Overdue: 1618
+   - Status: OVERDUE
+   - Paid Amount: USD 0
+
+2. **Invoice INV-2526-010** - Dukhan Petroleum Company (DUPCO)
+   - Total Amount: USD 120,222
+   - Outstanding: USD 120,222
+   - Due Date: Wed Jul 02 2025
+   - Days Overdue: 33
+   - Status: OVERDUE
+   - Paid Amount: USD 0
+
+3. **Invoice INV-2021-002** - FLUKAR SP. ZO.O.
+   - Total Amount: USD 23,736
+   - Outstanding: USD 23,736
+   - Due Date: Fri Nov 27 2020
+   - Days Overdue: 1711
+   - Status: OVERDUE
+   - Paid Amount: USD 0
+
+4. **Invoice INV-1718-001** - Agas Lubes
+   - Total Amount: USD 226,000
+   - Outstanding: USD 22,955
+   - Due Date: Sat Feb 10 2018
+   - Days Overdue: 2732
+   - Status: OVERDUE
+   - Paid Amount: USD 203,045
+
+5. **Invoice INV-2526-024** - M/s Guruashish Exim Pvt Ltd
+   - Total Amount: USD 15,637
+   - Outstanding: USD 15,637
+   - Due Date: Sun Jul 20 2025
+   - Days Overdue: 15
+   - Status: OVERDUE
+   - Paid Amount: USD 0
+
+6. **Invoice INV-2526-027** - Dukhan Petroleum Company (DUPCO)
+   - Total Amount: USD 15,580
+   - Outstanding: USD 15,580
+   - Due Date: Fri Jul 25 2025
+   - Days Overdue: 10
+   - Status: OVERDUE
+   - Paid Amount: USD 0
+
+7. **Invoice INV-2425-003** - AFRO INTERNATIONAL OIL IND. LLC
+   - Total Amount: USD 14,431
+   - Outstanding: USD 14,431
+   - Due Date: Sun Jun 29 2025
+   - Days Overdue: 36
+   - Status: OVERDUE
+   - Paid Amount: USD 0
+
+8. **Invoice INV-2425-004** - AVISTA OIL DEUTSCHLAND GMBH
+   - Total Amount: USD 350,250
+   - Outstanding: USD 13,250
+   - Due Date: Wed Nov 20 2024
+   - Days Overdue: 257
+   - Status: OVERDUE
+   - Paid Amount: USD 337,000
+
+9. **Invoice INV-2526-033** - Mineracao Curimbaba LTDA.CAMPO MEIO
+   - Total Amount: USD 9,213.75
+   - Outstanding: USD 9,213.75
+   - Due Date: Thu Aug 14 2025
+   - Days Overdue: 0
+   - Status: PENDING
+   - Paid Amount: USD 0
+
+10. **Invoice INV-2425-007** - BIOFACTOR SA
+    - Total Amount: USD 8,367
+    - Outstanding: USD 8,367
+    - Due Date: Sun Jun 29 2025
+    - Days Overdue: 36
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+11. **Invoice INV-2526-036** - YANBU UNITED COMPANY FOR TRADING AND INDUSTRY
+    - Total Amount: USD 8,200
+    - Outstanding: USD 8,200
+    - Due Date: Thu Aug 21 2025
+    - Days Overdue: 0
+    - Status: PENDING
+    - Paid Amount: USD 0
+
+12. **Invoice INV-2526-018** - FLUKAR SP. ZO.O.
+    - Total Amount: USD 7,614
+    - Outstanding: USD 7,614
+    - Due Date: Sun Jul 20 2025
+    - Days Overdue: 15
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+13. **Invoice INV-2324-002** - LUB Y REC DE MEXICO DE CV
+    - Total Amount: USD 6,347
+    - Outstanding: USD 6,347
+    - Due Date: Sun Jun 29 2025
+    - Days Overdue: 36
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+14. **Invoice INV-2526-019** - BIOFACTOR SA
+    - Total Amount: USD 5,750
+    - Outstanding: USD 5,750
+    - Due Date: Sun Jul 20 2025
+    - Days Overdue: 15
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+15. **Invoice INV-2122-001** - P.B. Inbud Bielsko sp. zoo. sp. k
+    - Total Amount: USD 5,000
+    - Outstanding: USD 5,000
+    - Due Date: Sun Jul 11 2021
+    - Days Overdue: 1485
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+16. **Invoice INV-2324-001** - Geo Green Shield W.L.L
+    - Total Amount: USD 4,277
+    - Outstanding: USD 4,277
+    - Due Date: Sun Jun 29 2025
+    - Days Overdue: 36
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+17. **Invoice INV-2526-032** - LUB Y REC DE MEXICO DE CV
+    - Total Amount: USD 3,338
+    - Outstanding: USD 3,338
+    - Due Date: Thu Aug 14 2025
+    - Days Overdue: 0
+    - Status: PENDING
+    - Paid Amount: USD 0
+
+18. **Invoice INV-2526-011** - Dukhan Petroleum Company (DUPCO)
+    - Total Amount: USD 2,553
+    - Outstanding: USD 2,553
+    - Due Date: Wed Jul 02 2025
+    - Days Overdue: 33
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+19. **Invoice INV-2223-004** - Geo Green Shield W.L.L
+    - Total Amount: USD 2,176
+    - Outstanding: USD 2,176
+    - Due Date: Sun Jun 29 2025
+    - Days Overdue: 36
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+20. **Invoice INV-2425-005** - Bunorr Intergrated Energy Ltd
+    - Total Amount: USD 2,068
+    - Outstanding: USD 2,068
+    - Due Date: Sun Jun 29 2025
+    - Days Overdue: 36
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+21. **Invoice INV-2223-001** - Cyclo Oil LLC
+    - Total Amount: USD 2,005
+    - Outstanding: USD 2,005
+    - Due Date: Sat Jun 25 2022
+    - Days Overdue: 1136
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+22. **Invoice INV-1920-001** - Biobase S. A.
+    - Total Amount: USD 1,636
+    - Outstanding: USD 1,636
+    - Due Date: Wed Jul 03 2019
+    - Days Overdue: 2224
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+23. **Invoice INV-2021-001** - FLUKAR SP. ZO.O.
+    - Total Amount: USD 1,620
+    - Outstanding: USD 1,620
+    - Due Date: Fri Nov 27 2020
+    - Days Overdue: 1711
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+24. **Invoice INV-2425-002** - LUB Y REC DE MEXICO DE CV
+    - Total Amount: USD 1,544
+    - Outstanding: USD 1,544
+    - Due Date: Sun Jun 29 2025
+    - Days Overdue: 36
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+25. **Invoice INV-2526-031** - Wehllan Refining Limited
+    - Total Amount: USD 1,164
+    - Outstanding: USD 1,164
+    - Due Date: Thu Aug 14 2025
+    - Days Overdue: 0
+    - Status: PENDING
+    - Paid Amount: USD 0
+
+26. **Invoice INV-2223-003** - Geo Green Shield W.L.L
+    - Total Amount: USD 1,034.5
+    - Outstanding: USD 1,034.5
+    - Due Date: Sat Dec 03 2022
+    - Days Overdue: 975
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+27. **Invoice INV-2425-001** - Afromaster Trading Intl. FZE
+    - Total Amount: USD 890
+    - Outstanding: USD 890
+    - Due Date: Sun Jun 29 2025
+    - Days Overdue: 36
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+28. **Invoice INV-2223-005** - Afro Oil Manufacturing PLC
+    - Total Amount: USD 655
+    - Outstanding: USD 655
+    - Due Date: Sun Jun 29 2025
+    - Days Overdue: 36
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+29. **Invoice INV-2122-003** - Cyclo Oil LLC
+    - Total Amount: USD 574
+    - Outstanding: USD 574
+    - Due Date: Thu Apr 14 2022
+    - Days Overdue: 1208
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+30. **Invoice INV-2223-002** - Cyclo Oil LLC
+    - Total Amount: USD 545
+    - Outstanding: USD 545
+    - Due Date: Sat Jan 14 2023
+    - Days Overdue: 933
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+31. **Invoice INV-2526-028** - Dukhan Petroleum Company (DUPCO)
+    - Total Amount: USD 510
+    - Outstanding: USD 510
+    - Due Date: Fri Jul 25 2025
+    - Days Overdue: 10
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+32. **Invoice INV-2122-002** - P.B. Inbud Bielsko sp. zoo. sp. k
+    - Total Amount: USD 500
+    - Outstanding: USD 500
+    - Due Date: Wed Aug 04 2021
+    - Days Overdue: 1461
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+33. **Invoice INV-1819-001** - Afroking Lubricants & Grease Plant
+    - Total Amount: USD 309
+    - Outstanding: USD 309
+    - Due Date: Sat Jan 05 2019
+    - Days Overdue: 2403
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+34. **Invoice INV-2425-006** - BIOFACTOR SA
+    - Total Amount: USD 306
+    - Outstanding: USD 306
+    - Due Date: Sun Jun 29 2025
+    - Days Overdue: 36
+    - Status: OVERDUE
+    - Paid Amount: USD 0
+
+35. **Invoice INV-2526-029** - YANBU UNITED COMPANY FOR TRADING AND INDUSTRY
+    - Total Amount: USD 123,750
+    - Outstanding: USD 127
+    - Due Date: Sat Aug 02 2025
+    - Days Overdue: 2
+    - Status: OVERDUE
+    - Paid Amount: USD 123,623
+
+## HIGH-RISK OVERDUE ACCOUNTS REQUIRING IMMEDIATE ATTENTION
+
+1. **Bunorr Intergrated Energy Ltd**
+   - Invoice: INV-2021-003
+   - Outstanding Amount: USD 212,854
+   - Days Overdue: 1618
+   - Risk Factors: Large outstanding amount, long overdue period, zero payment history.
+
+2. **Dukhan Petroleum Company (DUPCO)**
+   - Invoices: INV-2526-010, INV-2526-027, INV-2526-011, INV-2526-028
+   - Total Outstanding Amount: USD 138,865
+   - Days Overdue: Up to 33
+   - Risk Factors: Multiple overdue invoices, zero payment history on overdue accounts.
+
+3. **FLUKAR SP. ZO.O.**
+   - Invoices: INV-2021-002, INV-2526-018, INV-2021-001
+   - Total Outstanding Amount: USD 32,970
+   - Days Overdue: Up to 1711
+   - Risk Factors: Multiple overdue invoices, zero payment history.
+
+4. **Agas Lubes**
+   - Invoice: INV-1718-001
+   - Outstanding Amount: USD 22,955
+   - Days Overdue: 2732
+   - Risk Factors: Long overdue period, partial payment history.
+
+5. **AVISTA OIL DEUTSCHLAND GMBH**
+   - Invoice: INV-2425-004
+   - Outstanding Amount: USD 13,250
+   - Days Overdue: 257
+   - Risk Factors: Large initial amount, partial payment history.
+
+## PAYMENT COLLECTION TRENDS AND CUSTOMER PAYMENT BEHAVIOR ANALYSIS
+
+- **Average Payment Delays**: Customers like Bunorr Intergrated Energy Ltd and FLUKAR SP. ZO.O. exhibit significant delays, with invoices overdue by more than 1600 days.
+- **Consistent Payment Behavior**: AVISTA OIL DEUTSCHLAND GMBH shows partial payment behavior, indicating some willingness to pay.
+- **Seasonal Patterns**: No clear seasonal patterns are evident from the data provided.
+- **Partial vs. Full Payments**: Customers like Agas Lubes and AVISTA OIL DEUTSCHLAND GMBH have made partial payments, while others have made none.
+- **Recovery Rates**: Recovery rates are low for long-overdue accounts, indicating a need for improved collection strategies.
+
+## SPECIFIC RECOMMENDATIONS FOR IMPROVING CASH FLOW
+
+1. **Priority Collection Targets**: Focus on high-value accounts like Bunorr Intergrated Energy Ltd and Dukhan Petroleum Company (DUPCO) for immediate collection efforts.
+2. **Credit Policy Changes**: Implement stricter credit terms for high-risk accounts with large outstanding amounts and long overdue periods.
+3. **Payment Terms Adjustments**: Offer incentives for early payments to reliable customers and enforce stricter terms for unreliable ones.
+4. **Collection Strategy Improvements**: Increase follow-up frequency and consider legal actions for long-overdue accounts.
+5. **Customer Relationship Management**: Engage with customers who have partial payment histories to understand payment barriers and negotiate payment plans.
+
+## SUMMARY STATISTICS
+
+- **Total Outstanding Amount**: USD 516,988.25
+- **Number of Overdue Invoices**: 31
+- **Number of Pending Invoices**: 4
+- **Average Days Overdue**: Approximately 650 days
+- **Top 5 Customers by Outstanding Amount**:
+  1. Bunorr Intergrated Energy Ltd - USD 212,854
+  2. Dukhan Petroleum Company (DUPCO) - USD 138,865
+  3. FLUKAR SP. ZO.O. - USD 32,970
+  4. Agas Lubes - USD 22,955
+  5. AVISTA OIL DEUTSCHLAND GMBH - USD 13,250
+
+Analysis Date: 2025-08-04

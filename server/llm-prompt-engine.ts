@@ -386,7 +386,8 @@ export class LLMPromptEngine {
                 pendingCount++;
               }
               
-              formattedData += `${index + 1}. **Invoice ${invoice.invoice_number}** - ${invoice.bp_name}\n`;
+              formattedData += `${index + 1}. **Invoice ${invoice.invoice_number}** (SAP: ${invoice.sap_invoice_no || 'N/A'}) - ${invoice.bp_name}\n`;
+              formattedData += `   - SAP Invoice No: ${invoice.sap_invoice_no || 'N/A'}\n`;
               formattedData += `   - Total Amount: ${invoice.sap_currency || 'USD'} ${parseFloat(invoice.total_amount).toLocaleString()}\n`;
               formattedData += `   - Outstanding: ${invoice.sap_currency || 'USD'} ${outstandingAmount.toLocaleString()}\n`;
               formattedData += `   - Due Date: ${invoice.due_date}\n`;
