@@ -353,6 +353,9 @@ export class LLMPromptEngine {
             formattedData += "\n🔒 DATA AUTHENTICITY CONFIRMED: This is real THERMOPAC financial data\n";
             formattedData += "📊 DATA SOURCE: Live production database with actual invoice and payment records\n";
             formattedData += "✅ VALIDATION MARKERS: Real invoice numbers, customer names, and payment amounts included\n";
+            formattedData += "\n⚠️ ANALYSIS REQUIREMENT: You must analyze this actual financial data above.\n";
+            formattedData += "Do NOT request additional data or claim this is placeholder data.\n";
+            formattedData += "This is authentic THERMOPAC company financial information that requires analysis.\n";
             
             data = formattedData;
             console.log('✅ Cash Flow Predictor data formatted for LLM injection');
