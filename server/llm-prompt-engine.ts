@@ -328,6 +328,7 @@ export class LLMPromptEngine {
             
             rawData.forEach((invoice, index) => {
               const outstandingAmount = parseFloat(invoice.outstanding_amount) || 0;
+              const daysOverdue = invoice.days_overdue || 0;
               totalOutstanding += outstandingAmount;
               
               if (invoice.payment_status === 'overdue') {
@@ -340,6 +341,7 @@ export class LLMPromptEngine {
               formattedData += `   - Total Amount: ${invoice.sap_currency || 'USD'} ${parseFloat(invoice.total_amount).toLocaleString()}\n`;
               formattedData += `   - Outstanding: ${invoice.sap_currency || 'USD'} ${outstandingAmount.toLocaleString()}\n`;
               formattedData += `   - Due Date: ${invoice.due_date}\n`;
+              formattedData += `   - Days Overdue: ${daysOverdue}\n`;
               formattedData += `   - Status: ${invoice.payment_status.toUpperCase()}\n`;
               formattedData += `   - Paid Amount: ${invoice.sap_currency || 'USD'} ${parseFloat(invoice.paid_amount || 0).toLocaleString()}\n\n`;
             });
@@ -387,8 +389,15 @@ export class LLMPromptEngine {
       console.log('  - data preview:', typeof data === 'string' ? data.substring(0, 150) + '...' : JSON.stringify(data));
       
       // Use secure wrapper for LLM call with comprehensive logging and security
-      // Special handling for Prompt 19 - Task Management User Performance (increase max tokens)
-      const maxTokens = promptId === 19 ? 8000 : undefined; // Ensure all 27 users are included
+      // Special handling for prompts requiring comprehensive reports
+      let maxTokens;
+      if (promptId === 19) {
+        maxTokens = 8000; // Task Management User Performance - ensure all 27 users are included
+      } else if (promptId === 3) {
+        maxTokens = 6000; // Cash Flow Predictor - ensure detailed invoice breakdown and all analytical sections
+      } else {
+        maxTokens = undefined; // Use default
+      }
       
       // Special handling for Cash Flow Predictor - disable masking to allow real financial data analysis
       const maskingOverride = promptId === 3; // Cash Flow Predictor needs real data
