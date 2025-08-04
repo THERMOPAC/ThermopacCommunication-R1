@@ -5,15 +5,16 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 Preferred communication style: Simple, everyday language.
 
 # Recent Changes
-- **August 4, 2025: BRC MANAGEMENT INSIGHT GENERATOR CRITICAL ISSUES RESOLVED**: Successfully eliminated "Table and details missing" responses and deployed fully functional BRC analytics with authentic data integration.
+- **August 4, 2025: BRC MANAGEMENT INSIGHT GENERATOR FULLY OPERATIONAL WITH COMPLETE DELAYED INVOICES DATA**: Successfully eliminated "Table and details missing" responses and deployed fully functional BRC analytics with comprehensive authentic data integration including complete delayed invoices tracking.
   ✅ **Root Cause Fixed**: Replaced complex UNION queries with simplified structured format ensuring reliable data transmission to LLM
   ✅ **Data Integration Perfected**: BRC overview (56 records, $10.89M total, 3 banks), delayed invoices (Agas Lubes 2732 days, Afroking 2403 days, Biobase 2224 days), bank performance metrics
   ✅ **Query Optimization Complete**: Streamlined query structure with section-based formatting (BRC_OVERVIEW, DELAYED_INVOICES, BANK_PERFORMANCE) for reliable LLM parsing
   ✅ **Template Enhancement**: Updated prompt template with explicit instructions to use authentic provided data and eliminate generic placeholder responses
   ✅ **Performance Verified**: Individual query components tested and confirmed working with real financial data
   ✅ **Bank Analysis Operational**: Bank of Baroda leading with 47 BRCs ($8.3M), complete bank performance comparison available
+  ✅ **Delayed Invoices Integration**: Added authentic overdue invoice tracking with customer names (bp_name), amounts, days overdue, and status from invoices/customers tables
   ✅ **Quarterly Metrics Active**: Current quarter 8 BRCs vs previous quarter 12 BRCs with detailed amount analysis
-  🎯 **System Status**: BRC Management Insight Generator fully operational with authentic data-driven reports, no more template responses
+  🎯 **System Status**: BRC Management Insight Generator fully operational with authentic data-driven reports including comprehensive delayed invoices analysis, no more template responses
 - **August 4, 2025: CASH FLOW PREDICTOR COMPREHENSIVE ENHANCEMENT COMPLETED**: Successfully enhanced Cash Flow Predictor (Prompt ID 3) to generate complete analytical insights with detailed invoice breakdowns.
   ✅ **Comprehensive Template Update**: Enhanced prompt template to require all 5 mandatory sections (Invoice Breakdown, High-Risk Accounts, Payment Trends, Recommendations, Summary Statistics)
   ✅ **Unpaid Invoices Focus**: Updated data query to show only unpaid invoices with outstanding amounts > 0, including days overdue calculation
