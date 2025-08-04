@@ -5,14 +5,15 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 Preferred communication style: Simple, everyday language.
 
 # Recent Changes
-- **August 4, 2025: BRC MANAGEMENT INSIGHT GENERATOR FULLY OPERATIONAL**: Successfully deployed and fixed LLM Prompt (ID 20) for comprehensive Bank Realization Certificate analytics under Finance category.
-  ✅ **BRC Intelligence Module**: Created specialized prompt for export transaction compliance and BRC processing insights
-  ✅ **SQL Query Issues Resolved**: Fixed multiple column reference errors and data type compatibility issues in UNION queries
-  ✅ **Robust Query Structure**: Implemented simplified query design focusing on core BRC metrics with consistent column alignment
-  ✅ **Real Data Integration**: Connected to 56 BRC records ($10.89M total realized), 97 invoices (84 requiring BRC), and 3 banks
-  ✅ **Multi-dimensional Reporting**: Bank-wise performance, currency distribution (USD/INR), recent activity patterns (30/90-day trends)
-  ✅ **Production Ready**: Query executes successfully with authentic financial data, providing comprehensive export compliance analytics
-  🎯 **System Status**: BRC Management Insight Generator fully operational and ready for comprehensive export compliance intelligence
+- **August 4, 2025: BRC MANAGEMENT INSIGHT GENERATOR ENHANCED WITH ADVANCED ANALYTICS**: Successfully enhanced LLM Prompt (ID 20) with comprehensive export compliance analytics including delayed invoice tracking and quarterly performance comparisons.
+  ✅ **Enhanced Query Structure**: Added top 10 most delayed invoices with customer names, days overdue, and bank processing status
+  ✅ **Quarterly Comparative Analysis**: Implemented current vs previous quarter BRC processing volume and performance metrics
+  ✅ **Advanced Performance Benchmarks**: Added bank-specific processing time analysis, efficiency ratings, and 30-day compliance targets
+  ✅ **Comprehensive Template Update**: Enhanced prompt template with 6 mandatory sections including risk assessment and actionable recommendations
+  ✅ **Token Allocation Optimized**: Increased to 7000 max tokens for complete report generation with all analytical sections
+  ✅ **Real Data Integration**: Connected to authentic delayed invoices (Agas Lubes 2732 days overdue, Afroking Lubricants 2403 days, etc.)
+  ✅ **Multi-dimensional Intelligence**: BRC overview, delayed tracking, quarterly trends, bank benchmarks, compliance risks, and optimization recommendations
+  🎯 **System Status**: BRC Management Insight Generator fully enhanced with executive-grade analytics for comprehensive export compliance management
 - **August 4, 2025: CASH FLOW PREDICTOR COMPREHENSIVE ENHANCEMENT COMPLETED**: Successfully enhanced Cash Flow Predictor (Prompt ID 3) to generate complete analytical insights with detailed invoice breakdowns.
   ✅ **Comprehensive Template Update**: Enhanced prompt template to require all 5 mandatory sections (Invoice Breakdown, High-Risk Accounts, Payment Trends, Recommendations, Summary Statistics)
   ✅ **Unpaid Invoices Focus**: Updated data query to show only unpaid invoices with outstanding amounts > 0, including days overdue calculation

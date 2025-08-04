@@ -395,6 +395,8 @@ export class LLMPromptEngine {
         maxTokens = 8000; // Task Management User Performance - ensure all 27 users are included
       } else if (promptId === 3) {
         maxTokens = 6000; // Cash Flow Predictor - ensure detailed invoice breakdown and all analytical sections
+      } else if (promptId === 20) {
+        maxTokens = 7000; // BRC Management Insight Generator - comprehensive export compliance analytics with delayed invoices and quarterly comparisons
       } else {
         maxTokens = undefined; // Use default
       }
