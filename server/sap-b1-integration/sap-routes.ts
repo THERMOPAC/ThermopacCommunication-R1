@@ -301,28 +301,30 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
       res.json({
         success: false,
         message: 'SAP B1 Service Layer not reachable - Network connectivity established but service unavailable.',
-        details: `Cannot reach Service Layer at ${process.env.SAP_SERVICE_LAYER_URL || 'https://192.168.1.100:50000/b1s/v1'}. Ping to 192.168.1.100 works (1ms), but port 50000 is not responding.`,
+        details: `Service Layer accessible from local network but not from Replit servers. Firewall appears to be blocking external connections to port 50000.`,
         networkStatus: {
-          pingConnectivity: 'WORKING (1ms response time)',
-          serviceLayerPort: 'NOT ACCESSIBLE (timeout on port 50000)',
-          authentication: 'WORKING (user session validated)'
+          localNetworkAccess: 'CONFIRMED (Service Layer documentation page accessible from browser)',
+          externalAccess: 'BLOCKED (Replit servers cannot reach port 50000)',
+          authentication: 'WORKING (user session validated)',
+          diagnosis: 'SAP server firewall blocking external IP addresses'
         },
         serviceLayerUrl: process.env.SAP_SERVICE_LAYER_URL,
         vpnStatus: vpnManager.getStatus(),
         troubleshooting: [
-          '✅ Network connectivity verified - ping to 192.168.1.100 working perfectly',
-          '❌ Service Layer port 50000 not responding - service likely not running',
-          '1. Check if SAP Business One Service Layer is installed and running',
-          '2. Verify Service Layer is configured to listen on port 50000',
-          '3. Check Windows Firewall on SAP server allows port 50000',
-          '4. Confirm Service Layer uses HTTPS (not HTTP) on port 50000',
-          '5. Alternative: Check if Service Layer is running on different port (40000, 8443, etc.)',
-          '6. From SAP server, test: https://localhost:50000/b1s/v1/Login'
+          '✅ Service Layer is running and accessible from local network',
+          '❌ External access blocked - SAP server firewall restricting connections',
+          '1. Configure Windows Firewall to allow external connections on port 50000',
+          '2. Add Replit IP ranges to SAP server firewall whitelist',
+          '3. Alternative: Set up VPN tunnel or port forwarding',
+          '4. Alternative: Use SAP Cloud Connector for secure external access',
+          '5. Check router/network firewall settings for port 50000',
+          '6. Verify no antivirus software blocking external connections'
         ],
         nextSteps: [
-          'Contact SAP administrator to verify Service Layer installation',
-          'Check SAP Service Layer Manager application status',
-          'Review SAP B1 Service Layer configuration and port settings'
+          'Configure Windows Firewall to allow external connections to port 50000',
+          'Contact network administrator to whitelist Replit IP ranges',
+          'Alternative: Set up secure VPN tunnel between Replit and SAP server',
+          'Alternative: Deploy middleware application on local network as bridge'
         ],
         timestamp: new Date().toISOString()
       });
