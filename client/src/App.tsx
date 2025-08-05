@@ -342,6 +342,7 @@ function Router() {
       {/* SAP B1 Integration Routes */}
       <ProtectedRoute path="/sap-integration" component={() => <Layout><SapIntegrationPage /></Layout>} />
       <ProtectedRoute path="/sap-b1/purchase" component={() => <Layout><PurchaseModule /></Layout>} />
+      <ProtectedRoute path="/admin/sap-purchase" component={() => <Layout><PurchaseModule /></Layout>} />
       
       <SuperuserRoute path="/gcs-diagnostic" component={GcsDiagnosticPage} />
       <SuperuserRoute path="/gcs-test" component={GcsTestPage} />
