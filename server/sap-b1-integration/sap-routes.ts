@@ -222,8 +222,8 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
   console.log('SAP Service Layer connection test endpoint hit by user:', req.user?.username);
   try {
     const serviceLayerUrl = process.env.SAP_SERVICE_LAYER_URL || 'https://DESKTOP-NH04TP:50000/b1s/v1';
-    const sapUsername = process.env.SAP_B1_USERNAME;
-    const sapPassword = process.env.SAP_B1_PASSWORD;
+    const sapUsername = process.env.SAP_USERNAME;
+    const sapPassword = process.env.SAP_PASSWORD;
     const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     if (!sapUsername || !sapPassword || !sapCompanyDb) {
