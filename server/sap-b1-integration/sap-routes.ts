@@ -15,7 +15,7 @@ router.use('/purchase', purchaseRoutes);
  */
 
 /**
- * SSL Bypass Test - Quick Service Layer connection test with SSL bypass
+ * SSL Bypass Test - Direct HTTPS connection with SSL bypass using fetch only
  */
 router.get('/connection/ssl-bypass-test', (req, res, next) => {
   res.setHeader('Content-Type', 'application/json');
@@ -24,105 +24,147 @@ router.get('/connection/ssl-bypass-test', (req, res, next) => {
 }, async (req, res) => {
   try {
     const serviceLayerUrl = 'https://192.168.1.100:50000/b1s/v1/';
-    const httpServiceUrl = 'http://192.168.1.100:50000/b1s/v1/';
     const sapUsername = process.env.SAP_USERNAME;
     const sapPassword = process.env.SAP_PASSWORD;
     const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
-    console.log('🧪 SSL BYPASS TEST - Testing both HTTPS and HTTP connections');
+    console.log('🧪 DIRECT SSL BYPASS TEST - Service Layer confirmed accessible');
+    console.log('🔑 Testing credentials:', { username: sapUsername, database: sapCompanyDb, passwordLength: sapPassword?.length });
     
-    // Set SSL bypass globally
+    // Set global SSL bypass 
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
+    console.log('🔓 SSL certificate verification disabled globally');
     
     const testResults = {
-      https: null,
-      http: null,
-      timestamp: new Date().toISOString()
+      directHttps: null,
+      timestamp: new Date().toISOString(),
+      serviceLayerUrl: serviceLayerUrl
     };
 
-    // Test HTTPS with SSL bypass (shorter timeout for quick test)
+    // Test direct HTTPS connection
     try {
-      console.log('🔐 Testing HTTPS with SSL bypass...');
-      const httpsResponse = await fetch(`${serviceLayerUrl}/Login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          CompanyDB: sapCompanyDb,
-          UserName: sapUsername,
-          Password: sapPassword
-        }),
-        signal: AbortSignal.timeout(5000)
-      });
+      console.log('🔐 Testing direct HTTPS connection to Service Layer...');
+      console.log('🎯 Target URL:', `${serviceLayerUrl}Login`);
       
-      testResults.https = {
-        status: httpsResponse.status,
-        success: httpsResponse.ok,
-        statusText: httpsResponse.statusText
+      const loginPayload = {
+        CompanyDB: sapCompanyDb,
+        UserName: sapUsername,
+        Password: sapPassword
       };
       
-      if (httpsResponse.ok) {
-        const data = await httpsResponse.json();
-        testResults.https.sessionId = data.SessionId;
-        console.log('✅ HTTPS SSL bypass successful!');
+      console.log('📤 Login payload:', { CompanyDB: loginPayload.CompanyDB, UserName: loginPayload.UserName, PasswordLength: loginPayload.Password?.length });
+      
+      const response = await fetch(`${serviceLayerUrl}Login`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'THERMOPAC-ERP/1.0'
+        },
+        body: JSON.stringify(loginPayload),
+        signal: AbortSignal.timeout(15000) // Extended timeout since service confirmed running
+      });
+      
+      console.log('📊 Response received - Status:', response.status, response.statusText);
+      console.log('📊 Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      testResults.directHttps = {
+        status: response.status,
+        success: response.ok,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      };
+      
+      if (response.ok) {
+        try {
+          const data = await response.json();
+          testResults.directHttps.sessionId = data.SessionId;
+          testResults.directHttps.version = data.Version;
+          testResults.directHttps.routeId = data.RouteId;
+          console.log('✅ LOGIN SUCCESSFUL! Session ID:', data.SessionId);
+          console.log('📋 Service Layer Version:', data.Version);
+          
+          // Test simple API call to verify connection
+          console.log('🧪 Testing API call with session...');
+          const testApiResponse = await fetch(`${serviceLayerUrl}$metadata`, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Cookie': `B1SESSION=${data.SessionId}; ROUTEID=${data.RouteId || '.node1'}`
+            },
+            signal: AbortSignal.timeout(10000)
+          });
+          
+          testResults.directHttps.apiTest = {
+            status: testApiResponse.status,
+            success: testApiResponse.ok,
+            url: `${serviceLayerUrl}$metadata`
+          };
+          
+          if (testApiResponse.ok) {
+            console.log('✅ API test successful - Service Layer fully operational!');
+            testResults.directHttps.fullConnection = true;
+          } else {
+            console.log('⚠️ API test failed but login successful');
+          }
+          
+        } catch (jsonError) {
+          console.log('⚠️ Response received but JSON parsing failed:', jsonError.message);
+          testResults.directHttps.jsonError = jsonError.message;
+          
+          // Try to get response as text
+          try {
+            const responseText = await response.text();
+            testResults.directHttps.responseText = responseText.substring(0, 500);
+            console.log('📄 Response text preview:', responseText.substring(0, 200));
+          } catch (textError) {
+            console.log('❌ Could not read response as text');
+          }
+        }
+      } else {
+        // Try to get error response body
+        try {
+          const errorText = await response.text();
+          testResults.directHttps.errorBody = errorText;
+          console.log('❌ Login failed with response:', errorText.substring(0, 200));
+        } catch (e) {
+          console.log('❌ Login failed, no response body available');
+        }
       }
+      
     } catch (httpsError) {
-      testResults.https = {
+      testResults.directHttps = {
         error: httpsError.message,
-        success: false
+        success: false,
+        errorType: httpsError.constructor.name,
+        errorStack: httpsError.stack?.substring(0, 500)
       };
-      console.log('❌ HTTPS failed:', httpsError.message);
-    }
-
-    // Test HTTP fallback (shorter timeout)
-    try {
-      console.log('🔄 Testing HTTP fallback...');
-      const httpResponse = await fetch(`${httpServiceUrl}/Login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          CompanyDB: sapCompanyDb,
-          UserName: sapUsername,
-          Password: sapPassword
-        }),
-        signal: AbortSignal.timeout(5000)
-      });
-      
-      testResults.http = {
-        status: httpResponse.status,
-        success: httpResponse.ok,
-        statusText: httpResponse.statusText
-      };
-      
-      if (httpResponse.ok) {
-        const data = await httpResponse.json();
-        testResults.http.sessionId = data.SessionId;
-        console.log('✅ HTTP connection successful!');
-      }
-    } catch (httpError) {
-      testResults.http = {
-        error: httpError.message,
-        success: false
-      };
-      console.log('❌ HTTP failed:', httpError.message);
+      console.log('❌ HTTPS connection failed:', httpsError.message);
+      console.log('🔍 Error type:', httpsError.constructor.name);
     }
 
     return res.json({
       success: true,
-      message: 'SSL bypass test completed',
+      message: 'Direct SSL bypass test completed',
+      serviceLayerConfirmed: 'Service Layer confirmed accessible on https://192.168.1.100:50000',
+      sslBypassEnabled: process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0",
       results: testResults,
       analysis: {
-        httpsWorking: testResults.https?.success || false,
-        httpWorking: testResults.http?.success || false,
-        recommendation: testResults.https?.success ? 'Use HTTPS with SSL bypass' :
-                      testResults.http?.success ? 'Use HTTP fallback' :
-                      'Both connections failed - check Service Layer status'
+        connectionWorking: testResults.directHttps?.success || false,
+        hasValidSession: !!testResults.directHttps?.sessionId,
+        apiTestPassed: testResults.directHttps?.apiTest?.success || false, 
+        fullConnectionEstablished: testResults.directHttps?.fullConnection || false,
+        recommendation: testResults.directHttps?.success ? 
+          '✅ SSL bypass successful - SAP Service Layer ready for integration' :
+          '❌ Connection failed - check Service Layer configuration or credentials'
       }
     });
   } catch (error) {
-    console.error('SSL bypass test error:', error);
+    console.error('Direct SSL bypass test error:', error);
     return res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
+      stack: error.stack?.substring(0, 500)
     });
   }
 });
