@@ -219,7 +219,11 @@ router.get('/connection/config', ensureAuthenticated, async (req, res) => {
  * Test SAP B1 connection via Service Layer
  */
 router.post('/connection/test', ensureAuthenticated, async (req, res) => {
-  console.log('SAP Service Layer connection test endpoint hit by user:', req.user?.username);
+  console.log('✅ SAP Service Layer connection test endpoint hit by user:', req.user?.username);
+  
+  // Set proper JSON headers to prevent HTML responses
+  res.setHeader('Content-Type', 'application/json');
+  
   try {
     const serviceLayerUrl = process.env.SAP_SERVICE_LAYER_URL || 'https://DESKTOP-NH04TP:50000/b1s/v1';
     const sapUsername = process.env.SAP_USERNAME;
@@ -235,7 +239,7 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
 
     if (!sapUsername || !sapPassword || !sapCompanyDb) {
       console.log('❌ Missing SAP credentials:', { sapUsername: !!sapUsername, sapPassword: !!sapPassword, sapCompanyDb: !!sapCompanyDb });
-      return res.json({
+      return res.status(400).json({
         success: false,
         message: 'SAP B1 Service Layer credentials not configured',
         missing: {
