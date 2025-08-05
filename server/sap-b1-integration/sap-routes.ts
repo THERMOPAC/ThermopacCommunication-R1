@@ -226,10 +226,23 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
     const sapPassword = process.env.SAP_PASSWORD;
     const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
+    console.log('🔑 SAP Credentials Check:', {
+      serviceLayerUrl,
+      sapUsername,
+      passwordLength: sapPassword?.length || 0,
+      sapCompanyDb
+    });
+
     if (!sapUsername || !sapPassword || !sapCompanyDb) {
+      console.log('❌ Missing SAP credentials:', { sapUsername: !!sapUsername, sapPassword: !!sapPassword, sapCompanyDb: !!sapCompanyDb });
       return res.json({
         success: false,
         message: 'SAP B1 Service Layer credentials not configured',
+        missing: {
+          username: !sapUsername,
+          password: !sapPassword,
+          companyDb: !sapCompanyDb
+        },
         timestamp: new Date().toISOString()
       });
     }
