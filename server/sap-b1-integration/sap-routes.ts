@@ -15,6 +15,187 @@ router.use('/purchase', purchaseRoutes);
  */
 
 /**
+ * VPN Network Diagnostics - Test internal subnet 192.168.1.0/24 connectivity (no auth required)
+ */
+router.get('/connection/vpn-diagnostics', (req, res, next) => {
+  // Set JSON headers first
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  next();
+}, async (req, res) => {
+  try {
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
+    
+    const diagnostics = {
+      timestamp: new Date().toISOString(),
+      vpnEnabled: process.env.SAP_VPN_ENABLED === 'true',
+      vpnStatus: null,
+      networkTests: {},
+      routing: {},
+      connectivity: {}
+    };
+
+    // Get VPN status
+    if (diagnostics.vpnEnabled) {
+      diagnostics.vpnStatus = vpnManager.getStatus();
+    }
+
+    // Test network connectivity to internal IP
+    const internalIP = '192.168.1.100';
+    const serviceLayerPort = '50000';
+    const sqlServerPort = '1433';
+    
+    // Test ping to internal server
+    try {
+      const pingResult = await execAsync(`ping -c 2 -W 3 ${internalIP} 2>&1`);
+      diagnostics.connectivity.ping = {
+        success: true,
+        output: pingResult.stdout,
+        latency: pingResult.stdout.includes('ms') ? pingResult.stdout.match(/time=(\d+\.?\d*)/)?.[1] + 'ms' : 'unknown'
+      };
+    } catch (error) {
+      diagnostics.connectivity.ping = {
+        success: false,
+        error: error.message,
+        output: error.stdout || error.stderr
+      };
+    }
+
+    // Test telnet/nc to SAP Service Layer port
+    try {
+      const telnetResult = await execAsync(`timeout 5 nc -zv ${internalIP} ${serviceLayerPort} 2>&1 || echo "Connection failed"`);
+      diagnostics.connectivity.serviceLayerPort = {
+        port: serviceLayerPort,
+        success: telnetResult.stdout.includes('succeeded') || telnetResult.stdout.includes('Connected'),
+        output: telnetResult.stdout
+      };
+    } catch (error) {
+      diagnostics.connectivity.serviceLayerPort = {
+        port: serviceLayerPort,
+        success: false,
+        error: error.message,
+        output: error.stdout || error.stderr
+      };
+    }
+
+    // Test SQL Server port
+    try {
+      const sqlResult = await execAsync(`timeout 5 nc -zv ${internalIP} ${sqlServerPort} 2>&1 || echo "Connection failed"`);
+      diagnostics.connectivity.sqlServerPort = {
+        port: sqlServerPort,
+        success: sqlResult.stdout.includes('succeeded') || sqlResult.stdout.includes('Connected'),
+        output: sqlResult.stdout
+      };
+    } catch (error) {
+      diagnostics.connectivity.sqlServerPort = {
+        port: sqlServerPort,
+        success: false,
+        error: error.message,
+        output: error.stdout || error.stderr
+      };
+    }
+
+    // Test HTTPS connection to Service Layer
+    try {
+      const httpsTest = await fetch(`https://${internalIP}:${serviceLayerPort}/b1s/v1/`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(10000),
+        headers: { 'Accept': 'application/json' }
+      });
+      
+      diagnostics.connectivity.httpsServiceLayer = {
+        success: true,
+        status: httpsTest.status,
+        statusText: httpsTest.statusText,
+        headers: Object.fromEntries(httpsTest.headers.entries())
+      };
+    } catch (error) {
+      diagnostics.connectivity.httpsServiceLayer = {
+        success: false,
+        error: error.message,
+        errorType: error.name,
+        cause: error.cause?.message
+      };
+    }
+
+    // Check routing table for 192.168.1.0/24 subnet
+    try {
+      const routeResult = await execAsync(`cat /proc/net/route | grep -E "(C0A801|192\.168\.1)" || echo "No 192.168.1.x routes found"`);
+      diagnostics.routing.subnetRoutes = routeResult.stdout;
+      
+      const defaultRoute = await execAsync(`cat /proc/net/route | head -3`);
+      diagnostics.routing.routingTable = defaultRoute.stdout;
+    } catch (error) {
+      diagnostics.routing.error = error.message;
+    }
+
+    // Check network interfaces
+    try {
+      const interfaces = await execAsync(`ip addr show 2>/dev/null || ifconfig 2>/dev/null || echo "Network interfaces unavailable"`);
+      diagnostics.networkTests.interfaces = interfaces.stdout;
+    } catch (error) {
+      diagnostics.networkTests.interfacesError = error.message;
+    }
+
+    // DNS resolution test
+    try {
+      const dnsTest = await execAsync(`nslookup ${internalIP} 2>&1 || echo "DNS test failed"`);
+      diagnostics.networkTests.dns = dnsTest.stdout;
+    } catch (error) {
+      diagnostics.networkTests.dnsError = error.message;
+    }
+
+    res.json({
+      success: true,
+      message: 'VPN Network Diagnostics Complete',
+      diagnostics,
+      recommendations: generateVPNRecommendations(diagnostics)
+    });
+
+  } catch (error) {
+    console.error('VPN diagnostics error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'VPN diagnostics failed',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+function generateVPNRecommendations(diagnostics) {
+  const recommendations = [];
+  
+  if (!diagnostics.vpnEnabled) {
+    recommendations.push('VPN is disabled. Enable VPN by setting SAP_VPN_ENABLED=true');
+  }
+  
+  if (diagnostics.vpnStatus && !diagnostics.vpnStatus.connected) {
+    recommendations.push('VPN is not connected. Check VPN credentials and server configuration');
+  }
+  
+  if (diagnostics.connectivity.ping && !diagnostics.connectivity.ping.success) {
+    recommendations.push('Cannot ping 192.168.1.100. Check VPN routing for subnet 192.168.1.0/24');
+  }
+  
+  if (diagnostics.connectivity.serviceLayerPort && !diagnostics.connectivity.serviceLayerPort.success) {
+    recommendations.push('SAP Service Layer port 50000 is not accessible. Check firewall and service status');
+  }
+  
+  if (diagnostics.connectivity.httpsServiceLayer && !diagnostics.connectivity.httpsServiceLayer.success) {
+    recommendations.push('HTTPS connection to Service Layer failed. Check SSL certificates and TLS configuration');
+  }
+  
+  if (diagnostics.routing.subnetRoutes && diagnostics.routing.subnetRoutes.includes('No 192.168.1.x routes found')) {
+    recommendations.push('No routes found for 192.168.1.0/24 subnet. Add route: ip route add 192.168.1.0/24 via [VPN_GATEWAY]');
+  }
+  
+  return recommendations;
+}
+
+/**
  * Get SAP B1 connection status via Service Layer (with VPN support)
  */
 router.get('/connection/status', ensureAuthenticated, async (req, res) => {

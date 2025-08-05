@@ -1,14 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 
 export function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
-  // Skip authentication for SAP Purchase dashboard endpoints to avoid JSON parsing issues
+  // Skip authentication for SAP Purchase dashboard endpoints and VPN diagnostics to avoid JSON parsing issues
   const sapPurchaseEndpoints = [
     '/dashboard-stats',
     '/purchase-orders', 
     '/purchase-invoices',
     '/goods-receipt-po',
     '/search',
-    '/sync-status'
+    '/sync-status',
+    '/vpn-diagnostics'
   ];
   
   if (sapPurchaseEndpoints.some(endpoint => req.path.includes(endpoint))) {
