@@ -7,7 +7,7 @@ import purchaseRoutes from './purchase-routes';
 
 const router = express.Router();
 
-// Register Purchase module routes
+// Register Purchase module routes - No authentication required for dashboard functionality
 router.use('/purchase', purchaseRoutes);
 
 /**
