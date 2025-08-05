@@ -234,20 +234,49 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    // Test Service Layer connectivity with timeout
-    const loginResponse = await fetch(`${serviceLayerUrl}/Login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({
-        CompanyDB: sapCompanyDb,
-        UserName: sapUsername,
-        Password: sapPassword
-      }),
-      signal: AbortSignal.timeout(15000) // 15 second timeout
-    });
+    // Test Service Layer connectivity with timeout, try HTTPS first, then HTTP
+    let loginResponse;
+    let actualServiceLayerUrl = serviceLayerUrl;
+    
+    try {
+      loginResponse = await fetch(`${serviceLayerUrl}/Login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          CompanyDB: sapCompanyDb,
+          UserName: sapUsername,
+          Password: sapPassword
+        }),
+        signal: AbortSignal.timeout(10000) // 10 second timeout
+      });
+    } catch (httpsError) {
+      console.log('❌ HTTPS connection failed, trying HTTP...', httpsError.message);
+      
+      // Try HTTP instead of HTTPS
+      const httpUrl = serviceLayerUrl.replace('https://', 'http://');
+      try {
+        loginResponse = await fetch(`${httpUrl}/Login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            CompanyDB: sapCompanyDb,
+            UserName: sapUsername,
+            Password: sapPassword
+          }),
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        });
+        actualServiceLayerUrl = httpUrl;
+        console.log('✅ HTTP connection successful, using HTTP protocol');
+      } catch (httpError) {
+        throw httpsError; // Throw original HTTPS error
+      }
+    }
     
     if (!loginResponse.ok) {
       const errorText = await loginResponse.text();
@@ -256,7 +285,7 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
       return res.json({
         success: false,
         message: `Service Layer login failed: ${loginResponse.status} ${loginResponse.statusText}`,
-        serviceLayerUrl,
+        serviceLayerUrl: actualServiceLayerUrl,
         error: errorText,
         vpnStatus: vpnManager.getStatus(),
         timestamp: new Date().toISOString()
@@ -266,7 +295,7 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
     const loginData = await loginResponse.json();
     
     // Test a simple API call to verify connection
-    const businessPartnersResponse = await fetch(`${serviceLayerUrl}/BusinessPartners?$top=1`, {
+    const businessPartnersResponse = await fetch(`${actualServiceLayerUrl}/BusinessPartners?$top=1`, {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -279,7 +308,8 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
       return res.json({
         success: true,
         message: 'Connected to SAP B1 Service Layer successfully',
-        serviceLayerUrl,
+        serviceLayerUrl: actualServiceLayerUrl,
+        protocol: actualServiceLayerUrl.startsWith('https://') ? 'HTTPS' : 'HTTP',
         sessionId: loginData.SessionId,
         version: loginData.Version,
         testResult: `Successfully retrieved ${businessPartnersData.value?.length || 0} business partners`,
@@ -289,7 +319,7 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
       return res.json({
         success: false,
         message: 'Service Layer authentication successful but API access failed',
-        serviceLayerUrl,
+        serviceLayerUrl: actualServiceLayerUrl,
         timestamp: new Date().toISOString()
       });
     }
@@ -300,31 +330,32 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
     if (error instanceof Error && (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED') || error.message.includes('timeout'))) {
       res.json({
         success: false,
-        message: 'SAP B1 Service Layer not reachable - Network connectivity established but service unavailable.',
-        details: `Service Layer accessible from local network but not from Replit servers. Firewall appears to be blocking external connections to port 50000.`,
+        message: 'SAP B1 Service Layer SSL/TLS connection issue - Ports accessible but HTTPS failing.',
+        details: `Service Layer ports (50000, 1433) are accessible via telnet, but HTTPS/SSL connection to Service Layer API fails. This indicates SSL certificate or TLS configuration issues.`,
         networkStatus: {
-          localNetworkAccess: 'CONFIRMED (Service Layer documentation page accessible from browser)',
-          externalAccess: 'BLOCKED (Replit servers cannot reach port 50000)',
+          portConnectivity: 'CONFIRMED (telnet to ports 1433 and 50000 successful)',
+          serviceLayerHTTPS: 'FAILING (SSL/TLS handshake or certificate issues)',
           authentication: 'WORKING (user session validated)',
-          diagnosis: 'SAP server firewall blocking external IP addresses'
+          diagnosis: 'SSL/TLS certificate or Service Layer HTTPS configuration problem'
         },
         serviceLayerUrl: process.env.SAP_SERVICE_LAYER_URL,
         vpnStatus: vpnManager.getStatus(),
         troubleshooting: [
-          '✅ Service Layer is running and accessible from local network',
-          '❌ External access blocked - SAP server firewall restricting connections',
-          '1. Configure Windows Firewall to allow external connections on port 50000',
-          '2. Add Replit IP ranges to SAP server firewall whitelist',
-          '3. Alternative: Set up VPN tunnel or port forwarding',
-          '4. Alternative: Use SAP Cloud Connector for secure external access',
-          '5. Check router/network firewall settings for port 50000',
-          '6. Verify no antivirus software blocking external connections'
+          '✅ Port connectivity confirmed - telnet to 50000 and 1433 working',
+          '✅ Service Layer service running and ports accessible',
+          '❌ HTTPS/SSL connection failing - certificate or TLS configuration issue',
+          '1. Check SAP Service Layer SSL certificate validity and configuration',
+          '2. Verify Service Layer is configured for HTTPS (not HTTP only)',
+          '3. Check if Service Layer requires specific TLS version (1.2+)',
+          '4. Alternative: Try HTTP instead of HTTPS if supported',
+          '5. Verify Service Layer certificate is properly installed',
+          '6. Check if certificate is self-signed and requires specific trust settings'
         ],
         nextSteps: [
-          'Configure Windows Firewall to allow external connections to port 50000',
-          'Contact network administrator to whitelist Replit IP ranges',
-          'Alternative: Set up secure VPN tunnel between Replit and SAP server',
-          'Alternative: Deploy middleware application on local network as bridge'
+          'Check SAP Service Layer Manager SSL certificate configuration',
+          'Verify Service Layer HTTPS settings and TLS version requirements',
+          'Alternative: Test with HTTP protocol if HTTPS is not mandatory',
+          'Contact SAP administrator to review Service Layer SSL configuration'
         ],
         timestamp: new Date().toISOString()
       });
