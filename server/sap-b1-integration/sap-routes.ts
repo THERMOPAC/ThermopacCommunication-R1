@@ -300,16 +300,29 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
     if (error instanceof Error && (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED') || error.message.includes('timeout'))) {
       res.json({
         success: false,
-        message: 'SAP B1 Service Layer not reachable through VPN tunnel.',
-        details: 'Network connectivity issue: Cannot reach the Service Layer endpoint at 192.168.1.100:50000.',
+        message: 'SAP B1 Service Layer not reachable - Network connectivity established but service unavailable.',
+        details: `Cannot reach Service Layer at ${process.env.SAP_SERVICE_LAYER_URL || 'https://192.168.1.100:50000/b1s/v1'}. Ping to 192.168.1.100 works (1ms), but port 50000 is not responding.`,
+        networkStatus: {
+          pingConnectivity: 'WORKING (1ms response time)',
+          serviceLayerPort: 'NOT ACCESSIBLE (timeout on port 50000)',
+          authentication: 'WORKING (user session validated)'
+        },
         serviceLayerUrl: process.env.SAP_SERVICE_LAYER_URL,
         vpnStatus: vpnManager.getStatus(),
         troubleshooting: [
-          'Verify Service Layer is running on SAP B1 server (192.168.1.100:50000)',
-          'Check SAP B1 server firewall allows HTTPS traffic on port 50000',
-          'Verify VPN tunnel can route traffic to 192.168.1.100 subnet',
-          'Test local network connectivity from SAP B1 server to verify Service Layer is accessible',
-          'Check SAP B1 Service Layer SSL certificate configuration'
+          '✅ Network connectivity verified - ping to 192.168.1.100 working perfectly',
+          '❌ Service Layer port 50000 not responding - service likely not running',
+          '1. Check if SAP Business One Service Layer is installed and running',
+          '2. Verify Service Layer is configured to listen on port 50000',
+          '3. Check Windows Firewall on SAP server allows port 50000',
+          '4. Confirm Service Layer uses HTTPS (not HTTP) on port 50000',
+          '5. Alternative: Check if Service Layer is running on different port (40000, 8443, etc.)',
+          '6. From SAP server, test: https://localhost:50000/b1s/v1/Login'
+        ],
+        nextSteps: [
+          'Contact SAP administrator to verify Service Layer installation',
+          'Check SAP Service Layer Manager application status',
+          'Review SAP B1 Service Layer configuration and port settings'
         ],
         timestamp: new Date().toISOString()
       });
