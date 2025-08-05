@@ -216,10 +216,12 @@ router.get('/connection/config', ensureAuthenticated, async (req, res) => {
 });
 
 /**
- * Test SAP B1 connection via Service Layer
+ * Test SAP B1 connection via Service Layer (GET endpoint as fallback)
  */
-router.post('/connection/test', ensureAuthenticated, async (req, res) => {
-  console.log('✅ SAP Service Layer connection test endpoint hit by user:', req.user?.username);
+router.get('/connection/test', ensureAuthenticated, async (req, res) => {
+  console.log('🔥 SAP CONNECTION TEST STARTED (GET) by user:', req.user?.username);
+  console.log('🔥 Session ID:', req.sessionID);
+  console.log('🔥 Authentication status:', !!req.user);
   
   // Set proper JSON headers to prevent HTML responses
   res.setHeader('Content-Type', 'application/json');

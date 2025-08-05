@@ -70,7 +70,7 @@ export default function SapIntegrationPage() {
 
   // Test connection mutation
   const testConnectionMutation = useMutation({
-    mutationFn: () => apiRequest('POST', '/api/sap/connection/test'),
+    mutationFn: () => apiRequest('GET', '/api/sap/connection/test'),
     onSuccess: (data) => {
       toast({
         title: "Connection Test",
