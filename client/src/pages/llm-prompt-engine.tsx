@@ -826,7 +826,7 @@ export default function LLMPromptEnginePage() {
     
     // PRIORITY 2: Universal Task Pattern - matches standardized format from all LLM prompts
     console.log('Starting with universal task pattern for standardized LLM output...');
-    const universalTaskPattern = /\*\*Task Title:\*\*\s*([^\n]+?)\s*\n\s*\*\*Task Description:\*\*\s*\n([\s\S]*?)(?=\n\s*\*\*Task Title:|\n\s*---|\n\s*##|$)/gi;
+    const universalTaskPattern = /\*\*Task Title:\*\*\s*([^\n]+?)\s*[\n\r]+\s*\*\*Task Description:\*\*\s*[\n\r]+([\s\S]*?)(?=\n\s*\*\*Task Title:|\n\s*---|\n\s*##|\n\s*\*\*Analysis Date:|\n\s*Analysis Date:|$)/gi;
     
     let universalMatch;
     let matchCount = 0;
@@ -902,6 +902,106 @@ export default function LLMPromptEnginePage() {
     }
     
     console.log(`Universal pattern found ${matchCount} total tasks.`);
+    
+    // Add additional debugging to identify missed tasks
+    if (matchCount < 5) {
+      console.log('WARNING: Low task count detected. Checking for formatting variations...');
+      
+      // Alternative pattern for tasks that might have different spacing or formatting
+      const altTaskPattern = /\*\*Task Title:\*\*\s*([^\n]*)\s*[\n\r]+\s*\*\*Task Description:\*\*\s*[\n\r]+([\s\S]*?)(?=\n\s*\*\*Task Title:|\n\s*---|\n\s*##|\n\s*\*\*Analysis Date:|\n\s*Analysis Date:|$)/gi;
+      
+      console.log('Trying alternative pattern...');
+      let altMatch;
+      let altCount = 0;
+      while ((altMatch = altTaskPattern.exec(text)) !== null && altCount < 50) {
+        altCount++;
+        console.log(`Alt pattern found task ${altCount}:`, altMatch[1].substring(0, 100));
+      }
+      
+      // Check for sections that might contain tasks
+      const taskSectionPattern = /###\s*GENERATED TASKS:\s*([\s\S]*?)(?=\n\s*\*\*Analysis Date:|\n\s*Analysis Date:|$)/i;
+      const taskSectionMatch = text.match(taskSectionPattern);
+      
+      if (taskSectionMatch) {
+        console.log('Found GENERATED TASKS section, length:', taskSectionMatch[1].length);
+        console.log('Sample from tasks section:', taskSectionMatch[1].substring(0, 500));
+        
+        // Count task titles in the section
+        const taskTitleCount = (taskSectionMatch[1].match(/\*\*Task Title:\*\*/g) || []).length;
+        console.log('Task titles found in section:', taskTitleCount);
+      }
+    }
+    
+    // If we didn't find enough tasks with universal pattern, try to extract from GENERATED TASKS section
+    if (matchCount < 5) {
+      console.log('Low task count, extracting from GENERATED TASKS section...');
+      
+      // Extract the GENERATED TASKS section specifically
+      const taskSectionPattern = /###\s*GENERATED TASKS:\s*([\s\S]*?)(?=\n\s*\*\*Analysis Date:|\n\s*Analysis Date:|$)/i;
+      const taskSectionMatch = text.match(taskSectionPattern);
+      
+      if (taskSectionMatch) {
+        const tasksSection = taskSectionMatch[1];
+        console.log('GENERATED TASKS section found, length:', tasksSection.length);
+        
+        // More flexible pattern for tasks within the GENERATED TASKS section
+        const flexibleTaskPattern = /\*\*Task Title:\*\*\s*([^\n]+?)\s*\n\s*\*\*Task Description:\*\*\s*\n([\s\S]*?)(?=\n\s*\*\*Task Title:|\n\s*\*\*Analysis Date:|\n\s*Analysis Date:|$)/gi;
+        
+        let flexMatch;
+        let flexCount = 0;
+        
+        // Reset regex
+        flexibleTaskPattern.lastIndex = 0;
+        
+        while ((flexMatch = flexibleTaskPattern.exec(tasksSection)) !== null && flexCount < 50) {
+          flexCount++;
+          console.log(`Flexible pattern found task ${flexCount}:`, flexMatch[1].substring(0, 100));
+          
+          let taskTitle = flexMatch[1].trim();
+          const taskDescription = flexMatch[2].trim();
+          
+          // Apply Report Title as prefix if available and not already in title
+          if (reportTitle && !taskTitle.toLowerCase().includes(reportTitle.toLowerCase())) {
+            const titlePrefix = reportTitle.replace(/\s*(Report|Analysis|Intelligence)\s*/gi, '').trim();
+            if (titlePrefix && !taskTitle.toLowerCase().includes(titlePrefix.toLowerCase())) {
+              taskTitle = `${titlePrefix} - ${taskTitle}`;
+            }
+          }
+          
+          // Determine task category and priority based on title keywords
+          let category = 'General';
+          let priority = 'Medium';
+          let estimatedDays = 7;
+          
+          if (taskTitle.toLowerCase().includes('brc')) {
+            category = 'Finance';
+            priority = 'High';
+            estimatedDays = 3;
+          } else if (taskTitle.toLowerCase().includes('outstanding')) {
+            category = 'Finance';
+            priority = 'High';
+            estimatedDays = 3;
+          }
+          
+          // Adjust priority based on description keywords
+          if (taskDescription.toLowerCase().includes('critical') || taskDescription.toLowerCase().includes('urgent') || taskDescription.toLowerCase().includes('immediate')) {
+            priority = 'High';
+            estimatedDays = Math.max(1, Math.floor(estimatedDays / 2));
+          }
+          
+          tasks.push({
+            id: `task-${Date.now()}-${flexCount + 1000}`,
+            title: taskTitle,
+            description: taskDescription,
+            priority,
+            category,
+            estimatedDays
+          });
+        }
+        
+        console.log(`Flexible pattern extracted ${flexCount} additional tasks from GENERATED TASKS section.`);
+      }
+    }
     
     // If universal pattern found tasks, return those - they're the standardized format
     if (tasks.length > 0) {
