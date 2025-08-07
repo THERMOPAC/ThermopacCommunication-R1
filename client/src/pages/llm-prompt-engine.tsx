@@ -192,13 +192,6 @@ export default function LLMPromptEnginePage() {
       if (!response.ok) throw new Error('Failed to fetch prompts');
       const data = await response.json();
       
-      // DEBUG: Find Cash Flow Predictor specifically
-      const cashFlowPrompt = data?.prompts?.find((p: any) => p.id === 3);
-      console.log('=== API RESPONSE DEBUG ===');
-      console.log('Cash Flow Predictor prompt:', cashFlowPrompt);
-      console.log('Cash Flow Predictor dataQuery:', cashFlowPrompt?.dataQuery);
-      console.log('=== END API DEBUG ===');
-      
       return data;
     }
   });
