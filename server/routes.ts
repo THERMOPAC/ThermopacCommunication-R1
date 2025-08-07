@@ -2151,6 +2151,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Batch create tasks from LLM insights
+  app.post("/api/tasks/batch-create", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      const { tasks } = req.body;
+      if (!tasks || !Array.isArray(tasks)) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Tasks array is required" 
+        });
+      }
+
+      if (tasks.length === 0) {
+        return res.status(400).json({ 
+          success: false,
+          message: "At least one task is required" 
+        });
+      }
+
+      if (tasks.length > 20) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Maximum 20 tasks can be created at once" 
+        });
+      }
+
+      console.log(`Batch creating ${tasks.length} tasks from LLM insight by user ${req.user!.username}`);
+
+      const createdTasks = [];
+      const errors = [];
+
+      for (let i = 0; i < tasks.length; i++) {
+        try {
+          const taskData = insertTaskSchema.parse({
+            ...tasks[i],
+            createdBy: req.user!.id,
+            createdAt: new Date().toISOString(),
+            status: 'pending'
+          });
+
+          const task = await storage.createTask(taskData);
+          createdTasks.push(task);
+          
+          console.log(`Created task ${i + 1}/${tasks.length}: ${task.title}`);
+        } catch (error) {
+          console.error(`Error creating task ${i + 1}:`, error);
+          errors.push({
+            index: i,
+            title: tasks[i]?.title || 'Unknown task',
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+
+      if (createdTasks.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "No tasks could be created",
+          errors
+        });
+      }
+
+      console.log(`Successfully created ${createdTasks.length}/${tasks.length} tasks from LLM insight`);
+
+      res.status(201).json({
+        success: true,
+        message: `Successfully created ${createdTasks.length} tasks`,
+        created: createdTasks.length,
+        total: tasks.length,
+        tasks: createdTasks,
+        errors: errors.length > 0 ? errors : undefined
+      });
+    } catch (error) {
+      console.error('Error in batch task creation:', error);
+      res.status(500).json({ 
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to create tasks" 
+      });
+    }
+  });
+
   app.post("/api/tasks/:id/forward", async (req, res) => {
     try {
       if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });

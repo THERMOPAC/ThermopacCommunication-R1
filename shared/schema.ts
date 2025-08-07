@@ -1010,7 +1010,7 @@ export const insertTaskSchema = createInsertSchema(tasks).extend({
   startDate: z.string(),
   finishDate: z.string(),
   dueDate: z.string().optional(),
-  sourceType: z.enum(['manual', 'meeting_commitment', 'recurring']).optional(),
+  sourceType: z.enum(['manual', 'meeting_commitment', 'recurring', 'llm_insight']).optional(),
   sourceId: z.number().optional()
 });
 

@@ -52,7 +52,11 @@ import {
   Database,
   Activity,
   CheckSquare,
-  Download
+  Download,
+  ListChecks,
+  Calendar,
+  User,
+  ArrowRight
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
@@ -106,6 +110,26 @@ interface DashboardStats {
   models: Array<{ model_used: string; executions: string; avg_duration: string; total_cost: string }>;
 }
 
+interface GeneratedTask {
+  id?: string;
+  title: string;
+  description: string;
+  priority: 'Low' | 'Medium' | 'High';
+  category: string;
+  assignedTo?: number;
+  dueDate?: string;
+  estimatedDays?: number;
+}
+
+interface User {
+  id: number;
+  username: string;
+  firstName?: string;
+  lastName?: string;
+  role: string;
+  department?: string;
+}
+
 export default function LLMPromptEnginePage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -118,6 +142,15 @@ export default function LLMPromptEnginePage() {
   const [optimizationResults, setOptimizationResults] = useState<any>(null);
   const [testMode, setTestMode] = useState(false);
   const [showSecurityLogs, setShowSecurityLogs] = useState(false);
+  
+  // Task generation states
+  const [isTaskGenerationDialogOpen, setIsTaskGenerationDialogOpen] = useState(false);
+  const [taskGenerationDays, setTaskGenerationDays] = useState<number>(7);
+  const [generatedTasks, setGeneratedTasks] = useState<GeneratedTask[]>([]);
+  const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
+  const [selectedInsight, setSelectedInsight] = useState<BusinessInsight | null>(null);
+  const [isTaskPreviewOpen, setIsTaskPreviewOpen] = useState(false);
+  const [isCreatingTasks, setIsCreatingTasks] = useState(false);
   
   // Edit form state
   const [editFormData, setEditFormData] = useState({
@@ -190,6 +223,18 @@ export default function LLMPromptEnginePage() {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch dashboard stats');
+      return response.json();
+    }
+  });
+
+  // Fetch users for task assignment
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ['/api/users'],
+    queryFn: async () => {
+      const response = await fetch('/api/users', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch users');
       return response.json();
     }
   });
@@ -696,6 +741,186 @@ export default function LLMPromptEnginePage() {
         newSet.delete(promptId);
         return newSet;
       });
+    }
+  };
+
+  // Task generation functions
+  const parseInsightToTasks = (insight: BusinessInsight): GeneratedTask[] => {
+    const text = insight.insight_text;
+    const tasks: GeneratedTask[] = [];
+    
+    // Parse different sections for actionable items
+    const lines = text.split('\n');
+    let currentSection = '';
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // Identify high-priority items
+      if (line.includes('HIGH-RISK') || line.includes('IMMEDIATE ATTENTION') || line.includes('REQUIRING IMMEDIATE')) {
+        currentSection = 'high-priority';
+      } else if (line.includes('RECOMMENDATIONS') || line.includes('SPECIFIC RECOMMENDATIONS')) {
+        currentSection = 'recommendations';
+      } else if (line.includes('COLLECTION TARGETS') || line.includes('PRIORITY')) {
+        currentSection = 'priority';
+      }
+      
+      // Extract actionable tasks
+      if (line.match(/^\d+\.\s*\*?\*?(.+)/)) {
+        const match = line.match(/^\d+\.\s*\*?\*?(.+)/);
+        if (match) {
+          let title = match[1];
+          let description = '';
+          let priority: 'Low' | 'Medium' | 'High' = 'Medium';
+          
+          // Check for amounts and companies in financial context
+          if (line.includes('USD') || line.includes('$') || line.includes('Outstanding') || line.includes('Days Overdue')) {
+            const amountMatch = line.match(/(USD?\s?[\d,]+)/i);
+            const daysMatch = line.match(/(\d+)\s*days?\s*overdue/i);
+            
+            if (amountMatch) {
+              title = title.replace(/\s*-\s*.*$/, ''); // Clean up title
+              description = `Financial follow-up required. Amount: ${amountMatch[1]}${daysMatch ? `, Days overdue: ${daysMatch[1]}` : ''}`;
+              priority = currentSection === 'high-priority' ? 'High' : 'Medium';
+            }
+          }
+          
+          // Extract customer/company names
+          if (line.includes('**') && line.includes('Ltd') || line.includes('Company') || line.includes('GMBH') || line.includes('LLC')) {
+            const customerMatch = line.match(/\*\*(.+?)\*\*/);
+            if (customerMatch) {
+              title = `Contact ${customerMatch[1]}`;
+              description = `Follow up on outstanding invoices and payment collection`;
+              priority = 'High';
+            }
+          }
+          
+          // Handle recommendation items
+          if (currentSection === 'recommendations') {
+            if (line.includes('Focus on') || line.includes('Implement') || line.includes('Increase') || line.includes('Offer') || line.includes('Engage')) {
+              title = title.replace(/^(\d+\.\s*)?/, '');
+              priority = 'Medium';
+              description = 'Implementation of strategic recommendation from LLM analysis';
+            }
+          }
+          
+          // Clean up title
+          title = title.replace(/\*\*/g, '').trim();
+          if (title.length > 3) {
+            tasks.push({
+              id: `task-${i}`,
+              title: title.substring(0, 100), // Limit title length
+              description: description || 'Action item generated from LLM insight',
+              priority,
+              category: insight.category,
+              estimatedDays: priority === 'High' ? 3 : priority === 'Medium' ? 7 : 14
+            });
+          }
+        }
+      }
+    }
+    
+    return tasks.slice(0, 8); // Limit to 8 tasks for manageability
+  };
+
+  const handleGenerateTasks = (insight: BusinessInsight) => {
+    setSelectedInsight(insight);
+    setIsTaskGenerationDialogOpen(true);
+  };
+
+  const handleConfirmTaskGeneration = async () => {
+    if (!selectedInsight) return;
+    
+    setIsGeneratingTasks(true);
+    try {
+      const parsedTasks = parseInsightToTasks(selectedInsight);
+      
+      // Calculate due dates based on task generation days
+      const today = new Date();
+      const updatedTasks = parsedTasks.map(task => ({
+        ...task,
+        dueDate: new Date(today.getTime() + (taskGenerationDays * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+        estimatedDays: taskGenerationDays
+      }));
+      
+      setGeneratedTasks(updatedTasks);
+      setIsTaskGenerationDialogOpen(false);
+      setIsTaskPreviewOpen(true);
+      
+      toast({
+        title: "Tasks Generated",
+        description: `Generated ${updatedTasks.length} tasks from the insight. Review and assign before creating.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Generation Failed",
+        description: error instanceof Error ? error.message : "Failed to generate tasks.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingTasks(false);
+    }
+  };
+
+  const updateGeneratedTask = (taskId: string, updates: Partial<GeneratedTask>) => {
+    setGeneratedTasks(prev => 
+      prev.map(task => 
+        task.id === taskId ? { ...task, ...updates } : task
+      )
+    );
+  };
+
+  const removeGeneratedTask = (taskId: string) => {
+    setGeneratedTasks(prev => prev.filter(task => task.id !== taskId));
+  };
+
+  const handleCreateAllTasks = async () => {
+    if (generatedTasks.length === 0) return;
+    
+    setIsCreatingTasks(true);
+    try {
+      const response = await apiRequest('/api/tasks/batch-create', {
+        method: 'POST',
+        body: JSON.stringify({
+          tasks: generatedTasks.map(task => ({
+            title: task.title,
+            description: task.description,
+            priority: task.priority,
+            startDate: new Date().toISOString().split('T')[0],
+            finishDate: task.dueDate,
+            dueDate: task.dueDate,
+            assignedTo: task.assignedTo,
+            category: task.category,
+            sourceType: 'llm_insight',
+            sourceId: selectedInsight?.id
+          }))
+        })
+      });
+
+      if (response.success) {
+        toast({
+          title: "Tasks Created Successfully",
+          description: `Created ${generatedTasks.length} tasks from the LLM insight.`,
+        });
+        
+        // Reset states
+        setIsTaskPreviewOpen(false);
+        setGeneratedTasks([]);
+        setSelectedInsight(null);
+        
+        // Refresh task-related queries if needed
+        queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      } else {
+        throw new Error(response.message || 'Failed to create tasks');
+      }
+    } catch (error) {
+      toast({
+        title: "Task Creation Failed",
+        description: error instanceof Error ? error.message : "Failed to create tasks.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingTasks(false);
     }
   };
 
@@ -1502,6 +1727,15 @@ export default function LLMPromptEnginePage() {
                           <Download className="w-3 h-3" />
                           PDF
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleGenerateTasks(insight)}
+                          className="h-8 px-3 flex items-center gap-1 bg-green-50 text-green-700 border-green-300 hover:bg-green-100"
+                        >
+                          <ListChecks className="w-3 h-3" />
+                          Generate Tasks
+                        </Button>
                         <span className="text-sm text-gray-500">
                           {new Date(insight.generated_at).toLocaleString()}
                         </span>
@@ -1778,6 +2012,203 @@ export default function LLMPromptEnginePage() {
                 </Card>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Task Generation Confirmation Dialog */}
+        <Dialog open={isTaskGenerationDialogOpen} onOpenChange={setIsTaskGenerationDialogOpen}>
+          <DialogContent className="max-w-md" aria-describedby="task-generation-description">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ListChecks className="w-5 h-5 text-green-600" />
+                Generate Tasks from Insight
+              </DialogTitle>
+            </DialogHeader>
+            <div id="task-generation-description" className="sr-only">
+              Configure task generation parameters for the selected insight
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="taskGenerationDays">Task Completion Days</Label>
+                <Input
+                  id="taskGenerationDays"
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={taskGenerationDays}
+                  onChange={(e) => setTaskGenerationDays(parseInt(e.target.value) || 7)}
+                  placeholder="Enter days for task completion"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Due date will be calculated as {taskGenerationDays} days from today ({new Date(Date.now() + taskGenerationDays * 24 * 60 * 60 * 1000).toLocaleDateString()})
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsTaskGenerationDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleConfirmTaskGeneration}
+                  disabled={isGeneratingTasks}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {isGeneratingTasks ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                  ) : (
+                    <ArrowRight className="w-4 h-4 mr-1" />
+                  )}
+                  Generate Tasks
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Task Preview and Editing Dialog */}
+        <Dialog open={isTaskPreviewOpen} onOpenChange={setIsTaskPreviewOpen}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto" aria-describedby="task-preview-description">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ListChecks className="w-5 h-5 text-blue-600" />
+                Review Generated Tasks ({generatedTasks.length})
+              </DialogTitle>
+            </DialogHeader>
+            <div id="task-preview-description" className="sr-only">
+              Review, edit and assign generated tasks before creating them
+            </div>
+            
+            <div className="space-y-4">
+              {generatedTasks.length === 0 ? (
+                <div className="text-center py-8">
+                  <ListChecks className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">No tasks were generated from this insight.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid gap-4">
+                    {generatedTasks.map((task, index) => (
+                      <Card key={task.id} className="border-l-4 border-l-blue-500">
+                        <CardHeader className="pb-2">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1 flex-1">
+                              <Input
+                                value={task.title}
+                                onChange={(e) => updateGeneratedTask(task.id!, { title: e.target.value })}
+                                className="font-semibold text-base border-none px-0 shadow-none focus-visible:ring-0"
+                                placeholder="Task title..."
+                              />
+                              <div className="flex items-center gap-2">
+                                <Badge 
+                                  variant={
+                                    task.priority === 'High' ? 'destructive' : 
+                                    task.priority === 'Medium' ? 'default' : 
+                                    'secondary'
+                                  }
+                                  className="text-xs"
+                                >
+                                  {task.priority} Priority
+                                </Badge>
+                                <Badge variant="outline" className="text-xs">
+                                  {task.category}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs">
+                                  Due: {new Date(task.dueDate!).toLocaleDateString()}
+                                </Badge>
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => removeGeneratedTask(task.id!)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        
+                        <CardContent className="space-y-3">
+                          <div>
+                            <Label htmlFor={`desc-${task.id}`} className="text-sm font-medium">Description</Label>
+                            <Textarea
+                              id={`desc-${task.id}`}
+                              value={task.description}
+                              onChange={(e) => updateGeneratedTask(task.id!, { description: e.target.value })}
+                              className="mt-1 min-h-[60px]"
+                              placeholder="Task description..."
+                            />
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor={`priority-${task.id}`} className="text-sm font-medium">Priority</Label>
+                              <select
+                                id={`priority-${task.id}`}
+                                value={task.priority}
+                                onChange={(e) => updateGeneratedTask(task.id!, { priority: e.target.value as 'Low' | 'Medium' | 'High' })}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              >
+                                <option value="Low">Low Priority</option>
+                                <option value="Medium">Medium Priority</option>
+                                <option value="High">High Priority</option>
+                              </select>
+                            </div>
+                            
+                            <div>
+                              <Label htmlFor={`assignee-${task.id}`} className="text-sm font-medium">Assign To</Label>
+                              <select
+                                id={`assignee-${task.id}`}
+                                value={task.assignedTo || ''}
+                                onChange={(e) => updateGeneratedTask(task.id!, { assignedTo: e.target.value ? parseInt(e.target.value) : undefined })}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              >
+                                <option value="">Select assignee...</option>
+                                {users.map((user) => (
+                                  <option key={user.id} value={user.id}>
+                                    {user.firstName || user.username} {user.lastName || ''} ({user.role}){user.department && ` - ${user.department}`}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-between items-center pt-4 border-t">
+                    <div className="text-sm text-gray-600">
+                      {generatedTasks.length} task{generatedTasks.length !== 1 ? 's' : ''} ready to create
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsTaskPreviewOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleCreateAllTasks}
+                        disabled={isCreatingTasks || generatedTasks.length === 0}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        {isCreatingTasks ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                        )}
+                        Create All Tasks
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
       </Tabs>
