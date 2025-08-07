@@ -5,6 +5,14 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 Preferred communication style: Simple, everyday language.
 
 # Recent Changes
+- **August 7, 2025: ENHANCED RECURRING TASKS PROCESSING**: Implemented comprehensive recurring task pattern processing with proper pattern-based generation logic.
+  ✅ **Enhanced calculateNextOccurrence Method**: Properly handles Daily, Weekly, Monthly, and Yearly patterns using 'Repeat Every' (interval), 'Month' (monthOfYear), and 'Day of the Month' (dayOfMonth) settings
+  ✅ **Advanced Pattern Logic**: Daily patterns use interval days, Weekly patterns support daysOfWeek arrays and interval weeks, Monthly patterns handle dayOfMonth with interval months including month-end edge cases
+  ✅ **Yearly Pattern Support**: Yearly patterns use monthOfYear and dayOfMonth with interval years, including proper handling for leap years and month-end dates
+  ✅ **Proper Finish Date Calculation**: Task finish dates now calculated using templateDurationDays from the pattern instead of fixed due date
+  ✅ **Enhanced Next Generation Logic**: Uses the same calculateNextOccurrence method for both task due dates and next generation dates for consistency
+  ✅ **Comprehensive Logging**: Added detailed console logging for pattern processing including interval, day, and month calculations for debugging
+
 - **August 7, 2025: PRE-PREVIEW DUPLICATE DETECTION**: Implemented proactive duplicate detection that runs before task preview, ensuring users never see duplicate tasks.
   ✅ **Preview-Phase Filtering**: New `/api/tasks/check-duplicates` endpoint checks for duplicates before showing task preview dialog
   ✅ **Early Detection**: Duplicate checking happens during task generation, filtering out duplicates before user sees them

@@ -1456,6 +1456,142 @@ export class DatabaseStorage implements IStorage {
     return patterns as RecurringPattern[];
   }
 
+  calculateNextOccurrence(pattern: RecurringPattern, fromDate: Date): Date | null {
+    const today = new Date(fromDate);
+    let nextOccurrence = new Date(today);
+
+    console.log(`Calculating next occurrence for pattern ${pattern.id} (${pattern.pattern} every ${pattern.interval})`);
+
+    switch (pattern.pattern) {
+      case 'daily':
+        // Daily: Add interval number of days
+        nextOccurrence.setDate(today.getDate() + (pattern.interval || 1));
+        console.log(`Daily pattern: Next occurrence in ${pattern.interval || 1} days = ${nextOccurrence.toISOString().split('T')[0]}`);
+        break;
+
+      case 'weekly':
+        // Weekly: Add interval number of weeks (7 * interval days)
+        const daysToAdd = 7 * (pattern.interval || 1);
+        nextOccurrence.setDate(today.getDate() + daysToAdd);
+        
+        // If daysOfWeek is specified, adjust to the specified day(s)
+        if (pattern.daysOfWeek) {
+          try {
+            const daysOfWeek = JSON.parse(pattern.daysOfWeek);
+            if (Array.isArray(daysOfWeek) && daysOfWeek.length > 0) {
+              // Map day names to numbers (0 = Sunday, 1 = Monday, etc.)
+              const dayMap: { [key: string]: number } = {
+                'SUN': 0, 'MON': 1, 'TUE': 2, 'WED': 3, 'THU': 4, 'FRI': 5, 'SAT': 6
+              };
+              
+              const targetDays = daysOfWeek.map(day => dayMap[day.toUpperCase()]).filter(d => d !== undefined);
+              
+              if (targetDays.length > 0) {
+                // Find the next occurrence on one of the specified days
+                const currentDay = nextOccurrence.getDay();
+                let daysUntilNext = 7; // Default to next week if no day found
+                
+                for (const targetDay of targetDays) {
+                  let daysUntil = (targetDay - currentDay + 7) % 7;
+                  if (daysUntil === 0) daysUntil = 7; // If today, move to next week
+                  if (daysUntil < daysUntilNext) {
+                    daysUntilNext = daysUntil;
+                  }
+                }
+                
+                nextOccurrence.setDate(today.getDate() + daysUntilNext);
+              }
+            }
+          } catch (e) {
+            console.error(`Error parsing daysOfWeek for pattern ${pattern.id}:`, e);
+          }
+        }
+        
+        console.log(`Weekly pattern: Next occurrence = ${nextOccurrence.toISOString().split('T')[0]}`);
+        break;
+
+      case 'monthly':
+        // Monthly: Add interval number of months
+        const currentMonth = today.getMonth();
+        const currentDay = today.getDate();
+        const interval = pattern.interval || 1;
+        
+        // Calculate next month based on interval
+        let targetMonth = currentMonth + interval;
+        let targetYear = today.getFullYear();
+        
+        // Handle year overflow
+        while (targetMonth > 11) {
+          targetMonth -= 12;
+          targetYear += 1;
+        }
+        
+        // Set the target day of month
+        const targetDay = pattern.dayOfMonth || currentDay;
+        nextOccurrence = new Date(targetYear, targetMonth, 1); // Start with 1st of target month
+        
+        // Get the last day of the target month to handle month-end cases
+        const lastDayOfMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+        const actualDay = Math.min(targetDay, lastDayOfMonth);
+        
+        nextOccurrence.setDate(actualDay);
+        
+        // If we're still in the same month and the day hasn't passed yet, use current month
+        if (targetMonth === currentMonth && targetDay > currentDay) {
+          nextOccurrence = new Date(today.getFullYear(), currentMonth, actualDay);
+        }
+        
+        console.log(`Monthly pattern: Every ${interval} month(s) on day ${targetDay}, next = ${nextOccurrence.toISOString().split('T')[0]}`);
+        break;
+
+      case 'yearly':
+        // Yearly: Add interval number of years
+        const currentYear = today.getFullYear();
+        const yearInterval = pattern.interval || 1;
+        let targetYearForYearly = currentYear + yearInterval;
+        
+        // Use specified month and day, or current month/day
+        const targetMonthOfYear = (pattern.monthOfYear || (today.getMonth() + 1)) - 1; // Convert to 0-based
+        const targetDayOfMonth = pattern.dayOfMonth || today.getDate();
+        
+        nextOccurrence = new Date(targetYearForYearly, targetMonthOfYear, 1);
+        
+        // Handle month-end cases
+        const lastDayOfTargetMonth = new Date(targetYearForYearly, targetMonthOfYear + 1, 0).getDate();
+        const actualYearlyDay = Math.min(targetDayOfMonth, lastDayOfTargetMonth);
+        nextOccurrence.setDate(actualYearlyDay);
+        
+        // If the yearly date hasn't passed this year, use this year instead
+        const thisYearOccurrence = new Date(currentYear, targetMonthOfYear, actualYearlyDay);
+        if (thisYearOccurrence > today) {
+          nextOccurrence = thisYearOccurrence;
+        }
+        
+        console.log(`Yearly pattern: Every ${yearInterval} year(s) on ${targetMonthOfYear + 1}/${targetDayOfMonth}, next = ${nextOccurrence.toISOString().split('T')[0]}`);
+        break;
+
+      default:
+        console.error(`Unknown pattern type: ${pattern.pattern}`);
+        return null;
+    }
+
+    // Ensure we don't generate tasks in the past
+    if (nextOccurrence <= today) {
+      console.log(`Calculated date ${nextOccurrence.toISOString().split('T')[0]} is in the past, adjusting...`);
+      
+      // For daily patterns, move forward by interval
+      if (pattern.pattern === 'daily') {
+        nextOccurrence.setDate(today.getDate() + (pattern.interval || 1));
+      }
+      // For other patterns, this shouldn't happen with our logic above
+      else {
+        nextOccurrence.setDate(today.getDate() + 1); // Fallback: tomorrow
+      }
+    }
+
+    return nextOccurrence;
+  }
+
   async processRecurringPatterns(): Promise<number> {
     let tasksGeneratedCount = 0;
     console.log('Processing recurring patterns to generate tasks');
@@ -1463,7 +1599,7 @@ export class DatabaseStorage implements IStorage {
     
     for (const pattern of patterns) {
       try {
-        console.log(`Processing pattern ${pattern.id}: ${pattern.templateTitle}`);
+        console.log(`Processing pattern ${pattern.id}: ${pattern.templateTitle} (${pattern.pattern} every ${pattern.interval})`);
         
         // Check if pattern has reached its maximum occurrences
         if (pattern.maxOccurrences && pattern.generatedCount >= pattern.maxOccurrences) {
@@ -1488,36 +1624,21 @@ export class DatabaseStorage implements IStorage {
           }
         }
         
-        // Generate the new recurring task
-        const startDate = new Date().toISOString().split('T')[0]; // Today
+        // Calculate task due date based on recurrence pattern and settings
+        const today = new Date();
+        let taskDueDate = this.calculateNextOccurrence(pattern, today);
         
-        // Create task due date based on pattern type
-        let taskDueDate = new Date();
-        
-        // For monthly patterns with specified day (like AMEX card payment on 10th)
-        if (pattern.pattern === 'monthly' && pattern.dayOfMonth) {
-          // Get current month and year
-          const currentMonth = taskDueDate.getMonth();
-          const currentYear = taskDueDate.getFullYear();
-          const currentDay = taskDueDate.getDate();
-          
-          // Set the due date to the specified day of the current month
-          taskDueDate = new Date(currentYear, currentMonth, pattern.dayOfMonth);
-          
-          // If the specified day has already passed this month, move to next month
-          if (currentDay > pattern.dayOfMonth) {
-            taskDueDate.setMonth(currentMonth + 1);
-          }
-          
-          console.log(`Monthly pattern with day ${pattern.dayOfMonth}: Setting due date to ${taskDueDate.toISOString()}`);
-        } else {
-          // For other patterns, use the default approach (due date = start + duration)
-          taskDueDate.setDate(taskDueDate.getDate() + pattern.templateDurationDays);
+        if (!taskDueDate) {
+          console.log(`No valid next occurrence found for pattern ${pattern.id}`);
+          continue;
         }
         
-        // Calculate finish date (same as due date)
-        const finishDate = new Date(taskDueDate);
+        const startDate = new Date().toISOString().split('T')[0]; // Today
         const dueDate = taskDueDate.toISOString().split('T')[0];
+        
+        // Calculate finish date based on template duration
+        const finishDate = new Date(taskDueDate);
+        finishDate.setDate(finishDate.getDate() + (pattern.templateDurationDays || 1) - 1);
         
         const newRecurringTask: InsertRecurringTask = {
           title: pattern.templateTitle,
@@ -1555,80 +1676,27 @@ export class DatabaseStorage implements IStorage {
         tasksGeneratedCount++; // Increment the counter for each new task created
         console.log(`Created recurring task ${task.id} from pattern ${pattern.id} (occurrence #${task.occurrenceNumber})`);
         
-        // Calculate next generation date based on pattern
-        let nextGenerationDate = new Date();
-        
-        switch (pattern.pattern) {
-          case 'daily':
-            nextGenerationDate.setDate(nextGenerationDate.getDate() + pattern.interval);
-            break;
-            
-          case 'weekly':
-            nextGenerationDate.setDate(nextGenerationDate.getDate() + (7 * pattern.interval));
-            break;
-            
-          case 'monthly':
-            // Get current month and year
-            const currentMonth = nextGenerationDate.getMonth();
-            const currentYear = nextGenerationDate.getFullYear();
-            const currentDay = nextGenerationDate.getDate();
-            
-            // Initialize next generation date as 1 day from now
-            // This ensures if we're processing on or after the scheduled day this month,
-            // we'll generate for next month
-            let nextMonth;
-            
-            if (pattern.dayOfMonth) {
-              // If we're processing on or after the scheduled day this month,
-              // we want the next occurrence to be next month
-              if (currentDay >= pattern.dayOfMonth) {
-                nextMonth = currentMonth + pattern.interval;
-              } else {
-                // If we're processing before the scheduled day,
-                // we want the next occurrence to be this month
-                nextMonth = currentMonth;
-              }
-            } else {
-              // No specific day set, just add the interval
-              nextMonth = currentMonth + pattern.interval;
-            }
-            
-            // Set to the next month based on our calculation
-            nextGenerationDate.setMonth(nextMonth);
-            
-            // Adjust for day of month if specified
-            if (pattern.dayOfMonth) {
-              // First set to the 1st of the month to avoid issues with months of different lengths
-              nextGenerationDate.setDate(1);
-              // Then set to the day of month
-              nextGenerationDate.setDate(pattern.dayOfMonth);
-            }
-            
-            console.log(`Monthly pattern next generation date: ${nextGenerationDate.toISOString()}`);
-            break;
-            
-          case 'yearly':
-            nextGenerationDate.setFullYear(nextGenerationDate.getFullYear() + pattern.interval);
-            
-            // Adjust for month and day if specified
-            if (pattern.monthOfYear) {
-              nextGenerationDate.setMonth(pattern.monthOfYear - 1); // 0-indexed months
-            }
-            
-            if (pattern.dayOfMonth) {
-              nextGenerationDate.setDate(pattern.dayOfMonth);
-            }
-            break;
-        }
+        // Calculate next generation date using the same logic as task due date
+        const nextGenerationDate = this.calculateNextOccurrence(pattern, taskDueDate);
         
         // Update the pattern with new information
-        await this.updateRecurringPattern(pattern.id, {
-          lastGeneratedDate: new Date().toISOString(),
-          nextGenerationDate: nextGenerationDate.toISOString().split('T')[0],
-          generatedCount: pattern.generatedCount + 1
-        });
-        
-        console.log(`Updated pattern ${pattern.id} with next generation date: ${nextGenerationDate.toISOString().split('T')[0]}`);
+        if (nextGenerationDate) {
+          await this.updateRecurringPattern(pattern.id, {
+            lastGeneratedDate: new Date().toISOString(),
+            nextGenerationDate: nextGenerationDate.toISOString().split('T')[0],
+            generatedCount: (pattern.generatedCount || 0) + 1
+          });
+          
+          console.log(`Updated pattern ${pattern.id} with next generation date: ${nextGenerationDate.toISOString().split('T')[0]}`);
+        } else {
+          // Only update generated count if we couldn't calculate next date
+          await this.updateRecurringPattern(pattern.id, {
+            lastGeneratedDate: new Date().toISOString(),
+            generatedCount: (pattern.generatedCount || 0) + 1
+          });
+          
+          console.log(`Updated pattern ${pattern.id} but could not calculate next generation date`);
+        }
       } catch (error) {
         console.error(`Error processing recurring pattern ${pattern.id}:`, error);
       }
