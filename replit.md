@@ -11,6 +11,8 @@ Preferred communication style: Simple, everyday language.
   ✅ **Improved User Experience**: Eliminates need to select same assignee twice, reducing workflow steps and potential errors
   ✅ **Conditional UI**: Global Assignment section adapts to show appropriate controls based on whether assignment was pre-selected
   ✅ **Clean Task Descriptions**: Simplified LLM-generated task descriptions to professional format without excessive formatting
+  ✅ **Form Validation**: Added validation to Generate Tasks dialog requiring assignee selection and minimum 7 days for task completion
+  ✅ **Real-time Validation**: Validation errors clear automatically when user corrects the issues, with visual indicators for required fields
 
 - **August 7, 2025: DUPLICATE TASK DETECTION & UI CONSISTENCY**: Implemented intelligent duplicate task prevention and standardized dropdown formats.
   ✅ **Duplicate Task Detection**: Added smart duplicate checking for LLM-generated tasks based on title, creator, assignee, due date, and source ID

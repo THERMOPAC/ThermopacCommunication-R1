@@ -157,6 +157,7 @@ export default function LLMPromptEnginePage() {
   const [isTaskPreviewOpen, setIsTaskPreviewOpen] = useState(false);
   const [isCreatingTasks, setIsCreatingTasks] = useState(false);
   const [globalAssignee, setGlobalAssignee] = useState<number | null>(null);
+  const [taskGenerationValidationErrors, setTaskGenerationValidationErrors] = useState<{ assignee?: string; days?: string }>({});
   
   // Edit form state
   const [editFormData, setEditFormData] = useState({
@@ -992,11 +993,37 @@ export default function LLMPromptEnginePage() {
 
   const handleGenerateTasks = (insight: BusinessInsight) => {
     setSelectedInsight(insight);
+    setTaskGenerationValidationErrors({}); // Reset validation errors
     setIsTaskGenerationDialogOpen(true);
+  };
+
+  const validateTaskGeneration = () => {
+    const errors: { assignee?: string; days?: string } = {};
+    
+    if (!taskGenerationAssignee) {
+      errors.assignee = "Please select an assignee for the tasks.";
+    }
+    
+    if (!taskGenerationDays || taskGenerationDays < 7) {
+      errors.days = "Task completion days must be at least 7 days.";
+    }
+    
+    setTaskGenerationValidationErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleConfirmTaskGeneration = async () => {
     if (!selectedInsight) return;
+    
+    // Validate form before proceeding
+    if (!validateTaskGeneration()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fix the validation errors before generating tasks.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setIsGeneratingTasks(true);
     try {
@@ -2216,7 +2243,12 @@ export default function LLMPromptEnginePage() {
         </Dialog>
 
         {/* Task Generation Confirmation Dialog */}
-        <Dialog open={isTaskGenerationDialogOpen} onOpenChange={setIsTaskGenerationDialogOpen}>
+        <Dialog open={isTaskGenerationDialogOpen} onOpenChange={(open) => {
+          setIsTaskGenerationDialogOpen(open);
+          if (!open) {
+            setTaskGenerationValidationErrors({}); // Reset validation errors when closing
+          }
+        }}>
           <DialogContent className="max-w-md" aria-describedby="task-generation-description">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -2230,12 +2262,20 @@ export default function LLMPromptEnginePage() {
             
             <div className="space-y-4">
               <div>
-                <Label htmlFor="assignTo">Assign To</Label>
+                <Label htmlFor="assignTo" className={taskGenerationValidationErrors.assignee ? "text-red-600" : ""}>
+                  Assign To *
+                </Label>
                 <Select 
                   value={taskGenerationAssignee?.toString() || ''} 
-                  onValueChange={(value) => setTaskGenerationAssignee(value ? parseInt(value) : null)}
+                  onValueChange={(value) => {
+                    setTaskGenerationAssignee(value ? parseInt(value) : null);
+                    // Clear validation error when user selects
+                    if (value && taskGenerationValidationErrors.assignee) {
+                      setTaskGenerationValidationErrors(prev => ({ ...prev, assignee: undefined }));
+                    }
+                  }}
                 >
-                  <SelectTrigger id="assignTo">
+                  <SelectTrigger id="assignTo" className={taskGenerationValidationErrors.assignee ? "border-red-500" : ""}>
                     <SelectValue placeholder="Select assignee for all tasks..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -2253,25 +2293,43 @@ export default function LLMPromptEnginePage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-sm text-gray-500 mt-1">
-                  Choose who will be assigned to all generated tasks.
-                </p>
+                {taskGenerationValidationErrors.assignee ? (
+                  <p className="text-sm text-red-600 mt-1">{taskGenerationValidationErrors.assignee}</p>
+                ) : (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Choose who will be assigned to all generated tasks.
+                  </p>
+                )}
               </div>
 
               <div>
-                <Label htmlFor="taskGenerationDays">Task Completion Days</Label>
+                <Label htmlFor="taskGenerationDays" className={taskGenerationValidationErrors.days ? "text-red-600" : ""}>
+                  Task Completion Days * (Minimum 7 days)
+                </Label>
                 <Input
                   id="taskGenerationDays"
                   type="number"
-                  min="1"
+                  min="7"
                   max="30"
                   value={taskGenerationDays}
-                  onChange={(e) => setTaskGenerationDays(parseInt(e.target.value) || 7)}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 7;
+                    setTaskGenerationDays(value);
+                    // Clear validation error when user enters valid value
+                    if (value >= 7 && taskGenerationValidationErrors.days) {
+                      setTaskGenerationValidationErrors(prev => ({ ...prev, days: undefined }));
+                    }
+                  }}
                   placeholder="Enter days for task completion"
+                  className={taskGenerationValidationErrors.days ? "border-red-500" : ""}
                 />
-                <p className="text-sm text-gray-500 mt-1">
-                  Due date will be calculated as {taskGenerationDays} days from today ({new Date(Date.now() + taskGenerationDays * 24 * 60 * 60 * 1000).toLocaleDateString()})
-                </p>
+                {taskGenerationValidationErrors.days ? (
+                  <p className="text-sm text-red-600 mt-1">{taskGenerationValidationErrors.days}</p>
+                ) : (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Due date will be calculated as {taskGenerationDays} days from today ({new Date(Date.now() + taskGenerationDays * 24 * 60 * 60 * 1000).toLocaleDateString()})
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2">
@@ -2283,7 +2341,7 @@ export default function LLMPromptEnginePage() {
                 </Button>
                 <Button
                   onClick={handleConfirmTaskGeneration}
-                  disabled={isGeneratingTasks}
+                  disabled={isGeneratingTasks || !taskGenerationAssignee || taskGenerationDays < 7}
                   className="bg-green-600 hover:bg-green-700"
                 >
                   {isGeneratingTasks ? (
