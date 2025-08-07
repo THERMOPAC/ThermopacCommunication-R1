@@ -808,43 +808,23 @@ export default function LLMPromptEnginePage() {
       const paidAmount = paidAmountMatch ? paidAmountMatch[1] : '0';
       const sapNumber = sapMatch ? sapMatch[1].trim() : 'N/A';
       
-      let description = `🔴 URGENT: Financial Recovery Task - Invoice Collection Required\n\n`;
-      description += `📋 INVOICE DETAILS:\n`;
-      description += `Invoice Number: ${invoiceNumber}\n`;
-      if (sapNumber !== 'N/A') description += `SAP Reference: ${sapNumber}\n`;
-      description += `Customer: ${customerName}\n`;
-      description += `Total Invoice Amount: USD ${totalAmount}\n`;
-      description += `Outstanding Amount: USD ${outstandingAmount}\n`;
-      description += `Original Due Date: ${dueDate}\n`;
-      description += `Days Overdue: ${daysOverdue} days\n`;
-      description += `Payment Status: ${status}\n`;
-      description += `Amount Paid to Date: USD ${paidAmount}\n\n`;
-      
-      description += `⚡ IMMEDIATE ACTIONS REQUIRED:\n`;
-      description += `• Contact customer immediately for payment collection\n`;
-      description += `• Send formal payment demand letter with 7-day deadline\n`;
-      description += `• Review customer payment history and credit terms\n`;
-      if (daysOverdue > 365) {
-        description += `• CRITICAL: Consider immediate legal action (${daysOverdue} days overdue)\n`;
-        description += `• Escalate to senior management for review\n`;
-      } else if (daysOverdue > 90) {
-        description += `• Consider credit hold on future orders\n`;
-        description += `• Negotiate payment plan if necessary\n`;
-      } else {
-        description += `• Follow standard collection procedures\n`;
-        description += `• Maintain customer relationship while collecting\n`;
+      let description = `Invoice collection task for ${customerName}.\n\n`;
+      description += `Invoice: ${invoiceNumber}`;
+      if (sapNumber !== 'N/A') description += ` (SAP: ${sapNumber})`;
+      description += `\n`;
+      description += `Amount Outstanding: USD ${outstandingAmount}\n`;
+      description += `Due Date: ${dueDate}\n`;
+      if (daysOverdue > 0) {
+        description += `Days Overdue: ${daysOverdue} days\n`;
       }
-      description += `• Update collection log with all communication\n\n`;
+      description += `Status: ${status}\n\n`;
       
-      if (daysOverdue > 1000) {
-        description += `🚨 PRIORITY LEVEL: CRITICAL - Over ${daysOverdue} days overdue\n`;
-        description += `💰 IMPACT: High financial risk - Immediate action required`;
-      } else if (daysOverdue > 365) {
-        description += `⚠️ PRIORITY LEVEL: HIGH - Long overdue account\n`;
-        description += `💰 IMPACT: Significant aging - Escalation recommended`;
+      if (daysOverdue > 365) {
+        description += `Follow up required - long overdue account. Consider escalation.`;
+      } else if (daysOverdue > 90) {
+        description += `Follow up required - review payment terms and contact customer.`;
       } else {
-        description += `📈 PRIORITY LEVEL: MEDIUM - Active collection required\n`;
-        description += `💰 IMPACT: Standard collection procedures`;
+        description += `Follow standard collection procedures and maintain customer relationship.`;
       }
       
       const priority = daysOverdue > 365 ? 'High' : daysOverdue > 90 ? 'Medium' : 'Low';
@@ -875,28 +855,21 @@ export default function LLMPromptEnginePage() {
         const statusMatch = afterInvoice.match(/Status:\s*(\w+)/i);
         const sapMatch = numberedMatch[0].match(/SAP:\s*([^)]+)/i);
         
-        let description = `💼 Financial Recovery Task - Invoice Collection\n\n`;
-        description += `📋 INVOICE DETAILS:\n`;
-        description += `Invoice Number: ${invoiceNumber}\n`;
-        if (sapMatch) description += `SAP Reference: ${sapMatch[1].trim()}\n`;
-        description += `Customer: ${customerName}\n`;
+        let description = `Invoice collection task for ${customerName}.\n\n`;
+        description += `Invoice: ${invoiceNumber}`;
+        if (sapMatch) description += ` (SAP: ${sapMatch[1].trim()})`;
+        description += `\n`;
         if (totalAmountMatch) description += `Total Amount: USD ${totalAmountMatch[1]}\n`;
         if (outstandingMatch) description += `Outstanding Amount: USD ${outstandingMatch[1]}\n`;
         if (daysOverdueMatch) description += `Days Overdue: ${daysOverdueMatch[1]} days\n`;
-        if (statusMatch) description += `Status: ${statusMatch[1]}\n`;
-        
-        description += `\n⚡ ACTION REQUIRED:\n`;
-        description += `• Contact customer for immediate payment collection\n`;
-        description += `• Send formal payment reminder notice\n`;
-        description += `• Review customer account status\n`;
-        description += `• Follow up within 3 business days\n`;
-        if (daysOverdueMatch && parseInt(daysOverdueMatch[1]) > 90) {
-          description += `• Consider escalation to management\n`;
-          description += `• Review credit terms and limits\n`;
-        }
-        description += `• Document all collection activities\n`;
+        if (statusMatch) description += `Status: ${statusMatch[1]}\n\n`;
         
         const daysOverdue = daysOverdueMatch ? parseInt(daysOverdueMatch[1]) : 0;
+        if (daysOverdue > 90) {
+          description += `Follow up required - review payment terms and contact customer for escalation.`;
+        } else {
+          description += `Contact customer for payment collection and follow standard procedures.`;
+        }
         const priority = daysOverdue > 365 ? 'High' : daysOverdue > 90 ? 'Medium' : 'Low';
         
         tasks.push({
