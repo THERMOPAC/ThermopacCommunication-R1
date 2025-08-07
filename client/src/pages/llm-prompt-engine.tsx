@@ -2232,7 +2232,7 @@ export default function LLMPromptEnginePage() {
                               id={`desc-${task.id}`}
                               value={task.description}
                               onChange={(e) => updateGeneratedTask(task.id!, { description: e.target.value })}
-                              className="mt-1 min-h-[60px]"
+                              className="mt-1 min-h-[120px]"
                               placeholder="Task description..."
                             />
                           </div>
