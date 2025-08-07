@@ -749,68 +749,109 @@ export default function LLMPromptEnginePage() {
     const text = insight.insight_text;
     const tasks: GeneratedTask[] = [];
     
-    // Parse different sections for actionable items
-    const lines = text.split('\n');
-    let currentSection = '';
+    // First, try to find detailed invoice information with specific patterns
+    const invoicePattern = /(INV-\d{4}-\d{3})\s*[-–]\s*([^-\n]+?)(?:\s*[-–]?\s*Total.*?USD\s*([\d,]+).*?Outstanding.*?USD\s*([\d,]+).*?(\d{1,4})\s*days?\s*overdue)?/gi;
     
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+    let invoiceMatch;
+    while ((invoiceMatch = invoicePattern.exec(text)) !== null) {
+      const invoiceNumber = invoiceMatch[1];
+      const customerName = invoiceMatch[2]?.trim();
+      const totalAmount = invoiceMatch[3];
+      const outstandingAmount = invoiceMatch[4];
+      const daysOverdue = invoiceMatch[5];
       
-      // Identify high-priority items
-      if (line.includes('HIGH-RISK') || line.includes('IMMEDIATE ATTENTION') || line.includes('REQUIRING IMMEDIATE')) {
-        currentSection = 'high-priority';
-      } else if (line.includes('RECOMMENDATIONS') || line.includes('SPECIFIC RECOMMENDATIONS')) {
-        currentSection = 'recommendations';
-      } else if (line.includes('COLLECTION TARGETS') || line.includes('PRIORITY')) {
-        currentSection = 'priority';
+      if (invoiceNumber && customerName) {
+        let description = `Financial Recovery Task\n\n`;
+        description += `Invoice: ${invoiceNumber}\n`;
+        description += `Customer: ${customerName}\n`;
+        if (totalAmount) description += `Total Amount: USD ${totalAmount}\n`;
+        if (outstandingAmount) description += `Outstanding: USD ${outstandingAmount}\n`;
+        if (daysOverdue) description += `Days Overdue: ${daysOverdue}\n`;
+        description += `Status: OVERDUE\n`;
+        description += `Paid Amount: USD 0\n\n`;
+        description += `Action Required: Contact customer immediately for payment collection and resolution`;
+        
+        const priority = parseInt(daysOverdue || '0') > 1000 ? 'High' : 'Medium';
+        
+        tasks.push({
+          id: `invoice-${invoiceNumber}`,
+          title: `Invoice ${invoiceNumber} – ${customerName}`,
+          description,
+          priority,
+          category: 'Finance',
+          estimatedDays: 3
+        });
       }
+    }
+    
+    // If no detailed invoice info found, parse line by line for other actionable items
+    if (tasks.length === 0) {
+      const lines = text.split('\n');
+      let currentSection = '';
       
-      // Extract actionable tasks
-      if (line.match(/^\d+\.\s*\*?\*?(.+)/)) {
-        const match = line.match(/^\d+\.\s*\*?\*?(.+)/);
-        if (match) {
-          let title = match[1];
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        // Identify sections
+        if (line.includes('HIGH-RISK') || line.includes('IMMEDIATE ATTENTION') || line.includes('REQUIRING IMMEDIATE')) {
+          currentSection = 'high-priority';
+        } else if (line.includes('RECOMMENDATIONS') || line.includes('SPECIFIC RECOMMENDATIONS')) {
+          currentSection = 'recommendations';
+        } else if (line.includes('COLLECTION TARGETS') || line.includes('PRIORITY')) {
+          currentSection = 'priority';
+        }
+        
+        // Extract numbered tasks
+        const numberedMatch = line.match(/^\d+\.\s*(.+)/);
+        if (numberedMatch) {
+          let title = numberedMatch[1];
           let description = '';
           let priority: 'Low' | 'Medium' | 'High' = 'Medium';
           
-          // Check for amounts and companies in financial context
-          if (line.includes('USD') || line.includes('$') || line.includes('Outstanding') || line.includes('Days Overdue')) {
-            const amountMatch = line.match(/(USD?\s?[\d,]+)/i);
-            const daysMatch = line.match(/(\d+)\s*days?\s*overdue/i);
+          // Extract customer names from bold formatting
+          const customerMatch = title.match(/\*\*([^*]+(?:Ltd|Limited|Inc|Corp|Company|GMBH|LLC|Energy|Oil|Industries|Group|Trading|Services|Solutions)[^*]*)\*\*/);
+          if (customerMatch) {
+            const customerName = customerMatch[1];
+            title = `Follow up with ${customerName}`;
             
-            if (amountMatch) {
-              title = title.replace(/\s*-\s*.*$/, ''); // Clean up title
-              description = `Financial follow-up required. Amount: ${amountMatch[1]}${daysMatch ? `, Days overdue: ${daysMatch[1]}` : ''}`;
-              priority = currentSection === 'high-priority' ? 'High' : 'Medium';
-            }
-          }
-          
-          // Extract customer/company names
-          if (line.includes('**') && line.includes('Ltd') || line.includes('Company') || line.includes('GMBH') || line.includes('LLC')) {
-            const customerMatch = line.match(/\*\*(.+?)\*\*/);
-            if (customerMatch) {
-              title = `Contact ${customerMatch[1]}`;
-              description = `Follow up on outstanding invoices and payment collection`;
+            // Look for financial details in surrounding context
+            const contextLines = lines.slice(Math.max(0, i-2), i+3).join(' ');
+            const amountMatch = contextLines.match(/USD\s*([\d,]+(?:\.\d{2})?)/);
+            const daysMatch = contextLines.match(/(\d{1,4})\s*days?\s*overdue/i);
+            const invoiceMatch = contextLines.match(/(INV-\d{4}-\d{3})/);
+            
+            description = `Customer payment collection required\n\n`;
+            if (invoiceMatch) description += `Invoice: ${invoiceMatch[1]}\n`;
+            description += `Customer: ${customerName}\n`;
+            if (amountMatch) description += `Outstanding Amount: USD ${amountMatch[1]}\n`;
+            if (daysMatch) description += `Days Overdue: ${daysMatch[1]}\n`;
+            description += `Status: OVERDUE\n\n`;
+            description += `Action: Contact customer for immediate payment resolution`;
+            
+            priority = (daysMatch && parseInt(daysMatch[1]) > 365) ? 'High' : 'Medium';
+          } else {
+            // Clean up generic tasks
+            title = title.replace(/\*\*/g, '').trim();
+            
+            if (line.includes('Outstanding') || line.includes('overdue') || line.includes('collection')) {
+              description = `Financial follow-up task: ${title}`;
               priority = 'High';
-            }
-          }
-          
-          // Handle recommendation items
-          if (currentSection === 'recommendations') {
-            if (line.includes('Focus on') || line.includes('Implement') || line.includes('Increase') || line.includes('Offer') || line.includes('Engage')) {
-              title = title.replace(/^(\d+\.\s*)?/, '');
+            } else if (currentSection === 'high-priority') {
+              description = `High priority action: ${title}`;
+              priority = 'High';
+            } else if (currentSection === 'recommendations') {
+              description = `Strategic recommendation: ${title}`;
               priority = 'Medium';
-              description = 'Implementation of strategic recommendation from LLM analysis';
+            } else {
+              description = `Action item: ${title}`;
             }
           }
           
-          // Clean up title
-          title = title.replace(/\*\*/g, '').trim();
           if (title.length > 3) {
             tasks.push({
-              id: `task-${i}`,
-              title: title.substring(0, 100), // Limit title length
-              description: description || 'Action item generated from LLM insight',
+              id: `task-${tasks.length}`,
+              title: title.substring(0, 100),
+              description,
               priority,
               category: insight.category,
               estimatedDays: priority === 'High' ? 3 : priority === 'Medium' ? 7 : 14

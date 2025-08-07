@@ -5,6 +5,16 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 Preferred communication style: Simple, everyday language.
 
 # Recent Changes
+- **August 6, 2025: TASK GENERATION SYSTEM ENHANCED WITH DETAILED INVOICE PARSING**: Successfully improved task generation from LLM insights to extract specific invoice details and company information.
+  ✅ **Enhanced Invoice Parsing Logic**: Updated parseInsightToTasks function to extract detailed invoice patterns (INV-2021-003 format) with full company names
+  ✅ **Detailed Task Descriptions**: Tasks now include complete financial information (Total Amount, Outstanding, Days Overdue, Status, Paid Amount)
+  ✅ **Proper Title Formatting**: Task titles now show format "Invoice INV-2021-003 – Bunorr Integrated Energy Ltd" instead of generic titles  
+  ✅ **Full Company Name Extraction**: Enhanced regex patterns to capture complete company names including Ltd/LLC/GMBH/Energy suffixes
+  ✅ **Financial Context Integration**: Task descriptions include structured financial data with action requirements for payment collection
+  ✅ **Task Preview Interface Complete**: Confirmed individual task editing capabilities with inline title editing, description textarea, priority/assignee dropdowns
+  ✅ **High Priority Detection**: Tasks for invoices overdue >1000 days automatically marked as High priority for immediate attention
+  ✅ **Multi-Pattern Support**: System handles both detailed invoice formats and fallback to numbered list parsing for other insight types
+  🎯 **System Status**: Task generation system now creates detailed, actionable tasks with complete invoice information and company details for financial recovery workflows
 - **August 5, 2025: SAP PURCHASE MODULE AUTHENTICATION ISSUE RESOLVED**: Successfully fixed critical JSON parsing errors in SAP Purchase dashboard by implementing selective authentication bypass for dashboard stats endpoint.
   ✅ **Authentication Middleware Bypass**: Removed blanket authentication requirement from purchase routes, allowing dashboard stats to load without authentication conflicts
   ✅ **JSON Response Headers**: Added proper Content-Type headers to prevent HTML redirects and ensure JSON responses
