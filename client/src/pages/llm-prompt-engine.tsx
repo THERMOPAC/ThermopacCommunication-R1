@@ -1024,8 +1024,14 @@ export default function LLMPromptEnginePage() {
         
         // CRITICAL FIX: Always run invoice extraction for BRC reports regardless of flex count
         // The LLM consistently underperforms on generating all BRC tasks
-        if (tasksSection.includes('BRC Pending')) {
-          console.log('Still low task count. Checking for incomplete LLM output and generating from invoice breakdown...');
+        const isBRCReport = reportTitle && (
+          reportTitle.toLowerCase().includes('brc') || 
+          text.toLowerCase().includes('brc pending') ||
+          text.toLowerCase().includes('bank realization certificate')
+        );
+        
+        if (isBRCReport) {
+          console.log('🔍 BRC Report detected - ALWAYS running comprehensive invoice extraction from breakdown section...');
           
           // Extract invoice numbers from the detailed breakdown section to ensure we have all tasks
           // Try multiple patterns to match different formats in the LLM output
