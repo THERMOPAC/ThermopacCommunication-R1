@@ -485,28 +485,27 @@ export class LLMPromptEngine {
             
             // Add pending commitments analysis in the required format
             if (pendingCommitments.length > 0) {
-              formattedData += "**🔥 CRITICAL: ALL PENDING COMMITMENTS DATA FOR SECTION 3 LIST FORMAT:**\n\n";
+              formattedData += "**🚨 SECTION 3 REQUIRED DATA - ALL PENDING COMMITMENTS:**\n\n";
+              formattedData += `Found ${pendingCommitments.length} pending commitments to display:\n\n`;
+              
               pendingCommitments.forEach((commitment, index) => {
                 const meetingDate = commitment.meeting_date;
                 const meetingName = commitment.meeting_title;
                 const commitmentDesc = commitment.commitment_description || 'Not specified';
                 const assignedTo = commitment.assigned_to;
-                const status = commitment.meeting_status || 'Pending';
                 
-                formattedData += `COMMITMENT_${index + 1}:\n`;
-                formattedData += `  Meeting Name: ${meetingName}\n`;
-                formattedData += `  Meeting Date: ${meetingDate}\n`;
-                formattedData += `  Commitment Description: ${commitmentDesc}\n`;
-                formattedData += `  Assigned To: ${assignedTo}\n`;
-                formattedData += `  Status: ${status}\n\n`;
+                formattedData += `${index + 1}. Meeting: "${meetingName}" (${meetingDate})\n`;
+                formattedData += `   Commitment: "${commitmentDesc}"\n`;
+                formattedData += `   Assigned To: ${assignedTo}\n`;
+                formattedData += `   Status: Pending\n\n`;
               });
               
-              formattedData += `**⚠️ MANDATORY: Section 3 must include ALL ${pendingCommitments.length} pending commitments above.**\n`;
-              formattedData += "**🔒 EXACT FORMAT REQUIRED FOR SECTION 3:**\n";
-              formattedData += "Meeting Name: [Meeting Name] – [MM/DD/YYYY]\n";
-              formattedData += "Commitment: [Commitment Description]\n";
-              formattedData += "Assigned To: [Username]\n";
-              formattedData += "Status: Pending\n\n";
+              formattedData += "🚨 MANDATORY FOR SECTION 3: Copy each commitment above into this EXACT format:\n";
+              formattedData += "Meeting Name: [ACTUAL meeting name] – [ACTUAL date]\n";
+              formattedData += "Commitment: [ACTUAL commitment description]\n";
+              formattedData += "Assigned To: [ACTUAL username]\n";
+              formattedData += "Status: Pending\n";
+              formattedData += "\n⚠️ DO NOT create examples. Use ONLY the real data listed above.\n\n";
             } else {
               formattedData += "**PENDING_COMMITMENTS DATA: No pending commitments found in the system.**\n\n";
             }
