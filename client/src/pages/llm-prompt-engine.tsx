@@ -945,7 +945,8 @@ export default function LLMPromptEnginePage() {
         console.log('GENERATED TASKS section found, length:', tasksSection.length);
         
         // More flexible pattern for tasks within the GENERATED TASKS section
-        const flexibleTaskPattern = /\*\*Task Title:\*\*\s*([^\n]+?)\s*\n\s*\*\*Task Description:\*\*\s*\n([\s\S]*?)(?=\n\s*\*\*Task Title:|\n\s*\*\*Analysis Date:|\n\s*Analysis Date:|$)/gi;
+        // This pattern is specifically designed to capture tasks that may be spread across multiple paragraphs
+        const flexibleTaskPattern = /\*\*Task Title:\*\*\s*([^\n]+?)\s*[\n\r]+\s*\*\*Task Description:\*\*\s*[\n\r]+([\s\S]*?)(?=\n\s*\*\*Task Title:|\n\s*\*\*Analysis Date:|\n\s*Analysis Date:|$)/gi;
         
         let flexMatch;
         let flexCount = 0;
@@ -1000,6 +1001,59 @@ export default function LLMPromptEnginePage() {
         }
         
         console.log(`Flexible pattern extracted ${flexCount} additional tasks from GENERATED TASKS section.`);
+        
+        // If we still don't have enough tasks, check if the LLM output was truncated
+        // and use the invoice data to generate missing tasks directly
+        if (flexCount < 10 && tasksSection.includes('BRC Pending')) {
+          console.log('Still low task count. Checking for incomplete LLM output and generating from invoice breakdown...');
+          
+          // Extract invoice numbers from the detailed breakdown section to ensure we have all tasks
+          const invoicePattern = /\*\*Invoice Number:\*\*\s*([^\s]+)[\s\S]*?\*\*SAP Invoice No:\*\*\s*([^\n]+)[\s\S]*?\*\*Customer Name:\*\*\s*([^\n]+)/gi;
+          let invoiceMatch;
+          let invoiceCount = 0;
+          
+          while ((invoiceMatch = invoicePattern.exec(text)) !== null && invoiceCount < 50) {
+            invoiceCount++;
+            const invoiceNumber = invoiceMatch[1].trim();
+            const sapInvoiceNo = invoiceMatch[2].trim();
+            const customerName = invoiceMatch[3].trim();
+            
+            console.log(`Found invoice ${invoiceCount}: ${invoiceNumber} | ${sapInvoiceNo} | ${customerName}`);
+            
+            // Check if we already have a task for this invoice
+            const existingTask = tasks.find(task => 
+              task.title.includes(invoiceNumber) || 
+              task.title.includes(sapInvoiceNo)
+            );
+            
+            if (!existingTask) {
+              console.log(`Creating missing task for: ${invoiceNumber}`);
+              
+              let taskTitle = `BRC Pending for ${invoiceNumber} + ${sapInvoiceNo} + ${customerName}`;
+              
+              // Apply Report Title prefix
+              if (reportTitle && !taskTitle.toLowerCase().includes(reportTitle.toLowerCase())) {
+                const titlePrefix = reportTitle.replace(/\s*(Report|Analysis|Intelligence)\s*/gi, '').trim();
+                if (titlePrefix && !taskTitle.toLowerCase().includes(titlePrefix.toLowerCase())) {
+                  taskTitle = `${titlePrefix} - ${taskTitle}`;
+                }
+              }
+              
+              const taskDescription = `Invoice Number: ${invoiceNumber}\nSAP Invoice No: ${sapInvoiceNo}\nCustomer: ${customerName}\nAction Required: Contact customer to submit Bank Realization Certificate for export invoice processing and compliance.`;
+              
+              tasks.push({
+                id: `task-${Date.now()}-${invoiceCount + 2000}`,
+                title: taskTitle,
+                description: taskDescription,
+                priority: 'High',
+                category: 'Finance',
+                estimatedDays: 3
+              });
+            }
+          }
+          
+          console.log(`Generated ${invoiceCount} total invoices from breakdown, final task count: ${tasks.length}`);
+        }
       }
     }
     
