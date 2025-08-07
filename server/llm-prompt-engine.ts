@@ -232,8 +232,8 @@ export class LLMPromptEngine {
           // Validate we have real commitment data
           const validCommitments = result.rows.filter(row => 
             row.meeting_title && 
-            row.assigned_to &&
-            row.commitment_description
+            row.assigned_username &&
+            (row.commitment_description || row.description)
           );
           
           console.log(`✅ Found ${validCommitments.length} valid commitments with complete data`);
@@ -471,7 +471,7 @@ export class LLMPromptEngine {
             // Process each commitment record in pipe-delimited format for LLM parsing
             formattedData += "**PENDING_COMMITMENTS DATA:**\n\n";
             rawData.forEach((commitment) => {
-              formattedData += `PENDING_COMMITMENTS|${commitment.meeting_title}|${commitment.meeting_date}|${commitment.commitment_description || ''}|${commitment.assigned_to}|${commitment.status}\n`;
+              formattedData += `PENDING_COMMITMENTS|${commitment.meeting_title}|${commitment.due_date}|${commitment.commitment_description || ''}|${commitment.assigned_username}|${commitment.status}\n`;
             });
             
             formattedData += "\n🎯 TEMPLATE INSTRUCTION: Process each PENDING_COMMITMENTS line above to create clean list format\n";
@@ -483,7 +483,7 @@ export class LLMPromptEngine {
             // Count commitments by person
             const commitmentsByPerson = {};
             rawData.forEach(commitment => {
-              const person = commitment.assigned_to;
+              const person = commitment.assigned_username || 'Unassigned';
               commitmentsByPerson[person] = (commitmentsByPerson[person] || 0) + 1;
             });
             
