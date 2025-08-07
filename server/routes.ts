@@ -2171,10 +2171,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      if (tasks.length > 20) {
+      if (tasks.length > 50) {
         return res.status(400).json({ 
           success: false,
-          message: "Maximum 20 tasks can be created at once" 
+          message: "Maximum 50 tasks can be created at once" 
         });
       }
 
