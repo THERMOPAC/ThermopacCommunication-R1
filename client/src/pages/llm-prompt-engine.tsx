@@ -816,6 +816,13 @@ export default function LLMPromptEnginePage() {
     console.log('Parsing insight text length:', text.length);
     console.log('First 500 characters:', text.substring(0, 500));
     
+    // Log the exact content around the GENERATED TASKS section
+    const taskSectionIndex = text.indexOf('GENERATED TASKS');
+    if (taskSectionIndex !== -1) {
+      console.log('GENERATED TASKS found at index:', taskSectionIndex);
+      console.log('Content around GENERATED TASKS:', text.substring(taskSectionIndex - 100, taskSectionIndex + 1000));
+    }
+    
     // PRIORITY 1: Extract Report Title for task prefixing
     console.log('Extracting Report Title for task generation prefix...');
     const reportTitlePattern = /Report Title:\s*([^\n]+)/i;
