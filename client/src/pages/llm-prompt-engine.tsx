@@ -796,6 +796,50 @@ export default function LLMPromptEnginePage() {
       });
     }
     
+    // Pattern for numbered list format (more forgiving)
+    if (tasks.length === 0) {
+      const numberedListPattern = /(\d+)\.\s*\*\*Invoice\s+(INV-[^*]+)\*\*\s*[-–]\s*([^-\n]+)/gi;
+      let numberedMatch;
+      while ((numberedMatch = numberedListPattern.exec(text)) !== null) {
+        const invoiceNumber = numberedMatch[2].trim();
+        const customerName = numberedMatch[3].trim();
+        
+        // Look for details in the following lines
+        const afterInvoice = text.substring(numberedMatch.index + numberedMatch[0].length, numberedMatch.index + 500);
+        const totalAmountMatch = afterInvoice.match(/Total Amount:\s*USD\s*([\d,]+(?:\.\d{2})?)/i);
+        const outstandingMatch = afterInvoice.match(/Outstanding:\s*USD\s*([\d,]+(?:\.\d{2})?)/i);
+        const daysOverdueMatch = afterInvoice.match(/Days Overdue:\s*(\d+)/i);
+        const statusMatch = afterInvoice.match(/Status:\s*(\w+)/i);
+        
+        let description = `Financial Recovery Task - Invoice Collection\n\n`;
+        description += `Invoice Number: ${invoiceNumber}\n`;
+        description += `Customer: ${customerName}\n`;
+        if (totalAmountMatch) description += `Total Amount: USD ${totalAmountMatch[1]}\n`;
+        if (outstandingMatch) description += `Outstanding Amount: USD ${outstandingMatch[1]}\n`;
+        if (daysOverdueMatch) description += `Days Overdue: ${daysOverdueMatch[1]} days\n`;
+        if (statusMatch) description += `Status: ${statusMatch[1]}\n`;
+        description += `\nAction Required:\n`;
+        description += `• Contact customer for immediate payment collection\n`;
+        description += `• Send payment reminder notice\n`;
+        description += `• Follow up within 3 business days\n`;
+        if (daysOverdueMatch && parseInt(daysOverdueMatch[1]) > 90) {
+          description += `• Consider escalation to management\n`;
+        }
+        
+        const daysOverdue = daysOverdueMatch ? parseInt(daysOverdueMatch[1]) : 0;
+        const priority = daysOverdue > 365 ? 'High' : daysOverdue > 90 ? 'Medium' : 'Low';
+        
+        tasks.push({
+          id: `invoice-${invoiceNumber.replace(/[^a-zA-Z0-9]/g, '-')}`,
+          title: `Invoice ${invoiceNumber} – ${customerName}`,
+          description,
+          priority,
+          category: 'Finance',
+          estimatedDays: priority === 'High' ? 1 : priority === 'Medium' ? 3 : 5
+        });
+      }
+    }
+    
     // Fallback pattern for simpler invoice mentions  
     if (tasks.length === 0) {
       const simpleInvoicePattern = /\*\*Invoice\s+(INV-[^*]+)\*\*\s*[-–]\s*([^\n]+)/gi;
@@ -892,7 +936,15 @@ export default function LLMPromptEnginePage() {
       }
     }
     
-    return tasks.slice(0, 8); // Limit to 8 tasks for manageability
+    // Prioritize tasks by importance and limit only if too many
+    tasks.sort((a, b) => {
+      // Sort by priority: High > Medium > Low
+      const priorityOrder = { 'High': 3, 'Medium': 2, 'Low': 1 };
+      return priorityOrder[b.priority] - priorityOrder[a.priority];
+    });
+    
+    // Only limit if we have an excessive number (over 50)
+    return tasks.length > 50 ? tasks.slice(0, 50) : tasks;
   };
 
   const handleGenerateTasks = (insight: BusinessInsight) => {

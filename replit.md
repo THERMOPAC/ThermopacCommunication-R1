@@ -9,6 +9,8 @@ Preferred communication style: Simple, everyday language.
   ✅ **Manager Assignment**: Tasks generated from LLM insights now automatically set Created_By to Manager (ID = 1) instead of current user
   ✅ **Improved Categories Filtering**: Enhanced Categories dropdown to work across Business Modules, All Prompts, and Generated Insights tabs
   ✅ **Better Task Editing**: Increased Description field height from 60px to 120px in Review Generated Tasks dialog
+  ✅ **Task Generation Limit Removed**: Fixed artificial 8-task limit that was preventing full utilization of financial insights with 30+ invoices
+  ✅ **Enhanced Invoice Parsing**: Added numbered list pattern recognition for detailed invoice breakdowns with financial data extraction
   🎯 **System Status**: LLM-generated tasks properly assigned to Manager for better organizational accountability
 
 # System Architecture
