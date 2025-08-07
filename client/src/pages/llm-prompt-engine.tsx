@@ -1975,21 +1975,7 @@ export default function LLMPromptEnginePage() {
                         <Button 
                           size="sm" 
                           variant="outline"
-                          onClick={() => {
-                            setEditingPrompt(prompt);
-                            setEditFormData({
-                              name: prompt.name,
-                              category: prompt.category,
-                              description: prompt.description,
-                              template: prompt.template,
-                              model: prompt.model,
-                              frequency: prompt.frequency,
-                              priority: prompt.priority,
-                              temperature: prompt.temperature || 0.7,
-                              data_query: ''
-                            });
-                            setIsEditDialogOpen(true);
-                          }}
+                          onClick={() => handleEditPrompt(prompt)}
                         >
                           <Edit className="w-3 h-3" />
                         </Button>
