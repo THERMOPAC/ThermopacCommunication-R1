@@ -485,26 +485,28 @@ export class LLMPromptEngine {
             
             // Add pending commitments analysis in the required format
             if (pendingCommitments.length > 0) {
-              formattedData += "**PENDING_COMMITMENTS DATA FOR CLEAN LIST FORMAT:**\n\n";
+              formattedData += "**🔥 CRITICAL: ALL PENDING COMMITMENTS DATA FOR SECTION 3 LIST FORMAT:**\n\n";
               pendingCommitments.forEach((commitment, index) => {
-                formattedData += `PENDING_COMMITMENT_${index + 1}:\n`;
-                formattedData += `  - Meeting Name: "${commitment.meeting_title}"\n`;
-                formattedData += `  - Meeting Date: ${commitment.meeting_date}\n`;
-                formattedData += `  - Commitment Description: ${commitment.commitment_description || 'Not specified'}\n`;
-                formattedData += `  - Assigned To: ${commitment.assigned_to}\n`;
-                formattedData += `  - Status: ${commitment.meeting_status}\n`;
-                formattedData += `  - Urgency: ${commitment.urgency}\n\n`;
+                const meetingDate = commitment.meeting_date;
+                const meetingName = commitment.meeting_title;
+                const commitmentDesc = commitment.commitment_description || 'Not specified';
+                const assignedTo = commitment.assigned_to;
+                const status = commitment.meeting_status || 'Pending';
+                
+                formattedData += `COMMITMENT_${index + 1}:\n`;
+                formattedData += `  Meeting Name: ${meetingName}\n`;
+                formattedData += `  Meeting Date: ${meetingDate}\n`;
+                formattedData += `  Commitment Description: ${commitmentDesc}\n`;
+                formattedData += `  Assigned To: ${assignedTo}\n`;
+                formattedData += `  Status: ${status}\n\n`;
               });
               
-              formattedData += `**TOTAL PENDING COMMITMENTS: ${pendingCommitments.length}**\n\n`;
-              
-              // Add instruction for LLM to format this data properly
-              formattedData += "**INSTRUCTION FOR LLM: Use the PENDING_COMMITMENTS data above to create a clean list format in section 3.**\n";
-              formattedData += "**FORMAT EACH COMMITMENT EXACTLY AS:**\n";
-              formattedData += "**Meeting Name:** [Meeting Name] – [Meeting Date]\n";
-              formattedData += "**Commitment:** [Commitment Description]\n";
-              formattedData += "**Assigned To:** [Assigned To]\n";
-              formattedData += "**Status:** [Status]\n\n";
+              formattedData += `**⚠️ MANDATORY: Section 3 must include ALL ${pendingCommitments.length} pending commitments above.**\n`;
+              formattedData += "**🔒 EXACT FORMAT REQUIRED FOR SECTION 3:**\n";
+              formattedData += "Meeting Name: [Meeting Name] – [MM/DD/YYYY]\n";
+              formattedData += "Commitment: [Commitment Description]\n";
+              formattedData += "Assigned To: [Username]\n";
+              formattedData += "Status: Pending\n\n";
             } else {
               formattedData += "**PENDING_COMMITMENTS DATA: No pending commitments found in the system.**\n\n";
             }
