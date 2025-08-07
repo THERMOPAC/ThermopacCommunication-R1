@@ -37,8 +37,8 @@ interface PromptExecution {
 }
 
 export class LLMPromptEngine {
-  private openai: OpenAI;
-  private anthropic: Anthropic;
+  private openai!: OpenAI;
+  private anthropic!: Anthropic;
 
   constructor() {
     // Initialize OpenAI client if API key is available
@@ -535,7 +535,7 @@ export class LLMPromptEngine {
               
               const meetingDays = meetingData.map(m => m.day_of_week).filter(d => d);
               if (meetingDays.length > 0) {
-                const dayFrequency = {};
+                const dayFrequency: Record<string, number> = {};
                 meetingDays.forEach(day => {
                   const cleanDay = day.trim();
                   dayFrequency[cleanDay] = (dayFrequency[cleanDay] || 0) + 1;
@@ -669,7 +669,7 @@ export class LLMPromptEngine {
       await this.updatePromptPerformance(promptId);
 
       // Create business insight if the result is meaningful
-      await this.createBusinessInsight(execution.id, prompt.category, prompt.name, llmResponse.result);
+      await this.createBusinessInsight(execution.id, prompt.category || 'general', prompt.name, llmResponse.result);
 
       console.log(`✅ Prompt executed successfully in ${executionDuration}ms`);
       return execution;
@@ -688,7 +688,7 @@ export class LLMPromptEngine {
         'unknown',
         executionDuration,
         'failed',
-        error.message,
+        error instanceof Error ? error.message : String(error),
         triggeredBy
       ]);
 

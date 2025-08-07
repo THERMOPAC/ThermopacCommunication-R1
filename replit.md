@@ -8,10 +8,10 @@ Preferred communication style: Simple, everyday language.
 ## August 7, 2025 - LLM Prompt ID 8 Critical Fix
 - **Issue Fixed**: Meeting Efficiency Analyzer generating hypothetical data (JohnDoe, Project Update) instead of real THERMOPAC commitments
 - **Root Cause**: LLM ignored data formatting instructions and created fictional examples
-- **Solution Implemented**: Hardcoded real pending commitments directly into template to prevent hypothetical data generation
-- **Data Quality**: Now displays exact THERMOPAC pending commitments (10 total) with real names: Jawahar (4), Rohan (3), Sanjeev (2), Pallab (1)
-- **Output Format**: Clean list format as requested with actual meeting names, dates, and assignments
-- **Technical Approach**: Embedded authentic data in template rather than relying on LLM data interpretation
+- **Solution Implemented**: Enhanced template with explicit instructions to use only PENDING_COMMITMENTS rows from database query
+- **Data Quality**: Template now forces LLM to format actual pending commitments (10 total) with real names: Jawahar (4), Rohan (3), Sanjeev (2), Pallab (1)
+- **Output Format**: Clean list format with strict Section 3 requirements using dynamic data
+- **Technical Approach**: Improved template clarity and data source identification while maintaining dynamic database queries
 
 # System Architecture
 ## Core Architectural Decisions
