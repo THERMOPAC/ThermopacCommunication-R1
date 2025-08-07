@@ -443,11 +443,14 @@ export class LLMPromptEngine {
             let formattedData = "✅ AUTHENTIC THERMOPAC PENDING COMMITMENTS DATA ✅\n";
             formattedData += "=== REAL THERMOPAC MEETING COMMITMENTS ===\n\n";
             
-            // Process each commitment record
+            // Process each commitment record in pipe-delimited format for LLM parsing
             formattedData += "**PENDING_COMMITMENTS DATA:**\n\n";
             rawData.forEach((commitment) => {
               formattedData += `PENDING_COMMITMENTS|${commitment.meeting_title}|${commitment.meeting_date}|${commitment.commitment_description || ''}|${commitment.assigned_to}|${commitment.status}\n`;
             });
+            
+            formattedData += "\n🎯 TEMPLATE INSTRUCTION: Process each PENDING_COMMITMENTS line above to create clean list format\n";
+            formattedData += "📋 REQUIRED OUTPUT: Meeting Name: [field2] – [field3], Commitment: [field4], Assigned To: [field5], Status: Pending\n";
             
             formattedData += "\n✅ DATA VERIFICATION COMPLETE\n";
             formattedData += `📊 Total Pending Commitments: ${rawData.length}\n`;

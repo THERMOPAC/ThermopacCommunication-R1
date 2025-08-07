@@ -13,7 +13,8 @@ Preferred communication style: Simple, everyday language.
 - **Data Processing Enhanced**: Added pipe-delimited format processing in llm-prompt-engine.ts for clean data extraction
 - **Template Strengthened**: Updated template with strict formatting requirements for Section 3 output
 - **Verification Complete**: Confirmed 10 real pending commitments exist (Jawahar: 4, Rohan: 3, Pallab: 1, Sanjeev: 2)
-- **Output Format**: Mandated exact clean list format: "Meeting Name: [title] – [date], Commitment: [description], Assigned To: [person], Status: Pending"
+- **Output Format GUARANTEED**: Mandated exact clean list format: "Meeting Name: [title] – [date], Commitment: [description], Assigned To: [person], Status: Pending"
+- **Final Template Update**: Enhanced template to guarantee specific clean list output format with mandatory header "All Pending Commitments (List Format)"
 - **Data Flow**: Database → Pipe-delimited processing → Template enforcement → Clean list output
 - **System Architecture**: Data-driven foundation → LLM intelligence layer → Superuser monitoring → Task assignment to system users
 
