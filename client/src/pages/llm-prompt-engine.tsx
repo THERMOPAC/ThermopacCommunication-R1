@@ -188,9 +188,14 @@ export default function LLMPromptEnginePage() {
 
   // Fetch prompts organized by modules
   const { data: moduleGroupsData, isLoading: moduleGroupsLoading } = useQuery({
-    queryKey: ['/api/llm/prompts/by-modules'],
+    queryKey: ['/api/llm/prompts/by-modules', { category: selectedCategory === 'all' ? undefined : selectedCategory }],
     queryFn: async () => {
-      const response = await fetch(`/api/llm/prompts/by-modules`, {
+      const params = new URLSearchParams();
+      if (selectedCategory !== 'all') {
+        params.append('category', selectedCategory);
+      }
+      
+      const response = await fetch(`/api/llm/prompts/by-modules?${params}`, {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch module groups');
@@ -946,8 +951,12 @@ export default function LLMPromptEnginePage() {
     
     setIsCreatingTasks(true);
     try {
-      const response = await apiRequest('/api/tasks/batch-create', {
+      const response = await fetch('/api/tasks/batch-create', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
         body: JSON.stringify({
           tasks: generatedTasks.map(task => ({
             title: task.title,
@@ -964,7 +973,9 @@ export default function LLMPromptEnginePage() {
         })
       });
 
-      if (response.success) {
+      const result = await response.json();
+
+      if (result.success) {
         toast({
           title: "Tasks Created Successfully",
           description: `Created ${generatedTasks.length} tasks from the LLM insight.`,
@@ -978,7 +989,7 @@ export default function LLMPromptEnginePage() {
         // Refresh task-related queries if needed
         queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       } else {
-        throw new Error(response.message || 'Failed to create tasks');
+        throw new Error(result.message || 'Failed to create tasks');
       }
     } catch (error) {
       toast({

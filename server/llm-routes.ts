@@ -112,7 +112,9 @@ router.get('/prompts', ensureAuthenticated, async (req: Request, res: Response) 
 // Get prompts organized by modules
 router.get('/prompts/by-modules', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const query = `
+    const { category } = req.query;
+    
+    let query = `
       SELECT 
         p.category,
         COUNT(*) as prompt_count,
@@ -137,6 +139,16 @@ router.get('/prompts/by-modules', ensureAuthenticated, async (req: Request, res:
       LEFT JOIN users u ON p.created_by = u.id
       LEFT JOIN llm_prompt_performance pp ON p.id = pp.prompt_id
       WHERE p.active = true
+    `;
+    
+    const params: any[] = [];
+    
+    if (category && category !== 'all') {
+      query += ` AND p.category = $${params.length + 1}`;
+      params.push(category);
+    }
+    
+    query += `
       GROUP BY p.category
       ORDER BY 
         CASE p.category
@@ -159,7 +171,7 @@ router.get('/prompts/by-modules', ensureAuthenticated, async (req: Request, res:
         END
     `;
     
-    const result = await pool.query(query);
+    const result = await pool.query(query, params);
     
     res.json({
       moduleGroups: result.rows
