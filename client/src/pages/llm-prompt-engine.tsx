@@ -190,7 +190,15 @@ export default function LLMPromptEnginePage() {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch prompts');
-      return response.json();
+      const data = await response.json();
+      
+      console.log('=== API RESPONSE DEBUG ===');
+      console.log('Full API response:', data);
+      console.log('First prompt:', data?.prompts?.[0]);
+      console.log('First prompt dataQuery:', data?.prompts?.[0]?.dataQuery);
+      console.log('=== END API DEBUG ===');
+      
+      return data;
     }
   });
 
