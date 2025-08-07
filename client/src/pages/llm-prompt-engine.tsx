@@ -1028,17 +1028,24 @@ export default function LLMPromptEnginePage() {
           console.log('Still low task count. Checking for incomplete LLM output and generating from invoice breakdown...');
           
           // Extract invoice numbers from the detailed breakdown section to ensure we have all tasks
-          const invoicePattern = /\*\*Invoice Number:\*\*\s*([^\s]+)[\s\S]*?\*\*SAP Invoice No:\*\*\s*([^\n]+)[\s\S]*?\*\*Customer Name:\*\*\s*([^\n]+)/gi;
+          // Try multiple patterns to match different formats in the LLM output
+          const invoicePattern1 = /\*\*Invoice Number:\*\*\s*([^\s]+)[\s\S]*?\*\*SAP Invoice No:\*\*\s*([^\n]+)[\s\S]*?\*\*Customer Name:\*\*\s*([^\n]+)/gi;
+          const invoicePattern2 = /Invoice Number:\s*([^\n]+)[\s\S]*?SAP Invoice No:\s*([^\n]+)[\s\S]*?Customer:\s*([^\n]+)/gi;
+          const invoicePattern3 = /(\d+)\.\s*\*\*Invoice Number:\*\*\s*([^\n]+)[\s\S]*?\*\*Customer:\*\*\s*([^\n]+)/gi;
+          
+          // Also try to extract from the raw invoice listing format
+          const simpleInvoicePattern = /(?:Invoice|INV)[-\s]*(\d+[-/]\d+[-/]\d+).*?([A-Z][A-Z0-9\s&.,()-]+?)(?:\s-\s|\n|$)/gi;
           let invoiceMatch;
           let invoiceCount = 0;
           
-          while ((invoiceMatch = invoicePattern.exec(text)) !== null && invoiceCount < 50) {
+          // Try pattern 1
+          while ((invoiceMatch = invoicePattern1.exec(text)) !== null && invoiceCount < 50) {
             invoiceCount++;
             const invoiceNumber = invoiceMatch[1].trim();
             const sapInvoiceNo = invoiceMatch[2].trim();
             const customerName = invoiceMatch[3].trim();
             
-            console.log(`Found invoice ${invoiceCount}: ${invoiceNumber} | ${sapInvoiceNo} | ${customerName}`);
+            console.log(`Pattern 1 - Found invoice ${invoiceCount}: ${invoiceNumber} | ${sapInvoiceNo} | ${customerName}`);
             
             // Check if we already have a task for this invoice
             const existingTask = tasks.find(task => 
@@ -1069,6 +1076,94 @@ export default function LLMPromptEnginePage() {
                 category: 'Finance',
                 estimatedDays: 3
               });
+            }
+          }
+          
+          // Try pattern 2 if not enough results
+          if (invoiceCount < 10) {
+            console.log('Trying pattern 2...');
+            invoicePattern2.lastIndex = 0;
+            while ((invoiceMatch = invoicePattern2.exec(text)) !== null && invoiceCount < 50) {
+              invoiceCount++;
+              const invoiceNumber = invoiceMatch[1].trim();
+              const sapInvoiceNo = invoiceMatch[2].trim();
+              const customerName = invoiceMatch[3].trim();
+              
+              console.log(`Pattern 2 - Found invoice ${invoiceCount}: ${invoiceNumber} | ${sapInvoiceNo} | ${customerName}`);
+              
+              // Check if we already have a task for this invoice
+              const existingTask = tasks.find(task => 
+                task.title.includes(invoiceNumber) || 
+                task.title.includes(sapInvoiceNo)
+              );
+              
+              if (!existingTask) {
+                console.log(`Creating missing task for: ${invoiceNumber}`);
+                
+                let taskTitle = `BRC Pending for ${invoiceNumber} + ${sapInvoiceNo} + ${customerName}`;
+                
+                // Apply Report Title prefix
+                if (reportTitle && !taskTitle.toLowerCase().includes(reportTitle.toLowerCase())) {
+                  const titlePrefix = reportTitle.replace(/\s*(Report|Analysis|Intelligence)\s*/gi, '').trim();
+                  if (titlePrefix && !taskTitle.toLowerCase().includes(titlePrefix.toLowerCase())) {
+                    taskTitle = `${titlePrefix} - ${taskTitle}`;
+                  }
+                }
+                
+                const taskDescription = `Invoice Number: ${invoiceNumber}\nSAP Invoice No: ${sapInvoiceNo}\nCustomer: ${customerName}\nAction Required: Contact customer to submit Bank Realization Certificate for export invoice processing and compliance.`;
+                
+                tasks.push({
+                  id: `task-${Date.now()}-${invoiceCount + 3000}`,
+                  title: taskTitle,
+                  description: taskDescription,
+                  priority: 'High',
+                  category: 'Finance',
+                  estimatedDays: 3
+                });
+              }
+            }
+          }
+          
+          // Try simpler pattern if still not enough results
+          if (invoiceCount < 10) {
+            console.log('Trying simple invoice pattern...');
+            simpleInvoicePattern.lastIndex = 0;
+            while ((invoiceMatch = simpleInvoicePattern.exec(text)) !== null && invoiceCount < 50) {
+              invoiceCount++;
+              const invoiceNumber = invoiceMatch[1].trim();
+              const customerName = invoiceMatch[2].trim();
+              
+              console.log(`Simple pattern - Found invoice ${invoiceCount}: ${invoiceNumber} | ${customerName}`);
+              
+              // Check if we already have a task for this invoice
+              const existingTask = tasks.find(task => 
+                task.title.includes(invoiceNumber)
+              );
+              
+              if (!existingTask) {
+                console.log(`Creating missing task for: ${invoiceNumber}`);
+                
+                let taskTitle = `BRC Pending for ${invoiceNumber} + ${customerName}`;
+                
+                // Apply Report Title prefix
+                if (reportTitle && !taskTitle.toLowerCase().includes(reportTitle.toLowerCase())) {
+                  const titlePrefix = reportTitle.replace(/\s*(Report|Analysis|Intelligence)\s*/gi, '').trim();
+                  if (titlePrefix && !taskTitle.toLowerCase().includes(titlePrefix.toLowerCase())) {
+                    taskTitle = `${titlePrefix} - ${taskTitle}`;
+                  }
+                }
+                
+                const taskDescription = `Invoice Number: ${invoiceNumber}\nCustomer: ${customerName}\nAction Required: Contact customer to submit Bank Realization Certificate for export invoice processing and compliance.`;
+                
+                tasks.push({
+                  id: `task-${Date.now()}-${invoiceCount + 4000}`,
+                  title: taskTitle,
+                  description: taskDescription,
+                  priority: 'High',
+                  category: 'Finance',
+                  estimatedDays: 3
+                });
+              }
             }
           }
           
