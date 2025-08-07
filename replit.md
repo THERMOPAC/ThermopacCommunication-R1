@@ -5,6 +5,14 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 Preferred communication style: Simple, everyday language.
 
 # Recent Changes
+- **August 7, 2025: PRE-PREVIEW DUPLICATE DETECTION**: Implemented proactive duplicate detection that runs before task preview, ensuring users never see duplicate tasks.
+  ✅ **Preview-Phase Filtering**: New `/api/tasks/check-duplicates` endpoint checks for duplicates before showing task preview dialog
+  ✅ **Early Detection**: Duplicate checking happens during task generation, filtering out duplicates before user sees them
+  ✅ **Clean Preview Experience**: Users only see unique, non-duplicate tasks in the review dialog
+  ✅ **Intelligent Messaging**: System shows clear notifications about filtered duplicates (e.g., "Generated 5 unique tasks. 2 duplicate tasks were filtered out.")
+  ✅ **Zero Duplicate Preview**: If all tasks are duplicates, preview dialog doesn't open and user gets clear feedback
+  ✅ **Enhanced User Experience**: Eliminates confusion from seeing duplicate tasks in preview that would be skipped during creation
+
 - **August 7, 2025: ENHANCED DUPLICATE TASK DETECTION**: Fixed intelligent duplicate prevention for LLM-generated tasks to prevent same-insight duplicates.
   ✅ **Smart Duplicate Detection**: Enhanced findDuplicateTask function to detect LLM insight duplicates based on sourceId instead of due date
   ✅ **Insight-Based Prevention**: Tasks from same LLM insight (sourceId + sourceType) now properly detected as duplicates regardless of due date differences

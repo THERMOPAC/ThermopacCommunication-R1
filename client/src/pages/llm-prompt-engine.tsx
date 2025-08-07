@@ -1031,23 +1031,75 @@ export default function LLMPromptEnginePage() {
       
       // Calculate due dates based on task generation days
       const today = new Date();
-      const updatedTasks = parsedTasks.map(task => ({
+      const tasksWithDates = parsedTasks.map(task => ({
         ...task,
         dueDate: new Date(today.getTime() + (taskGenerationDays * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
         estimatedDays: taskGenerationDays,
-        assignedTo: taskGenerationAssignee || undefined
+        assignedTo: taskGenerationAssignee || undefined,
+        sourceType: 'llm_insight',
+        sourceId: selectedInsight.id
       }));
+
+      // Check for duplicates before showing preview
+      console.log(`Checking for duplicates among ${tasksWithDates.length} generated tasks...`);
+      const duplicateCheckResponse = await fetch('/api/tasks/check-duplicates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ tasks: tasksWithDates })
+      });
+
+      if (!duplicateCheckResponse.ok) {
+        throw new Error('Failed to check for duplicate tasks');
+      }
+
+      const duplicateResult = await duplicateCheckResponse.json();
       
-      setGeneratedTasks(updatedTasks);
+      if (!duplicateResult.success) {
+        throw new Error(duplicateResult.message || 'Failed to check for duplicates');
+      }
+
+      // Filter out duplicates and only show unique tasks in preview
+      const uniqueTasks = duplicateResult.nonDuplicates.map((task: any) => ({
+        id: `temp-${Date.now()}-${task.index}`,
+        title: task.title,
+        description: task.description,
+        priority: task.priority,
+        category: task.category,
+        dueDate: task.dueDate,
+        estimatedDays: task.estimatedDays,
+        assignedTo: task.assignedTo
+      }));
+
+      setGeneratedTasks(uniqueTasks);
       // Auto-populate global assignee from task generation dialog
       setGlobalAssignee(taskGenerationAssignee);
       setIsTaskGenerationDialogOpen(false);
       setIsTaskPreviewOpen(true);
       
+      // Show informative message about duplicates
+      let toastMessage = '';
+      if (duplicateResult.duplicateCount > 0 && uniqueTasks.length > 0) {
+        toastMessage = `Generated ${uniqueTasks.length} unique tasks. ${duplicateResult.duplicateCount} duplicate tasks were filtered out.`;
+      } else if (duplicateResult.duplicateCount > 0 && uniqueTasks.length === 0) {
+        toastMessage = `All ${duplicateResult.duplicateCount} tasks were duplicates. No new tasks to create.`;
+      } else {
+        toastMessage = `Generated ${uniqueTasks.length} tasks from the insight. Review and assign before creating.`;
+      }
+
       toast({
-        title: "Tasks Generated",
-        description: `Generated ${updatedTasks.length} tasks from the insight. Review and assign before creating.`,
+        title: uniqueTasks.length > 0 ? "Tasks Generated" : "No New Tasks",
+        description: toastMessage,
+        variant: uniqueTasks.length > 0 ? "default" : "destructive"
       });
+
+      if (uniqueTasks.length === 0) {
+        // Close the preview dialog if no unique tasks
+        setIsTaskPreviewOpen(false);
+      }
+      
     } catch (error) {
       toast({
         title: "Generation Failed",

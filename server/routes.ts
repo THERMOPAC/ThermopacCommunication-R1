@@ -2152,6 +2152,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Batch create tasks from LLM insights
+  // Check for duplicate tasks before preview
+  app.post("/api/tasks/check-duplicates", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      const { tasks } = req.body;
+      if (!tasks || !Array.isArray(tasks)) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Tasks array is required" 
+        });
+      }
+
+      const duplicateInfo = [];
+      const nonDuplicates = [];
+
+      for (let i = 0; i < tasks.length; i++) {
+        try {
+          // For tasks generated from LLM insights, set createdBy to Manager (ID = 1)
+          const createdBy = tasks[i].sourceType === 'llm_insight' ? 1 : req.user!.id;
+          
+          // Check for duplicate task
+          const duplicateTask = await storage.findDuplicateTask(
+            tasks[i].title,
+            createdBy,
+            tasks[i].assignedTo || null,
+            tasks[i].dueDate || null,
+            tasks[i].sourceId || null
+          );
+
+          if (duplicateTask) {
+            console.log(`Found duplicate for task "${tasks[i].title}" (existing task ID: ${duplicateTask.id})`);
+            duplicateInfo.push({
+              index: i,
+              title: tasks[i].title,
+              existingTaskId: duplicateTask.id,
+              isDuplicate: true
+            });
+          } else {
+            nonDuplicates.push({
+              ...tasks[i],
+              index: i,
+              isDuplicate: false
+            });
+          }
+        } catch (error) {
+          console.error(`Error checking duplicate for task ${i + 1}:`, error);
+          // If we can't check, assume it's not a duplicate to be safe
+          nonDuplicates.push({
+            ...tasks[i],
+            index: i,
+            isDuplicate: false
+          });
+        }
+      }
+
+      console.log(`Duplicate check complete: ${nonDuplicates.length} unique tasks, ${duplicateInfo.length} duplicates found`);
+
+      res.json({
+        success: true,
+        totalTasks: tasks.length,
+        uniqueTasks: nonDuplicates.length,
+        duplicateCount: duplicateInfo.length,
+        nonDuplicates,
+        duplicates: duplicateInfo
+      });
+    } catch (error) {
+      console.error('Error in duplicate check:', error);
+      res.status(500).json({ 
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to check duplicates" 
+      });
+    }
+  });
+
   app.post("/api/tasks/batch-create", async (req, res) => {
     try {
       if (!req.isAuthenticated()) return res.sendStatus(401);
