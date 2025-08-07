@@ -754,37 +754,72 @@ export default function LLMPromptEnginePage() {
     const text = insight.insight_text;
     const tasks: GeneratedTask[] = [];
     
-    // Enhanced pattern to match detailed invoice breakdown format
-    const invoiceDetailPattern = /(\d+)\.\s*\*\*Invoice\s+(INV-[^*]+)\*\*\s*[-–]\s*([^\n]+)\s*[-–]?\s*Total Amount:\s*USD\s*([\d,]+)\s*[-–]?\s*Outstanding:\s*USD\s*([\d,]+)\s*[-–]?\s*Due Date:\s*([^\n]+)\s*[-–]?\s*Days Overdue:\s*(\d+)\s*[-–]?\s*Status:\s*(\w+)\s*[-–]?\s*Paid Amount:\s*USD\s*([\d,]+)/gi;
+    // Enhanced pattern to match detailed invoice breakdown format with SAP numbers
+    const invoiceDetailPattern = /(\d+)\.\s*\*\*Invoice\s+(INV-[^*]+)\*\*\s*(?:\([^)]*SAP:[^)]*\))?\s*[-–]\s*([^\n]+?)(?:\n|\r|\s*[-–]?\s*Total Amount:)/gi;
     
     let detailMatch;
     while ((detailMatch = invoiceDetailPattern.exec(text)) !== null) {
       const invoiceNumber = detailMatch[2].trim();
       const customerName = detailMatch[3].trim();
-      const totalAmount = detailMatch[4];
-      const outstandingAmount = detailMatch[5];
-      const dueDate = detailMatch[6];
-      const daysOverdue = detailMatch[7];
-      const status = detailMatch[8];
-      const paidAmount = detailMatch[9];
       
-      let description = `Financial Recovery Task - High Priority Collection\n\n`;
+      // Look for details in the following lines after this match
+      const afterInvoice = text.substring(detailMatch.index + detailMatch[0].length, detailMatch.index + 800);
+      const totalAmountMatch = afterInvoice.match(/Total Amount:\s*USD\s*([\d,]+(?:\.\d{1,2})?)/i);
+      const outstandingMatch = afterInvoice.match(/Outstanding:\s*USD\s*([\d,]+(?:\.\d{1,2})?)/i);
+      const dueDateMatch = afterInvoice.match(/Due Date:\s*([^\n\r]+)/i);
+      const daysOverdueMatch = afterInvoice.match(/Days Overdue:\s*(\d+)/i);
+      const statusMatch = afterInvoice.match(/Status:\s*(\w+)/i);
+      const paidAmountMatch = afterInvoice.match(/Paid Amount:\s*USD\s*([\d,]+(?:\.\d{1,2})?)/i);
+      const sapMatch = detailMatch[0].match(/SAP:\s*([^)]+)/i);
+      
+      const totalAmount = totalAmountMatch ? totalAmountMatch[1] : 'N/A';
+      const outstandingAmount = outstandingMatch ? outstandingMatch[1] : 'N/A';
+      const dueDate = dueDateMatch ? dueDateMatch[1].trim() : 'N/A';
+      const daysOverdue = daysOverdueMatch ? parseInt(daysOverdueMatch[1]) : 0;
+      const status = statusMatch ? statusMatch[1] : 'UNKNOWN';
+      const paidAmount = paidAmountMatch ? paidAmountMatch[1] : '0';
+      const sapNumber = sapMatch ? sapMatch[1].trim() : 'N/A';
+      
+      let description = `🔴 URGENT: Financial Recovery Task - Invoice Collection Required\n\n`;
+      description += `📋 INVOICE DETAILS:\n`;
       description += `Invoice Number: ${invoiceNumber}\n`;
+      if (sapNumber !== 'N/A') description += `SAP Reference: ${sapNumber}\n`;
       description += `Customer: ${customerName}\n`;
-      description += `Total Amount: USD ${totalAmount}\n`;
+      description += `Total Invoice Amount: USD ${totalAmount}\n`;
       description += `Outstanding Amount: USD ${outstandingAmount}\n`;
       description += `Original Due Date: ${dueDate}\n`;
       description += `Days Overdue: ${daysOverdue} days\n`;
-      description += `Status: ${status}\n`;
-      description += `Paid Amount: USD ${paidAmount}\n\n`;
-      description += `Action Required:\n`;
-      description += `• Contact customer immediately for payment collection\n`;
-      description += `• Send formal payment demand letter\n`;
-      description += `• Negotiate payment plan if necessary\n`;
-      description += `• Escalate to legal if no response within 7 days\n\n`;
-      description += `Priority Level: ${parseInt(daysOverdue) > 1000 ? 'CRITICAL - Over 1000 days overdue' : 'HIGH - Immediate action required'}`;
+      description += `Payment Status: ${status}\n`;
+      description += `Amount Paid to Date: USD ${paidAmount}\n\n`;
       
-      const priority = parseInt(daysOverdue) > 1000 ? 'High' : 'Medium';
+      description += `⚡ IMMEDIATE ACTIONS REQUIRED:\n`;
+      description += `• Contact customer immediately for payment collection\n`;
+      description += `• Send formal payment demand letter with 7-day deadline\n`;
+      description += `• Review customer payment history and credit terms\n`;
+      if (daysOverdue > 365) {
+        description += `• CRITICAL: Consider immediate legal action (${daysOverdue} days overdue)\n`;
+        description += `• Escalate to senior management for review\n`;
+      } else if (daysOverdue > 90) {
+        description += `• Consider credit hold on future orders\n`;
+        description += `• Negotiate payment plan if necessary\n`;
+      } else {
+        description += `• Follow standard collection procedures\n`;
+        description += `• Maintain customer relationship while collecting\n`;
+      }
+      description += `• Update collection log with all communication\n\n`;
+      
+      if (daysOverdue > 1000) {
+        description += `🚨 PRIORITY LEVEL: CRITICAL - Over ${daysOverdue} days overdue\n`;
+        description += `💰 IMPACT: High financial risk - Immediate action required`;
+      } else if (daysOverdue > 365) {
+        description += `⚠️ PRIORITY LEVEL: HIGH - Long overdue account\n`;
+        description += `💰 IMPACT: Significant aging - Escalation recommended`;
+      } else {
+        description += `📈 PRIORITY LEVEL: MEDIUM - Active collection required\n`;
+        description += `💰 IMPACT: Standard collection procedures`;
+      }
+      
+      const priority = daysOverdue > 365 ? 'High' : daysOverdue > 90 ? 'Medium' : 'Low';
       
       tasks.push({
         id: `invoice-${invoiceNumber.replace(/[^a-zA-Z0-9]/g, '-')}`,
@@ -792,13 +827,13 @@ export default function LLMPromptEnginePage() {
         description,
         priority,
         category: 'Finance',
-        estimatedDays: parseInt(daysOverdue) > 1000 ? 1 : 3
+        estimatedDays: priority === 'High' ? 1 : priority === 'Medium' ? 3 : 5
       });
     }
     
-    // Pattern for numbered list format (more forgiving)
+    // Pattern for numbered list format (more forgiving) - fallback if detailed pattern fails
     if (tasks.length === 0) {
-      const numberedListPattern = /(\d+)\.\s*\*\*Invoice\s+(INV-[^*]+)\*\*\s*[-–]\s*([^-\n]+)/gi;
+      const numberedListPattern = /(\d+)\.\s*\*\*Invoice\s+(INV-[^*]+)\*\*\s*(?:\([^)]*SAP:[^)]*\))?\s*[-–]\s*([^-\n]+)/gi;
       let numberedMatch;
       while ((numberedMatch = numberedListPattern.exec(text)) !== null) {
         const invoiceNumber = numberedMatch[2].trim();
@@ -806,25 +841,32 @@ export default function LLMPromptEnginePage() {
         
         // Look for details in the following lines
         const afterInvoice = text.substring(numberedMatch.index + numberedMatch[0].length, numberedMatch.index + 500);
-        const totalAmountMatch = afterInvoice.match(/Total Amount:\s*USD\s*([\d,]+(?:\.\d{2})?)/i);
-        const outstandingMatch = afterInvoice.match(/Outstanding:\s*USD\s*([\d,]+(?:\.\d{2})?)/i);
+        const totalAmountMatch = afterInvoice.match(/Total Amount:\s*USD\s*([\d,]+(?:\.\d{1,2})?)/i);
+        const outstandingMatch = afterInvoice.match(/Outstanding:\s*USD\s*([\d,]+(?:\.\d{1,2})?)/i);
         const daysOverdueMatch = afterInvoice.match(/Days Overdue:\s*(\d+)/i);
         const statusMatch = afterInvoice.match(/Status:\s*(\w+)/i);
+        const sapMatch = numberedMatch[0].match(/SAP:\s*([^)]+)/i);
         
-        let description = `Financial Recovery Task - Invoice Collection\n\n`;
+        let description = `💼 Financial Recovery Task - Invoice Collection\n\n`;
+        description += `📋 INVOICE DETAILS:\n`;
         description += `Invoice Number: ${invoiceNumber}\n`;
+        if (sapMatch) description += `SAP Reference: ${sapMatch[1].trim()}\n`;
         description += `Customer: ${customerName}\n`;
         if (totalAmountMatch) description += `Total Amount: USD ${totalAmountMatch[1]}\n`;
         if (outstandingMatch) description += `Outstanding Amount: USD ${outstandingMatch[1]}\n`;
         if (daysOverdueMatch) description += `Days Overdue: ${daysOverdueMatch[1]} days\n`;
         if (statusMatch) description += `Status: ${statusMatch[1]}\n`;
-        description += `\nAction Required:\n`;
+        
+        description += `\n⚡ ACTION REQUIRED:\n`;
         description += `• Contact customer for immediate payment collection\n`;
-        description += `• Send payment reminder notice\n`;
+        description += `• Send formal payment reminder notice\n`;
+        description += `• Review customer account status\n`;
         description += `• Follow up within 3 business days\n`;
         if (daysOverdueMatch && parseInt(daysOverdueMatch[1]) > 90) {
           description += `• Consider escalation to management\n`;
+          description += `• Review credit terms and limits\n`;
         }
+        description += `• Document all collection activities\n`;
         
         const daysOverdue = daysOverdueMatch ? parseInt(daysOverdueMatch[1]) : 0;
         const priority = daysOverdue > 365 ? 'High' : daysOverdue > 90 ? 'Medium' : 'Low';
