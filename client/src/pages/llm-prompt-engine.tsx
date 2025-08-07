@@ -56,6 +56,7 @@ import {
   ListChecks,
   Calendar,
   User,
+  Users,
   ArrowRight
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -151,6 +152,7 @@ export default function LLMPromptEnginePage() {
   const [selectedInsight, setSelectedInsight] = useState<BusinessInsight | null>(null);
   const [isTaskPreviewOpen, setIsTaskPreviewOpen] = useState(false);
   const [isCreatingTasks, setIsCreatingTasks] = useState(false);
+  const [globalAssignee, setGlobalAssignee] = useState<number | null>(null);
   
   // Edit form state
   const [editFormData, setEditFormData] = useState({
@@ -1040,6 +1042,16 @@ export default function LLMPromptEnginePage() {
     setGeneratedTasks(prev => prev.filter(task => task.id !== taskId));
   };
 
+  const applyGlobalAssignment = (assigneeId: number | null) => {
+    setGlobalAssignee(assigneeId);
+    setGeneratedTasks(prev => 
+      prev.map(task => ({ 
+        ...task, 
+        assignedTo: assigneeId || undefined 
+      }))
+    );
+  };
+
   const handleCreateAllTasks = async () => {
     if (generatedTasks.length === 0) return;
     
@@ -1079,6 +1091,7 @@ export default function LLMPromptEnginePage() {
         setIsTaskPreviewOpen(false);
         setGeneratedTasks([]);
         setSelectedInsight(null);
+        setGlobalAssignee(null);
         
         // Refresh task-related queries if needed
         queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
@@ -2262,6 +2275,39 @@ export default function LLMPromptEnginePage() {
                 </div>
               ) : (
                 <>
+                  {/* Global Assignment Section */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                          <Users className="w-4 h-4" />
+                          Global Assignment
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-3">
+                          Assign all tasks to the same person, or leave blank to assign individually.
+                        </p>
+                        <div className="flex items-center gap-3">
+                          <Label htmlFor="global-assignee" className="text-sm font-medium min-w-fit">
+                            Assign All Tasks To:
+                          </Label>
+                          <select
+                            id="global-assignee"
+                            value={globalAssignee || ''}
+                            onChange={(e) => applyGlobalAssignment(e.target.value ? parseInt(e.target.value) : null)}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white"
+                          >
+                            <option value="">Select assignee for all tasks...</option>
+                            {users.map((user) => (
+                              <option key={user.id} value={user.id}>
+                                {user.firstName || user.username} {user.lastName || ''} ({user.role}){user.department && ` - ${user.department}`}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid gap-4">
                     {generatedTasks.map((task, index) => (
                       <Card key={task.id} className="border-l-4 border-l-blue-500">

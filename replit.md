@@ -11,6 +11,8 @@ Preferred communication style: Simple, everyday language.
   ✅ **Better Task Editing**: Increased Description field height from 60px to 120px in Review Generated Tasks dialog
   ✅ **Task Generation Limit Removed**: Fixed artificial 8-task limit that was preventing full utilization of financial insights with 30+ invoices
   ✅ **Enhanced Invoice Parsing**: Added numbered list pattern recognition for detailed invoice breakdowns with financial data extraction
+  ✅ **Global Assignment Feature**: Added global "Assign To" dropdown in task generation dialog to assign all tasks to same person at once
+  ✅ **Comprehensive Task Descriptions**: Enhanced task descriptions with complete financial details, SAP references, priority levels, and visual indicators
   🎯 **System Status**: LLM-generated tasks properly assigned to Manager for better organizational accountability
 
 # System Architecture
