@@ -12,6 +12,7 @@ Preferred communication style: Simple, everyday language.
 - **Data Quality**: Template now forces LLM to format actual pending commitments (10 total) with real names: Jawahar (4), Rohan (3), Sanjeev (2), Pallab (1)
 - **Output Format**: Clean list format with strict Section 3 requirements using dynamic data
 - **Technical Approach**: Improved template clarity and data source identification while maintaining dynamic database queries
+- **Task Generation Focus**: Enhanced template to generate actionable tasks rather than summaries, based on real data gaps
 
 # System Architecture
 ## Core Architectural Decisions
