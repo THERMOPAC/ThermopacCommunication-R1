@@ -749,35 +749,61 @@ export default function LLMPromptEnginePage() {
     const text = insight.insight_text;
     const tasks: GeneratedTask[] = [];
     
-    // First, try to find detailed invoice information with specific patterns
-    const invoicePattern = /(INV-\d{4}-\d{3})\s*[-–]\s*([^-\n]+?)(?:\s*[-–]?\s*Total.*?USD\s*([\d,]+).*?Outstanding.*?USD\s*([\d,]+).*?(\d{1,4})\s*days?\s*overdue)?/gi;
+    // Enhanced pattern to match detailed invoice breakdown format
+    const invoiceDetailPattern = /(\d+)\.\s*\*\*Invoice\s+(INV-[^*]+)\*\*\s*[-–]\s*([^\n]+)\s*[-–]?\s*Total Amount:\s*USD\s*([\d,]+)\s*[-–]?\s*Outstanding:\s*USD\s*([\d,]+)\s*[-–]?\s*Due Date:\s*([^\n]+)\s*[-–]?\s*Days Overdue:\s*(\d+)\s*[-–]?\s*Status:\s*(\w+)\s*[-–]?\s*Paid Amount:\s*USD\s*([\d,]+)/gi;
     
-    let invoiceMatch;
-    while ((invoiceMatch = invoicePattern.exec(text)) !== null) {
-      const invoiceNumber = invoiceMatch[1];
-      const customerName = invoiceMatch[2]?.trim();
-      const totalAmount = invoiceMatch[3];
-      const outstandingAmount = invoiceMatch[4];
-      const daysOverdue = invoiceMatch[5];
+    let detailMatch;
+    while ((detailMatch = invoiceDetailPattern.exec(text)) !== null) {
+      const invoiceNumber = detailMatch[2].trim();
+      const customerName = detailMatch[3].trim();
+      const totalAmount = detailMatch[4];
+      const outstandingAmount = detailMatch[5];
+      const dueDate = detailMatch[6];
+      const daysOverdue = detailMatch[7];
+      const status = detailMatch[8];
+      const paidAmount = detailMatch[9];
       
-      if (invoiceNumber && customerName) {
-        let description = `Financial Recovery Task\n\n`;
-        description += `Invoice: ${invoiceNumber}\n`;
-        description += `Customer: ${customerName}\n`;
-        if (totalAmount) description += `Total Amount: USD ${totalAmount}\n`;
-        if (outstandingAmount) description += `Outstanding: USD ${outstandingAmount}\n`;
-        if (daysOverdue) description += `Days Overdue: ${daysOverdue}\n`;
-        description += `Status: OVERDUE\n`;
-        description += `Paid Amount: USD 0\n\n`;
-        description += `Action Required: Contact customer immediately for payment collection and resolution`;
-        
-        const priority = parseInt(daysOverdue || '0') > 1000 ? 'High' : 'Medium';
+      let description = `Financial Recovery Task - High Priority Collection\n\n`;
+      description += `Invoice Number: ${invoiceNumber}\n`;
+      description += `Customer: ${customerName}\n`;
+      description += `Total Amount: USD ${totalAmount}\n`;
+      description += `Outstanding Amount: USD ${outstandingAmount}\n`;
+      description += `Original Due Date: ${dueDate}\n`;
+      description += `Days Overdue: ${daysOverdue} days\n`;
+      description += `Status: ${status}\n`;
+      description += `Paid Amount: USD ${paidAmount}\n\n`;
+      description += `Action Required:\n`;
+      description += `• Contact customer immediately for payment collection\n`;
+      description += `• Send formal payment demand letter\n`;
+      description += `• Negotiate payment plan if necessary\n`;
+      description += `• Escalate to legal if no response within 7 days\n\n`;
+      description += `Priority Level: ${parseInt(daysOverdue) > 1000 ? 'CRITICAL - Over 1000 days overdue' : 'HIGH - Immediate action required'}`;
+      
+      const priority = parseInt(daysOverdue) > 1000 ? 'High' : 'Medium';
+      
+      tasks.push({
+        id: `invoice-${invoiceNumber.replace(/[^a-zA-Z0-9]/g, '-')}`,
+        title: `Invoice ${invoiceNumber} – ${customerName}`,
+        description,
+        priority,
+        category: 'Finance',
+        estimatedDays: parseInt(daysOverdue) > 1000 ? 1 : 3
+      });
+    }
+    
+    // Fallback pattern for simpler invoice mentions  
+    if (tasks.length === 0) {
+      const simpleInvoicePattern = /\*\*Invoice\s+(INV-[^*]+)\*\*\s*[-–]\s*([^\n]+)/gi;
+      let simpleMatch;
+      while ((simpleMatch = simpleInvoicePattern.exec(text)) !== null) {
+        const invoiceNumber = simpleMatch[1].trim();
+        const customerName = simpleMatch[2].trim();
         
         tasks.push({
-          id: `invoice-${invoiceNumber}`,
+          id: `invoice-${invoiceNumber.replace(/[^a-zA-Z0-9]/g, '-')}`,
           title: `Invoice ${invoiceNumber} – ${customerName}`,
-          description,
-          priority,
+          description: `Follow up on outstanding invoice ${invoiceNumber} with customer ${customerName}.\n\nAction Required: Contact customer for payment status and collection.`,
+          priority: 'Medium',
           category: 'Finance',
           estimatedDays: 3
         });
@@ -2135,15 +2161,29 @@ export default function LLMPromptEnginePage() {
                     {generatedTasks.map((task, index) => (
                       <Card key={task.id} className="border-l-4 border-l-blue-500">
                         <CardHeader className="pb-2">
-                          <div className="flex items-start justify-between">
-                            <div className="space-y-1 flex-1">
-                              <Input
-                                value={task.title}
-                                onChange={(e) => updateGeneratedTask(task.id!, { title: e.target.value })}
-                                className="font-semibold text-base border-none px-0 shadow-none focus-visible:ring-0"
-                                placeholder="Task title..."
-                              />
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="space-y-1 flex-1 min-w-0">
                               <div className="flex items-center gap-2">
+                                <Input
+                                  value={task.title}
+                                  onChange={(e) => updateGeneratedTask(task.id!, { title: e.target.value })}
+                                  className="font-semibold text-base border-none px-0 shadow-none focus-visible:ring-0 flex-1 min-w-0 bg-transparent"
+                                  placeholder="Task title..."
+                                />
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    const input = document.querySelector(`input[value="${task.title}"]`) as HTMLInputElement;
+                                    if (input) input.focus();
+                                  }}
+                                  className="text-blue-600 hover:text-blue-700 px-2"
+                                  title="Edit title"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                </Button>
+                              </div>
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <Badge 
                                   variant={
                                     task.priority === 'High' ? 'destructive' : 
@@ -2166,7 +2206,8 @@ export default function LLMPromptEnginePage() {
                               size="sm"
                               variant="outline"
                               onClick={() => removeGeneratedTask(task.id!)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
+                              title="Delete task"
                             >
                               <Trash2 className="w-3 h-3" />
                             </Button>
