@@ -1012,6 +1012,8 @@ export default function LLMPromptEnginePage() {
       }));
       
       setGeneratedTasks(updatedTasks);
+      // Auto-populate global assignee from task generation dialog
+      setGlobalAssignee(taskGenerationAssignee);
       setIsTaskGenerationDialogOpen(false);
       setIsTaskPreviewOpen(true);
       
@@ -2324,36 +2326,51 @@ export default function LLMPromptEnginePage() {
                         <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
                           <Users className="w-4 h-4" />
                           Global Assignment
+                          {taskGenerationAssignee && (
+                            <Badge variant="secondary" className="text-xs ml-2">
+                              Auto-populated
+                            </Badge>
+                          )}
                         </h3>
                         <p className="text-sm text-gray-600 mb-3">
-                          Assign all tasks to the same person, or leave blank to assign individually.
+                          {taskGenerationAssignee 
+                            ? "Assignment was pre-selected in the previous step and applied to all tasks."
+                            : "Assign all tasks to the same person, or leave blank to assign individually."
+                          }
                         </p>
                         <div className="flex items-center gap-3">
                           <Label htmlFor="global-assignee" className="text-sm font-medium min-w-fit">
                             Assign All Tasks To:
                           </Label>
-                          <Select
-                            value={globalAssignee?.toString() || ''}
-                            onValueChange={(value) => applyGlobalAssignment(value ? parseInt(value) : null)}
-                          >
-                            <SelectTrigger className="flex-1">
-                              <SelectValue placeholder="Select assignee for all tasks..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(groupedUsers).map(([role, users]) => (
-                                <SelectGroup key={role}>
-                                  <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
-                                    {role}s
-                                  </SelectLabel>
-                                  {users.map((user) => (
-                                    <SelectItem key={user.id} value={user.id.toString()}>
-                                      {user.username}
-                                    </SelectItem>
-                                  ))}
-                                </SelectGroup>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          {taskGenerationAssignee ? (
+                            <div className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-700">
+                              {users?.find(u => u.id === globalAssignee)?.username || 'Selected User'}
+                              <span className="text-xs text-gray-500 ml-2">(Read-only)</span>
+                            </div>
+                          ) : (
+                            <Select
+                              value={globalAssignee?.toString() || ''}
+                              onValueChange={(value) => applyGlobalAssignment(value ? parseInt(value) : null)}
+                            >
+                              <SelectTrigger className="flex-1">
+                                <SelectValue placeholder="Select assignee for all tasks..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(groupedUsers).map(([role, users]) => (
+                                  <SelectGroup key={role}>
+                                    <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                      {role}s
+                                    </SelectLabel>
+                                    {users.map((user) => (
+                                      <SelectItem key={user.id} value={user.id.toString()}>
+                                        {user.username}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                         </div>
                       </div>
                     </div>

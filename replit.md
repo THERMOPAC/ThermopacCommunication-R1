@@ -5,6 +5,13 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 Preferred communication style: Simple, everyday language.
 
 # Recent Changes
+- **August 7, 2025: AUTO-POPULATED ASSIGNMENT WORKFLOW**: Enhanced task generation workflow to auto-populate assignment fields between dialogs.
+  ✅ **Assignment Auto-Population**: "Assign To" field from Generate Tasks dialog now automatically populates Review Generated Tasks dialog
+  ✅ **Read-Only Assignment Display**: Pre-selected assignments show as read-only with "Auto-populated" badge and clear indication
+  ✅ **Improved User Experience**: Eliminates need to select same assignee twice, reducing workflow steps and potential errors
+  ✅ **Conditional UI**: Global Assignment section adapts to show appropriate controls based on whether assignment was pre-selected
+  ✅ **Clean Task Descriptions**: Simplified LLM-generated task descriptions to professional format without excessive formatting
+
 - **August 7, 2025: DUPLICATE TASK DETECTION & UI CONSISTENCY**: Implemented intelligent duplicate task prevention and standardized dropdown formats.
   ✅ **Duplicate Task Detection**: Added smart duplicate checking for LLM-generated tasks based on title, creator, assignee, due date, and source ID
   ✅ **Intelligent Skipping**: System automatically skips creating tasks that already exist with same attributes and Pending/Open status
