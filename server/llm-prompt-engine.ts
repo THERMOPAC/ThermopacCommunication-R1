@@ -480,7 +480,7 @@ export class LLMPromptEngine {
             console.log('📝 Formatted data preview:', formattedData.substring(0, 300) + '...');
           } else {
             console.log('❌ No pending commitments found - will use error fallback');
-            data = "ERROR: No pending commitments found in the system.";
+            data = "ERROR: No pending commitments found in the THERMOPAC system.\n\nDATA INTEGRITY STATUS:\n❌ No authentic commitment data available from the database\n❌ Cannot generate meaningful analysis without real data\n\nRECOMMENDATION:\n- Check if there are any pending commitments in the meeting management system\n- Verify that commitment tracking is being used in business meetings\n- Ensure users are properly assigning commitments during meetings\n\nNote: This system will not generate placeholder or fictional data. Only authentic THERMOPAC business data will be analyzed.";
           }
         } else {
           // For other prompts, use raw data as before
