@@ -17,6 +17,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -61,6 +63,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { roles, roleHierarchy } from '@shared/roles';
 
 interface LLMPrompt {
   id: number;
@@ -205,6 +208,28 @@ export default function LLMPromptEnginePage() {
       return response.json();
     }
   });
+
+  // Fetch all users for task assignment
+  const { data: allUsers = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+  });
+
+  // Group users by role for the task assignment dropdown
+  const groupedUsers = roles
+    .sort((a, b) => roleHierarchy[a] - roleHierarchy[b])
+    .reduce((acc, role) => {
+      const usersInRole = allUsers.filter(u => u.role === role);
+      if (usersInRole.length > 0) {
+        // Sort alphabetically within each group
+        usersInRole.sort((a, b) => {
+          const nameA = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
+          const nameB = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
+          return nameA.localeCompare(nameB);
+        });
+        acc[role] = usersInRole;
+      }
+      return acc;
+    }, {} as Record<string, User[]>);
 
   // Fetch insights
   const { data: insights, isLoading: insightsLoading } = useQuery({
@@ -2227,10 +2252,17 @@ export default function LLMPromptEnginePage() {
                     <SelectValue placeholder="Select assignee for all tasks..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id.toString()}>
-                        {user.firstName || user.username} {user.lastName || ''} ({user.role}){user.department && ` - ${user.department}`}
-                      </SelectItem>
+                    {Object.entries(groupedUsers).map(([role, users]) => (
+                      <SelectGroup key={role}>
+                        <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                          {role}s
+                        </SelectLabel>
+                        {users.map((user) => (
+                          <SelectItem key={user.id} value={user.id.toString()}>
+                            {user.username}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     ))}
                   </SelectContent>
                 </Select>
@@ -2315,19 +2347,28 @@ export default function LLMPromptEnginePage() {
                           <Label htmlFor="global-assignee" className="text-sm font-medium min-w-fit">
                             Assign All Tasks To:
                           </Label>
-                          <select
-                            id="global-assignee"
-                            value={globalAssignee || ''}
-                            onChange={(e) => applyGlobalAssignment(e.target.value ? parseInt(e.target.value) : null)}
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white"
+                          <Select
+                            value={globalAssignee?.toString() || ''}
+                            onValueChange={(value) => applyGlobalAssignment(value ? parseInt(value) : null)}
                           >
-                            <option value="">Select assignee for all tasks...</option>
-                            {users.map((user) => (
-                              <option key={user.id} value={user.id}>
-                                {user.firstName || user.username} {user.lastName || ''} ({user.role}){user.department && ` - ${user.department}`}
-                              </option>
-                            ))}
-                          </select>
+                            <SelectTrigger className="flex-1">
+                              <SelectValue placeholder="Select assignee for all tasks..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(groupedUsers).map(([role, users]) => (
+                                <SelectGroup key={role}>
+                                  <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                    {role}s
+                                  </SelectLabel>
+                                  {users.map((user) => (
+                                    <SelectItem key={user.id} value={user.id.toString()}>
+                                      {user.username}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                     </div>
