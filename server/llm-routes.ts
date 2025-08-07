@@ -293,7 +293,8 @@ router.post('/prompts/:id/execute', ensureAuthenticated, async (req: Request, re
       }
     }
 
-    const execution = await llmEngine.executePrompt(parseInt(id), 'manual');
+    const userId = req.user?.id;
+    const execution = await llmEngine.executePrompt(parseInt(id), 'manual', undefined, userId);
     
     // Add more debug info for prompt 18
     if (parseInt(id) === 18) {

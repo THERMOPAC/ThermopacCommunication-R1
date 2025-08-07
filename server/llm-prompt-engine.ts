@@ -71,13 +71,25 @@ export class LLMPromptEngine {
   }
 
   // Execute data query and inject into prompt template
-  async preparePromptData(dataQuery: string, parameters: any = {}): Promise<any> {
+  async preparePromptData(dataQuery: string, parameters: any = {}, userId?: number): Promise<any> {
     try {
       // If it's a SQL query
       if (dataQuery.trim().toLowerCase().startsWith('select')) {
         console.log('🔍 [DEBUG] Executing SQL query for data preparation...');
         console.log('🔍 [DEBUG] Query starts with:', dataQuery.substring(0, 100) + '...');
-        const result = await pool.query(dataQuery, Object.values(parameters));
+        
+        // Handle user-specific queries by replacing $user_id parameter
+        let processedQuery = dataQuery;
+        let queryParams = Object.values(parameters);
+        
+        if (dataQuery.includes('$user_id') && userId) {
+          console.log(`🔍 [DEBUG] Replacing $user_id with actual user ID: ${userId}`);
+          processedQuery = dataQuery.replace(/\$user_id/g, `$${queryParams.length + 1}`);
+          queryParams.push(userId);
+        }
+        
+        console.log('🔍 [DEBUG] Final query params:', queryParams);
+        const result = await pool.query(processedQuery, queryParams);
         console.log(`📊 [DEBUG] Query returned ${result.rows.length} rows`);
         
         if (result.rows.length > 0) {
@@ -287,8 +299,8 @@ export class LLMPromptEngine {
     }
   }
 
-  // Execute a single prompt with optional model override
-  async executePrompt(promptId: number, triggeredBy: string = 'manual', modelOverride?: string): Promise<PromptExecution> {
+  // Execute a single prompt with optional model override and user context
+  async executePrompt(promptId: number, triggeredBy: string = 'manual', modelOverride?: string, userId?: number): Promise<PromptExecution> {
     const startTime = Date.now();
 
     try {
@@ -309,7 +321,7 @@ export class LLMPromptEngine {
       let data: any = {};
       if (prompt.data_query) {
         console.log(`🔍 Executing data query for prompt ${prompt.name}...`);
-        const rawData = await this.preparePromptData(prompt.data_query, prompt.data_parameters || {});
+        const rawData = await this.preparePromptData(prompt.data_query, prompt.data_parameters || {}, userId);
         console.log(`📊 Raw data prepared:`, typeof rawData, rawData ? (Array.isArray(rawData) ? rawData.length : Object.keys(rawData).length) : 'empty');
         
         // Special formatting for Task Management Intelligence (prompt 18)
@@ -422,6 +434,77 @@ export class LLMPromptEngine {
           data = rawData; // Already formatted in preparePromptData
           console.log('✅ BRC Management data ready for LLM injection');
           console.log('📝 BRC data preview:', rawData.substring(0, 300) + '...');
+        } else if (promptId === 8 && Array.isArray(rawData)) {
+          // Special formatting for Meeting Efficiency Analyzer (prompt 8) - Make it user-specific
+          console.log('📅 Formatting Meeting Efficiency data for personalized analysis...');
+          console.log(`📊 Found ${rawData.length} meeting records`);
+          
+          if (rawData.length > 0) {
+            // Extract user-specific meeting patterns
+            let formattedData = "✅ AUTHENTIC THERMOPAC MEETING DATA VERIFIED ✅\n";
+            formattedData += "=== YOUR PERSONAL MEETING PERFORMANCE DATA ===\n\n";
+            
+            const userMeetings = rawData.filter(meeting => meeting.organizer_display && meeting.organizer_display.includes('YOU'));
+            const participantMeetings = rawData.filter(meeting => !meeting.organizer_display?.includes('YOU'));
+            
+            formattedData += "**YOUR MEETING LEADERSHIP ANALYSIS:**\n\n";
+            if (userMeetings.length > 0) {
+              userMeetings.forEach((meeting, index) => {
+                formattedData += `${index + 1}. **${meeting.title}** (YOU organized this)\n`;
+                formattedData += `   - Date: ${meeting.meeting_date}\n`;
+                formattedData += `   - Duration: ${meeting.duration_minutes || 'Not specified'} minutes\n`;
+                formattedData += `   - Your Commitments Created: ${meeting.total_commitments || 0}\n`;
+                formattedData += `   - Your Completion Rate: ${meeting.your_completed || 0}/${meeting.your_commitments || 0}\n`;
+                formattedData += `   - Your Average Delay: ${meeting.your_avg_delay_days || 0} days\n`;
+                if (meeting.your_pending_commitments) {
+                  formattedData += `   - Your Pending Items: ${meeting.your_pending_commitments}\n`;
+                }
+                formattedData += `   - Status: ${meeting.status}\n\n`;
+              });
+            } else {
+              formattedData += "No meetings organized by you in the last 30 days.\n\n";
+            }
+            
+            formattedData += "**YOUR PARTICIPATION PATTERNS:**\n\n";
+            if (participantMeetings.length > 0) {
+              participantMeetings.forEach((meeting, index) => {
+                formattedData += `${index + 1}. **${meeting.title}** (Organized by ${meeting.organizer_display})\n`;
+                formattedData += `   - Date: ${meeting.meeting_date}\n`;
+                formattedData += `   - Your Role: Participant\n`;
+                formattedData += `   - Your Commitments: ${meeting.your_commitments || 0}\n`;
+                formattedData += `   - Your Completed: ${meeting.your_completed || 0}\n`;
+                if (meeting.your_pending_commitments) {
+                  formattedData += `   - Your Outstanding Tasks: ${meeting.your_pending_commitments}\n`;
+                }
+                formattedData += `   - Your Performance: ${meeting.your_avg_delay_days > 0 ? 'Delayed by ' + meeting.your_avg_delay_days + ' days' : 'On time'}\n\n`;
+              });
+            } else {
+              formattedData += "No meetings attended as participant in the last 30 days.\n\n";
+            }
+            
+            // Personal statistics
+            const totalUserCommitments = rawData.reduce((sum, meeting) => sum + (meeting.your_commitments || 0), 0);
+            const totalUserCompleted = rawData.reduce((sum, meeting) => sum + (meeting.your_completed || 0), 0);
+            const userCompletionRate = totalUserCommitments > 0 ? ((totalUserCompleted / totalUserCommitments) * 100).toFixed(1) : 0;
+            
+            formattedData += "**YOUR PERSONAL MEETING METRICS:**\n";
+            formattedData += `- Meetings You Organized: ${userMeetings.length}\n`;
+            formattedData += `- Meetings You Attended: ${participantMeetings.length}\n`;
+            formattedData += `- Your Total Commitments: ${totalUserCommitments}\n`;
+            formattedData += `- Your Completion Rate: ${userCompletionRate}%\n`;
+            formattedData += `- Your Meeting Leadership Style: ${userMeetings.length > participantMeetings.length ? 'Leader-focused' : 'Participant-focused'}\n\n`;
+            
+            formattedData += "\n🔒 DATA AUTHENTICITY CONFIRMED: This is YOUR real THERMOPAC meeting performance data\n";
+            formattedData += "📊 DATA SOURCE: Live production database with YOUR actual meeting records\n";
+            formattedData += "✅ ANALYSIS FOCUS: Generate PERSONALIZED improvement recommendations for YOUR meeting habits\n";
+            
+            data = formattedData;
+            console.log('✅ Meeting Efficiency data personalized for user');
+            console.log('📝 Personalized data preview:', formattedData.substring(0, 300) + '...');
+          } else {
+            console.log('❌ No meeting data found - will use error fallback');
+            data = "ERROR: No meeting data available for your personal analysis.";
+          }
         } else {
           // For other prompts, use raw data as before
           data = rawData;
@@ -460,13 +543,31 @@ export class LLMPromptEngine {
       // Special handling for financial prompts - disable masking to allow real financial data analysis
       const maskingOverride = promptId === 3 || promptId === 20; // Cash Flow Predictor and BRC Management need real data
       
+      // Get user information for personalized prompts
+      let userName = 'User';
+      if (userId) {
+        try {
+          const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [userId]);
+          if (userResult.rows.length > 0) {
+            userName = userResult.rows[0].username;
+          }
+        } catch (error) {
+          console.error('Error fetching user name:', error);
+        }
+      }
+
+      // Replace user-specific placeholders in template
+      let personalizedTemplate = finalPrompt;
+      personalizedTemplate = personalizedTemplate.replace(/\{\{user_name\}\}/g, userName);
+      personalizedTemplate = personalizedTemplate.replace(/\{\{date\}\}/g, new Date().toISOString().split('T')[0]);
+
       const llmResponse = await SecureLLMWrapper.executeSecurePrompt({
         promptId: promptId,
-        userId: 1, // TODO: Get actual user ID from session context
+        userId: userId || 1,
         promptName: prompt.name,
         category: prompt.category,
         frequency: prompt.frequency,
-        template: finalPrompt,
+        template: personalizedTemplate,
         data: data,
         preferredModel: modelToUse,
         temperature: parseFloat(prompt.temperature) || 0.7,
