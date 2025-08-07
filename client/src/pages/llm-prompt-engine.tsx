@@ -147,6 +147,7 @@ export default function LLMPromptEnginePage() {
   // Task generation states
   const [isTaskGenerationDialogOpen, setIsTaskGenerationDialogOpen] = useState(false);
   const [taskGenerationDays, setTaskGenerationDays] = useState<number>(7);
+  const [taskGenerationAssignee, setTaskGenerationAssignee] = useState<number | null>(null);
   const [generatedTasks, setGeneratedTasks] = useState<GeneratedTask[]>([]);
   const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
   const [selectedInsight, setSelectedInsight] = useState<BusinessInsight | null>(null);
@@ -1008,7 +1009,8 @@ export default function LLMPromptEnginePage() {
       const updatedTasks = parsedTasks.map(task => ({
         ...task,
         dueDate: new Date(today.getTime() + (taskGenerationDays * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
-        estimatedDays: taskGenerationDays
+        estimatedDays: taskGenerationDays,
+        assignedTo: taskGenerationAssignee || undefined
       }));
       
       setGeneratedTasks(updatedTasks);
@@ -1092,6 +1094,7 @@ export default function LLMPromptEnginePage() {
         setGeneratedTasks([]);
         setSelectedInsight(null);
         setGlobalAssignee(null);
+        setTaskGenerationAssignee(null);
         
         // Refresh task-related queries if needed
         queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
@@ -2214,6 +2217,28 @@ export default function LLMPromptEnginePage() {
             </div>
             
             <div className="space-y-4">
+              <div>
+                <Label htmlFor="assignTo">Assign To</Label>
+                <Select 
+                  value={taskGenerationAssignee?.toString() || ''} 
+                  onValueChange={(value) => setTaskGenerationAssignee(value ? parseInt(value) : null)}
+                >
+                  <SelectTrigger id="assignTo">
+                    <SelectValue placeholder="Select assignee for all tasks..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id.toString()}>
+                        {user.firstName || user.username} {user.lastName || ''} ({user.role}){user.department && ` - ${user.department}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-gray-500 mt-1">
+                  Choose who will be assigned to all generated tasks.
+                </p>
+              </div>
+
               <div>
                 <Label htmlFor="taskGenerationDays">Task Completion Days</Label>
                 <Input
