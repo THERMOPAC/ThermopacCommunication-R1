@@ -924,6 +924,75 @@ export default function LLMPromptEnginePage() {
       console.log(`Simple BRC pattern found ${matchCount} additional tasks.`);
     }
     
+    // Universal Task Pattern - matches standardized format from all LLM prompts
+    const universalTaskPattern = /\*\*Task Title:\*\*\s*([^*\n]+?)\*\*\s*\n?\s*\*\*Task Description:\*\*\s*\n([\s\S]*?)(?=\n\s*\*\*Task Title:|\n\s*---|\n\s*##|$)/gi;
+    
+    console.log('Trying universal task pattern for all LLM prompts...');
+    let universalMatch;
+    while ((universalMatch = universalTaskPattern.exec(text)) !== null) {
+      matchCount++;
+      console.log(`Found universal task ${matchCount}:`, universalMatch[1]);
+      
+      const taskTitle = universalMatch[1].trim();
+      const taskDescription = universalMatch[2].trim();
+      
+      // Determine task category and priority based on title keywords
+      let category = 'General';
+      let priority = 'Medium';
+      let estimatedDays = 7;
+      
+      if (taskTitle.toLowerCase().includes('brc')) {
+        category = 'Finance';
+        priority = 'High';
+        estimatedDays = 3;
+      } else if (taskTitle.toLowerCase().includes('quality')) {
+        category = 'Quality';
+        priority = 'Medium';
+        estimatedDays = 5;
+      } else if (taskTitle.toLowerCase().includes('hr') || taskTitle.toLowerCase().includes('admin')) {
+        category = 'HR';
+        priority = 'Medium';
+        estimatedDays = 7;
+      } else if (taskTitle.toLowerCase().includes('procurement') || taskTitle.toLowerCase().includes('vendor')) {
+        category = 'Procurement';
+        priority = 'Medium';
+        estimatedDays = 10;
+      } else if (taskTitle.toLowerCase().includes('production') || taskTitle.toLowerCase().includes('work order')) {
+        category = 'Production';
+        priority = 'High';
+        estimatedDays = 5;
+      } else if (taskTitle.toLowerCase().includes('system') || taskTitle.toLowerCase().includes('sap')) {
+        category = 'IT';
+        priority = 'High';
+        estimatedDays = 3;
+      } else if (taskTitle.toLowerCase().includes('sales') || taskTitle.toLowerCase().includes('marketing')) {
+        category = 'Sales';
+        priority = 'Medium';
+        estimatedDays = 7;
+      } else if (taskTitle.toLowerCase().includes('design') || taskTitle.toLowerCase().includes('drawing')) {
+        category = 'Design';
+        priority = 'Medium';
+        estimatedDays = 14;
+      }
+      
+      // Adjust priority based on description keywords
+      if (taskDescription.toLowerCase().includes('critical') || taskDescription.toLowerCase().includes('urgent') || taskDescription.toLowerCase().includes('immediate')) {
+        priority = 'High';
+        estimatedDays = Math.max(1, Math.floor(estimatedDays / 2));
+      }
+      
+      tasks.push({
+        id: `task-${Date.now()}-${matchCount}`,
+        title: taskTitle,
+        description: taskDescription,
+        priority,
+        category,
+        estimatedDays
+      });
+    }
+    
+    console.log(`Universal pattern found ${matchCount} total tasks.`);
+    
     // Enhanced pattern to match detailed invoice breakdown format with SAP numbers
     const invoiceDetailPattern = /(\d+)\.\s*\*\*Invoice\s+(INV-[^*]+)\*\*\s*(?:\([^)]*SAP:[^)]*\))?\s*[-–]\s*([^\n]+?)(?:\n|\r|\s*[-–]?\s*Total Amount:)/gi;
     
