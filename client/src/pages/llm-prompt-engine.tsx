@@ -808,9 +808,9 @@ export default function LLMPromptEnginePage() {
     const text = insight.insight_text;
     const tasks: GeneratedTask[] = [];
     
-    // BRC Task Format Pattern - Match the exact format from the insight
-    // **Task Title:** BRC Pending for INV-2425-004 + 39-2425 + AVISTA OIL DEUTSCHLAND GMBH**
-    const brcTaskPattern = /\*\*Task Title:\*\*\s*BRC Pending for (INV-[^\s]+)\s*\+\s*([^\s]+)\s*\+\s*([^*]+?)\*\*\s*\n\s*\*\*Task Description:\*\*\s*\n([\s\S]*?)(?=\n\s*---|\n\s*\*\*Task Title:|$)/gi;
+    // BRC Task Format Pattern - More flexible to handle underscore format
+    // **Task Title:** BRC Pending for INV-2425-004 _ SAP Invoice 39-2425 _ AVISTA OIL DEUTSCHLAND GMBH**
+    const brcTaskPattern = /\*\*Task Title:\*\*\s*BRC Pending for (INV-[^\s_]+)(?:[\s_]*(?:SAP Invoice)?[\s_]*)([^\s_]+)[\s_]*([^*\n]+?)\*\*[\s\n]*\*\*Task Description:\*\*[\s\n]*([\s\S]*?)(?=\n\s*---|\n\s*\*\*Task Title:|$)/gi;
     
     // Debug logging
     console.log('Parsing insight text length:', text.length);
@@ -861,6 +861,68 @@ export default function LLMPromptEnginePage() {
     }
     
     console.log(`BRC pattern finished. Found ${matchCount} BRC tasks.`);
+    
+    // Fallback simpler BRC pattern if the complex one doesn't work
+    if (matchCount === 0) {
+      console.log('Trying simpler BRC pattern...');
+      const simpleBrcPattern = /\*\*Task Title:\*\*\s*BRC Pending for ([^*]+?)\*\*[\s\n]*\*\*Task Description:\*\*[\s\n]*([\s\S]*?)(?=\n\s*---|\n\s*\*\*Task Title:|$)/gi;
+      
+      let simpleBrcMatch;
+      while ((simpleBrcMatch = simpleBrcPattern.exec(text)) !== null) {
+        matchCount++;
+        console.log(`Found simple BRC match ${matchCount}:`, simpleBrcMatch[1]);
+        
+        const titleText = simpleBrcMatch[1].trim();
+        const taskDescription = simpleBrcMatch[2].trim();
+        
+        // Parse the title to extract invoice number, SAP number, and customer
+        const titleParts = titleText.split(/[_\s]+/);
+        let invoiceNumber = 'N/A', sapNumber = 'N/A', customerName = 'N/A';
+        
+        for (let i = 0; i < titleParts.length; i++) {
+          if (titleParts[i].startsWith('INV-')) {
+            invoiceNumber = titleParts[i];
+          } else if (titleParts[i].match(/^\d+[-\/]\d+/)) {
+            sapNumber = titleParts[i];
+          } else if (i > 2 && titleParts[i].length > 3) {
+            customerName = titleParts.slice(i).join(' ');
+            break;
+          }
+        }
+        
+        // Extract details from the task description
+        const invoiceAmountMatch = taskDescription.match(/Invoice Amount:\s*([^\n]+)/);
+        const pendingAmountMatch = taskDescription.match(/BRC Pending Amount:\s*([^\n]+)/);
+        const invoiceDateMatch = taskDescription.match(/Invoice Date:\s*([^\n]+)/);
+        
+        const invoiceAmount = invoiceAmountMatch ? invoiceAmountMatch[1].trim() : 'N/A';
+        const pendingAmount = pendingAmountMatch ? pendingAmountMatch[1].trim() : 'N/A';
+        const invoiceDate = invoiceDateMatch ? invoiceDateMatch[1].trim() : 'N/A';
+        
+        // Calculate priority based on pending amount
+        const pendingAmountValue = parseFloat(pendingAmount.replace(/[^0-9.]/g, '')) || 0;
+        const priority = pendingAmountValue > 50000 ? 'High' : pendingAmountValue > 10000 ? 'Medium' : 'Low';
+        
+        let description = `BRC collection task for ${customerName}.\n\n`;
+        description += `Invoice Number: ${invoiceNumber}\n`;
+        description += `SAP Invoice Number: ${sapNumber}\n`;
+        description += `Invoice Date: ${invoiceDate}\n`;
+        description += `Invoice Amount: ${invoiceAmount}\n`;
+        description += `BRC Pending Amount: ${pendingAmount}\n\n`;
+        description += `Action Required: Contact customer to submit Bank Realization Certificate for export invoice processing.`;
+        
+        tasks.push({
+          id: `brc-${invoiceNumber.replace(/[^a-zA-Z0-9]/g, '-')}`,
+          title: `BRC Pending for ${invoiceNumber} + ${sapNumber} + ${customerName}`,
+          description,
+          priority,
+          category: 'Finance',
+          estimatedDays: priority === 'High' ? 3 : priority === 'Medium' ? 7 : 14
+        });
+      }
+      
+      console.log(`Simple BRC pattern found ${matchCount} additional tasks.`);
+    }
     
     // Enhanced pattern to match detailed invoice breakdown format with SAP numbers
     const invoiceDetailPattern = /(\d+)\.\s*\*\*Invoice\s+(INV-[^*]+)\*\*\s*(?:\([^)]*SAP:[^)]*\))?\s*[-–]\s*([^\n]+?)(?:\n|\r|\s*[-–]?\s*Total Amount:)/gi;
