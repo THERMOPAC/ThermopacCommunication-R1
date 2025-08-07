@@ -820,7 +820,20 @@ export default function LLMPromptEnginePage() {
     const taskSectionIndex = text.indexOf('GENERATED TASKS');
     if (taskSectionIndex !== -1) {
       console.log('GENERATED TASKS found at index:', taskSectionIndex);
-      console.log('Content around GENERATED TASKS:', text.substring(taskSectionIndex - 100, taskSectionIndex + 1000));
+      console.log('Content around GENERATED TASKS:', text.substring(taskSectionIndex - 100, taskSectionIndex + 2000));
+      
+      // Count how many **Task Title:** patterns exist in the entire text
+      const allTaskTitleMatches = text.match(/\*\*Task Title:\*\*/g);
+      console.log('Total **Task Title:** patterns found in entire text:', allTaskTitleMatches ? allTaskTitleMatches.length : 0);
+      
+      // Extract the section after GENERATED TASKS
+      const afterGeneratedTasks = text.substring(taskSectionIndex + 15); // Skip "GENERATED TASKS"
+      const tasksOnlySection = afterGeneratedTasks.split(/Analysis Date:|### |## /)[0];
+      console.log('Tasks only section length:', tasksOnlySection.length);
+      console.log('Tasks only section preview:', tasksOnlySection.substring(0, 1000));
+      
+      const taskTitlesInSection = (tasksOnlySection.match(/\*\*Task Title:\*\*/g) || []).length;
+      console.log('Task titles in tasks section:', taskTitlesInSection);
     }
     
     // PRIORITY 1: Extract Report Title for task prefixing
@@ -1009,9 +1022,9 @@ export default function LLMPromptEnginePage() {
         
         console.log(`Flexible pattern extracted ${flexCount} additional tasks from GENERATED TASKS section.`);
         
-        // If we still don't have enough tasks, check if the LLM output was truncated
-        // and use the invoice data to generate missing tasks directly
-        if (flexCount < 10 && tasksSection.includes('BRC Pending')) {
+        // CRITICAL FIX: Always run invoice extraction for BRC reports regardless of flex count
+        // The LLM consistently underperforms on generating all BRC tasks
+        if (tasksSection.includes('BRC Pending')) {
           console.log('Still low task count. Checking for incomplete LLM output and generating from invoice breakdown...');
           
           // Extract invoice numbers from the detailed breakdown section to ensure we have all tasks
