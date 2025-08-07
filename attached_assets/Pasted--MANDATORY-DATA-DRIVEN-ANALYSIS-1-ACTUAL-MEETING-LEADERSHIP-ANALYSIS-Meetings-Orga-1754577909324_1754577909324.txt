@@ -1,0 +1,95 @@
+## MANDATORY DATA-DRIVEN ANALYSIS:
+
+### 1. ACTUAL MEETING LEADERSHIP ANALYSIS
+
+- **Meetings Organized vs Attended:**
+  - Meetings Organized: 29
+  - Meetings Attended: 0
+
+- **Meeting Titles and Dates:**
+  1. "Daily Planning Session" - Aug 08, 2025
+  2. "Daily Planning Session" - Aug 07, 2025
+  3. "Daily Planning Session" - Aug 06, 2025
+  4. "External Positioning & Branding" - Jul 31, 2025
+  5. "Campaign Planning/Performance Review" - Jul 30, 2025
+  6. "Leadership Development" - Jul 30, 2025
+  7. "Customer Project Reviews" - Jul 29, 2025
+  8. "Marketing Strategy Check-in" - Jul 29, 2025
+  9. "Strategic Thinking Session" - Jul 28, 2025
+  10. "Executive Brief" - Jul 28, 2025
+  11. "SkyClub" - Jul 26, 2025
+  12. "WPC open items" - Jul 24, 2025
+  13. "External Positioning & Branding" - Jul 24, 2025
+  14. "Campaign Planning/Performance Review" - Jul 23, 2025
+  15. "Customer Project Reviews" - Jul 22, 2025
+  16. "Marketing Strategy Check-in" - Jul 22, 2025
+  17. "Executive Brief" - Jul 21, 2025
+  18. "Strategic Thinking Session" - Jul 21, 2025
+  19. "External Positioning & Branding" - Jul 17, 2025
+  20. "Leadership Development" - Jul 16, 2025
+  21. "Campaign Planning/Performance Review" - Jul 16, 2025
+  22. "Marketing Strategy Check-in" - Jul 15, 2025
+  23. "Customer Project Reviews" - Jul 15, 2025
+  24. "Flukar" - Jul 15, 2025
+  25. "Executive Brief" - Jul 14, 2025
+  26. "Strategic Thinking Session" - Jul 14, 2025
+  27. "Executive Brief" - Jul 14, 2025
+  28. "Strategic Thinking Session" - Jul 14, 2025
+  29. "Meeting with Harshad" - Jul 11, 2025
+
+- **Statistics:**
+  - Total Meetings Organized: 29
+  - Total Meetings Attended: 0
+
+### 2. REAL COMMITMENT PERFORMANCE ANALYSIS
+
+- **Commitment Creation Rate:**
+  - Total Commitments Created: 7 (from specific meetings with commitments)
+  - Commitment Creation Rate: 0% (as no commitments were assigned to you)
+
+- **Completion Rate:**
+  - Total Commitments Completed: 0
+  - Completion Rate: 0%
+
+- **Pending Commitments:**
+  - All commitments remain pending as none were assigned to you.
+
+### 3. AUTHENTIC ENGAGEMENT PATTERNS
+
+- **Days/Times of Meetings:**
+  - Most Common Meeting Time: 10:30
+  - Most Active Meeting Day: Monday (8 meetings)
+
+- **Gap Analysis:**
+  - Organized 29 meetings but attended 0, indicating a significant gap in participation.
+
+- **Meeting Frequency:**
+  - Consistently organized meetings across various weekdays, with a notable concentration on Mondays.
+
+### 4. SPECIFIC REAL MEETING ANALYSIS
+
+- **Meeting: "Strategic Thinking Session"**
+  - Date: Jul 14, 2025
+  - Analysis: 4 commitments were created, none assigned to you, and none completed.
+
+- **Meeting: "Flukar"**
+  - Date: Jul 15, 2025
+  - Analysis: 1 commitment was created, none assigned to you, and none completed.
+
+- **Meeting: "WPC open items"**
+  - Date: Jul 24, 2025
+  - Analysis: 1 commitment was created, none assigned to you, and none completed.
+
+## GENERATED TASKS FROM REAL DATA:
+
+**Task Title:** Prasad - Improve Meeting Engagement and Commitment Fulfillment
+
+**Task Description:**
+- **Real Data Issue:** Despite organizing 29 meetings, there is a lack of attendance and commitment fulfillment.
+- **Impact Analysis:** The absence of participation and commitment completion may hinder project progress and team collaboration.
+- **Your Actual Numbers:** 29 meetings organized, 0 attended, 0 commitments completed.
+- **Real Meetings Referenced:** "Strategic Thinking Session" (Jul 14, 2025), "Flukar" (Jul 15, 2025), "WPC open items" (Jul 24, 2025).
+- **Data-Based Actions:** 
+  - Increase participation in meetings by attending at least 50% of organized meetings.
+  - Assign and complete at least 50% of commitments in future meetings.
+- **Measurable Targets:** Attend 15 meetings and complete 4 commitments in the next 30 days.

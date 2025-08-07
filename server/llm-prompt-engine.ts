@@ -483,15 +483,30 @@ export class LLMPromptEngine {
               formattedData += "**Finding: You attended 0 meetings as a participant in the last 30 days.**\n\n";
             }
             
-            // Add pending commitments analysis
+            // Add pending commitments analysis in the required format
             if (pendingCommitments.length > 0) {
-              formattedData += "**ALL PENDING COMMITMENTS FROM MEETINGS (COMPANY-WIDE):**\n\n";
+              formattedData += "**PENDING_COMMITMENTS DATA FOR CLEAN LIST FORMAT:**\n\n";
               pendingCommitments.forEach((commitment, index) => {
-                formattedData += `${index + 1}. **Meeting:** "${commitment.meeting_title}" - ${commitment.meeting_date}\n`;
-                formattedData += `   - **Commitment:** ${commitment.your_pending_commitments_details}\n`;
-                formattedData += `   - **Assigned To:** ${commitment.organizer_name}\n`;
-                formattedData += `   - **Status:** ${commitment.meeting_status}\n\n`;
+                formattedData += `PENDING_COMMITMENT_${index + 1}:\n`;
+                formattedData += `  - Meeting Name: "${commitment.meeting_title}"\n`;
+                formattedData += `  - Meeting Date: ${commitment.meeting_date}\n`;
+                formattedData += `  - Commitment Description: ${commitment.commitment_description || 'Not specified'}\n`;
+                formattedData += `  - Assigned To: ${commitment.assigned_to}\n`;
+                formattedData += `  - Status: ${commitment.meeting_status}\n`;
+                formattedData += `  - Urgency: ${commitment.urgency}\n\n`;
               });
+              
+              formattedData += `**TOTAL PENDING COMMITMENTS: ${pendingCommitments.length}**\n\n`;
+              
+              // Add instruction for LLM to format this data properly
+              formattedData += "**INSTRUCTION FOR LLM: Use the PENDING_COMMITMENTS data above to create a clean list format in section 3.**\n";
+              formattedData += "**FORMAT EACH COMMITMENT EXACTLY AS:**\n";
+              formattedData += "**Meeting Name:** [Meeting Name] – [Meeting Date]\n";
+              formattedData += "**Commitment:** [Commitment Description]\n";
+              formattedData += "**Assigned To:** [Assigned To]\n";
+              formattedData += "**Status:** [Status]\n\n";
+            } else {
+              formattedData += "**PENDING_COMMITMENTS DATA: No pending commitments found in the system.**\n\n";
             }
             
             // Calculate comprehensive statistics

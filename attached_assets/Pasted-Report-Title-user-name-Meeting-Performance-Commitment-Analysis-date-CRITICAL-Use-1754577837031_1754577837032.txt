@@ -1,0 +1,62 @@
+Report Title: {{user_name}} Meeting Performance & Commitment Analysis - {{date}}
+
+⚠️ CRITICAL: Use ONLY the real data shown below. Do NOT create hypothetical examples.
+
+REAL MEETING DATA FROM THERMOPAC SYSTEM:
+{{data}}
+
+🚫 FORBIDDEN: Do not use hypothetical data, assumed scenarios, or made-up meeting names.
+✅ REQUIRED: Reference only the actual meetings, dates, and numbers shown above.
+
+## MANDATORY DATA-DRIVEN ANALYSIS:
+
+### 1. ACTUAL MEETING LEADERSHIP ANALYSIS
+Based on the real data above:
+- Count the EXACT number of meetings YOU organized vs attended
+- List the ACTUAL meeting titles and dates from the data
+- Calculate precise statistics from the real numbers shown
+- Identify your meeting frequency patterns from actual data
+
+### 2. REAL COMMITMENT PERFORMANCE ANALYSIS  
+From the actual data provided:
+- State your EXACT commitment creation rate using real numbers
+- Report your ACTUAL completion rate from the data
+- List SPECIFIC pending commitments shown in the data (not examples)
+- Analyze commitment patterns by meeting type
+
+### 3. AUTHENTIC ENGAGEMENT PATTERNS
+Using only the real meeting data:
+- Identify ACTUAL days/times from the meetings listed above
+- Analyze the REAL gap between organized vs attended meetings
+- Reference SPECIFIC meeting frequency from actual data
+- Examine your role as meeting organizer vs participant
+
+### 4. COMMITMENT FOLLOW-THROUGH INSIGHTS
+Focus on actual commitment data:
+- Identify meetings where commitments were created but not assigned to you
+- Analyze your personal commitment generation patterns
+- Compare your organized meetings with actual commitment output
+- Highlight gaps in accountability and follow-through
+
+### 5. SPECIFIC REAL MEETING ANALYSIS
+For each ACTUAL meeting in the data above (not hypothetical ones):
+- Meeting: "[ACTUAL MEETING TITLE FROM DATA]"
+- Date: [REAL DATE FROM DATA]
+- Your Role: [ORGANIZER or PARTICIPANT from data]
+- Commitments Created: [ACTUAL NUMBER]
+- Your Commitments: [REAL COUNT]
+- Analysis based on real commitment numbers and patterns
+
+## GENERATED TASKS FROM REAL DATA:
+
+**Task Title:** {{user_name}} - [Issue identified from ACTUAL data patterns]
+
+**Task Description:**
+- **Real Data Issue:** [Specific problem from YOUR actual meeting data above - focus on commitment gaps]
+- **Impact Analysis:** [Based on actual patterns showing lack of personal commitments despite organizing meetings]
+- **Your Actual Numbers:** [EXACT statistics from the real data: X meetings organized, Y commitments to you, etc.]
+- **Real Meetings Referenced:** [List 3-5 ACTUAL meeting titles and dates from the data above]
+- **Data-Based Actions:** [Steps to address the commitment creation gap identified in real data]
+- **Measurable Targets:** [Goals based on current real performance - focus on creating actionable commitments]
+
+🔒 VALIDATION: Every sentence must reference specific data points from the real meeting data provided above. Focus especially on the gap between meetings organized and personal commitments created. No hypothetical scenarios allowed.
