@@ -816,7 +816,15 @@ export default function LLMPromptEnginePage() {
     console.log('Parsing insight text length:', text.length);
     console.log('First 500 characters:', text.substring(0, 500));
     
-    // PRIORITY 1: Universal Task Pattern - matches standardized format from all LLM prompts
+    // PRIORITY 1: Extract Report Title for task prefixing
+    console.log('Extracting Report Title for task generation prefix...');
+    const reportTitlePattern = /Report Title:\s*([^\n]+)/i;
+    const reportTitleMatch = text.match(reportTitlePattern);
+    const reportTitle = reportTitleMatch ? reportTitleMatch[1].trim() : '';
+    
+    console.log('Report Title found:', reportTitle || 'No Report Title found');
+    
+    // PRIORITY 2: Universal Task Pattern - matches standardized format from all LLM prompts
     console.log('Starting with universal task pattern for standardized LLM output...');
     const universalTaskPattern = /\*\*Task Title:\*\*\s*([^\n]+?)\s*\n\s*\*\*Task Description:\*\*\s*\n([\s\S]*?)(?=\n\s*\*\*Task Title:|\n\s*---|\n\s*##|$)/gi;
     
@@ -826,8 +834,17 @@ export default function LLMPromptEnginePage() {
       matchCount++;
       console.log(`Found universal task ${matchCount}:`, universalMatch[1]);
       
-      const taskTitle = universalMatch[1].trim();
+      let taskTitle = universalMatch[1].trim();
       const taskDescription = universalMatch[2].trim();
+      
+      // Apply Report Title as prefix if available and not already in title
+      if (reportTitle && !taskTitle.toLowerCase().includes(reportTitle.toLowerCase())) {
+        // Create a meaningful prefix from the report title
+        const titlePrefix = reportTitle.replace(/\s*(Report|Analysis|Intelligence)\s*/gi, '').trim();
+        if (titlePrefix && !taskTitle.toLowerCase().includes(titlePrefix.toLowerCase())) {
+          taskTitle = `${titlePrefix} - ${taskTitle}`;
+        }
+      }
       
       // Determine task category and priority based on title keywords
       let category = 'General';
