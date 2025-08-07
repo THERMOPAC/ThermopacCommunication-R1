@@ -508,8 +508,39 @@ export class LLMPromptEngine {
             data = "ERROR: No pending commitments found in the THERMOPAC system.\n\nDATA INTEGRITY STATUS:\n❌ No authentic commitment data available from the database\n❌ Cannot generate meaningful analysis without real data\n\nRECOMMENDATION:\n- Check if there are any pending commitments in the meeting management system\n- Verify that commitment tracking is being used in business meetings\n- Ensure users are properly assigning commitments during meetings\n\nNote: This system will not generate placeholder or fictional data. Only authentic THERMOPAC business data will be analyzed.";
           }
         } else {
-          // For other prompts, use raw data as before
-          data = rawData;
+          // For all other prompts, validate data integrity before processing
+          if (Array.isArray(rawData) && rawData.length === 0) {
+            console.log('❌ No data found for prompt - will use error fallback');
+            data = `ERROR: No relevant data found in the THERMOPAC system for this analysis.
+
+DATA INTEGRITY STATUS:
+❌ No authentic data available from the database
+❌ Cannot generate meaningful analysis without real data
+
+RECOMMENDATION:
+- Check if the required data exists in the system
+- Verify that data collection processes are functioning
+- Ensure proper data entry and maintenance
+
+Note: This system maintains strict data integrity and will not generate placeholder or fictional data. Only authentic THERMOPAC business data will be analyzed.`;
+          } else if (rawData === null || rawData === undefined) {
+            console.log('❌ Null/undefined data for prompt - will use error fallback');
+            data = `ERROR: Data retrieval failed for this analysis.
+
+DATA INTEGRITY STATUS:
+❌ Data query returned no results
+❌ Cannot proceed without authentic business data
+
+RECOMMENDATION:
+- Verify database connectivity and query execution
+- Check if the required data collection is active
+- Ensure proper system configuration
+
+Note: This system will not generate speculative or placeholder content. Only verified THERMOPAC data will be processed.`;
+          } else {
+            // For other prompts, use raw data as before
+            data = rawData;
+          }
         }
       } else {
         console.log(`⚠️ No data query found for prompt ${prompt.name}`);
