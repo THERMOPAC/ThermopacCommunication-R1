@@ -76,6 +76,7 @@ interface LLMPrompt {
   active: boolean;
   priority: number;
   temperature?: number;
+  dataQuery?: string;
   avg_rating?: number;
   total_executions?: number;
   last_executed?: string;
@@ -529,7 +530,7 @@ export default function LLMPromptEnginePage() {
       priority: prompt.priority,
       temperature: prompt.temperature || 0.7,
       template: prompt.template,
-      data_query: (prompt as any).data_query || ''
+      data_query: prompt.dataQuery || ''
     });
     setIsEditDialogOpen(true);
   };
