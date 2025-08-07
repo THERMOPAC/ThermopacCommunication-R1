@@ -2178,16 +2178,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      console.log(`Batch creating ${tasks.length} tasks from LLM insight by user ${req.user!.username}`);
+      console.log(`Batch creating ${tasks.length} tasks from LLM insight by user ${req.user!.username} (will be assigned to Manager)`);
 
       const createdTasks = [];
       const errors = [];
 
       for (let i = 0; i < tasks.length; i++) {
         try {
+          // For tasks generated from LLM insights, set createdBy to Manager (ID = 1)
+          const createdBy = tasks[i].sourceType === 'llm_insight' ? 1 : req.user!.id;
+          
           const taskData = insertTaskSchema.parse({
             ...tasks[i],
-            createdBy: req.user!.id,
+            createdBy: createdBy,
             createdAt: new Date().toISOString(),
             status: 'pending'
           });

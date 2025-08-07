@@ -4,6 +4,13 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 # User Preferences
 Preferred communication style: Simple, everyday language.
 
+# Recent Changes
+- **August 7, 2025: LLM TASK CREATION ENHANCEMENT**: Updated task generation system to properly assign tasks created from LLM insights.
+  ✅ **Manager Assignment**: Tasks generated from LLM insights now automatically set Created_By to Manager (ID = 1) instead of current user
+  ✅ **Improved Categories Filtering**: Enhanced Categories dropdown to work across Business Modules, All Prompts, and Generated Insights tabs
+  ✅ **Better Task Editing**: Increased Description field height from 60px to 120px in Review Generated Tasks dialog
+  🎯 **System Status**: LLM-generated tasks properly assigned to Manager for better organizational accountability
+
 # System Architecture
 ## Core Architectural Decisions
 - Full-stack web application.
