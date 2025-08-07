@@ -523,10 +523,16 @@ export default function LLMPromptEnginePage() {
 
   const handleEditPrompt = (prompt: LLMPrompt) => {
     console.log('=== EDIT PROMPT DEBUG ===');
+    console.log('Prompt ID:', prompt.id);
+    console.log('Prompt name:', prompt.name);
     console.log('Full prompt object:', prompt);
+    console.log('All prompt keys:', Object.keys(prompt));
     console.log('prompt.dataQuery value:', prompt.dataQuery);
     console.log('prompt.dataQuery type:', typeof prompt.dataQuery);
     console.log('prompt.dataQuery length:', prompt.dataQuery?.length);
+    console.log('prompt.dataQuery === null:', prompt.dataQuery === null);
+    console.log('prompt.dataQuery === undefined:', prompt.dataQuery === undefined);
+    console.log('prompt.dataQuery === "":', prompt.dataQuery === "");
     
     setEditingPrompt(prompt);
     
@@ -543,7 +549,9 @@ export default function LLMPromptEnginePage() {
     };
     
     console.log('Form data being set:', formData);
-    console.log('Form data_query:', formData.data_query);
+    console.log('Form data_query value:', formData.data_query);
+    console.log('Form data_query type:', typeof formData.data_query);
+    console.log('Form data_query length:', formData.data_query.length);
     console.log('=== END DEBUG ===');
     
     setEditFormData(formData);
