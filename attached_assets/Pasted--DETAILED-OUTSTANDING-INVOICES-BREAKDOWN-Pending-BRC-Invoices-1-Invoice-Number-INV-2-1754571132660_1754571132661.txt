@@ -1,0 +1,346 @@
+## DETAILED OUTSTANDING INVOICES BREAKDOWN
+
+### Pending BRC Invoices
+1. **Invoice Number:** INV-2425-004  
+   **SAP Invoice No:** 39-2425  
+   **Customer Name:** AVISTA OIL DEUTSCHLAND GMBH  
+   **Total Amount:** 350,250.00 USD  
+   **Outstanding Balance:** 350,250.00 USD  
+   **Due Date:** 2024-11-20  
+   **Days Overdue:** 260  
+   **BRC Status:** No BRC Issued  
+   **BRC Pending Amount:** 350,250.00 USD  
+
+2. **Invoice Number:** INV-1718-001  
+   **SAP Invoice No:** EXP/016/17-18  
+   **Customer Name:** Agas Lubes  
+   **Total Amount:** 226,000.00 USD  
+   **Outstanding Balance:** 226,000.00 USD  
+   **Due Date:** 2018-02-10  
+   **Days Overdue:** 2735  
+   **BRC Status:** No BRC Issued  
+   **BRC Pending Amount:** 226,000.00 USD  
+
+3. **Invoice Number:** INV-2021-003  
+   **SAP Invoice No:** 50/20-21  
+   **Customer Name:** Bunorr Intergrated Energy Ltd  
+   **Total Amount:** 212,854.00 USD  
+   **Outstanding Balance:** 212,854.00 USD  
+   **Due Date:** 2021-02-28  
+   **Days Overdue:** 1621  
+   **BRC Status:** No BRC Issued  
+   **BRC Pending Amount:** 212,854.00 USD  
+
+4. **Invoice Number:** INV-2526-010  
+   **SAP Invoice No:** 10-2526  
+   **Customer Name:** Dukhan Petroleum Company (DUPCO)  
+   **Total Amount:** 120,222.00 USD  
+   **Outstanding Balance:** 120,222.00 USD  
+   **Due Date:** 2025-07-02  
+   **Days Overdue:** 36  
+   **BRC Status:** No BRC Issued  
+   **BRC Pending Amount:** 120,222.00 USD  
+
+5. **Invoice Number:** INV-2425-003  
+   **SAP Invoice No:** 37-2425  
+   **Customer Name:** AFRO INTERNATIONAL OIL IND. LLC  
+   **Total Amount:** 14,431.00 USD  
+   **Outstanding Balance:** 506.00 USD  
+   **Due Date:** 2025-06-29  
+   **Days Overdue:** 39  
+   **BRC Status:** Partial BRC  
+   **BRC Pending Amount:** 506.00 USD  
+
+6. **Invoice Number:** INV-2324-002  
+   **SAP Invoice No:** 48-2324  
+   **Customer Name:** LUB Y REC DE MEXICO DE CV  
+   **Total Amount:** 6,347.00 USD  
+   **Outstanding Balance:** 6,347.00 USD  
+   **Due Date:** 2025-06-29  
+   **Days Overdue:** 39  
+   **BRC Status:** No BRC Issued  
+   **BRC Pending Amount:** 6,347.00 USD  
+
+7. **Invoice Number:** INV-2122-001  
+   **SAP Invoice No:** 006/21-22  
+   **Customer Name:** P.B. Inbud Bielsko sp. zoo. sp. k  
+   **Total Amount:** 5,000.00 USD  
+   **Outstanding Balance:** 5,000.00 USD  
+   **Due Date:** 2021-07-11  
+   **Days Overdue:** 1488  
+   **BRC Status:** No BRC Issued  
+   **BRC Pending Amount:** 5,000.00 USD  
+
+8. **Invoice Number:** INV-2324-001  
+   **SAP Invoice No:** 018-2324  
+   **Customer Name:** Geo Green Shield W.L.L  
+   **Total Amount:** 4,277.00 USD  
+   **Outstanding Balance:** 4,277.00 USD  
+   **Due Date:** 2025-06-29  
+   **Days Overdue:** 39  
+   **BRC Status:** No BRC Issued  
+   **BRC Pending Amount:** 4,277.00 USD  
+
+9. **Invoice Number:** INV-2223-004  
+   **SAP Invoice No:** A055/22-23  
+   **Customer Name:** Geo Green Shield W.L.L  
+   **Total Amount:** 2,176.00 USD  
+   **Outstanding Balance:** 2,176.00 USD  
+   **Due Date:** 2025-06-29  
+   **Days Overdue:** 39  
+   **BRC Status:** No BRC Issued  
+   **BRC Pending Amount:** 2,176.00 USD  
+
+10. **Invoice Number:** INV-2425-005  
+    **SAP Invoice No:** 56-2425  
+    **Customer Name:** Bunorr Intergrated Energy Ltd  
+    **Total Amount:** 2,068.00 USD  
+    **Outstanding Balance:** 2,068.00 USD  
+    **Due Date:** 2025-06-29  
+    **Days Overdue:** 39  
+    **BRC Status:** No BRC Issued  
+    **BRC Pending Amount:** 2,068.00 USD  
+
+11. **Invoice Number:** INV-2223-001  
+    **SAP Invoice No:** 013/22-23  
+    **Customer Name:** Cyclo Oil LLC  
+    **Total Amount:** 2,005.00 USD  
+    **Outstanding Balance:** 2,005.00 USD  
+    **Due Date:** 2022-06-25  
+    **Days Overdue:** 1139  
+    **BRC Status:** No BRC Issued  
+    **BRC Pending Amount:** 2,005.00 USD  
+
+12. **Invoice Number:** INV-1920-001  
+    **SAP Invoice No:** 014/19-20  
+    **Customer Name:** Biobase S. A.  
+    **Total Amount:** 1,636.00 USD  
+    **Outstanding Balance:** 1,636.00 USD  
+    **Due Date:** 2019-07-03  
+    **Days Overdue:** 2227  
+    **BRC Status:** No BRC Issued  
+    **BRC Pending Amount:** 1,636.00 USD  
+
+13. **Invoice Number:** INV-2425-002  
+    **SAP Invoice No:** 03-2425  
+    **Customer Name:** LUB Y REC DE MEXICO DE CV  
+    **Total Amount:** 1,544.00 USD  
+    **Outstanding Balance:** 1,544.00 USD  
+    **Due Date:** 2025-06-29  
+    **Days Overdue:** 39  
+    **BRC Status:** No BRC Issued  
+    **BRC Pending Amount:** 1,544.00 USD  
+
+14. **Invoice Number:** INV-2223-003  
+    **SAP Invoice No:** A037/22-23  
+    **Customer Name:** Geo Green Shield W.L.L  
+    **Total Amount:** 1,034.50 USD  
+    **Outstanding Balance:** 1,034.50 USD  
+    **Due Date:** 2022-12-03  
+    **Days Overdue:** 978  
+    **BRC Status:** No BRC Issued  
+    **BRC Pending Amount:** 1,034.50 USD  
+
+15. **Invoice Number:** INV-2425-001  
+    **SAP Invoice No:** 66-2324  
+    **Customer Name:** Afromaster Trading Intl. FZE  
+    **Total Amount:** 890.00 USD  
+    **Outstanding Balance:** 890.00 USD  
+    **Due Date:** 2025-06-29  
+    **Days Overdue:** 39  
+    **BRC Status:** No BRC Issued  
+    **BRC Pending Amount:** 890.00 USD  
+
+16. **Invoice Number:** INV-2223-005  
+    **SAP Invoice No:** A066/22‐23  
+    **Customer Name:** Afro Oil Manufacturing PLC  
+    **Total Amount:** 655.00 USD  
+    **Outstanding Balance:** 655.00 USD  
+    **Due Date:** 2025-06-29  
+    **Days Overdue:** 39  
+    **BRC Status:** No BRC Issued  
+    **BRC Pending Amount:** 655.00 USD  
+
+17. **Invoice Number:** INV-2122-003  
+    **SAP Invoice No:** 044/21-22  
+    **Customer Name:** Cyclo Oil LLC  
+    **Total Amount:** 574.00 USD  
+    **Outstanding Balance:** 574.00 USD  
+    **Due Date:** 2022-04-14  
+    **Days Overdue:** 1211  
+    **BRC Status:** No BRC Issued  
+    **BRC Pending Amount:** 574.00 USD  
+
+18. **Invoice Number:** INV-2223-002  
+    **SAP Invoice No:** A048/22-23  
+    **Customer Name:** Cyclo Oil LLC  
+    **Total Amount:** 545.00 USD  
+    **Outstanding Balance:** 545.00 USD  
+    **Due Date:** 2023-01-14  
+    **Days Overdue:** 936  
+    **BRC Status:** No BRC Issued  
+    **BRC Pending Amount:** 545.00 USD  
+
+19. **Invoice Number:** INV-2122-002  
+    **SAP Invoice No:** 010/21-22  
+    **Customer Name:** P.B. Inbud Bielsko sp. zoo. sp. k  
+    **Total Amount:** 500.00 USD  
+    **Outstanding Balance:** 500.00 USD  
+    **Due Date:** 2021-08-04  
+    **Days Overdue:** 1464  
+    **BRC Status:** No BRC Issued  
+    **BRC Pending Amount:** 500.00 USD  
+
+20. **Invoice Number:** INV-1819-001  
+    **SAP Invoice No:** 052/18-19  
+    **Customer Name:** Afroking Lubricants & Grease Plant  
+    **Total Amount:** 309.00 USD  
+    **Outstanding Balance:** 309.00 USD  
+    **Due Date:** 2019-01-05  
+    **Days Overdue:** 2406  
+    **BRC Status:** No BRC Issued  
+    **BRC Pending Amount:** 309.00 USD  
+
+21. **Invoice Number:** INV-2526-027  
+    **SAP Invoice No:** 27-2526  
+    **Customer Name:** Dukhan Petroleum Company (DUPCO)  
+    **Total Amount:** 15,580.00 USD  
+    **Outstanding Balance:** 15,580.00 USD  
+    **Due Date:** 2025-07-25  
+    **Days Overdue:** 13  
+    **BRC Status:** No BRC Issued  
+    **BRC Pending Amount:** 15,580.00 USD  
+
+22. **Invoice Number:** INV-2526-018  
+    **SAP Invoice No:** 18-2526  
+    **Customer Name:** FLUKAR SP. ZO.O.  
+    **Total Amount:** 7,614.00 USD  
+    **Outstanding Balance:** 7,614.00 USD  
+    **Due Date:** 2025-07-20  
+    **Days Overdue:** 18  
+    **BRC Status:** No BRC Issued  
+    **BRC Pending Amount:** 7,614.00 USD  
+
+23. **Invoice Number:** INV-2526-033  
+    **SAP Invoice No:** 33-2526  
+    **Customer Name:** Mineracao Curimbaba LTDA.CAMPO MEIO  
+    **Total Amount:** 9,213.75 USD  
+    **Outstanding Balance:** 9,213.75 USD  
+    **Due Date:** 2025-08-14  
+    **Days Overdue:** -7  
+    **BRC Status:** No BRC Issued  
+    **BRC Pending Amount:** 9,213.75 USD  
+
+24. **Invoice Number:** INV-2526-032  
+    **SAP Invoice No:** 32-2526  
+    **Customer Name:** LUB Y REC DE MEXICO DE CV  
+    **Total Amount:** 3,338.00 USD  
+    **Outstanding Balance:** 3,338.00 USD  
+    **Due Date:** 2025-08-14  
+    **Days Overdue:** -7  
+    **BRC Status:** No BRC Issued  
+    **BRC Pending Amount:** 3,338.00 USD  
+
+## HIGH-RISK OVERDUE ACCOUNTS REQUIRING IMMEDIATE ATTENTION
+
+1. **Agas Lubes**  
+   - **Invoice Number:** INV-1718-001  
+   - **Outstanding Amount:** 226,000.00 USD  
+   - **Days Overdue:** 2735  
+   - **Reason:** High financial exposure due to long overdue period.
+
+2. **AVISTA OIL DEUTSCHLAND GMBH**  
+   - **Invoice Number:** INV-2425-004  
+   - **Outstanding Amount:** 350,250.00 USD  
+   - **Days Overdue:** 260  
+   - **Reason:** Significant outstanding amount with no BRC issued.
+
+3. **Bunorr Intergrated Energy Ltd**  
+   - **Invoices:** INV-2021-003, INV-2425-005  
+   - **Total Outstanding Amount:** 214,922.00 USD  
+   - **Reason:** Multiple invoices pending with high overdue days.
+
+4. **Dukhan Petroleum Company (DUPCO)**  
+   - **Invoices:** INV-2526-010, INV-2526-027  
+   - **Total Outstanding Amount:** 135,802.00 USD  
+   - **Reason:** High-value transactions with overdue BRC submission.
+
+5. **Geo Green Shield W.L.L**  
+   - **Invoices:** INV-2324-001, INV-2223-004, INV-2223-003  
+   - **Total Outstanding Amount:** 7,487.50 USD  
+   - **Reason:** Multiple pending BRC submissions with regulatory risk.
+
+## EXPORT COMPLIANCE TRENDS AND BRC SUBMISSION PATTERNS
+
+- **Average BRC Submission Delays:** Many invoices show delays exceeding 1000 days, indicating a systemic issue in BRC submission.
+- **Consistent BRC Compliance:** No customers demonstrate consistent BRC compliance; most have overdue invoices.
+- **Seasonal Patterns:** No clear seasonal patterns; delays appear consistent across various timeframes.
+- **Market/Region Efficiency:** Customers from diverse regions (e.g., Germany, Mexico, Poland) show similar delays, suggesting internal process issues rather than market-specific problems.
+
+## SPECIFIC RECOMMENDATIONS FOR IMPROVING EXPORT REALIZATION
+
+1. **Priority BRC Collection Targets:** Focus on high-value customers such as AVISTA OIL DEUTSCHLAND GMBH and Agas Lubes for immediate BRC collection.
+2. **Policy Improvements:** Implement stricter compliance timelines and penalties for delayed BRC submissions.
+3. **Customer Education:** Conduct workshops and provide resources to educate customers on the importance and process of timely BRC submission.
+4. **BRC Tracking Enhancements:** Develop an automated system for tracking BRC submissions and overdue invoices to ensure timely follow-ups.
+
+## SUMMARY STATISTICS
+
+- **Total Pending BRC Amount:** 1,000,000+ USD (approximate based on listed invoices)
+- **Number of Pending vs Realized Export Invoices:** All listed invoices are pending.
+- **Average BRC Submission Delay Period:** Over 1000 days for many invoices.
+- **Top 5 Customers by Pending BRC Amount:**
+  1. AVISTA OIL DEUTSCHLAND GMBH - 350,250.00 USD
+  2. Agas Lubes - 226,000.00 USD
+  3. Bunorr Intergrated Energy Ltd - 214,922.00 USD
+  4. Dukhan Petroleum Company (DUPCO) - 135,802.00 USD
+  5. Geo Green Shield W.L.L - 7,487.50 USD
+
+### GENERATED TASKS:
+
+**Task Title:** BRC Pending for INV-2425-004 + 39-2425 + AVISTA OIL DEUTSCHLAND GMBH  
+**Task Description:**  
+Invoice Number: INV-2425-004  
+Invoice Date: 2024-10-21  
+Invoice Amount: 350,250.00 USD  
+BRC Pending Amount: 350,250.00 USD  
+Customer: AVISTA OIL DEUTSCHLAND GMBH  
+Action Required: Contact customer to submit Bank Realization Certificate for export invoice processing and compliance.  
+
+**Task Title:** BRC Pending for INV-1718-001 + EXP/016/17-18 + Agas Lubes  
+**Task Description:**  
+Invoice Number: INV-1718-001  
+Invoice Date: 2018-01-11  
+Invoice Amount: 226,000.00 USD  
+BRC Pending Amount: 226,000.00 USD  
+Customer: Agas Lubes  
+Action Required: Contact customer to submit Bank Realization Certificate for export invoice processing and compliance.  
+
+**Task Title:** BRC Pending for INV-2021-003 + 50/20-21 + Bunorr Intergrated Energy Ltd  
+**Task Description:**  
+Invoice Number: INV-2021-003  
+Invoice Date: 2021-01-29  
+Invoice Amount: 212,854.00 USD  
+BRC Pending Amount: 212,854.00 USD  
+Customer: Bunorr Intergrated Energy Ltd  
+Action Required: Contact customer to submit Bank Realization Certificate for export invoice processing and compliance.  
+
+**Task Title:** BRC Pending for INV-2526-010 + 10-2526 + Dukhan Petroleum Company (DUPCO)  
+**Task Description:**  
+Invoice Number: INV-2526-010  
+Invoice Date: 2025-04-25  
+Invoice Amount: 120,222.00 USD  
+BRC Pending Amount: 120,222.00 USD  
+Customer: Dukhan Petroleum Company (DUPCO)  
+Action Required: Contact customer to submit Bank Realization Certificate for export invoice processing and compliance.  
+
+**Task Title:** BRC Pending for INV-2425-003 + 37-2425 + AFRO INTERNATIONAL OIL IND. LLC  
+**Task Description:**  
+Invoice Number: INV-2425-003  
+Invoice Date: 2024-10-17  
+Invoice Amount: 14,431.00 USD  
+BRC Pending Amount: 506.00 USD  
+Customer: AFRO INTERNATIONAL OIL IND. LLC  
+Action Required: Contact customer to submit Bank Realization Certificate for export invoice processing and compliance.  
+
+Analysis Date: 2025-08-07
