@@ -5,6 +5,15 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 Preferred communication style: Simple, everyday language.
 
 # Recent Changes
+- **August 7, 2025: DATA QUERY FIELD CRITICAL FIX**: Resolved critical issue where LLM prompt Data Query field was appearing empty in edit dialog despite backend correctly retrieving SQL queries from database.
+  ✅ **Root Cause Identified**: Edit button onclick handler was hardcoding `data_query: ''` instead of using proper handleEditPrompt function
+  ✅ **Backend Confirmed Working**: Server debug logs proved dataQuery (872 characters) was correctly retrieved from llm_prompts_registry table
+  ✅ **Frontend Handler Fixed**: Replaced inline onClick handler with proper handleEditPrompt function that maps prompt.dataQuery to form data_query
+  ✅ **Interface Updated**: Added dataQuery field to LLMPrompt TypeScript interface for proper type safety
+  ✅ **Comprehensive Debugging**: Implemented detailed server and frontend debugging infrastructure for future troubleshooting
+  ✅ **Data Flow Verified**: Complete data flow from PostgreSQL → Backend API → Frontend Form now working correctly
+  🎯 **System Status**: Cash Flow Predictor and all other LLM prompts with SQL queries now display correctly in edit dialogs
+
 - **August 7, 2025: ENHANCED RECURRING TASKS PROCESSING**: Implemented comprehensive recurring task pattern processing with proper pattern-based generation logic.
   ✅ **Enhanced calculateNextOccurrence Method**: Properly handles Daily, Weekly, Monthly, and Yearly patterns using 'Repeat Every' (interval), 'Month' (monthOfYear), and 'Day of the Month' (dayOfMonth) settings
   ✅ **Advanced Pattern Logic**: Daily patterns use interval days, Weekly patterns support daysOfWeek arrays and interval weeks, Monthly patterns handle dayOfMonth with interval months including month-end edge cases
