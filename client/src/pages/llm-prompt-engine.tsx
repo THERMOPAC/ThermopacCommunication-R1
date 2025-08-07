@@ -1459,6 +1459,11 @@ export default function LLMPromptEnginePage() {
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby="edit-prompt-description">
               <DialogHeader>
                 <DialogTitle>Edit LLM Prompt</DialogTitle>
+                {editingPrompt && (
+                  <div className="text-sm text-muted-foreground">
+                    Prompt ID: {editingPrompt.id}
+                  </div>
+                )}
                 <div id="edit-prompt-description" className="sr-only">
                   Edit the details of an existing LLM prompt including name, category, model, and template.
                 </div>

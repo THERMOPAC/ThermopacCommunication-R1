@@ -53,7 +53,11 @@ router.get('/prompts', ensureAuthenticated, async (req: Request, res: Response) 
     const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
 
     let query = `
-      SELECT p.*, u.username as created_by_name, pp.avg_rating, pp.total_executions, pp.last_executed
+      SELECT p.id, p.name, p.description, p.template, p.category, p.model, p.frequency, 
+             p.active, p.version, p.priority, p.temperature, p.data_query as "dataQuery",
+             p.data_parameters, p.output_format, p.preferred_model, p.masking_rules, 
+             p.is_sensitive, p.created_at, p.updated_at, p.created_by, p.updated_by,
+             u.username as created_by_name, pp.avg_rating, pp.total_executions, pp.last_executed
       FROM llm_prompts_registry p
       LEFT JOIN users u ON p.created_by = u.id
       LEFT JOIN llm_prompt_performance pp ON p.id = pp.prompt_id
@@ -128,6 +132,8 @@ router.get('/prompts/by-modules', ensureAuthenticated, async (req: Request, res:
             'model', p.model,
             'active', p.active,
             'template', p.template,
+            'dataQuery', p.data_query,
+            'temperature', p.temperature,
             'avg_rating', COALESCE(pp.avg_rating, 0),
             'total_executions', COALESCE(pp.total_executions, 0),
             'last_executed', pp.last_executed,
