@@ -178,22 +178,30 @@ export default function LLMPromptEnginePage() {
 
   // Fetch prompts grouped by modules
   const { data: promptsData, isLoading: promptsLoading } = useQuery({
-    queryKey: ['/api/llm/prompts', { category: selectedCategory === 'all' ? undefined : selectedCategory }],
+    queryKey: ['/api/llm/prompts', { category: selectedCategory === 'all' ? undefined : selectedCategory, ts: Date.now() }],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (selectedCategory !== 'all') {
         params.append('category', selectedCategory);
       }
       params.append('active', 'true');
+      // Add cache busting parameter
+      params.append('_cb', Date.now().toString());
       
       const response = await fetch(`/api/llm/prompts?${params}`, {
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
       });
       if (!response.ok) throw new Error('Failed to fetch prompts');
       const data = await response.json();
       
       return data;
-    }
+    },
+    staleTime: 0, // Always consider data stale
+    cacheTime: 0  // Don't cache the data
   });
 
   // Fetch prompts organized by modules

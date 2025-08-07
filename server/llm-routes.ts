@@ -81,6 +81,19 @@ router.get('/prompts', ensureAuthenticated, async (req: Request, res: Response) 
 
     const result = await pool.query(query, params);
     
+    // DEBUG: Log the dataQuery for Cash Flow Predictor
+    const cashFlowPrompt = result.rows.find(row => row.id === 3);
+    if (cashFlowPrompt) {
+      console.log('=== SERVER API DEBUG ===');
+      console.log('Cash Flow Predictor data from database:');
+      console.log('ID:', cashFlowPrompt.id);
+      console.log('Name:', cashFlowPrompt.name);
+      console.log('dataQuery present:', !!cashFlowPrompt.dataQuery);
+      console.log('dataQuery length:', cashFlowPrompt.dataQuery?.length);
+      console.log('dataQuery value:', cashFlowPrompt.dataQuery);
+      console.log('=== END SERVER DEBUG ===');
+    }
+    
     // Get total count
     let countQuery = 'SELECT COUNT(*) FROM llm_prompts_registry WHERE 1=1';
     const countParams: any[] = [];
@@ -97,6 +110,13 @@ router.get('/prompts', ensureAuthenticated, async (req: Request, res: Response) 
 
     const countResult = await pool.query(countQuery, countParams);
     const totalCount = parseInt(countResult.rows[0].count);
+
+    // Add cache-busting headers to ensure fresh data
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
 
     res.json({
       prompts: result.rows,
