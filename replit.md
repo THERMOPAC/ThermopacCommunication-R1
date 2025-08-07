@@ -5,6 +5,14 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 Preferred communication style: Simple, everyday language.
 
 # Recent Changes
+- **August 7, 2025: BRC MANAGEMENT INSIGHT GENERATOR ENHANCEMENT**: Fixed and enhanced BRC Management Insight Generator prompt (ID 20) to analyze pending Bank Realization Certificates with real database data.
+  ✅ **SQL Query Fixed**: Updated data query to work with actual database schema (bank_realization_certificates table structure)
+  ✅ **Pending BRC Detection**: Enhanced query to identify invoices without BRCs that require urgent export compliance attention
+  ✅ **Critical Data Found**: System identified 10 pending invoices without BRCs, totaling significant amounts, some overdue by several years (2018-2019)
+  ✅ **Risk Assessment Ready**: Prompt now properly analyzes export compliance risks and generates actionable insights for management review
+  ✅ **Bank Performance Analysis**: Enhanced prompt to compare bank processing efficiency and BRC realization patterns
+  🎯 **System Status**: BRC Management prompt configured for comprehensive export compliance monitoring and task generation
+
 - **August 7, 2025: DATA QUERY FIELD CRITICAL FIX**: Resolved critical issue where LLM prompt Data Query field was appearing empty in edit dialog despite backend correctly retrieving SQL queries from database.
   ✅ **Root Cause Identified**: Edit button onclick handler was hardcoding `data_query: ''` instead of using proper handleEditPrompt function
   ✅ **Backend Confirmed Working**: Server debug logs proved dataQuery (872 characters) was correctly retrieved from llm_prompts_registry table
