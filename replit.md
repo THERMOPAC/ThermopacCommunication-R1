@@ -5,14 +5,16 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 Preferred communication style: Simple, everyday language.
 
 # Recent Changes
-## August 7, 2025 - System-Wide Data Integrity Protocol Implementation COMPLETED
-- **Universal Rule Applied**: All LLM prompts must indicate data unavailability rather than generating fabricated content
-- **Template Enhancement**: Added DATA INTEGRITY PROTOCOL section to all active LLM prompt templates
-- **Error Handling Standardization**: Implemented consistent error responses across all prompts when no authentic data available
-- **Data Validation**: Enhanced llm-prompt-engine.ts to detect empty/null data and provide appropriate error messages
+## August 7, 2025 - Enhanced Data Integrity & Relevance Protocol Implementation COMPLETED
+- **Universal Rule Applied**: All LLM prompts must indicate data unavailability OR irrelevance rather than generating fabricated content
+- **Relevance Validation**: Enhanced protocol to detect when data exists but is not relevant to the specific analysis
+- **Template Enhancement**: Added DATA INTEGRITY PROTOCOL section to all 19 active LLM prompt templates with relevance checking
+- **Error Handling Standardization**: Implemented consistent error responses for no data, empty data, and irrelevant data scenarios
+- **Data Validation**: Enhanced llm-prompt-engine.ts to detect empty/null/irrelevant data and provide appropriate error messages
 - **Fabrication Prevention**: System-wide prohibition against generating placeholder, fictional, or speculative content
+- **Relevance Standards**: Never force analysis using irrelevant or inappropriate data, even if data exists
 - **Professional Error Messages**: Clear indication of data limitations with actionable recommendations
-- **Quality Assurance**: All prompts now maintain strict authenticity standards
+- **Quality Assurance**: All prompts now maintain strict authenticity AND relevance standards
 
 ## August 7, 2025 - LLM Prompt ID 8 Data Pipeline Fix COMPLETED
 - **Critical Issue Identified**: Data pipeline break between database query and LLM processing layer
