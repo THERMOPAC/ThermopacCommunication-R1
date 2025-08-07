@@ -224,6 +224,31 @@ export class LLMPromptEngine {
           return formattedData;
         }
         
+        // Special handling for Meeting Efficiency Analyzer (Prompt ID 8) raw data
+        if (result.rows.length > 0 && result.rows[0].data_type === 'PENDING_COMMITMENTS') {
+          console.log('🎯 Processing Meeting Efficiency raw data for prompt 8');
+          console.log(`📊 Found ${result.rows.length} pending commitments from database`);
+          
+          // Validate we have real commitment data
+          const validCommitments = result.rows.filter(row => 
+            row.meeting_title && 
+            row.assigned_to &&
+            row.commitment_description
+          );
+          
+          console.log(`✅ Found ${validCommitments.length} valid commitments with complete data`);
+          
+          if (validCommitments.length === 0) {
+            console.log('❌ No valid commitments found - returning empty array');
+            return [];
+          }
+          
+          // Return properly formatted data for llm-prompt-engine processing
+          console.log('✅ Returning validated commitment data for LLM processing');
+          console.log('📝 Sample commitment:', validCommitments[0]);
+          return validCommitments;
+        }
+        
         // Otherwise return all rows
         console.log('📊 Returning raw query results');
         return result.rows;
