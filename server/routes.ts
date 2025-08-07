@@ -2182,6 +2182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const createdTasks = [];
       const errors = [];
+      const skippedDuplicates = [];
 
       for (let i = 0; i < tasks.length; i++) {
         try {
@@ -2194,6 +2195,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
             createdAt: new Date().toISOString(),
             status: 'pending'
           });
+
+          // Check for duplicate task before creating
+          const duplicateTask = await storage.findDuplicateTask(
+            taskData.title,
+            taskData.createdBy,
+            taskData.assignedTo || null,
+            taskData.dueDate || null,
+            taskData.sourceId || null
+          );
+
+          if (duplicateTask) {
+            console.log(`Skipping duplicate task ${i + 1}/${tasks.length}: "${taskData.title}" (existing task ID: ${duplicateTask.id})`);
+            skippedDuplicates.push({
+              index: i,
+              title: taskData.title,
+              existingTaskId: duplicateTask.id,
+              message: 'Task already exists with same title, creator, and assignee'
+            });
+            continue;
+          }
 
           const task = await storage.createTask(taskData);
           createdTasks.push(task);
@@ -2209,7 +2230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      if (createdTasks.length === 0) {
+      if (createdTasks.length === 0 && skippedDuplicates.length === 0) {
         return res.status(400).json({
           success: false,
           message: "No tasks could be created",
@@ -2217,14 +2238,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      console.log(`Successfully created ${createdTasks.length}/${tasks.length} tasks from LLM insight`);
+      const totalProcessed = createdTasks.length + skippedDuplicates.length;
+      let message = '';
+      
+      if (createdTasks.length > 0 && skippedDuplicates.length > 0) {
+        message = `Created ${createdTasks.length} tasks, skipped ${skippedDuplicates.length} duplicates`;
+      } else if (createdTasks.length > 0) {
+        message = `Successfully created ${createdTasks.length} tasks`;
+      } else if (skippedDuplicates.length > 0) {
+        message = `All ${skippedDuplicates.length} tasks were duplicates and skipped`;
+      }
+
+      console.log(`Task creation complete: ${createdTasks.length} created, ${skippedDuplicates.length} duplicates skipped, ${errors.length} errors`);
 
       res.status(201).json({
         success: true,
-        message: `Successfully created ${createdTasks.length} tasks`,
+        message,
         created: createdTasks.length,
+        skipped: skippedDuplicates.length,
         total: tasks.length,
         tasks: createdTasks,
+        duplicates: skippedDuplicates.length > 0 ? skippedDuplicates : undefined,
         errors: errors.length > 0 ? errors : undefined
       });
     } catch (error) {

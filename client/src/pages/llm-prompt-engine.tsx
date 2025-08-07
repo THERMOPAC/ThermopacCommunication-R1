@@ -1109,9 +1109,21 @@ export default function LLMPromptEnginePage() {
       const result = await response.json();
 
       if (result.success) {
+        // Create dynamic toast message based on result
+        let description = result.message;
+        
+        if (result.duplicates && result.duplicates.length > 0) {
+          description += `. ${result.duplicates.length} duplicate tasks were automatically skipped.`;
+        }
+        
+        if (result.errors && result.errors.length > 0) {
+          description += ` ${result.errors.length} tasks had errors.`;
+        }
+
         toast({
-          title: "Tasks Created Successfully",
-          description: `Created ${generatedTasks.length} tasks from the LLM insight.`,
+          title: "Task Generation Complete",
+          description,
+          variant: result.created > 0 ? "default" : "destructive"
         });
         
         // Reset states

@@ -5,6 +5,15 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 Preferred communication style: Simple, everyday language.
 
 # Recent Changes
+- **August 7, 2025: DUPLICATE TASK DETECTION & UI CONSISTENCY**: Implemented intelligent duplicate task prevention and standardized dropdown formats.
+  ✅ **Duplicate Task Detection**: Added smart duplicate checking for LLM-generated tasks based on title, creator, assignee, due date, and source ID
+  ✅ **Intelligent Skipping**: System automatically skips creating tasks that already exist with same attributes and Pending/Open status
+  ✅ **Enhanced Reporting**: Task creation responses include detailed feedback about created, skipped, and failed tasks
+  ✅ **UI Consistency**: Standardized all "Assign To" dropdowns to use grouped format with role headers and blue styling
+  ✅ **Safe Daily Operations**: System can now safely generate tasks multiple times per day without creating duplicates
+  ✅ **Comprehensive Logging**: Added detailed console logging for duplicate detection and task creation processes
+  🎯 **System Status**: Duplicate detection ensures clean task lists and prevents redundant assignments during repeated LLM insight runs
+
 - **August 7, 2025: LLM TASK CREATION ENHANCEMENT**: Updated task generation system to properly assign tasks created from LLM insights.
   ✅ **Manager Assignment**: Tasks generated from LLM insights now automatically set Created_By to Manager (ID = 1) instead of current user
   ✅ **Improved Categories Filtering**: Enhanced Categories dropdown to work across Business Modules, All Prompts, and Generated Insights tabs
@@ -13,7 +22,6 @@ Preferred communication style: Simple, everyday language.
   ✅ **Enhanced Invoice Parsing**: Added numbered list pattern recognition for detailed invoice breakdowns with financial data extraction
   ✅ **Global Assignment Feature**: Added global "Assign To" dropdown in task generation dialog to assign all tasks to same person at once
   ✅ **Comprehensive Task Descriptions**: Enhanced task descriptions with complete financial details, SAP references, priority levels, and visual indicators
-  🎯 **System Status**: LLM-generated tasks properly assigned to Manager for better organizational accountability
 
 # System Architecture
 ## Core Architectural Decisions

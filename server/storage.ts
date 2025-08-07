@@ -299,6 +299,73 @@ export class DatabaseStorage implements IStorage {
     return task;
   }
 
+  async findDuplicateTask(
+    title: string, 
+    createdBy: number, 
+    assignedTo: number | null, 
+    dueDate?: string | null,
+    sourceId?: number | null
+  ): Promise<Task | null> {
+    console.log(`Checking for duplicate task with title: "${title}", createdBy: ${createdBy}, assignedTo: ${assignedTo}`);
+    
+    // Build the where conditions
+    let whereConditions = and(
+      eq(tasksTable.title, title),
+      eq(tasksTable.createdBy, createdBy),
+      // Only check tasks with Pending or Open status
+      or(
+        eq(tasksTable.status, 'pending'),
+        eq(tasksTable.status, 'open')
+      )
+    );
+
+    // Add assignedTo condition if provided
+    if (assignedTo !== null) {
+      whereConditions = and(
+        whereConditions,
+        eq(tasksTable.assignedTo, assignedTo)
+      );
+    }
+
+    // Optional: Add due date condition for more precise matching
+    if (dueDate) {
+      whereConditions = and(
+        whereConditions,
+        eq(tasksTable.dueDate, dueDate)
+      );
+    }
+
+    // Optional: Add sourceId condition for LLM insight tasks
+    if (sourceId) {
+      whereConditions = and(
+        whereConditions,
+        eq(tasksTable.sourceId, sourceId)
+      );
+    }
+
+    const existingTasks = await db
+      .select()
+      .from(tasksTable)
+      .where(whereConditions)
+      .limit(1);
+
+    const duplicateTask = existingTasks[0] as Task | undefined;
+    
+    if (duplicateTask) {
+      console.log(`Found duplicate task:`, {
+        id: duplicateTask.id,
+        title: duplicateTask.title,
+        createdBy: duplicateTask.createdBy,
+        assignedTo: duplicateTask.assignedTo,
+        status: duplicateTask.status
+      });
+    } else {
+      console.log(`No duplicate task found for title: "${title}"`);
+    }
+
+    return duplicateTask || null;
+  }
+
   async getTasksForUser(userId: number): Promise<Task[]> {
     const user = await this.getUser(userId);
     if (!user) {
