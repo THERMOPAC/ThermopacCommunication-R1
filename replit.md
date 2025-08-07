@@ -24,7 +24,9 @@ Preferred communication style: Simple, everyday language.
 - **Pipeline Fix**: Added Meeting Efficiency data recognition in preparePromptData function (lines 230-253)
 - **Database Query Fix**: Corrected column names to `mc.assigned_to_id`, `mc.description as commitment_description`, `u.username as assigned_username`
 - **Status Filter Fix**: Changed WHERE clause from `status = 'pending'` to `status = 'Pending'` to match database values
-- **Data Processing Fix**: Updated data formatting to use `commitment.assigned_username` instead of `commitment.assigned_to`
+- **Data Processing Fix**: Updated data formatting to handle both `commitment.assigned_to` (from complex query) and `commitment.assigned_username` (from simple query)
+- **Complex Query Handler**: Added specific detection for prompt 8's complex stored query with CTE and JOIN operations
+- **Universal Field Support**: Updated all processing logic to handle multiple field name variations across different query types
 - **Data Validation Enhanced**: Added validation for commitment data completeness (meeting_title, assigned_username, commitment_description)
 - **Data Integrity Protocol**: Implemented "DATA UNAVAILABLE" response when no authentic data found (instead of generating fake examples)
 - **Template Updated**: Enhanced to explicitly reject fictional examples (jsmith, adoe, bwhite) and mandate real THERMOPAC employee names
