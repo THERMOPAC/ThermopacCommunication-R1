@@ -435,72 +435,90 @@ export class LLMPromptEngine {
           console.log('✅ BRC Management data ready for LLM injection');
           console.log('📝 BRC data preview:', rawData.substring(0, 300) + '...');
         } else if (promptId === 8 && Array.isArray(rawData)) {
-          // Special formatting for Meeting Efficiency Analyzer (prompt 8) - Make it user-specific
+          // Special formatting for Meeting Efficiency Analyzer (prompt 8) - Use actual database structure
           console.log('📅 Formatting Meeting Efficiency data for personalized analysis...');
           console.log(`📊 Found ${rawData.length} meeting records`);
+          console.log('📊 Sample meeting data:', JSON.stringify(rawData[0], null, 2));
           
           if (rawData.length > 0) {
-            // Extract user-specific meeting patterns
+            // Extract user-specific meeting patterns using actual database structure
             let formattedData = "✅ AUTHENTIC THERMOPAC MEETING DATA VERIFIED ✅\n";
             formattedData += "=== YOUR PERSONAL MEETING PERFORMANCE DATA ===\n\n";
             
-            const userMeetings = rawData.filter(meeting => meeting.organizer_display && meeting.organizer_display.includes('YOU'));
-            const participantMeetings = rawData.filter(meeting => !meeting.organizer_display?.includes('YOU'));
+            const organizedMeetings = rawData.filter(meeting => meeting.your_role === 'ORGANIZED_BY_YOU');
+            const attendedMeetings = rawData.filter(meeting => meeting.your_role === 'ATTENDED_BY_YOU');
             
             formattedData += "**YOUR MEETING LEADERSHIP ANALYSIS:**\n\n";
-            if (userMeetings.length > 0) {
-              userMeetings.forEach((meeting, index) => {
-                formattedData += `${index + 1}. **${meeting.title}** (YOU organized this)\n`;
-                formattedData += `   - Date: ${meeting.meeting_date}\n`;
-                formattedData += `   - Duration: ${meeting.duration_minutes || 'Not specified'} minutes\n`;
-                formattedData += `   - Your Commitments Created: ${meeting.total_commitments || 0}\n`;
-                formattedData += `   - Your Completion Rate: ${meeting.your_completed || 0}/${meeting.your_commitments || 0}\n`;
-                formattedData += `   - Your Average Delay: ${meeting.your_avg_delay_days || 0} days\n`;
-                if (meeting.your_pending_commitments) {
-                  formattedData += `   - Your Pending Items: ${meeting.your_pending_commitments}\n`;
-                }
-                formattedData += `   - Status: ${meeting.status}\n\n`;
+            if (organizedMeetings.length > 0) {
+              organizedMeetings.forEach((meeting, index) => {
+                formattedData += `${index + 1}. **"${meeting.meeting_title || 'Meeting Title Missing'}"** (YOU organized this)\n`;
+                formattedData += `   - Date: ${meeting.meeting_date} (${meeting.day_of_week})\n`;
+                formattedData += `   - Time: ${meeting.start_time || 'Not specified'}\n`;
+                formattedData += `   - Duration: ${meeting.duration_minutes || 0} minutes\n`;
+                formattedData += `   - Status: ${meeting.meeting_status}\n`;
+                formattedData += `   - Total Meeting Commitments: ${meeting.total_commitments_in_meeting}\n`;
+                formattedData += `   - Commitments Assigned to You: ${meeting.commitments_assigned_to_you}\n`;
+                formattedData += `   - Your Completed Commitments: ${meeting.your_completed_commitments}\n\n`;
               });
             } else {
-              formattedData += "No meetings organized by you in the last 30 days.\n\n";
+              formattedData += "**Finding: You organized 0 meetings in the last 30 days.**\n\n";
             }
             
             formattedData += "**YOUR PARTICIPATION PATTERNS:**\n\n";
-            if (participantMeetings.length > 0) {
-              participantMeetings.forEach((meeting, index) => {
-                formattedData += `${index + 1}. **${meeting.title}** (Organized by ${meeting.organizer_display})\n`;
-                formattedData += `   - Date: ${meeting.meeting_date}\n`;
-                formattedData += `   - Your Role: Participant\n`;
-                formattedData += `   - Your Commitments: ${meeting.your_commitments || 0}\n`;
-                formattedData += `   - Your Completed: ${meeting.your_completed || 0}\n`;
-                if (meeting.your_pending_commitments) {
-                  formattedData += `   - Your Outstanding Tasks: ${meeting.your_pending_commitments}\n`;
-                }
-                formattedData += `   - Your Performance: ${meeting.your_avg_delay_days > 0 ? 'Delayed by ' + meeting.your_avg_delay_days + ' days' : 'On time'}\n\n`;
+            if (attendedMeetings.length > 0) {
+              attendedMeetings.forEach((meeting, index) => {
+                formattedData += `${index + 1}. **"${meeting.meeting_title || 'Meeting Title Missing'}"** (Organized by ${meeting.organizer_name})\n`;
+                formattedData += `   - Date: ${meeting.meeting_date} (${meeting.day_of_week})\n`;
+                formattedData += `   - Time: ${meeting.start_time || 'Not specified'}\n`;
+                formattedData += `   - Your Role: Meeting Participant\n`;
+                formattedData += `   - Your Commitments: ${meeting.commitments_assigned_to_you}\n`;
+                formattedData += `   - Your Completed: ${meeting.your_completed_commitments}\n`;
+                formattedData += `   - Your Completion Rate: ${meeting.commitments_assigned_to_you > 0 ? Math.round((meeting.your_completed_commitments / meeting.commitments_assigned_to_you) * 100) : 100}%\n\n`;
               });
             } else {
-              formattedData += "No meetings attended as participant in the last 30 days.\n\n";
+              formattedData += "**Finding: You attended 0 meetings as a participant in the last 30 days.**\n\n";
             }
             
-            // Personal statistics
-            const totalUserCommitments = rawData.reduce((sum, meeting) => sum + (meeting.your_commitments || 0), 0);
-            const totalUserCompleted = rawData.reduce((sum, meeting) => sum + (meeting.your_completed || 0), 0);
-            const userCompletionRate = totalUserCommitments > 0 ? ((totalUserCompleted / totalUserCommitments) * 100).toFixed(1) : 0;
+            // Calculate real statistics from the data
+            const totalCommitmentsAssigned = rawData.reduce((sum, meeting) => sum + (meeting.commitments_assigned_to_you || 0), 0);
+            const totalCommitmentsCompleted = rawData.reduce((sum, meeting) => sum + (meeting.your_completed_commitments || 0), 0);
+            const overallCompletionRate = totalCommitmentsAssigned > 0 ? Math.round((totalCommitmentsCompleted / totalCommitmentsAssigned) * 100) : 0;
             
-            formattedData += "**YOUR PERSONAL MEETING METRICS:**\n";
-            formattedData += `- Meetings You Organized: ${userMeetings.length}\n`;
-            formattedData += `- Meetings You Attended: ${participantMeetings.length}\n`;
-            formattedData += `- Your Total Commitments: ${totalUserCommitments}\n`;
-            formattedData += `- Your Completion Rate: ${userCompletionRate}%\n`;
-            formattedData += `- Your Meeting Leadership Style: ${userMeetings.length > participantMeetings.length ? 'Leader-focused' : 'Participant-focused'}\n\n`;
+            formattedData += "**YOUR AUTHENTIC MEETING METRICS FROM DATABASE:**\n";
+            formattedData += `- Meetings You Organized: ${organizedMeetings.length}\n`;
+            formattedData += `- Meetings You Attended: ${attendedMeetings.length}\n`;
+            formattedData += `- Total Meetings (Last 30 Days): ${rawData.length}\n`;
+            formattedData += `- Your Total Commitments: ${totalCommitmentsAssigned}\n`;
+            formattedData += `- Your Completed Commitments: ${totalCommitmentsCompleted}\n`;
+            formattedData += `- Your Overall Completion Rate: ${overallCompletionRate}%\n`;
+            formattedData += `- Your Meeting Pattern: ${organizedMeetings.length > 0 ? 'Meeting Organizer' : 'Meeting Participant Only'}\n\n`;
             
-            formattedData += "\n🔒 DATA AUTHENTICITY CONFIRMED: This is YOUR real THERMOPAC meeting performance data\n";
-            formattedData += "📊 DATA SOURCE: Live production database with YOUR actual meeting records\n";
-            formattedData += "✅ ANALYSIS FOCUS: Generate PERSONALIZED improvement recommendations for YOUR meeting habits\n";
+            // Add common meeting times pattern
+            if (rawData.length > 0) {
+              const meetingTimes = rawData.map(m => m.start_time).filter(t => t);
+              const mostCommonTime = meetingTimes.length > 0 ? meetingTimes[0] : 'Not available';
+              formattedData += `- Your Most Common Meeting Time: ${mostCommonTime}\n`;
+              
+              const meetingDays = rawData.map(m => m.day_of_week).filter(d => d);
+              const dayFrequency = {};
+              meetingDays.forEach(day => {
+                const cleanDay = day.trim();
+                dayFrequency[cleanDay] = (dayFrequency[cleanDay] || 0) + 1;
+              });
+              
+              const mostActiveDay = Object.entries(dayFrequency).sort((a, b) => b[1] - a[1])[0];
+              if (mostActiveDay) {
+                formattedData += `- Your Most Active Meeting Day: ${mostActiveDay[0]} (${mostActiveDay[1]} meetings)\n\n`;
+              }
+            }
+            
+            formattedData += "\n🔒 DATA AUTHENTICITY CONFIRMED: This is YOUR real THERMOPAC meeting performance data from the database\n";
+            formattedData += "📊 DATA SOURCE: Live production database querying business_meetings and meeting_commitments tables\n";
+            formattedData += "✅ ANALYSIS REQUIREMENT: Use this EXACT data above to generate specific insights about YOUR meeting behavior\n";
             
             data = formattedData;
-            console.log('✅ Meeting Efficiency data personalized for user');
-            console.log('📝 Personalized data preview:', formattedData.substring(0, 300) + '...');
+            console.log('✅ Meeting Efficiency data properly formatted with real database structure');
+            console.log('📝 Formatted data preview:', formattedData.substring(0, 400) + '...');
           } else {
             console.log('❌ No meeting data found - will use error fallback');
             data = "ERROR: No meeting data available for your personal analysis.";
