@@ -483,18 +483,16 @@ export class LLMPromptEngine {
               formattedData += "**Finding: You attended 0 meetings as a participant in the last 30 days.**\n\n";
             }
             
-            // Add pending commitments data in raw format
+            // Add pending commitments data in pipe-delimited format for LLM parsing
+            formattedData += "**PENDING_COMMITMENTS DATA:**\n\n";
             if (pendingCommitments.length > 0) {
-              formattedData += "**PENDING_COMMITMENTS DATA:**\n\n";
-              
-              pendingCommitments.forEach((commitment, index) => {
+              pendingCommitments.forEach((commitment) => {
                 formattedData += `PENDING_COMMITMENTS|${commitment.meeting_title}|${commitment.meeting_date}|${commitment.commitment_description || ''}|${commitment.assigned_to}|Pending\n`;
               });
-              
-              formattedData += "\n";
             } else {
-              formattedData += "**PENDING_COMMITMENTS DATA: No pending commitments found in the system.**\n\n";
+              formattedData += "PENDING_COMMITMENTS|No pending commitments found|N/A|N/A|N/A|N/A\n";
             }
+            formattedData += "\n";
             
             // Calculate comprehensive statistics
             const totalCommitmentsAssigned = meetingData.reduce((sum, meeting) => sum + (meeting.commitments_assigned_to_you || 0), 0);
