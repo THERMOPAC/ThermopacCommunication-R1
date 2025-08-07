@@ -808,15 +808,26 @@ export default function LLMPromptEnginePage() {
     const text = insight.insight_text;
     const tasks: GeneratedTask[] = [];
     
-    // BRC Task Format Pattern: **Task Title:** BRC Pending for [Invoice] + [SAP] + [Customer]**
-    const brcTaskPattern = /\*\*Task Title:\*\*\s*BRC Pending for ([^\s]+)\s*\+\s*([^\s]+)\s*\+\s*([^*]+?)\*\*\s*\n\s*\*\*Task Description:\*\*\s*\n([\s\S]*?)(?=\n\s*---|\n\s*\*\*Task Title:|$)/gi;
+    // BRC Task Format Pattern - Match the exact format from the insight
+    // **Task Title:** BRC Pending for INV-2425-004 + 39-2425 + AVISTA OIL DEUTSCHLAND GMBH**
+    const brcTaskPattern = /\*\*Task Title:\*\*\s*BRC Pending for (INV-[^\s]+)\s*\+\s*([^\s]+)\s*\+\s*([^*]+?)\*\*\s*\n\s*\*\*Task Description:\*\*\s*\n([\s\S]*?)(?=\n\s*---|\n\s*\*\*Task Title:|$)/gi;
+    
+    // Debug logging
+    console.log('Parsing insight text length:', text.length);
+    console.log('First 500 characters:', text.substring(0, 500));
+    console.log('Looking for BRC tasks...');
     
     let brcMatch;
+    let matchCount = 0;
     while ((brcMatch = brcTaskPattern.exec(text)) !== null) {
+      matchCount++;
+      console.log(`Found BRC match ${matchCount}:`, brcMatch[0].substring(0, 100));
       const invoiceNumber = brcMatch[1].trim();
       const sapNumber = brcMatch[2].trim();
       const customerName = brcMatch[3].trim();
       const taskDescription = brcMatch[4].trim();
+      
+      console.log(`Processing: ${invoiceNumber} + ${sapNumber} + ${customerName}`);
       
       // Extract details from the task description
       const invoiceAmountMatch = taskDescription.match(/Invoice Amount:\s*([^\n]+)/);
@@ -848,6 +859,8 @@ export default function LLMPromptEnginePage() {
         estimatedDays: priority === 'High' ? 3 : priority === 'Medium' ? 7 : 14
       });
     }
+    
+    console.log(`BRC pattern finished. Found ${matchCount} BRC tasks.`);
     
     // Enhanced pattern to match detailed invoice breakdown format with SAP numbers
     const invoiceDetailPattern = /(\d+)\.\s*\*\*Invoice\s+(INV-[^*]+)\*\*\s*(?:\([^)]*SAP:[^)]*\))?\s*[-–]\s*([^\n]+?)(?:\n|\r|\s*[-–]?\s*Total Amount:)/gi;
@@ -1054,6 +1067,7 @@ export default function LLMPromptEnginePage() {
     });
     
     // Only limit if we have an excessive number (over 50)
+    console.log(`parseInsightToTasks final result: ${tasks.length} tasks generated`);
     return tasks.length > 50 ? tasks.slice(0, 50) : tasks;
   };
 
