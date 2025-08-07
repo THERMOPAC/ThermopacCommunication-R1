@@ -483,29 +483,15 @@ export class LLMPromptEngine {
               formattedData += "**Finding: You attended 0 meetings as a participant in the last 30 days.**\n\n";
             }
             
-            // Add pending commitments analysis in the required format
+            // Add pending commitments data in raw format
             if (pendingCommitments.length > 0) {
-              formattedData += "**🚨 SECTION 3 REQUIRED DATA - ALL PENDING COMMITMENTS:**\n\n";
-              formattedData += `Found ${pendingCommitments.length} pending commitments to display:\n\n`;
+              formattedData += "**PENDING_COMMITMENTS DATA:**\n\n";
               
               pendingCommitments.forEach((commitment, index) => {
-                const meetingDate = commitment.meeting_date;
-                const meetingName = commitment.meeting_title;
-                const commitmentDesc = commitment.commitment_description || 'Not specified';
-                const assignedTo = commitment.assigned_to;
-                
-                formattedData += `${index + 1}. Meeting: "${meetingName}" (${meetingDate})\n`;
-                formattedData += `   Commitment: "${commitmentDesc}"\n`;
-                formattedData += `   Assigned To: ${assignedTo}\n`;
-                formattedData += `   Status: Pending\n\n`;
+                formattedData += `PENDING_COMMITMENTS|${commitment.meeting_title}|${commitment.meeting_date}|${commitment.commitment_description || ''}|${commitment.assigned_to}|Pending\n`;
               });
               
-              formattedData += "🚨 MANDATORY FOR SECTION 3: Copy each commitment above into this EXACT format:\n";
-              formattedData += "Meeting Name: [ACTUAL meeting name] – [ACTUAL date]\n";
-              formattedData += "Commitment: [ACTUAL commitment description]\n";
-              formattedData += "Assigned To: [ACTUAL username]\n";
-              formattedData += "Status: Pending\n";
-              formattedData += "\n⚠️ DO NOT create examples. Use ONLY the real data listed above.\n\n";
+              formattedData += "\n";
             } else {
               formattedData += "**PENDING_COMMITMENTS DATA: No pending commitments found in the system.**\n\n";
             }
@@ -654,7 +640,7 @@ export class LLMPromptEngine {
         promptId,
         llmResponse.model,
         JSON.stringify(data),
-        llmResponse.result,
+        llmResponse.result || '',
         executionDuration,
         llmResponse.tokens?.input || 0,
         llmResponse.tokens?.output || 0,
@@ -669,7 +655,7 @@ export class LLMPromptEngine {
       await this.updatePromptPerformance(promptId);
 
       // Create business insight if the result is meaningful
-      await this.createBusinessInsight(execution.id, prompt.category || 'general', prompt.name, llmResponse.result);
+      await this.createBusinessInsight(execution.id, prompt.category || 'general', prompt.name, llmResponse.result || '');
 
       console.log(`✅ Prompt executed successfully in ${executionDuration}ms`);
       return execution;
