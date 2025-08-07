@@ -5,6 +5,14 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 Preferred communication style: Simple, everyday language.
 
 # Recent Changes
+- **August 7, 2025: ENHANCED DUPLICATE TASK DETECTION**: Fixed intelligent duplicate prevention for LLM-generated tasks to prevent same-insight duplicates.
+  ✅ **Smart Duplicate Detection**: Enhanced findDuplicateTask function to detect LLM insight duplicates based on sourceId instead of due date
+  ✅ **Insight-Based Prevention**: Tasks from same LLM insight (sourceId + sourceType) now properly detected as duplicates regardless of due date differences
+  ✅ **Date-Agnostic Matching**: LLM tasks with same title, creator, assignee, and sourceId blocked from duplication even with different due dates
+  ✅ **Selective Logic**: Non-LLM tasks still use due date in duplicate checking for precision, while LLM tasks prioritize sourceId matching
+  ✅ **Enhanced Logging**: Added comprehensive logging showing sourceId and sourceType in duplicate detection process
+  ✅ **Resolved Issue**: Fixed existing duplicate "Invoice INV-2526-031" tasks (IDs 2330, 2328) from being created multiple times
+
 - **August 7, 2025: AUTO-POPULATED ASSIGNMENT WORKFLOW**: Enhanced task generation workflow to auto-populate assignment fields between dialogs.
   ✅ **Assignment Auto-Population**: "Assign To" field from Generate Tasks dialog now automatically populates Review Generated Tasks dialog
   ✅ **Read-Only Assignment Display**: Pre-selected assignments show as read-only with "Auto-populated" badge and clear indication

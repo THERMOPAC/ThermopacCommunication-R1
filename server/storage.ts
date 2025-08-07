@@ -306,9 +306,9 @@ export class DatabaseStorage implements IStorage {
     dueDate?: string | null,
     sourceId?: number | null
   ): Promise<Task | null> {
-    console.log(`Checking for duplicate task with title: "${title}", createdBy: ${createdBy}, assignedTo: ${assignedTo}`);
+    console.log(`Checking for duplicate task with title: "${title}", createdBy: ${createdBy}, assignedTo: ${assignedTo}, sourceId: ${sourceId}`);
     
-    // Build the where conditions
+    // Build the base where conditions
     let whereConditions = and(
       eq(tasksTable.title, title),
       eq(tasksTable.createdBy, createdBy),
@@ -327,20 +327,23 @@ export class DatabaseStorage implements IStorage {
       );
     }
 
-    // Optional: Add due date condition for more precise matching
-    if (dueDate) {
-      whereConditions = and(
-        whereConditions,
-        eq(tasksTable.dueDate, dueDate)
-      );
-    }
-
-    // Optional: Add sourceId condition for LLM insight tasks
+    // For LLM insight tasks, prioritize sourceId matching over due date
+    // This prevents duplicate tasks from the same insight with different due dates
     if (sourceId) {
       whereConditions = and(
         whereConditions,
-        eq(tasksTable.sourceId, sourceId)
+        eq(tasksTable.sourceId, sourceId),
+        eq(tasksTable.sourceType, 'llm_insight')
       );
+      console.log(`Enhanced duplicate checking for LLM insight tasks with sourceId: ${sourceId}`);
+    } else {
+      // For non-LLM tasks, include due date in duplicate checking for more precision
+      if (dueDate) {
+        whereConditions = and(
+          whereConditions,
+          eq(tasksTable.dueDate, dueDate)
+        );
+      }
     }
 
     const existingTasks = await db
@@ -357,7 +360,9 @@ export class DatabaseStorage implements IStorage {
         title: duplicateTask.title,
         createdBy: duplicateTask.createdBy,
         assignedTo: duplicateTask.assignedTo,
-        status: duplicateTask.status
+        status: duplicateTask.status,
+        sourceId: duplicateTask.sourceId,
+        sourceType: duplicateTask.sourceType
       });
     } else {
       console.log(`No duplicate task found for title: "${title}"`);
