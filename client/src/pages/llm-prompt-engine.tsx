@@ -520,8 +520,15 @@ export default function LLMPromptEnginePage() {
   };
 
   const handleEditPrompt = (prompt: LLMPrompt) => {
+    console.log('=== EDIT PROMPT DEBUG ===');
+    console.log('Full prompt object:', prompt);
+    console.log('prompt.dataQuery value:', prompt.dataQuery);
+    console.log('prompt.dataQuery type:', typeof prompt.dataQuery);
+    console.log('prompt.dataQuery length:', prompt.dataQuery?.length);
+    
     setEditingPrompt(prompt);
-    setEditFormData({
+    
+    const formData = {
       name: prompt.name,
       category: prompt.category,
       description: prompt.description || '',
@@ -531,7 +538,13 @@ export default function LLMPromptEnginePage() {
       temperature: prompt.temperature || 0.7,
       template: prompt.template,
       data_query: prompt.dataQuery || ''
-    });
+    };
+    
+    console.log('Form data being set:', formData);
+    console.log('Form data_query:', formData.data_query);
+    console.log('=== END DEBUG ===');
+    
+    setEditFormData(formData);
     setIsEditDialogOpen(true);
   };
 
