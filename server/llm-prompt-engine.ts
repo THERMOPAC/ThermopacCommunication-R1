@@ -73,9 +73,10 @@ export class LLMPromptEngine {
   // Execute data query and inject into prompt template
   async preparePromptData(dataQuery: string, parameters: any = {}, userId?: number): Promise<any> {
     try {
-      // If it's a SQL query
-      if (dataQuery.trim().toLowerCase().startsWith('select')) {
-        console.log('🔍 [DEBUG] Executing SQL query for data preparation...');
+      // If it's a SQL query (handle both SELECT and WITH/CTE queries)
+      const queryStart = dataQuery.trim().toLowerCase();
+      if (queryStart.startsWith('select') || queryStart.startsWith('with')) {
+        console.log('🔍 [DEBUG] Executing SQL query for data preparation (SELECT/WITH query detected)...');
         console.log('🔍 [DEBUG] Query starts with:', dataQuery.substring(0, 100) + '...');
         
         // Handle user-specific queries by replacing $user_id parameter

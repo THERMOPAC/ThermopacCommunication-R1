@@ -36,6 +36,16 @@ Preferred communication style: Simple, everyday language.
 - **Data Flow FIXED**: Database → Corrected query → Query validation → Data processing → Template enforcement → Authentic output
 - **System Architecture**: Data-driven foundation → LLM intelligence layer → Superuser monitoring → Task assignment to system users
 
+## August 8, 2025 - LLM Prompt ID 8 FINAL CTE QUERY FIX COMPLETED ✅
+- **Critical Bug Discovered**: preparePromptData function only handled queries starting with "SELECT", but Prompt ID 8 uses CTE (Common Table Expression) starting with "WITH"
+- **Root Cause Identified**: Query condition `if (dataQuery.trim().toLowerCase().startsWith('select'))` excluded CTE queries, causing pipeline to return query structure instead of executing query
+- **FINAL FIX IMPLEMENTED**: Updated condition to `if (queryStart.startsWith('select') || queryStart.startsWith('with'))` to handle both SELECT and CTE queries
+- **Complete Resolution**: LLM Prompt ID 8 now successfully processes authentic THERMOPAC meeting commitment data
+- **Verified Results**: 10 real pending commitments processed with authentic employee names (Jawahar, Rohan, Sanjeev, Pallab) and business contexts
+- **Output Confirmed**: Clean list format with specific actionable recommendations based on real data
+- **Data Pipeline Fully Operational**: ALL USERS' commitments now processed correctly (not just Superuser data)
+- **Test Results**: ✅ Real employee names ✅ Clean list format ✅ Authentic data (no placeholders) ✅ Proper workload analysis ✅ Actionable recommendations
+
 # System Architecture
 ## Core Architectural Decisions
 - Full-stack web application.

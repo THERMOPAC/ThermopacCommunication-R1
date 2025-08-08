@@ -1,5 +1,5 @@
 // Test script to execute LLM Prompt ID 8 and analyze output
-import { LLMPromptEngine } from './server/llm-prompt-engine.js';
+import { LLMPromptEngine } from './server/llm-prompt-engine.ts';
 
 async function testLLMPrompt() {
   try {
@@ -18,20 +18,27 @@ async function testLLMPrompt() {
     // Analyze the output
     console.log('\n🔍 ANALYSIS OF OUTPUT:');
     
+    // Extract the actual result text from the response object
+    const resultText = result.result || '';
+    
     // Check if it contains real data
-    const hasRealNames = result.includes('Jawahar') || result.includes('Pallab') || result.includes('Rohan') || result.includes('Sanjeev');
+    const hasRealNames = resultText.includes('Jawahar') || resultText.includes('Pallab') || resultText.includes('Rohan') || resultText.includes('Sanjeev');
     console.log(`✓ Contains real THERMOPAC employee names: ${hasRealNames ? 'YES' : 'NO'}`);
     
     // Check for the required format
-    const hasCorrectFormat = result.includes('Meeting Name:') && result.includes('Commitment:') && result.includes('Assigned To:');
+    const hasCorrectFormat = resultText.includes('Meeting Name:') && resultText.includes('Commitment:') && resultText.includes('Assigned To:');
     console.log(`✓ Uses required clean list format: ${hasCorrectFormat ? 'YES' : 'NO'}`);
     
     // Check for fictional data
-    const hasPlaceholders = result.includes('JohnDoe') || result.includes('[') || result.includes('Example') || result.includes('placeholder');
+    const hasPlaceholders = resultText.includes('JohnDoe') || resultText.includes('[') || resultText.includes('Example') || resultText.includes('placeholder');
     console.log(`✓ Free of fictional/placeholder data: ${hasPlaceholders ? 'NO' : 'YES'}`);
     
+    // Check for data unavailable message
+    const hasDataUnavailable = resultText.includes('DATA UNAVAILABLE');
+    console.log(`✓ Shows authentic data (not DATA UNAVAILABLE): ${hasDataUnavailable ? 'NO' : 'YES'}`);
+    
     // Count pending commitments in output
-    const commitmentLines = (result.match(/Meeting Name:/g) || []).length;
+    const commitmentLines = (resultText.match(/Meeting Name:/g) || []).length;
     console.log(`✓ Number of commitments processed: ${commitmentLines}`);
     
     console.log('\n📋 Expected vs Actual:');
