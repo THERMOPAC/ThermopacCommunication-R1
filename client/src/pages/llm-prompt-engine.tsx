@@ -2282,30 +2282,34 @@ export default function LLMPromptEnginePage() {
                         </Badge>
                       </div>
                     </CardHeader>
-                    <CardContent className="p-6">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                        {moduleGroup.prompts.map((prompt: LLMPrompt) => (
-                          <Card key={prompt.id} className="hover:shadow-md transition-shadow border">
-                            <CardHeader className="pb-3">
-                              <div className="flex items-start justify-between">
-                                <div className="space-y-1">
-                                  <CardTitle className="text-base">{prompt.name}</CardTitle>
-                                  <div className="flex items-center gap-2">
-                                    <Badge variant="secondary" className="text-xs">
-                                      {prompt.frequency}
-                                    </Badge>
-                                    <Badge variant="outline" className="text-xs">
-                                      {prompt.model}
-                                    </Badge>
-                                    <Badge 
-                                      variant="outline" 
-                                      className={`text-xs ${getPriorityColor(prompt.priority)}`}
-                                    >
-                                      P{prompt.priority}
-                                    </Badge>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-1">
+                    <CardContent className="p-0">
+                      <div className="space-y-0">
+                        {moduleGroup.prompts.map((prompt: LLMPrompt, index: number) => (
+                          <div 
+                            key={prompt.id} 
+                            className={`flex items-center justify-between p-4 hover:bg-gray-50 transition-colors ${
+                              index !== moduleGroup.prompts.length - 1 ? 'border-b border-gray-100' : ''
+                            }`}
+                          >
+                            <div className="flex items-center gap-4 flex-1">
+                              {/* Prompt ID */}
+                              <div className="flex items-center justify-center w-10 h-10 bg-blue-100 text-blue-600 rounded-lg font-medium text-sm">
+                                #{prompt.id}
+                              </div>
+                              
+                              {/* Prompt Details */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="font-medium text-gray-900 truncate">{prompt.name}</h3>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {prompt.category}
+                                  </Badge>
+                                  <Badge 
+                                    variant="outline" 
+                                    className={`text-xs ${getPriorityColor(prompt.priority)}`}
+                                  >
+                                    P{prompt.priority}
+                                  </Badge>
                                   {prompt.avg_rating && (
                                     <div className="flex items-center text-sm text-yellow-600">
                                       <Star className="w-3 h-3 fill-current" />
@@ -2313,67 +2317,64 @@ export default function LLMPromptEnginePage() {
                                     </div>
                                   )}
                                 </div>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="pt-0">
-                              <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                                {prompt.description}
-                              </p>
-                              
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleExecutePrompt(prompt.id)}
-                                    disabled={executingPrompts.has(prompt.id)}
-                                    className="flex-1"
-                                  >
-                                    {executingPrompts.has(prompt.id) ? (
-                                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                                    ) : (
-                                      <Play className="w-3 h-3 mr-1" />
-                                    )}
-                                    Execute
-                                  </Button>
-                                  
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleABTest(prompt.id)}
-                                    disabled={testingPrompts.has(prompt.id)}
-                                  >
-                                    {testingPrompts.has(prompt.id) ? (
-                                      <Loader2 className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      <TestTube className="w-3 h-3" />
-                                    )}
-                                  </Button>
-                                  
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleOptimizePrompt(prompt.id)}
-                                    disabled={optimizingPrompts.has(prompt.id)}
-                                  >
-                                    {optimizingPrompts.has(prompt.id) ? (
-                                      <Loader2 className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      <Lightbulb className="w-3 h-3" />
-                                    )}
-                                  </Button>
-                                </div>
-                              </div>
-                              
-                              {prompt.total_executions && prompt.total_executions > 0 && (
-                                <div className="mt-3 text-xs text-gray-500 flex items-center justify-between">
-                                  <span>{prompt.total_executions} execution{prompt.total_executions !== 1 ? 's' : ''}</span>
+                                <p className="text-sm text-gray-600 line-clamp-1 mb-1">
+                                  {prompt.description}
+                                </p>
+                                <div className="flex items-center gap-4 text-xs text-gray-500">
+                                  <span>Model: {prompt.model}</span>
+                                  <span>Frequency: {prompt.frequency}</span>
+                                  {prompt.total_executions && prompt.total_executions > 0 ? (
+                                    <span>{prompt.total_executions} executions</span>
+                                  ) : null}
                                   {prompt.last_executed && (
                                     <span>Last: {new Date(prompt.last_executed).toLocaleDateString()}</span>
                                   )}
                                 </div>
-                              )}
-                            </CardContent>
-                          </Card>
+                              </div>
+                            </div>
+                            
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-2 ml-4">
+                              <Button
+                                size="sm"
+                                onClick={() => handleExecutePrompt(prompt.id)}
+                                disabled={executingPrompts.has(prompt.id)}
+                              >
+                                {executingPrompts.has(prompt.id) ? (
+                                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                                ) : (
+                                  <Play className="w-3 h-3 mr-1" />
+                                )}
+                                Execute
+                              </Button>
+                              
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleABTest(prompt.id)}
+                                disabled={testingPrompts.has(prompt.id)}
+                              >
+                                {testingPrompts.has(prompt.id) ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <TestTube className="w-3 h-3" />
+                                )}
+                              </Button>
+                              
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOptimizePrompt(prompt.id)}
+                                disabled={optimizingPrompts.has(prompt.id)}
+                              >
+                                {optimizingPrompts.has(prompt.id) ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Lightbulb className="w-3 h-3" />
+                                )}
+                              </Button>
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </CardContent>
