@@ -782,9 +782,7 @@ export default function ProductionPlanningPage() {
                                   variant="outline" 
                                   size="sm"
                                   onClick={() => {
-                                    const url = keepVisible && selectedProject 
-                                      ? `/production/work-orders/${workOrder.id}?return=production-planning&project=${selectedProject}&keep=true`
-                                      : `/production/work-orders/${workOrder.id}`;
+                                    const url = `/production/work-orders/details/${workOrder.id}`;
                                     window.location.href = url;
                                   }}
                                 >
