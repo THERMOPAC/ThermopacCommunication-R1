@@ -430,8 +430,12 @@ export default function ProductionTeamManagement() {
                           placeholder="Enter team number"
                           {...field}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          disabled
                         />
                       </FormControl>
+                      <FormDescription>
+                        Team number cannot be changed
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
