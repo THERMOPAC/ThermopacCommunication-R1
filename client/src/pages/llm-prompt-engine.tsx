@@ -1840,38 +1840,6 @@ export default function LLMPromptEnginePage() {
               <Lock className="w-4 h-4 mr-1" />
               Security
             </Button>
-            <span className="text-gray-400">|</span>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className={`h-auto p-1 transition-colors ${
-                isRunningDaily ? 'text-green-600 bg-green-50' : 'text-gray-600 hover:text-blue-600'
-              }`}
-              onClick={() => {
-                setIsRunningDaily(true);
-                // Simulate daily run process
-                setTimeout(() => setIsRunningDaily(false), 3000);
-                toast({ title: 'Daily prompts execution started', description: 'Running all scheduled daily prompts...' });
-              }}
-              disabled={isRunningDaily}
-            >
-              {isRunningDaily ? (
-                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-              ) : (
-                <Calendar className="w-4 h-4 mr-1" />
-              )}
-              Run Daily
-            </Button>
-            <span className="text-gray-400">|</span>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-auto p-1 text-gray-600 hover:text-blue-600 transition-colors"
-              onClick={() => setIsCreateDialogOpen(true)}
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Add Prompt
-            </Button>
           </div>
         </div>
         
