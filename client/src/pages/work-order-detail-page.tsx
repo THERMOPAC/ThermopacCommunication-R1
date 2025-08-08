@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Helmet } from "react-helmet";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -49,7 +49,10 @@ export default function WorkOrderDetailPage() {
       }
       return response.json();
     },
-    enabled: !isNaN(workOrderId),
+    enabled: !isNaN(workOrderId) && workOrderId > 0,
+    staleTime: 30000, // 30 seconds
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
   });
   
   // Fetch work order items (only after work order is loaded)
@@ -67,7 +70,10 @@ export default function WorkOrderDetailPage() {
       }
       return response.json();
     },
-    enabled: !isNaN(workOrderId) && !!workOrder,
+    enabled: !isNaN(workOrderId) && workOrderId > 0 && !!workOrder && !isLoadingWorkOrder,
+    staleTime: 30000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
   
   // Fetch work order history (only after work order is loaded)
@@ -85,13 +91,17 @@ export default function WorkOrderDetailPage() {
       }
       return response.json();
     },
-    enabled: !isNaN(workOrderId) && !!workOrder,
+    enabled: !isNaN(workOrderId) && workOrderId > 0 && !!workOrder && !isLoadingWorkOrder,
+    staleTime: 30000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
   
-  // Helper function to render status badge
-  const getStatusBadge = (status: string) => {
+  // Helper function to render status badge - memoized for performance
+  const getStatusBadge = useCallback((status: string | any) => {
     // Ensure status is a string and handle potential objects
-    const statusStr = typeof status === 'string' ? status : String(status || '');
+    const statusStr = typeof status === 'string' ? status : 
+                      (status != null ? String(status) : '');
     
     switch (statusStr) {
       case "planned":
@@ -105,14 +115,15 @@ export default function WorkOrderDetailPage() {
       case "cancelled":
         return <Badge variant="destructive" className="flex items-center gap-1"><XCircle className="h-3 w-3" /> Cancelled</Badge>;
       default:
-        return <Badge variant="outline">{statusStr}</Badge>;
+        return <Badge variant="outline">{statusStr || 'Unknown'}</Badge>;
     }
-  };
+  }, []);
   
-  // Helper function to render priority badge
-  const getPriorityBadge = (priority: string) => {
+  // Helper function to render priority badge - memoized for performance
+  const getPriorityBadge = useCallback((priority: string | any) => {
     // Ensure priority is a string and handle potential objects
-    const priorityStr = typeof priority === 'string' ? priority : String(priority || '');
+    const priorityStr = typeof priority === 'string' ? priority : 
+                        (priority != null ? String(priority) : '');
     
     switch (priorityStr) {
       case "High":
@@ -122,11 +133,11 @@ export default function WorkOrderDetailPage() {
       case "Low":
         return <Badge variant="outline">Low</Badge>;
       default:
-        return <Badge variant="outline">{priorityStr}</Badge>;
+        return <Badge variant="outline">{priorityStr || 'Unknown'}</Badge>;
     }
-  };
+  }, []);
 
-  // Error handling
+  // Error handling - memoized to prevent unnecessary re-renders
   useEffect(() => {
     if (workOrderError || itemsError) {
       toast({
@@ -136,6 +147,16 @@ export default function WorkOrderDetailPage() {
       });
     }
   }, [workOrderError, itemsError, toast]);
+
+  // Memoize work order number for performance
+  const workOrderNumber = useMemo(() => {
+    return workOrder ? String(workOrder.workOrderNumber || '') : '';
+  }, [workOrder]);
+
+  // Memoize work order status for performance
+  const workOrderStatus = useMemo(() => {
+    return workOrder?.status ? String(workOrder.status || '') : '';
+  }, [workOrder?.status]);
 
   if (isLoadingWorkOrder) {
     return (
@@ -170,7 +191,7 @@ export default function WorkOrderDetailPage() {
   return (
     <Layout>
       <Helmet>
-        <title>Work Order Details: {workOrder?.workOrderNumber || ""} | Thermopac</title>
+        <title>Work Order Details: {workOrderNumber} | Thermopac</title>
       </Helmet>
       
       <div className="space-y-6">
@@ -185,9 +206,9 @@ export default function WorkOrderDetailPage() {
             </Button>
             <div>
               <h1 className="text-3xl font-bold pl-4">Work Order Details</h1>
-              <p className="text-lg text-muted-foreground">{workOrder?.workOrderNumber}</p>
+              <p className="text-lg text-muted-foreground">{workOrderNumber}</p>
             </div>
-            {workOrder?.status && getStatusBadge(workOrder.status)}
+            {workOrderStatus && getStatusBadge(workOrderStatus)}
           </div>
           
           <div className="flex gap-2">
@@ -251,12 +272,12 @@ export default function WorkOrderDetailPage() {
                   
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
-                    <div>{workOrder?.status && getStatusBadge(workOrder.status)}</div>
+                    <div>{workOrderStatus && getStatusBadge(workOrderStatus)}</div>
                   </div>
                   
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-muted-foreground">Priority</h3>
-                    <div>{workOrder?.priority && getPriorityBadge(workOrder.priority)}</div>
+                    <div>{workOrder?.priority && getPriorityBadge(String(workOrder.priority || ''))}</div>
                   </div>
                   
                   <div className="space-y-2">
@@ -329,24 +350,25 @@ export default function WorkOrderDetailPage() {
                       <TableBody>
                         {workOrderItems.map((item: any) => {
                           // Use the masterItem data from our enhanced API
-                          const isVirtualComponent = item.isVirtual || (item.notes && item.notes.includes('Virtual component:'));
+                          const isVirtualComponent = item?.isVirtual || (item?.notes && String(item.notes).includes('Virtual component:'));
                           
                           // Get item code and description from masterItem if available,
                           // otherwise fall back to projectItem or extraction from notes
                           let itemCode = "Unknown";
                           let itemDescription = "Unknown";
                           
-                          if (item.masterItem) {
+                          if (item?.masterItem && typeof item.masterItem === 'object') {
                             // Use the masterItem data that comes directly from the API
-                            itemCode = item.masterItem.itemCode;
-                            itemDescription = item.masterItem.description;
-                          } else if (item.projectItem?.itemCode) {
+                            itemCode = String(item.masterItem.itemCode || 'Unknown');
+                            itemDescription = String(item.masterItem.description || 'Unknown');
+                          } else if (item?.projectItem && typeof item.projectItem === 'object' && item.projectItem.itemCode) {
                             // Fallback to projectItem if masterItem isn't available
-                            itemCode = item.projectItem.itemCode;
-                            itemDescription = item.projectItem.description || "Unknown";
-                          } else if (isVirtualComponent && item.notes) {
+                            itemCode = String(item.projectItem.itemCode || 'Unknown');
+                            itemDescription = String(item.projectItem.description || 'Unknown');
+                          } else if (isVirtualComponent && item?.notes) {
                             // Last resort - extract from notes for legacy data
-                            const match = item.notes.match(/Virtual component: ([^-]+) - ([^(]+)/);
+                            const notesStr = String(item.notes);
+                            const match = notesStr.match(/Virtual component: ([^-]+) - ([^(]+)/);
                             if (match && match.length >= 3) {
                               itemCode = match[1].trim();
                               itemDescription = match[2].trim();
@@ -354,10 +376,10 @@ export default function WorkOrderDetailPage() {
                           }
                           
                           return (
-                            <TableRow key={item.id}>
-                              <TableCell>{String(item.sequenceNumber || '')}</TableCell>
+                            <TableRow key={item?.id || Math.random()}>
+                              <TableCell>{String(item?.sequenceNumber || '')}</TableCell>
                               <TableCell className="font-medium">
-                                {String(itemCode || '')}
+                                {itemCode}
                                 {isVirtualComponent && (
                                   <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
                                     Virtual
@@ -365,14 +387,14 @@ export default function WorkOrderDetailPage() {
                                 )}
                               </TableCell>
                               <TableCell>
-                                {String(itemDescription || '')}
+                                {itemDescription}
                               </TableCell>
-                              <TableCell>{String(item.quantity || '')}</TableCell>
-                              <TableCell>{getStatusBadge(item.status || "pending")}</TableCell>
+                              <TableCell>{String(item?.quantity || '')}</TableCell>
+                              <TableCell>{getStatusBadge(item?.status || "pending")}</TableCell>
                               <TableCell className="max-w-md truncate">
                                 {isVirtualComponent 
                                   ? "Virtual component (not added to project items)" 
-                                  : String(item.notes || "No notes")}
+                                  : String(item?.notes || "No notes")}
                               </TableCell>
                             </TableRow>
                           );
@@ -406,6 +428,7 @@ export default function WorkOrderDetailPage() {
                 ) : (
                   <div className="space-y-8">
                     {workOrderHistory.map((record: any) => {
+                      if (!record) return null;
                       // Determine icon based on change type
                       let Icon;
                       let iconColor;
