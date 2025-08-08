@@ -2099,6 +2099,7 @@ export const machineAllocations = pgTable('machine_allocations', {
 export const teamLeaderConfig = pgTable('team_leader_config', {
   teamNumber: integer('team_number').primaryKey(),
   leaderName: varchar('leader_name', { length: 100 }).notNull(),
+  isActive: boolean('is_active').notNull().default(true),
   updatedBy: integer('updated_by').references(() => users.id),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

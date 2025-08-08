@@ -33,12 +33,14 @@ function canManage(role: string): boolean {
 export function setupProductionRoutes(app: Router) {
   // ==================== PRODUCTION TEAMS ====================
   
-  // Get production teams with leader names for dropdown
+  // Get production teams with leader names for dropdown (only active teams)
   app.get('/api/production/teams', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
-      console.log('Fetching production teams with leader names');
+      console.log('Fetching active production teams with leader names');
       
-      const teams = await db.select().from(teamLeaderConfig).orderBy(teamLeaderConfig.teamNumber);
+      const teams = await db.select().from(teamLeaderConfig)
+        .where(eq(teamLeaderConfig.isActive, true))
+        .orderBy(teamLeaderConfig.teamNumber);
       
       // Transform data to include display name and value for dropdown
       const formattedTeams = teams.map(team => ({
@@ -49,7 +51,7 @@ export function setupProductionRoutes(app: Router) {
         value: `Production Team-${team.teamNumber}`, // Value to store in database
       }));
       
-      console.log(`Found ${formattedTeams.length} production teams`);
+      console.log(`Found ${formattedTeams.length} active production teams`);
       res.status(200).json(formattedTeams);
     } catch (error) {
       console.error('Error fetching production teams:', error);
@@ -195,11 +197,11 @@ export function setupProductionRoutes(app: Router) {
     }
   });
 
-  // Delete team configuration
-  app.delete('/api/production/teams/config/:teamNumber', ensureAuthenticated, async (req: Request, res: Response) => {
+  // Toggle team active/inactive status
+  app.patch('/api/production/teams/config/:teamNumber/toggle-status', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const teamNumber = parseInt(req.params.teamNumber);
-      console.log(`Deleting team configuration for team ${teamNumber}`);
+      console.log(`Toggling active status for team ${teamNumber}`);
       
       if (!canManage((req as any).user?.role)) {
         return res.status(403).json({ error: 'Access denied. Management role required.' });
@@ -218,18 +220,25 @@ export function setupProductionRoutes(app: Router) {
         return res.status(404).json({ error: `Team number ${teamNumber} not found` });
       }
       
-      // TODO: Add check for existing work orders using this team
-      // For now, we'll allow deletion - you may want to add this check later
+      // Toggle the active status
+      const newStatus = !existingTeam.isActive;
+      const updatedTeam = await db.update(teamLeaderConfig)
+        .set({
+          isActive: newStatus,
+          updatedBy: (req as any).user?.id || null,
+          updatedAt: new Date()
+        })
+        .where(eq(teamLeaderConfig.teamNumber, teamNumber))
+        .returning();
       
-      // Delete the team configuration
-      await db.delete(teamLeaderConfig)
-        .where(eq(teamLeaderConfig.teamNumber, teamNumber));
-      
-      console.log(`Deleted team configuration for team ${teamNumber}`);
-      res.status(200).json({ message: 'Team configuration deleted successfully' });
+      console.log(`Team ${teamNumber} status changed to ${newStatus ? 'Active' : 'Inactive'}`);
+      res.status(200).json({
+        message: `Team status updated to ${newStatus ? 'Active' : 'Inactive'}`,
+        team: updatedTeam[0]
+      });
     } catch (error) {
-      console.error('Error deleting team configuration:', error);
-      res.status(500).json({ error: 'Failed to delete team configuration' });
+      console.error('Error toggling team status:', error);
+      res.status(500).json({ error: 'Failed to toggle team status' });
     }
   });
 

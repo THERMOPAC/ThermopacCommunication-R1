@@ -30,17 +30,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
   Table,
   TableBody,
   TableCell,
@@ -53,7 +42,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Plus, Edit, Trash2, Users } from "lucide-react";
+import { Plus, Edit, Users, Power, PowerOff } from "lucide-react";
 import Layout from "@/components/layout";
 
 // Team Leader Config schema
@@ -67,6 +56,7 @@ type TeamLeaderConfigFormValues = z.infer<typeof teamLeaderConfigSchema>;
 interface TeamLeaderConfig {
   teamNumber: number;
   leaderName: string;
+  isActive: boolean;
   updatedBy: number | null;
   updatedAt: Date;
 }
@@ -152,25 +142,25 @@ export default function ProductionTeamManagement() {
     },
   });
 
-  // Delete team mutation
-  const deleteTeamMutation = useMutation({
+  // Toggle team status mutation
+  const toggleStatusMutation = useMutation({
     mutationFn: async (teamNumber: number) => {
-      return apiRequest(`/api/production/teams/config/${teamNumber}`, {
-        method: 'DELETE',
+      return apiRequest(`/api/production/teams/config/${teamNumber}/toggle-status`, {
+        method: 'PATCH',
       });
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/production/teams/config'] });
       queryClient.invalidateQueries({ queryKey: ['/api/production/teams'] });
       toast({
-        title: "Production Team Deleted",
-        description: "Production team has been deleted successfully.",
+        title: "Team Status Updated",
+        description: data.message || "Team status has been updated successfully.",
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error Deleting Team",
-        description: error.message || "An error occurred while deleting the production team.",
+        title: "Error Updating Team Status",
+        description: error.message || "An error occurred while updating the team status.",
         variant: "destructive",
       });
     },
@@ -219,9 +209,9 @@ export default function ProductionTeamManagement() {
     setIsEditDialogOpen(true);
   };
 
-  // Handle delete team
-  const handleDeleteTeam = (teamNumber: number) => {
-    deleteTeamMutation.mutate(teamNumber);
+  // Handle toggle team status
+  const handleToggleStatus = (teamNumber: number) => {
+    toggleStatusMutation.mutate(teamNumber);
   };
 
   // Show loading state
@@ -351,6 +341,7 @@ export default function ProductionTeamManagement() {
                     <TableHead>Team Number</TableHead>
                     <TableHead>Team Code</TableHead>
                     <TableHead>Leader Name</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Last Updated</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -361,6 +352,15 @@ export default function ProductionTeamManagement() {
                       <TableCell className="font-medium">{team.teamNumber}</TableCell>
                       <TableCell>Production Team-{team.teamNumber}</TableCell>
                       <TableCell>{team.leaderName}</TableCell>
+                      <TableCell>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          team.isActive 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {team.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </TableCell>
                       <TableCell>
                         {new Date(team.updatedAt).toLocaleDateString()}
                       </TableCell>
@@ -373,31 +373,15 @@ export default function ProductionTeamManagement() {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="outline" size="sm">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Production Team</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete Production Team-{team.teamNumber} ({team.leaderName})? 
-                                  This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteTeam(team.teamNumber)}
-                                  disabled={deleteTeamMutation.isPending}
-                                >
-                                  {deleteTeamMutation.isPending ? "Deleting..." : "Delete"}
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleToggleStatus(team.teamNumber)}
+                            disabled={toggleStatusMutation.isPending}
+                            className={team.isActive ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700'}
+                          >
+                            {team.isActive ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
