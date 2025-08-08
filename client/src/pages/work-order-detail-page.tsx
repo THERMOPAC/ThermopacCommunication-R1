@@ -179,7 +179,19 @@ export default function WorkOrderDetailPage() {
           <Button
             variant="outline"
             className="mt-4"
-            onClick={() => navigate("/production-planning")}
+            onClick={() => {
+              // Get stored project and keep visible state from localStorage
+              const storedProject = localStorage.getItem('production-planning-selected-project');
+              const keepVisible = localStorage.getItem('production-planning-keep-visible') === 'true';
+              
+              if (storedProject && keepVisible) {
+                navigate(`/production-planning?project=${storedProject}&keep=true`);
+              } else if (storedProject) {
+                navigate(`/production-planning?project=${storedProject}`);
+              } else {
+                navigate('/production-planning');
+              }
+            }}
           >
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Production Planning
           </Button>
@@ -200,7 +212,19 @@ export default function WorkOrderDetailPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate("/production-planning")}
+              onClick={() => {
+                // Get stored project and keep visible state from localStorage  
+                const storedProject = localStorage.getItem('production-planning-selected-project');
+                const keepVisible = localStorage.getItem('production-planning-keep-visible') === 'true';
+                
+                if (storedProject && keepVisible) {
+                  navigate(`/production-planning?project=${storedProject}&keep=true`);
+                } else if (storedProject) {
+                  navigate(`/production-planning?project=${storedProject}`);
+                } else {
+                  navigate('/production-planning');
+                }
+              }}
             >
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>

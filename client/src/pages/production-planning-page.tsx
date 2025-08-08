@@ -643,6 +643,8 @@ export default function ProductionPlanningPage() {
                       setSelectedProject(projectId);
                       setSearchTerm(''); // Clear search term when project changes
                       updateURL(projectId, keepVisible);
+                      // Save to localStorage for Keep Visible functionality
+                      localStorage.setItem('production-planning-selected-project', projectId.toString());
                     }}
                     disabled={isLoadingProjects}
                     value={selectedProject?.toString() || ""}
