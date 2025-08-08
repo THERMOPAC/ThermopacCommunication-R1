@@ -1788,6 +1788,38 @@ export default function LLMPromptEnginePage() {
           <p className="text-gray-600 mt-1">
             Automated business intelligence generation using AI prompts
           </p>
+          {/* Second line navigation */}
+          <div className="flex items-center gap-1 mt-3 text-sm">
+            <Button variant="ghost" size="sm" className="h-auto p-1 text-gray-600 hover:text-blue-600">
+              <Users className="w-4 h-4 mr-1" />
+              Management
+            </Button>
+            <span className="text-gray-400">|</span>
+            <Button variant="ghost" size="sm" className="h-auto p-1 text-gray-600 hover:text-blue-600">
+              <TestTube className="w-4 h-4 mr-1" />
+              Test Mode
+            </Button>
+            <span className="text-gray-400">|</span>
+            <Button variant="ghost" size="sm" className="h-auto p-1 text-gray-600 hover:text-blue-600">
+              <Shield className="w-4 h-4 mr-1" />
+              Security Dashboard
+            </Button>
+            <span className="text-gray-400">|</span>
+            <Button variant="ghost" size="sm" className="h-auto p-1 text-gray-600 hover:text-blue-600">
+              <Lock className="w-4 h-4 mr-1" />
+              Security
+            </Button>
+            <span className="text-gray-400">|</span>
+            <Button variant="ghost" size="sm" className="h-auto p-1 text-gray-600 hover:text-blue-600">
+              <Calendar className="w-4 h-4 mr-1" />
+              Run Daily
+            </Button>
+            <span className="text-gray-400">|</span>
+            <Button variant="ghost" size="sm" className="h-auto p-1 text-gray-600 hover:text-blue-600">
+              <Plus className="w-4 h-4 mr-1" />
+              Add Prompt
+            </Button>
+          </div>
         </div>
         
         <div className="flex items-center gap-3">
