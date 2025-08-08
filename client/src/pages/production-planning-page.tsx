@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet";
+import { useLocation } from "wouter";
 import Layout from "@/components/layout";
 import { 
   Card, 
@@ -95,6 +96,7 @@ type WorkOrderFormValues = z.infer<typeof workOrderSchema>;
 export default function ProductionPlanningPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
   const [isGeneratingWorkOrders, setIsGeneratingWorkOrders] = useState(false);
@@ -783,7 +785,7 @@ export default function ProductionPlanningPage() {
                                   size="sm"
                                   onClick={() => {
                                     const url = `/production/work-orders/details/${workOrder.id}`;
-                                    window.location.href = url;
+                                    navigate(url);
                                   }}
                                 >
                                   View
@@ -793,7 +795,7 @@ export default function ProductionPlanningPage() {
                                   size="sm"
                                   onClick={() => {
                                     const url = `/production/work-orders/details/${workOrder.id}`;
-                                    window.location.href = url;
+                                    navigate(url);
                                   }}
                                 >
                                   Edit
@@ -881,7 +883,7 @@ export default function ProductionPlanningPage() {
                           variant="outline"
                           onClick={() => {
                             const url = `/production/work-orders/details/${workOrder.id}`;
-                            window.location.href = url;
+                            navigate(url);
                           }}
                           title="View Work Order"
                         >
@@ -892,7 +894,7 @@ export default function ProductionPlanningPage() {
                           variant="outline"
                           onClick={() => {
                             const url = `/production/work-orders/details/${workOrder.id}`;
-                            window.location.href = url;
+                            navigate(url);
                           }}
                           title="Edit Work Order"
                         >
