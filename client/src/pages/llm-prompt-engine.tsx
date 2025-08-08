@@ -148,6 +148,9 @@ export default function LLMPromptEnginePage() {
   const [optimizationResults, setOptimizationResults] = useState<any>(null);
   const [testMode, setTestMode] = useState(false);
   const [showSecurityLogs, setShowSecurityLogs] = useState(false);
+  const [showManagement, setShowManagement] = useState(false);
+  const [showSecurityDashboard, setShowSecurityDashboard] = useState(false);
+  const [isRunningDaily, setIsRunningDaily] = useState(false);
   
   // Task generation states
   const [isTaskGenerationDialogOpen, setIsTaskGenerationDialogOpen] = useState(false);
@@ -1790,32 +1793,82 @@ export default function LLMPromptEnginePage() {
           </p>
           {/* Second line navigation */}
           <div className="flex items-center gap-1 mt-3 text-sm">
-            <Button variant="ghost" size="sm" className="h-auto p-1 text-gray-600 hover:text-blue-600">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={`h-auto p-1 transition-colors ${
+                showManagement ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600'
+              }`}
+              onClick={() => setShowManagement(!showManagement)}
+            >
               <Users className="w-4 h-4 mr-1" />
               Management
             </Button>
             <span className="text-gray-400">|</span>
-            <Button variant="ghost" size="sm" className="h-auto p-1 text-gray-600 hover:text-blue-600">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={`h-auto p-1 transition-colors ${
+                testMode ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600'
+              }`}
+              onClick={() => setTestMode(!testMode)}
+            >
               <TestTube className="w-4 h-4 mr-1" />
               Test Mode
             </Button>
             <span className="text-gray-400">|</span>
-            <Button variant="ghost" size="sm" className="h-auto p-1 text-gray-600 hover:text-blue-600">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={`h-auto p-1 transition-colors ${
+                showSecurityDashboard ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600'
+              }`}
+              onClick={() => setShowSecurityDashboard(!showSecurityDashboard)}
+            >
               <Shield className="w-4 h-4 mr-1" />
               Security Dashboard
             </Button>
             <span className="text-gray-400">|</span>
-            <Button variant="ghost" size="sm" className="h-auto p-1 text-gray-600 hover:text-blue-600">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={`h-auto p-1 transition-colors ${
+                showSecurityLogs ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600'
+              }`}
+              onClick={() => setShowSecurityLogs(!showSecurityLogs)}
+            >
               <Lock className="w-4 h-4 mr-1" />
               Security
             </Button>
             <span className="text-gray-400">|</span>
-            <Button variant="ghost" size="sm" className="h-auto p-1 text-gray-600 hover:text-blue-600">
-              <Calendar className="w-4 h-4 mr-1" />
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={`h-auto p-1 transition-colors ${
+                isRunningDaily ? 'text-green-600 bg-green-50' : 'text-gray-600 hover:text-blue-600'
+              }`}
+              onClick={() => {
+                setIsRunningDaily(true);
+                // Simulate daily run process
+                setTimeout(() => setIsRunningDaily(false), 3000);
+                toast({ title: 'Daily prompts execution started', description: 'Running all scheduled daily prompts...' });
+              }}
+              disabled={isRunningDaily}
+            >
+              {isRunningDaily ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <Calendar className="w-4 h-4 mr-1" />
+              )}
               Run Daily
             </Button>
             <span className="text-gray-400">|</span>
-            <Button variant="ghost" size="sm" className="h-auto p-1 text-gray-600 hover:text-blue-600">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-auto p-1 text-gray-600 hover:text-blue-600 transition-colors"
+              onClick={() => setIsCreateDialogOpen(true)}
+            >
               <Plus className="w-4 h-4 mr-1" />
               Add Prompt
             </Button>
