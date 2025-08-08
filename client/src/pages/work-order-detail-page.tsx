@@ -55,7 +55,7 @@ export default function WorkOrderDetailPage() {
     refetchOnWindowFocus: false,
   });
   
-  // Fetch work order items (only after work order is loaded)
+  // Fetch work order items (parallel with work order)
   const { 
     data: workOrderItems = [], 
     isLoading: isLoadingItems,
@@ -70,13 +70,13 @@ export default function WorkOrderDetailPage() {
       }
       return response.json();
     },
-    enabled: !isNaN(workOrderId) && workOrderId > 0 && !!workOrder && !isLoadingWorkOrder,
+    enabled: !isNaN(workOrderId) && workOrderId > 0,
     staleTime: 30000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
   
-  // Fetch work order history (only after work order is loaded)
+  // Fetch work order history (parallel with work order)
   const { 
     data: workOrderHistory = [], 
     isLoading: isLoadingHistory,
@@ -91,7 +91,7 @@ export default function WorkOrderDetailPage() {
       }
       return response.json();
     },
-    enabled: !isNaN(workOrderId) && workOrderId > 0 && !!workOrder && !isLoadingWorkOrder,
+    enabled: !isNaN(workOrderId) && workOrderId > 0,
     staleTime: 30000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
