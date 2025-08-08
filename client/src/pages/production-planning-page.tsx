@@ -793,8 +793,8 @@ export default function ProductionPlanningPage() {
                                   size="sm"
                                   onClick={() => {
                                     const url = keepVisible && selectedProject 
-                                      ? `/production/work-orders/edit/${workOrder.id}?return=production-planning&project=${selectedProject}&keep=true`
-                                      : `/production/work-orders/edit/${workOrder.id}`;
+                                      ? `/production/work-orders/details/${workOrder.id}?return=production-planning&project=${selectedProject}&keep=true`
+                                      : `/production/work-orders/details/${workOrder.id}`;
                                     window.location.href = url;
                                   }}
                                 >
@@ -896,8 +896,8 @@ export default function ProductionPlanningPage() {
                           variant="outline"
                           onClick={() => {
                             const url = keepVisible && selectedProject 
-                              ? `/production/work-orders/edit/${workOrder.id}?return=production-planning&project=${selectedProject}&keep=true`
-                              : `/production/work-orders/edit/${workOrder.id}`;
+                              ? `/production/work-orders/details/${workOrder.id}?return=production-planning&project=${selectedProject}&keep=true`
+                              : `/production/work-orders/details/${workOrder.id}`;
                             window.location.href = url;
                           }}
                           title="Edit Work Order"
