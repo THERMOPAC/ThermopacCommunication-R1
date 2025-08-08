@@ -5,18 +5,20 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 Preferred communication style: Simple, everyday language.
 
 # Recent Changes
-## August 8, 2025 - LLM Prompt ID 14 SQL Query Fix COMPLETED ✅
-- **Critical SQL Error Fixed**: LLM Prompt 14 "Production Efficiency Monitor" was failing due to incorrect column references in the database query
-- **Root Cause**: SQL query referenced non-existent columns in work_orders table:
-  - `wo.assigned_user_id` → Fixed to `wo.supervisor_id`
-  - `wo.scheduled_start_date` → Fixed to `wo.planned_start_date`  
-  - `wo.completion_date` → Fixed to `wo.actual_end_date`
-  - Column alias updated from `assigned_user` to `supervisor_user`
-- **Resolution**: Updated the data_query field in llm_prompts_registry table with correct column names
-- **Verification**: Query now executes successfully and returns work order data from the last 60 days
-- **Impact**: LLM Prompt 14 can now execute without errors and provide production efficiency insights
-- **Technical Details**: Error was "column wo.assigned_user_id does not exist" preventing prompt execution
-- **Data Retrieved**: Work orders with supervisor information, project codes, and completion timing for analysis
+## August 8, 2025 - LLM Prompt ID 14 Enhanced to Delayed Work Orders Analysis COMPLETED ✅
+- **Complete Transformation**: LLM Prompt 14 transformed from "Production Efficiency Monitor" to "Delayed Work Orders Analysis" 
+- **Enhanced Focus**: Now specifically identifies and analyzes delayed work orders grouped by project instead of general production metrics
+- **Advanced SQL Query**: Implemented sophisticated delay detection logic identifying three types of delays:
+  - **Completed Late**: Work orders finished after planned end date (actual_end_date > planned_end_date)
+  - **Currently Overdue**: Active work orders past planned end date (planned_end_date < current_date, status not completed/cancelled)
+  - **Start Delayed**: Work orders that should have started but haven't (planned_start_date < current_date, status still 'planned')
+- **Delay Calculation**: Added precise delay calculation in days using EXTRACT(EPOCH) for accurate delay duration measurement
+- **Project Grouping**: Results organized by project name with delay patterns clearly identified
+- **Comprehensive Analysis**: Template updated to provide project-level delay analysis, root cause identification, and specific improvement recommendations
+- **Real Data Validation**: Test confirmed system correctly identifies actual delayed work orders (e.g., 10 "Start Delayed" work orders from Flukar CPS 120 project)
+- **Task Generation**: Enhanced to generate specific delay resolution tasks categorized by delay severity (High >14 days, Medium 7-14 days, Low <7 days)
+- **Data Range**: Extended query timeframe to 90 days for comprehensive delay pattern analysis
+- **Sorting Logic**: Results ordered by project name and delay duration for clear priority identification
 
 ## August 7, 2025 - Enhanced Data Integrity & Relevance Protocol Implementation COMPLETED
 - **Universal Rule Applied**: All LLM prompts must indicate data unavailability OR irrelevance rather than generating fabricated content
