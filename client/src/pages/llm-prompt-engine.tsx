@@ -1889,17 +1889,6 @@ export default function LLMPromptEnginePage() {
             </SelectContent>
           </Select>
           
-          {/* Test Mode Toggle */}
-          <div className="flex items-center gap-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <TestTube className="w-4 h-4 text-yellow-600" />
-            <Label htmlFor="test-mode" className="text-sm text-yellow-700">Test Mode</Label>
-            <Switch 
-              id="test-mode"
-              checked={testMode}
-              onCheckedChange={setTestMode}
-            />
-          </div>
-          
           {/* Security Dashboard Toggle */}
           <Button 
             variant="outline"
