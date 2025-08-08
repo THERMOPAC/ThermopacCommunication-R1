@@ -1888,10 +1888,60 @@ export default function LLMPromptEnginePage() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-        
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          
+          {/* Test Mode Toggle */}
+          <div className="flex items-center gap-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <TestTube className="w-4 h-4 text-yellow-600" />
+            <Label htmlFor="test-mode" className="text-sm text-yellow-700">Test Mode</Label>
+            <Switch 
+              id="test-mode"
+              checked={testMode}
+              onCheckedChange={setTestMode}
+            />
+          </div>
+          
+          {/* Security Dashboard Toggle */}
+          <Button 
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSecurityLogs(!showSecurityLogs)}
+            className="flex items-center gap-2"
+          >
+            <Shield className="w-4 h-4" />
+            Security Dashboard
+          </Button>
+          
+          {/* Security Dashboard Toggle */}
+          <Button
+            onClick={() => setShowSecurityLogs(!showSecurityLogs)}
+            variant={showSecurityLogs ? "default" : "outline"}
+            size="sm"
+          >
+            <Shield className="w-4 h-4 mr-2" />
+            Security
+          </Button>
+          
+          <Button 
+            onClick={() => triggerScheduledMutation.mutate('daily')}
+            disabled={triggerScheduledMutation.isPending}
+            variant="outline"
+          >
+            {triggerScheduledMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <Play className="w-4 h-4 mr-2" />
+            )}
+            Run Daily
+          </Button>
+          
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Prompt
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New LLM Prompt</DialogTitle>
               </DialogHeader>
