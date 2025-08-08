@@ -66,9 +66,9 @@ function InternalMessages() {
   const [showComposeForm, setShowComposeForm] = useState(false);
   const [replyingToMessage, setReplyingToMessage] = useState<InternalMessage | null>(null);
 
-  // Get users for the recipient dropdown
+  // Get users for the recipient dropdown (optimized)
   const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[], Error>({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/users/selection"],
     queryFn: getQueryFn({ on401: "throw" })
   });
 

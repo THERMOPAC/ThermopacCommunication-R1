@@ -450,6 +450,20 @@ export class DatabaseStorage implements IStorage {
     return allUsers as User[];
   }
 
+  // Optimized method for user selection - only returns essential fields
+  async getUsersForSelection(): Promise<{id: number, username: string, role: string, firstName?: string, lastName?: string}[]> {
+    const users = await db.select({
+      id: users.id,
+      username: users.username,
+      role: users.role,
+      firstName: users.firstName,
+      lastName: users.lastName
+    }).from(users).where(eq(users.isActive, true));
+    
+    console.log(`Getting ${users.length} users for selection (optimized)`);
+    return users;
+  }
+
   async getTask(id: number): Promise<Task | undefined> {
     const result = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
     return result[0] as Task | undefined;

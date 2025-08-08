@@ -1916,6 +1916,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(users);
   });
 
+  // Optimized endpoint for user selection (dropdowns, etc.)
+  app.get("/api/users/selection", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const users = await storage.getUsersForSelection();
+      res.json(users);
+    } catch (error) {
+      console.error('Error fetching users for selection:', error);
+      res.status(500).json({ error: 'Failed to fetch users' });
+    }
+  });
+
   // Task Management Routes
   app.post("/api/tasks", async (req, res) => {
     try {

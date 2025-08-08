@@ -55,6 +55,7 @@ export interface IStorage {
   clearUserResetToken(id: number): Promise<void>;
   deleteUser(id: number): Promise<void>;
   getAllUsers(): Promise<User[]>;
+  getUsersForSelection(): Promise<{id: number, username: string, role: string, firstName?: string, lastName?: string}[]>;
   getSubordinates(managerId: number): Promise<User[]>;
   
   // Task management
