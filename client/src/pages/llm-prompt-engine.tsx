@@ -813,8 +813,15 @@ export default function LLMPromptEnginePage() {
     const brcTaskPattern = /\*\*Task Title:\*\*\s*BRC Pending for (INV-[^\s_]+)(?:[\s_]*(?:SAP Invoice)?[\s_]*)([^\s_]+)[\s_]*([^*\n]+?)\*\*[\s\n]*\*\*Task Description:\*\*[\s\n]*([\s\S]*?)(?=\n\s*---|\n\s*\*\*Task Title:|$)/gi;
     
     // Debug logging
+    console.log('=== TASK PARSING DEBUG START ===');
     console.log('Parsing insight text length:', text.length);
     console.log('First 500 characters:', text.substring(0, 500));
+    
+    // Look for the exact task format that LLM Prompt ID 8 generates
+    const taskTitleCount = (text.match(/\*\*Task Title:\*\*/g) || []).length;
+    const taskDescCount = (text.match(/\*\*Task Description:\*\*/g) || []).length;
+    console.log('Total **Task Title:** found:', taskTitleCount);
+    console.log('Total **Task Description:** found:', taskDescCount);
     
     // Log the exact content around the GENERATED TASKS section
     const taskSectionIndex = text.indexOf('GENERATED TASKS');
@@ -846,7 +853,8 @@ export default function LLMPromptEnginePage() {
     
     // PRIORITY 2: Universal Task Pattern - matches standardized format from all LLM prompts
     console.log('Starting with universal task pattern for standardized LLM output...');
-    const universalTaskPattern = /\*\*Task Title:\*\*\s*([^\n]+?)\s*[\n\r]+\s*\*\*Task Description:\*\*\s*[\n\r]+([\s\S]*?)(?=\n\s*\*\*Task Title:|\n\s*---|\n\s*##|\n\s*\*\*Analysis Date:|\n\s*Analysis Date:|$)/gi;
+    // Updated pattern to handle the exact format from LLM Prompt ID 8
+    const universalTaskPattern = /\*\*Task Title:\*\*\s*([^\n\r]+?)\s*\n\s*\*\*Task Description:\*\*\s*\n([\s\S]*?)(?=\n\s*\*\*Task Title:|\n\s*---|\n\s*##|\n\s*\*\*Analysis Date:|\n\s*Analysis Date:|$)/gi;
     
     let universalMatch;
     let matchCount = 0;
@@ -965,8 +973,8 @@ export default function LLMPromptEnginePage() {
         console.log('GENERATED TASKS section found, length:', tasksSection.length);
         
         // More flexible pattern for tasks within the GENERATED TASKS section
-        // This pattern is specifically designed to capture tasks that may be spread across multiple paragraphs
-        const flexibleTaskPattern = /\*\*Task Title:\*\*\s*([^\n]+?)\s*[\n\r]+\s*\*\*Task Description:\*\*\s*[\n\r]+([\s\S]*?)(?=\n\s*\*\*Task Title:|\n\s*\*\*Analysis Date:|\n\s*Analysis Date:|$)/gi;
+        // Updated to handle the exact format from LLM Prompt ID 8 with proper spacing
+        const flexibleTaskPattern = /\*\*Task Title:\*\*\s*([^\n\r]+?)\s*\n\s*\*\*Task Description:\*\*\s*\n([\s\S]*?)(?=\n\s*\*\*Task Title:|\n\s*\*\*Analysis Date:|\n\s*Analysis Date:|$)/gi;
         
         let flexMatch;
         let flexCount = 0;
@@ -1501,6 +1509,12 @@ export default function LLMPromptEnginePage() {
     
     // Only limit if we have an excessive number (over 50)
     console.log(`parseInsightToTasks final result: ${tasks.length} tasks generated`);
+    console.log('=== GENERATED TASKS SUMMARY ===');
+    tasks.forEach((task, index) => {
+      console.log(`Task ${index + 1}: ${task.title.substring(0, 50)}...`);
+    });
+    console.log('=== TASK PARSING DEBUG END ===');
+    
     return tasks.length > 50 ? tasks.slice(0, 50) : tasks;
   };
 

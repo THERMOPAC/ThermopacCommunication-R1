@@ -1,0 +1,84 @@
+## SECTION 3: ALL PENDING COMMITMENTS
+
+All Pending Commitments (List Format)
+
+1. Meeting Name: Daily Planning Session – 08/05/2025  
+   Commitment: Bhatia committed to Palab Sir that all the 4 blenders will be ready in all respects for customer inspection except load testing which will be done after the customer visit.  
+   Assigned To: Jawahar  
+   Status: Pending
+
+2. Meeting Name: projecr review – 08/04/2025  
+   Commitment: 1) TO RELEASE THE PO FOR TWO NOS COMPUTERS ( INNOVA MAKE SAME LIKE GERMANY )  
+   2) TO SEND THE PO AND UPDATE THE MODEL TO AJAY  
+   3) NITROGEN LINE - FEASIBLAITY TO BE CHECKED TO WPC SKID  
+   4) BLENDING SKID - P& I TO BE UPDATED  
+   5) WILSON RAJ - PUMP SUCTION NOZZLE ISSUE TO BE SORTED OUT ON PRIOIRTY  
+   6) CHILLER - MAUFACTURING IS GOING ON  
+   7) WPC - CONTROL PANELS, TX , POOLUTION SKID CAN GO FIRST  
+   8) BOOSTER -  NEW PO TO BE PLACED  
+   Assigned To: Pallab  
+   Status: Pending
+
+3. Meeting Name: Strategic Thinking Session – 07/28/2025  
+   Commitment: 1) WPC  VISIT AGENDA  2) YNABU - SCADA LIC BY DHL  
+   Assigned To: Sanjeev  
+   Status: Pending
+
+4. Meeting Name: WPC PROGRESS MEETING – 07/24/2025  
+   Commitment: Bhatia committed to the management that Saral Sipla jobs will be ready for inspection for customer by 12 august. this is only for fabrication activities and not to include the impeller, lenten and related activities  
+   Assigned To: Jawahar  
+   Status: Pending
+
+5. Meeting Name: WPC PROGRESS MEETING – 07/24/2025  
+   Commitment: Bhatia committed to the management that WPC refinery will be ready for customer inspection by 8 august to level as discussed in meeting.  
+   Assigned To: Jawahar  
+   Status: Pending
+
+6. Meeting Name: WPC PROGRESS MEETING – 07/24/2025  
+   Commitment: 1) WPC PROGRESS - EACH WEEK  PROGRESS MILE STONE TO BE DOCUMENTED I.E 3RD AUG , 10 TH AUG ETC .  
+   2) PAINT - JB TO MEASURE THE PAINT THCIKNESS AND ALSO CHECK WITH THE SUPPLIER FOR PRIMAR REQIREMENT FOR SILVER PAINTING  
+   3)QC DOCUMENTS - PMA , WELDER NAMES AND ALL OTHER FIELDS NEEDS TO BE UPDATED .  
+   4) FACTORY HOUSEKEEPING NEEDS TO BE UPDATED AHEAD OF CLIETNTS VISIT.  
+   Assigned To: Jawahar  
+   Status: Pending
+
+7. Meeting Name: Daily Planning Session – 07/23/2025  
+   Commitment: control valve and expansion bellow is expected by mid august.  
+   Assigned To: Rohan  
+   Status: Pending
+
+8. Meeting Name: Daily Planning Session – 07/23/2025  
+   Commitment: PN gate valves and globe valves all expected by 10th august 20% and balance by 17th august. Required at the earliest.  
+   Assigned To: Rohan  
+   Status: Pending
+
+9. Meeting Name: Daily Planning Session – 07/22/2025  
+   Commitment: Flow indicator for back end and front skid required. is at inquiry/ quotation stage as per Mr. Rohan. We require this urgently as related pipeline work is stopped. If possible, at least provide the size, so as we can fabricate the dummy and proceed with piping work.  
+   Assigned To: Rohan  
+   Status: Pending
+
+10. Meeting Name: Strategic Thinking Session – 07/14/2025  
+    Commitment: Meetings & Commitments Administration Sales and Marketing Finance Project Management Procurement Management Production Management Quality Management  
+    Assigned To: Sanjeev  
+    Status: Pending
+
+## SECTION 4: TEAM WORKLOAD ANALYSIS
+
+- Jawahar: 4 pending commitments
+- Pallab: 1 pending commitment
+- Sanjeev: 2 pending commitments
+- Rohan: 3 pending commitments
+
+## SECTION 5: SUPERUSER TASK RECOMMENDATION
+
+Based on the analysis of pending commitments, the following recommendations are made:
+
+1. **Jawahar**: With four pending commitments, it may be beneficial to prioritize tasks related to the WPC PROGRESS MEETING to ensure timely completion before customer inspections.
+
+2. **Pallab**: Focus on completing the tasks from the project review meeting, especially those related to procurement and updating models, as these could impact project timelines.
+
+3. **Sanjeev**: Address the strategic commitments, particularly those involving the WPC visit agenda and SCADA licensing, to align with broader organizational goals.
+
+4. **Rohan**: Expedite the procurement and installation of valves and flow indicators to prevent further delays in pipeline work, which is currently halted.
+
+These recommendations aim to optimize workload distribution and ensure timely completion of critical tasks.
