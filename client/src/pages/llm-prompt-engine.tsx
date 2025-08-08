@@ -1889,27 +1889,6 @@ export default function LLMPromptEnginePage() {
             </SelectContent>
           </Select>
           
-          {/* Security Dashboard Toggle */}
-          <Button 
-            variant="outline"
-            size="sm"
-            onClick={() => setShowSecurityLogs(!showSecurityLogs)}
-            className="flex items-center gap-2"
-          >
-            <Shield className="w-4 h-4" />
-            Security Dashboard
-          </Button>
-          
-          {/* Security Dashboard Toggle */}
-          <Button
-            onClick={() => setShowSecurityLogs(!showSecurityLogs)}
-            variant={showSecurityLogs ? "default" : "outline"}
-            size="sm"
-          >
-            <Shield className="w-4 h-4 mr-2" />
-            Security
-          </Button>
-          
           <Button 
             onClick={() => triggerScheduledMutation.mutate('daily')}
             disabled={triggerScheduledMutation.isPending}
