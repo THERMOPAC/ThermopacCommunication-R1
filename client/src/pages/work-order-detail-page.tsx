@@ -355,9 +355,9 @@ export default function WorkOrderDetailPage() {
                           
                           return (
                             <TableRow key={item.id}>
-                              <TableCell>{item.sequenceNumber}</TableCell>
+                              <TableCell>{String(item.sequenceNumber || '')}</TableCell>
                               <TableCell className="font-medium">
-                                {itemCode}
+                                {String(itemCode || '')}
                                 {isVirtualComponent && (
                                   <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
                                     Virtual
@@ -365,14 +365,14 @@ export default function WorkOrderDetailPage() {
                                 )}
                               </TableCell>
                               <TableCell>
-                                {itemDescription}
+                                {String(itemDescription || '')}
                               </TableCell>
-                              <TableCell>{item.quantity}</TableCell>
+                              <TableCell>{String(item.quantity || '')}</TableCell>
                               <TableCell>{getStatusBadge(item.status || "pending")}</TableCell>
                               <TableCell className="max-w-md truncate">
                                 {isVirtualComponent 
                                   ? "Virtual component (not added to project items)" 
-                                  : (item.notes || "No notes")}
+                                  : String(item.notes || "No notes")}
                               </TableCell>
                             </TableRow>
                           );
@@ -442,7 +442,7 @@ export default function WorkOrderDetailPage() {
                           <div className="flex flex-col space-y-2">
                             <div className="flex items-center justify-between">
                               <span className="font-medium">
-                                {record.username}
+                                {String(record.username || '')}
                               </span>
                               <span className="text-xs text-muted-foreground flex items-center">
                                 <Clock className="h-3 w-3 mr-1" />
@@ -450,7 +450,7 @@ export default function WorkOrderDetailPage() {
                               </span>
                             </div>
                             
-                            <p className="text-sm">{record.changeDescription}</p>
+                            <p className="text-sm">{String(record.changeDescription || '')}</p>
                             
                             {record.fieldName && record.oldValue !== record.newValue && (
                               <div className="mt-2 text-xs bg-muted/50 p-2 rounded">
@@ -459,16 +459,16 @@ export default function WorkOrderDetailPage() {
                                   <span className="font-medium">Previous Value</span>
                                   <span className="font-medium">New Value</span>
                                   
-                                  <span>{record.fieldName}</span>
-                                  <span className="text-red-500">{record.oldValue || '-'}</span>
-                                  <span className="text-green-500">{record.newValue || '-'}</span>
+                                  <span>{String(record.fieldName || '')}</span>
+                                  <span className="text-red-500">{String(record.oldValue || '-')}</span>
+                                  <span className="text-green-500">{String(record.newValue || '-')}</span>
                                 </div>
                               </div>
                             )}
                             
                             {record.comment && (
                               <div className="mt-2 text-sm bg-muted/30 p-2 rounded italic">
-                                "{record.comment}"
+                                "{String(record.comment || '')}"
                               </div>
                             )}
                           </div>
