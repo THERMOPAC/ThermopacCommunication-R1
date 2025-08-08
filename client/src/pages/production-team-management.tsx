@@ -87,10 +87,7 @@ export default function ProductionTeamManagement() {
   // Add team mutation
   const addTeamMutation = useMutation({
     mutationFn: async (data: TeamLeaderConfigFormValues) => {
-      return apiRequest('/api/production/teams/config', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return apiRequest('POST', '/api/production/teams/config', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/production/teams/config'] });
@@ -114,12 +111,9 @@ export default function ProductionTeamManagement() {
   // Update team mutation
   const updateTeamMutation = useMutation({
     mutationFn: async (data: TeamLeaderConfigFormValues & { originalTeamNumber: number }) => {
-      return apiRequest(`/api/production/teams/config/${data.originalTeamNumber}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          teamNumber: data.teamNumber,
-          leaderName: data.leaderName,
-        }),
+      return apiRequest('PUT', `/api/production/teams/config/${data.originalTeamNumber}`, {
+        teamNumber: data.teamNumber,
+        leaderName: data.leaderName,
       });
     },
     onSuccess: () => {
