@@ -4,7 +4,7 @@ import { insertWorkOrderSchema, workOrders, insertWorkOrderItemSchema,
   workOrderItems, insertResourceAssignmentSchema, resourceAssignments,
   insertProductionRecordSchema, productionRecords, insertMaterialConsumptionSchema,
   materialConsumption, insertMachineAllocationSchema, machineAllocations, projects, projectItems, masterItems, itemComponents,
-  workOrderHistory, insertWorkOrderHistorySchema } from '@shared/schema';
+  workOrderHistory, insertWorkOrderHistorySchema, teamLeaderConfig } from '@shared/schema';
 import { eq, and, desc, asc, inArray } from 'drizzle-orm';
 import { generateWorkOrders } from './production/work-order-generator';
 import { generateWorkOrdersForProject } from './optimized-work-order-generation';
@@ -31,6 +31,32 @@ function canManage(role: string): boolean {
 }
 
 export function setupProductionRoutes(app: Router) {
+  // ==================== PRODUCTION TEAMS ====================
+  
+  // Get production teams with leader names for dropdown
+  app.get('/api/production/teams', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      console.log('Fetching production teams with leader names');
+      
+      const teams = await db.select().from(teamLeaderConfig).orderBy(teamLeaderConfig.teamNumber);
+      
+      // Transform data to include display name and value for dropdown
+      const formattedTeams = teams.map(team => ({
+        teamNumber: team.teamNumber,
+        teamCode: `Production Team-${team.teamNumber}`,
+        leaderName: team.leaderName,
+        displayName: `Production Team-${team.teamNumber} – ${team.leaderName}`,
+        value: `Production Team-${team.teamNumber}`, // Value to store in database
+      }));
+      
+      console.log(`Found ${formattedTeams.length} production teams`);
+      res.status(200).json(formattedTeams);
+    } catch (error) {
+      console.error('Error fetching production teams:', error);
+      res.status(500).json({ error: 'Failed to fetch production teams' });
+    }
+  });
+
   // ==================== WORK ORDERS ====================
   
   // Get all work orders (for Shop Floor Management)

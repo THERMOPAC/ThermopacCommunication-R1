@@ -100,6 +100,22 @@ export default function WorkOrderEditPage() {
     },
     enabled: !isNaN(workOrderId),
   });
+
+  // Fetch production teams with leader names
+  const {
+    data: productionTeams = [],
+    isLoading: isLoadingTeams
+  } = useQuery<any[]>({
+    queryKey: ['/api/production/teams'],
+    queryFn: async () => {
+      const response = await fetch('/api/production/teams');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch production teams");
+      }
+      return response.json();
+    },
+  });
   
   // Combine the work order and items data
   useEffect(() => {
@@ -202,8 +218,8 @@ export default function WorkOrderEditPage() {
     }
   }, [workOrderError, toast]);
   
-  // Show loading state when fetching work order or work order items
-  if (isLoadingWorkOrder || isLoadingItems) {
+  // Show loading state when fetching work order, work order items, or production teams
+  if (isLoadingWorkOrder || isLoadingItems || isLoadingTeams) {
     return (
       <Layout>
         <div className="flex items-center justify-center h-96">
@@ -519,16 +535,11 @@ export default function WorkOrderEditPage() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="Production Team-1">Production Team-1</SelectItem>
-                                <SelectItem value="Production Team-2">Production Team-2</SelectItem>
-                                <SelectItem value="Production Team-3">Production Team-3</SelectItem>
-                                <SelectItem value="Production Team-4">Production Team-4</SelectItem>
-                                <SelectItem value="Production Team-5">Production Team-5</SelectItem>
-                                <SelectItem value="Production Team-6">Production Team-6</SelectItem>
-                                <SelectItem value="Production Team-7">Production Team-7</SelectItem>
-                                <SelectItem value="Production Team-8">Production Team-8</SelectItem>
-                                <SelectItem value="Production Team-9">Production Team-9</SelectItem>
-                                <SelectItem value="Production Team-10">Production Team-10</SelectItem>
+                                {productionTeams.map((team) => (
+                                  <SelectItem key={team.teamNumber} value={team.value}>
+                                    {team.displayName}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                             <FormMessage />

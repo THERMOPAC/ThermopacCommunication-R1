@@ -2095,6 +2095,14 @@ export const machineAllocations = pgTable('machine_allocations', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
+// Team Leader Configuration table
+export const teamLeaderConfig = pgTable('team_leader_config', {
+  teamNumber: integer('team_number').primaryKey(),
+  leaderName: varchar('leader_name', { length: 100 }).notNull(),
+  updatedBy: integer('updated_by').references(() => users.id),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 // ==================== QUALITY MANAGEMENT MODULE ====================
 
 // Welders table - simplified version without qualification details
@@ -2399,6 +2407,12 @@ export const insertMachineAllocationSchema = createInsertSchema(machineAllocatio
   downtimeMinutes: z.number().optional(),
 });
 
+export const insertTeamLeaderConfigSchema = createInsertSchema(teamLeaderConfig, {
+  teamNumber: z.number().positive(),
+  leaderName: z.string().min(1),
+  updatedBy: z.number().positive().optional(),
+});
+
 // Production Management types
 export type WorkOrder = typeof workOrders.$inferSelect;
 export type InsertWorkOrder = z.infer<typeof insertWorkOrderSchema>;
@@ -2422,6 +2436,9 @@ export type InsertMaterialConsumption = z.infer<typeof insertMaterialConsumption
 
 export type MachineAllocation = typeof machineAllocations.$inferSelect;
 export type InsertMachineAllocation = z.infer<typeof insertMachineAllocationSchema>;
+
+export type TeamLeaderConfig = typeof teamLeaderConfig.$inferSelect;
+export type InsertTeamLeaderConfig = z.infer<typeof insertTeamLeaderConfigSchema>;
 
 // ==================== QUALITY MANAGEMENT TYPES ====================
 export const insertInspectionReportSchema = createInsertSchema(inspectionReports, {
