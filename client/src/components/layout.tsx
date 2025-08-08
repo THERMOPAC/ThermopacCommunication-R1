@@ -94,7 +94,8 @@ function Layout({ children }: LayoutProps) {
   
   // Check if we're on any production-related page
   const isOnProductionPage = location === '/production-planning' ||
-                           location === '/shop-floor';
+                           location === '/shop-floor' ||
+                           location === '/production-team-management';
                            
   // Check if we're on any quality-related page
   const isOnQualityPage = location === '/wps-pqr' ||
@@ -324,7 +325,8 @@ function Layout({ children }: LayoutProps) {
       children: [
         { icon: TrendingUp, label: "Production Planning", href: "/production-planning" },
         { icon: Briefcase, label: "Shop Floor", href: "/shop-floor" },
-        { icon: FileText, label: "Daily Production Report", href: "/daily-production-report" }
+        { icon: FileText, label: "Daily Production Report", href: "/daily-production-report" },
+        { icon: Users, label: "Production Team", href: "/production-team-management" }
       ]
     }] : []),
     ...(hasViewPermission("Quality Management") ? [{ 

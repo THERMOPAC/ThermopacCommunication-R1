@@ -33,6 +33,7 @@ import WorkOrderDetailPage from "@/pages/work-order-detail-page";
 import WorkOrderEditPage from "@/pages/work-order-edit-page";
 import ShopFloorPage from "@/pages/shop-floor-page";
 import DailyProductionReportPage from "@/pages/daily-production-report-page";
+import ProductionTeamManagement from "@/pages/production-team-management";
 import InspectionsPage from "@/pages/inspections-page";
 import MaterialIdentificationPage from "@/pages/material-identification-page";
 import MaterialIdentificationListPage from "@/pages/material-identification-list-page";
@@ -277,6 +278,7 @@ function Router() {
       <ProtectedRoute path="/production/work-orders/:id" component={WorkOrderDetailPage} />
       <ProtectedRoute path="/shop-floor" component={ShopFloorPage} />
       <ProtectedRoute path="/daily-production-report" component={DailyProductionReportPage} />
+      <ProtectedRoute path="/production-team-management" component={ProductionTeamManagement} />
       <ProtectedRoute path="/wps-pqr" component={WpsPqrPage} />
       <ProtectedRoute path="/wpqr" component={WpqrPage} />
       <ProtectedRoute path="/quality/pma" component={PMAPage} />

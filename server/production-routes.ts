@@ -57,6 +57,182 @@ export function setupProductionRoutes(app: Router) {
     }
   });
 
+  // ==================== PRODUCTION TEAM CONFIGURATION MANAGEMENT ====================
+  
+  // Get all team configurations for management page
+  app.get('/api/production/teams/config', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      console.log('Fetching team configurations for management');
+      
+      if (!canManage((req as any).user?.role)) {
+        return res.status(403).json({ error: 'Access denied. Management role required.' });
+      }
+      
+      const teams = await db.select().from(teamLeaderConfig).orderBy(teamLeaderConfig.teamNumber);
+      
+      console.log(`Found ${teams.length} team configurations`);
+      res.status(200).json(teams);
+    } catch (error) {
+      console.error('Error fetching team configurations:', error);
+      res.status(500).json({ error: 'Failed to fetch team configurations' });
+    }
+  });
+
+  // Create new team configuration
+  app.post('/api/production/teams/config', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      console.log('Creating new team configuration');
+      
+      if (!canManage((req as any).user?.role)) {
+        return res.status(403).json({ error: 'Access denied. Management role required.' });
+      }
+      
+      const { teamNumber, leaderName } = req.body;
+      
+      // Validate input
+      if (!teamNumber || !leaderName) {
+        return res.status(400).json({ error: 'Team number and leader name are required' });
+      }
+      
+      if (typeof teamNumber !== 'number' || teamNumber < 1) {
+        return res.status(400).json({ error: 'Team number must be a positive number' });
+      }
+      
+      if (typeof leaderName !== 'string' || leaderName.trim().length === 0) {
+        return res.status(400).json({ error: 'Leader name must be a non-empty string' });
+      }
+      
+      // Check if team number already exists
+      const existingTeam = await db.query.teamLeaderConfig.findFirst({
+        where: eq(teamLeaderConfig.teamNumber, teamNumber)
+      });
+      
+      if (existingTeam) {
+        return res.status(409).json({ error: `Team number ${teamNumber} already exists` });
+      }
+      
+      // Create the new team configuration
+      const newTeam = await db.insert(teamLeaderConfig).values({
+        teamNumber,
+        leaderName: leaderName.trim(),
+        updatedBy: (req as any).user?.id || null,
+        updatedAt: new Date()
+      }).returning();
+      
+      console.log(`Created team configuration: Team-${teamNumber} with leader ${leaderName}`);
+      res.status(201).json(newTeam[0]);
+    } catch (error) {
+      console.error('Error creating team configuration:', error);
+      res.status(500).json({ error: 'Failed to create team configuration' });
+    }
+  });
+
+  // Update team configuration
+  app.put('/api/production/teams/config/:teamNumber', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const originalTeamNumber = parseInt(req.params.teamNumber);
+      console.log(`Updating team configuration for team ${originalTeamNumber}`);
+      
+      if (!canManage((req as any).user?.role)) {
+        return res.status(403).json({ error: 'Access denied. Management role required.' });
+      }
+      
+      if (isNaN(originalTeamNumber)) {
+        return res.status(400).json({ error: 'Invalid team number' });
+      }
+      
+      const { teamNumber, leaderName } = req.body;
+      
+      // Validate input
+      if (!teamNumber || !leaderName) {
+        return res.status(400).json({ error: 'Team number and leader name are required' });
+      }
+      
+      if (typeof teamNumber !== 'number' || teamNumber < 1) {
+        return res.status(400).json({ error: 'Team number must be a positive number' });
+      }
+      
+      if (typeof leaderName !== 'string' || leaderName.trim().length === 0) {
+        return res.status(400).json({ error: 'Leader name must be a non-empty string' });
+      }
+      
+      // Check if the team exists
+      const existingTeam = await db.query.teamLeaderConfig.findFirst({
+        where: eq(teamLeaderConfig.teamNumber, originalTeamNumber)
+      });
+      
+      if (!existingTeam) {
+        return res.status(404).json({ error: `Team number ${originalTeamNumber} not found` });
+      }
+      
+      // If changing team number, check if new number already exists
+      if (teamNumber !== originalTeamNumber) {
+        const conflictingTeam = await db.query.teamLeaderConfig.findFirst({
+          where: eq(teamLeaderConfig.teamNumber, teamNumber)
+        });
+        
+        if (conflictingTeam) {
+          return res.status(409).json({ error: `Team number ${teamNumber} already exists` });
+        }
+      }
+      
+      // Update the team configuration
+      const updatedTeam = await db.update(teamLeaderConfig)
+        .set({
+          teamNumber,
+          leaderName: leaderName.trim(),
+          updatedBy: (req as any).user?.id || null,
+          updatedAt: new Date()
+        })
+        .where(eq(teamLeaderConfig.teamNumber, originalTeamNumber))
+        .returning();
+      
+      console.log(`Updated team configuration: Team-${teamNumber} with leader ${leaderName}`);
+      res.status(200).json(updatedTeam[0]);
+    } catch (error) {
+      console.error('Error updating team configuration:', error);
+      res.status(500).json({ error: 'Failed to update team configuration' });
+    }
+  });
+
+  // Delete team configuration
+  app.delete('/api/production/teams/config/:teamNumber', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const teamNumber = parseInt(req.params.teamNumber);
+      console.log(`Deleting team configuration for team ${teamNumber}`);
+      
+      if (!canManage((req as any).user?.role)) {
+        return res.status(403).json({ error: 'Access denied. Management role required.' });
+      }
+      
+      if (isNaN(teamNumber)) {
+        return res.status(400).json({ error: 'Invalid team number' });
+      }
+      
+      // Check if the team exists
+      const existingTeam = await db.query.teamLeaderConfig.findFirst({
+        where: eq(teamLeaderConfig.teamNumber, teamNumber)
+      });
+      
+      if (!existingTeam) {
+        return res.status(404).json({ error: `Team number ${teamNumber} not found` });
+      }
+      
+      // TODO: Add check for existing work orders using this team
+      // For now, we'll allow deletion - you may want to add this check later
+      
+      // Delete the team configuration
+      await db.delete(teamLeaderConfig)
+        .where(eq(teamLeaderConfig.teamNumber, teamNumber));
+      
+      console.log(`Deleted team configuration for team ${teamNumber}`);
+      res.status(200).json({ message: 'Team configuration deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting team configuration:', error);
+      res.status(500).json({ error: 'Failed to delete team configuration' });
+    }
+  });
+
   // ==================== WORK ORDERS ====================
   
   // Get all work orders (for Shop Floor Management)
