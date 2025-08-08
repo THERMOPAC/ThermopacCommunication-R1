@@ -90,7 +90,10 @@ export default function WorkOrderDetailPage() {
   
   // Helper function to render status badge
   const getStatusBadge = (status: string) => {
-    switch (status) {
+    // Ensure status is a string and handle potential objects
+    const statusStr = typeof status === 'string' ? status : String(status || '');
+    
+    switch (statusStr) {
       case "planned":
         return <Badge variant="outline" className="flex items-center gap-1"><Hourglass className="h-3 w-3" /> Planned</Badge>;
       case "in_progress":
@@ -102,13 +105,16 @@ export default function WorkOrderDetailPage() {
       case "cancelled":
         return <Badge variant="destructive" className="flex items-center gap-1"><XCircle className="h-3 w-3" /> Cancelled</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline">{statusStr}</Badge>;
     }
   };
   
   // Helper function to render priority badge
   const getPriorityBadge = (priority: string) => {
-    switch (priority) {
+    // Ensure priority is a string and handle potential objects
+    const priorityStr = typeof priority === 'string' ? priority : String(priority || '');
+    
+    switch (priorityStr) {
       case "High":
         return <Badge variant="destructive">High</Badge>;
       case "Medium":
@@ -116,7 +122,7 @@ export default function WorkOrderDetailPage() {
       case "Low":
         return <Badge variant="outline">Low</Badge>;
       default:
-        return <Badge variant="outline">{priority}</Badge>;
+        return <Badge variant="outline">{priorityStr}</Badge>;
     }
   };
 
@@ -230,17 +236,17 @@ export default function WorkOrderDetailPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-muted-foreground">Work Order Number</h3>
-                    <p className="font-semibold">{workOrder?.workOrderNumber}</p>
+                    <p className="font-semibold">{String(workOrder?.workOrderNumber || '')}</p>
                   </div>
                   
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-muted-foreground">Title</h3>
-                    <p className="font-semibold">{workOrder?.title}</p>
+                    <p className="font-semibold">{String(workOrder?.title || '')}</p>
                   </div>
                   
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-muted-foreground">Project Code</h3>
-                    <p className="font-semibold">{workOrder?.projectCode}</p>
+                    <p className="font-semibold">{String(workOrder?.projectCode || '')}</p>
                   </div>
                   
                   <div className="space-y-2">
@@ -255,7 +261,7 @@ export default function WorkOrderDetailPage() {
                   
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-muted-foreground">Production Line</h3>
-                    <p className="font-semibold">{workOrder?.productionLine || "Not specified"}</p>
+                    <p className="font-semibold">{String(workOrder?.productionLine || "Not specified")}</p>
                   </div>
                   
                   <div className="space-y-2">
@@ -274,7 +280,7 @@ export default function WorkOrderDetailPage() {
                   
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-muted-foreground">Batch Number</h3>
-                    <p className="font-semibold">{workOrder?.batchNumber || "Not specified"}</p>
+                    <p className="font-semibold">{String(workOrder?.batchNumber || "Not specified")}</p>
                   </div>
                 </div>
                 
@@ -283,7 +289,7 @@ export default function WorkOrderDetailPage() {
                 <div className="space-y-2">
                   <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
                   <p className="text-sm">
-                    {workOrder?.description || "No description provided."}
+                    {String(workOrder?.description || "No description provided.")}
                   </p>
                 </div>
               </CardContent>
