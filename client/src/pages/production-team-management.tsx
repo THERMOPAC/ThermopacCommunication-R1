@@ -145,9 +145,7 @@ export default function ProductionTeamManagement() {
   // Toggle team status mutation
   const toggleStatusMutation = useMutation({
     mutationFn: async (teamNumber: number) => {
-      return apiRequest(`/api/production/teams/config/${teamNumber}/toggle-status`, {
-        method: 'PATCH',
-      });
+      return apiRequest('PATCH', `/api/production/teams/config/${teamNumber}/toggle-status`);
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/production/teams/config'] });
