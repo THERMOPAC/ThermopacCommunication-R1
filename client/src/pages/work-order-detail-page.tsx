@@ -52,7 +52,7 @@ export default function WorkOrderDetailPage() {
     enabled: !isNaN(workOrderId),
   });
   
-  // Fetch work order items
+  // Fetch work order items (only after work order is loaded)
   const { 
     data: workOrderItems = [], 
     isLoading: isLoadingItems,
@@ -67,10 +67,10 @@ export default function WorkOrderDetailPage() {
       }
       return response.json();
     },
-    enabled: !isNaN(workOrderId),
+    enabled: !isNaN(workOrderId) && !!workOrder,
   });
   
-  // Fetch work order history
+  // Fetch work order history (only after work order is loaded)
   const { 
     data: workOrderHistory = [], 
     isLoading: isLoadingHistory,
@@ -85,7 +85,7 @@ export default function WorkOrderDetailPage() {
       }
       return response.json();
     },
-    enabled: !isNaN(workOrderId),
+    enabled: !isNaN(workOrderId) && !!workOrder,
   });
   
   // Helper function to render status badge
