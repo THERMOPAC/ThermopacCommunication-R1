@@ -200,25 +200,6 @@ export default function PaymentsPage() {
                 </Select>
               </div>
               
-              <div className="w-full sm:w-72">
-                <Select 
-                  value={customerFilter} 
-                  onValueChange={setCustomerFilter}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Customers</SelectItem>
-                    {customersData?.map((customer: any) => (
-                      <SelectItem key={customer.id} value={customer.id.toString()}>
-                        {customer.bpName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
               <Button
                 variant="outline" 
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
