@@ -15,7 +15,10 @@ simplePaymentAllocationApi.post('/allocate-payment', ensureAuthenticated, async 
     // Extract the payment ID and allocations from the request body
     const { paymentId, invoices, comment } = req.body;
     
+    console.log('Payment allocation request:', { paymentId, invoices: invoices?.length, comment });
+    
     if (!paymentId || !invoices || !Array.isArray(invoices) || invoices.length === 0) {
+      console.log('Invalid request body:', { paymentId, invoices, invoicesIsArray: Array.isArray(invoices) });
       return res.status(400).json({ success: false, message: 'Invalid request body' });
     }
 
@@ -38,14 +41,25 @@ simplePaymentAllocationApi.post('/allocate-payment', ensureAuthenticated, async 
     }
     
     const payment = paymentResult.rows[0];
-    const paymentRemainingAmount = payment.remaining_amount || payment.amount - (payment.allocated_amount || 0);
+    const paymentRemainingAmount = payment.unallocated_amount || payment.amount - (payment.allocated_amount || 0);
+    
+    console.log('Payment details:', { 
+      id: payment.id, 
+      amount: payment.amount, 
+      allocated: payment.allocated_amount, 
+      unallocated: payment.unallocated_amount, 
+      calculated: paymentRemainingAmount 
+    });
     
     // Calculate total allocation amount
     const totalAllocationAmount = invoices.reduce((sum, inv) => sum + inv.allocationAmount, 0);
     
-    // Check if total allocation exceeds remaining payment amount
-    if (totalAllocationAmount > paymentRemainingAmount) {
+    console.log('Allocation details:', { totalAllocationAmount, paymentRemainingAmount });
+    
+    // Check if total allocation exceeds remaining payment amount (with small floating point tolerance)
+    if (totalAllocationAmount > paymentRemainingAmount + 0.01) {
       await client.query('ROLLBACK');
+      console.log('Allocation exceeds remaining amount:', { totalAllocationAmount, paymentRemainingAmount });
       return res.status(400).json({ 
         success: false, 
         message: `Total allocation (${totalAllocationAmount}) exceeds remaining payment amount (${paymentRemainingAmount})` 
