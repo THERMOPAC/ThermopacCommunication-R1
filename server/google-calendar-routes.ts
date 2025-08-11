@@ -279,12 +279,15 @@ router.get('/calendar/upcoming-events', ensureAuthenticated, async (req, res) =>
       .where(eq(concludedCalendarEvents.userId, userId));
 
     const concludedEventIds = new Set(concludedEvents.map(event => event.googleEventId));
+    console.log(`Found ${concludedEvents.length} concluded events:`, Array.from(concludedEventIds));
 
     // Fetch upcoming events with Google Meet links
     const allEvents = await googleCalendarService.fetchUpcomingEvents(userId, maxResults);
+    console.log(`All events from Google Calendar:`, allEvents.map(e => ({ id: e.id, summary: e.summary })));
     
     // Filter out concluded events
     const events = allEvents.filter(event => !concludedEventIds.has(event.id));
+    console.log(`Events after filtering concluded ones:`, events.map(e => ({ id: e.id, summary: e.summary })));
 
     res.json({
       success: true,
