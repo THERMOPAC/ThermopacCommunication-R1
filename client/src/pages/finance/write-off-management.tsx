@@ -70,19 +70,22 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
     a.name.localeCompare(b.name)
   );
 
-  // Fetch outstanding invoices for write-off - load all invoices, then filter by customer
+  // Fetch outstanding invoices for write-off - filter by selected customer
   const { data: outstandingInvoices = [], isLoading: loadingInvoices } = useQuery({
-    queryKey: ['/api/finance/outstanding-invoices'],
+    queryKey: ['/api/finance/outstanding-invoices', selectedCustomer],
     queryFn: async () => {
-      const response = await fetch('/api/finance/outstanding-invoices');
+      if (!selectedCustomer || selectedCustomer === 'all') {
+        return [];
+      }
+      const response = await fetch(`/api/finance/outstanding-invoices?customerId=${selectedCustomer}`);
       if (!response.ok) throw new Error('Failed to fetch outstanding invoices');
       const data = await response.json();
       return data.invoices || [];
-    }
+    },
+    enabled: !!selectedCustomer && selectedCustomer !== 'all'
   });
 
-  // Since invoice data doesn't contain customer relationship, show all invoices
-  // Customer selection is optional for user reference only
+  // Use the filtered invoices from the API
   const filteredInvoices = Array.isArray(outstandingInvoices) ? outstandingInvoices : [];
 
   // Create write-off mutation
@@ -115,10 +118,10 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedInvoice || !writeOffAmount || !reason || !postingDate) {
+    if (!selectedCustomer || selectedCustomer === 'all' || !selectedInvoice || !writeOffAmount || !reason || !postingDate) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields.",
+        description: "Please fill in all required fields, including customer selection.",
         variant: "destructive"
       });
       return;
@@ -141,17 +144,16 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="customer">Filter by Customer (Optional)</Label>
+          <Label htmlFor="customer">Select Customer *</Label>
           <Select value={selectedCustomer} onValueChange={(value) => {
             setSelectedCustomer(value);
             setSelectedInvoice(''); // Reset invoice selection
             setWriteOffAmount(''); // Reset amount
           }}>
             <SelectTrigger>
-              <SelectValue placeholder="All Customers" />
+              <SelectValue placeholder="Choose customer" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Customers</SelectItem>
               {customersWithOutstanding.map((customer: any) => (
                 <SelectItem key={customer.id} value={customer.id.toString()}>
                   {customer.name}
@@ -163,26 +165,36 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
 
         <div>
           <Label htmlFor="invoice">Select Invoice *</Label>
-          <Select value={selectedInvoice} onValueChange={(value) => {
-            setSelectedInvoice(value);
-            // Auto-populate write-off amount with full outstanding amount
-            const invoice = filteredInvoices.find((inv: any) => inv.id.toString() === value);
-            if (invoice) {
-              setWriteOffAmount(invoice.outstandingAmount.toString());
-            }
-          }}>
+          <Select 
+            value={selectedInvoice} 
+            onValueChange={(value) => {
+              setSelectedInvoice(value);
+              // Auto-populate write-off amount with full outstanding amount
+              const invoice = filteredInvoices.find((inv: any) => inv.id.toString() === value);
+              if (invoice) {
+                setWriteOffAmount(invoice.outstandingAmount.toString());
+              }
+            }}
+            disabled={!selectedCustomer || selectedCustomer === 'all' || loadingInvoices}
+          >
             <SelectTrigger>
-              <SelectValue placeholder="Choose invoice to write off" />
+              <SelectValue placeholder={
+                !selectedCustomer || selectedCustomer === 'all' 
+                  ? "Select customer first" 
+                  : loadingInvoices 
+                    ? "Loading invoices..." 
+                    : "Choose invoice to write off"
+              } />
             </SelectTrigger>
             <SelectContent>
               {filteredInvoices.map((invoice: any) => (
                 <SelectItem key={invoice.id} value={invoice.id.toString()}>
-                  {invoice.invoiceNumber} - {invoice.customerName} ({invoice.currency} {invoice.outstandingAmount})
+                  {invoice.invoiceNumber} ({invoice.currency} {invoice.outstandingAmount})
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          {selectedCustomer && selectedCustomer !== 'all' && filteredInvoices.length === 0 && (
+          {selectedCustomer && selectedCustomer !== 'all' && !loadingInvoices && filteredInvoices.length === 0 && (
             <p className="text-sm text-gray-500 mt-1">No outstanding invoices for selected customer</p>
           )}
         </div>
