@@ -53,11 +53,11 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
     
     console.log(`Found ${payments.length} unallocated advance payments`);
     
-    // Format the response with calculated values
+    // Format the response with calculated values and proper rounding
     const advances = payments.map((payment: any) => {
-      const totalAmount = parseFloat(payment.amount);
-      const calculatedAllocated = parseFloat(payment.calculatedAllocatedAmount || '0');
-      const remainingAmount = totalAmount - calculatedAllocated;
+      const totalAmount = Math.round(parseFloat(payment.amount) * 100) / 100;
+      const calculatedAllocated = Math.round(parseFloat(payment.calculatedAllocatedAmount || '0') * 100) / 100;
+      const remainingAmount = Math.round((totalAmount - calculatedAllocated) * 100) / 100;
       
       return {
         id: payment.id,
@@ -65,9 +65,9 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
         customerId: payment.customerId,
         customerName: payment.customerName,
         paymentDate: payment.paymentDate,
-        amount: totalAmount.toString(),
-        allocatedAmount: calculatedAllocated.toString(),
-        unallocatedAmount: remainingAmount.toString(),
+        amount: totalAmount.toFixed(2),
+        allocatedAmount: calculatedAllocated.toFixed(2),
+        unallocatedAmount: remainingAmount.toFixed(2),
         paymentMethod: payment.paymentMethod,
         paymentType: payment.paymentType,
         currency: payment.currency,
@@ -76,7 +76,7 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
       };
     });
     
-    // Calculate total unallocated amount
+    // Calculate total unallocated amount with rounding
     const totalUnallocated = advances.reduce((sum: number, payment: any) => {
       const amount = parseFloat(payment.unallocatedAmount) || 0;
       return sum + amount;
@@ -84,7 +84,7 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
     
     res.json({
       advances: advances,
-      totalUnallocatedAmount: totalUnallocated.toFixed(2),
+      totalUnallocatedAmount: Math.round(totalUnallocated * 100) / 100,
       count: advances.length
     });
     

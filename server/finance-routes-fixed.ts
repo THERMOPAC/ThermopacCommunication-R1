@@ -321,13 +321,13 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
       
       const allocationsResult = await client.query(allocationsQuery, [paymentId]);
       
-      // Format values for frontend
+      // Format values for frontend with proper rounding
       res.json({
         payment: {
           ...payment,
-          amount: payment.amount ? payment.amount.toString() : "0.00",
-          unallocatedAmount: payment.unallocatedAmount ? payment.unallocatedAmount.toString() : "0.00",
-          allocatedAmount: payment.allocatedAmount ? payment.allocatedAmount.toString() : "0.00"
+          amount: payment.amount ? (Math.round(payment.amount * 100) / 100).toFixed(2) : "0.00",
+          unallocatedAmount: payment.unallocatedAmount ? (Math.round(payment.unallocatedAmount * 100) / 100).toFixed(2) : "0.00",
+          allocatedAmount: payment.allocatedAmount ? (Math.round(payment.allocatedAmount * 100) / 100).toFixed(2) : "0.00"
         },
         allocations: allocationsResult.rows.map(row => ({
           ...row,
@@ -383,9 +383,9 @@ router.get('/payments', ensureAuthenticated, async (req: Request, res: Response)
       res.json({
         payments: result.rows.map(payment => ({
           ...payment,
-          amount: payment.amount.toString(),
-          unallocatedAmount: payment.unallocatedAmount.toString(),
-          allocatedAmount: payment.allocatedAmount.toString()
+          amount: (Math.round(payment.amount * 100) / 100).toFixed(2),
+          unallocatedAmount: (Math.round((payment.unallocatedAmount || 0) * 100) / 100).toFixed(2),
+          allocatedAmount: (Math.round((payment.allocatedAmount || 0) * 100) / 100).toFixed(2)
         }))
       });
     } finally {
