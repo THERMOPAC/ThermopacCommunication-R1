@@ -5,6 +5,17 @@ This is a comprehensive Quality Management System (QMS) for THERMOPAC, a manufac
 Preferred communication style: Simple, everyday language.
 
 # Recent Changes
+## August 11, 2025 - Payment Allocation Floating Point Precision Fix COMPLETED ✅
+- **Critical Bug Resolution**: Fixed payment allocation system failing due to floating point precision issues
+- **Root Cause**: System used `payment.remaining_amount` (non-existent column) instead of `payment.unallocated_amount`  
+- **Backend Fix**: Updated `server/simple-payment-allocation-api.ts` to use correct column name with proper rounding
+- **Frontend Fix**: Enhanced `formatCurrency` function in payment allocation page to round amounts before display
+- **Precision Handling**: Added `Math.round(amount * 100) / 100` to ensure 2-decimal precision in all calculations
+- **Tolerance Logic**: Implemented 0.01 tolerance for floating point comparisons in validation
+- **Display Fix**: Resolved UI showing `USD 8563.589999999997` now correctly displays `USD 8563.59`
+- **Validation Enhancement**: Added comprehensive debugging and error logging for payment allocation process
+- **User Impact**: Payment ID 42 (0419EXN00018632105) to Invoice INV-2021-016 allocation now works properly
+
 ## August 11, 2025 - PMA Document Grade Validation Complete Enhancement COMPLETED ✅
 - **Complete Grade Support**: Expanded PMA document grade validation to support ALL 50+ material grades across all categories
 - **Backend Schema Enhancement**: Updated `shared/schema.ts` PMA grade enum to include comprehensive grade list:

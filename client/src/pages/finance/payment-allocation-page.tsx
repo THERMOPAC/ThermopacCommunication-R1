@@ -117,11 +117,15 @@ export default function PaymentAllocationPage() {
 
   // Format currency values
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
+    // Round to 2 decimal places to fix floating point precision issues
+    const roundedAmount = Math.round(amount * 100) / 100;
+    
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(amount);
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(roundedAmount);
   };
 
   // Setup form
