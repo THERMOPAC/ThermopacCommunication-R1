@@ -5047,7 +5047,7 @@ export const pmaDocumentSchema = createInsertSchema(pmaDocuments)
       // Alloy Steel
       'SA-335 P11', 'SA-335 P22', 'SA-335 P91', 'SA-213 T11', 'SA-213 T22',
       // Other grades
-      'A105', 'A350 LF2', 'A182 F304', 'A182 F316L'
+      'A105', 'A350 LF2', 'A182 F304', 'A182 F316L', 'SA-182 F316'
     ]),
     certifiedBy: z.string().min(1, 'Certified By is required'),
     status: z.enum(['Draft', 'Active', 'Inactive']).default('Draft'),
