@@ -5041,7 +5041,7 @@ export const pmaDocumentSchema = createInsertSchema(pmaDocuments)
       // Carbon Steel
       'SA-516 Gr 60', 'SA-516 Gr 70', 'SA-106 Gr B', 'SA-106 Gr C', 
       'SA-36', 'SA-537 Cl 1', 'SA-537 Cl 2', 'SA-53 Gr B',
-      'SA-105', 'SA-234 WPB', 'ASTM A36', 'ASTM A106 Gr B',
+      'SA-105', 'SA-234 WPB', 'SA 179', 'ASTM A36', 'ASTM A106 Gr B',
       'ASTM A333 Gr 6', 'ASTM A515 Gr 70', 'Gr.B',
       // Stainless Steel
       'SA-240 TP 304', 'SA-240 TP 304L', 'SA-240 TP 316', 'SA-240 TP 316L',
