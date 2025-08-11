@@ -349,6 +349,155 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
 });
 
 /**
+ * Allocate payment to multiple invoices
+ */
+router.post('/payments/:id/allocate', ensureAuthenticated, async (req: Request, res: Response) => {
+  const paymentId = parseInt(req.params.id);
+  console.log('Allocating payment with ID:', paymentId);
+  console.log('Allocation payload:', JSON.stringify(req.body, null, 2));
+  
+  try {
+    const client = await pool.connect();
+    try {
+      // Validate the request payload
+      if (!req.body) {
+        return res.status(400).json({ success: false, message: 'Missing request body' });
+      }
+      
+      const { invoiceAllocations, comment } = req.body;
+      console.log('Processing allocation for payment ID:', paymentId, 'with allocations:', invoiceAllocations);
+      
+      if (!paymentId || !invoiceAllocations || !Array.isArray(invoiceAllocations) || invoiceAllocations.length === 0) {
+        return res.status(400).json({ success: false, message: 'Invalid request body' });
+      }
+      
+      // Begin transaction
+      await client.query('BEGIN');
+      
+      // Get payment details
+      const paymentQuery = 'SELECT * FROM payments WHERE id = $1';
+      const paymentResult = await client.query(paymentQuery, [paymentId]);
+      
+      if (paymentResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ success: false, message: 'Payment not found' });
+      }
+      
+      const payment = paymentResult.rows[0];
+      // Round to 2 decimal places to handle floating point precision issues
+      const paymentRemainingAmount = Math.round((payment.unallocated_amount || payment.amount - (payment.allocated_amount || 0)) * 100) / 100;
+      
+      console.log('Payment details:', { 
+        id: payment.id, 
+        amount: payment.amount, 
+        allocated: payment.allocated_amount, 
+        unallocated: payment.unallocated_amount, 
+        calculated: paymentRemainingAmount 
+      });
+      
+      // Calculate total allocation amount and round to 2 decimal places
+      const totalAllocationAmount = Math.round(invoiceAllocations.reduce((sum, inv) => sum + inv.amountApplied, 0) * 100) / 100;
+      
+      console.log('Allocation details:', { totalAllocationAmount, paymentRemainingAmount });
+      
+      // Check if total allocation exceeds remaining payment amount (with small floating point tolerance)
+      if (totalAllocationAmount > paymentRemainingAmount + 0.01) {
+        await client.query('ROLLBACK');
+        console.log('Allocation exceeds remaining amount:', { totalAllocationAmount, paymentRemainingAmount });
+        return res.status(400).json({ 
+          success: false, 
+          message: `Total allocation (${totalAllocationAmount}) exceeds remaining payment amount (${paymentRemainingAmount})` 
+        });
+      }
+      
+      // Process each invoice allocation
+      for (const allocation of invoiceAllocations) {
+        console.log('Processing allocation:', allocation);
+        
+        // Get invoice details
+        const invoiceQuery = 'SELECT * FROM invoices WHERE id = $1';
+        const invoiceResult = await client.query(invoiceQuery, [allocation.invoiceId]);
+        
+        if (invoiceResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ success: false, message: `Invoice with ID ${allocation.invoiceId} not found` });
+        }
+        
+        // Round allocation amount to avoid floating point issues
+        const roundedAmount = Math.round(allocation.amountApplied * 100) / 100;
+        
+        // Insert allocation record
+        const insertAllocationQuery = `
+          INSERT INTO payment_allocations (payment_id, invoice_id, amount_applied, created_at)
+          VALUES ($1, $2, $3, NOW())
+        `;
+        
+        await client.query(insertAllocationQuery, [paymentId, allocation.invoiceId, roundedAmount]);
+        console.log(`Created allocation: Payment ${paymentId} -> Invoice ${allocation.invoiceId}, Amount: ${roundedAmount}`);
+        
+        // Update invoice paid amount
+        const updateInvoiceQuery = `
+          UPDATE invoices SET 
+            paid_amount = (
+              SELECT COALESCE(SUM(amount_applied), 0) 
+              FROM payment_allocations 
+              WHERE invoice_id = $1
+            ),
+            outstanding_amount = total_amount - (
+              SELECT COALESCE(SUM(amount_applied), 0) 
+              FROM payment_allocations 
+              WHERE invoice_id = $1
+            )
+          WHERE id = $1
+        `;
+        
+        await client.query(updateInvoiceQuery, [allocation.invoiceId]);
+        console.log(`Updated invoice ${allocation.invoiceId} amounts`);
+      }
+      
+      // Update payment allocated and unallocated amounts
+      const updatePaymentQuery = `
+        UPDATE payments SET 
+          allocated_amount = (
+            SELECT COALESCE(SUM(amount_applied), 0) 
+            FROM payment_allocations 
+            WHERE payment_id = $1
+          ),
+          unallocated_amount = amount - (
+            SELECT COALESCE(SUM(amount_applied), 0) 
+            FROM payment_allocations 
+            WHERE payment_id = $1
+          )
+        WHERE id = $1
+      `;
+      
+      await client.query(updatePaymentQuery, [paymentId]);
+      console.log(`Updated payment ${paymentId} amounts`);
+      
+      // Commit transaction
+      await client.query('COMMIT');
+      
+      res.json({
+        success: true,
+        message: 'Payment allocated successfully',
+        paymentId: paymentId,
+        allocations: invoiceAllocations.length
+      });
+      
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error allocating payment:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to allocate payment',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
  * Get all payments
  */
 router.get('/payments', ensureAuthenticated, async (req: Request, res: Response) => {
