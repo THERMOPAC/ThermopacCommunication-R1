@@ -41,7 +41,8 @@ simplePaymentAllocationApi.post('/allocate-payment', ensureAuthenticated, async 
     }
     
     const payment = paymentResult.rows[0];
-    const paymentRemainingAmount = payment.unallocated_amount || payment.amount - (payment.allocated_amount || 0);
+    // Round to 2 decimal places to handle floating point precision issues
+    const paymentRemainingAmount = Math.round((payment.unallocated_amount || payment.amount - (payment.allocated_amount || 0)) * 100) / 100;
     
     console.log('Payment details:', { 
       id: payment.id, 
@@ -51,8 +52,8 @@ simplePaymentAllocationApi.post('/allocate-payment', ensureAuthenticated, async 
       calculated: paymentRemainingAmount 
     });
     
-    // Calculate total allocation amount
-    const totalAllocationAmount = invoices.reduce((sum, inv) => sum + inv.allocationAmount, 0);
+    // Calculate total allocation amount and round to 2 decimal places
+    const totalAllocationAmount = Math.round(invoices.reduce((sum, inv) => sum + inv.allocationAmount, 0) * 100) / 100;
     
     console.log('Allocation details:', { totalAllocationAmount, paymentRemainingAmount });
     
@@ -88,14 +89,15 @@ simplePaymentAllocationApi.post('/allocate-payment', ensureAuthenticated, async 
         });
       }
       
-      // Check if allocation amount exceeds outstanding amount
-      const outstandingAmount = invoice.outstanding_amount || invoice.total_amount - (invoice.paid_amount || 0);
+      // Check if allocation amount exceeds outstanding amount (with rounding)
+      const outstandingAmount = Math.round((invoice.outstanding_amount || invoice.total_amount - (invoice.paid_amount || 0)) * 100) / 100;
+      const roundedAllocationAmount = Math.round(allocation.allocationAmount * 100) / 100;
       
-      if (allocation.allocationAmount > outstandingAmount) {
+      if (roundedAllocationAmount > outstandingAmount + 0.01) {
         await client.query('ROLLBACK');
         return res.status(400).json({ 
           success: false, 
-          message: `Allocation amount (${allocation.allocationAmount}) for invoice ${invoice.invoice_number} exceeds outstanding amount (${outstandingAmount})` 
+          message: `Allocation amount (${roundedAllocationAmount}) for invoice ${invoice.invoice_number} exceeds outstanding amount (${outstandingAmount})` 
         });
       }
       
