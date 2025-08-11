@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -48,12 +48,12 @@ export default function PMAPage() {
   const queryClient = useQueryClient();
 
   // Fetch PMA documents
-  const { data: pmaDocuments = [], isLoading } = useQuery({
+  const { data: pmaDocuments = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/quality/pma'],
   });
 
   // Fetch next available PMA number
-  const { data: nextPmaNumber } = useQuery({
+  const { data: nextPmaNumber } = useQuery<{ pmaNumber: string }>({
     queryKey: ['/api/quality/pma/next-number'],
     enabled: isAddDialogOpen, // Only fetch when dialog is open
   });
@@ -416,6 +416,9 @@ export default function PMAPage() {
                 <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Create New PMA Document</DialogTitle>
+                    <DialogDescription>
+                      Fill in the details below to create a new PMA (Particular Material Appraisal) document.
+                    </DialogDescription>
                   </DialogHeader>
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleAddPMA)} className="space-y-4">
@@ -827,6 +830,9 @@ export default function PMAPage() {
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit PMA Document</DialogTitle>
+              <DialogDescription>
+                Update the details of the existing PMA document.
+              </DialogDescription>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleUpdatePMA)} className="space-y-4">
