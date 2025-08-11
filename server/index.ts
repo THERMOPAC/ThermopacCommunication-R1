@@ -63,10 +63,10 @@ app.post('/api/approve-writeoff/:id', async (req: any, res: any) => {
   }
 });
 
-// Add fixed allocation endpoint that properly updates payment amounts (PRIORITY ENDPOINT)
-const financeRoutesFixed = await import('./finance-routes-fixed');
-app.use('/api/finance', financeRoutesFixed.default);
-console.log('🔥 PRIORITY: Fixed finance routes with payment allocation registered at /api/finance');
+// Finance routes will be registered through registerRoutes() - removing duplicate registration to prevent conflicts
+// const financeRoutesFixed = await import('./finance-routes-fixed');
+// app.use('/api/finance', financeRoutesFixed.default);
+console.log('🔥 PRIORITY: Finance routes will be registered through registerRoutes() to prevent conflicts');
 
 // PRIORITY ENDPOINT: Final Dossier routes - Must be registered before Vite catch-all
 app.get('/api/quality/final-dossier/test', (req: any, res: any) => {
