@@ -5041,13 +5041,33 @@ export const pmaDocumentSchema = createInsertSchema(pmaDocuments)
       // Carbon Steel
       'SA-516 Gr 60', 'SA-516 Gr 70', 'SA-106 Gr B', 'SA-106 Gr C', 
       'SA-36', 'SA-537 Cl 1', 'SA-537 Cl 2', 'SA-53 Gr B',
+      'SA-105', 'SA-234 WPB', 'ASTM A36', 'ASTM A106 Gr B',
+      'ASTM A333 Gr 6', 'ASTM A515 Gr 70', 'Gr.B',
       // Stainless Steel
       'SA-240 TP 304', 'SA-240 TP 304L', 'SA-240 TP 316', 'SA-240 TP 316L',
       'SA-240 TP 321', 'SA-240 TP 347', 'SA-312 TP 304', 'SA-312 TP 316L',
+      'SA-240 Type 304', 'SA-240 Type 304L', 'SA-240 Type 316', 'SA-240 Type 316L',
+      'SA-240 Type 321', 'SA-312 TP304', 'SA-312 TP304L', 'SA-312 TP316',
+      'SA-312 TP316L', 'SA-213 TP304', 'SA-213 TP304L', 'SA-213 TP316',
+      'SA-213 TP316L', 'SA-182 F304', 'SA-182 F316', 'SA-403 Gr. WP 316L',
       // Alloy Steel
       'SA-335 P11', 'SA-335 P22', 'SA-335 P91', 'SA-213 T11', 'SA-213 T22',
+      'SA-387 Gr 11 Cl 2', 'SA-387 Gr 22 Cl 2', 'SA-182 F11', 'SA-182 F22', 
+      'SA-234 WP11', 'SA-234 WP22',
+      // API Grades
+      'API 5L Gr B', 'API 5L X42', 'API 5L X52', 'API 5L X60',
+      'API 5L X65', 'API 5L X70',
+      // Duplex Steel
+      'ASTM A240 UNS S31803 (2205)', 'ASTM A240 UNS S32750 (2507)',
+      'ASTM A790 UNS S31803', 'ASTM A790 UNS S32750',
+      // Bolts
+      'SA-193 B7', 'SA-193 Gr. B8', 'SA-325 Type 1', 'SA-490 Type 1',
+      // Nuts
+      'SA-194 Gr. 8', 'SA-194 Gr. 2H', 'SA-194 2H', 'SA-194 7', 'SA-563 Grade A',
+      // Gaskets
+      'AF 159',
       // Other grades
-      'A105', 'A350 LF2', 'A182 F304', 'A182 F316L', 'SA-182 F316'
+      'A105', 'A350 LF2', 'A182 F304', 'A182 F316L'
     ]),
     certifiedBy: z.string().min(1, 'Certified By is required'),
     status: z.enum(['Draft', 'Active', 'Inactive']).default('Draft'),
