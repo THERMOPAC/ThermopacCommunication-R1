@@ -239,10 +239,19 @@ router.get('/calendar/upcoming-events', ensureAuthenticated, async (req, res) =>
     const [user] = await db
       .select({
         googleCalendarConnected: users.googleCalendarConnected,
-        googleCalendarSyncEnabled: users.googleCalendarSyncEnabled
+        googleCalendarSyncEnabled: users.googleCalendarSyncEnabled,
+        googleAccessToken: users.googleAccessToken,
+        googleTokenExpiresAt: users.googleTokenExpiresAt
       })
       .from(users)
       .where(eq(users.id, userId));
+
+    console.log('User Google Calendar status:', {
+      connected: user?.googleCalendarConnected,
+      syncEnabled: user?.googleCalendarSyncEnabled,
+      hasAccessToken: !!user?.googleAccessToken,
+      tokenExpiresAt: user?.googleTokenExpiresAt
+    });
 
     if (!user?.googleCalendarConnected) {
       return res.status(400).json({

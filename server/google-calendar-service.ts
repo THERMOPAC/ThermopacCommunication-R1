@@ -171,6 +171,32 @@ export class GoogleCalendarService {
 
       const events = response.data.items || [];
       console.log(`Retrieved ${events.length} total events from Google Calendar`);
+      
+      // Detailed logging for debugging
+      if (events.length > 0) {
+        console.log('First few events:', events.slice(0, 3).map(e => ({
+          id: e.id,
+          summary: e.summary,
+          start: e.start,
+          status: e.status
+        })));
+      } else {
+        console.log('No events found. API Response status:', response.status);
+        console.log('API Response data keys:', Object.keys(response.data || {}));
+        
+        // Try a broader search to see if there are any events at all
+        try {
+          const broadResponse = await calendar.events.list({
+            calendarId: 'primary',
+            maxResults: 5,
+            singleEvents: true,
+            orderBy: 'startTime'
+          });
+          console.log(`Broad search found ${broadResponse.data.items?.length || 0} events total`);
+        } catch (broadError) {
+          console.log('Broad search also failed:', broadError.message);
+        }
+      }
 
       // Transform ALL events to our format (not just those with Meet links)
       const transformedEvents = events.map(event => {
