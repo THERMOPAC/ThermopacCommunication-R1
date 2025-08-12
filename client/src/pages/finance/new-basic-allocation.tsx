@@ -81,10 +81,37 @@ function NewBasicAllocationContent() {
   // CRITICAL FIX: Clear selected payment and invoice when customer changes
   // This prevents showing payments/invoices from wrong customers
   useEffect(() => {
+    console.log('Customer changed to:', selectedCustomer);
     setSelectedPayment(null);
     setSelectedInvoice(null);
     setAllocationAmount("");
   }, [selectedCustomer]);
+
+  // CRITICAL FIX: Clear payment if it doesn't belong to selected customer
+  useEffect(() => {
+    if (selectedPayment && selectedCustomer !== "all" && 
+        selectedPayment.customerName !== selectedCustomer) {
+      console.warn('Clearing payment - customer mismatch:', {
+        paymentCustomer: selectedPayment.customerName,
+        selectedCustomer: selectedCustomer
+      });
+      setSelectedPayment(null);
+      setAllocationAmount("");
+    }
+  }, [selectedPayment, selectedCustomer]);
+
+  // CRITICAL FIX: Clear invoice if it doesn't belong to selected customer  
+  useEffect(() => {
+    if (selectedInvoice && selectedCustomer !== "all" && 
+        selectedInvoice.customerName !== selectedCustomer) {
+      console.warn('Clearing invoice - customer mismatch:', {
+        invoiceCustomer: selectedInvoice.customerName,
+        selectedCustomer: selectedCustomer
+      });
+      setSelectedInvoice(null);
+      setAllocationAmount("");
+    }
+  }, [selectedInvoice, selectedCustomer]);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
