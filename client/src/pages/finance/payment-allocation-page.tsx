@@ -113,7 +113,22 @@ export default function PaymentAllocationPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteAllocationId, setDeleteAllocationId] = useState<number | null>(null);
+  const [selectedCustomerFilter, setSelectedCustomerFilter] = useState<string>("all");
   const { toast } = useToast();
+
+  // CRITICAL FIX: Clear selected payment when customer filter changes
+  // This prevents showing payments from wrong customers
+  useEffect(() => {
+    if (selectedPayment && selectedCustomerFilter !== "all" && 
+        selectedPayment.customerName !== selectedCustomerFilter) {
+      console.warn('Clearing payment due to customer filter change:', {
+        paymentCustomer: selectedPayment.customerName,
+        selectedFilter: selectedCustomerFilter
+      });
+      setSelectedPayment(null);
+      setSelectedInvoices([]);
+    }
+  }, [selectedCustomerFilter, selectedPayment]);
 
   // Format currency values
   const formatCurrency = (amount: number) => {
@@ -148,7 +163,7 @@ export default function PaymentAllocationPage() {
 
   // Get outstanding invoices that can receive payment allocations
   const { data: invoicesData, isLoading: invoicesLoading } = useQuery({
-    queryKey: ['/api/finance/outstanding-invoices', selectedPayment?.paymentType, selectedPayment?.customerName],
+    queryKey: ['/api/finance/outstanding-invoices', selectedPayment?.paymentType, selectedCustomerFilter],
     queryFn: async () => {
       // Only fetch invoices if a payment is selected
       if (!selectedPayment) return { invoices: [] };
@@ -166,11 +181,12 @@ export default function PaymentAllocationPage() {
       }
       const data = await response.json();
       
-      // CRITICAL FIX: Filter invoices by the same customer as the selected payment
-      // This ensures users only see invoices from the same customer as their selected payment
-      if (data.invoices && selectedPayment.customerName) {
+      // CRITICAL FIX: Filter invoices by the customer filter (not just selected payment)
+      // This ensures users only see invoices matching the current customer filter
+      const filterCustomer = selectedCustomerFilter !== "all" ? selectedCustomerFilter : selectedPayment.customerName;
+      if (data.invoices && filterCustomer) {
         data.invoices = data.invoices.filter((invoice: any) => 
-          invoice.customerName === selectedPayment.customerName
+          invoice.customerName === filterCustomer
         );
       }
       
@@ -494,7 +510,7 @@ export default function PaymentAllocationPage() {
   const payments: Payment[] = useMemo(() => {
     if (!paymentsData || !paymentsData.advances) return [];
     
-    return paymentsData.advances.map((payment: any) => ({
+    let filteredPayments = paymentsData.advances.map((payment: any) => ({
       id: payment.id,
       paymentReference: payment.paymentReference || payment.irm_no || `PAY-${payment.id}`,
       paymentType: payment.paymentType,
@@ -506,6 +522,26 @@ export default function PaymentAllocationPage() {
       status: payment.allocationStatus || 'Unallocated',
       customerName: payment.customerName
     }));
+
+    // CRITICAL FIX: Filter payments by selected customer
+    if (selectedCustomerFilter !== "all") {
+      filteredPayments = filteredPayments.filter(payment => 
+        payment.customerName === selectedCustomerFilter
+      );
+    }
+
+    return filteredPayments;
+  }, [paymentsData, selectedCustomerFilter]);
+
+  // Get unique customer names for the filter dropdown
+  const customerOptions = useMemo(() => {
+    if (!paymentsData || !paymentsData.advances) return [];
+    
+    const uniqueCustomers = [...new Set(paymentsData.advances.map((payment: any) => payment.customerName))]
+      .filter(Boolean)
+      .sort();
+    
+    return [{ value: "all", label: "All Customers" }, ...uniqueCustomers.map(customer => ({ value: customer, label: customer }))];
   }, [paymentsData]);
 
   // Get allocations for a specific payment with proper typing
@@ -564,12 +600,44 @@ export default function PaymentAllocationPage() {
           </TabsList>
 
           <TabsContent value="allocate" className="space-y-6">
+            {/* Customer Filter Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Customer Filter</CardTitle>
+                <CardDescription>
+                  Filter payments and invoices by customer
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4">
+                  <label htmlFor="customer-filter" className="text-sm font-medium min-w-fit">
+                    Customer:
+                  </label>
+                  <Select value={selectedCustomerFilter} onValueChange={setSelectedCustomerFilter}>
+                    <SelectTrigger className="w-[300px]">
+                      <SelectValue placeholder="Select customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customerOptions.map((customer) => (
+                        <SelectItem key={customer.value} value={customer.value}>
+                          {customer.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Payment Selection Section */}
             <Card>
               <CardHeader>
-                <CardTitle>Select Payment to Allocate</CardTitle>
+                <CardTitle>Unallocated Payments</CardTitle>
                 <CardDescription>
-                  Choose a payment with available funds to allocate to invoices
+                  {selectedCustomerFilter === "all" 
+                    ? "Select a payment to allocate"
+                    : `Payments for ${selectedCustomerFilter}`
+                  }
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -578,9 +646,12 @@ export default function PaymentAllocationPage() {
                 ) : payments.length === 0 ? (
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>No unallocated payments available</AlertTitle>
+                    <AlertTitle>No unallocated payments found</AlertTitle>
                     <AlertDescription>
-                      All payments have been fully allocated to invoices.
+                      {selectedCustomerFilter === "all" 
+                        ? "All payments have been fully allocated to invoices."
+                        : `No unallocated payments found for this customer.`
+                      }
                     </AlertDescription>
                   </Alert>
                 ) : (
@@ -659,8 +730,8 @@ export default function PaymentAllocationPage() {
               </CardContent>
             </Card>
 
-            {/* Invoice Selection Section - Only visible if a payment is selected */}
-            {selectedPayment && (
+            {/* Invoice Selection Section - Only visible if a payment is selected AND matches customer filter */}
+            {selectedPayment && (selectedCustomerFilter === "all" || selectedPayment.customerName === selectedCustomerFilter) && (
               <Card>
                 <CardHeader>
                   <CardTitle>Select Invoices to Allocate Payment</CardTitle>
