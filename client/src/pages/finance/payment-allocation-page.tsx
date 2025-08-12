@@ -211,7 +211,7 @@ export default function PaymentAllocationPage() {
         currency: invoice.currency || 'USD',
         status: invoice.status || 'Unpaid',
         customerName: invoice.customerName
-      })).filter(invoice => 
+      })).filter((invoice: any) => 
         invoice.invoiceType === selectedPayment.paymentType && 
         invoice.outstandingAmount > 0
       );
@@ -235,23 +235,7 @@ export default function PaymentAllocationPage() {
     }
   });
 
-  // Transform the API response to match our component's expected format
-  const payments: Payment[] = useMemo(() => {
-    if (!paymentsData || !paymentsData.advances) return [];
-    
-    return paymentsData.advances.map((payment: any) => ({
-      id: payment.id,
-      paymentReference: payment.paymentReference || payment.irm_no || `PAY-${payment.id}`,
-      paymentType: payment.paymentType,
-      paymentDate: payment.paymentDate,
-      amount: parseFloat(payment.amount),
-      allocatedAmount: parseFloat(payment.allocatedAmount || '0'),
-      remainingAmount: parseFloat(payment.unallocatedAmount || '0'),
-      currency: payment.currency || 'USD',
-      status: payment.allocationStatus || 'Unallocated',
-      customerName: payment.customerName
-    }));
-  }, [paymentsData]);
+
 
   // Check if there are available payments for the selected payment's customer
   const hasAvailablePaymentsForCustomer = useMemo(() => {
@@ -714,8 +698,8 @@ export default function PaymentAllocationPage() {
               </CardContent>
             </Card>
 
-            {/* Invoice Selection Section - Only visible if a payment is selected */}
-            {selectedPayment && (
+            {/* Invoice Selection Section - Only visible if a payment is selected AND customer has available payments */}
+            {selectedPayment && hasAvailablePaymentsForCustomer && (
               <Card>
                 <CardHeader>
                   <CardTitle>Select Invoices to Allocate Payment</CardTitle>
