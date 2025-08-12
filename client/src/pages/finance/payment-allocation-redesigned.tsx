@@ -65,6 +65,13 @@ export default function PaymentAllocationRedesigned() {
     }
   }, [selectedPayment]);
 
+  // Clear selections when customer changes
+  useEffect(() => {
+    setSelectedPayment(null);
+    setSelectedInvoice(null);
+    setAllocateAmount('');
+  }, [selectedCustomerId]);
+
   // Fetch outstanding invoices
   const { data: invoicesData, isLoading: invoicesLoading } = useQuery({
     queryKey: ['/api/finance/outstanding-invoices', selectedCustomerId],
