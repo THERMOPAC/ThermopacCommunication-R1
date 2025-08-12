@@ -78,6 +78,14 @@ function NewBasicAllocationContent() {
   const [allocationAmount, setAllocationAmount] = useState<string>("");
   const [selectedCustomer, setSelectedCustomer] = useState<string>("all");
   
+  // CRITICAL FIX: Clear selected payment and invoice when customer changes
+  // This prevents showing payments/invoices from wrong customers
+  useEffect(() => {
+    setSelectedPayment(null);
+    setSelectedInvoice(null);
+    setAllocationAmount("");
+  }, [selectedCustomer]);
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
