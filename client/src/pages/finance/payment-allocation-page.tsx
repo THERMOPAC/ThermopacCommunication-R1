@@ -825,8 +825,10 @@ export default function PaymentAllocationPage() {
                           </Table>
                         </div>
 
-                        {selectedInvoices.length > 0 && (
+                        {/* Allocation Summary and Actions - Only show when both payment and invoices are selected */}
+                        {selectedPayment && selectedInvoices.length > 0 && (
                           <>
+                            {/* Allocation Amount Card */}
                             <div className="bg-muted p-4 rounded-md">
                               <div className="flex justify-between items-center">
                                 <div>
@@ -861,6 +863,7 @@ export default function PaymentAllocationPage() {
                               )}
                             />
 
+                            {/* Allocate Payment Button */}
                             <div className="flex justify-end gap-4">
                               <Button type="button" variant="outline" onClick={resetAllocation}>
                                 Cancel
