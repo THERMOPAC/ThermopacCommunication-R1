@@ -465,8 +465,10 @@ function NewBasicAllocationContent() {
         </Card>
       </div>
 
-      {/* Allocation Section */}
-      {selectedPayment && selectedInvoice && (
+      {/* Allocation Section - Only show if payment and invoice are from same customer and customer filtering allows */}
+      {selectedPayment && selectedInvoice && 
+       selectedPayment.customerName === selectedInvoice.customerName &&
+       (selectedCustomer === "all" || selectedPayment.customerName === selectedCustomer) && (
         <Card>
           <CardHeader>
             <CardTitle>Allocate Payment</CardTitle>
