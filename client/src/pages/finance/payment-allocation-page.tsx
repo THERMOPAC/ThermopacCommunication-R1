@@ -148,7 +148,7 @@ export default function PaymentAllocationPage() {
 
   // Get outstanding invoices that can receive payment allocations
   const { data: invoicesData, isLoading: invoicesLoading } = useQuery({
-    queryKey: ['/api/finance/outstanding-invoices', selectedPayment?.paymentType, selectedPayment?.customerName],
+    queryKey: ['/api/finance/outstanding-invoices', selectedPayment?.id, selectedPayment?.paymentType, selectedPayment?.customerName],
     queryFn: async () => {
       // Only fetch invoices if a payment is selected
       if (!selectedPayment) return { invoices: [] };
@@ -635,10 +635,15 @@ export default function PaymentAllocationPage() {
                                 <Checkbox 
                                   checked={selectedPayment?.id === payment.id}
                                   onCheckedChange={() => {
-                                    setSelectedPayment(
-                                      selectedPayment?.id === payment.id ? null : payment
-                                    );
+                                    const newPayment = selectedPayment?.id === payment.id ? null : payment;
+                                    setSelectedPayment(newPayment);
                                     setSelectedInvoices([]);
+                                    // Reset form completely when switching payments
+                                    form.reset({
+                                      paymentId: newPayment?.id || 0,
+                                      invoices: [],
+                                      comment: ''
+                                    });
                                   }}
                                   disabled={payment.remainingAmount <= 0}
                                 />
