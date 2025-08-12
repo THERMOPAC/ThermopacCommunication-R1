@@ -78,12 +78,64 @@ function NewBasicAllocationContent() {
   const [allocationAmount, setAllocationAmount] = useState<string>("");
   const [selectedCustomer, setSelectedCustomer] = useState<string>("all");
   
+  // CRITICAL FIX: Clear selected payment and invoice when customer changes
+  // This prevents showing payments/invoices from wrong customers
+  useEffect(() => {
+    console.log('Customer changed to:', selectedCustomer);
+    setSelectedPayment(null);
+    setSelectedInvoice(null);
+    setAllocationAmount("");
+  }, [selectedCustomer]);
+
+  // CRITICAL FIX: Clear payment if it doesn't belong to selected customer
+  useEffect(() => {
+    if (selectedPayment && selectedCustomer !== "all" && 
+        selectedPayment.customerName !== selectedCustomer) {
+      console.warn('Clearing payment - customer mismatch:', {
+        paymentCustomer: selectedPayment.customerName,
+        selectedCustomer: selectedCustomer
+      });
+      setSelectedPayment(null);
+      setAllocationAmount("");
+    }
+  }, [selectedPayment, selectedCustomer]);
+
+  // CRITICAL FIX: Clear invoice if it doesn't belong to selected customer  
+  useEffect(() => {
+    if (selectedInvoice && selectedCustomer !== "all" && 
+        selectedInvoice.customerName !== selectedCustomer) {
+      console.warn('Clearing invoice - customer mismatch:', {
+        invoiceCustomer: selectedInvoice.customerName,
+        selectedCustomer: selectedCustomer
+      });
+      setSelectedInvoice(null);
+      setAllocationAmount("");
+    }
+  }, [selectedInvoice, selectedCustomer]);
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // CRITICAL FIX: Ensure payment and invoice are from the same customer
+  // Clear mismatched selections to prevent cross-customer allocations
+  useEffect(() => {
+    if (selectedPayment && selectedInvoice && 
+        selectedPayment.customerName !== selectedInvoice.customerName) {
+      // If payment and invoice are from different customers, clear both selections
+      console.warn('Customer mismatch detected:', {
+        payment: selectedPayment.customerName,
+        invoice: selectedInvoice.customerName
+      });
+      setSelectedPayment(null);
+      setSelectedInvoice(null);
+      setAllocationAmount("");
+    }
+  }, [selectedPayment, selectedInvoice]);
+
   // Auto-calculate allocation amount based on the specified logic
   useEffect(() => {
-    if (selectedPayment && selectedInvoice) {
+    if (selectedPayment && selectedInvoice && 
+        selectedPayment.customerName === selectedInvoice.customerName) {
       const paymentUnallocated = parseFloat(selectedPayment.unallocatedAmount.toString());
       const invoiceOutstanding = parseFloat(selectedInvoice.outstanding_amount.toString());
       
@@ -440,8 +492,10 @@ function NewBasicAllocationContent() {
         </Card>
       </div>
 
-      {/* Allocation Section */}
-      {selectedPayment && selectedInvoice && (
+      {/* Allocation Section - Only show if payment and invoice are from same customer and customer filtering allows */}
+      {selectedPayment && selectedInvoice && 
+       selectedPayment.customerName === selectedInvoice.customerName &&
+       (selectedCustomer === "all" || selectedPayment.customerName === selectedCustomer) && (
         <Card>
           <CardHeader>
             <CardTitle>Allocate Payment</CardTitle>
