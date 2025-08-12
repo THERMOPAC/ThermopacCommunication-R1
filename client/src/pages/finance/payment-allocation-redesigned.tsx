@@ -394,7 +394,7 @@ export default function PaymentAllocationRedesigned() {
         </div>
       )}
 
-      {/* Allocation Card */}
+      {/* Allocation Card - Only visible when both Unallocated Payments and Outstanding Invoices are selected */}
       {selectedPayment && selectedInvoice && (
         <Card>
           <CardHeader>
