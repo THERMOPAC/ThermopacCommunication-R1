@@ -207,8 +207,32 @@ export default function PaymentAllocationPage() {
     }
   }, [selectedPayment, invoicesData, form]);
 
+  // Check if there are available payments for the selected payment's customer
+  const hasAvailablePaymentsForCustomer = useMemo(() => {
+    if (!selectedPayment) return false;
+    
+    // Filter payments by the same customer as selected payment
+    const customerPayments = payments.filter(payment => 
+      payment.customerName === selectedPayment.customerName && 
+      payment.remainingAmount > 0
+    );
+    
+    console.log('Payment data for filtering:', customerPayments);
+    return customerPayments.length > 0;
+  }, [payments, selectedPayment]);
+
   // Toggle invoice selection
   const toggleInvoice = (invoice: Invoice) => {
+    // VALIDATION: Prevent invoice selection if no available payments for this customer
+    if (!hasAvailablePaymentsForCustomer) {
+      toast({
+        title: "No Available Payments",
+        description: `There are no available payments for customer "${selectedPayment?.customerName}". Cannot allocate to invoices.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     const isSelected = selectedInvoices.some(i => i.id === invoice.id);
     
     if (isSelected) {
@@ -678,6 +702,15 @@ export default function PaymentAllocationPage() {
                         for this customer.
                       </AlertDescription>
                     </Alert>
+                  ) : !hasAvailablePaymentsForCustomer ? (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>No Available Payments</AlertTitle>
+                      <AlertDescription>
+                        There are no available payments for customer "{selectedPayment.customerName}". 
+                        Invoice selection is disabled. Please select a payment with available funds first.
+                      </AlertDescription>
+                    </Alert>
                   ) : (
                     <Form {...form}>
                       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -710,7 +743,9 @@ export default function PaymentAllocationPage() {
                                     <TableCell>
                                       <Checkbox 
                                         checked={isSelected}
+                                        disabled={!hasAvailablePaymentsForCustomer}
                                         onCheckedChange={() => toggleInvoice(invoice)}
+                                        className={!hasAvailablePaymentsForCustomer ? "opacity-50 cursor-not-allowed" : ""}
                                       />
                                     </TableCell>
                                     <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
