@@ -182,6 +182,22 @@ export default function PaymentAllocationPage() {
   // Filter invoices based on selected payment
   useEffect(() => {
     if (selectedPayment && invoicesData?.invoices?.length > 0) {
+      // CRITICAL FIX: Check if selected payment's customer has any available payments
+      const customerPayments = payments.filter(payment => 
+        payment.customerName === selectedPayment.customerName && 
+        payment.remainingAmount > 0
+      );
+      
+      // If no payments are available for this customer, clear the selected payment
+      if (customerPayments.length === 0) {
+        console.log(`No available payments for customer "${selectedPayment.customerName}". Clearing selected payment.`);
+        setSelectedPayment(null);
+        setSelectedInvoices([]);
+        setFilteredInvoices([]);
+        form.reset();
+        return;
+      }
+      
       // Transform API data to match our component's expected format
       const filtered = invoicesData.invoices.map((invoice: any) => ({
         id: invoice.id,
@@ -205,7 +221,7 @@ export default function PaymentAllocationPage() {
     } else {
       setFilteredInvoices([]);
     }
-  }, [selectedPayment, invoicesData, form]);
+  }, [selectedPayment, invoicesData, payments, form]);
 
   // Get payments with unallocated amounts that can be allocated to invoices
   const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
@@ -253,6 +269,16 @@ export default function PaymentAllocationPage() {
 
   // Toggle invoice selection
   const toggleInvoice = (invoice: Invoice) => {
+    // CRITICAL VALIDATION: Prevent invoice selection if no selected payment
+    if (!selectedPayment) {
+      toast({
+        title: "No Payment Selected",
+        description: "Please select a payment first before allocating to invoices.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // VALIDATION: Prevent invoice selection if no available payments for this customer
     if (!hasAvailablePaymentsForCustomer) {
       toast({
