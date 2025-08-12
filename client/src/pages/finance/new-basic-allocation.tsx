@@ -89,9 +89,26 @@ function NewBasicAllocationContent() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // CRITICAL FIX: Ensure payment and invoice are from the same customer
+  // Clear mismatched selections to prevent cross-customer allocations
+  useEffect(() => {
+    if (selectedPayment && selectedInvoice && 
+        selectedPayment.customerName !== selectedInvoice.customerName) {
+      // If payment and invoice are from different customers, clear both selections
+      console.warn('Customer mismatch detected:', {
+        payment: selectedPayment.customerName,
+        invoice: selectedInvoice.customerName
+      });
+      setSelectedPayment(null);
+      setSelectedInvoice(null);
+      setAllocationAmount("");
+    }
+  }, [selectedPayment, selectedInvoice]);
+
   // Auto-calculate allocation amount based on the specified logic
   useEffect(() => {
-    if (selectedPayment && selectedInvoice) {
+    if (selectedPayment && selectedInvoice && 
+        selectedPayment.customerName === selectedInvoice.customerName) {
       const paymentUnallocated = parseFloat(selectedPayment.unallocatedAmount.toString());
       const invoiceOutstanding = parseFloat(selectedInvoice.outstanding_amount.toString());
       
