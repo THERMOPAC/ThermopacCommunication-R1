@@ -207,6 +207,36 @@ export default function PaymentAllocationPage() {
     }
   }, [selectedPayment, invoicesData, form]);
 
+  // Get payments with unallocated amounts that can be allocated to invoices
+  const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
+    queryKey: ['/api/finance/unallocated-advances'],
+    queryFn: async () => {
+      const response = await fetch('/api/finance/unallocated-advances');
+      if (!response.ok) {
+        throw new Error('Failed to fetch unallocated payments');
+      }
+      return await response.json();
+    }
+  });
+
+  // Transform the API response to match our component's expected format
+  const payments: Payment[] = useMemo(() => {
+    if (!paymentsData || !paymentsData.advances) return [];
+    
+    return paymentsData.advances.map((payment: any) => ({
+      id: payment.id,
+      paymentReference: payment.paymentReference || payment.irm_no || `PAY-${payment.id}`,
+      paymentType: payment.paymentType,
+      paymentDate: payment.paymentDate,
+      amount: parseFloat(payment.amount),
+      allocatedAmount: parseFloat(payment.allocatedAmount || '0'),
+      remainingAmount: parseFloat(payment.unallocatedAmount || '0'),
+      currency: payment.currency || 'USD',
+      status: payment.allocationStatus || 'Unallocated',
+      customerName: payment.customerName
+    }));
+  }, [paymentsData]);
+
   // Check if there are available payments for the selected payment's customer
   const hasAvailablePaymentsForCustomer = useMemo(() => {
     if (!selectedPayment) return false;
@@ -501,36 +531,6 @@ export default function PaymentAllocationPage() {
     setSelectedInvoices([]);
     form.reset();
   };
-
-  // Get payments with unallocated amounts that can be allocated to invoices
-  const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
-    queryKey: ['/api/finance/unallocated-advances'],
-    queryFn: async () => {
-      const response = await fetch('/api/finance/unallocated-advances');
-      if (!response.ok) {
-        throw new Error('Failed to fetch unallocated payments');
-      }
-      return await response.json();
-    }
-  });
-
-  // Transform the API response to match our component's expected format
-  const payments: Payment[] = useMemo(() => {
-    if (!paymentsData || !paymentsData.advances) return [];
-    
-    return paymentsData.advances.map((payment: any) => ({
-      id: payment.id,
-      paymentReference: payment.paymentReference || payment.irm_no || `PAY-${payment.id}`,
-      paymentType: payment.paymentType,
-      paymentDate: payment.paymentDate,
-      amount: parseFloat(payment.amount),
-      allocatedAmount: parseFloat(payment.allocatedAmount || '0'),
-      remainingAmount: parseFloat(payment.unallocatedAmount || '0'),
-      currency: payment.currency || 'USD',
-      status: payment.allocationStatus || 'Unallocated',
-      customerName: payment.customerName
-    }));
-  }, [paymentsData]);
 
   // Get allocations for a specific payment with proper typing
   const getPaymentAllocations = async (paymentId: number): Promise<Allocation[]> => {
