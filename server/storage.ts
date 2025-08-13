@@ -452,7 +452,7 @@ export class DatabaseStorage implements IStorage {
 
   // Optimized method for user selection - only returns essential fields
   async getUsersForSelection(): Promise<{id: number, username: string, role: string, firstName?: string, lastName?: string}[]> {
-    const users = await db.select({
+    const usersList = await db.select({
       id: users.id,
       username: users.username,
       role: users.role,
@@ -460,8 +460,8 @@ export class DatabaseStorage implements IStorage {
       lastName: users.lastName
     }).from(users).where(eq(users.isActive, true));
     
-    console.log(`Getting ${users.length} users for selection (optimized)`);
-    return users;
+    console.log(`Getting ${usersList.length} users for selection (optimized)`);
+    return usersList;
   }
 
   async getTask(id: number): Promise<Task | undefined> {
