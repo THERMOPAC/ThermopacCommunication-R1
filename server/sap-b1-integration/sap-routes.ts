@@ -381,6 +381,9 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
 
     // Check Service Layer connection status
     const serviceLayerUrl = process.env.SAP_SERVICE_LAYER_URL || (vpnEnabled ? 'https://192.168.1.100:50000/b1s/v1' : 'https://59.152.52.58:50000/b1s/v1');
+    
+    // Also try public IP if internal IP fails
+    const publicServiceLayerUrl = 'https://59.152.52.58:50000/b1s/v1';
     const sapUsername = process.env.SAP_USERNAME;
     const sapPassword = process.env.SAP_PASSWORD;
     const sapCompanyDb = process.env.SAP_COMPANY_DB;
@@ -420,6 +423,8 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
       process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
       
       console.log('🔐 Attempting HTTPS connection with SSL bypass...');
+      console.log('🎯 Target URL:', `${serviceLayerUrl}/Login`);
+      
       const loginResponse = await fetch(`${serviceLayerUrl}/Login`, {
         method: 'POST',
         headers: {
@@ -431,7 +436,7 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
           UserName: sapUsername,
           Password: sapPassword
         }),
-        signal: AbortSignal.timeout(8000) // 8 second timeout for faster fallback
+        signal: AbortSignal.timeout(30000) // 30 second timeout for internal networks
       });
 
       if (loginResponse.ok) {
@@ -501,7 +506,7 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
             UserName: sapUsername,
             Password: sapPassword
           }),
-          signal: AbortSignal.timeout(6000) // 6 second timeout for HTTP
+          signal: AbortSignal.timeout(25000) // 25 second timeout for HTTP fallback
         });
 
         if (httpLoginResponse.ok) {
@@ -560,7 +565,75 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
       }
     }
 
-    // If we reach here, both HTTPS and HTTP failed
+    // Third attempt: Try public IP (59.152.52.58) if available
+    if (!connectionSuccess && publicServiceLayerUrl !== serviceLayerUrl) {
+      try {
+        console.log('🌐 Attempting connection to public IP:', publicServiceLayerUrl);
+        const publicLoginResponse = await fetch(`${publicServiceLayerUrl}/Login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            CompanyDB: sapCompanyDb,
+            UserName: sapUsername,
+            Password: sapPassword
+          }),
+          signal: AbortSignal.timeout(20000) // 20 second timeout for public IP
+        });
+
+        if (publicLoginResponse.ok) {
+          const loginData = await publicLoginResponse.json();
+          console.log('✅ Public IP HTTPS connection successful');
+          
+          // Test API call
+          const businessPartnersResponse = await fetch(`${publicServiceLayerUrl}/BusinessPartners?$top=1`, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Cookie': `B1SESSION=${loginData.SessionId}; ROUTEID=${loginData.RouteId || '.node1'}`
+            }
+          });
+
+          if (businessPartnersResponse.ok) {
+            console.log('✅ Public IP Service Layer API test successful');
+            return res.json({
+              success: true,
+              status: 'connected_public_ip',
+              message: 'Connected to SAP B1 Service Layer via public IP',
+              connectionType: 'PUBLIC_IP_HTTPS',
+              serviceLayerUrl: publicServiceLayerUrl,
+              sessionId: loginData.SessionId,
+              version: loginData.Version,
+              publicIpFallback: true,
+              vpnStatus,
+              configStatus: {
+                SERVICE_LAYER_URL: true,
+                SAP_USERNAME: true,
+                SAP_PASSWORD: true,
+                SAP_COMPANY_DB: true,
+                SAP_CONNECTION: true,
+                VPN_ENABLED: vpnEnabled,
+                VPN_CONNECTED: vpnStatus?.connected || false,
+                PUBLIC_IP_FALLBACK: true
+              },
+              troubleshooting: [
+                '✅ Connection successful via public IP',
+                '💡 Internal IP (192.168.1.100) not accessible from cloud environment',
+                '🔧 Using external IP (59.152.52.58) for cloud-based access'
+              ],
+              timestamp: new Date().toISOString()
+            });
+          }
+        }
+      } catch (publicError) {
+        console.log('❌ Public IP connection also failed:', publicError.message);
+        connectionError = `All connection attempts failed. Internal IP: timeout, Public IP: ${publicError.message}`;
+      }
+    }
+
+    // If we reach here, all connection attempts failed
     console.log('❌ SAP B1 Service Layer connection test failed:', connectionError);
     
     // Perform telnet tests to check port connectivity

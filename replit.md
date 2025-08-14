@@ -2,8 +2,8 @@
 This project is a comprehensive Quality Management System (QMS) designed for THERMOPAC, a manufacturing and engineering company. Its primary purpose is to streamline operations and provide enterprise-grade insights across various business modules, including project management, production, quality control, inspections, welding procedures, materials, finance, HR, and document management. The system aims to facilitate data-driven decisions and operational improvements.
 
 ## Recent Changes (August 2025)
-- **Vacuum Pump Sizing Tool**: Added comprehensive engineering calculator with accurate physics-based formulas to Design Tools → Mechanical Design tab
-- **SAP B1 Integration**: Fixed CommonJS import errors and improved error handling for connection diagnostics
+- **Vacuum Pump Sizing Tool**: Added comprehensive engineering calculator with accurate physics-based formulas to Design Tools → Mechanical Design tab. Features corrected time-based speed calculation (St = (V/t_sec) × ln(p1/p2)) and proper unit conversion (L/s × 3.6 = m³/h)
+- **SAP B1 Integration**: Fixed CommonJS import errors, improved error handling, increased timeout values (30s HTTPS, 25s HTTP, 20s public IP fallback), and added public IP fallback connectivity (59.152.52.58) for cloud deployment scenarios
 
 # User Preferences
 Preferred communication style: Simple, everyday language.
