@@ -12043,119 +12043,246 @@ function ConcentrationConverter() {
 
 // Vacuum Pump Sizing Calculator Component
 function VacuumPumpSizingCalculator() {
-  const [applicationFlow, setApplicationFlow] = useState("");
+  const [volume, setVolume] = useState("");
+  const [startPressure, setStartPressure] = useState("");
+  const [targetPressure, setTargetPressure] = useState("");
+  const [evacuationTime, setEvacuationTime] = useState("");
+  const [gasLoad, setGasLoad] = useState("");
   const [operatingPressure, setOperatingPressure] = useState("");
+  const [lineConductance, setLineConductance] = useState("");
+  const [safetyFactor, setSafetyFactor] = useState(1.3);
   const [gasType, setGasType] = useState("air");
   const [temperature, setTemperature] = useState("20");
-  const [moisture, setMoisture] = useState("dry");
-  const [operatingCycle, setOperatingCycle] = useState("continuous");
   const [result, setResult] = useState<{
-    requiredFlow: number;
-    recommendedPumpSize: number;
-    pumpType: string;
+    St_Ls: number;
+    St_m3h: number;
+    Shold_Ls: number;
+    Seff_req_Ls: number;
+    Seff_req_m3h: number;
+    Spump_req_Ls: number;
+    Spump_req_m3h: number;
     estimatedPower: number;
-    safetyFactor: number;
+    pumpType: string;
+    warnings: string[];
   } | null>(null);
 
   // Gas properties for common gases
   const gasProperties = {
-    air: { density: 1.225, molarMass: 28.97, name: "Air" },
-    nitrogen: { density: 1.165, molarMass: 28.01, name: "Nitrogen" },
-    steam: { density: 0.598, molarMass: 18.02, name: "Water Vapor" },
-    co2: { density: 1.842, molarMass: 44.01, name: "Carbon Dioxide" },
-    custom: { density: 1.0, molarMass: 30.0, name: "Custom Gas" }
+    air: { name: "Air", dewPoint: -273 },
+    nitrogen: { name: "Nitrogen", dewPoint: -273 },
+    steam: { name: "Water Vapor", dewPoint: 100 },
+    co2: { name: "Carbon Dioxide", dewPoint: -78.5 },
+    custom: { name: "Custom Gas", dewPoint: -273 }
   };
 
   const calculatePumpSize = () => {
-    const Q_actual = parseFloat(applicationFlow); // m³/hr
-    const P_operating = parseFloat(operatingPressure); // mbar abs
-    const T_op = parseFloat(temperature) + 273.15; // Convert to Kelvin
+    const V = parseFloat(volume); // m³
+    const p1 = parseFloat(startPressure); // mbar abs
+    const p2 = parseFloat(targetPressure); // mbar abs
+    const t_min = parseFloat(evacuationTime); // minutes
+    const G = parseFloat(gasLoad) || 0; // mbar·L/s
+    const p_oper = parseFloat(operatingPressure) || p2; // mbar abs
+    const C = parseFloat(lineConductance) || 0; // L/s
+    const T_op = parseFloat(temperature) + 273.15; // Kelvin
     
-    if (!Q_actual || !P_operating || !T_op) return;
+    const warnings: string[] = [];
+    
+    // Validation
+    if (!V || !p1 || !p2 || !t_min) {
+      warnings.push("Please fill in all required fields: Volume, Start pressure, Target pressure, and Evacuation time");
+      setResult(null);
+      return;
+    }
+    
+    if (p2 >= p1) {
+      warnings.push("Target pressure must be lower than start pressure");
+      setResult(null);
+      return;
+    }
+    
+    if (V <= 0 || p1 <= 0 || p2 <= 0 || t_min <= 0) {
+      warnings.push("All values must be positive");
+      setResult(null);
+      return;
+    }
 
-    const gasProps = gasProperties[gasType as keyof typeof gasProperties];
+    // Time-based speed calculation: St = V / (t_sec * ln(p1/p2))
+    const t_sec = t_min * 60; // Convert minutes to seconds
+    const ln_ratio = Math.log(p1 / p2);
+    const St_m3s = V / (t_sec * ln_ratio); // m³/s
+    const St_Ls = St_m3s * 1000; // L/s
+    const St_m3h = St_m3s * 3600; // m³/h
+
+    // Holding requirement: Shold = G / p_oper
+    const Shold_Ls = G / p_oper; // L/s
+
+    // Required effective speed at chamber: Seff,req = max(St, Shold) × safety
+    const Seff_req_Ls = Math.max(St_Ls, Shold_Ls) * safetyFactor;
+    const Seff_req_m3h = Seff_req_Ls * 3.6; // Convert L/s to m³/h
+
+    // Pump speed accounting for conductance
+    let Spump_req_Ls = Seff_req_Ls;
+    let Spump_req_m3h = Seff_req_m3h;
     
-    // Convert to standard conditions (20°C, 1013 mbar)
-    const P_std = 1013; // mbar
-    const T_std = 293.15; // 20°C in Kelvin
-    
-    // Gas law correction for temperature and pressure
-    const Q_std = Q_actual * (P_operating / P_std) * (T_std / T_op);
-    
-    // Safety factors based on operating conditions
-    let safetyFactor = 1.2; // Base safety factor
-    
-    // Adjust safety factor based on conditions
-    if (moisture === "wet") safetyFactor *= 1.3;
-    if (operatingCycle === "intermittent") safetyFactor *= 1.1;
-    if (P_operating < 50) safetyFactor *= 1.4; // High vacuum
-    if (gasProps.molarMass > 40) safetyFactor *= 1.2; // Heavy gases
-    
-    const Q_required = Q_std * safetyFactor;
-    
-    // Determine pump type based on pressure range
+    if (C > 0) {
+      const denominator = (1 / Seff_req_Ls) - (1 / C);
+      if (denominator <= 0) {
+        warnings.push("Conductance too low—enlarge foreline or add port(s)");
+        Spump_req_Ls = Infinity;
+        Spump_req_m3h = Infinity;
+      } else {
+        Spump_req_Ls = 1 / denominator;
+        Spump_req_m3h = Spump_req_Ls * 3.6;
+      }
+    }
+
+    // Power estimation: P ≈ (Qs[m³/s] × Δp[Pa]) / η
+    const Qs = Spump_req_Ls / 1000; // Convert L/s to m³/s
+    const delta_p = 50000; // Default 50 kPa pressure differential in Pa
+    const eta = 0.6; // Default efficiency
+    const estimatedPower = (Qs * delta_p) / eta / 1000; // Convert to kW
+
+    // Determine pump type based on target pressure
     let pumpType = "";
-    if (P_operating > 500) {
-      pumpType = "Positive Displacement (Roots + Mechanical)";
-    } else if (P_operating > 50) {
-      pumpType = "Rotary Vane Pump";
-    } else if (P_operating > 1) {
-      pumpType = "Rotary Vane + Roots Booster";
-    } else if (P_operating > 0.1) {
-      pumpType = "Diffusion Pump + Mechanical Backing";
-    } else {
-      pumpType = "Turbomolecular + Backing Pump";
+    if (p2 >= 1) {
+      if (gasType === "steam" || gasType === "custom") {
+        pumpType = "Rotary vane / dry scroll/screw (consider gas ballast for vapors)";
+      } else {
+        pumpType = "Rotary vane / dry scroll/screw";
+      }
+    } else if (p2 < 1 && p2 > 1e-3) {
+      pumpType = "Add Roots + backing pump";
+    } else if (p2 <= 1e-3) {
+      pumpType = "Turbo + dry backing pump";
     }
-    
-    // Estimate power consumption (simplified)
-    let estimatedPower = 0;
-    if (P_operating > 100) {
-      estimatedPower = Q_required * 0.003; // kW for mechanical pumps
-    } else if (P_operating > 10) {
-      estimatedPower = Q_required * 0.005; // kW for high vacuum
-    } else {
-      estimatedPower = Q_required * 0.008 + 2; // kW for ultra-high vacuum
+
+    // Additional warnings for water vapor/solvents
+    const gasProps = gasProperties[gasType as keyof typeof gasProperties];
+    if ((gasType === "steam" || gasType === "custom") && parseFloat(temperature) <= gasProps.dewPoint + 10) {
+      warnings.push("Gas/vapor near dew point - consider pre-condenser or gas ballast feature");
     }
-    
-    // Round to standard pump sizes
-    const standardSizes = [10, 16, 25, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500];
-    const recommendedSize = standardSizes.find(size => size >= Q_required) || standardSizes[standardSizes.length - 1];
-    
+
     setResult({
-      requiredFlow: Q_required,
-      recommendedPumpSize: recommendedSize,
-      pumpType: pumpType,
-      estimatedPower: estimatedPower,
-      safetyFactor: safetyFactor
+      St_Ls,
+      St_m3h,
+      Shold_Ls,
+      Seff_req_Ls,
+      Seff_req_m3h,
+      Spump_req_Ls: isFinite(Spump_req_Ls) ? Spump_req_Ls : 0,
+      Spump_req_m3h: isFinite(Spump_req_m3h) ? Spump_req_m3h : 0,
+      estimatedPower: isFinite(estimatedPower) ? estimatedPower : 0,
+      pumpType,
+      warnings
     });
   };
 
   return (
     <div className="space-y-4">
+      {/* Basic Parameters */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="applicationFlow">Application Flow Rate (m³/hr)</Label>
+          <Label htmlFor="volume">Volume V (m³) *</Label>
           <Input
-            id="applicationFlow"
+            id="volume"
             type="number"
-            value={applicationFlow}
-            onChange={(e) => setApplicationFlow(e.target.value)}
-            placeholder="100"
+            step="0.01"
+            value={volume}
+            onChange={(e) => setVolume(e.target.value)}
+            placeholder="e.g., 1.0"
           />
         </div>
         <div>
-          <Label htmlFor="operatingPressure">Operating Pressure (mbar abs)</Label>
+          <Label htmlFor="startPressure">Start pressure p₁ (mbar abs) *</Label>
           <Input
-            id="operatingPressure"
+            id="startPressure"
             type="number"
             step="0.1"
-            value={operatingPressure}
-            onChange={(e) => setOperatingPressure(e.target.value)}
-            placeholder="50"
+            value={startPressure}
+            onChange={(e) => setStartPressure(e.target.value)}
+            placeholder="e.g., 1013"
           />
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="targetPressure">Target pressure p₂ (mbar abs) *</Label>
+          <Input
+            id="targetPressure"
+            type="number"
+            step="0.001"
+            value={targetPressure}
+            onChange={(e) => setTargetPressure(e.target.value)}
+            placeholder="e.g., 1.0"
+          />
+        </div>
+        <div>
+          <Label htmlFor="evacuationTime">Evacuation time t (min) *</Label>
+          <Input
+            id="evacuationTime"
+            type="number"
+            step="0.1"
+            value={evacuationTime}
+            onChange={(e) => setEvacuationTime(e.target.value)}
+            placeholder="e.g., 10"
+          />
+        </div>
+      </div>
+
+      {/* Optional Parameters */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="gasLoad">Gas/Vapor load G (mbar·L/s)</Label>
+          <Input
+            id="gasLoad"
+            type="number"
+            step="0.001"
+            value={gasLoad}
+            onChange={(e) => setGasLoad(e.target.value)}
+            placeholder="Optional"
+          />
+        </div>
+        <div>
+          <Label htmlFor="operatingPressure">Operating pressure p_oper (mbar abs)</Label>
+          <Input
+            id="operatingPressure"
+            type="number"
+            step="0.001"
+            value={operatingPressure}
+            onChange={(e) => setOperatingPressure(e.target.value)}
+            placeholder="Defaults to p₂"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="lineConductance">Line conductance C (L/s)</Label>
+          <Input
+            id="lineConductance"
+            type="number"
+            step="1"
+            value={lineConductance}
+            onChange={(e) => setLineConductance(e.target.value)}
+            placeholder="Optional"
+          />
+        </div>
+        <div>
+          <Label htmlFor="safetyFactor">Safety factor: {safetyFactor.toFixed(1)}</Label>
+          <Input
+            id="safetyFactor"
+            type="range"
+            min="1.0"
+            max="2.0"
+            step="0.1"
+            value={safetyFactor}
+            onChange={(e) => setSafetyFactor(parseFloat(e.target.value))}
+            className="w-full"
+          />
+        </div>
+      </div>
+
+      {/* Gas Properties */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="gasType">Gas Type</Label>
@@ -12184,54 +12311,39 @@ function VacuumPumpSizingCalculator() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="moisture">Moisture Content</Label>
-          <Select value={moisture} onValueChange={setMoisture}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="dry">Dry Gas</SelectItem>
-              <SelectItem value="wet">Wet/Humid Gas</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="operatingCycle">Operating Cycle</Label>
-          <Select value={operatingCycle} onValueChange={setOperatingCycle}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="continuous">Continuous</SelectItem>
-              <SelectItem value="intermittent">Intermittent</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
       <Button onClick={calculatePumpSize} className="w-full">
         <Calculator className="h-4 w-4 mr-2" />
-        Calculate Pump Size
+        Calculate Required Pumping Speed (S)
       </Button>
 
       {result && (
         <div className="space-y-4">
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h4 className="font-semibold text-blue-900 mb-3">Pump Sizing Results</h4>
+            <h4 className="font-semibold text-blue-900 mb-3">Pumping Speed Results</h4>
             
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-blue-800">
-                  <span className="font-medium">Required Flow Rate:</span><br />
-                  {result.requiredFlow.toFixed(1)} m³/hr
+                  <span className="font-medium">Sₜ (time-based):</span><br />
+                  {result.St_Ls.toFixed(1)} L/s, {result.St_m3h.toFixed(1)} m³/h
                 </p>
               </div>
               <div>
                 <p className="text-blue-800">
-                  <span className="font-medium">Recommended Pump Size:</span><br />
-                  {result.recommendedPumpSize} m³/hr
+                  <span className="font-medium">S_hold (gas load):</span><br />
+                  {result.Shold_Ls.toFixed(1)} L/s
+                </p>
+              </div>
+              <div>
+                <p className="text-blue-800">
+                  <span className="font-medium">S_eff,req (at chamber):</span><br />
+                  {result.Seff_req_Ls.toFixed(1)} L/s, {result.Seff_req_m3h.toFixed(1)} m³/h
+                </p>
+              </div>
+              <div>
+                <p className="text-blue-800">
+                  <span className="font-medium">S_pump,req (at pump):</span><br />
+                  {result.Spump_req_Ls > 0 ? `${result.Spump_req_Ls.toFixed(1)} L/s, ${result.Spump_req_m3h.toFixed(1)} m³/h` : "∞ (check conductance)"}
                 </p>
               </div>
               <div>
@@ -12242,8 +12354,8 @@ function VacuumPumpSizingCalculator() {
               </div>
               <div>
                 <p className="text-blue-800">
-                  <span className="font-medium">Safety Factor:</span><br />
-                  {result.safetyFactor.toFixed(1)}x
+                  <span className="font-medium">Safety factor:</span><br />
+                  {safetyFactor.toFixed(1)}x
                 </p>
               </div>
             </div>
@@ -12256,13 +12368,24 @@ function VacuumPumpSizingCalculator() {
             </div>
           </div>
 
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <h5 className="font-medium text-yellow-900 mb-2">Selection Notes:</h5>
-            <ul className="text-sm text-yellow-800 space-y-1">
-              <li>• Consider pump-down time requirements for batch processes</li>
-              <li>• Verify pump compatibility with process gases</li>
-              <li>• Add filtration if particulates are present</li>
-              <li>• Consider backing pump requirements for high vacuum systems</li>
+          {result.warnings.length > 0 && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <h5 className="font-medium text-red-900 mb-2">Warnings:</h5>
+              <ul className="text-sm text-red-800 space-y-1">
+                {result.warnings.map((warning, index) => (
+                  <li key={index}>• {warning}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+            <h5 className="font-medium text-green-900 mb-2">Notes:</h5>
+            <ul className="text-sm text-green-800 space-y-1">
+              <li>• Time-based calculation uses exponential pump-down model</li>
+              <li>• Consider actual pump curves for precise pump-down time</li>
+              <li>• Line conductance affects required pump size significantly</li>
+              <li>• Power estimate is approximate based on 50 kPa differential and 60% efficiency</li>
             </ul>
           </div>
         </div>
