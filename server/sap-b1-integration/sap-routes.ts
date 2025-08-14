@@ -564,20 +564,25 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
     console.log('❌ SAP B1 Service Layer connection test failed:', connectionError);
     
     // Perform telnet tests to check port connectivity
-    const { exec } = await import('child_process');
-    const telnetResults = await new Promise<any>((resolve) => {
-      const testCommands = [
-        `timeout 5 bash -c "</dev/tcp/192.168.1.100/50000" 2>/dev/null && echo "50000: OPEN" || echo "50000: CLOSED"`,
-        `timeout 5 bash -c "</dev/tcp/192.168.1.100/1433" 2>/dev/null && echo "1433: OPEN" || echo "1433: CLOSED"`
-      ];
-      
-      Promise.all(testCommands.map(cmd => 
-        new Promise(resolve => exec(cmd, (error, stdout) => resolve(stdout.trim())))
-      )).then(results => resolve({
-        port50000: results[0],
-        port1433: results[1]
-      }));
-    });
+    let telnetResults = { port50000: 'N/A', port1433: 'N/A' };
+    try {
+      const { exec } = await import('child_process');
+      telnetResults = await new Promise<any>((resolve) => {
+        const testCommands = [
+          `timeout 5 bash -c "</dev/tcp/192.168.1.100/50000" 2>/dev/null && echo "50000: OPEN" || echo "50000: CLOSED"`,
+          `timeout 5 bash -c "</dev/tcp/192.168.1.100/1433" 2>/dev/null && echo "1433: OPEN" || echo "1433: CLOSED"`
+        ];
+        
+        Promise.all(testCommands.map(cmd => 
+          new Promise(resolve => exec(cmd, (error, stdout) => resolve(stdout?.trim() || 'FAILED')))
+        )).then(results => resolve({
+          port50000: results[0],
+          port1433: results[1]
+        }));
+      });
+    } catch (execError) {
+      console.log('Port connectivity test failed:', execError);
+    }
 
     return res.json({
       success: false,
