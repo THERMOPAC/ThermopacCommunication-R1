@@ -13398,6 +13398,131 @@ function SurfaceFinishChart() {
   );
 }
 
+// Simple Vacuum Pump Sizing Calculator Component
+function VacuumPumpSizingCalculator() {
+  const [systemVolume, setSystemVolume] = useState('');
+  const [targetPressure, setTargetPressure] = useState('');
+  const [initialPressure, setInitialPressure] = useState('1013');
+  const [results, setResults] = useState<any>(null);
+
+  const calculateVacuumPump = () => {
+    const V = parseFloat(systemVolume);
+    const P1 = parseFloat(initialPressure);
+    const P2 = parseFloat(targetPressure);
+    
+    if (!V || !P1 || !P2 || P1 <= P2) return;
+
+    const pumpingSpeed = (V * Math.log(P1 / P2)) / 60; // L/s
+    const pressureRatio = P1 / P2;
+    const pumpDownTime = (V / pumpingSpeed) * Math.log(P1 / P2) / 60; // minutes
+
+    let pumpType = '';
+    if (P2 > 50) {
+      pumpType = 'Roughing Pump (Rotary Vane)';
+    } else if (P2 > 1) {
+      pumpType = 'Two-Stage Rotary Vane';
+    } else if (P2 > 0.001) {
+      pumpType = 'Roots + Rotary Vane';
+    } else {
+      pumpType = 'Turbomolecular + Roughing';
+    }
+
+    setResults({
+      pumpingSpeed: pumpingSpeed.toFixed(1),
+      pressureRatio: pressureRatio.toFixed(0),
+      pumpDownTime: pumpDownTime.toFixed(1),
+      pumpType
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Vacuum Pump Sizing Calculator (Metric Units)</CardTitle>
+          <CardDescription>Calculate vacuum pump requirements for industrial systems</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="systemVolume">System Volume (L)</Label>
+              <Input
+                id="systemVolume"
+                type="number"
+                value={systemVolume}
+                onChange={(e) => setSystemVolume(e.target.value)}
+                placeholder="1000"
+              />
+            </div>
+            <div>
+              <Label htmlFor="initialPressure">Initial Pressure (mbar)</Label>
+              <Input
+                id="initialPressure"
+                type="number"
+                value={initialPressure}
+                onChange={(e) => setInitialPressure(e.target.value)}
+                placeholder="1013"
+              />
+            </div>
+            <div>
+              <Label htmlFor="targetPressure">Target Pressure (mbar)</Label>
+              <Input
+                id="targetPressure"
+                type="number"
+                value={targetPressure}
+                onChange={(e) => setTargetPressure(e.target.value)}
+                placeholder="1"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3 mt-6">
+            <Button onClick={calculateVacuumPump} className="flex-1">
+              <Calculator className="h-4 w-4 mr-2" />
+              Calculate Pump Size
+            </Button>
+            <Button variant="outline" onClick={() => setResults(null)}>
+              Reset
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {results && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-green-700">Calculation Results</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Required Pumping Speed:</span>
+                  <span className="font-medium">{results.pumpingSpeed} L/s</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Pressure Ratio:</span>
+                  <span className="font-medium">{results.pressureRatio}:1</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Recommended Pump:</span>
+                  <span className="font-medium">{results.pumpType}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Est. Pump-down Time:</span>
+                  <span className="font-medium">{results.pumpDownTime} min</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 export default function DesignToolsPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -17712,465 +17837,6 @@ function FlashCalculationTool() {
         <p><strong>Method:</strong> Rachford-Rice equation with simplified K-values</p>
         <p><strong>Note:</strong> Use rigorous thermodynamic models for actual design</p>
       </div>
-    </div>
-  );
-}
-
-// Vacuum Pump Sizing Calculator
-function VacuumPumpSizingCalculator() {
-  const [systemVolume, setSystemVolume] = useState('');
-  const [targetPressure, setTargetPressure] = useState('');
-  const [targetPressureUnit, setTargetPressureUnit] = useState('mbar');
-  const [initialPressure, setInitialPressure] = useState('');
-  const [initialPressureUnit, setInitialPressureUnit] = useState('mbar');
-  const [gasType, setGasType] = useState('air');
-  const [temperature, setTemperature] = useState('20');
-  const [leakageRate, setLeakageRate] = useState('');
-  const [outgassingRate, setOutgassingRate] = useState('');
-  const [pipelineDiameter, setPipelineDiameter] = useState('');
-  const [pipelineLength, setPipelineLength] = useState('');
-  const [results, setResults] = useState(null);
-  const [errors, setErrors] = useState({});
-
-  const validateInputs = () => {
-    const newErrors = {};
-
-    if (!systemVolume || parseFloat(systemVolume) <= 0) {
-      newErrors.systemVolume = 'System volume must be greater than 0';
-    }
-    if (!targetPressure || parseFloat(targetPressure) <= 0) {
-      newErrors.targetPressure = 'Target pressure must be greater than 0';
-    }
-    if (!initialPressure || parseFloat(initialPressure) <= parseFloat(targetPressure)) {
-      newErrors.initialPressure = 'Initial pressure must be greater than target pressure';
-    }
-    if (!temperature || parseFloat(temperature) < -273) {
-      newErrors.temperature = 'Temperature must be above absolute zero';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const convertPressureToMbar = (pressure, unit) => {
-    const conversions = {
-      mbar: 1,
-      torr: 1.33322,
-      pa: 0.01,
-      kpa: 10,
-      atm: 1013.25,
-      psi: 68.9476,
-      mmhg: 1.33322
-    };
-    return parseFloat(pressure) * conversions[unit];
-  };
-
-  const calculateVacuumPump = () => {
-    if (!validateInputs()) return;
-
-    const V = parseFloat(systemVolume); // L
-    const P1 = convertPressureToMbar(initialPressure, initialPressureUnit); // mbar
-    const P2 = convertPressureToMbar(targetPressure, targetPressureUnit); // mbar
-    const T = parseFloat(temperature) + 273.15; // K
-    const Q_leak = parseFloat(leakageRate) || 0; // mbar·L/s
-    const Q_outgas = parseFloat(outgassingRate) || 0; // mbar·L/s
-    const D = parseFloat(pipelineDiameter) || 50; // mm
-    const L = parseFloat(pipelineLength) || 1000; // mm
-
-    // Gas properties
-    const gasProperties = {
-      air: { M: 28.97, viscosity: 18.5e-6 },
-      nitrogen: { M: 28.01, viscosity: 17.8e-6 },
-      oxygen: { M: 32.00, viscosity: 20.6e-6 },
-      argon: { M: 39.95, viscosity: 22.7e-6 },
-      helium: { M: 4.00, viscosity: 19.9e-6 },
-      hydrogen: { M: 2.02, viscosity: 8.9e-6 }
-    };
-
-    const M = gasProperties[gasType].M; // g/mol
-    const mu = gasProperties[gasType].viscosity; // Pa·s
-
-    // Total gas load
-    const Q_total = Q_leak + Q_outgas; // mbar·L/s
-
-    // Conductance calculation for circular pipe (molecular flow regime)
-    const R = 8.314; // J/(mol·K)
-    const C_pipe = (D/1000)**3 * Math.sqrt(2 * Math.PI * R * T / (M/1000)) / (12 * (L/1000)); // m³/s
-    const C_pipe_mbarL = C_pipe * 1000; // mbar·L/s at 1 mbar
-
-    // Required pumping speed at pump inlet
-    const S_required = Q_total / P2 + V * Math.log(P1/P2) / 3600; // mbar·L/s, assuming 1 hour pumpdown time
-
-    // Effective pumping speed considering conductance
-    const S_effective = 1 / (1/S_required + 1/C_pipe_mbarL);
-
-    // Pump recommendations based on pressure range and pumping speed
-    let pumpType = '';
-    let pumpStages = '';
-    let ultimatePressure = '';
-    
-    if (P2 >= 1) {
-      pumpType = 'Rotary Vane Pump';
-      pumpStages = 'Single Stage';
-      ultimatePressure = '1 mbar';
-    } else if (P2 >= 0.01) {
-      pumpType = 'Two-Stage Rotary Vane or Roots + Rotary Vane';
-      pumpStages = 'Two Stage System';
-      ultimatePressure = '0.01 mbar';
-    } else if (P2 >= 0.001) {
-      pumpType = 'Turbomolecular + Backing Pump';
-      pumpStages = 'High Vacuum System';
-      ultimatePressure = '0.001 mbar';
-    } else {
-      pumpType = 'Turbomolecular + Ion Pump';
-      pumpStages = 'Ultra-High Vacuum System';
-      ultimatePressure = '0.0001 mbar';
-    }
-
-    // Pump-down time calculation
-    const pumpDownTime = V * Math.log(P1/P2) / S_effective; // seconds
-    const pumpDownTimeMin = pumpDownTime / 60; // minutes
-    const pumpDownTimeHr = pumpDownTime / 3600; // hours
-
-    // Power estimation (rough calculation)
-    const powerConsumption = S_effective * 0.01; // kW (rough estimate)
-
-    setResults({
-      requiredPumpingSpeed: S_required.toFixed(2),
-      effectivePumpingSpeed: S_effective.toFixed(2),
-      conductance: C_pipe_mbarL.toFixed(2),
-      pumpDownTime: {
-        seconds: pumpDownTime.toFixed(1),
-        minutes: pumpDownTimeMin.toFixed(1),
-        hours: pumpDownTimeHr.toFixed(2)
-      },
-      pumpType,
-      pumpStages,
-      ultimatePressure,
-      powerConsumption: powerConsumption.toFixed(2),
-      totalGasLoad: Q_total.toFixed(4),
-      pressureRatio: (P1/P2).toFixed(2),
-      gasProperties: gasProperties[gasType]
-    });
-  };
-
-  const generateReport = () => {
-    if (!results) return;
-
-    const reportData = {
-      title: "Vacuum Pump Sizing Report",
-      date: new Date().toLocaleDateString(),
-      inputs: {
-        systemVolume: `${systemVolume} L`,
-        initialPressure: `${initialPressure} ${initialPressureUnit}`,
-        targetPressure: `${targetPressure} ${targetPressureUnit}`,
-        gasType: gasType.charAt(0).toUpperCase() + gasType.slice(1),
-        temperature: `${temperature} °C`,
-        leakageRate: `${leakageRate || 0} mbar·L/s`,
-        outgassingRate: `${outgassingRate || 0} mbar·L/s`
-      },
-      results: results
-    };
-
-    const reportContent = `
-VACUUM PUMP SIZING REPORT
-Generated: ${reportData.date}
-
-SYSTEM PARAMETERS:
-- System Volume: ${reportData.inputs.systemVolume}
-- Initial Pressure: ${reportData.inputs.initialPressure}  
-- Target Pressure: ${reportData.inputs.targetPressure}
-- Gas Type: ${reportData.inputs.gasType}
-- Operating Temperature: ${reportData.inputs.temperature}
-- Leakage Rate: ${reportData.inputs.leakageRate}
-- Outgassing Rate: ${reportData.inputs.outgassingRate}
-
-CALCULATED RESULTS:
-- Required Pumping Speed: ${results.requiredPumpingSpeed} L/s
-- Effective Pumping Speed: ${results.effectivePumpingSpeed} L/s  
-- Pipeline Conductance: ${results.conductance} L/s
-- Total Gas Load: ${results.totalGasLoad} mbar·L/s
-- Pressure Ratio: ${results.pressureRatio}:1
-
-PUMP RECOMMENDATIONS:
-- Pump Type: ${results.pumpType}
-- System Configuration: ${results.pumpStages}
-- Ultimate Pressure: ${results.ultimatePressure}
-- Estimated Power: ${results.powerConsumption} kW
-
-PUMP-DOWN TIME:
-- Time to Target: ${results.pumpDownTime.hours} hours (${results.pumpDownTime.minutes} minutes)
-
-Generated by THERMOPAC Design Tools
-    `;
-
-    const blob = new Blob([reportContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'vacuum-pump-sizing-report.txt';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Input Parameters */}
-        <Card>
-          <CardHeader>
-            <CardTitle>System Parameters</CardTitle>
-            <CardDescription>Enter vacuum system specifications (metric units only)</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="systemVolume">System Volume (L) *</Label>
-              <Input
-                id="systemVolume"
-                type="number"
-                value={systemVolume}
-                onChange={(e) => setSystemVolume(e.target.value)}
-                placeholder="e.g., 1000"
-                className={errors.systemVolume ? 'border-red-500' : ''}
-              />
-              {errors.systemVolume && <p className="text-red-500 text-sm">{errors.systemVolume}</p>}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="initialPressure">Initial Pressure *</Label>
-                <Input
-                  id="initialPressure"
-                  type="number"
-                  value={initialPressure}
-                  onChange={(e) => setInitialPressure(e.target.value)}
-                  placeholder="1013.25"
-                  className={errors.initialPressure ? 'border-red-500' : ''}
-                />
-                {errors.initialPressure && <p className="text-red-500 text-sm">{errors.initialPressure}</p>}
-              </div>
-              <div>
-                <Label>Unit</Label>
-                <Select value={initialPressureUnit} onValueChange={setInitialPressureUnit}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="mbar">mbar</SelectItem>
-                    <SelectItem value="torr">Torr</SelectItem>
-                    <SelectItem value="pa">Pa</SelectItem>
-                    <SelectItem value="kpa">kPa</SelectItem>
-                    <SelectItem value="atm">atm</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="targetPressure">Target Pressure *</Label>
-                <Input
-                  id="targetPressure"
-                  type="number"
-                  value={targetPressure}
-                  onChange={(e) => setTargetPressure(e.target.value)}
-                  placeholder="0.1"
-                  className={errors.targetPressure ? 'border-red-500' : ''}
-                />
-                {errors.targetPressure && <p className="text-red-500 text-sm">{errors.targetPressure}</p>}
-              </div>
-              <div>
-                <Label>Unit</Label>
-                <Select value={targetPressureUnit} onValueChange={setTargetPressureUnit}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="mbar">mbar</SelectItem>
-                    <SelectItem value="torr">Torr</SelectItem>
-                    <SelectItem value="pa">Pa</SelectItem>
-                    <SelectItem value="kpa">kPa</SelectItem>
-                    <SelectItem value="atm">atm</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="gasType">Gas Type</Label>
-              <Select value={gasType} onValueChange={setGasType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="air">Air</SelectItem>
-                  <SelectItem value="nitrogen">Nitrogen (N₂)</SelectItem>
-                  <SelectItem value="oxygen">Oxygen (O₂)</SelectItem>
-                  <SelectItem value="argon">Argon (Ar)</SelectItem>
-                  <SelectItem value="helium">Helium (He)</SelectItem>
-                  <SelectItem value="hydrogen">Hydrogen (H₂)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="temperature">Operating Temperature (°C) *</Label>
-              <Input
-                id="temperature"
-                type="number"
-                value={temperature}
-                onChange={(e) => setTemperature(e.target.value)}
-                placeholder="20"
-                className={errors.temperature ? 'border-red-500' : ''}
-              />
-              {errors.temperature && <p className="text-red-500 text-sm">{errors.temperature}</p>}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Additional Parameters */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Gas Load & Pipeline</CardTitle>
-            <CardDescription>Optional parameters for accurate sizing</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="leakageRate">Leakage Rate (mbar·L/s)</Label>
-              <Input
-                id="leakageRate"
-                type="number"
-                value={leakageRate}
-                onChange={(e) => setLeakageRate(e.target.value)}
-                placeholder="0.01"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="outgassingRate">Outgassing Rate (mbar·L/s)</Label>
-              <Input
-                id="outgassingRate"
-                type="number"
-                value={outgassingRate}
-                onChange={(e) => setOutgassingRate(e.target.value)}
-                placeholder="0.005"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="pipelineDiameter">Pipeline Diameter (mm)</Label>
-              <Input
-                id="pipelineDiameter"
-                type="number"
-                value={pipelineDiameter}
-                onChange={(e) => setPipelineDiameter(e.target.value)}
-                placeholder="50"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="pipelineLength">Pipeline Length (mm)</Label>
-              <Input
-                id="pipelineLength"
-                type="number"
-                value={pipelineLength}
-                onChange={(e) => setPipelineLength(e.target.value)}
-                placeholder="1000"
-              />
-            </div>
-
-            <Button onClick={calculateVacuumPump} className="w-full" size="lg">
-              <Calculator className="h-4 w-4 mr-2" />
-              Calculate Vacuum Pump
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Results */}
-      {results && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Vacuum Pump Sizing Results</CardTitle>
-            <CardDescription>Comprehensive pump sizing analysis</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Pump Requirements */}
-              <div className="space-y-3">
-                <h4 className="font-semibold text-primary">Pumping Requirements</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Required Speed:</span>
-                    <span className="font-medium">{results.requiredPumpingSpeed} L/s</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Effective Speed:</span>
-                    <span className="font-medium">{results.effectivePumpingSpeed} L/s</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Total Gas Load:</span>
-                    <span className="font-medium">{results.totalGasLoad} mbar·L/s</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Pressure Ratio:</span>
-                    <span className="font-medium">{results.pressureRatio}:1</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Pump Recommendation */}
-              <div className="space-y-3">
-                <h4 className="font-semibold text-primary">Pump Recommendation</h4>
-                <div className="space-y-2">
-                  <div>
-                    <span className="text-sm text-muted-foreground block">Pump Type:</span>
-                    <span className="font-medium">{results.pumpType}</span>
-                  </div>
-                  <div>
-                    <span className="text-sm text-muted-foreground block">Configuration:</span>
-                    <span className="font-medium">{results.pumpStages}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Ultimate Pressure:</span>
-                    <span className="font-medium">{results.ultimatePressure}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Est. Power:</span>
-                    <span className="font-medium">{results.powerConsumption} kW</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Performance */}
-              <div className="space-y-3">
-                <h4 className="font-semibold text-primary">System Performance</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Conductance:</span>
-                    <span className="font-medium">{results.conductance} L/s</span>
-                  </div>
-                  <div>
-                    <span className="text-sm text-muted-foreground block">Pump-down Time:</span>
-                    <span className="font-medium">{results.pumpDownTime.hours} hrs</span>
-                    <span className="text-xs text-muted-foreground block">({results.pumpDownTime.minutes} min)</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 flex gap-3">
-              <Button onClick={generateReport} variant="outline">
-                <FileText className="h-4 w-4 mr-2" />
-                Generate Report
-              </Button>
-              <Button onClick={() => setResults(null)} variant="outline">
-                Clear Results
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
