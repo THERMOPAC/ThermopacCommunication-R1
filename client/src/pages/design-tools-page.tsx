@@ -9680,9 +9680,9 @@ function CircuitBreakerSizing() {
 
     // Breaker type recommendation
     let breakerType = "";
-    if (selectedRating <= 125) {
+    if (typeof selectedRating === 'number' && selectedRating <= 125) {
       breakerType = "MCB (Miniature Circuit Breaker)";
-    } else if (selectedRating <= 1600) {
+    } else if (typeof selectedRating === 'number' && selectedRating <= 1600) {
       breakerType = "MCCB (Molded Case Circuit Breaker)";
     } else {
       breakerType = "ACB (Air Circuit Breaker)";
@@ -9958,12 +9958,12 @@ function TransformerSizing() {
     const selectedRating = standardRatings.find(rating => rating >= futureLoad) || "Custom Size Required";
 
     // Loading calculation
-    const loading = (apparentPower / (selectedRating as number)) * 100;
+    const loading = typeof selectedRating === 'number' ? (apparentPower / selectedRating) * 100 : 0;
 
     // Efficiency and losses estimation
-    const efficiency = selectedRating <= 100 ? 0.95 : selectedRating <= 500 ? 0.97 : 0.98;
-    const noLoadLoss = (selectedRating as number) * 0.003; // Approx 0.3%
-    const loadLoss = (selectedRating as number) * 0.015; // Approx 1.5% at full load
+    const efficiency = typeof selectedRating === 'number' && selectedRating <= 100 ? 0.95 : typeof selectedRating === 'number' && selectedRating <= 500 ? 0.97 : 0.98;
+    const noLoadLoss = typeof selectedRating === 'number' ? selectedRating * 0.003 : 0; // Approx 0.3%
+    const loadLoss = typeof selectedRating === 'number' ? selectedRating * 0.015 : 0; // Approx 1.5% at full load
 
     // Voltage regulation estimation
     const voltageRegulation = loadType === "motor" ? 3.5 : loadType === "lighting" ? 2.0 : 3.0;
@@ -11730,8 +11730,10 @@ function ElectricalConverter() {
       return;
     }
 
-    const fromFactor = currentUnits[fromUnit as keyof typeof currentUnits]?.factor || 1;
-    const toFactor = currentUnits[toUnit as keyof typeof currentUnits]?.factor || 1;
+    const fromUnitData = currentUnits[fromUnit as keyof typeof currentUnits];
+    const toUnitData = currentUnits[toUnit as keyof typeof currentUnits];
+    const fromFactor = fromUnitData?.factor || 1;
+    const toFactor = toUnitData?.factor || 1;
     const converted = (inputValue * fromFactor) / toFactor;
     setResult(converted.toExponential(6));
   };
@@ -11846,8 +11848,10 @@ function VolumeConverter() {
       return;
     }
 
-    const fromFactor = currentUnits[fromUnit as keyof typeof currentUnits]?.factor || 1;
-    const toFactor = currentUnits[toUnit as keyof typeof currentUnits]?.factor || 1;
+    const fromUnitData = currentUnits[fromUnit as keyof typeof currentUnits];
+    const toUnitData = currentUnits[toUnit as keyof typeof currentUnits];
+    const fromFactor = fromUnitData?.factor || 1;
+    const toFactor = toUnitData?.factor || 1;
     const converted = (inputValue * fromFactor) / toFactor;
     setResult(converted.toExponential(6));
   };
@@ -11961,8 +11965,10 @@ function ConcentrationConverter() {
     } else if (fromUnit !== toUnit && (fromUnit === "mol/L" || toUnit === "mol/L")) {
       // For mol/L conversions, we need molecular weight which is not provided
       // So we'll use a simple factor conversion
-      const fromFactor = concentrationUnits[fromUnit as keyof typeof concentrationUnits].factor;
-      const toFactor = concentrationUnits[toUnit as keyof typeof concentrationUnits].factor;
+      const fromUnitData = concentrationUnits[fromUnit as keyof typeof concentrationUnits];
+      const toUnitData = concentrationUnits[toUnit as keyof typeof concentrationUnits];
+      const fromFactor = fromUnitData?.factor || 1;
+      const toFactor = toUnitData?.factor || 1;
       converted = (inputValue * fromFactor) / toFactor;
     }
 
@@ -12021,7 +12027,7 @@ function ConcentrationConverter() {
           <div className="text-center">
             <div className="text-lg font-mono">{result}</div>
             <div className="text-sm text-muted-foreground mt-1">
-              {concentrationUnits[toUnit as keyof typeof concentrationUnits].name}
+              {concentrationUnits[toUnit as keyof typeof concentrationUnits]?.name}
             </div>
           </div>
           <div className="mt-2 text-xs text-muted-foreground">
@@ -12676,7 +12682,7 @@ function SpringDesignCalculator() {
   } | null>(null);
 
   const calculate = () => {
-    const d = parseFloat(wireeDiameter); // mm
+    const d = parseFloat(wireDiameter); // mm
     const D = parseFloat(springDiameter); // mm
     const Nt = parseFloat(totalCoils);
     const F = parseFloat(load); // N
@@ -13475,7 +13481,7 @@ export default function DesignToolsPage() {
 
   // Get unique categories from filtered tools
   const availableCategories = useMemo(() => {
-    const categories = [...new Set(filteredTools.map(tool => tool.category))];
+    const categories = Array.from(new Set(filteredTools.map(tool => tool.category)));
     return categories.sort();
   }, [filteredTools]);
 
