@@ -12041,6 +12041,236 @@ function ConcentrationConverter() {
   );
 }
 
+// Vacuum Pump Sizing Calculator Component
+function VacuumPumpSizingCalculator() {
+  const [applicationFlow, setApplicationFlow] = useState("");
+  const [operatingPressure, setOperatingPressure] = useState("");
+  const [gasType, setGasType] = useState("air");
+  const [temperature, setTemperature] = useState("20");
+  const [moisture, setMoisture] = useState("dry");
+  const [operatingCycle, setOperatingCycle] = useState("continuous");
+  const [result, setResult] = useState<{
+    requiredFlow: number;
+    recommendedPumpSize: number;
+    pumpType: string;
+    estimatedPower: number;
+    safetyFactor: number;
+  } | null>(null);
+
+  // Gas properties for common gases
+  const gasProperties = {
+    air: { density: 1.225, molarMass: 28.97, name: "Air" },
+    nitrogen: { density: 1.165, molarMass: 28.01, name: "Nitrogen" },
+    steam: { density: 0.598, molarMass: 18.02, name: "Water Vapor" },
+    co2: { density: 1.842, molarMass: 44.01, name: "Carbon Dioxide" },
+    custom: { density: 1.0, molarMass: 30.0, name: "Custom Gas" }
+  };
+
+  const calculatePumpSize = () => {
+    const Q_actual = parseFloat(applicationFlow); // m³/hr
+    const P_operating = parseFloat(operatingPressure); // mbar abs
+    const T_op = parseFloat(temperature) + 273.15; // Convert to Kelvin
+    
+    if (!Q_actual || !P_operating || !T_op) return;
+
+    const gasProps = gasProperties[gasType as keyof typeof gasProperties];
+    
+    // Convert to standard conditions (20°C, 1013 mbar)
+    const P_std = 1013; // mbar
+    const T_std = 293.15; // 20°C in Kelvin
+    
+    // Gas law correction for temperature and pressure
+    const Q_std = Q_actual * (P_operating / P_std) * (T_std / T_op);
+    
+    // Safety factors based on operating conditions
+    let safetyFactor = 1.2; // Base safety factor
+    
+    // Adjust safety factor based on conditions
+    if (moisture === "wet") safetyFactor *= 1.3;
+    if (operatingCycle === "intermittent") safetyFactor *= 1.1;
+    if (P_operating < 50) safetyFactor *= 1.4; // High vacuum
+    if (gasProps.molarMass > 40) safetyFactor *= 1.2; // Heavy gases
+    
+    const Q_required = Q_std * safetyFactor;
+    
+    // Determine pump type based on pressure range
+    let pumpType = "";
+    if (P_operating > 500) {
+      pumpType = "Positive Displacement (Roots + Mechanical)";
+    } else if (P_operating > 50) {
+      pumpType = "Rotary Vane Pump";
+    } else if (P_operating > 1) {
+      pumpType = "Rotary Vane + Roots Booster";
+    } else if (P_operating > 0.1) {
+      pumpType = "Diffusion Pump + Mechanical Backing";
+    } else {
+      pumpType = "Turbomolecular + Backing Pump";
+    }
+    
+    // Estimate power consumption (simplified)
+    let estimatedPower = 0;
+    if (P_operating > 100) {
+      estimatedPower = Q_required * 0.003; // kW for mechanical pumps
+    } else if (P_operating > 10) {
+      estimatedPower = Q_required * 0.005; // kW for high vacuum
+    } else {
+      estimatedPower = Q_required * 0.008 + 2; // kW for ultra-high vacuum
+    }
+    
+    // Round to standard pump sizes
+    const standardSizes = [10, 16, 25, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500];
+    const recommendedSize = standardSizes.find(size => size >= Q_required) || standardSizes[standardSizes.length - 1];
+    
+    setResult({
+      requiredFlow: Q_required,
+      recommendedPumpSize: recommendedSize,
+      pumpType: pumpType,
+      estimatedPower: estimatedPower,
+      safetyFactor: safetyFactor
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="applicationFlow">Application Flow Rate (m³/hr)</Label>
+          <Input
+            id="applicationFlow"
+            type="number"
+            value={applicationFlow}
+            onChange={(e) => setApplicationFlow(e.target.value)}
+            placeholder="100"
+          />
+        </div>
+        <div>
+          <Label htmlFor="operatingPressure">Operating Pressure (mbar abs)</Label>
+          <Input
+            id="operatingPressure"
+            type="number"
+            step="0.1"
+            value={operatingPressure}
+            onChange={(e) => setOperatingPressure(e.target.value)}
+            placeholder="50"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="gasType">Gas Type</Label>
+          <Select value={gasType} onValueChange={setGasType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="air">Air</SelectItem>
+              <SelectItem value="nitrogen">Nitrogen</SelectItem>
+              <SelectItem value="steam">Water Vapor</SelectItem>
+              <SelectItem value="co2">Carbon Dioxide</SelectItem>
+              <SelectItem value="custom">Custom Gas</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="temperature">Operating Temperature (°C)</Label>
+          <Input
+            id="temperature"
+            type="number"
+            value={temperature}
+            onChange={(e) => setTemperature(e.target.value)}
+            placeholder="20"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="moisture">Moisture Content</Label>
+          <Select value={moisture} onValueChange={setMoisture}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="dry">Dry Gas</SelectItem>
+              <SelectItem value="wet">Wet/Humid Gas</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="operatingCycle">Operating Cycle</Label>
+          <Select value={operatingCycle} onValueChange={setOperatingCycle}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="continuous">Continuous</SelectItem>
+              <SelectItem value="intermittent">Intermittent</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button onClick={calculatePumpSize} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Pump Size
+      </Button>
+
+      {result && (
+        <div className="space-y-4">
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="font-semibold text-blue-900 mb-3">Pump Sizing Results</h4>
+            
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-blue-800">
+                  <span className="font-medium">Required Flow Rate:</span><br />
+                  {result.requiredFlow.toFixed(1)} m³/hr
+                </p>
+              </div>
+              <div>
+                <p className="text-blue-800">
+                  <span className="font-medium">Recommended Pump Size:</span><br />
+                  {result.recommendedPumpSize} m³/hr
+                </p>
+              </div>
+              <div>
+                <p className="text-blue-800">
+                  <span className="font-medium">Estimated Power:</span><br />
+                  {result.estimatedPower.toFixed(1)} kW
+                </p>
+              </div>
+              <div>
+                <p className="text-blue-800">
+                  <span className="font-medium">Safety Factor:</span><br />
+                  {result.safetyFactor.toFixed(1)}x
+                </p>
+              </div>
+            </div>
+            
+            <div className="mt-3 pt-3 border-t border-blue-200">
+              <p className="text-blue-800">
+                <span className="font-medium">Recommended Pump Type:</span><br />
+                {result.pumpType}
+              </p>
+            </div>
+          </div>
+
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <h5 className="font-medium text-yellow-900 mb-2">Selection Notes:</h5>
+            <ul className="text-sm text-yellow-800 space-y-1">
+              <li>• Consider pump-down time requirements for batch processes</li>
+              <li>• Verify pump compatibility with process gases</li>
+              <li>• Add filtration if particulates are present</li>
+              <li>• Consider backing pump requirements for high vacuum systems</li>
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Mechanical Design Calculator Components
 function ShaftDesignCalculator() {
   const [torque, setTorque] = useState("");
@@ -13416,6 +13646,7 @@ export default function DesignToolsPage() {
     { id: "gear-design", name: "Gear Design Calculator", description: "Spur and helical gear design calculations", category: "mechanical", tags: ["gear", "spur", "helical", "tooth", "module"] },
     { id: "spring-design", name: "Spring Design Calculator", description: "Compression and tension spring calculations", category: "mechanical", tags: ["spring", "compression", "tension", "coil", "stiffness"] },
     { id: "fastener-torque", name: "Fastener Torque Calculator", description: "Calculate torque values for bolts and screws", category: "mechanical", tags: ["fastener", "bolt", "torque", "screw", "preload"] },
+    { id: "vacuum-pump-sizing", name: "Vacuum Pump Sizing Tool", description: "Calculate pump size for vacuum applications", category: "mechanical", tags: ["vacuum", "pump", "sizing", "flow", "pressure", "rotary", "vane", "diffusion"] },
     
     // Pressure Vessel Design Tools
     { id: "shell-thickness", name: "Shell Thickness Calculator", description: "ASME pressure vessel shell thickness calculations", category: "pressure-vessel", tags: ["shell", "thickness", "pressure", "vessel", "asme", "cylindrical", "spherical"] },
@@ -13921,6 +14152,37 @@ export default function DesignToolsPage() {
                         <DialogTitle>Surface Finish Chart</DialogTitle>
                       </DialogHeader>
                       <SurfaceFinishChart />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Vacuum Pump Sizing Tool</CardTitle>
+                    <CardDescription>
+                      Calculate pump size for vacuum applications
+                    </CardDescription>
+                  </div>
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Flow rate, pressure, and pump type selection
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Vacuum Pump Sizing Tool</DialogTitle>
+                      </DialogHeader>
+                      <VacuumPumpSizingCalculator />
                     </DialogContent>
                   </Dialog>
                 </CardContent>
