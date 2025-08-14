@@ -179,8 +179,8 @@ router.get('/connection/vpn-diagnostics', (req, res, next) => {
   next();
 }, async (req, res) => {
   try {
-    const { exec } = require('child_process');
-    const { promisify } = require('util');
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
     const execAsync = promisify(exec);
     
     const diagnostics = {
@@ -564,7 +564,7 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
     console.log('❌ SAP B1 Service Layer connection test failed:', connectionError);
     
     // Perform telnet tests to check port connectivity
-    const { exec } = require('child_process');
+    const { exec } = await import('child_process');
     const telnetResults = await new Promise<any>((resolve) => {
       const testCommands = [
         `timeout 5 bash -c "</dev/tcp/192.168.1.100/50000" 2>/dev/null && echo "50000: OPEN" || echo "50000: CLOSED"`,
