@@ -48,8 +48,9 @@ import {
   Bolt,
   Download
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -13398,6 +13399,86 @@ function SurfaceFinishChart() {
 }
 
 export default function DesignToolsPage() {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Define all available tools with their metadata for search
+  const allTools = useMemo(() => [
+    // Mechanical Design Tools
+    { id: "shaft-design", name: "Shaft Design Calculator", description: "Calculate minimum shaft diameter based on loads and stress", category: "mechanical", tags: ["shaft", "diameter", "torque", "bending", "stress"] },
+    { id: "bearing-selection", name: "Bearing Selection Guide", description: "Select appropriate bearings based on load and speed", category: "mechanical", tags: ["bearing", "load", "speed", "selection"] },
+    { id: "belt-drive", name: "Belt Drive Design", description: "Design V-belt and timing belt drives", category: "mechanical", tags: ["belt", "drive", "pulley", "power", "transmission"] },
+    { id: "gear-design", name: "Gear Design Calculator", description: "Spur and helical gear design calculations", category: "mechanical", tags: ["gear", "spur", "helical", "tooth", "module"] },
+    { id: "spring-design", name: "Spring Design Calculator", description: "Compression and tension spring calculations", category: "mechanical", tags: ["spring", "compression", "tension", "coil", "stiffness"] },
+    { id: "fastener-torque", name: "Fastener Torque Calculator", description: "Calculate torque values for bolts and screws", category: "mechanical", tags: ["fastener", "bolt", "torque", "screw", "preload"] },
+    
+    // Pressure Vessel Design Tools
+    { id: "shell-thickness", name: "Shell Thickness Calculator", description: "ASME pressure vessel shell thickness calculations", category: "pressure-vessel", tags: ["shell", "thickness", "pressure", "vessel", "asme", "cylindrical", "spherical"] },
+    { id: "head-thickness", name: "Head Thickness Calculator", description: "Pressure vessel head thickness calculations", category: "pressure-vessel", tags: ["head", "thickness", "ellipsoidal", "hemispherical", "torispherical"] },
+    { id: "nozzle-reinforcement", name: "Nozzle Reinforcement", description: "Calculate reinforcement requirements for nozzles", category: "pressure-vessel", tags: ["nozzle", "reinforcement", "opening", "compensation"] },
+    { id: "flange-design", name: "Flange Design Calculator", description: "ASME B16.5 flange design and selection", category: "pressure-vessel", tags: ["flange", "design", "asme", "bolt", "gasket"] },
+    { id: "support-design", name: "Support Design Calculator", description: "Vessel support design (saddle, leg, lug)", category: "pressure-vessel", tags: ["support", "saddle", "leg", "lug", "vessel"] },
+    
+    // Heat Exchanger Design Tools
+    { id: "shell-tube", name: "Shell & Tube Heat Exchanger", description: "Design shell and tube heat exchangers", category: "heat-exchanger", tags: ["shell", "tube", "heat", "exchanger", "lmtd", "effectiveness"] },
+    { id: "helical-coil", name: "Helical Coil Pressure Loss", description: "Calculate pressure drop in helical coil heat exchangers", category: "heat-exchanger", tags: ["helical", "coil", "pressure", "drop", "loss", "thermal", "oil"] },
+    { id: "plate-heat", name: "Plate Heat Exchanger", description: "Design plate type heat exchangers", category: "heat-exchanger", tags: ["plate", "heat", "exchanger", "compact", "efficiency"] },
+    { id: "air-cooled", name: "Air Cooled Heat Exchanger", description: "Design air-cooled heat exchangers", category: "heat-exchanger", tags: ["air", "cooled", "fan", "finned", "tube"] },
+    { id: "heat-transfer", name: "Heat Transfer Calculator", description: "General heat transfer coefficient calculations", category: "heat-exchanger", tags: ["heat", "transfer", "coefficient", "convection", "conduction"] },
+    
+    // Thermal Heaters Tools
+    { id: "thermal-oil-pump", name: "Thermal Oil Pump Sizing", description: "Size pumps for thermal oil circulation systems", category: "thermal-heaters", tags: ["thermal", "oil", "pump", "sizing", "circulation", "flow", "head"] },
+    { id: "combustion-air", name: "Combustion Air Calculator", description: "Calculate air requirements for burners", category: "thermal-heaters", tags: ["combustion", "air", "burner", "fuel", "excess"] },
+    { id: "burner-capacity", name: "Burner Capacity Calculator", description: "Calculate burner capacity and efficiency", category: "thermal-heaters", tags: ["burner", "capacity", "efficiency", "fuel", "heat"] },
+    { id: "stack-design", name: "Stack Design Calculator", description: "Design industrial stacks and chimneys", category: "thermal-heaters", tags: ["stack", "chimney", "draft", "height", "diameter"] },
+    { id: "thermal-efficiency", name: "Thermal Efficiency Calculator", description: "Calculate thermal efficiency of heaters", category: "thermal-heaters", tags: ["thermal", "efficiency", "heater", "fuel", "consumption"] },
+    
+    // Piping Design Tools
+    { id: "pipe-sizing", name: "Pipe Sizing Calculator", description: "Calculate pipe diameter based on flow requirements", category: "piping", tags: ["pipe", "sizing", "diameter", "flow", "velocity", "pressure"] },
+    { id: "pressure-drop", name: "Pressure Drop Calculator", description: "Calculate pressure drop in piping systems", category: "piping", tags: ["pressure", "drop", "friction", "loss", "piping"] },
+    { id: "pump-sizing", name: "Pump Sizing Calculator", description: "Size centrifugal pumps for piping systems", category: "piping", tags: ["pump", "sizing", "centrifugal", "head", "flow"] },
+    { id: "expansion-joint", name: "Expansion Joint Calculator", description: "Calculate thermal expansion in piping", category: "piping", tags: ["expansion", "joint", "thermal", "stress", "displacement"] },
+    { id: "pipe-support", name: "Pipe Support Calculator", description: "Design pipe supports and hangers", category: "piping", tags: ["pipe", "support", "hanger", "spacing", "load"] },
+    
+    // Electrical Design Tools
+    { id: "cable-sizing", name: "Cable Sizing Calculator", description: "Size electrical cables based on current and voltage drop", category: "electrical", tags: ["cable", "sizing", "current", "voltage", "drop", "conductor"] },
+    { id: "motor-starter", name: "Motor Starter Selection", description: "Select appropriate motor starters", category: "electrical", tags: ["motor", "starter", "selection", "protection", "control"] },
+    { id: "power-factor", name: "Power Factor Calculator", description: "Calculate power factor and reactive power", category: "electrical", tags: ["power", "factor", "reactive", "apparent", "real"] },
+    { id: "transformer-sizing", name: "Transformer Sizing", description: "Size transformers for various applications", category: "electrical", tags: ["transformer", "sizing", "kva", "voltage", "current"] },
+    { id: "earthing-design", name: "Earthing System Design", description: "Design earthing and grounding systems", category: "electrical", tags: ["earthing", "grounding", "resistance", "electrode", "safety"] },
+    
+    // Analysis Tools
+    { id: "stress-analysis", name: "Stress Analysis Calculator", description: "Basic stress analysis for mechanical components", category: "analysis", tags: ["stress", "analysis", "strain", "deformation", "mechanical"] },
+    { id: "vibration-analysis", name: "Vibration Analysis", description: "Analyze vibration in rotating equipment", category: "analysis", tags: ["vibration", "analysis", "frequency", "amplitude", "rotating"] },
+    { id: "fluid-flow", name: "Fluid Flow Analysis", description: "Analyze fluid flow in pipes and channels", category: "analysis", tags: ["fluid", "flow", "reynolds", "turbulent", "laminar"] },
+    { id: "thermal-analysis", name: "Thermal Analysis", description: "Thermal analysis and heat distribution", category: "analysis", tags: ["thermal", "analysis", "heat", "distribution", "temperature"] },
+    { id: "fatigue-analysis", name: "Fatigue Life Calculator", description: "Calculate fatigue life of components", category: "analysis", tags: ["fatigue", "life", "cycle", "endurance", "stress"] },
+    
+    // Unit Converter Tools
+    { id: "pressure-converter", name: "Pressure Unit Converter", description: "Convert between pressure units", category: "unit-converter", tags: ["pressure", "converter", "bar", "psi", "pascal", "unit"] },
+    { id: "temperature-converter", name: "Temperature Converter", description: "Convert between temperature scales", category: "unit-converter", tags: ["temperature", "converter", "celsius", "fahrenheit", "kelvin"] },
+    { id: "flow-converter", name: "Flow Rate Converter", description: "Convert between flow rate units", category: "unit-converter", tags: ["flow", "rate", "converter", "volume", "mass"] },
+    { id: "power-converter", name: "Power Unit Converter", description: "Convert between power units", category: "unit-converter", tags: ["power", "converter", "watt", "hp", "kw", "btu"] },
+    { id: "length-converter", name: "Length Unit Converter", description: "Convert between length units", category: "unit-converter", tags: ["length", "converter", "meter", "inch", "feet", "mm"] }
+  ], []);
+
+  // Filter tools based on search query
+  const filteredTools = useMemo(() => {
+    if (!searchQuery.trim()) return allTools;
+    
+    const query = searchQuery.toLowerCase();
+    return allTools.filter(tool => 
+      tool.name.toLowerCase().includes(query) ||
+      tool.description.toLowerCase().includes(query) ||
+      tool.tags.some(tag => tag.toLowerCase().includes(query))
+    );
+  }, [searchQuery, allTools]);
+
+  // Get unique categories from filtered tools
+  const availableCategories = useMemo(() => {
+    const categories = [...new Set(filteredTools.map(tool => tool.category))];
+    return categories.sort();
+  }, [filteredTools]);
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -13408,7 +13489,112 @@ export default function DesignToolsPage() {
           </p>
         </div>
 
-        <Tabs defaultValue="mechanical" className="w-full">
+        {/* Search Section */}
+        <div className="px-4">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              type="text"
+              placeholder="Search tools (e.g., pump, pressure, thermal oil)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          {searchQuery && (
+            <div className="mt-2 text-sm text-gray-600">
+              Found {filteredTools.length} tool{filteredTools.length !== 1 ? 's' : ''} matching "{searchQuery}"
+            </div>
+          )}
+        </div>
+
+        {/* Search Results View */}
+        {searchQuery && filteredTools.length > 0 && (
+          <div className="px-4">
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-gray-900">Search Results</h2>
+              
+              {/* Group tools by category */}
+              {availableCategories.map(category => {
+                const categoryTools = filteredTools.filter(tool => tool.category === category);
+                if (categoryTools.length === 0) return null;
+                
+                const getCategoryInfo = (cat: string) => {
+                  switch (cat) {
+                    case 'mechanical': return { name: 'Mechanical Design', icon: Wrench, color: 'blue' };
+                    case 'pressure-vessel': return { name: 'Pressure Vessel Design', icon: Container, color: 'purple' };
+                    case 'heat-exchanger': return { name: 'Heat Exchanger Design', icon: Thermometer, color: 'red' };
+                    case 'thermal-heaters': return { name: 'Thermal Heaters', icon: Flame, color: 'orange' };
+                    case 'piping': return { name: 'Piping Design', icon: Move, color: 'green' };
+                    case 'electrical': return { name: 'Electrical Design', icon: Bolt, color: 'yellow' };
+                    case 'analysis': return { name: 'Analysis Tools', icon: Activity, color: 'cyan' };
+                    case 'unit-converter': return { name: 'Unit Converter', icon: ArrowLeftRight, color: 'gray' };
+                    default: return { name: cat, icon: Settings, color: 'gray' };
+                  }
+                };
+                
+                const categoryInfo = getCategoryInfo(category);
+                const Icon = categoryInfo.icon;
+                
+                return (
+                  <div key={category} className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Icon className="h-5 w-5 text-gray-600" />
+                      <h3 className="text-lg font-medium text-gray-900">{categoryInfo.name}</h3>
+                      <Badge variant="secondary">{categoryTools.length}</Badge>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {categoryTools.map(tool => (
+                        <Card key={tool.id} className="hover:shadow-md transition-shadow">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-base">{tool.name}</CardTitle>
+                            <CardDescription className="text-sm">{tool.description}</CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex flex-wrap gap-1 mb-3">
+                              {tool.tags.slice(0, 3).map(tag => (
+                                <Badge key={tag} variant="outline" className="text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                              {tool.tags.length > 3 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{tool.tags.length - 3} more
+                                </Badge>
+                              )}
+                            </div>
+                            <Button className="w-full" size="sm" disabled>
+                              <Calculator className="h-4 w-4 mr-2" />
+                              Open Calculator
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* No Results Message */}
+        {searchQuery && filteredTools.length === 0 && (
+          <div className="px-4">
+            <div className="text-center py-8">
+              <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No tools found</h3>
+              <p className="text-gray-600">
+                No tools match your search for "{searchQuery}". Try different keywords or browse the categories below.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Regular Tabs View - only show when not searching */}
+        {!searchQuery && (
+          <Tabs defaultValue="mechanical" className="w-full">
           <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="mechanical">Mechanical Design</TabsTrigger>
             <TabsTrigger value="pressure-vessel">Pressure Vessel Design</TabsTrigger>
@@ -16160,6 +16346,7 @@ export default function DesignToolsPage() {
 
 
         </Tabs>
+        )}
       </div>
     </Layout>
   );
