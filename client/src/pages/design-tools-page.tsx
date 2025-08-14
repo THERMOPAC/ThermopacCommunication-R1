@@ -13398,131 +13398,6 @@ function SurfaceFinishChart() {
   );
 }
 
-// Simple Vacuum Pump Sizing Calculator Component
-function VacuumPumpSizingCalculator() {
-  const [systemVolume, setSystemVolume] = useState('');
-  const [targetPressure, setTargetPressure] = useState('');
-  const [initialPressure, setInitialPressure] = useState('1013');
-  const [results, setResults] = useState<any>(null);
-
-  const calculateVacuumPump = () => {
-    const V = parseFloat(systemVolume);
-    const P1 = parseFloat(initialPressure);
-    const P2 = parseFloat(targetPressure);
-    
-    if (!V || !P1 || !P2 || P1 <= P2) return;
-
-    const pumpingSpeed = (V * Math.log(P1 / P2)) / 60; // L/s
-    const pressureRatio = P1 / P2;
-    const pumpDownTime = (V / pumpingSpeed) * Math.log(P1 / P2) / 60; // minutes
-
-    let pumpType = '';
-    if (P2 > 50) {
-      pumpType = 'Roughing Pump (Rotary Vane)';
-    } else if (P2 > 1) {
-      pumpType = 'Two-Stage Rotary Vane';
-    } else if (P2 > 0.001) {
-      pumpType = 'Roots + Rotary Vane';
-    } else {
-      pumpType = 'Turbomolecular + Roughing';
-    }
-
-    setResults({
-      pumpingSpeed: pumpingSpeed.toFixed(1),
-      pressureRatio: pressureRatio.toFixed(0),
-      pumpDownTime: pumpDownTime.toFixed(1),
-      pumpType
-    });
-  };
-
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Vacuum Pump Sizing Calculator (Metric Units)</CardTitle>
-          <CardDescription>Calculate vacuum pump requirements for industrial systems</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="systemVolume">System Volume (L)</Label>
-              <Input
-                id="systemVolume"
-                type="number"
-                value={systemVolume}
-                onChange={(e) => setSystemVolume(e.target.value)}
-                placeholder="1000"
-              />
-            </div>
-            <div>
-              <Label htmlFor="initialPressure">Initial Pressure (mbar)</Label>
-              <Input
-                id="initialPressure"
-                type="number"
-                value={initialPressure}
-                onChange={(e) => setInitialPressure(e.target.value)}
-                placeholder="1013"
-              />
-            </div>
-            <div>
-              <Label htmlFor="targetPressure">Target Pressure (mbar)</Label>
-              <Input
-                id="targetPressure"
-                type="number"
-                value={targetPressure}
-                onChange={(e) => setTargetPressure(e.target.value)}
-                placeholder="1"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-3 mt-6">
-            <Button onClick={calculateVacuumPump} className="flex-1">
-              <Calculator className="h-4 w-4 mr-2" />
-              Calculate Pump Size
-            </Button>
-            <Button variant="outline" onClick={() => setResults(null)}>
-              Reset
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {results && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-green-700">Calculation Results</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Required Pumping Speed:</span>
-                  <span className="font-medium">{results.pumpingSpeed} L/s</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Pressure Ratio:</span>
-                  <span className="font-medium">{results.pressureRatio}:1</span>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Recommended Pump:</span>
-                  <span className="font-medium">{results.pumpType}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Est. Pump-down Time:</span>
-                  <span className="font-medium">{results.pumpDownTime} min</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-}
-
 export default function DesignToolsPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -13561,7 +13436,6 @@ export default function DesignToolsPage() {
     { id: "pipe-sizing", name: "Pipe Sizing Calculator", description: "Calculate pipe diameter based on flow requirements", category: "piping", tags: ["pipe", "sizing", "diameter", "flow", "velocity", "pressure"] },
     { id: "pressure-drop", name: "Pressure Drop Calculator", description: "Calculate pressure drop in piping systems", category: "piping", tags: ["pressure", "drop", "friction", "loss", "piping"] },
     { id: "pump-sizing", name: "Pump Sizing Calculator", description: "Size centrifugal pumps for piping systems", category: "piping", tags: ["pump", "sizing", "centrifugal", "head", "flow"] },
-    { id: "vacuum-pump-sizing", name: "Vacuum Pump Sizing Calculator", description: "Size vacuum pumps for industrial systems", category: "piping", tags: ["vacuum", "pump", "sizing", "torr", "mbar", "pressure", "throughput", "evacuation"] },
     { id: "expansion-joint", name: "Expansion Joint Calculator", description: "Calculate thermal expansion in piping", category: "piping", tags: ["expansion", "joint", "thermal", "stress", "displacement"] },
     { id: "pipe-support", name: "Pipe Support Calculator", description: "Design pipe supports and hangers", category: "piping", tags: ["pipe", "support", "hanger", "spacing", "load"] },
     
@@ -15937,30 +15811,6 @@ export default function DesignToolsPage() {
                         <DialogTitle>Pump Sizing & NPSH Calculator</DialogTitle>
                       </DialogHeader>
                       <PumpSizingCalculator />
-                    </DialogContent>
-                  </Dialog>
-                </CardContent>
-              </Card>
-
-              {/* Vacuum Pump Sizing Calculator */}
-              <Card className="hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <div>
-                    <CardTitle className="text-base">Vacuum Pump Sizing Calculator</CardTitle>
-                    <CardDescription>Size vacuum pumps for industrial systems (metric units only)</CardDescription>
-                  </div>
-                  <Calculator className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button className="w-full">Open Calculator</Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Vacuum Pump Sizing Calculator</DialogTitle>
-                      </DialogHeader>
-                      <VacuumPumpSizingCalculator />
                     </DialogContent>
                   </Dialog>
                 </CardContent>
