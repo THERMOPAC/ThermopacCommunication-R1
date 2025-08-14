@@ -380,7 +380,7 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
     }
 
     // Check Service Layer connection status
-    const serviceLayerUrl = process.env.SAP_SERVICE_LAYER_URL || (vpnEnabled ? 'https://192.168.1.100:50000/b1s/v1' : 'https://59.152.52.58:50000/b1s/v1');
+    const serviceLayerUrl = process.env.SAP_SERVICE_LAYER_URL || (vpnEnabled ? 'http://192.168.1.100:50000/b1s/v1' : 'https://59.152.52.58:50000/b1s/v1');
     
     // Also try public IP if internal IP fails
     const publicServiceLayerUrl = 'https://59.152.52.58:50000/b1s/v1';
