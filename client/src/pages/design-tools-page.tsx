@@ -12106,25 +12106,26 @@ function VacuumPumpSizingCalculator() {
       return;
     }
 
-    // Time-based speed calculation: St = V / (t_sec * ln(p1/p2))
+    // Time-based speed calculation: St = (V / t_sec) * ln(p1/p2)
     const t_sec = t_min * 60; // Convert minutes to seconds
     const ln_ratio = Math.log(p1 / p2);
-    const St_m3s = V / (t_sec * ln_ratio); // m³/s
+    const St_m3s = (V / t_sec) * ln_ratio; // m³/s
     const St_Ls = St_m3s * 1000; // L/s
     const St_m3h = St_m3s * 3600; // m³/h
 
     // Holding requirement: Shold = G / p_oper
-    const Shold_Ls = G / p_oper; // L/s
+    const Shold_Ls = (G || 0) / p_oper; // L/s
 
     // Required effective speed at chamber: Seff,req = max(St, Shold) × safety
     const Seff_req_Ls = Math.max(St_Ls, Shold_Ls) * safetyFactor;
-    const Seff_req_m3h = Seff_req_Ls * 3.6; // Convert L/s to m³/h
+    const Seff_req_m3h = Seff_req_Ls * 3.6; // Convert L/s to m³/h (correct: L/s × 3.6)
 
     // Pump speed accounting for conductance
     let Spump_req_Ls = Seff_req_Ls;
     let Spump_req_m3h = Seff_req_m3h;
     
     if (C > 0) {
+      // Formula: 1/Seff = 1/Spump + 1/C, so Spump = 1 / (1/Seff - 1/C)
       const denominator = (1 / Seff_req_Ls) - (1 / C);
       if (denominator <= 0) {
         warnings.push("Conductance too low—enlarge foreline or add port(s)");
