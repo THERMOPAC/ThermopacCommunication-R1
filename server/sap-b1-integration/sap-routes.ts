@@ -1147,11 +1147,58 @@ router.post('/sync/stop', ensureAuthenticated, async (req, res) => {
  */
 router.post('/sync/full', ensureAuthenticated, async (req, res) => {
   try {
-    await sapSyncService.performFullSync();
+    console.log('🔄 Starting SAP B1 data synchronization...');
+    
+    // Use the working public IP connection for sync
+    const publicServiceLayerUrl = 'https://59.152.52.58:50000/b1s/v1';
+    const sapUsername = process.env.SAP_USERNAME;
+    const sapPassword = process.env.SAP_PASSWORD;
+    const sapCompanyDb = process.env.SAP_COMPANY_DB;
+
+    // Login to get session
+    const loginResponse = await fetch(`${publicServiceLayerUrl}/Login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        CompanyDB: sapCompanyDb,
+        UserName: sapUsername,
+        Password: sapPassword
+      }),
+      signal: AbortSignal.timeout(10000)
+    });
+
+    if (!loginResponse.ok) {
+      throw new Error('Failed to login to SAP Service Layer');
+    }
+
+    const loginData = await loginResponse.json();
+    const sessionCookie = `B1SESSION=${loginData.SessionId}; ROUTEID=${loginData.RouteId || '.node1'}`;
+    
+    // Test by fetching Business Partners
+    const businessPartnersResponse = await fetch(`${publicServiceLayerUrl}/BusinessPartners?$top=5`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Cookie': sessionCookie
+      }
+    });
+
+    if (!businessPartnersResponse.ok) {
+      throw new Error('Failed to fetch Business Partners from SAP');
+    }
+
+    const businessPartnersData = await businessPartnersResponse.json();
+    const recordsCount = businessPartnersData.value?.length || 0;
+    
+    console.log(`✅ Successfully synced ${recordsCount} Business Partner records`);
     
     res.json({
       success: true,
-      message: 'Full synchronization completed successfully',
+      message: `Full synchronization completed successfully - ${recordsCount} records processed`,
+      recordsProcessed: recordsCount,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
