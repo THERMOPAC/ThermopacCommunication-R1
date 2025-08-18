@@ -1,6 +1,7 @@
 import express from 'express';
 import { db } from '../db';
 import { ensureAuthenticated } from '../auth-middleware';
+import { sapHttpsClient } from './sap-https-client';
 import { sapB1Connector } from './sap-connector';
 import { 
   sapPurchaseOrders, 
@@ -43,28 +44,15 @@ async function createSapConnection() {
   });
 
   // Login to Service Layer with SSL bypass
-  const loginResponse = await fetch(`${baseURL}/Login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(credentials),
-    signal: AbortSignal.timeout(30000),
-    // @ts-ignore
-    agent: httpsAgent
-  });
-
-  if (!loginResponse.ok) {
-    const errorText = await loginResponse.text();
-    console.log('❌ SAP login failed:', loginResponse.status, errorText);
-    throw new Error(`Service Layer login failed: ${loginResponse.status} - ${errorText}`);
-  }
-
-  const sessionId = loginResponse.headers.get('set-cookie')?.match(/B1SESSION=([^;]+)/)?.[1];
-  if (!sessionId) {
-    throw new Error('No session ID received from Service Layer');
-  }
+  // Use custom HTTPS client for SSL bypass
+  const { sessionId } = await sapHttpsClient.login(
+    credentials.UserName,
+    credentials.Password,
+    credentials.CompanyDB
+  );
 
   console.log('✅ SAP Service Layer login successful');
-  return { baseURL, sessionId, httpsAgent };
+  return { baseURL, sessionId, httpsClient: sapHttpsClient };
 }
 
 // Purchase Orders Endpoints - Live SAP B1 Integration
@@ -161,7 +149,7 @@ router.get('/purchase-orders', async (req, res) => {
     }
 
     // Connect to SAP Service Layer with configured credentials
-    const { baseURL, sessionId, httpsAgent } = await createSapConnection();
+    const { baseURL, sessionId, httpsClient } = await createSapConnection();
 
     // Build query parameters
     let selectFields = 'DocEntry,DocNum,DocDate,CardCode,CardName,DocTotal,DocCurrency,DocStatus,Comments,VatSum';
@@ -178,28 +166,23 @@ router.get('/purchase-orders', async (req, res) => {
       filterQuery = `&\$filter=${encodeURIComponent(filters_array.join(' and '))}`;
     }
 
-    // Fetch purchase orders using Service Layer API with SSL bypass
-    const poResponse = await fetch(`${baseURL}/PurchaseOrders?\$select=${selectFields}&\$top=${limit}&\$skip=${offset}${filterQuery}`, {
-      headers: {
-        'Cookie': `B1SESSION=${sessionId}`,
-        'Content-Type': 'application/json'
-      },
-      signal: AbortSignal.timeout(30000),
-      // @ts-ignore
-      agent: httpsAgent
+    // Fetch purchase orders using custom HTTPS client with SSL bypass
+    const poResponse = await httpsClient.authenticatedRequest(sessionId, {
+      method: 'GET',
+      path: `/b1s/v1/PurchaseOrders?\$select=${selectFields}&\$top=${limit}&\$skip=${offset}${filterQuery}`
     });
 
     if (!poResponse.ok) {
-      throw new Error(`Failed to fetch purchase orders: ${poResponse.status}`);
+      throw new Error(`Failed to fetch purchase orders: ${poResponse.statusCode}`);
     }
 
-    const poData = await poResponse.json();
+    const poData = JSON.parse(poResponse.body);
     const rawPurchaseOrders = poData.value || [];
 
-    // Logout from Service Layer
-    await fetch(`${baseURL}/Logout`, {
+    // Logout from Service Layer using custom HTTPS client
+    await httpsClient.authenticatedRequest(sessionId, {
       method: 'POST',
-      headers: { 'Cookie': `B1SESSION=${sessionId}` }
+      path: '/b1s/v1/Logout'
     }).catch(() => {}); // Ignore logout errors
 
     // Process and classify each purchase order

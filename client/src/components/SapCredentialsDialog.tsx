@@ -41,11 +41,7 @@ export function SapCredentialsDialog() {
   // Test SAP connection mutation
   const testConnectionMutation = useMutation({
     mutationFn: async (creds: SapCredentials) => {
-      return apiRequest('/api/sap/connection/test', {
-        method: 'POST',
-        body: JSON.stringify(creds),
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return apiRequest('POST', '/api/sap/connection/test', creds);
     },
     onSuccess: () => {
       toast({
@@ -68,11 +64,7 @@ export function SapCredentialsDialog() {
   // Save SAP credentials mutation
   const saveCredentialsMutation = useMutation({
     mutationFn: async (creds: SapCredentials) => {
-      return apiRequest('/api/sap/credentials', {
-        method: 'POST',
-        body: JSON.stringify(creds),
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return apiRequest('POST', '/api/sap/credentials', creds);
     },
     onSuccess: () => {
       toast({

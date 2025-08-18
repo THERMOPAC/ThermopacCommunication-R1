@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { ensureAuthenticated } from '../auth-middleware';
+import { sapHttpsClient } from './sap-https-client';
 
 const router = Router();
 
@@ -18,85 +19,34 @@ router.post('/connection/test', async (req, res) => {
       });
     }
 
-    // Use the working public IP Service Layer connection
-    const publicIP = '59.152.52.58';
-    const serviceLayerPort = '50000';
-    const baseURL = `https://${publicIP}:${serviceLayerPort}/b1s/v1`;
-    
-    // Create HTTPS agent to bypass SSL certificate verification
-    const https = await import('https');
-    const httpsAgent = new https.Agent({
-      rejectUnauthorized: false
-    });
-
     console.log('🔥 SAP CONNECTION TEST STARTED - Testing Service Layer');
     console.log('🔑 SAP Credentials Check:', {
-      serviceLayerUrl: baseURL,
       sapUsername: username,
       passwordLength: password.length,
       sapCompanyDb: companyDb
     });
 
     console.log('🔐 Attempting HTTPS connection with SSL bypass...');
-    console.log('🎯 Target URL:', `${baseURL}/Login`);
 
-    // Test login to Service Layer
-    const loginResponse = await fetch(`${baseURL}/Login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        CompanyDB: companyDb,
-        UserName: username,
-        Password: password
-      }),
-      signal: AbortSignal.timeout(30000),
-      // @ts-ignore
-      agent: httpsAgent
-    });
-
-    if (!loginResponse.ok) {
-      const errorText = await loginResponse.text();
-      console.log('❌ SAP login failed:', loginResponse.status, errorText);
-      
-      return res.status(400).json({
-        success: false,
-        error: `SAP login failed: ${loginResponse.status} - ${errorText}`,
-        details: {
-          status: loginResponse.status,
-          response: errorText
-        }
-      });
-    }
-
-    const sessionId = loginResponse.headers.get('set-cookie')?.match(/B1SESSION=([^;]+)/)?.[1];
-    if (!sessionId) {
-      console.log('❌ No session ID received');
-      return res.status(400).json({
-        success: false,
-        error: 'No session ID received from SAP Service Layer'
-      });
-    }
+    // Test login using custom HTTPS client
+    const { sessionId } = await sapHttpsClient.login(username, password, companyDb);
 
     console.log('✅ HTTPS SSL bypass successful - Service Layer login working');
 
     // Test a simple API call to verify permissions
-    const testResponse = await fetch(`${baseURL}/PurchaseOrders?$top=1`, {
-      headers: {
-        'Cookie': `B1SESSION=${sessionId}`,
-        'Content-Type': 'application/json'
-      },
-      signal: AbortSignal.timeout(15000),
-      // @ts-ignore
-      agent: httpsAgent
+    const testResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+      method: 'GET',
+      path: '/b1s/v1/PurchaseOrders?$top=1'
     });
 
     if (!testResponse.ok) {
-      console.log('❌ Purchase Orders API test failed:', testResponse.status);
+      console.log('❌ Purchase Orders API test failed:', testResponse.statusCode);
       return res.status(400).json({
         success: false,
-        error: `API access test failed: ${testResponse.status}`,
+        error: `API access test failed: ${testResponse.statusCode}`,
         details: {
-          message: 'Login successful but unable to access purchase order data'
+          message: 'Login successful but unable to access purchase order data',
+          response: testResponse.body
         }
       });
     }
@@ -180,39 +130,28 @@ router.get('/connection/status', async (req, res) => {
       });
     }
 
-    // Test the connection with current credentials
-    const publicIP = '59.152.52.58';
-    const serviceLayerPort = '50000';
-    const baseURL = `https://${publicIP}:${serviceLayerPort}/b1s/v1`;
-    
-    const https = await import('https');
-    const httpsAgent = new https.Agent({
-      rejectUnauthorized: false
-    });
-
-    const loginResponse = await fetch(`${baseURL}/Login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        CompanyDB: process.env.SAP_COMPANY_DB,
-        UserName: process.env.SAP_USERNAME,
-        Password: process.env.SAP_PASSWORD
-      }),
-      signal: AbortSignal.timeout(15000),
-      // @ts-ignore
-      agent: httpsAgent
-    });
-
-    const isConnected = loginResponse.ok;
+    // Test the connection with current credentials using custom HTTPS client
+    try {
+      const { sessionId } = await sapHttpsClient.login(
+        process.env.SAP_USERNAME!,
+        process.env.SAP_PASSWORD!,
+        process.env.SAP_COMPANY_DB!
+      );
+      var isConnected = true;
+      var connectionError = undefined;
+    } catch (error: any) {
+      var isConnected = false;
+      var connectionError = error.message;
+    }
     
     res.json({
       success: true,
       status: isConnected ? 'connected' : 'disconnected',
       isConnected,
       lastTestTime: new Date().toISOString(),
-      error: isConnected ? undefined : `Login failed: ${loginResponse.status}`,
+      error: connectionError,
       details: {
-        serviceLayerUrl: baseURL,
+        serviceLayerUrl: 'https://59.152.52.58:50000/b1s/v1',
         companyDb: process.env.SAP_COMPANY_DB,
         username: process.env.SAP_USERNAME
       }
