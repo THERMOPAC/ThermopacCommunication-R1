@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { SapCredentialsDialog } from '@/components/SapCredentialsDialog';
 
 // Types for Purchase module data
 interface PurchaseOrder {
@@ -829,6 +830,8 @@ export default function PurchaseModule() {
                     </div>
                   </div>
 
+                  <SapCredentialsDialog />
+                  
                   <Button 
                     className="w-full justify-start"
                     onClick={() => testConnectionMutation.mutate()}

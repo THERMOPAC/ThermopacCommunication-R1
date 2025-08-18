@@ -4,11 +4,13 @@ import { sapSyncService } from './sync-service';
 import { ensureAuthenticated } from '../auth-middleware';
 import { vpnManager } from '../vpn/vpn-manager';
 import purchaseRoutes from './purchase-routes';
+import credentialsRoutes from './credentials-routes';
 
 const router = express.Router();
 
 // Register Purchase module routes - No authentication required for dashboard functionality
 router.use('/purchase', purchaseRoutes);
+router.use('/', credentialsRoutes);
 
 /**
  * SAP B1 Integration API Routes
