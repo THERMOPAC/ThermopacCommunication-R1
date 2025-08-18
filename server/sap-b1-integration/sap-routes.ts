@@ -379,11 +379,12 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
       }
     }
 
-    // Check Service Layer connection status
-    const serviceLayerUrl = process.env.SAP_SERVICE_LAYER_URL || (vpnEnabled ? 'http://192.168.1.100:50000/b1s/v1' : 'https://59.152.52.58:50000/b1s/v1');
-    
-    // Also try public IP if internal IP fails
+    // Prioritize public IP since we know it works
     const publicServiceLayerUrl = 'https://59.152.52.58:50000/b1s/v1';
+    const internalServiceLayerUrl = process.env.SAP_SERVICE_LAYER_URL || 'http://192.168.1.100:50000/b1s/v1';
+    
+    // Try public IP first since it's been working
+    const serviceLayerUrl = publicServiceLayerUrl;
     const sapUsername = process.env.SAP_USERNAME;
     const sapPassword = process.env.SAP_PASSWORD;
     const sapCompanyDb = process.env.SAP_COMPANY_DB;
@@ -436,7 +437,7 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
           UserName: sapUsername,
           Password: sapPassword
         }),
-        signal: AbortSignal.timeout(30000) // 30 second timeout for internal networks
+        signal: AbortSignal.timeout(10000) // 10 second timeout since using public IP
       });
 
       if (loginResponse.ok) {

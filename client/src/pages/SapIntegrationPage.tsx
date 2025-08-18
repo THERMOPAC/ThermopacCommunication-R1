@@ -70,12 +70,12 @@ export default function SapIntegrationPage() {
 
   // Test connection mutation
   const testConnectionMutation = useMutation({
-    mutationFn: () => apiRequest('GET', '/api/sap/connection/test'),
+    mutationFn: () => apiRequest('GET', '/api/sap/connection/status'),
     onSuccess: (data) => {
       toast({
         title: "Connection Test",
-        description: data.success ? "SAP B1 connection successful!" : "Connection failed",
-        variant: data.success ? "default" : "destructive",
+        description: data.success && data.status === 'connected' ? "SAP B1 connection successful!" : "Connection failed",
+        variant: data.success && data.status === 'connected' ? "default" : "destructive",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/sap/connection/status'] });
     },
