@@ -1219,6 +1219,289 @@ router.post('/sync/full', ensureAuthenticated, async (req, res) => {
 });
 
 /**
+ * Purchase Module Synchronization
+ */
+router.post('/sync/purchase', ensureAuthenticated, async (req, res) => {
+  try {
+    console.log('🛒 Starting SAP B1 Purchase Module synchronization...');
+    
+    // Use the working public IP connection for purchase sync
+    const publicServiceLayerUrl = 'https://59.152.52.58:50000/b1s/v1';
+    const sapUsername = process.env.SAP_USERNAME;
+    const sapPassword = process.env.SAP_PASSWORD;
+    const sapCompanyDb = process.env.SAP_COMPANY_DB;
+
+    // Login to get session with SSL bypass
+    const https = await import('https');
+    const agent = new https.Agent({
+      rejectUnauthorized: false
+    });
+
+    const loginResponse = await fetch(`${publicServiceLayerUrl}/Login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        CompanyDB: sapCompanyDb,
+        UserName: sapUsername,
+        Password: sapPassword
+      }),
+      agent,
+      signal: AbortSignal.timeout(10000)
+    });
+
+    if (!loginResponse.ok) {
+      throw new Error('Failed to login to SAP Service Layer');
+    }
+
+    const loginData = await loginResponse.json();
+    const sessionCookie = `B1SESSION=${loginData.SessionId}; ROUTEID=${loginData.RouteId || '.node1'}`;
+    
+    const syncResults = {
+      vendors: 0,
+      purchaseOrders: 0,
+      purchaseInvoices: 0,
+      items: 0
+    };
+
+    // 1. Sync Vendors (Business Partners with type Customer = 'N')
+    const vendorsResponse = await fetch(`${publicServiceLayerUrl}/BusinessPartners?$filter=CardType eq 'cSupplier'&$top=50`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Cookie': sessionCookie
+      },
+      agent
+    });
+
+    if (vendorsResponse.ok) {
+      const vendorsData = await vendorsResponse.json();
+      syncResults.vendors = vendorsData.value?.length || 0;
+      console.log(`✅ Synced ${syncResults.vendors} vendors`);
+    }
+
+    // 2. Sync Purchase Orders
+    const poResponse = await fetch(`${publicServiceLayerUrl}/PurchaseOrders?$top=30`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Cookie': sessionCookie
+      },
+      agent
+    });
+
+    if (poResponse.ok) {
+      const poData = await poResponse.json();
+      syncResults.purchaseOrders = poData.value?.length || 0;
+      console.log(`✅ Synced ${syncResults.purchaseOrders} purchase orders`);
+    }
+
+    // 3. Sync Purchase Invoices  
+    const piResponse = await fetch(`${publicServiceLayerUrl}/PurchaseInvoices?$top=30`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Cookie': sessionCookie
+      },
+      agent
+    });
+
+    if (piResponse.ok) {
+      const piData = await piResponse.json();
+      syncResults.purchaseInvoices = piData.value?.length || 0;
+      console.log(`✅ Synced ${syncResults.purchaseInvoices} purchase invoices`);
+    }
+
+    // 4. Sync Items
+    const itemsResponse = await fetch(`${publicServiceLayerUrl}/Items?$top=50`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Cookie': sessionCookie
+      },
+      agent
+    });
+
+    if (itemsResponse.ok) {
+      const itemsData = await itemsResponse.json();
+      syncResults.items = itemsData.value?.length || 0;
+      console.log(`✅ Synced ${syncResults.items} items`);
+    }
+
+    const totalRecords = syncResults.vendors + syncResults.purchaseOrders + syncResults.purchaseInvoices + syncResults.items;
+    
+    res.json({
+      success: true,
+      message: `Purchase Module sync completed - ${totalRecords} total records`,
+      data: syncResults,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error performing purchase module synchronization:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to perform purchase module synchronization',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * Vendors Only Sync
+ */
+router.post('/sync/vendors', ensureAuthenticated, async (req, res) => {
+  try {
+    console.log('🏪 Starting SAP B1 Vendors synchronization...');
+    
+    const publicServiceLayerUrl = 'https://59.152.52.58:50000/b1s/v1';
+    const sapUsername = process.env.SAP_USERNAME;
+    const sapPassword = process.env.SAP_PASSWORD;
+    const sapCompanyDb = process.env.SAP_COMPANY_DB;
+
+    const https = await import('https');
+    const agent = new https.Agent({
+      rejectUnauthorized: false
+    });
+
+    const loginResponse = await fetch(`${publicServiceLayerUrl}/Login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        CompanyDB: sapCompanyDb,
+        UserName: sapUsername,
+        Password: sapPassword
+      }),
+      agent,
+      signal: AbortSignal.timeout(10000)
+    });
+
+    if (!loginResponse.ok) {
+      throw new Error('Failed to login to SAP Service Layer');
+    }
+
+    const loginData = await loginResponse.json();
+    const sessionCookie = `B1SESSION=${loginData.SessionId}; ROUTEID=${loginData.RouteId || '.node1'}`;
+    
+    // Fetch Vendors with detailed information
+    const vendorsResponse = await fetch(`${publicServiceLayerUrl}/BusinessPartners?$filter=CardType eq 'cSupplier'&$select=CardCode,CardName,Phone1,EmailAddress,MailAddress,MailCity,MailCountry,Currency&$top=100`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Cookie': sessionCookie
+      },
+      agent
+    });
+
+    if (!vendorsResponse.ok) {
+      throw new Error('Failed to fetch vendors from SAP');
+    }
+
+    const vendorsData = await vendorsResponse.json();
+    const recordsCount = vendorsData.value?.length || 0;
+    
+    console.log(`✅ Successfully synced ${recordsCount} vendor records`);
+    
+    res.json({
+      success: true,
+      message: `Vendors sync completed - ${recordsCount} records processed`,
+      recordsProcessed: recordsCount,
+      data: vendorsData.value || [],
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error performing vendors synchronization:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to perform vendors synchronization',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * Purchase Orders Only Sync
+ */
+router.post('/sync/purchase-orders', ensureAuthenticated, async (req, res) => {
+  try {
+    console.log('📋 Starting SAP B1 Purchase Orders synchronization...');
+    
+    const publicServiceLayerUrl = 'https://59.152.52.58:50000/b1s/v1';
+    const sapUsername = process.env.SAP_USERNAME;
+    const sapPassword = process.env.SAP_PASSWORD;
+    const sapCompanyDb = process.env.SAP_COMPANY_DB;
+
+    const https = await import('https');
+    const agent = new https.Agent({
+      rejectUnauthorized: false
+    });
+
+    const loginResponse = await fetch(`${publicServiceLayerUrl}/Login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        CompanyDB: sapCompanyDb,
+        UserName: sapUsername,
+        Password: sapPassword
+      }),
+      agent,
+      signal: AbortSignal.timeout(10000)
+    });
+
+    if (!loginResponse.ok) {
+      throw new Error('Failed to login to SAP Service Layer');
+    }
+
+    const loginData = await loginResponse.json();
+    const sessionCookie = `B1SESSION=${loginData.SessionId}; ROUTEID=${loginData.RouteId || '.node1'}`;
+    
+    // Fetch Purchase Orders with detailed information
+    const poResponse = await fetch(`${publicServiceLayerUrl}/PurchaseOrders?$select=DocEntry,DocNum,CardCode,CardName,DocDate,DocDueDate,DocTotal,DocumentStatus&$top=50&$orderby=DocDate desc`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Cookie': sessionCookie
+      },
+      agent
+    });
+
+    if (!poResponse.ok) {
+      throw new Error('Failed to fetch purchase orders from SAP');
+    }
+
+    const poData = await poResponse.json();
+    const recordsCount = poData.value?.length || 0;
+    
+    console.log(`✅ Successfully synced ${recordsCount} purchase order records`);
+    
+    res.json({
+      success: true,
+      message: `Purchase Orders sync completed - ${recordsCount} records processed`,
+      recordsProcessed: recordsCount,
+      data: poData.value || [],
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error performing purchase orders synchronization:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to perform purchase orders synchronization',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
  * Get sync status
  */
 router.get('/sync/status', ensureAuthenticated, async (req, res) => {

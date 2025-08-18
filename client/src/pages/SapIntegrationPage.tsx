@@ -146,6 +146,63 @@ export default function SapIntegrationPage() {
     },
   });
 
+  // Purchase Module sync mutation
+  const syncPurchaseModuleMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/sap/sync/purchase'),
+    onSuccess: (data) => {
+      toast({
+        title: "Purchase Module Sync",
+        description: `Successfully synced purchase data: ${data.data?.vendors || 0} vendors, ${data.data?.purchaseOrders || 0} POs, ${data.data?.purchaseInvoices || 0} invoices, ${data.data?.items || 0} items`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/sap/sync/stats'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Purchase Sync Error",
+        description: "Failed to sync purchase module data",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Vendors only sync mutation
+  const syncVendorsMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/sap/sync/vendors'),
+    onSuccess: (data) => {
+      toast({
+        title: "Vendors Sync",
+        description: `Successfully synced ${data.recordsProcessed || 0} vendor records`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/sap/sync/stats'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Vendors Sync Error",
+        description: "Failed to sync vendor data",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Purchase Orders only sync mutation
+  const syncPurchaseOrdersMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/sap/sync/purchase-orders'),
+    onSuccess: (data) => {
+      toast({
+        title: "Purchase Orders Sync",
+        description: `Successfully synced ${data.recordsProcessed || 0} purchase order records`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/sap/sync/stats'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Purchase Orders Sync Error",
+        description: "Failed to sync purchase order data",
+        variant: "destructive",
+      });
+    },
+  });
+
   const getConnectionStatusBadge = () => {
     if (statusLoading) {
       return <Badge variant="secondary">Checking...</Badge>;
@@ -525,19 +582,65 @@ export default function SapIntegrationPage() {
                       Test SAP B1 Connection
                     </Button>
 
-                    <Button 
-                      className="w-full" 
-                      variant="outline"
-                      onClick={() => syncDataMutation.mutate()}
-                      disabled={syncDataMutation.isPending || connectionStatus?.status !== 'connected'}
-                    >
-                      {syncDataMutation.isPending ? (
-                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                      )}
-                      Sync SAP B1 Data
-                    </Button>
+                    <div className="space-y-2">
+                      <Button 
+                        className="w-full" 
+                        variant="outline"
+                        onClick={() => syncDataMutation.mutate()}
+                        disabled={syncDataMutation.isPending || connectionStatus?.status !== 'connected'}
+                      >
+                        {syncDataMutation.isPending ? (
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                        )}
+                        Sync All Data
+                      </Button>
+                      
+                      <Button 
+                        className="w-full" 
+                        variant="default"
+                        onClick={() => syncPurchaseModuleMutation.mutate()}
+                        disabled={syncPurchaseModuleMutation.isPending || connectionStatus?.status !== 'connected'}
+                      >
+                        {syncPurchaseModuleMutation.isPending ? (
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Package className="h-4 w-4 mr-2" />
+                        )}
+                        Sync Purchase Module
+                      </Button>
+                      
+                      <Button 
+                        className="w-full" 
+                        variant="outline"
+                        onClick={() => syncVendorsMutation.mutate()}
+                        disabled={syncVendorsMutation.isPending || connectionStatus?.status !== 'connected'}
+                        size="sm"
+                      >
+                        {syncVendorsMutation.isPending ? (
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Users className="h-4 w-4 mr-2" />
+                        )}
+                        Vendors Only
+                      </Button>
+                      
+                      <Button 
+                        className="w-full" 
+                        variant="outline"
+                        onClick={() => syncPurchaseOrdersMutation.mutate()}
+                        disabled={syncPurchaseOrdersMutation.isPending || connectionStatus?.status !== 'connected'}
+                        size="sm"
+                      >
+                        {syncPurchaseOrdersMutation.isPending ? (
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <FileText className="h-4 w-4 mr-2" />
+                        )}
+                        Purchase Orders Only
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
