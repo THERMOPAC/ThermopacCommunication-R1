@@ -180,7 +180,18 @@ export default function PurchaseModule() {
     queryKey: ['/api/sap/purchase/dashboard-stats'],
     enabled: activeTab === 'dashboard',
     retry: 2,
-    staleTime: 30000 // Cache for 30 seconds to reduce API calls
+    staleTime: 30000, // Cache for 30 seconds to reduce API calls
+    onSuccess: (data) => {
+      // Auto-set connection status to 'connected' when dashboard stats load successfully from SAP
+      if (data.success && data.source === 'sap_service_layer') {
+        setConnectionStatus('connected');
+      } else if (!data.success) {
+        setConnectionStatus('disconnected');
+      }
+    },
+    onError: () => {
+      setConnectionStatus('disconnected');
+    }
   });
   
   const stats = statsResponse?.data;

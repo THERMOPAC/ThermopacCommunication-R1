@@ -147,29 +147,41 @@ router.get('/purchase-orders', async (req, res) => {
     // Connect to SAP Service Layer with configured credentials
     const { baseURL, sessionId, httpsClient } = await createSapConnection();
 
-    // Build query parameters
-    let selectFields = 'DocEntry,DocNum,DocDate,CardCode,CardName,DocTotal,DocCurrency,DocStatus,Comments,VatSum';
+    // Build query parameters - using correct SAP B1 field names for PurchaseOrders
+    let selectFields = 'DocEntry,DocNum,DocDate,CardCode,CardName,DocTotal,DocCurrency,DocumentStatus,Comments,VatSum';
     let filterQuery = '';
     
-    // Apply filters
+    // Apply filters using correct SAP B1 field names
     const filters_array = [];
     if (vendorCode) filters_array.push(`CardCode eq '${vendorCode}'`);
-    if (status) filters_array.push(`DocStatus eq '${status}'`);
+    if (status) filters_array.push(`DocumentStatus eq '${status}'`);
     if (dateFrom) filters_array.push(`DocDate ge '${dateFrom}'`);
     if (dateTo) filters_array.push(`DocDate le '${dateTo}'`);
     
     if (filters_array.length > 0) {
-      filterQuery = `&\$filter=${encodeURIComponent(filters_array.join(' and '))}`;
+      filterQuery = `&$filter=${encodeURIComponent(filters_array.join(' and '))}`;
     }
 
-    // Fetch purchase orders using custom HTTPS client with SSL bypass
+    // Fetch purchase orders using custom HTTPS client with SSL bypass  
+    const queryPath = `/b1s/v1/PurchaseOrders?$select=${selectFields}&$top=${limit}&$skip=${offset}${filterQuery}`;
+    
     const poResponse = await httpsClient.authenticatedRequest(sessionId, {
       method: 'GET',
-      path: `/b1s/v1/PurchaseOrders?\$select=${selectFields}&\$top=${limit}&\$skip=${offset}${filterQuery}`
+      path: queryPath
     });
 
     if (!poResponse.ok) {
-      throw new Error(`Failed to fetch purchase orders: ${poResponse.statusCode}`);
+      
+      // Try to parse the SAP error message
+      let sapErrorMsg = poResponse.body;
+      try {
+        const errorObj = JSON.parse(poResponse.body);
+        sapErrorMsg = errorObj.error?.message?.value || errorObj.message || poResponse.body;
+      } catch {
+        // Keep original body if not JSON
+      }
+      
+      throw new Error(`SAP API Error ${poResponse.statusCode}: ${sapErrorMsg}`);
     }
 
     const poData = JSON.parse(poResponse.body);
@@ -205,7 +217,7 @@ router.get('/purchase-orders', async (req, res) => {
         vendorName: po.CardName || '',
         docTotal: docTotal,
         docCurrency: po.DocCurrency || 'INR',
-        docStatus: po.DocStatus || '',
+        docStatus: po.DocumentStatus || '',
         comments: po.Comments || '',
         orderType,
         hasItems: itemCount > 0,
@@ -299,14 +311,16 @@ router.get('/dashboard-stats', async (req, res) => {
     // Connect to SAP and fetch real stats using custom HTTPS client
     const { baseURL, sessionId, httpsClient } = await createSapConnection();
 
-    // Fetch summary statistics using custom HTTPS client with SSL bypass
+    // Fetch summary statistics using custom HTTPS client with SSL bypass - using correct field names  
+    const statsPath = '/b1s/v1/PurchaseOrders?$select=DocTotal,DocumentStatus,DocCurrency&$top=1000';
+    
     const statsResponse = await httpsClient.authenticatedRequest(sessionId, {
       method: 'GET',
-      path: '/b1s/v1/PurchaseOrders?$select=DocTotal,DocStatus,DocCurrency&$top=1000'
+      path: statsPath
     });
 
     if (!statsResponse.ok) {
-      throw new Error(`Failed to fetch statistics: ${statsResponse.statusCode}`);
+      throw new Error(`Failed to fetch statistics: ${statsResponse.statusCode} - ${statsResponse.body}`);
     }
 
     const statsData = JSON.parse(statsResponse.body);
