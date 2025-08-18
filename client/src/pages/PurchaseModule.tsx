@@ -14,6 +14,13 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   ShoppingCart, 
   Package, 
@@ -171,6 +178,8 @@ export default function PurchaseModule() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [financialYearFilter, setFinancialYearFilter] = useState('all'); // Default to show all years
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown');
+  const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -453,13 +462,39 @@ export default function PurchaseModule() {
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
-                        <Button size="sm" variant="outline">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setIsViewDialogOpen(true);
+                          }}
+                          title="View Purchase Order"
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button size="sm" variant="outline">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            // Edit purchase order
+                            console.log('Editing PO:', order.docNum);
+                            // TODO: Implement edit functionality
+                          }}
+                          title="Edit Purchase Order"
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button size="sm" variant="outline">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            // Download purchase order
+                            console.log('Downloading PO:', order.docNum);
+                            // TODO: Implement download functionality
+                          }}
+                          title="Download Purchase Order"
+                        >
                           <Download className="h-4 w-4" />
                         </Button>
                       </div>
@@ -1219,6 +1254,155 @@ export default function PurchaseModule() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Purchase Order View Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <FileText className="h-5 w-5 mr-2" />
+              Purchase Order Details - {selectedOrder?.docNum}
+            </DialogTitle>
+            <DialogDescription>
+              Complete information for purchase order from SAP B1
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedOrder && (
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">Order Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="font-medium">PO Number:</span>
+                      <span>{selectedOrder.docNum}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium">Date:</span>
+                      <span>{new Date(selectedOrder.docDate).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium">Status:</span>
+                      <Badge variant={selectedOrder.docStatus === 'O' ? 'default' : 'secondary'}>
+                        {selectedOrder.docStatus === 'O' ? 'Open' : 'Closed'}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">Vendor Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="font-medium">Vendor Code:</span>
+                      <span>{selectedOrder.vendorCode}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium">Vendor Name:</span>
+                      <span className="text-right">{selectedOrder.vendorName}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Financial Information */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Financial Details</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <div className="text-2xl font-bold text-blue-700">
+                        {selectedOrder.docCurrency} {selectedOrder.docTotal.toLocaleString()}
+                      </div>
+                      <div className="text-sm text-blue-600">Total Amount</div>
+                    </div>
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <div className="text-lg font-semibold text-green-700">
+                        {selectedOrder.gstAmount ? `${selectedOrder.docCurrency} ${selectedOrder.gstAmount.toLocaleString()}` : 'N/A'}
+                      </div>
+                      <div className="text-sm text-green-600">GST Amount</div>
+                    </div>
+                    <div className="text-center p-3 bg-purple-50 rounded-lg">
+                      <div className="text-lg font-semibold text-purple-700">
+                        {selectedOrder.gstPercentage ? `${selectedOrder.gstPercentage.toFixed(1)}%` : 'N/A'}
+                      </div>
+                      <div className="text-sm text-purple-600">GST Rate</div>
+                    </div>
+                    <div className="text-center p-3 bg-amber-50 rounded-lg">
+                      <Badge 
+                        variant="outline" 
+                        className={
+                          selectedOrder.isITCEligible ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
+                        }
+                      >
+                        {selectedOrder.isITCEligible ? 'ITC Eligible' : 'Not Eligible'}
+                      </Badge>
+                      <div className="text-sm text-gray-600 mt-1">ITC Status</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Classification Information */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Classification</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">Order Type:</span>
+                      <Badge 
+                        variant="outline" 
+                        className={
+                          selectedOrder.orderType === 'Item' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                          selectedOrder.orderType === 'Service' ? 'bg-green-50 text-green-700 border-green-200' :
+                          'bg-purple-50 text-purple-700 border-purple-200'
+                        }
+                      >
+                        {selectedOrder.orderType}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">Expenditure Type:</span>
+                      <Badge 
+                        variant="outline" 
+                        className={
+                          selectedOrder.expenditureType === 'CapEx' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                          selectedOrder.expenditureType === 'OpEx' ? 'bg-teal-50 text-teal-700 border-teal-200' :
+                          'bg-orange-50 text-orange-700 border-orange-200'
+                        }
+                      >
+                        {selectedOrder.expenditureType}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Comments */}
+              {selectedOrder.comments && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">Comments</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-gray-700">{selectedOrder.comments}</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
