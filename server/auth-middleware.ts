@@ -33,5 +33,12 @@ export function ensureAuthenticated(req: Request, res: Response, next: NextFunct
   if (req.isAuthenticated()) {
     return next();
   }
+  
+  // Ensure JSON response for API routes to prevent HTML redirects
+  if (req.path.startsWith('/api/')) {
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
   res.status(401).json({ error: 'Unauthorized' });
 }
