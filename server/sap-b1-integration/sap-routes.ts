@@ -1155,7 +1155,12 @@ router.post('/sync/full', ensureAuthenticated, async (req, res) => {
     const sapPassword = process.env.SAP_PASSWORD;
     const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
-    // Login to get session
+    // Login to get session with SSL bypass
+    const https = await import('https');
+    const agent = new https.Agent({
+      rejectUnauthorized: false // SSL bypass like in connection test
+    });
+
     const loginResponse = await fetch(`${publicServiceLayerUrl}/Login`, {
       method: 'POST',
       headers: {
@@ -1167,6 +1172,7 @@ router.post('/sync/full', ensureAuthenticated, async (req, res) => {
         UserName: sapUsername,
         Password: sapPassword
       }),
+      agent,
       signal: AbortSignal.timeout(10000)
     });
 
@@ -1177,13 +1183,14 @@ router.post('/sync/full', ensureAuthenticated, async (req, res) => {
     const loginData = await loginResponse.json();
     const sessionCookie = `B1SESSION=${loginData.SessionId}; ROUTEID=${loginData.RouteId || '.node1'}`;
     
-    // Test by fetching Business Partners
+    // Test by fetching Business Partners with SSL bypass
     const businessPartnersResponse = await fetch(`${publicServiceLayerUrl}/BusinessPartners?$top=5`, {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'Cookie': sessionCookie
-      }
+      },
+      agent
     });
 
     if (!businessPartnersResponse.ok) {
