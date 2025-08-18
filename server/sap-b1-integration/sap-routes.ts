@@ -1391,8 +1391,8 @@ router.post('/sync/vendors', ensureAuthenticated, async (req, res) => {
     const loginData = await loginResponse.json();
     const sessionCookie = `B1SESSION=${loginData.SessionId}; ROUTEID=${loginData.RouteId || '.node1'}`;
     
-    // Fetch Vendors with detailed information
-    const vendorsResponse = await fetch(`${publicServiceLayerUrl}/BusinessPartners?$filter=CardType eq 'cSupplier'&$select=CardCode,CardName,Phone1,EmailAddress,MailAddress,MailCity,MailCountry,Currency&$top=100`, {
+    // Fetch Vendors with detailed information (increased limit to 1000)
+    const vendorsResponse = await fetch(`${publicServiceLayerUrl}/BusinessPartners?$filter=CardType eq 'cSupplier'&$select=CardCode,CardName,Phone1,EmailAddress,MailAddress,MailCity,MailCountry,Currency&$top=1000`, {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -1415,6 +1415,8 @@ router.post('/sync/vendors', ensureAuthenticated, async (req, res) => {
       message: `Vendors sync completed - ${recordsCount} records processed`,
       recordsProcessed: recordsCount,
       data: vendorsData.value || [],
+      limitReached: recordsCount === 1000,
+      note: recordsCount === 1000 ? "Showing first 1000 records (limit reached)" : "All available records shown",
       timestamp: new Date().toISOString()
     });
 
@@ -1468,8 +1470,8 @@ router.post('/sync/purchase-orders', ensureAuthenticated, async (req, res) => {
     const loginData = await loginResponse.json();
     const sessionCookie = `B1SESSION=${loginData.SessionId}; ROUTEID=${loginData.RouteId || '.node1'}`;
     
-    // Fetch Purchase Orders with detailed information
-    const poResponse = await fetch(`${publicServiceLayerUrl}/PurchaseOrders?$select=DocEntry,DocNum,CardCode,CardName,DocDate,DocDueDate,DocTotal,DocumentStatus&$top=50&$orderby=DocDate desc`, {
+    // Fetch Purchase Orders with detailed information (increased limit to 500)
+    const poResponse = await fetch(`${publicServiceLayerUrl}/PurchaseOrders?$select=DocEntry,DocNum,CardCode,CardName,DocDate,DocDueDate,DocTotal,DocumentStatus&$top=500&$orderby=DocDate desc`, {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -1492,6 +1494,8 @@ router.post('/sync/purchase-orders', ensureAuthenticated, async (req, res) => {
       message: `Purchase Orders sync completed - ${recordsCount} records processed`,
       recordsProcessed: recordsCount,
       data: poData.value || [],
+      limitReached: recordsCount === 500,
+      note: recordsCount === 500 ? "Showing first 500 records (limit reached)" : "All available records shown",
       timestamp: new Date().toISOString()
     });
 
