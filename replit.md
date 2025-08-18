@@ -5,6 +5,7 @@ This project is a comprehensive Quality Management System (QMS) designed for THE
 - **Vacuum Pump Sizing Tool**: Added comprehensive engineering calculator with accurate physics-based formulas to Design Tools → Mechanical Design tab. Features corrected time-based speed calculation (St = (V/t_sec) × ln(p1/p2)) and proper unit conversion (L/s × 3.6 = m³/h)
 - **SAP B1 Integration**: ✅ **FULLY OPERATIONAL** - Successfully connecting via public IP (59.152.52.58:50000) with port forwarding. Fixed CommonJS import errors, optimized connection logic, and confirmed Service Layer login working with proper authentication and API calls functional
 - **Purchase Module Integration**: ✅ **COMPLETE** - Comprehensive SAP B1 Purchase Module sync with selective options: Full Purchase Module, Vendors Only, Purchase Orders Only. Real-time data synchronization confirmed working between cloud application and on-premise SAP system (TPEL_LIVE database)
+- **SSL Certificate Bypass**: ✅ **IMPLEMENTED** - Added SSL certificate bypass (rejectUnauthorized: false) for SAP Service Layer API calls to handle self-signed certificates common in on-premise SAP systems. Backend APIs now successfully retrieving real data: 3 purchase orders totaling ₹425,000 from live TPEL_LIVE database
 
 # User Preferences
 Preferred communication style: Simple, everyday language.

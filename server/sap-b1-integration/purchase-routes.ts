@@ -52,7 +52,13 @@ router.get('/purchase-orders', async (req, res) => {
     const serviceLayerPort = '50000';
     const baseURL = `https://${publicIP}:${serviceLayerPort}/b1s/v1`;
     
-    // Login to Service Layer
+    // Create HTTPS agent to bypass SSL certificate verification for self-signed certs
+    const https = await import('https');
+    const httpsAgent = new https.Agent({
+      rejectUnauthorized: false
+    });
+
+    // Login to Service Layer with SSL bypass
     const loginResponse = await fetch(`${baseURL}/Login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -61,7 +67,9 @@ router.get('/purchase-orders', async (req, res) => {
         UserName: 'manager',
         Password: 'admin'
       }),
-      signal: AbortSignal.timeout(30000)
+      signal: AbortSignal.timeout(30000),
+      // @ts-ignore
+      agent: httpsAgent
     });
 
     if (!loginResponse.ok) {
@@ -88,13 +96,15 @@ router.get('/purchase-orders', async (req, res) => {
       filterQuery = `&\$filter=${encodeURIComponent(filters_array.join(' and '))}`;
     }
 
-    // Fetch purchase orders using Service Layer API
+    // Fetch purchase orders using Service Layer API with SSL bypass
     const poResponse = await fetch(`${baseURL}/PurchaseOrders?\$select=${selectFields}&\$top=${limit}&\$skip=${offset}${filterQuery}`, {
       headers: {
         'Cookie': `B1SESSION=${sessionId}`,
         'Content-Type': 'application/json'
       },
-      signal: AbortSignal.timeout(30000)
+      signal: AbortSignal.timeout(30000),
+      // @ts-ignore
+      agent: httpsAgent
     });
 
     if (!poResponse.ok) {
@@ -700,7 +710,13 @@ router.get('/dashboard-stats', async (req, res) => {
     const serviceLayerPort = '50000';
     const baseURL = `https://${publicIP}:${serviceLayerPort}/b1s/v1`;
     
-    // Login to Service Layer
+    // Create HTTPS agent to bypass SSL certificate verification for self-signed certs
+    const https = await import('https');
+    const httpsAgent = new https.Agent({
+      rejectUnauthorized: false
+    });
+
+    // Login to Service Layer with SSL bypass
     const loginResponse = await fetch(`${baseURL}/Login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -709,7 +725,9 @@ router.get('/dashboard-stats', async (req, res) => {
         UserName: 'manager',
         Password: 'admin'
       }),
-      signal: AbortSignal.timeout(30000)
+      signal: AbortSignal.timeout(30000),
+      // @ts-ignore
+      agent: httpsAgent
     });
 
     if (!loginResponse.ok) {
@@ -721,13 +739,15 @@ router.get('/dashboard-stats', async (req, res) => {
       throw new Error('No session ID received from Service Layer');
     }
 
-    // Fetch purchase orders using Service Layer API
+    // Fetch purchase orders using Service Layer API with SSL bypass
     const poResponse = await fetch(`${baseURL}/PurchaseOrders?\$select=DocEntry,DocNum,DocDate,CardCode,CardName,DocTotal,DocCurrency,DocStatus,Comments&\$top=1000`, {
       headers: {
         'Cookie': `B1SESSION=${sessionId}`,
         'Content-Type': 'application/json'
       },
-      signal: AbortSignal.timeout(30000)
+      signal: AbortSignal.timeout(30000),
+      // @ts-ignore
+      agent: httpsAgent
     });
 
     if (!poResponse.ok) {
