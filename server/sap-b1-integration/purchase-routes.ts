@@ -391,6 +391,8 @@ router.get('/dashboard-stats', async (req, res) => {
 // Purchase Requisitions endpoint
 router.get('/purchase-requisitions', async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'no-cache');
   
   try {
     const { baseURL, sessionId, httpsClient } = await createSapConnection();
@@ -422,7 +424,7 @@ router.get('/purchase-requisitions', async (req, res) => {
 
   } catch (error: any) {
     console.error('❌ SAP Purchase Requisitions error:', error);
-    res.json({
+    res.status(200).json({
       success: false,
       source: 'error_fallback',
       error: error.message,
@@ -434,6 +436,8 @@ router.get('/purchase-requisitions', async (req, res) => {
 // Goods Receipt endpoint
 router.get('/goods-receipt', async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'no-cache');
   
   try {
     const { baseURL, sessionId, httpsClient } = await createSapConnection();
@@ -465,7 +469,7 @@ router.get('/goods-receipt', async (req, res) => {
 
   } catch (error: any) {
     console.error('❌ SAP Goods Receipt error:', error);
-    res.json({
+    res.status(200).json({
       success: false,
       source: 'error_fallback',
       error: error.message,
@@ -477,6 +481,8 @@ router.get('/goods-receipt', async (req, res) => {
 // Purchase Invoices endpoint
 router.get('/purchase-invoices', async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'no-cache');
   
   try {
     const { baseURL, sessionId, httpsClient } = await createSapConnection();
@@ -508,7 +514,7 @@ router.get('/purchase-invoices', async (req, res) => {
 
   } catch (error: any) {
     console.error('❌ SAP Purchase Invoices error:', error);
-    res.json({
+    res.status(200).json({
       success: false,
       source: 'error_fallback',
       error: error.message,
@@ -520,6 +526,8 @@ router.get('/purchase-invoices', async (req, res) => {
 // Vendors endpoint
 router.get('/vendors', async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'no-cache');
   
   try {
     const { baseURL, sessionId, httpsClient } = await createSapConnection();
@@ -551,7 +559,7 @@ router.get('/vendors', async (req, res) => {
 
   } catch (error: any) {
     console.error('❌ SAP Vendors error:', error);
-    res.json({
+    res.status(200).json({
       success: false,
       source: 'error_fallback',
       error: error.message,
