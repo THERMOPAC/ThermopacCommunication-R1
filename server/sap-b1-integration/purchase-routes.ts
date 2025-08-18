@@ -1,6 +1,5 @@
 import express from 'express';
 import { db } from '../db';
-import { ensureAuthenticated } from '../auth-middleware';
 import { sapHttpsClient } from './sap-https-client';
 import { sapB1Connector } from './sap-connector';
 import { 
@@ -385,6 +384,178 @@ router.get('/dashboard-stats', async (req, res) => {
         gstCollected: 0,
         itcEligibleOrders: 0
       }
+    });
+  }
+});
+
+// Purchase Requisitions endpoint
+router.get('/purchase-requisitions', async (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  
+  try {
+    const { baseURL, sessionId, httpsClient } = await createSapConnection();
+    
+    const requisitionsPath = '/b1s/v1/PurchaseRequests?$top=100';
+    
+    const requisitionsResponse = await httpsClient.authenticatedRequest(sessionId, {
+      method: 'GET',
+      path: requisitionsPath
+    });
+
+    if (!requisitionsResponse.ok) {
+      throw new Error(`Failed to fetch purchase requisitions: ${requisitionsResponse.statusCode}`);
+    }
+
+    const requisitionsData = JSON.parse(requisitionsResponse.body);
+    
+    // Logout
+    await httpsClient.authenticatedRequest(sessionId, {
+      method: 'POST',
+      path: '/b1s/v1/Logout'
+    }).catch(() => {});
+
+    res.json({
+      success: true,
+      source: 'sap_service_layer',
+      data: requisitionsData.value || []
+    });
+
+  } catch (error: any) {
+    console.error('❌ SAP Purchase Requisitions error:', error);
+    res.json({
+      success: false,
+      source: 'error_fallback',
+      error: error.message,
+      data: []
+    });
+  }
+});
+
+// Goods Receipt endpoint
+router.get('/goods-receipt', async (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  
+  try {
+    const { baseURL, sessionId, httpsClient } = await createSapConnection();
+    
+    const goodsReceiptPath = '/b1s/v1/PurchaseDeliveryNotes?$top=100';
+    
+    const goodsReceiptResponse = await httpsClient.authenticatedRequest(sessionId, {
+      method: 'GET',
+      path: goodsReceiptPath
+    });
+
+    if (!goodsReceiptResponse.ok) {
+      throw new Error(`Failed to fetch goods receipt: ${goodsReceiptResponse.statusCode}`);
+    }
+
+    const goodsReceiptData = JSON.parse(goodsReceiptResponse.body);
+    
+    // Logout
+    await httpsClient.authenticatedRequest(sessionId, {
+      method: 'POST',
+      path: '/b1s/v1/Logout'
+    }).catch(() => {});
+
+    res.json({
+      success: true,
+      source: 'sap_service_layer',
+      data: goodsReceiptData.value || []
+    });
+
+  } catch (error: any) {
+    console.error('❌ SAP Goods Receipt error:', error);
+    res.json({
+      success: false,
+      source: 'error_fallback',
+      error: error.message,
+      data: []
+    });
+  }
+});
+
+// Purchase Invoices endpoint
+router.get('/purchase-invoices', async (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  
+  try {
+    const { baseURL, sessionId, httpsClient } = await createSapConnection();
+    
+    const invoicesPath = '/b1s/v1/PurchaseInvoices?$top=100';
+    
+    const invoicesResponse = await httpsClient.authenticatedRequest(sessionId, {
+      method: 'GET',
+      path: invoicesPath
+    });
+
+    if (!invoicesResponse.ok) {
+      throw new Error(`Failed to fetch purchase invoices: ${invoicesResponse.statusCode}`);
+    }
+
+    const invoicesData = JSON.parse(invoicesResponse.body);
+    
+    // Logout
+    await httpsClient.authenticatedRequest(sessionId, {
+      method: 'POST',
+      path: '/b1s/v1/Logout'
+    }).catch(() => {});
+
+    res.json({
+      success: true,
+      source: 'sap_service_layer',
+      data: invoicesData.value || []
+    });
+
+  } catch (error: any) {
+    console.error('❌ SAP Purchase Invoices error:', error);
+    res.json({
+      success: false,
+      source: 'error_fallback',
+      error: error.message,
+      data: []
+    });
+  }
+});
+
+// Vendors endpoint
+router.get('/vendors', async (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  
+  try {
+    const { baseURL, sessionId, httpsClient } = await createSapConnection();
+    
+    const vendorsPath = '/b1s/v1/BusinessPartners?$filter=CardType eq \'cSupplier\'&$top=100';
+    
+    const vendorsResponse = await httpsClient.authenticatedRequest(sessionId, {
+      method: 'GET',
+      path: vendorsPath
+    });
+
+    if (!vendorsResponse.ok) {
+      throw new Error(`Failed to fetch vendors: ${vendorsResponse.statusCode}`);
+    }
+
+    const vendorsData = JSON.parse(vendorsResponse.body);
+    
+    // Logout
+    await httpsClient.authenticatedRequest(sessionId, {
+      method: 'POST',
+      path: '/b1s/v1/Logout'
+    }).catch(() => {});
+
+    res.json({
+      success: true,
+      source: 'sap_service_layer',
+      data: vendorsData.value || []
+    });
+
+  } catch (error: any) {
+    console.error('❌ SAP Vendors error:', error);
+    res.json({
+      success: false,
+      source: 'error_fallback',
+      error: error.message,
+      data: []
     });
   }
 });

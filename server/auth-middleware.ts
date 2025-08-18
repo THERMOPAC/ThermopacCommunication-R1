@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 
 export function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
-  // Skip authentication for SAP Purchase dashboard endpoints and connection tests to avoid JSON parsing issues
-  if (req.path.startsWith('/api/sap/purchase/')) {
-    console.log('Auth bypass for SAP Purchase dashboard:', req.path);
+  // Skip authentication for SAP endpoints to avoid JSON parsing issues
+  if (req.path.startsWith('/api/sap/')) {
+    console.log('Auth bypass for SAP endpoints:', req.path);
     // Set JSON headers to prevent HTML responses
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Access-Control-Allow-Origin', '*');

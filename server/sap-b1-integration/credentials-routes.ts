@@ -4,11 +4,8 @@ import { sapHttpsClient } from './sap-https-client';
 
 const router = Router();
 
-// Apply authentication to credential management endpoints
-router.use(ensureAuthenticated);
-
 // Test SAP connection with provided credentials
-router.post('/connection/test', async (req, res) => {
+router.post('/connection/test', ensureAuthenticated, async (req, res) => {
   try {
     const { username, password, companyDb } = req.body;
     
@@ -76,7 +73,7 @@ router.post('/connection/test', async (req, res) => {
 });
 
 // Save SAP credentials to environment
-router.post('/credentials', async (req, res) => {
+router.post('/credentials', ensureAuthenticated, async (req, res) => {
   try {
     const { username, password, companyDb } = req.body;
     

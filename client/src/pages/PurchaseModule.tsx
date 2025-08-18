@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -176,23 +176,25 @@ export default function PurchaseModule() {
   const queryClient = useQueryClient();
 
   // Fetch dashboard statistics
-  const { data: statsResponse, isLoading: statsLoading, error: statsError } = useQuery<{ success: boolean, data: PurchaseStats }>({
+  const { data: statsResponse, isLoading: statsLoading, error: statsError } = useQuery<{ success: boolean, source: string, data: PurchaseStats }>({
     queryKey: ['/api/sap/purchase/dashboard-stats'],
     enabled: activeTab === 'dashboard',
     retry: 2,
-    staleTime: 30000, // Cache for 30 seconds to reduce API calls
-    onSuccess: (data) => {
-      // Auto-set connection status to 'connected' when dashboard stats load successfully from SAP
-      if (data.success && data.source === 'sap_service_layer') {
+    staleTime: 30000 // Cache for 30 seconds to reduce API calls
+  });
+
+  // Auto-set connection status based on dashboard stats success/failure
+  useEffect(() => {
+    if (statsResponse) {
+      if (statsResponse.success && statsResponse.source === 'sap_service_layer') {
         setConnectionStatus('connected');
-      } else if (!data.success) {
+      } else if (!statsResponse.success) {
         setConnectionStatus('disconnected');
       }
-    },
-    onError: () => {
+    } else if (statsError) {
       setConnectionStatus('disconnected');
     }
-  });
+  }, [statsResponse, statsError]);
   
   const stats = statsResponse?.data;
 
