@@ -59,7 +59,7 @@ router.post('/connection/test', async (req, res) => {
       status: 'connected',
       testedAt: new Date().toISOString(),
       details: {
-        serviceLayerUrl: baseURL,
+        serviceLayerUrl: 'https://59.152.52.58:50000/b1s/v1',
         companyDb: companyDb,
         username: username
       }
