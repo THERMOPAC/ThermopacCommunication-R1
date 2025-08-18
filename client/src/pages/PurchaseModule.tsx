@@ -169,7 +169,7 @@ export default function PurchaseModule() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [financialYearFilter, setFinancialYearFilter] = useState(getCurrentIndianFY()); // Default to current FY
+  const [financialYearFilter, setFinancialYearFilter] = useState('all'); // Default to show all years
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown');
   
   const { toast } = useToast();
@@ -310,10 +310,12 @@ export default function PurchaseModule() {
   }) => {
     // Filter purchase orders based on Financial Year, search term, and status
     const filteredOrders = purchaseOrders.filter((order) => {
-      // Financial Year filtering
-      const orderDate = new Date(order.docDate);
-      const orderFY = getIndianFYFromDate(orderDate);
-      if (orderFY !== financialYear) return false;
+      // Financial Year filtering (skip if 'all' is selected)
+      if (financialYear !== 'all') {
+        const orderDate = new Date(order.docDate);
+        const orderFY = getIndianFYFromDate(orderDate);
+        if (orderFY !== financialYear) return false;
+      }
       
       // Search term filtering
       if (searchTerm) {
@@ -354,6 +356,17 @@ export default function PurchaseModule() {
             <option value="all">All Status</option>
             <option value="O">Open</option>
             <option value="C">Closed</option>
+          </select>
+          <select 
+            className="border rounded px-3 py-2"
+            value={financialYear}
+            onChange={(e) => setFinancialYearFilter(e.target.value)}
+          >
+            <option value="all">All Years</option>
+            <option value="FY2024-25">FY 2024-25</option>
+            <option value="FY2023-24">FY 2023-24</option>
+            <option value="FY2022-23">FY 2022-23</option>
+            <option value="FY2015-16">FY 2015-16</option>
           </select>
         </div>
         <Button>
@@ -905,12 +918,14 @@ export default function PurchaseModule() {
                   onChange={(e) => setFinancialYearFilter(e.target.value)}
                   className="border rounded px-2 py-1 text-sm bg-white"
                 >
+                  <option value="all">All Years</option>
                   <option value="FY2024-25">FY2024-25 (Apr 2024 - Mar 2025)</option>
                   <option value="FY2023-24">FY2023-24 (Apr 2023 - Mar 2024)</option>
                   <option value="FY2022-23">FY2022-23 (Apr 2022 - Mar 2023)</option>
                   <option value="FY2021-22">FY2021-22 (Apr 2021 - Mar 2022)</option>
                   <option value="FY2020-21">FY2020-21 (Apr 2020 - Mar 2021)</option>
                   <option value="FY2019-20">FY2019-20 (Apr 2019 - Mar 2020)</option>
+                  <option value="FY2015-16">FY2015-16 (Apr 2015 - Mar 2016)</option>
                 </select>
                 <Label htmlFor="status-filter" className="text-sm font-medium ml-4">Status:</Label>
                 <select
