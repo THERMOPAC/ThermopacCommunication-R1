@@ -175,17 +175,21 @@ export default function PurchaseModule() {
   const queryClient = useQueryClient();
 
   // Fetch dashboard statistics
-  const { data: statsResponse, isLoading: statsLoading } = useQuery<{ success: boolean, data: PurchaseStats }>({
+  const { data: statsResponse, isLoading: statsLoading, error: statsError } = useQuery<{ success: boolean, data: PurchaseStats }>({
     queryKey: ['/api/sap/purchase/dashboard-stats'],
-    enabled: activeTab === 'dashboard'
+    enabled: activeTab === 'dashboard',
+    retry: 2,
+    staleTime: 30000 // Cache for 30 seconds to reduce API calls
   });
   
   const stats = statsResponse?.data;
 
   // Fetch purchase orders
-  const { data: purchaseOrdersResponse, isLoading: ordersLoading } = useQuery<{ success: boolean, data: PurchaseOrder[] }>({
+  const { data: purchaseOrdersResponse, isLoading: ordersLoading, error: ordersError } = useQuery<{ success: boolean, data: PurchaseOrder[] }>({
     queryKey: ['/api/sap/purchase/purchase-orders'],
-    enabled: activeTab === 'purchase-orders' || activeTab === 'dashboard'
+    enabled: activeTab === 'purchase-orders' || activeTab === 'dashboard',
+    retry: 2,
+    staleTime: 30000 // Cache for 30 seconds to reduce API calls
   });
   
   const purchaseOrders = purchaseOrdersResponse?.data || [];

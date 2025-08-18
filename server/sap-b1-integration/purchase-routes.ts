@@ -22,6 +22,7 @@ router.get('/purchase-orders', async (req, res) => {
   // Set proper JSON headers to prevent HTML responses
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'no-cache');
   try {
     const { 
       vendorCode, 
