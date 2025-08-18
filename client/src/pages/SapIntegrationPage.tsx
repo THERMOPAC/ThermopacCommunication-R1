@@ -90,7 +90,7 @@ export default function SapIntegrationPage() {
 
   // Sync data mutation
   const syncDataMutation = useMutation({
-    mutationFn: () => apiRequest('POST', '/api/sap/sync/all'),
+    mutationFn: () => apiRequest('POST', '/api/sap/sync/full'),
     onSuccess: (data) => {
       toast({
         title: "Data Sync",
