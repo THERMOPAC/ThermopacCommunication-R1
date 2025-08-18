@@ -1146,6 +1146,7 @@ router.post('/sync/stop', ensureAuthenticated, async (req, res) => {
  * Manual full sync
  */
 router.post('/sync/full', ensureAuthenticated, async (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
   try {
     console.log('🔄 Starting SAP B1 data synchronization...');
     
@@ -1222,6 +1223,7 @@ router.post('/sync/full', ensureAuthenticated, async (req, res) => {
  * Purchase Module Synchronization
  */
 router.post('/sync/purchase', ensureAuthenticated, async (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
   try {
     console.log('🛒 Starting SAP B1 Purchase Module synchronization...');
     
@@ -1353,6 +1355,7 @@ router.post('/sync/purchase', ensureAuthenticated, async (req, res) => {
  * Vendors Only Sync
  */
 router.post('/sync/vendors', ensureAuthenticated, async (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
   try {
     console.log('🏪 Starting SAP B1 Vendors synchronization...');
     
@@ -1429,6 +1432,7 @@ router.post('/sync/vendors', ensureAuthenticated, async (req, res) => {
  * Purchase Orders Only Sync
  */
 router.post('/sync/purchase-orders', ensureAuthenticated, async (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
   try {
     console.log('📋 Starting SAP B1 Purchase Orders synchronization...');
     
