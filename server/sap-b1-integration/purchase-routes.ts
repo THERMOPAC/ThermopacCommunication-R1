@@ -29,11 +29,7 @@ async function createSapConnection() {
   const serviceLayerPort = '50000';
   const baseURL = `https://${publicIP}:${serviceLayerPort}/b1s/v1`;
   
-  // Create HTTPS agent to bypass SSL certificate verification for self-signed certs
-  const https = await import('https');
-  const httpsAgent = new https.Agent({
-    rejectUnauthorized: false
-  });
+  // Using custom HTTPS client with SSL bypass for self-signed certificates
 
   const credentials = getSapCredentials();
   console.log('🔑 SAP Login with credentials:', {
@@ -300,51 +296,20 @@ router.get('/dashboard-stats', async (req, res) => {
   try {
     const credentials = getSapCredentials();
     
-    // Check if we have proper SAP credentials
-    if (!credentials.UserName || credentials.UserName === 'manager' || 
-        !credentials.Password || credentials.Password === 'admin') {
-      // Return sample stats when credentials are not configured
-      return res.json({
-        success: true,
-        source: 'sample_data',
-        data: {
-          totalOrders: 45,
-          pendingOrders: 12,
-          totalValue: 2500000,
-          activeVendors: 18,
-          itemOrders: 28,
-          serviceOrders: 12,
-          mixedOrders: 5,
-          capExOrders: 15,
-          opExOrders: 30,
-          capExValue: 1800000,
-          opExValue: 700000,
-          avgOrderValue: 55556,
-          gstCollected: 450000,
-          itcEligibleOrders: 33
-        }
-      });
-    }
+    // Connect to SAP and fetch real stats using custom HTTPS client
+    const { baseURL, sessionId, httpsClient } = await createSapConnection();
 
-    // Connect to SAP and fetch real stats
-    const { baseURL, sessionId, httpsAgent } = await createSapConnection();
-
-    // Fetch summary statistics
-    const statsResponse = await fetch(`${baseURL}/PurchaseOrders?\$select=DocTotal,DocStatus,DocCurrency&\$top=1000`, {
-      headers: {
-        'Cookie': `B1SESSION=${sessionId}`,
-        'Content-Type': 'application/json'
-      },
-      signal: AbortSignal.timeout(30000),
-      // @ts-ignore
-      agent: httpsAgent
+    // Fetch summary statistics using custom HTTPS client with SSL bypass
+    const statsResponse = await httpsClient.authenticatedRequest(sessionId, {
+      method: 'GET',
+      path: '/b1s/v1/PurchaseOrders?$select=DocTotal,DocStatus,DocCurrency&$top=1000'
     });
 
     if (!statsResponse.ok) {
-      throw new Error(`Failed to fetch statistics: ${statsResponse.status}`);
+      throw new Error(`Failed to fetch statistics: ${statsResponse.statusCode}`);
     }
 
-    const statsData = await statsResponse.json();
+    const statsData = JSON.parse(statsResponse.body);
     const orders = statsData.value || [];
 
     // Calculate statistics
@@ -353,10 +318,10 @@ router.get('/dashboard-stats', async (req, res) => {
     const totalValue = orders.reduce((sum: number, o: any) => sum + parseFloat(o.DocTotal || 0), 0);
     const avgOrderValue = totalOrders > 0 ? Math.round(totalValue / totalOrders) : 0;
 
-    // Logout from Service Layer
-    await fetch(`${baseURL}/Logout`, {
+    // Logout from Service Layer using custom HTTPS client
+    await httpsClient.authenticatedRequest(sessionId, {
       method: 'POST',
-      headers: { 'Cookie': `B1SESSION=${sessionId}` }
+      path: '/b1s/v1/Logout'
     }).catch(() => {});
 
     console.log(`✅ Retrieved real SAP statistics: ${totalOrders} orders, total value ₹${totalValue.toLocaleString()}`);
