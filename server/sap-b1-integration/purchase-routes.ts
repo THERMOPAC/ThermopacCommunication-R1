@@ -68,80 +68,8 @@ router.get('/purchase-orders', async (req, res) => {
       offset = 0 
     } = req.query;
 
-    // Check if we have proper SAP credentials
-    const credentials = getSapCredentials();
-    if (!credentials.UserName || credentials.UserName === 'manager' || 
-        !credentials.Password || credentials.Password === 'admin') {
-      console.log('⚠️ Using default/missing SAP credentials - falling back to sample data');
-      // Return sample data when credentials are not configured
-      const samplePurchaseOrders = [
-        {
-          docEntry: 1001,
-          docNum: 'PO-2025-001',
-          docDate: '2025-08-15',
-          vendorCode: 'V001',
-          vendorName: 'Sample Vendor A',
-          docTotal: 125000,
-          docCurrency: 'INR',
-          docStatus: 'Open',
-          comments: 'Sample purchase order - Configure SAP credentials for real data',
-          orderType: 'Item',
-          hasItems: true,
-          hasServices: false,
-          itemCount: 5,
-          serviceCount: 0,
-          expenditureType: 'CapEx',
-          capExLineCount: 5,
-          opExLineCount: 0,
-          capExAmount: 125000,
-          opExAmount: 0,
-          capExPercentage: 100,
-          opExPercentage: 0,
-          gstAmount: 22500,
-          gstPercentage: 18,
-          isITCEligible: true
-        },
-        {
-          docEntry: 1002,
-          docNum: 'PO-2025-002',
-          docDate: '2025-08-16',
-          vendorCode: 'V002',
-          vendorName: 'Sample Vendor B',
-          docTotal: 85000,
-          docCurrency: 'INR',
-          docStatus: 'Closed',
-          comments: 'Sample purchase order - Configure SAP credentials for real data',
-          orderType: 'Service',
-          hasItems: false,
-          hasServices: true,
-          itemCount: 0,
-          serviceCount: 3,
-          expenditureType: 'OpEx',
-          capExLineCount: 0,
-          opExLineCount: 3,
-          capExAmount: 0,
-          opExAmount: 85000,
-          capExPercentage: 0,
-          opExPercentage: 100,
-          gstAmount: 15300,
-          gstPercentage: 18,
-          isITCEligible: false
-        }
-      ];
-
-      return res.json({
-        success: true,
-        source: 'sample_data',
-        message: 'Displaying sample data - Configure SAP credentials for real purchase orders',
-        data: samplePurchaseOrders,
-        pagination: {
-          total: samplePurchaseOrders.length,
-          limit: Number(limit),
-          offset: Number(offset),
-          hasMore: false
-        }
-      });
-    }
+    // Note: Removed faulty credential validation that was blocking real SAP credentials
+    // The dashboard stats endpoint successfully uses the same credentials, so we should too
 
     // Connect to SAP Service Layer with configured credentials
     const { baseURL, sessionId, httpsClient } = await createSapConnection();
