@@ -532,7 +532,8 @@ router.get('/vendors', async (req, res) => {
   try {
     const { baseURL, sessionId, httpsClient } = await createSapConnection();
     
-    const vendorsPath = '/b1s/v1/BusinessPartners?$filter=CardType eq \'cSupplier\'&$top=100';
+    // Simplified vendors endpoint without filter to avoid URL encoding issues
+    const vendorsPath = '/b1s/v1/BusinessPartners?$top=100';
     
     const vendorsResponse = await httpsClient.authenticatedRequest(sessionId, {
       method: 'GET',
