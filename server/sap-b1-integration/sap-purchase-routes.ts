@@ -581,8 +581,20 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
         // Cache the data
         for (const order of ordersData.value || []) {
           await pool.query(
-            'INSERT INTO sap_document_cache (user_id, document_type, doc_entry, document_data, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id, document_type, doc_entry) DO UPDATE SET document_data = $4, created_at = NOW()',
-            [userId, 'PurchaseOrder', order.DocEntry, JSON.stringify(order)]
+            `INSERT INTO sap_document_cache (
+              doc_entry, doc_type, doc_num, doc_date, doc_total, 
+              document_status, vendor_code, vendor_name, 
+              is_cancelled, is_closed, raw_data, last_synced_at, user_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12) 
+            ON CONFLICT (doc_entry, doc_type) DO UPDATE SET 
+              doc_num = $3, doc_date = $4, doc_total = $5, 
+              document_status = $6, vendor_code = $7, vendor_name = $8,
+              is_cancelled = $9, is_closed = $10, raw_data = $11, last_synced_at = NOW()`,
+            [
+              order.DocEntry, 'PurchaseOrder', order.DocNum, order.DocDate, order.DocTotal,
+              order.DocumentStatus, order.CardCode, order.CardName,
+              order.Cancelled === 'Y', order.DocStatus === 'C', JSON.stringify(order), userId
+            ]
           );
         }
       }
@@ -601,8 +613,20 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
         // Cache the data
         for (const invoice of invoicesData.value || []) {
           await pool.query(
-            'INSERT INTO sap_document_cache (user_id, document_type, doc_entry, document_data, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id, document_type, doc_entry) DO UPDATE SET document_data = $4, created_at = NOW()',
-            [userId, 'PurchaseInvoice', invoice.DocEntry, JSON.stringify(invoice)]
+            `INSERT INTO sap_document_cache (
+              doc_entry, doc_type, doc_num, doc_date, doc_total, 
+              document_status, vendor_code, vendor_name, 
+              is_cancelled, is_closed, raw_data, last_synced_at, user_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12) 
+            ON CONFLICT (doc_entry, doc_type) DO UPDATE SET 
+              doc_num = $3, doc_date = $4, doc_total = $5, 
+              document_status = $6, vendor_code = $7, vendor_name = $8,
+              is_cancelled = $9, is_closed = $10, raw_data = $11, last_synced_at = NOW()`,
+            [
+              invoice.DocEntry, 'PurchaseInvoice', invoice.DocNum, invoice.DocDate, invoice.DocTotal,
+              invoice.DocumentStatus, invoice.CardCode, invoice.CardName,
+              invoice.Cancelled === 'Y', invoice.DocStatus === 'C', JSON.stringify(invoice), userId
+            ]
           );
         }
       }
