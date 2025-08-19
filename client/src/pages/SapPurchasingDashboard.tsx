@@ -102,13 +102,16 @@ function DashboardContent() {
   const updateSyncSettings = useMutation({
     mutationFn: async (settings: { fyStartDate: string; fyEndDate?: string }) => {
       const response = await fetch('/api/sap/b1/purchase/sync/settings', {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fyStartDate: settings.fyStartDate,
           fyEndDate: settings.fyEndDate,
           autoSyncEnabled: true,
-          syncIntervalMinutes: 60
+          syncIntervalMinutes: 60,
+          businessHoursStart: '09:00',
+          businessHoursEnd: '20:00',
+          businessTimezone: 'Asia/Kolkata'
         })
       });
       if (!response.ok) {

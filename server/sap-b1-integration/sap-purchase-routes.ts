@@ -6,7 +6,12 @@ import { pool } from '../db';
 
 const router = express.Router();
 
-// Apply middleware to all routes
+// Settings-only routes that don't need SAP session
+const settingsRouter = express.Router();
+settingsRouter.use(ensureAuthenticated);
+settingsRouter.use(requireSapAccess);
+
+// Apply full middleware to SAP data routes
 router.use(ensureAuthenticated);
 router.use(requireSapAccess);
 router.use(requireSapSession);
@@ -428,8 +433,8 @@ router.get('/sync/status', async (req, res) => {
   }
 });
 
-// Update sync settings
-router.put('/sync/settings', async (req, res) => {
+// Update sync settings (settings router - no SAP session required)
+settingsRouter.put('/sync/settings', async (req, res) => {
   try {
     const userId = req.user!.id;
     const {
@@ -441,7 +446,7 @@ router.put('/sync/settings', async (req, res) => {
       fyStartDate
     } = req.body;
     
-    await db.query(
+    await pool.query(
       `UPDATE sap_sync_settings SET 
         auto_sync_enabled = $2,
         sync_interval_minutes = $3,
@@ -767,4 +772,9 @@ async function performSyncOperation(req: express.Request, userId: number, syncId
   }
 }
 
-export default router;
+// Export both routers combined
+const combinedRouter = express.Router();
+combinedRouter.use('/', settingsRouter);
+combinedRouter.use('/', router);
+
+export default combinedRouter;
