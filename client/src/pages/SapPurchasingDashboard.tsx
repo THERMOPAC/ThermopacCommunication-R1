@@ -225,6 +225,27 @@ function DashboardContent() {
     );
   }
 
+  if (!data?.data) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <Skeleton className="h-4 w-[100px]" />
+                <Skeleton className="h-4 w-4" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-[120px] mb-2" />
+                <Skeleton className="h-3 w-[80px]" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   const dashboardData = data.data;
 
   const formatCurrency = (amount: number) => {
@@ -333,18 +354,18 @@ function DashboardContent() {
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.purchaseOrders.total}</div>
+            <div className="text-2xl font-bold">{dashboardData.purchaseOrders?.total || 0}</div>
             <p className="text-xs text-muted-foreground">
-              {formatCurrency(dashboardData.purchaseOrders.totalValue)} total value
+              {formatCurrency(dashboardData.purchaseOrders?.totalValue || 0)} total value
             </p>
             <div className="flex gap-4 mt-2">
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                <span className="text-xs">Pending: {dashboardData.purchaseOrders.pending}</span>
+                <span className="text-xs">Pending: {dashboardData.purchaseOrders?.pending || 0}</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-xs">Approved: {dashboardData.purchaseOrders.approved}</span>
+                <span className="text-xs">Approved: {dashboardData.purchaseOrders?.approved || 0}</span>
               </div>
             </div>
           </CardContent>
@@ -356,18 +377,18 @@ function DashboardContent() {
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.purchaseInvoices.total}</div>
+            <div className="text-2xl font-bold">{dashboardData.purchaseInvoices?.total || 0}</div>
             <p className="text-xs text-muted-foreground">
-              {formatCurrency(dashboardData.purchaseInvoices.totalValue)} total value
+              {formatCurrency(dashboardData.purchaseInvoices?.totalValue || 0)} total value
             </p>
             <div className="flex gap-4 mt-2">
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                <span className="text-xs">Pending: {dashboardData.purchaseInvoices.pending}</span>
+                <span className="text-xs">Pending: {dashboardData.purchaseInvoices?.pending || 0}</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-xs">Paid: {dashboardData.purchaseInvoices.paid}</span>
+                <span className="text-xs">Paid: {dashboardData.purchaseInvoices?.paid || 0}</span>
               </div>
             </div>
           </CardContent>
@@ -379,9 +400,9 @@ function DashboardContent() {
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.vendors.total}</div>
+            <div className="text-2xl font-bold">{dashboardData.vendors?.total || 0}</div>
             <p className="text-xs text-muted-foreground">
-              Active: {dashboardData.vendors.active}
+              Active: {dashboardData.vendors?.active || 0}
             </p>
           </CardContent>
         </Card>
@@ -392,15 +413,15 @@ function DashboardContent() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.goodsReceipt.total}</div>
+            <div className="text-2xl font-bold">{dashboardData.goodsReceipt?.total || 0}</div>
             <div className="flex gap-4 mt-2">
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                <span className="text-xs">Pending: {dashboardData.goodsReceipt.pending}</span>
+                <span className="text-xs">Pending: {dashboardData.goodsReceipt?.pending || 0}</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-xs">Completed: {dashboardData.goodsReceipt.completed}</span>
+                <span className="text-xs">Completed: {dashboardData.goodsReceipt?.completed || 0}</span>
               </div>
             </div>
           </CardContent>
@@ -418,7 +439,7 @@ function DashboardContent() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {dashboardData.recentActivity.length > 0 ? (
+              {dashboardData.recentActivity?.length > 0 ? (
                 dashboardData.recentActivity.map((activity, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-3">
@@ -456,19 +477,19 @@ function DashboardContent() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm">Total PO Value</span>
-                <span className="font-medium">{formatCurrency(dashboardData.purchaseOrders.totalValue)}</span>
+                <span className="font-medium">{formatCurrency(dashboardData.purchaseOrders?.totalValue || 0)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Total Invoice Value</span>
-                <span className="font-medium">{formatCurrency(dashboardData.purchaseInvoices.totalValue)}</span>
+                <span className="font-medium">{formatCurrency(dashboardData.purchaseInvoices?.totalValue || 0)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Active Vendors</span>
-                <span className="font-medium">{dashboardData.vendors.active}</span>
+                <span className="font-medium">{dashboardData.vendors?.active || 0}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Pending Receipts</span>
-                <span className="font-medium">{dashboardData.goodsReceipt.pending}</span>
+                <span className="font-medium">{dashboardData.goodsReceipt?.pending || 0}</span>
               </div>
             </div>
           </CardContent>
@@ -476,7 +497,7 @@ function DashboardContent() {
       </div>
 
       {/* Alerts */}
-      {dashboardData.alerts.length > 0 && (
+      {dashboardData.alerts?.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
