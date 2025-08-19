@@ -9,6 +9,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 import { 
   ShoppingCart, 
   FileText, 
@@ -84,6 +87,9 @@ interface SyncStatus {
 
 function DashboardContent() {
   const [fyFilter, setFyFilter] = useState<string>('current');
+  const [customFromDate, setCustomFromDate] = useState<Date>();
+  const [customToDate, setCustomToDate] = useState<Date>();
+  const [showDatePickers, setShowDatePickers] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -95,6 +101,43 @@ function DashboardContent() {
   const { data: syncStatusData } = useQuery<{ success: boolean; data: SyncStatus }>({
     queryKey: ['/api/sap/b1/purchase/sync/status'],
     refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  const updateSyncSettings = useMutation({
+    mutationFn: async (settings: { fyStartDate: string; fyEndDate?: string }) => {
+      const response = await fetch('/api/sap/b1/purchase/sync/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fyStartDate: settings.fyStartDate,
+          fyEndDate: settings.fyEndDate,
+          autoSyncEnabled: true,
+          syncIntervalMinutes: 60
+        })
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Settings update failed');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Settings Updated",
+        description: "Date range updated successfully. Data will be synced for the new range.",
+        duration: 5000,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/sap/b1/purchase/sync/status'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sap/b1/purchase/dashboard'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Settings Update Failed",
+        description: error.message || "Failed to update date range settings",
+        variant: "destructive",
+        duration: 5000,
+      });
+    }
   });
 
   const triggerSyncMutation = useMutation({
@@ -130,6 +173,45 @@ function DashboardContent() {
       });
     }
   });
+
+  const handleFyFilterChange = (value: string) => {
+    setFyFilter(value);
+    if (value === 'custom') {
+      setShowDatePickers(true);
+    } else {
+      setShowDatePickers(false);
+      
+      // Apply predefined date ranges
+      let startDate: Date;
+      if (value === 'current') {
+        startDate = new Date('2025-04-01');
+      } else if (value === 'previous') {
+        startDate = new Date('2024-04-01');
+      } else if (value === 'all') {
+        startDate = new Date('2020-01-01');
+      } else {
+        return;
+      }
+      
+      updateSyncSettings.mutate({ 
+        fyStartDate: format(startDate, 'yyyy-MM-dd')
+      });
+    }
+  };
+
+  const applyCustomDateRange = () => {
+    if (customFromDate) {
+      const settings: { fyStartDate: string; fyEndDate?: string } = {
+        fyStartDate: format(customFromDate, 'yyyy-MM-dd')
+      };
+      
+      if (customToDate) {
+        settings.fyEndDate = format(customToDate, 'yyyy-MM-dd');
+      }
+      
+      updateSyncSettings.mutate(settings);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -215,13 +297,14 @@ function DashboardContent() {
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">Financial Year:</span>
-            <Select value={fyFilter} onValueChange={setFyFilter}>
+            <Select value={fyFilter} onValueChange={handleFyFilterChange}>
               <SelectTrigger className="w-36">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="current">Current FY</SelectItem>
                 <SelectItem value="previous">Previous FY</SelectItem>
+                <SelectItem value="all">All Data</SelectItem>
                 <SelectItem value="custom">Custom Range</SelectItem>
               </SelectContent>
             </Select>
@@ -233,6 +316,74 @@ function DashboardContent() {
             </Badge>
           )}
         </div>
+
+        {/* Custom Date Range Pickers */}
+        {showDatePickers && (
+          <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">From:</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[240px] justify-start text-left font-normal",
+                      !customFromDate && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {customFromDate ? format(customFromDate, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={customFromDate}
+                    onSelect={setCustomFromDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">To:</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[240px] justify-start text-left font-normal",
+                      !customToDate && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {customToDate ? format(customToDate, "PPP") : "Pick end date (optional)"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={customToDate}
+                    onSelect={setCustomToDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <Button 
+              onClick={applyCustomDateRange} 
+              disabled={!customFromDate || updateSyncSettings.isPending}
+              size="sm"
+            >
+              {updateSyncSettings.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              ) : null}
+              Apply Range
+            </Button>
+          </div>
+        )}
 
         {/* Sync Status and Controls */}
         <div className="flex items-center gap-3">
