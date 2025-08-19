@@ -485,6 +485,56 @@ settingsRouter.put('/sync/settings', async (req, res) => {
   }
 });
 
+// Stop running sync
+settingsRouter.post('/sync/stop', async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    
+    // Find any running syncs for this user
+    const runningSyncs = await pool.query(
+      'SELECT * FROM sap_sync_history WHERE user_id = $1 AND status = $2',
+      [userId, 'in_progress']
+    );
+    
+    if (runningSyncs.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No running sync found to stop',
+        code: 'NO_RUNNING_SYNC'
+      });
+    }
+    
+    // Update all running syncs to stopped status
+    const updateResult = await pool.query(
+      `UPDATE sap_sync_history 
+       SET status = 'stopped', 
+           completed_at = NOW(),
+           error_message = 'Manually stopped by user'
+       WHERE user_id = $1 AND status = 'in_progress'
+       RETURNING *`,
+      [userId]
+    );
+    
+    console.log(`Stopped ${updateResult.rows.length} sync process(es) for user ${userId}`);
+    
+    res.json({
+      success: true,
+      data: {
+        message: 'Sync stopped successfully',
+        stoppedSyncs: updateResult.rows.length
+      }
+    });
+    
+  } catch (error) {
+    console.error('Stop sync error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to stop sync',
+      code: 'SYNC_STOP_ERROR'
+    });
+  }
+});
+
 // Trigger manual sync (moved to settings router - no SAP session required)
 settingsRouter.post('/sync/trigger', async (req, res) => {
   try {

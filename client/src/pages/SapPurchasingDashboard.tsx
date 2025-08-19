@@ -24,6 +24,7 @@ import {
   Building2,
   Users,
   Eye,
+  Square,
 } from 'lucide-react';
 
 interface DashboardData {
@@ -161,6 +162,34 @@ function DashboardContent() {
     onError: (error: Error) => {
       toast({
         title: "Sync Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  const stopSyncMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/sap/b1/purchase/sync/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to stop sync');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/sap/b1/purchase/sync/status'] });
+      toast({
+        title: "Sync Stopped",
+        description: "SAP data synchronization has been stopped successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Stop Sync Failed", 
         description: error.message,
         variant: "destructive",
       });
@@ -318,20 +347,39 @@ function DashboardContent() {
                   
                   <Separator orientation="vertical" className="h-4" />
                   
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => triggerSyncMutation.mutate()}
-                    disabled={triggerSyncMutation.isPending || syncStatusData.data.isRunning}
-                    className="text-xs"
-                  >
-                    {triggerSyncMutation.isPending || syncStatusData.data.isRunning ? (
-                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                    ) : (
-                      <RefreshCw className="h-3 w-3 mr-1" />
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => triggerSyncMutation.mutate()}
+                      disabled={triggerSyncMutation.isPending || syncStatusData.data.isRunning}
+                      className="text-xs"
+                    >
+                      {triggerSyncMutation.isPending || syncStatusData.data.isRunning ? (
+                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      ) : (
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                      )}
+                      Sync Now
+                    </Button>
+                    
+                    {syncStatusData.data.isRunning && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => stopSyncMutation.mutate()}
+                        disabled={stopSyncMutation.isPending}
+                        className="text-xs"
+                      >
+                        {stopSyncMutation.isPending ? (
+                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                        ) : (
+                          <Square className="h-3 w-3 mr-1" />
+                        )}
+                        Stop Sync
+                      </Button>
                     )}
-                    Sync Now
-                  </Button>
+                  </div>
                 </>
               )}
             </div>
