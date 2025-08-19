@@ -292,102 +292,35 @@ function DashboardContent() {
   return (
     <div className="space-y-6">
       {/* FY Filter and Sync Controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Financial Year:</span>
-            <Select value={fyFilter} onValueChange={handleFyFilterChange}>
-              <SelectTrigger className="w-36">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="current">Current FY</SelectItem>
-                <SelectItem value="previous">Previous FY</SelectItem>
-                <SelectItem value="all">All Data</SelectItem>
-                <SelectItem value="custom">Custom Range</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {dashboardData.fyStartDate && (
-            <Badge variant="outline" className="text-xs">
-              From {format(new Date(dashboardData.fyStartDate), 'MMM dd, yyyy')}
-            </Badge>
-          )}
-        </div>
-
-        {/* Custom Date Range Pickers */}
-        {showDatePickers && (
-          <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">From:</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-[240px] justify-start text-left font-normal",
-                      !customFromDate && "text-muted-foreground"
-                    )}
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {customFromDate ? format(customFromDate, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={customFromDate}
-                    onSelect={setCustomFromDate}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Financial Year:</span>
+              <Select value={fyFilter} onValueChange={handleFyFilterChange}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="current">Current FY</SelectItem>
+                  <SelectItem value="previous">Previous FY</SelectItem>
+                  <SelectItem value="all">All Data</SelectItem>
+                  <SelectItem value="custom">Custom Range</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">To:</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-[240px] justify-start text-left font-normal",
-                      !customToDate && "text-muted-foreground"
-                    )}
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {customToDate ? format(customToDate, "PPP") : "Pick end date (optional)"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={customToDate}
-                    onSelect={setCustomToDate}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            
-            <Button 
-              onClick={applyCustomDateRange} 
-              disabled={!customFromDate || updateSyncSettings.isPending}
-              size="sm"
-            >
-              {updateSyncSettings.isPending ? (
-                <Loader2 className="h-3 w-3 animate-spin mr-1" />
-              ) : null}
-              Apply Range
-            </Button>
+            {dashboardData.fyStartDate && (
+              <Badge variant="outline" className="text-xs">
+                From {format(new Date(dashboardData.fyStartDate), 'MMM dd, yyyy')}
+              </Badge>
+            )}
           </div>
-        )}
 
-        {/* Sync Status and Controls */}
-        <div className="flex items-center gap-3">
-          {syncStatusData?.data && (
+          {/* Sync Status and Controls */}
+          <div className="flex items-center gap-3">
+            {syncStatusData?.data && (
             <>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 {syncStatusData.data.isRunning ? (
@@ -427,8 +360,83 @@ function DashboardContent() {
                 Sync Now
               </Button>
             </>
-          )}
+            )}
+          </div>
         </div>
+
+        {/* Custom Date Range Pickers */}
+        {showDatePickers && (
+          <div className="w-full p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-blue-700">From Date:</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[200px] justify-start text-left font-normal",
+                        !customFromDate && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {customFromDate ? format(customFromDate, "PPP") : "Pick start date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={customFromDate}
+                      onSelect={setCustomFromDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-blue-700">To Date:</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[200px] justify-start text-left font-normal",
+                        !customToDate && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {customToDate ? format(customToDate, "PPP") : "Pick end date (optional)"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={customToDate}
+                      onSelect={setCustomToDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
+              <Button 
+                onClick={applyCustomDateRange} 
+                disabled={!customFromDate || updateSyncSettings.isPending}
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {updateSyncSettings.isPending ? (
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                ) : null}
+                Apply Date Range
+              </Button>
+            </div>
+            <p className="text-xs text-blue-600 mt-2">
+              Select custom date range to sync SAP data from specific period
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Summary Cards */}
