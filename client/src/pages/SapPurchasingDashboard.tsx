@@ -400,7 +400,7 @@ function DashboardContent() {
                   </label>
                   <input
                     type="date"
-                    value={syncStatusData?.data.settings?.fy_start_date || ''}
+                    value={syncStatusData?.data?.settings?.fy_start_date || '2024-04-01'}
                     className="w-full px-3 py-2 text-sm border border-blue-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     onChange={(e) => {
                       if (e.target.value) {
