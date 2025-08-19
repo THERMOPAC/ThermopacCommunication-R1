@@ -352,7 +352,7 @@ function DashboardContent() {
                   </label>
                   <input
                     type="date"
-                    value={syncStatusData?.data.settings.fyStartDate || ''}
+                    value={syncStatusData?.data.settings?.fy_start_date || ''}
                     className="w-full px-3 py-2 text-sm border border-blue-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     onChange={(e) => {
                       if (e.target.value) {
@@ -381,9 +381,9 @@ function DashboardContent() {
               <div className="flex items-center justify-between mt-3">
                 <div className="text-xs text-blue-600">
                   <p>Select custom date range for SAP data synchronization</p>
-                  {syncStatusData?.data.settings.fyStartDate && (
+                  {syncStatusData?.data.settings?.fy_start_date && (
                     <p className="font-medium mt-1">
-                      Current range: From {format(new Date(syncStatusData.data.settings.fyStartDate), 'dd MMM yyyy')} onwards
+                      Current range: From {format(new Date(syncStatusData.data.settings.fy_start_date), 'dd MMM yyyy')} onwards
                     </p>
                   )}
                 </div>
