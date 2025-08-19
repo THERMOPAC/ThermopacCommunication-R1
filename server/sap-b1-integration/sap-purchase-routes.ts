@@ -689,6 +689,136 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
   }
 });
 
+// Get sync settings
+router.get('/sync/settings', async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    
+    const settings = await pool.query(
+      'SELECT * FROM sap_sync_settings WHERE user_id = $1',
+      [userId]
+    );
+    
+    if (settings.rows.length === 0) {
+      // Create default settings if none exist
+      await pool.query(
+        `INSERT INTO sap_sync_settings 
+         (user_id, auto_sync_enabled, sync_interval_minutes, business_hours_start, business_hours_end, business_timezone, fy_start_date)
+         VALUES ($1, true, 60, '09:00:00', '20:00:00', 'Asia/Kolkata', '2025-04-01')`,
+        [userId]
+      );
+      
+      const newSettings = await pool.query(
+        'SELECT * FROM sap_sync_settings WHERE user_id = $1',
+        [userId]
+      );
+      
+      const setting = newSettings.rows[0];
+      return res.json({
+        success: true,
+        data: {
+          autoSyncEnabled: setting.auto_sync_enabled,
+          syncIntervalMinutes: setting.sync_interval_minutes,
+          businessHoursStart: setting.business_hours_start,
+          businessHoursEnd: setting.business_hours_end,
+          businessTimezone: setting.business_timezone,
+          fyStartDate: setting.fy_start_date,
+          lastSyncAt: setting.last_sync_at,
+          nextSyncAt: setting.next_sync_at
+        }
+      });
+    }
+    
+    const setting = settings.rows[0];
+    res.json({
+      success: true,
+      data: {
+        autoSyncEnabled: setting.auto_sync_enabled,
+        syncIntervalMinutes: setting.sync_interval_minutes,
+        businessHoursStart: setting.business_hours_start,
+        businessHoursEnd: setting.business_hours_end,
+        businessTimezone: setting.business_timezone,
+        fyStartDate: setting.fy_start_date,
+        lastSyncAt: setting.last_sync_at,
+        nextSyncAt: setting.next_sync_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('Get sync settings error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get sync settings',
+      code: 'SYNC_SETTINGS_ERROR'
+    });
+  }
+});
+
+// Update sync settings
+router.put('/sync/settings', async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const { fyStartDate, autoSyncEnabled, syncIntervalMinutes, businessHoursStart, businessHoursEnd } = req.body;
+    
+    const updates = [];
+    const values = [userId];
+    let paramIndex = 2;
+    
+    if (fyStartDate !== undefined) {
+      updates.push(`fy_start_date = $${paramIndex++}`);
+      values.push(fyStartDate);
+    }
+    
+    if (autoSyncEnabled !== undefined) {
+      updates.push(`auto_sync_enabled = $${paramIndex++}`);
+      values.push(autoSyncEnabled);
+    }
+    
+    if (syncIntervalMinutes !== undefined) {
+      updates.push(`sync_interval_minutes = $${paramIndex++}`);
+      values.push(syncIntervalMinutes);
+    }
+    
+    if (businessHoursStart !== undefined) {
+      updates.push(`business_hours_start = $${paramIndex++}`);
+      values.push(businessHoursStart);
+    }
+    
+    if (businessHoursEnd !== undefined) {
+      updates.push(`business_hours_end = $${paramIndex++}`);
+      values.push(businessHoursEnd);
+    }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No valid fields to update',
+        code: 'NO_UPDATES'
+      });
+    }
+    
+    updates.push(`updated_at = NOW()`);
+    
+    await pool.query(
+      `UPDATE sap_sync_settings SET ${updates.join(', ')} WHERE user_id = $1`,
+      values
+    );
+    
+    res.json({
+      success: true,
+      message: 'Sync settings updated successfully'
+    });
+    
+  } catch (error) {
+    console.error('Update sync settings error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update sync settings',
+      code: 'SYNC_SETTINGS_UPDATE_ERROR'
+    });
+  }
+});
+
 // Get sync history
 router.get('/sync/history', async (req, res) => {
   try {
