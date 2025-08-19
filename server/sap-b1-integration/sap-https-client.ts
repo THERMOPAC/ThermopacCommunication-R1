@@ -33,7 +33,9 @@ export class SapHttpsClient {
     this.agent = new https.Agent({
       rejectUnauthorized: false,
       keepAlive: true,
-      timeout: 30000
+      timeout: 120000, // Increased timeout to 2 minutes
+      maxSockets: 10,
+      maxFreeSockets: 10
     });
   }
 
@@ -48,7 +50,7 @@ export class SapHttpsClient {
         path: url.pathname + url.search,
         method: options.method,
         agent: this.agent,
-        timeout: options.timeout || 30000,
+        timeout: options.timeout || 120000,
         headers: {
           'Content-Type': 'application/json',
           ...options.headers

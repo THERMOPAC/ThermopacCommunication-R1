@@ -510,17 +510,41 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
       // Create direct SAP connection for sync (bypass session requirement)
       const sapClient = new SapHttpsClient();
       
-      // Login to SAP B1 Service Layer
-      const loginResponse = await sapClient.request({
-        method: 'POST',
-        url: `${process.env.SAP_SERVICE_LAYER_URL}/b1s/v1/Login`,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          CompanyDB: process.env.SAP_COMPANY_DB,
-          UserName: process.env.SAP_USERNAME,
-          Password: process.env.SAP_PASSWORD
-        })
-      });
+      // Login to SAP B1 Service Layer with retry logic
+      let loginResponse;
+      let retryCount = 0;
+      const maxRetries = 2;
+      
+      while (retryCount <= maxRetries) {
+        try {
+          console.log(`SAP login attempt ${retryCount + 1}/${maxRetries + 1} for user ${userId}`);
+          loginResponse = await sapClient.request({
+            method: 'POST',
+            url: `${process.env.SAP_SERVICE_LAYER_URL}/b1s/v1/Login`,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              CompanyDB: process.env.SAP_COMPANY_DB,
+              UserName: process.env.SAP_USERNAME,
+              Password: process.env.SAP_PASSWORD
+            }),
+            timeout: 120000
+          });
+          
+          if (loginResponse.statusCode === 200) {
+            console.log(`SAP login successful for user ${userId}`);
+            break;
+          }
+          
+        } catch (loginError: any) {
+          console.error(`SAP login attempt ${retryCount + 1} failed:`, loginError.message);
+          if (retryCount === maxRetries) {
+            throw new Error(`SAP connection timeout - please verify SAP system is accessible at ${process.env.SAP_SERVICE_LAYER_URL}. Error: ${loginError.message}`);
+          }
+          retryCount++;
+          // Wait 5 seconds before retry
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+      }
 
       if (loginResponse.statusCode !== 200) {
         throw new Error(`SAP login failed: ${loginResponse.statusCode}`);
