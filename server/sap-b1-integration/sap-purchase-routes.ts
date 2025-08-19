@@ -91,10 +91,10 @@ router.get('/dashboard', async (req, res) => {
     
     // Get summary data from multiple endpoints with FY filtering
     const [ordersResponse, quotationsResponse, invoicesResponse, receiptsResponse] = await Promise.allSettled([
-      makeSapRequest(req, `/b1s/v1/PurchaseOrders?$select=DocEntry,DocNum,DocTotal,DocumentStatus,DocDate&$filter=${openOrdersFilter}&$orderby=DocDate desc&$top=5`),
-      makeSapRequest(req, `/b1s/v1/PurchaseQuotations?$select=DocEntry,DocNum,DocTotal,DocumentStatus,DocDate&$filter=${fyFilter}&$orderby=DocDate desc&$top=5`),
-      makeSapRequest(req, `/b1s/v1/PurchaseInvoices?$select=DocEntry,DocNum,DocTotal,DocumentStatus,DocDate&$filter=${fyFilter}&$orderby=DocDate desc&$top=5`),
-      makeSapRequest(req, `/b1s/v1/PurchaseDeliveryNotes?$select=DocEntry,DocNum,DocTotal,DocumentStatus,DocDate&$filter=${fyFilter}&$orderby=DocDate desc&$top=5`)
+      makeSapRequest(req, `/b1s/v1/PurchaseOrders?$select=DocEntry,DocNum,DocTotal,DocumentStatus,DocDate&$filter=${openOrdersFilter}&$orderby=DocDate%20desc&$top=5`),
+      makeSapRequest(req, `/b1s/v1/PurchaseQuotations?$select=DocEntry,DocNum,DocTotal,DocumentStatus,DocDate&$filter=${fyFilter}&$orderby=DocDate%20desc&$top=5`),
+      makeSapRequest(req, `/b1s/v1/PurchaseInvoices?$select=DocEntry,DocNum,DocTotal,DocumentStatus,DocDate&$filter=${fyFilter}&$orderby=DocDate%20desc&$top=5`),
+      makeSapRequest(req, `/b1s/v1/PurchaseDeliveryNotes?$select=DocEntry,DocNum,DocTotal,DocumentStatus,DocDate&$filter=${fyFilter}&$orderby=DocDate%20desc&$top=5`)
     ]);
 
     const dashboard = {
@@ -503,7 +503,7 @@ router.post('/sync/trigger', async (req, res) => {
     
     try {
       // Sync Purchase Orders
-      const ordersResponse = await makeSapRequest(req, '/PurchaseOrders?$top=100&$orderby=DocDate desc');
+      const ordersResponse = await makeSapRequest(req, '/PurchaseOrders?$top=100&$orderby=DocDate%20desc');
       if (ordersResponse.statusCode === 200) {
         const ordersData = JSON.parse(ordersResponse.body);
         documentsProcessed += ordersData.value?.length || 0;
@@ -518,7 +518,7 @@ router.post('/sync/trigger', async (req, res) => {
       }
       
       // Sync Purchase Invoices
-      const invoicesResponse = await makeSapRequest(req, '/PurchaseInvoices?$top=50&$orderby=DocDate desc');
+      const invoicesResponse = await makeSapRequest(req, '/PurchaseInvoices?$top=50&$orderby=DocDate%20desc');
       if (invoicesResponse.statusCode === 200) {
         const invoicesData = JSON.parse(invoicesResponse.body);
         documentsProcessed += invoicesData.value?.length || 0;
