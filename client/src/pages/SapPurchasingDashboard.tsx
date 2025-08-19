@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { 
   ShoppingCart, 
@@ -84,6 +85,7 @@ interface SyncStatus {
 function DashboardContent() {
   const [fyFilter, setFyFilter] = useState<string>('current');
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data, isLoading, error } = useQuery<{ success: boolean; data: DashboardData }>({
     queryKey: ['/api/sap/b1/purchase/dashboard'],
@@ -102,12 +104,30 @@ function DashboardContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
-      if (!response.ok) throw new Error('Sync trigger failed');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Sync trigger failed');
+      }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
+      if (response?.success && response?.message) {
+        toast({
+          title: "Sync Complete",
+          description: response.message,
+          duration: 5000,
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ['/api/sap/b1/purchase/sync/status'] });
       queryClient.invalidateQueries({ queryKey: ['/api/sap/b1/purchase/dashboard'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Sync Failed", 
+        description: error?.message || "Failed to sync SAP data. Please try again.",
+        variant: "destructive",
+        duration: 5000,
+      });
     }
   });
 

@@ -475,7 +475,7 @@ router.post('/sync/trigger', async (req, res) => {
     const userId = req.user!.id;
     
     // Check if sync is already running
-    const runningSyncs = await db.query(
+    const runningSyncs = await pool.query(
       'SELECT * FROM sap_sync_history WHERE user_id = $1 AND status = $2',
       [userId, 'in_progress']
     );
@@ -489,22 +489,84 @@ router.post('/sync/trigger', async (req, res) => {
     }
     
     // Create sync history record
-    const syncRecord = await db.query(
-      'INSERT INTO sap_sync_history (user_id, sync_type, started_at, status) VALUES ($1, $2, CURRENT_TIMESTAMP, $3) RETURNING id',
+    const syncRecord = await pool.query(
+      'INSERT INTO sap_sync_history (user_id, sync_type, started_at, status) VALUES ($1, $2, NOW(), $3) RETURNING id',
       [userId, 'manual', 'in_progress']
     );
     
     const syncId = syncRecord.rows[0].id;
     
-    // Start async sync process
-    setImmediate(async () => {
-      await performSyncOperation(req, userId, syncId, db);
-    });
+    // Perform sync immediately and return result
+    let documentsProcessed = 0;
+    let errorOccurred = false;
+    let errorMessage = null;
+    
+    try {
+      // Sync Purchase Orders
+      const ordersResponse = await makeSapRequest(req, '/PurchaseOrders?$top=100&$orderby=DocDate desc');
+      if (ordersResponse.statusCode === 200) {
+        const ordersData = JSON.parse(ordersResponse.body);
+        documentsProcessed += ordersData.value?.length || 0;
+        
+        // Cache the data
+        for (const order of ordersData.value || []) {
+          await pool.query(
+            'INSERT INTO sap_document_cache (user_id, document_type, doc_entry, document_data, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id, document_type, doc_entry) DO UPDATE SET document_data = $4, created_at = NOW()',
+            [userId, 'PurchaseOrder', order.DocEntry, JSON.stringify(order)]
+          );
+        }
+      }
+      
+      // Sync Purchase Invoices
+      const invoicesResponse = await makeSapRequest(req, '/PurchaseInvoices?$top=50&$orderby=DocDate desc');
+      if (invoicesResponse.statusCode === 200) {
+        const invoicesData = JSON.parse(invoicesResponse.body);
+        documentsProcessed += invoicesData.value?.length || 0;
+        
+        // Cache the data
+        for (const invoice of invoicesData.value || []) {
+          await pool.query(
+            'INSERT INTO sap_document_cache (user_id, document_type, doc_entry, document_data, created_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id, document_type, doc_entry) DO UPDATE SET document_data = $4, created_at = NOW()',
+            [userId, 'PurchaseInvoice', invoice.DocEntry, JSON.stringify(invoice)]
+          );
+        }
+      }
+      
+    } catch (syncError: any) {
+      errorOccurred = true;
+      errorMessage = syncError.message || 'Sync failed';
+      console.error('Sync process error:', syncError);
+    }
+    
+    // Update sync record with completion
+    await pool.query(
+      'UPDATE sap_sync_history SET completed_at = NOW(), status = $1, documents_synced = $2, error_message = $3 WHERE id = $4',
+      [errorOccurred ? 'failed' : 'completed', documentsProcessed, errorMessage, syncId]
+    );
+    
+    // Update sync settings with last sync time
+    await pool.query(
+      'UPDATE sap_sync_settings SET last_sync_at = NOW(), updated_at = NOW() WHERE user_id = $1',
+      [userId]
+    );
+    
+    if (errorOccurred) {
+      return res.status(500).json({
+        success: false,
+        error: errorMessage,
+        code: 'SYNC_FAILED'
+      });
+    }
     
     res.json({
       success: true,
-      message: 'Sync started successfully',
-      syncId
+      message: `✅ Sync completed successfully! Processed ${documentsProcessed} documents from SAP.`,
+      data: {
+        syncId,
+        status: 'completed',
+        documentsProcessed,
+        completedAt: new Date().toISOString()
+      }
     });
     
   } catch (error) {
@@ -524,12 +586,12 @@ router.get('/sync/history', async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
     
-    const history = await db.query(
+    const history = await pool.query(
       'SELECT * FROM sap_sync_history WHERE user_id = $1 ORDER BY started_at DESC LIMIT $2 OFFSET $3',
       [userId, limit, offset]
     );
     
-    const total = await db.query(
+    const total = await pool.query(
       'SELECT COUNT(*) as count FROM sap_sync_history WHERE user_id = $1',
       [userId]
     );
