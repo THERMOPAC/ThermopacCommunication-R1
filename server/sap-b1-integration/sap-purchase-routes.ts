@@ -2,6 +2,7 @@ import express from 'express';
 import { ensureAuthenticated } from '../middleware/auth-middleware';
 import { requireSapAccess, requireSapSession } from '../middleware/sap-auth-middleware';
 import { sapHttpsClient } from './sap-https-client';
+import { pool } from '../db';
 
 const router = express.Router();
 
@@ -375,36 +376,35 @@ router.get('/invoices', async (req, res) => {
 router.get('/sync/status', async (req, res) => {
   try {
     const userId = req.user!.id;
-    const db = req.app.get('db');
     
     // Get sync settings
-    let settings = await db.query(
+    let settings = await pool.query(
       'SELECT * FROM sap_sync_settings WHERE user_id = $1',
       [userId]
     );
     
     if (settings.rows.length === 0) {
       // Create default settings
-      await db.query(
+      await pool.query(
         `INSERT INTO sap_sync_settings (user_id, auto_sync_enabled, sync_interval_minutes, business_hours_start, business_hours_end, business_timezone, fy_start_date) 
          VALUES ($1, true, 60, '09:00', '20:00', 'Asia/Kolkata', '2025-04-01')`,
         [userId]
       );
       
-      settings = await db.query(
+      settings = await pool.query(
         'SELECT * FROM sap_sync_settings WHERE user_id = $1',
         [userId]
       );
     }
     
     // Get recent sync history
-    const history = await db.query(
+    const history = await pool.query(
       'SELECT * FROM sap_sync_history WHERE user_id = $1 ORDER BY started_at DESC LIMIT 10',
       [userId]
     );
     
     // Check if sync is currently running
-    const runningSyncs = await db.query(
+    const runningSyncs = await pool.query(
       'SELECT * FROM sap_sync_history WHERE user_id = $1 AND status = $2',
       [userId, 'in_progress']
     );
@@ -432,7 +432,6 @@ router.get('/sync/status', async (req, res) => {
 router.put('/sync/settings', async (req, res) => {
   try {
     const userId = req.user!.id;
-    const db = req.app.get('db');
     const {
       autoSyncEnabled,
       syncIntervalMinutes,
@@ -474,7 +473,6 @@ router.put('/sync/settings', async (req, res) => {
 router.post('/sync/trigger', async (req, res) => {
   try {
     const userId = req.user!.id;
-    const db = req.app.get('db');
     
     // Check if sync is already running
     const runningSyncs = await db.query(
@@ -523,7 +521,6 @@ router.post('/sync/trigger', async (req, res) => {
 router.get('/sync/history', async (req, res) => {
   try {
     const userId = req.user!.id;
-    const db = req.app.get('db');
     const { page = 1, limit = 20 } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
     

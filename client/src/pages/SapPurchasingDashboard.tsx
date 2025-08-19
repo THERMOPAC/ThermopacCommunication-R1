@@ -63,6 +63,8 @@ interface SyncSettings {
   businessHoursEnd: string;
   businessTimezone: string;
   fyStartDate: string;
+  lastSyncAt: string | null;
+  nextSyncAt: string | null;
 }
 
 interface SyncStatus {
