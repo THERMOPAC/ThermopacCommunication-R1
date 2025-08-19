@@ -119,11 +119,11 @@ function DashboardContent() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/sap/b1/purchase'] });
       toast({
         title: "Date Range Updated",
-        description: `Custom sync date range set successfully. Records from ${format(new Date(syncStatusData?.data.settings.fyStartDate || ''), 'dd MMM yyyy')} onwards will be synced.`,
+        description: `Custom sync date range set to ${format(new Date(variables.fyStartDate), 'dd MMM yyyy')} onwards. Click "Sync Now" to apply changes.`,
       });
     },
     onError: (error: Error) => {
@@ -147,11 +147,15 @@ function DashboardContent() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/sap/b1/purchase/sync/status'] });
+      const documentsProcessed = data?.data?.documentsProcessed || 0;
       toast({
-        title: "Sync Started",
-        description: "SAP data synchronization initiated successfully",
+        title: documentsProcessed > 0 ? "Sync Completed" : "Sync Issue Detected",
+        description: documentsProcessed > 0 
+          ? `Successfully synced ${documentsProcessed} records from SAP`
+          : "Sync started but no records were processed. Check SAP connection.",
+        variant: documentsProcessed > 0 ? "default" : "destructive",
       });
     },
     onError: (error: Error) => {
