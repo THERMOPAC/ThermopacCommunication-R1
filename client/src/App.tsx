@@ -123,6 +123,11 @@ import DwarPage from "@/pages/dwar-page";
 
 // SAP B1 Integration pages
 import PurchaseModule from "@/pages/PurchaseModule";
+import SapPurchasingDashboard from "@/pages/SapPurchasingDashboard";
+import SapPurchaseOrders from "@/pages/SapPurchaseOrders";
+import SapPurchaseQuotations from "@/pages/SapPurchaseQuotations";
+import SapGoodsReceipts from "@/pages/SapGoodsReceipts";
+import SapPurchaseInvoices from "@/pages/SapPurchaseInvoices";
 import SapIntegrationPage from "@/pages/SapIntegrationPage";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -346,6 +351,13 @@ function Router() {
       <ProtectedRoute path="/purchase-module" component={() => <Layout><PurchaseModule /></Layout>} />
       <ProtectedRoute path="/sap-b1/purchase" component={() => <Layout><PurchaseModule /></Layout>} />
       <ProtectedRoute path="/admin/sap-purchase" component={() => <Layout><PurchaseModule /></Layout>} />
+      
+      {/* SAP Purchasing Module Routes */}
+      <ProtectedRoute path="/sap-purchasing/dashboard" component={() => <Layout><SapPurchasingDashboard /></Layout>} />
+      <ProtectedRoute path="/sap-purchasing/orders" component={() => <Layout><SapPurchaseOrders /></Layout>} />
+      <ProtectedRoute path="/sap-purchasing/quotations" component={() => <Layout><SapPurchaseQuotations /></Layout>} />
+      <ProtectedRoute path="/sap-purchasing/receipts" component={() => <Layout><SapGoodsReceipts /></Layout>} />
+      <ProtectedRoute path="/sap-purchasing/invoices" component={() => <Layout><SapPurchaseInvoices /></Layout>} />
       
       <SuperuserRoute path="/gcs-diagnostic" component={GcsDiagnosticPage} />
       <SuperuserRoute path="/gcs-test" component={GcsTestPage} />

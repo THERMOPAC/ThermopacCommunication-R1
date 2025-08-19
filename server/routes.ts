@@ -3541,6 +3541,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/sap', sapB1Routes);
   console.log('SAP B1 integration routes registered at /api/sap');
 
+  // SAP B1 authentication routes
+  const sapAuthRoutes = (await import('./sap-b1-integration/sap-auth-routes')).default;
+  app.use('/api/sap/b1', sapAuthRoutes);
+  console.log('SAP B1 auth routes registered at /api/sap/b1');
+
+  // SAP B1 purchase document routes
+  const sapPurchaseDocumentRoutes = (await import('./sap-b1-integration/sap-purchase-routes')).default;
+  app.use('/api/sap/b1/purchase', sapPurchaseDocumentRoutes);
+  console.log('SAP B1 purchase routes registered at /api/sap/b1/purchase');
+
   // SAP B1 Middleware Connector Routes (for receiving synced data)
   const { middlewareRoutes } = await import('./sap-b1-integration/middleware-routes');
   app.use('/api/sap/middleware', middlewareRoutes);

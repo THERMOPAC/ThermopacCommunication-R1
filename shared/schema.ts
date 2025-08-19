@@ -20,7 +20,8 @@ export const modules = [
   "Project Commissioning",
   "Dispatch & Shipping",
   "After-Sales",
-  "SAP B1 Integration"
+  "SAP B1 Integration",
+  "SAP Purchasing"
 ] as const;
 
 export type Module = typeof modules[number];

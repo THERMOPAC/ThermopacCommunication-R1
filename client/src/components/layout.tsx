@@ -50,7 +50,9 @@ import {
   Database,
   Compass,
   ClipboardCheck,
-  Brain
+  Brain,
+  ShoppingCart,
+  Package
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -72,6 +74,7 @@ function Layout({ children }: LayoutProps) {
   const [isAdministrationMenuOpen, setIsAdministrationMenuOpen] = useState(false);
   const [isMeetingsMenuOpen, setIsMeetingsMenuOpen] = useState(false);
   const [isDesignMenuOpen, setIsDesignMenuOpen] = useState(false);
+  const [isSapPurchasingMenuOpen, setIsSapPurchasingMenuOpen] = useState(false);
   const [attendanceCheckCompleted, setAttendanceCheckCompleted] = useState(false);
 
   // Get all module permissions for the current user
@@ -134,6 +137,9 @@ function Layout({ children }: LayoutProps) {
   // Check if we're on any design management-related page
   const isOnDesignPage = location.startsWith('/design-management');
 
+  // Check if we're on any SAP purchasing-related page
+  const isOnSapPurchasingPage = location.startsWith('/sap-purchasing');
+
 
   
   // Auto-open menus based on current page
@@ -173,7 +179,11 @@ function Layout({ children }: LayoutProps) {
     if (isOnDesignPage && !isDesignMenuOpen) {
       setIsDesignMenuOpen(true);
     }
-  }, [isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnDesignPage]);
+    
+    if (isOnSapPurchasingPage && !isSapPurchasingMenuOpen) {
+      setIsSapPurchasingMenuOpen(true);
+    }
+  }, [isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnDesignPage, isOnSapPurchasingPage]);
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
@@ -304,6 +314,20 @@ function Layout({ children }: LayoutProps) {
       icon: Database, 
       label: "SAP B1 Integration", 
       href: "/sap-integration"
+    }] : []),
+    ...(hasViewPermission("SAP Purchasing") ? [{ 
+      icon: ShoppingCart, 
+      label: "SAP Purchasing", 
+      isSubmenu: true,
+      isOpen: isSapPurchasingMenuOpen,
+      toggle: () => setIsSapPurchasingMenuOpen(!isSapPurchasingMenuOpen),
+      children: [
+        { icon: BarChart3, label: "Dashboard", href: "/sap-purchasing/dashboard" },
+        { icon: FileText, label: "Purchase Quotations", href: "/sap-purchasing/quotations" },
+        { icon: ShoppingCart, label: "Purchase Orders", href: "/sap-purchasing/orders" },
+        { icon: Package, label: "Goods Receipt POs", href: "/sap-purchasing/receipts" },
+        { icon: Receipt, label: "Purchase Invoices", href: "/sap-purchasing/invoices" }
+      ]
     }] : []),
     ...(hasViewPermission("Procurement Management") ? [{
       icon: TrendingUp,
