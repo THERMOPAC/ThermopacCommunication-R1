@@ -414,10 +414,21 @@ router.get('/sync/status', async (req, res) => {
       [userId, 'in_progress']
     );
     
+    const settingsData = settings.rows[0];
     res.json({
       success: true,
       data: {
-        settings: settings.rows[0],
+        settings: {
+          autoSyncEnabled: settingsData.auto_sync_enabled,
+          syncIntervalMinutes: settingsData.sync_interval_minutes,
+          businessHoursStart: settingsData.business_hours_start,
+          businessHoursEnd: settingsData.business_hours_end,
+          businessTimezone: settingsData.business_timezone,
+          fyStartDate: settingsData.fy_start_date,
+          fy_start_date: settingsData.fy_start_date,
+          lastSyncAt: settingsData.last_sync_at,
+          nextSyncAt: settingsData.next_sync_at
+        },
         recentHistory: history.rows,
         isRunning: runningSyncs.rows.length > 0
       }
@@ -723,6 +734,7 @@ router.get('/sync/settings', async (req, res) => {
           businessHoursEnd: setting.business_hours_end,
           businessTimezone: setting.business_timezone,
           fyStartDate: setting.fy_start_date,
+          fy_start_date: setting.fy_start_date,
           lastSyncAt: setting.last_sync_at,
           nextSyncAt: setting.next_sync_at
         }
@@ -739,6 +751,7 @@ router.get('/sync/settings', async (req, res) => {
         businessHoursEnd: setting.business_hours_end,
         businessTimezone: setting.business_timezone,
         fyStartDate: setting.fy_start_date,
+        fy_start_date: setting.fy_start_date,
         lastSyncAt: setting.last_sync_at,
         nextSyncAt: setting.next_sync_at
       }
