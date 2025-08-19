@@ -100,13 +100,12 @@ function DashboardContent() {
   });
 
   const updateSyncSettings = useMutation({
-    mutationFn: async (settings: { fyStartDate: string; fyEndDate?: string }) => {
+    mutationFn: async (settings: { fyStartDate: string }) => {
       const response = await fetch('/api/sap/b1/purchase/sync/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fyStartDate: settings.fyStartDate,
-          fyEndDate: settings.fyEndDate,
           autoSyncEnabled: true,
           syncIntervalMinutes: 60,
           businessHoursStart: '09:00',
@@ -123,8 +122,8 @@ function DashboardContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/sap/b1/purchase'] });
       toast({
-        title: "Settings Updated",
-        description: "Financial year range updated successfully",
+        title: "Date Range Updated",
+        description: `Custom sync date range set successfully. Records from ${format(new Date(syncStatusData?.data.settings.fyStartDate || ''), 'dd MMM yyyy')} onwards will be synced.`,
       });
     },
     onError: (error: Error) => {
@@ -349,6 +348,7 @@ function DashboardContent() {
                   </label>
                   <input
                     type="date"
+                    value={syncStatusData?.data.settings.fyStartDate || ''}
                     className="w-full px-3 py-2 text-sm border border-blue-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     onChange={(e) => {
                       if (e.target.value) {
@@ -367,22 +367,22 @@ function DashboardContent() {
                   <input
                     type="date"
                     className="w-full px-3 py-2 text-sm border border-blue-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        updateSyncSettings.mutate({ 
-                          fyStartDate: dashboardData.fyStartDate || format(new Date(), 'yyyy-MM-dd'),
-                          fyEndDate: e.target.value
-                        });
-                      }
-                    }}
+                    disabled
+                    placeholder="Coming soon"
                   />
+                  <p className="text-xs text-gray-500 mt-1">End date filtering coming in next update</p>
                 </div>
               </div>
               
               <div className="flex items-center justify-between mt-3">
-                <p className="text-xs text-blue-600">
-                  Select custom date range for SAP data synchronization
-                </p>
+                <div className="text-xs text-blue-600">
+                  <p>Select custom date range for SAP data synchronization</p>
+                  {syncStatusData?.data.settings.fyStartDate && (
+                    <p className="font-medium mt-1">
+                      Current range: From {format(new Date(syncStatusData.data.settings.fyStartDate), 'dd MMM yyyy')} onwards
+                    </p>
+                  )}
+                </div>
                 <Button
                   size="sm"
                   variant="outline"
