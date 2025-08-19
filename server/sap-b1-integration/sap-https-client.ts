@@ -2,7 +2,8 @@ import https from 'https';
 
 interface SapRequestOptions {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
-  path: string;
+  url: string;
+  path?: string;
   body?: any;
   headers?: Record<string, string>;
   timeout?: number;
@@ -38,10 +39,13 @@ export class SapHttpsClient {
 
   async request(options: SapRequestOptions): Promise<SapResponse> {
     return new Promise((resolve, reject) => {
+      // Parse URL to get path
+      const url = new URL(options.url || `https://${this.baseHost}:${this.basePort}${options.path}`);
+      
       const requestOptions: https.RequestOptions = {
-        hostname: this.baseHost,
-        port: this.basePort,
-        path: options.path,
+        hostname: url.hostname,
+        port: url.port || this.basePort,
+        path: url.pathname + url.search,
         method: options.method,
         agent: this.agent,
         timeout: options.timeout || 30000,

@@ -1,7 +1,7 @@
 import express from 'express';
 import { ensureAuthenticated } from '../middleware/auth-middleware';
 import { requireSapAccess, requireSapSession } from '../middleware/sap-auth-middleware';
-import { sapHttpsClient } from './sap-https-client';
+import { sapHttpsClient, SapHttpsClient } from './sap-https-client';
 import { pool } from '../db';
 
 const router = express.Router();
@@ -474,8 +474,8 @@ settingsRouter.put('/sync/settings', async (req, res) => {
   }
 });
 
-// Trigger manual sync
-router.post('/sync/trigger', async (req, res) => {
+// Trigger manual sync (moved to settings router - no SAP session required)
+settingsRouter.post('/sync/trigger', async (req, res) => {
   try {
     const userId = req.user!.id;
     
@@ -507,8 +507,49 @@ router.post('/sync/trigger', async (req, res) => {
     let errorMessage = null;
     
     try {
-      // Sync Purchase Orders
-      const ordersResponse = await makeSapRequest(req, '/PurchaseOrders?$top=100&$orderby=DocDate%20desc');
+      // Create direct SAP connection for sync (bypass session requirement)
+      const sapClient = new SapHttpsClient();
+      
+      // Login to SAP B1 Service Layer
+      const loginResponse = await sapClient.request({
+        method: 'POST',
+        url: `${process.env.SAP_SERVICE_LAYER_URL}/b1s/v1/Login`,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          CompanyDB: process.env.SAP_COMPANY_DB,
+          UserName: process.env.SAP_USERNAME,
+          Password: process.env.SAP_PASSWORD
+        })
+      });
+
+      if (loginResponse.statusCode !== 200) {
+        throw new Error(`SAP login failed: ${loginResponse.statusCode}`);
+      }
+
+      // Extract session cookies for subsequent requests
+      const sessionCookie = loginResponse.headers['set-cookie']?.find(cookie => 
+        cookie.startsWith('B1SESSION=') || cookie.startsWith('ROUTEID=')
+      );
+      
+      const requestHeaders = {
+        'Content-Type': 'application/json',
+        'Cookie': loginResponse.headers['set-cookie']?.join('; ') || ''
+      };
+
+      // Get sync date filter from settings
+      const syncSettings = await pool.query(
+        'SELECT fy_start_date FROM sap_sync_settings WHERE user_id = $1',
+        [userId]
+      );
+      const fyStartDate = syncSettings.rows[0]?.fy_start_date || '2025-04-01';
+      
+      // Sync Purchase Orders with date filter
+      const ordersResponse = await sapClient.request({
+        method: 'GET',
+        url: `${process.env.SAP_SERVICE_LAYER_URL}/b1s/v1/PurchaseOrders?$top=100&$orderby=DocDate%20desc&$filter=DocDate%20ge%20'${fyStartDate}'`,
+        headers: requestHeaders
+      });
+
       if (ordersResponse.statusCode === 200) {
         const ordersData = JSON.parse(ordersResponse.body);
         documentsProcessed += ordersData.value?.length || 0;
@@ -522,8 +563,13 @@ router.post('/sync/trigger', async (req, res) => {
         }
       }
       
-      // Sync Purchase Invoices
-      const invoicesResponse = await makeSapRequest(req, '/PurchaseInvoices?$top=50&$orderby=DocDate%20desc');
+      // Sync Purchase Invoices with date filter
+      const invoicesResponse = await sapClient.request({
+        method: 'GET',
+        url: `${process.env.SAP_SERVICE_LAYER_URL}/b1s/v1/PurchaseInvoices?$top=50&$orderby=DocDate%20desc&$filter=DocDate%20ge%20'${fyStartDate}'`,
+        headers: requestHeaders
+      });
+
       if (invoicesResponse.statusCode === 200) {
         const invoicesData = JSON.parse(invoicesResponse.body);
         documentsProcessed += invoicesData.value?.length || 0;
@@ -535,6 +581,17 @@ router.post('/sync/trigger', async (req, res) => {
             [userId, 'PurchaseInvoice', invoice.DocEntry, JSON.stringify(invoice)]
           );
         }
+      }
+
+      // Logout from SAP session
+      try {
+        await sapClient.request({
+          method: 'POST',
+          url: `${process.env.SAP_SERVICE_LAYER_URL}/b1s/v1/Logout`,
+          headers: requestHeaders
+        });
+      } catch (logoutError) {
+        console.warn('SAP logout warning:', logoutError);
       }
       
     } catch (syncError: any) {
