@@ -455,12 +455,12 @@ function Layout({ children }: LayoutProps) {
                   const moduleOrder = [
                     { type: 'submenu', label: 'Meetings & Commitments' },
                     { type: 'single', href: '/sap-integration', label: 'SAP B1 Integration' },
+                    { type: 'submenu', label: 'SAP Purchasing' },
                     { type: 'submenu', label: 'Administration' },
                     { type: 'submenu', label: 'Finance' },
                     { type: 'submenu', label: 'Sales and Marketing' },
                     { type: 'submenu', label: 'Project Management' },
                     { type: 'submenu', label: 'Design Management' },
-                    { type: 'single', href: '/sap-b1/purchase', label: 'SAP B1 Purchase' },
                     { type: 'submenu', label: 'Procurement Management' },
                     { type: 'submenu', label: 'Production Management' },
                     { type: 'submenu', label: 'Quality Management' },
