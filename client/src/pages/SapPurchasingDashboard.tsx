@@ -1,8 +1,13 @@
 import { SapAuthGuard } from '@/components/sap/SapAuthGuard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useQuery } from '@tanstack/react-query';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { format } from 'date-fns';
 import { 
   ShoppingCart, 
   FileText, 
@@ -10,7 +15,14 @@ import {
   Receipt, 
   AlertTriangle,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  RefreshCw,
+  Calendar,
+  Settings,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Loader2
 } from 'lucide-react';
 
 interface DashboardData {
@@ -21,22 +33,80 @@ interface DashboardData {
     pendingReceipts: number;
   };
   recentOrders: Array<{
+    DocEntry: number;
     DocNum: string;
     DocTotal: number;
     DocumentStatus: string;
+    DocDate: string;
   }>;
   recentQuotations: Array<{
+    DocEntry: number;
     DocNum: string;
     DocTotal: number;
     DocumentStatus: string;
+    DocDate: string;
   }>;
   alerts: Array<string>;
+  fyStartDate: string;
+  syncStatus: {
+    autoSyncEnabled: boolean;
+    lastSyncAt: string | null;
+    nextSyncAt: string | null;
+    syncIntervalMinutes: number;
+  } | null;
+}
+
+interface SyncSettings {
+  autoSyncEnabled: boolean;
+  syncIntervalMinutes: number;
+  businessHoursStart: string;
+  businessHoursEnd: string;
+  businessTimezone: string;
+  fyStartDate: string;
+}
+
+interface SyncStatus {
+  settings: SyncSettings;
+  recentHistory: Array<{
+    id: number;
+    sync_type: string;
+    started_at: string;
+    completed_at: string | null;
+    status: string;
+    documents_synced: number;
+    error_message: string | null;
+  }>;
+  isRunning: boolean;
 }
 
 function DashboardContent() {
+  const [fyFilter, setFyFilter] = useState<string>('current');
+  const queryClient = useQueryClient();
+
   const { data, isLoading, error } = useQuery<{ success: boolean; data: DashboardData }>({
     queryKey: ['/api/sap/b1/purchase/dashboard'],
     refetchInterval: 60000, // Refresh every minute
+  });
+
+  const { data: syncStatusData } = useQuery<{ success: boolean; data: SyncStatus }>({
+    queryKey: ['/api/sap/b1/purchase/sync/status'],
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  const triggerSyncMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/sap/b1/purchase/sync/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      if (!response.ok) throw new Error('Sync trigger failed');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/sap/b1/purchase/sync/status'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sap/b1/purchase/dashboard'] });
+    }
   });
 
   if (isLoading) {
@@ -117,6 +187,77 @@ function DashboardContent() {
 
   return (
     <div className="space-y-6">
+      {/* FY Filter and Sync Controls */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Financial Year:</span>
+            <Select value={fyFilter} onValueChange={setFyFilter}>
+              <SelectTrigger className="w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="current">Current FY</SelectItem>
+                <SelectItem value="previous">Previous FY</SelectItem>
+                <SelectItem value="custom">Custom Range</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {dashboardData.fyStartDate && (
+            <Badge variant="outline" className="text-xs">
+              From {format(new Date(dashboardData.fyStartDate), 'MMM dd, yyyy')}
+            </Badge>
+          )}
+        </div>
+
+        {/* Sync Status and Controls */}
+        <div className="flex items-center gap-3">
+          {syncStatusData?.data && (
+            <>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                {syncStatusData.data.isRunning ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Syncing...</span>
+                  </>
+                ) : syncStatusData.data.settings.lastSyncAt ? (
+                  <>
+                    <Clock className="h-3 w-3" />
+                    <span>
+                      Last: {format(new Date(syncStatusData.data.settings.lastSyncAt), 'HH:mm')}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-3 w-3 text-orange-500" />
+                    <span>Never synced</span>
+                  </>
+                )}
+              </div>
+              
+              <Separator orientation="vertical" className="h-4" />
+              
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => triggerSyncMutation.mutate()}
+                disabled={triggerSyncMutation.isPending || syncStatusData.data.isRunning}
+                className="text-xs"
+              >
+                {triggerSyncMutation.isPending || syncStatusData.data.isRunning ? (
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                ) : (
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                )}
+                Sync Now
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
