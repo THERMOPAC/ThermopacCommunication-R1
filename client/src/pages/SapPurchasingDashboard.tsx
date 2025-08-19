@@ -331,16 +331,67 @@ function DashboardContent() {
             </div>
           </div>
           
-          {/* Custom Date Range Notice */}
+          {/* Custom Date Range Picker */}
           {showCustomDatePicker && (
             <div className="w-full p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-3">
                 <Calendar className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-700">Custom Date Range Selected</span>
+                <span className="text-sm font-medium text-blue-700">Custom Date Range</span>
               </div>
-              <p className="text-xs text-blue-600">
-                Custom date picker will be available soon. For now, use the preset options (Current FY, Previous FY, All Data).
-              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-blue-700 mb-1">
+                    From Date
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full px-3 py-2 text-sm border border-blue-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        updateSyncSettings.mutate({ 
+                          fyStartDate: e.target.value
+                        });
+                      }
+                    }}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-medium text-blue-700 mb-1">
+                    To Date (Optional)
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full px-3 py-2 text-sm border border-blue-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        updateSyncSettings.mutate({ 
+                          fyStartDate: dashboardData.fyStartDate || format(new Date(), 'yyyy-MM-dd'),
+                          fyEndDate: e.target.value
+                        });
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between mt-3">
+                <p className="text-xs text-blue-600">
+                  Select custom date range for SAP data synchronization
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setShowCustomDatePicker(false);
+                    setFyFilter('current');
+                  }}
+                  className="text-xs"
+                >
+                  Cancel
+                </Button>
+              </div>
             </div>
           )}
         </div>
