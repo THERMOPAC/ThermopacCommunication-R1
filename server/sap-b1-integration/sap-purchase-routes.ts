@@ -141,7 +141,7 @@ router.get('/dashboard', async (req, res) => {
     // Add sync status information
     let syncStatus = null;
     try {
-      const syncResult = await db.query(
+      const syncResult = await pool.query(
         'SELECT auto_sync_enabled, last_sync_at, next_sync_at, sync_interval_minutes FROM sap_sync_settings WHERE user_id = $1',
         [userId]
       );
