@@ -750,6 +750,77 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
   }
 });
 
+// Get sync status and settings
+router.get('/sync/status', async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    
+    // Get sync settings
+    const settingsResult = await pool.query(
+      'SELECT * FROM sap_sync_settings WHERE user_id = $1',
+      [userId]
+    );
+    
+    if (settingsResult.rows.length === 0) {
+      // Create default settings if they don't exist
+      await pool.query(
+        `INSERT INTO sap_sync_settings (
+          user_id, auto_sync_enabled, sync_interval_minutes, 
+          business_hours_start, business_hours_end, business_timezone, fy_start_date
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [userId, true, 60, '09:00:00', '20:00:00', 'Asia/Kolkata', '2024-04-01']
+      );
+      
+      // Fetch the newly created settings
+      const newSettingsResult = await pool.query(
+        'SELECT * FROM sap_sync_settings WHERE user_id = $1',
+        [userId]
+      );
+      settingsResult.rows = newSettingsResult.rows;
+    }
+    
+    const settings = settingsResult.rows[0];
+    
+    // Get recent sync history
+    const historyResult = await pool.query(
+      'SELECT * FROM sap_sync_history WHERE user_id = $1 ORDER BY started_at DESC LIMIT 10',
+      [userId]
+    );
+    
+    // Check if sync is currently running
+    const runningSync = await pool.query(
+      'SELECT * FROM sap_sync_history WHERE user_id = $1 AND status = $2',
+      [userId, 'in_progress']
+    );
+    
+    res.json({
+      success: true,
+      data: {
+        settings: {
+          autoSyncEnabled: settings.auto_sync_enabled,
+          syncIntervalMinutes: settings.sync_interval_minutes,
+          businessHoursStart: settings.business_hours_start,
+          businessHoursEnd: settings.business_hours_end,
+          businessTimezone: settings.business_timezone,
+          fy_start_date: settings.fy_start_date,
+          lastSyncAt: settings.last_sync_at,
+          nextSyncAt: settings.next_sync_at
+        },
+        recentHistory: historyResult.rows,
+        isRunning: runningSync.rows.length > 0
+      }
+    });
+    
+  } catch (error) {
+    console.error('Get sync status error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get sync status',
+      code: 'SYNC_STATUS_ERROR'
+    });
+  }
+});
+
 // Get sync settings
 router.get('/sync/settings', async (req, res) => {
   try {
