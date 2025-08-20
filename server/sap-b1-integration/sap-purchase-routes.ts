@@ -233,8 +233,6 @@ router.get('/orders', async (req, res) => {
     const { page = 1, limit = 20, search, status } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
     
-    console.log('Purchase orders query params:', { page, limit, search, status });
-    
     let filters = [];
     if (search && search.toString().trim()) {
       const searchTerm = search.toString().trim();
@@ -252,8 +250,6 @@ router.get('/orders', async (req, res) => {
       '$orderby=DocDate%20desc',
       filterString
     ].filter(Boolean).join('&');
-    
-    console.log('SAP query URL:', `/b1s/v1/PurchaseOrders?${queryParams}`);
     
     const response = await makeSapRequest(req, `/b1s/v1/PurchaseOrders?${queryParams}`);
     const errorResponse = handleSapResponse(response, res, 'Purchase orders query');

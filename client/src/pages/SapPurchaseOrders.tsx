@@ -95,8 +95,7 @@ function PurchaseOrdersContent() {
     ...(statusFilter !== 'all' && { status: statusFilter })
   };
 
-  // Debug: Log query params when they change
-  console.log('Frontend query params:', queryParams);
+
 
   const { data, isLoading, error, refetch } = useQuery<{ success: boolean; data: PurchaseOrdersData }>({
     queryKey: ['/api/sap/b1/purchase/orders', queryParams],
@@ -110,7 +109,6 @@ function PurchaseOrdersContent() {
       });
       
       const url = `/api/sap/b1/purchase/orders?${searchParams.toString()}`;
-      console.log('Making request to:', url);
       
       const response = await fetch(url, {
         credentials: 'include',
