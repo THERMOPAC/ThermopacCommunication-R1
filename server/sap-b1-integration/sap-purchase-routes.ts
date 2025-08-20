@@ -643,7 +643,7 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
       console.log(`Starting Purchase Orders sync from ${fyStartDate} using ${sapServiceUrl}`);
       const ordersResponse = await sapClient.request({
         method: 'GET',
-        url: `${sapServiceUrl}/PurchaseOrders?$top=100&$orderby=DocDate%20desc&$filter=DocDate%20ge%20'${fyStartDate}'`,
+        url: `${sapServiceUrl}/PurchaseOrders?$top=1000&$orderby=DocDate%20desc&$filter=DocDate%20ge%20'${fyStartDate}'`,
         headers: requestHeaders,
         timeout: 300000 // 5 minutes timeout
       });
