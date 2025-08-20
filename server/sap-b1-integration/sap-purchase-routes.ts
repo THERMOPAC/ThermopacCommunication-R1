@@ -649,6 +649,16 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
       });
       
       console.log(`Purchase Orders sync response: ${ordersResponse.statusCode}`);
+      
+      // Debug: Log the first few orders to understand the response structure
+      if (ordersResponse.statusCode === 200) {
+        const responseData = JSON.parse(ordersResponse.body);
+        console.log(`SAP returned ${responseData.value?.length || 0} orders out of possible 1000`);
+        console.log(`First order date: ${responseData.value?.[0]?.DocDate}, Last order date: ${responseData.value?.[responseData.value?.length - 1]?.DocDate}`);
+        if (responseData.value?.length < 1000) {
+          console.log(`SAP returned fewer than 1000 records, this might be the complete dataset`);
+        }
+      }
 
       if (ordersResponse.statusCode === 200) {
         const ordersData = JSON.parse(ordersResponse.body);
