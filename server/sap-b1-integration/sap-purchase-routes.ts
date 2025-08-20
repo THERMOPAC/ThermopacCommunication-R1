@@ -593,7 +593,7 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
               UserName: process.env.SAP_USERNAME,
               Password: process.env.SAP_PASSWORD
             }),
-            timeout: 120000
+            timeout: 300000 // 5 minutes timeout
           });
           
           if (loginResponse.statusCode === 200) {
@@ -638,12 +638,16 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
         fyStartDate = typeof fyDate === 'string' ? fyDate : fyDate.toISOString().split('T')[0];
       }
       
-      // Sync Purchase Orders with date filter
+      // Sync Purchase Orders with date filter - use corrected URL and extended timeout
+      console.log(`Starting Purchase Orders sync from ${fyStartDate} using ${sapServiceUrl}`);
       const ordersResponse = await sapClient.request({
         method: 'GET',
-        url: `${process.env.SAP_SERVICE_LAYER_URL}/b1s/v1/PurchaseOrders?$top=100&$orderby=DocDate%20desc&$filter=DocDate%20ge%20'${fyStartDate}'`,
-        headers: requestHeaders
+        url: `${sapServiceUrl}/PurchaseOrders?$top=100&$orderby=DocDate%20desc&$filter=DocDate%20ge%20'${fyStartDate}'`,
+        headers: requestHeaders,
+        timeout: 300000 // 5 minutes timeout
       });
+      
+      console.log(`Purchase Orders sync response: ${ordersResponse.statusCode}`);
 
       if (ordersResponse.statusCode === 200) {
         const ordersData = JSON.parse(ordersResponse.body);
