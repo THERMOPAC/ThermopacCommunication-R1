@@ -640,8 +640,9 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
         const ordersData = JSON.parse(ordersResponse.body);
         documentsProcessed += ordersData.value?.length || 0;
         
-        // Cache the data
+        // Store in both cache and structured tables
         for (const order of ordersData.value || []) {
+          // Store in document cache
           await pool.query(
             `INSERT INTO sap_document_cache (
               doc_entry, doc_type, doc_num, doc_date, doc_total, 
@@ -656,6 +657,47 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
               order.DocEntry, 'PurchaseOrder', order.DocNum, order.DocDate, order.DocTotal,
               order.DocumentStatus, order.CardCode, order.CardName,
               order.Cancelled === 'Y', order.DocStatus === 'C', JSON.stringify(order), userId
+            ]
+          );
+
+          // Store in structured sap_purchase_orders table
+          await pool.query(
+            `INSERT INTO sap_purchase_orders (
+              doc_entry, doc_num, doc_date, doc_due_date, tax_date,
+              vendor_code, vendor_name, contact_person,
+              doc_total, vat_sum, doc_total_fc, doc_currency, doc_rate,
+              doc_status, cancelled, comments, reference_1, reference_2, project_code,
+              sap_synced_at, sap_last_modified, sap_sync_status, created_by, updated_by
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW(), $20, 'synced', $21, $21)
+            ON CONFLICT (doc_entry) DO UPDATE SET
+              doc_num = $2, doc_date = $3, doc_due_date = $4, tax_date = $5,
+              vendor_code = $6, vendor_name = $7, contact_person = $8,
+              doc_total = $9, vat_sum = $10, doc_total_fc = $11, doc_currency = $12, doc_rate = $13,
+              doc_status = $14, cancelled = $15, comments = $16, reference_1 = $17, reference_2 = $18,
+              project_code = $19, sap_synced_at = NOW(), sap_last_modified = $20, 
+              sap_sync_status = 'synced', updated_by = $21, updated_at = NOW()`,
+            [
+              order.DocEntry,
+              order.DocNum,
+              order.DocDate,
+              order.DocDueDate,
+              order.TaxDate,
+              order.CardCode,
+              order.CardName,
+              order.ContactPerson || null,
+              order.DocTotal || 0,
+              order.VatSum || 0,
+              order.DocTotalFc || 0,
+              order.DocCurrency || 'INR',
+              order.DocRate || 1,
+              order.DocumentStatus || 'O',
+              order.Cancelled || 'N',
+              order.Comments || null,
+              order.NumAtCard || null,
+              order.Reference1 || null,
+              order.Project || null,
+              order.UpdateDate || order.DocDate,
+              userId
             ]
           );
         }
