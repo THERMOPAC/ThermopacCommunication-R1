@@ -227,8 +227,8 @@ router.get('/quotations', async (req, res) => {
   }
 });
 
-// Purchase Orders - Query from local database for better performance
-router.get('/orders', async (req, res) => {
+// Purchase Orders - Query from local database for better performance (no SAP session needed)
+settingsRouter.get('/orders', async (req, res) => {
   try {
     const { page = 1, limit = 20, search, status } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
