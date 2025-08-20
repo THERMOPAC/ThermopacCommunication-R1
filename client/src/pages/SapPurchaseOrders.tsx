@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Search, 
   Filter, 
@@ -56,6 +57,7 @@ function PurchaseOrdersContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('all');
   const pageSize = 20;
+  const { toast } = useToast();
 
   const { data, isLoading, error } = useQuery<{ success: boolean; data: PurchaseOrdersData }>({
     queryKey: ['/api/sap/b1/purchase/orders', { 
@@ -220,7 +222,10 @@ function PurchaseOrdersContent() {
                         size="sm"
                         title="View Purchase Order"
                         onClick={() => {
-                          console.log('View PO:', order.DocEntry);
+                          toast({
+                            title: "View Purchase Order",
+                            description: `Opening PO-${order.DocNum} (DocEntry: ${order.DocEntry})`,
+                          });
                           // TODO: Implement view functionality - open modal or navigate to detail page
                         }}
                       >
@@ -231,7 +236,10 @@ function PurchaseOrdersContent() {
                         size="sm"
                         title="Edit Purchase Order"
                         onClick={() => {
-                          console.log('Edit PO:', order.DocEntry);
+                          toast({
+                            title: "Edit Purchase Order",
+                            description: `Editing PO-${order.DocNum} (DocEntry: ${order.DocEntry})`,
+                          });
                           // TODO: Implement edit functionality
                         }}
                       >
@@ -242,7 +250,10 @@ function PurchaseOrdersContent() {
                         size="sm"
                         title="Download Purchase Order"
                         onClick={() => {
-                          console.log('Download PO:', order.DocEntry);
+                          toast({
+                            title: "Download Purchase Order",
+                            description: `Downloading PO-${order.DocNum} (DocEntry: ${order.DocEntry})`,
+                          });
                           // TODO: Implement download functionality
                         }}
                       >
