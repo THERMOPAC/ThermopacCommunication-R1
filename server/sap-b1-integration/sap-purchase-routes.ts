@@ -70,12 +70,12 @@ function handleSapResponse(response: any, res: express.Response, operation: stri
   return null; // Success - no error response needed
 }
 
-// Dashboard - Summary of open purchase documents with FY filtering
-router.get('/dashboard', async (req, res) => {
+// Dashboard - Query local database for accurate stats (no SAP session needed)
+settingsRouter.get('/dashboard', async (req, res) => {
   try {
-    // Get user's sync settings for FY start date
     const userId = req.user!.id;
     
+    // Get FY start date from settings
     let fyStartDate = '2025-04-01'; // Default
     try {
       const settingsResult = await pool.query(
@@ -90,60 +90,73 @@ router.get('/dashboard', async (req, res) => {
       console.warn('Failed to get FY settings, using default:', err);
     }
 
-    // Build OData filters with FY filtering
-    const fyFilter = `DocDate ge '${fyStartDate}'`;
-    const openOrdersFilter = `DocumentStatus eq 'bost_Open' and ${fyFilter}`;
-    
-    // Get summary data from multiple endpoints with FY filtering
-    const [ordersResponse, quotationsResponse, invoicesResponse, receiptsResponse] = await Promise.allSettled([
-      makeSapRequest(req, `/b1s/v1/PurchaseOrders?$select=DocEntry,DocNum,DocTotal,DocumentStatus,DocDate&$filter=${openOrdersFilter}&$orderby=DocDate%20desc&$top=5`),
-      makeSapRequest(req, `/b1s/v1/PurchaseQuotations?$select=DocEntry,DocNum,DocTotal,DocumentStatus,DocDate&$filter=${fyFilter}&$orderby=DocDate%20desc&$top=5`),
-      makeSapRequest(req, `/b1s/v1/PurchaseInvoices?$select=DocEntry,DocNum,DocTotal,DocumentStatus,DocDate&$filter=${fyFilter}&$orderby=DocDate%20desc&$top=5`),
-      makeSapRequest(req, `/b1s/v1/PurchaseDeliveryNotes?$select=DocEntry,DocNum,DocTotal,DocumentStatus,DocDate&$filter=${fyFilter}&$orderby=DocDate%20desc&$top=5`)
+    // Query local database for accurate purchase order statistics
+    const [
+      totalOrdersResult,
+      openOrdersResult,
+      closedOrdersResult,
+      totalValueResult,
+      openValueResult,
+      vendorCountResult,
+      recentOrdersResult
+    ] = await Promise.all([
+      // Total orders count from FY start date
+      pool.query(
+        'SELECT COUNT(*) as total FROM sap_purchase_orders WHERE doc_date >= $1',
+        [fyStartDate]
+      ),
+      // Open orders count and recent open orders
+      pool.query(
+        'SELECT COUNT(*) as total FROM sap_purchase_orders WHERE doc_status = $1 AND doc_date >= $2',
+        ['bost_Open', fyStartDate]
+      ),
+      // Closed orders count
+      pool.query(
+        'SELECT COUNT(*) as total FROM sap_purchase_orders WHERE doc_status = $1 AND doc_date >= $2',
+        ['bost_Close', fyStartDate]
+      ),
+      // Total value from FY start date
+      pool.query(
+        'SELECT COALESCE(SUM(doc_total), 0) as total_value FROM sap_purchase_orders WHERE doc_date >= $1',
+        [fyStartDate]
+      ),
+      // Open orders value
+      pool.query(
+        'SELECT COALESCE(SUM(doc_total), 0) as total_value FROM sap_purchase_orders WHERE doc_status = $1 AND doc_date >= $2',
+        ['bost_Open', fyStartDate]
+      ),
+      // Unique vendor count
+      pool.query(
+        'SELECT COUNT(DISTINCT vendor_code) as unique_vendors FROM sap_purchase_orders WHERE doc_date >= $1',
+        [fyStartDate]
+      ),
+      // Recent 5 orders for display
+      pool.query(
+        `SELECT 
+          doc_entry as "DocEntry",
+          doc_num as "DocNum",
+          doc_date as "DocDate",
+          vendor_name as "CardName",
+          doc_total as "DocTotal",
+          doc_status as "DocumentStatus"
+         FROM sap_purchase_orders 
+         WHERE doc_date >= $1 
+         ORDER BY doc_date DESC 
+         LIMIT 5`,
+        [fyStartDate]
+      )
     ]);
 
-    const dashboard = {
-      summary: {
-        openOrders: 0,
-        totalOrderValue: 0,
-        pendingInvoices: 0,
-        pendingReceipts: 0
-      },
-      recentOrders: [],
-      recentQuotations: [],
-      alerts: []
-    };
+    // Calculate statistics from database results
+    const totalOrders = parseInt(totalOrdersResult.rows[0].total) || 0;
+    const openOrders = parseInt(openOrdersResult.rows[0].total) || 0;
+    const closedOrders = parseInt(closedOrdersResult.rows[0].total) || 0;
+    const totalValue = parseFloat(totalValueResult.rows[0].total_value) || 0;
+    const openValue = parseFloat(openValueResult.rows[0].total_value) || 0;
+    const uniqueVendors = parseInt(vendorCountResult.rows[0].unique_vendors) || 0;
+    const recentOrders = recentOrdersResult.rows;
 
-    // Process orders data
-    if (ordersResponse.status === 'fulfilled') {
-      const response = ordersResponse.value;
-      const errorResponse = handleSapResponse(response, res, 'Dashboard orders query');
-      if (errorResponse) return;
-      
-      try {
-        const data = JSON.parse(response.body);
-        dashboard.summary.openOrders = data.value?.length || 0;
-        dashboard.summary.totalOrderValue = data.value?.reduce((sum: number, order: any) => sum + (order.DocTotal || 0), 0) || 0;
-        dashboard.recentOrders = data.value || [];
-      } catch (parseError) {
-        console.warn('Failed to parse orders response:', parseError);
-      }
-    }
-
-    // Process quotations data
-    if (quotationsResponse.status === 'fulfilled') {
-      const response = quotationsResponse.value;
-      if (response.ok) {
-        try {
-          const data = JSON.parse(response.body);
-          dashboard.recentQuotations = data.value || [];
-        } catch (parseError) {
-          console.warn('Failed to parse quotations response:', parseError);
-        }
-      }
-    }
-
-    // Add sync status information
+    // Get sync status
     let syncStatus = null;
     try {
       const syncResult = await pool.query(
@@ -162,13 +175,48 @@ router.get('/dashboard', async (req, res) => {
       console.warn('Failed to get sync status:', err);
     }
 
+    // Build comprehensive dashboard data
+    const dashboard = {
+      purchaseOrders: {
+        total: totalOrders,
+        pending: openOrders,
+        approved: closedOrders,
+        totalValue: Math.round(totalValue)
+      },
+      purchaseInvoices: {
+        total: 0, // Can be added later if invoice data is synced
+        pending: 0,
+        paid: 0,
+        totalValue: 0
+      },
+      vendors: {
+        total: uniqueVendors,
+        active: uniqueVendors
+      },
+      goodsReceipt: {
+        total: 0, // Can be added later if receipt data is synced
+        pending: 0,
+        completed: 0
+      },
+      recentActivity: recentOrders.map(order => ({
+        type: 'Purchase Order',
+        description: `PO-${order.DocNum} - ${order.CardName}`,
+        timestamp: order.DocDate,
+        amount: order.DocTotal
+      })),
+      alerts: [
+        totalOrders > 800 ? 'High volume of purchase orders detected' : null,
+        openValue > 1000000 ? 'High value open orders require attention' : null
+      ].filter(Boolean),
+      fyStartDate,
+      syncStatus
+    };
+
+    console.log(`Dashboard stats from database: ${totalOrders} total orders, ${openOrders} open, ₹${totalValue.toLocaleString()} total value`);
+
     res.json({
       success: true,
-      data: {
-        ...dashboard,
-        fyStartDate,
-        syncStatus
-      }
+      data: dashboard
     });
 
   } catch (error) {
