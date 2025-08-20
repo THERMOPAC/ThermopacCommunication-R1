@@ -3585,5 +3585,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   const httpServer = createServer(app);
+  
+  // Extend timeout for SAP B1 integration routes - default is 2 minutes, extend to 6 minutes
+  httpServer.timeout = 360000; // 6 minutes in milliseconds
+  httpServer.keepAliveTimeout = 370000; // 6+ minutes for keep-alive
+  httpServer.headersTimeout = 380000; // Slightly longer than keep-alive
+  
+  console.log('⏱️ HTTP server timeouts extended for SAP B1 integration: 6 minutes');
+  
   return httpServer;
 }
