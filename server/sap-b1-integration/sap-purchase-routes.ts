@@ -580,10 +580,9 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
       while (retryCount <= maxRetries) {
         try {
           console.log(`SAP login attempt ${retryCount + 1}/${maxRetries + 1} for user ${userId}`);
-          // Use correct SAP Service Layer URL - temporarily hardcoded until env var updates
-          const sapServiceUrl = process.env.SAP_SERVICE_LAYER_URL?.includes('59.152.52.58') 
-            ? process.env.SAP_SERVICE_LAYER_URL 
-            : 'https://59.152.52.58:50000/b1s/v1';
+          // Force correct SAP Service Layer URL - override incorrect env var
+          const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
+          console.log(`Using SAP Service Layer URL: ${sapServiceUrl}`);
             
           loginResponse = await sapClient.request({
             method: 'POST',
