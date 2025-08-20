@@ -15,6 +15,12 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   Search, 
   Filter, 
@@ -56,6 +62,8 @@ function PurchaseOrdersContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const pageSize = 20;
   const { toast } = useToast();
 
@@ -222,11 +230,8 @@ function PurchaseOrdersContent() {
                         size="sm"
                         title="View Purchase Order"
                         onClick={() => {
-                          toast({
-                            title: "View Purchase Order",
-                            description: `Opening PO-${order.DocNum} (DocEntry: ${order.DocEntry})`,
-                          });
-                          // TODO: Implement view functionality - open modal or navigate to detail page
+                          setSelectedOrder(order);
+                          setIsViewModalOpen(true);
                         }}
                       >
                         <Eye className="h-4 w-4" />
@@ -312,6 +317,75 @@ function PurchaseOrdersContent() {
           </div>
         </div>
       )}
+
+      {/* View Purchase Order Modal */}
+      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Purchase Order Details - PO-{selectedOrder?.DocNum}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedOrder && (
+            <div className="space-y-6">
+              {/* Header Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg">Order Information</h3>
+                  <div className="space-y-1">
+                    <p><span className="font-medium">PO Number:</span> {selectedOrder.DocNum}</p>
+                    <p><span className="font-medium">Doc Entry:</span> {selectedOrder.DocEntry}</p>
+                    <p><span className="font-medium">Order Date:</span> {new Date(selectedOrder.DocDate).toLocaleDateString()}</p>
+                    <p><span className="font-medium">Due Date:</span> {new Date(selectedOrder.DocDueDate).toLocaleDateString()}</p>
+                    <p><span className="font-medium">Status:</span> {getStatusBadge(selectedOrder.DocumentStatus)}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg">Vendor Information</h3>
+                  <div className="space-y-1">
+                    <p><span className="font-medium">Vendor Code:</span> {selectedOrder.CardCode}</p>
+                    <p><span className="font-medium">Vendor Name:</span> {selectedOrder.CardName}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Financial Information */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg">Amounts</h3>
+                  <div className="space-y-1">
+                    <p><span className="font-medium">Doc Total:</span> ₹{selectedOrder.DocTotal?.toLocaleString()}</p>
+                    <p><span className="font-medium">Total Before Discount:</span> ₹{selectedOrder.TotalDiscount?.toLocaleString()}</p>
+                    <p><span className="font-medium">VAT Sum:</span> ₹{selectedOrder.VatSum?.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Details */}
+              {selectedOrder.Comments && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg">Comments</h3>
+                  <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
+                    {selectedOrder.Comments}
+                  </p>
+                </div>
+              )}
+
+              {/* Raw Data Section (for debugging) */}
+              <div className="space-y-2">
+                <details className="bg-gray-50 p-3 rounded-md">
+                  <summary className="font-medium cursor-pointer">Raw Data (Technical)</summary>
+                  <pre className="mt-2 text-xs overflow-x-auto">
+                    {JSON.stringify(selectedOrder, null, 2)}
+                  </pre>
+                </details>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
