@@ -650,11 +650,20 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
       
       console.log(`Purchase Orders sync response: ${ordersResponse.statusCode}`);
       
-      // Debug: Log the first few orders to understand the response structure
+      // Debug: Log the first few orders and save response to file
       if (ordersResponse.statusCode === 200) {
         const responseData = JSON.parse(ordersResponse.body);
         console.log(`SAP returned ${responseData.value?.length || 0} orders out of possible 1000`);
         console.log(`First order date: ${responseData.value?.[0]?.DocDate}, Last order date: ${responseData.value?.[responseData.value?.length - 1]?.DocDate}`);
+        
+        // Save response to file for debugging
+        require('fs').writeFileSync('/tmp/sap_response_debug.json', JSON.stringify({
+          totalCount: responseData['odata.count'] || 'not_provided',
+          returnedCount: responseData.value?.length || 0,
+          firstOrder: responseData.value?.[0] || null,
+          lastOrder: responseData.value?.[responseData.value?.length - 1] || null
+        }, null, 2));
+        
         if (responseData.value?.length < 1000) {
           console.log(`SAP returned fewer than 1000 records, this might be the complete dataset`);
         }
