@@ -22,7 +22,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
-  Download
+  Download,
+  Edit
 } from 'lucide-react';
 import {
   Select,
@@ -214,10 +215,29 @@ function PurchaseOrdersContent() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        title="View Purchase Order"
+                      >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        title="Edit Purchase Order"
+                        onClick={() => {
+                          // TODO: Implement edit functionality
+                          console.log('Edit PO:', order.DocEntry);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        title="Download Purchase Order"
+                      >
                         <Download className="h-4 w-4" />
                       </Button>
                     </div>
