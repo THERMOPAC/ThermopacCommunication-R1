@@ -639,10 +639,10 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
         fyStartDate = typeof fyDate === 'string' ? fyDate : fyDate.toISOString().split('T')[0];
       }
       
-      // Sync Purchase Orders with pagination to get all records
+      // Sync Purchase Orders with pagination - process each batch immediately
       console.log(`Starting Purchase Orders sync from ${fyStartDate} using ${sapServiceUrl}`);
       
-      let allOrders = [];
+      let totalOrdersProcessed = 0;
       let skip = 0;
       const pageSize = 20; // Use 20 since SAP is limiting to 20 per request
       let hasMoreData = true;
@@ -666,7 +666,85 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
           console.log(`SAP returned ${batchOrders.length} orders in this batch (skip=${skip})`);
           
           if (batchOrders.length > 0) {
-            allOrders.push(...batchOrders);
+            // Process this batch immediately
+            console.log(`Processing batch of ${batchOrders.length} orders`);
+            
+            for (let i = 0; i < batchOrders.length; i++) {
+              const order = batchOrders[i];
+              totalOrdersProcessed++;
+              
+              try {
+                // Store in document cache
+                await pool.query(
+                  `INSERT INTO sap_document_cache (
+                    doc_entry, doc_type, doc_num, doc_date, doc_total, 
+                    document_status, vendor_code, vendor_name, 
+                    is_cancelled, is_closed, raw_data, last_synced_at, user_id
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12) 
+                  ON CONFLICT (doc_entry, doc_type) DO UPDATE SET 
+                    doc_num = $3, doc_date = $4, doc_total = $5, 
+                    document_status = $6, vendor_code = $7, vendor_name = $8,
+                    is_cancelled = $9, is_closed = $10, raw_data = $11, last_synced_at = NOW()`,
+                  [
+                    order.DocEntry, 'PurchaseOrder', order.DocNum, order.DocDate, order.DocTotal,
+                    order.DocumentStatus, order.CardCode, order.CardName,
+                    order.Cancelled === 'Y', order.DocStatus === 'C', JSON.stringify(order), userId
+                  ]
+                );
+
+                // Store in structured sap_purchase_orders table
+                await pool.query(
+                  `INSERT INTO sap_purchase_orders (
+                    doc_entry, doc_num, doc_date, doc_due_date, tax_date,
+                    vendor_code, vendor_name, contact_person,
+                    doc_total, vat_sum, doc_total_fc, doc_currency, doc_rate,
+                    doc_status, cancelled, comments, reference_1, reference_2, project_code,
+                    sap_synced_at, sap_last_modified, sap_sync_status, created_by, updated_by
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW(), $20, 'synced', $21, $21)
+                  ON CONFLICT (doc_entry) DO UPDATE SET
+                    doc_num = $2, doc_date = $3, doc_due_date = $4, tax_date = $5,
+                    vendor_code = $6, vendor_name = $7, contact_person = $8,
+                    doc_total = $9, vat_sum = $10, doc_total_fc = $11, doc_currency = $12, doc_rate = $13,
+                    doc_status = $14, cancelled = $15, comments = $16, reference_1 = $17, reference_2 = $18,
+                    project_code = $19, sap_synced_at = NOW(), sap_last_modified = $20, 
+                    sap_sync_status = 'synced', updated_by = $21, updated_at = NOW()`,
+                  [
+                    order.DocEntry,
+                    order.DocNum,
+                    order.DocDate,
+                    order.DocDueDate,
+                    order.TaxDate,
+                    order.CardCode,
+                    order.CardName,
+                    order.ContactPerson || null,
+                    order.DocTotal || 0,
+                    order.VatSum || 0,
+                    order.DocTotalFc || 0,
+                    order.DocCurrency || 'INR',
+                    order.DocRate || 1,
+                    order.DocumentStatus || 'O',
+                    order.Cancelled || 'N',
+                    order.Comments || null,
+                    order.NumAtCard || null,
+                    order.Reference1 || null,
+                    order.Project || null,
+                    order.UpdateDate || order.DocDate,
+                    userId
+                  ]
+                );
+                
+                // Log progress every 100 records
+                if (totalOrdersProcessed % 100 === 0) {
+                  console.log(`Processed ${totalOrdersProcessed} orders so far`);
+                }
+                
+              } catch (error) {
+                console.error(`Error processing order ${order.DocEntry}:`, error);
+                throw error;
+              }
+            }
+            
+            console.log(`Completed batch processing. Total processed so far: ${totalOrdersProcessed}`);
             skip += pageSize;
             
             // Check if we got fewer results than requested - means we're at the end
@@ -690,88 +768,8 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
         }
       }
       
-      console.log(`Total orders fetched across all batches: ${allOrders.length}`);
-      documentsProcessed += allOrders.length;
-
-      if (allOrders.length > 0) {
-        console.log(`Processing ${allOrders.length} orders for database storage`);
-        
-        try {
-          // Store in both cache and structured tables
-          for (let i = 0; i < allOrders.length; i++) {
-            const order = allOrders[i];
-            console.log(`Processing order ${i + 1}/${allOrders.length}: DocEntry ${order.DocEntry}`);
-            
-            // Store in document cache
-            await pool.query(
-              `INSERT INTO sap_document_cache (
-                doc_entry, doc_type, doc_num, doc_date, doc_total, 
-                document_status, vendor_code, vendor_name, 
-                is_cancelled, is_closed, raw_data, last_synced_at, user_id
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12) 
-              ON CONFLICT (doc_entry, doc_type) DO UPDATE SET 
-                doc_num = $3, doc_date = $4, doc_total = $5, 
-                document_status = $6, vendor_code = $7, vendor_name = $8,
-                is_cancelled = $9, is_closed = $10, raw_data = $11, last_synced_at = NOW()`,
-              [
-                order.DocEntry, 'PurchaseOrder', order.DocNum, order.DocDate, order.DocTotal,
-                order.DocumentStatus, order.CardCode, order.CardName,
-                order.Cancelled === 'Y', order.DocStatus === 'C', JSON.stringify(order), userId
-              ]
-            );
-
-            // Store in structured sap_purchase_orders table
-            await pool.query(
-              `INSERT INTO sap_purchase_orders (
-                doc_entry, doc_num, doc_date, doc_due_date, tax_date,
-                vendor_code, vendor_name, contact_person,
-                doc_total, vat_sum, doc_total_fc, doc_currency, doc_rate,
-                doc_status, cancelled, comments, reference_1, reference_2, project_code,
-                sap_synced_at, sap_last_modified, sap_sync_status, created_by, updated_by
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW(), $20, 'synced', $21, $21)
-              ON CONFLICT (doc_entry) DO UPDATE SET
-                doc_num = $2, doc_date = $3, doc_due_date = $4, tax_date = $5,
-                vendor_code = $6, vendor_name = $7, contact_person = $8,
-                doc_total = $9, vat_sum = $10, doc_total_fc = $11, doc_currency = $12, doc_rate = $13,
-                doc_status = $14, cancelled = $15, comments = $16, reference_1 = $17, reference_2 = $18,
-                project_code = $19, sap_synced_at = NOW(), sap_last_modified = $20, 
-                sap_sync_status = 'synced', updated_by = $21, updated_at = NOW()`,
-              [
-                order.DocEntry,
-                order.DocNum,
-                order.DocDate,
-                order.DocDueDate,
-                order.TaxDate,
-                order.CardCode,
-                order.CardName,
-                order.ContactPerson || null,
-                order.DocTotal || 0,
-                order.VatSum || 0,
-                order.DocTotalFc || 0,
-                order.DocCurrency || 'INR',
-                order.DocRate || 1,
-                order.DocumentStatus || 'O',
-                order.Cancelled || 'N',
-                order.Comments || null,
-                order.NumAtCard || null,
-                order.Reference1 || null,
-                order.Project || null,
-                order.UpdateDate || order.DocDate,
-                userId
-              ]
-            );
-            
-            // Log every 100 processed records
-            if ((i + 1) % 100 === 0) {
-              console.log(`Processed ${i + 1} orders so far`);
-            }
-          }
-          console.log(`Successfully processed all ${allOrders.length} orders`);
-        } catch (error) {
-          console.error(`Error processing orders:`, error);
-          throw error; // Re-throw to maintain error handling
-        }
-      }
+      console.log(`Total orders processed and saved: ${totalOrdersProcessed}`);
+      documentsProcessed += totalOrdersProcessed;
       
       // Sync Purchase Invoices with date filter
       const invoicesResponse = await sapClient.request({
