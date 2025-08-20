@@ -82,13 +82,46 @@ function PurchaseOrdersContent() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
+  // Reset page when status filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter]);
+
+  // Build query parameters, excluding undefined values
+  const queryParams = {
+    page: currentPage, 
+    limit: pageSize,
+    ...(debouncedSearch.trim() && { search: debouncedSearch.trim() }),
+    ...(statusFilter !== 'all' && { status: statusFilter })
+  };
+
+  // Debug: Log query params when they change
+  console.log('Frontend query params:', queryParams);
+
   const { data, isLoading, error, refetch } = useQuery<{ success: boolean; data: PurchaseOrdersData }>({
-    queryKey: ['/api/sap/b1/purchase/orders', { 
-      page: currentPage, 
-      limit: pageSize, 
-      search: debouncedSearch.trim() || undefined,
-      status: statusFilter !== 'all' ? statusFilter : undefined
-    }],
+    queryKey: ['/api/sap/b1/purchase/orders', queryParams],
+    queryFn: async () => {
+      // Construct URL with query parameters
+      const searchParams = new URLSearchParams();
+      Object.entries(queryParams).forEach(([key, value]) => {
+        if (value !== undefined) {
+          searchParams.append(key, value.toString());
+        }
+      });
+      
+      const url = `/api/sap/b1/purchase/orders?${searchParams.toString()}`;
+      console.log('Making request to:', url);
+      
+      const response = await fetch(url, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return response.json();
+    },
     enabled: true,
     staleTime: 30000, // 30 seconds
   });
