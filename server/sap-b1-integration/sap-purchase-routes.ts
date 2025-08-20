@@ -75,16 +75,16 @@ router.get('/dashboard', async (req, res) => {
   try {
     // Get user's sync settings for FY start date
     const userId = req.user!.id;
-    const db = req.app.get('db');
     
     let fyStartDate = '2025-04-01'; // Default
     try {
-      const settingsResult = await db.query(
+      const settingsResult = await pool.query(
         'SELECT fy_start_date FROM sap_sync_settings WHERE user_id = $1',
         [userId]
       );
       if (settingsResult.rows.length > 0 && settingsResult.rows[0].fy_start_date) {
-        fyStartDate = settingsResult.rows[0].fy_start_date.toISOString().split('T')[0];
+        const fyDate = settingsResult.rows[0].fy_start_date;
+        fyStartDate = typeof fyDate === 'string' ? fyDate : fyDate.toISOString().split('T')[0];
       }
     } catch (err) {
       console.warn('Failed to get FY settings, using default:', err);
@@ -580,9 +580,14 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
       while (retryCount <= maxRetries) {
         try {
           console.log(`SAP login attempt ${retryCount + 1}/${maxRetries + 1} for user ${userId}`);
+          // Use correct SAP Service Layer URL - temporarily hardcoded until env var updates
+          const sapServiceUrl = process.env.SAP_SERVICE_LAYER_URL?.includes('59.152.52.58') 
+            ? process.env.SAP_SERVICE_LAYER_URL 
+            : 'https://59.152.52.58:50000/b1s/v1';
+            
           loginResponse = await sapClient.request({
             method: 'POST',
-            url: `${process.env.SAP_SERVICE_LAYER_URL}/b1s/v1/Login`,
+            url: `${sapServiceUrl}/Login`,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               CompanyDB: process.env.SAP_COMPANY_DB,
@@ -600,7 +605,7 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
         } catch (loginError: any) {
           console.error(`SAP login attempt ${retryCount + 1} failed:`, loginError.message);
           if (retryCount === maxRetries) {
-            throw new Error(`SAP connection timeout - please verify SAP system is accessible at ${process.env.SAP_SERVICE_LAYER_URL}. Error: ${loginError.message}`);
+            throw new Error(`SAP connection timeout - please verify SAP system is accessible at ${sapServiceUrl}. Error: ${loginError.message}`);
           }
           retryCount++;
           // Wait 5 seconds before retry
