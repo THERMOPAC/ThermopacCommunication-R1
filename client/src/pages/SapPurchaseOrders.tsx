@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SapAuthGuard } from '@/components/sap/SapAuthGuard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,7 @@ interface PurchaseOrdersData {
 
 function PurchaseOrdersContent() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -71,14 +72,25 @@ function PurchaseOrdersContent() {
   const pageSize = 20;
   const { toast } = useToast();
 
-  const { data, isLoading, error } = useQuery<{ success: boolean; data: PurchaseOrdersData }>({
+  // Debounce search to prevent too many API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1); // Reset page when search changes
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const { data, isLoading, error, refetch } = useQuery<{ success: boolean; data: PurchaseOrdersData }>({
     queryKey: ['/api/sap/b1/purchase/orders', { 
       page: currentPage, 
       limit: pageSize, 
-      search: searchTerm,
-      status: statusFilter 
+      search: debouncedSearch.trim() || undefined,
+      status: statusFilter !== 'all' ? statusFilter : undefined
     }],
     enabled: true,
+    staleTime: 30000, // 30 seconds
   });
 
   const formatCurrency = (amount: number) => {
@@ -113,7 +125,6 @@ function PurchaseOrdersContent() {
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
-    setCurrentPage(1); // Reset to first page when searching
   };
 
   const handleStatusFilter = (value: string) => {
@@ -172,6 +183,13 @@ function PurchaseOrdersContent() {
             onChange={(e) => handleSearch(e.target.value)}
             className="pl-10"
           />
+          {debouncedSearch && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <Badge variant="secondary" className="text-xs">
+                Searching...
+              </Badge>
+            </div>
+          )}
         </div>
         <Select value={statusFilter} onValueChange={handleStatusFilter}>
           <SelectTrigger className="w-full sm:w-48">
@@ -186,6 +204,37 @@ function PurchaseOrdersContent() {
           </SelectContent>
         </Select>
       </div>
+
+      {/* Active Filters Display */}
+      {(debouncedSearch || statusFilter !== 'all') && (
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <span>Active filters:</span>
+          {debouncedSearch && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              Search: "{debouncedSearch}"
+              <button
+                onClick={() => setSearchTerm('')}
+                className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+                title="Clear search"
+              >
+                ✕
+              </button>
+            </Badge>
+          )}
+          {statusFilter !== 'all' && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              Status: {statusFilter.replace('bost_', '')}
+              <button
+                onClick={() => setStatusFilter('all')}
+                className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+                title="Clear status filter"
+              >
+                ✕
+              </button>
+            </Badge>
+          )}
+        </div>
+      )}
 
       {/* Purchase Orders Table */}
       <Card>
