@@ -219,6 +219,10 @@ function PurchaseOrdersContent() {
                         variant="ghost" 
                         size="sm"
                         title="View Purchase Order"
+                        onClick={() => {
+                          console.log('View PO:', order.DocEntry);
+                          // TODO: Implement view functionality - open modal or navigate to detail page
+                        }}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -227,8 +231,8 @@ function PurchaseOrdersContent() {
                         size="sm"
                         title="Edit Purchase Order"
                         onClick={() => {
-                          // TODO: Implement edit functionality
                           console.log('Edit PO:', order.DocEntry);
+                          // TODO: Implement edit functionality
                         }}
                       >
                         <Edit className="h-4 w-4" />
@@ -237,6 +241,10 @@ function PurchaseOrdersContent() {
                         variant="ghost" 
                         size="sm"
                         title="Download Purchase Order"
+                        onClick={() => {
+                          console.log('Download PO:', order.DocEntry);
+                          // TODO: Implement download functionality
+                        }}
                       >
                         <Download className="h-4 w-4" />
                       </Button>
