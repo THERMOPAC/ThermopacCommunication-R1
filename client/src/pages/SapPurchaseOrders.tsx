@@ -20,7 +20,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { 
   Search, 
   Filter, 
@@ -64,6 +66,8 @@ function PurchaseOrdersContent() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState<any>({});
   const pageSize = 20;
   const { toast } = useToast();
 
@@ -241,11 +245,17 @@ function PurchaseOrdersContent() {
                         size="sm"
                         title="Edit Purchase Order"
                         onClick={() => {
-                          toast({
-                            title: "Edit Purchase Order",
-                            description: `Editing PO-${order.DocNum} (DocEntry: ${order.DocEntry})`,
+                          setSelectedOrder(order);
+                          setEditFormData({
+                            DocNum: order.DocNum,
+                            CardCode: order.CardCode,
+                            CardName: order.CardName,
+                            DocDate: order.DocDate?.split('T')[0], // Format date for input
+                            DocDueDate: order.DocDueDate?.split('T')[0],
+                            Comments: order.Comments || '',
+                            DocumentStatus: order.DocumentStatus
                           });
-                          // TODO: Implement edit functionality
+                          setIsEditModalOpen(true);
                         }}
                       >
                         <Edit className="h-4 w-4" />
@@ -325,6 +335,9 @@ function PurchaseOrdersContent() {
             <DialogTitle>
               Purchase Order Details - PO-{selectedOrder?.DocNum}
             </DialogTitle>
+            <DialogDescription>
+              View comprehensive details for this purchase order
+            </DialogDescription>
           </DialogHeader>
           
           {selectedOrder && (
@@ -381,6 +394,156 @@ function PurchaseOrdersContent() {
                     {JSON.stringify(selectedOrder, null, 2)}
                   </pre>
                 </details>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Purchase Order Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Edit Purchase Order - PO-{selectedOrder?.DocNum}
+            </DialogTitle>
+            <DialogDescription>
+              Modify purchase order details and save changes
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedOrder && (
+            <div className="space-y-6">
+              <form className="space-y-4">
+                {/* Basic Information */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="docNum">PO Number</Label>
+                    <Input
+                      id="docNum"
+                      value={editFormData.DocNum || ''}
+                      readOnly
+                      className="bg-gray-100"
+                      placeholder="Auto-generated"
+                    />
+                    <p className="text-xs text-gray-500">Read-only system field</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="documentStatus">Status</Label>
+                    <select
+                      id="documentStatus"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={editFormData.DocumentStatus || ''}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, DocumentStatus: e.target.value }))}
+                    >
+                      <option value="bost_Open">Open</option>
+                      <option value="bost_Close">Closed</option>
+                      <option value="bost_Delivered">Delivered</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Vendor Information */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="cardCode">Vendor Code</Label>
+                    <Input
+                      id="cardCode"
+                      value={editFormData.CardCode || ''}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, CardCode: e.target.value }))}
+                      placeholder="Enter vendor code"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="cardName">Vendor Name</Label>
+                    <Input
+                      id="cardName"
+                      value={editFormData.CardName || ''}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, CardName: e.target.value }))}
+                      placeholder="Enter vendor name"
+                    />
+                  </div>
+                </div>
+
+                {/* Dates */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="docDate">Order Date</Label>
+                    <Input
+                      id="docDate"
+                      type="date"
+                      value={editFormData.DocDate || ''}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, DocDate: e.target.value }))}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="docDueDate">Due Date</Label>
+                    <Input
+                      id="docDueDate"
+                      type="date"
+                      value={editFormData.DocDueDate || ''}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, DocDueDate: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                {/* Comments */}
+                <div className="space-y-2">
+                  <Label htmlFor="comments">Comments</Label>
+                  <textarea
+                    id="comments"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    value={editFormData.Comments || ''}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, Comments: e.target.value }))}
+                    placeholder="Add comments or notes for this purchase order"
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3 pt-4 border-t">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsEditModalOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      // TODO: Implement actual save functionality
+                      toast({
+                        title: "Purchase Order Updated",
+                        description: `PO-${editFormData.DocNum} has been updated successfully`,
+                      });
+                      setIsEditModalOpen(false);
+                    }}
+                  >
+                    Save Changes
+                  </Button>
+                </div>
+              </form>
+
+              {/* Warning Notice */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                <div className="flex">
+                  <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-yellow-800">
+                      Development Note
+                    </h3>
+                    <div className="mt-2 text-sm text-yellow-700">
+                      <p>
+                        This edit form is currently in development mode. Changes will show confirmation 
+                        but won't be saved to SAP B1 until the backend integration is completed.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
