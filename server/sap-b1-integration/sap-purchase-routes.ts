@@ -572,6 +572,10 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
       // Create direct SAP connection for sync (bypass session requirement)
       const sapClient = new SapHttpsClient();
       
+      // Force correct SAP Service Layer URL - override incorrect env var
+      const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
+      console.log(`Using SAP Service Layer URL: ${sapServiceUrl}`);
+      
       // Login to SAP B1 Service Layer with retry logic
       let loginResponse;
       let retryCount = 0;
@@ -580,9 +584,6 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
       while (retryCount <= maxRetries) {
         try {
           console.log(`SAP login attempt ${retryCount + 1}/${maxRetries + 1} for user ${userId}`);
-          // Force correct SAP Service Layer URL - override incorrect env var
-          const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
-          console.log(`Using SAP Service Layer URL: ${sapServiceUrl}`);
             
           loginResponse = await sapClient.request({
             method: 'POST',
