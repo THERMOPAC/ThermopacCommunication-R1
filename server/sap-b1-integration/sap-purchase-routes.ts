@@ -639,42 +639,64 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
         fyStartDate = typeof fyDate === 'string' ? fyDate : fyDate.toISOString().split('T')[0];
       }
       
-      // Sync Purchase Orders with date filter - use corrected URL and extended timeout
+      // Sync Purchase Orders with pagination to get all records
       console.log(`Starting Purchase Orders sync from ${fyStartDate} using ${sapServiceUrl}`);
-      const ordersResponse = await sapClient.request({
-        method: 'GET',
-        url: `${sapServiceUrl}/PurchaseOrders?$top=1000&$orderby=DocDate%20desc&$filter=DocDate%20ge%20'${fyStartDate}'`,
-        headers: requestHeaders,
-        timeout: 300000 // 5 minutes timeout
-      });
       
-      console.log(`Purchase Orders sync response: ${ordersResponse.statusCode}`);
+      let allOrders = [];
+      let skip = 0;
+      const pageSize = 20; // Use 20 since SAP is limiting to 20 per request
+      let hasMoreData = true;
       
-      // Debug: Log the first few orders and save response to file
-      if (ordersResponse.statusCode === 200) {
-        const responseData = JSON.parse(ordersResponse.body);
-        console.log(`SAP returned ${responseData.value?.length || 0} orders out of possible 1000`);
-        console.log(`First order date: ${responseData.value?.[0]?.DocDate}, Last order date: ${responseData.value?.[responseData.value?.length - 1]?.DocDate}`);
+      while (hasMoreData) {
+        console.log(`Fetching orders batch: skip=${skip}, top=${pageSize}`);
         
-        // Save response to file for debugging
-        require('fs').writeFileSync('/tmp/sap_response_debug.json', JSON.stringify({
-          totalCount: responseData['odata.count'] || 'not_provided',
-          returnedCount: responseData.value?.length || 0,
-          firstOrder: responseData.value?.[0] || null,
-          lastOrder: responseData.value?.[responseData.value?.length - 1] || null
-        }, null, 2));
+        const ordersResponse = await sapClient.request({
+          method: 'GET',
+          url: `${sapServiceUrl}/PurchaseOrders?$top=${pageSize}&$skip=${skip}&$orderby=DocDate%20desc&$filter=DocDate%20ge%20'${fyStartDate}'`,
+          headers: requestHeaders,
+          timeout: 300000 // 5 minutes timeout
+        });
         
-        if (responseData.value?.length < 1000) {
-          console.log(`SAP returned fewer than 1000 records, this might be the complete dataset`);
+        console.log(`Purchase Orders batch response: ${ordersResponse.statusCode}`);
+        
+        if (ordersResponse.statusCode === 200) {
+          const batchData = JSON.parse(ordersResponse.body);
+          const batchOrders = batchData.value || [];
+          
+          console.log(`SAP returned ${batchOrders.length} orders in this batch (skip=${skip})`);
+          
+          if (batchOrders.length > 0) {
+            allOrders.push(...batchOrders);
+            skip += pageSize;
+            
+            // Check if we got fewer results than requested - means we're at the end
+            if (batchOrders.length < pageSize) {
+              hasMoreData = false;
+              console.log(`Reached end of data. Got ${batchOrders.length} < ${pageSize} records`);
+            }
+          } else {
+            hasMoreData = false;
+            console.log('No more orders to fetch');
+          }
+        } else {
+          console.error(`Failed to fetch batch at skip=${skip}, status=${ordersResponse.statusCode}`);
+          hasMoreData = false;
+        }
+        
+        // Safety check to prevent infinite loops
+        if (skip > 10000) {
+          console.log('Safety limit reached at 10,000 records');
+          hasMoreData = false;
         }
       }
+      
+      console.log(`Total orders fetched across all batches: ${allOrders.length}`);
+      documentsProcessed += allOrders.length;
 
-      if (ordersResponse.statusCode === 200) {
-        const ordersData = JSON.parse(ordersResponse.body);
-        documentsProcessed += ordersData.value?.length || 0;
+      if (allOrders.length > 0) {
         
         // Store in both cache and structured tables
-        for (const order of ordersData.value || []) {
+        for (const order of allOrders) {
           // Store in document cache
           await pool.query(
             `INSERT INTO sap_document_cache (
