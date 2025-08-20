@@ -627,7 +627,12 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
         'SELECT fy_start_date FROM sap_sync_settings WHERE user_id = $1',
         [userId]
       );
-      const fyStartDate = syncSettings.rows[0]?.fy_start_date || '2025-04-01';
+      
+      let fyStartDate = '2025-04-01'; // Default
+      if (syncSettings.rows.length > 0 && syncSettings.rows[0].fy_start_date) {
+        const fyDate = syncSettings.rows[0].fy_start_date;
+        fyStartDate = typeof fyDate === 'string' ? fyDate : fyDate.toISOString().split('T')[0];
+      }
       
       // Sync Purchase Orders with date filter
       const ordersResponse = await sapClient.request({
