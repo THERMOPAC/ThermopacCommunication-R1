@@ -1474,16 +1474,45 @@ settingsRouter.post('/sync/line-items', async (req, res) => {
       
       for (const order of batch) {
         try {
-          const lineItemsResponse = await sapClient.request({
+          // Try two different approaches: first with /DocumentLines, then with full PO data
+          let lineItemsResponse = await sapClient.request({
             method: 'GET',
             url: `${sapServiceUrl}/PurchaseOrders(${order.doc_entry})/DocumentLines`,
             headers: requestHeaders,
             timeout: 30000
           });
+          
+          // If that fails, try getting the full PO with DocumentLines
+          if (lineItemsResponse.statusCode !== 200) {
+            lineItemsResponse = await sapClient.request({
+              method: 'GET',
+              url: `${sapServiceUrl}/PurchaseOrders(${order.doc_entry})?$expand=DocumentLines`,
+              headers: requestHeaders,
+              timeout: 30000
+            });
+          }
 
           if (lineItemsResponse.statusCode === 200) {
             const lineItemsData = JSON.parse(lineItemsResponse.body);
-            const lineItems = lineItemsData.value || [];
+            
+            // Handle both response formats: direct DocumentLines or expanded PO
+            let lineItems = [];
+            if (lineItemsData.value) {
+              // Direct DocumentLines response
+              lineItems = lineItemsData.value;
+            } else if (lineItemsData.DocumentLines) {
+              // Expanded PO response
+              lineItems = lineItemsData.DocumentLines;
+            }
+            
+            // Debug logging for first few orders
+            if (processedOrders < 5) {
+              console.log(`🔍 Debug - PO ${order.doc_entry} response structure:`, Object.keys(lineItemsData));
+              console.log(`🔍 Debug - Found ${lineItems.length} line items`);
+              if (lineItems.length > 0) {
+                console.log(`🔍 Debug - First line item:`, JSON.stringify(lineItems[0], null, 2));
+              }
+            }
             
             for (const item of lineItems) {
               await pool.query(
@@ -1515,6 +1544,9 @@ settingsRouter.post('/sync/line-items', async (req, res) => {
             }
           } else {
             console.warn(`Failed to fetch line items for PO ${order.doc_entry}: ${lineItemsResponse.statusCode}`);
+            if (processedOrders < 5) {
+              console.log(`🔍 Debug - Failed response for PO ${order.doc_entry}:`, lineItemsResponse.body?.substring(0, 200));
+            }
           }
           
           processedOrders++;
