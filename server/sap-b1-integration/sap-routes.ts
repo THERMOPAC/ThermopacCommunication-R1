@@ -5,7 +5,7 @@ import { ensureAuthenticated } from '../auth-middleware';
 import { vpnManager } from '../vpn/vpn-manager';
 import purchaseRoutes from './purchase-routes';
 import credentialsRoutes from './credentials-routes';
-import { db } from '../storage';
+import { db } from '../db';
 import { sapPurchaseOrderItems } from '../../shared/schema';
 
 const router = express.Router();
