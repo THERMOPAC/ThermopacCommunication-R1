@@ -5,6 +5,8 @@ import { ensureAuthenticated } from '../auth-middleware';
 import { vpnManager } from '../vpn/vpn-manager';
 import purchaseRoutes from './purchase-routes';
 import credentialsRoutes from './credentials-routes';
+import { db } from '../storage';
+import { sapPurchaseOrderItems } from '../../shared/schema';
 
 const router = express.Router();
 
@@ -1266,6 +1268,7 @@ router.post('/sync/purchase', ensureAuthenticated, async (req, res) => {
     const syncResults = {
       vendors: 0,
       purchaseOrders: 0,
+      purchaseOrderItems: 0,
       purchaseInvoices: 0,
       items: 0
     };
@@ -1296,10 +1299,93 @@ router.post('/sync/purchase', ensureAuthenticated, async (req, res) => {
       agent
     });
 
+    let lineItemsCount = 0;
     if (poResponse.ok) {
       const poData = await poResponse.json();
       syncResults.purchaseOrders = poData.value?.length || 0;
       console.log(`✅ Synced ${syncResults.purchaseOrders} purchase orders`);
+
+      // Sync line items for each purchase order
+      for (const po of (poData.value || [])) {
+        try {
+          const itemsResponse = await fetch(`${publicServiceLayerUrl}/PurchaseOrders(${po.DocEntry})/DocumentLines`, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Cookie': sessionCookie
+            },
+            agent
+          });
+
+          if (itemsResponse.ok) {
+            const itemsData = await itemsResponse.json();
+            const items = itemsData.value || [];
+            
+            // Save line items to database using Drizzle
+            for (const item of items) {
+              try {
+                await db.insert(sapPurchaseOrderItems).values({
+                  docEntry: po.DocEntry,
+                  lineNum: item.LineNum,
+                  itemCode: item.ItemCode || null,
+                  itemDescription: item.ItemDescription || item.Description || null,
+                  quantity: item.Quantity || 0,
+                  openQty: item.OpenQuantity || 0,
+                  unitPrice: item.UnitPrice || 0,
+                  priceAfterVat: item.PriceAfterVAT || 0,
+                  lineTotal: item.LineTotal || 0,
+                  taxCode: item.TaxCode || null,
+                  taxRate: item.VatPrcnt || 0,
+                  taxSum: item.VatSum || 0,
+                  warehouseCode: item.WarehouseCode || item.WhsCode || null,
+                  uom: item.UoMCode || null,
+                  uomCode: item.UoMEntry || null,
+                  costCenter: item.CostingCode || null,
+                  projectCode: item.ProjectCode || null,
+                  shipDate: item.ShipDate || null,
+                  deliveryDate: item.RequiredDate || null,
+                  sapSyncedAt: new Date(),
+                  sapSyncStatus: 'synced',
+                  createdAt: new Date(),
+                  updatedAt: new Date()
+                }).onConflictDoUpdate({
+                  target: [sapPurchaseOrderItems.docEntry, sapPurchaseOrderItems.lineNum],
+                  set: {
+                    itemCode: item.ItemCode || null,
+                    itemDescription: item.ItemDescription || item.Description || null,
+                    quantity: item.Quantity || 0,
+                    openQty: item.OpenQuantity || 0,
+                    unitPrice: item.UnitPrice || 0,
+                    priceAfterVat: item.PriceAfterVAT || 0,
+                    lineTotal: item.LineTotal || 0,
+                    taxCode: item.TaxCode || null,
+                    taxRate: item.VatPrcnt || 0,
+                    taxSum: item.VatSum || 0,
+                    warehouseCode: item.WarehouseCode || item.WhsCode || null,
+                    uom: item.UoMCode || null,
+                    uomCode: item.UoMEntry || null,
+                    costCenter: item.CostingCode || null,
+                    projectCode: item.ProjectCode || null,
+                    shipDate: item.ShipDate || null,
+                    deliveryDate: item.RequiredDate || null,
+                    sapSyncedAt: new Date(),
+                    sapSyncStatus: 'synced',
+                    updatedAt: new Date()
+                  }
+                });
+                
+                lineItemsCount++;
+              } catch (itemError) {
+                console.error(`Error syncing item ${item.LineNum} for PO ${po.DocEntry}:`, itemError);
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Error syncing line items for PO ${po.DocEntry}:`, error);
+        }
+      }
+      console.log(`✅ Synced ${lineItemsCount} purchase order line items`);
+      syncResults.purchaseOrderItems = lineItemsCount;
     }
 
     // 3. Sync Purchase Invoices  
@@ -1334,7 +1420,7 @@ router.post('/sync/purchase', ensureAuthenticated, async (req, res) => {
       console.log(`✅ Synced ${syncResults.items} items`);
     }
 
-    const totalRecords = syncResults.vendors + syncResults.purchaseOrders + syncResults.purchaseInvoices + syncResults.items;
+    const totalRecords = syncResults.vendors + syncResults.purchaseOrders + syncResults.purchaseOrderItems + syncResults.purchaseInvoices + syncResults.items;
     
     res.json({
       success: true,
