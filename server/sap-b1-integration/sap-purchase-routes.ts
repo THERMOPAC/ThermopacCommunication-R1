@@ -847,6 +847,55 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
                   ]
                 );
                 
+                // NEW: Sync line items for this purchase order
+                try {
+                  console.log(`Fetching line items for PO ${order.DocEntry}`);
+                  const lineItemsResponse = await sapClient.request({
+                    method: 'GET',
+                    url: `${sapServiceUrl}/PurchaseOrders(${order.DocEntry})/DocumentLines`,
+                    headers: requestHeaders,
+                    timeout: 30000 // 30 seconds timeout for line items
+                  });
+
+                  if (lineItemsResponse.statusCode === 200) {
+                    const lineItemsData = JSON.parse(lineItemsResponse.body);
+                    const lineItems = lineItemsData.value || [];
+                    
+                    console.log(`Found ${lineItems.length} line items for PO ${order.DocEntry}`);
+                    
+                    for (const item of lineItems) {
+                      await pool.query(
+                        `INSERT INTO sap_purchase_order_items (
+                          doc_entry, line_num, item_code, item_description, quantity, open_qty, 
+                          unit_price, price_after_vat, line_total, tax_code, tax_rate, tax_sum, 
+                          warehouse_code, uom, uom_code, cost_center, project_code, ship_date, 
+                          delivery_date, sap_synced_at, sap_sync_status, created_at, updated_at
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW(), $20, NOW(), NOW())
+                        ON CONFLICT (doc_entry, line_num) DO UPDATE SET
+                          item_code = $3, item_description = $4, quantity = $5, open_qty = $6,
+                          unit_price = $7, price_after_vat = $8, line_total = $9, tax_code = $10,
+                          tax_rate = $11, tax_sum = $12, warehouse_code = $13, uom = $14, uom_code = $15,
+                          cost_center = $16, project_code = $17, ship_date = $18, delivery_date = $19,
+                          sap_synced_at = NOW(), sap_sync_status = $20, updated_at = NOW()`,
+                        [
+                          order.DocEntry, item.LineNum, item.ItemCode, item.ItemDescription || item.Description, 
+                          item.Quantity || 0, item.OpenQuantity || 0, item.UnitPrice || 0, item.PriceAfterVAT || 0,
+                          item.LineTotal || 0, item.TaxCode, item.VatPrcnt || 0, item.VatSum || 0,
+                          item.WarehouseCode || item.WhsCode, item.UoMCode, item.UoMEntry, item.CostingCode,
+                          item.ProjectCode, item.ShipDate, item.RequiredDate, 'synced'
+                        ]
+                      );
+                    }
+                    
+                    console.log(`✅ Synced ${lineItems.length} line items for PO ${order.DocEntry}`);
+                  } else {
+                    console.warn(`Failed to fetch line items for PO ${order.DocEntry}: ${lineItemsResponse.statusCode}`);
+                  }
+                } catch (lineItemError) {
+                  console.error(`Error syncing line items for PO ${order.DocEntry}:`, lineItemError);
+                  // Don't throw - continue with other orders
+                }
+                
                 // Log progress every 100 records
                 if (totalOrdersProcessed % 100 === 0) {
                   console.log(`Processed ${totalOrdersProcessed} orders so far`);
