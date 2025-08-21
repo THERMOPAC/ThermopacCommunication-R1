@@ -356,6 +356,43 @@ settingsRouter.get('/orders', async (req, res) => {
   }
 });
 
+// Purchase Order Line Items - Real-time from SAP
+router.get('/orders/:docEntry/items', async (req, res) => {
+  try {
+    const { docEntry } = req.params;
+    
+    if (!docEntry || isNaN(Number(docEntry))) {
+      return res.status(400).json({
+        success: false,
+        error: 'Valid DocEntry is required',
+        code: 'INVALID_DOC_ENTRY'
+      });
+    }
+
+    const response = await makeSapRequest(req, `/b1s/v1/PurchaseOrders(${docEntry})/DocumentLines`);
+    const errorResponse = handleSapResponse(response, res, 'Purchase order items query');
+    if (errorResponse) return;
+
+    const data = JSON.parse(response.body);
+    
+    res.json({
+      success: true,
+      data: {
+        items: data.value || [],
+        docEntry: Number(docEntry)
+      }
+    });
+
+  } catch (error) {
+    console.error('Purchase order items error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to load purchase order items',
+      code: 'SAP_PO_ITEMS_ERROR'
+    });
+  }
+});
+
 // Goods Receipt POs
 router.get('/receipts', async (req, res) => {
   try {
