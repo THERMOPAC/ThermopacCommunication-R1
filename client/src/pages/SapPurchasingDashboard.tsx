@@ -196,6 +196,35 @@ function DashboardContent() {
     }
   });
 
+  const triggerLineItemsSyncMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/sap/b1/purchase/sync/line-items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Line items sync failed');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      const lineItemsProcessed = data?.data?.lineItemsProcessed || 0;
+      const ordersProcessed = data?.data?.ordersProcessed || 0;
+      toast({
+        title: "Line Items Sync Completed",
+        description: `Successfully synced ${lineItemsProcessed} line items from ${ordersProcessed} purchase orders`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Line Items Sync Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
   const handleFyFilterChange = (value: string) => {
     setFyFilter(value);
     if (value === 'custom') {
@@ -361,6 +390,21 @@ function DashboardContent() {
                         <RefreshCw className="h-3 w-3 mr-1" />
                       )}
                       Sync Now
+                    </Button>
+                    
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => triggerLineItemsSyncMutation.mutate()}
+                      disabled={triggerLineItemsSyncMutation.isPending || syncStatusData.data.isRunning}
+                      className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                    >
+                      {triggerLineItemsSyncMutation.isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      ) : (
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                      )}
+                      Sync Line Items
                     </Button>
                     
                     {syncStatusData.data.isRunning && (

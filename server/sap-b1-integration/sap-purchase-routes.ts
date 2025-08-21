@@ -1415,6 +1415,160 @@ async function performSyncOperation(req: express.Request, userId: number, syncId
   }
 }
 
+// Dedicated Line Items Sync endpoint
+settingsRouter.post('/sync/line-items', async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    console.log('🔄 Starting dedicated line items sync...');
+
+    // Get all purchase orders from database
+    const ordersResult = await pool.query(
+      'SELECT doc_entry, doc_num FROM sap_purchase_orders ORDER BY doc_entry'
+    );
+    
+    const totalOrders = ordersResult.rows.length;
+    console.log(`Found ${totalOrders} purchase orders to sync line items for`);
+    
+    if (totalOrders === 0) {
+      return res.json({
+        success: true,
+        message: 'No purchase orders found - please run main sync first',
+        data: { lineItemsProcessed: 0 }
+      });
+    }
+
+    // Create SAP client
+    const sapClient = new SapHttpsClient();
+    const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
+    
+    // Login to SAP
+    console.log('Logging into SAP for line items sync...');
+    const loginResponse = await sapClient.request({
+      method: 'POST',
+      url: `${sapServiceUrl}/Login`,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        CompanyDB: process.env.SAP_COMPANY_DB,
+        UserName: process.env.SAP_USERNAME,
+        Password: process.env.SAP_PASSWORD
+      }),
+      timeout: 30000
+    });
+
+    if (loginResponse.statusCode !== 200) {
+      throw new Error(`SAP login failed: ${loginResponse.statusCode}`);
+    }
+
+    const requestHeaders = {
+      'Content-Type': 'application/json',
+      'Cookie': loginResponse.headers['set-cookie']?.join('; ') || ''
+    };
+
+    let totalLineItems = 0;
+    let processedOrders = 0;
+    
+    // Process orders in batches of 50
+    for (let i = 0; i < ordersResult.rows.length; i += 50) {
+      const batch = ordersResult.rows.slice(i, i + 50);
+      console.log(`Processing batch ${Math.floor(i/50) + 1}: orders ${i + 1}-${Math.min(i + 50, totalOrders)}`);
+      
+      for (const order of batch) {
+        try {
+          const lineItemsResponse = await sapClient.request({
+            method: 'GET',
+            url: `${sapServiceUrl}/PurchaseOrders(${order.doc_entry})/DocumentLines`,
+            headers: requestHeaders,
+            timeout: 30000
+          });
+
+          if (lineItemsResponse.statusCode === 200) {
+            const lineItemsData = JSON.parse(lineItemsResponse.body);
+            const lineItems = lineItemsData.value || [];
+            
+            for (const item of lineItems) {
+              await pool.query(
+                `INSERT INTO sap_purchase_order_items (
+                  doc_entry, line_num, item_code, item_description, quantity, open_qty, 
+                  unit_price, price_after_vat, line_total, tax_code, tax_rate, tax_sum, 
+                  warehouse_code, uom, uom_code, cost_center, project_code, ship_date, 
+                  delivery_date, sap_synced_at, sap_sync_status, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW(), $20, NOW(), NOW())
+                ON CONFLICT (doc_entry, line_num) DO UPDATE SET
+                  item_code = $3, item_description = $4, quantity = $5, open_qty = $6,
+                  unit_price = $7, price_after_vat = $8, line_total = $9, tax_code = $10,
+                  tax_rate = $11, tax_sum = $12, warehouse_code = $13, uom = $14, uom_code = $15,
+                  cost_center = $16, project_code = $17, ship_date = $18, delivery_date = $19,
+                  sap_synced_at = NOW(), sap_sync_status = $20, updated_at = NOW()`,
+                [
+                  order.doc_entry, item.LineNum, item.ItemCode, item.ItemDescription || item.Description, 
+                  item.Quantity || 0, item.OpenQuantity || 0, item.UnitPrice || 0, item.PriceAfterVAT || 0,
+                  item.LineTotal || 0, item.TaxCode, item.VatPrcnt || 0, item.VatSum || 0,
+                  item.WarehouseCode || item.WhsCode, item.UoMCode, item.UoMEntry, item.CostingCode,
+                  item.ProjectCode, item.ShipDate, item.RequiredDate, 'synced'
+                ]
+              );
+            }
+            
+            totalLineItems += lineItems.length;
+            if (lineItems.length > 0) {
+              console.log(`✅ Synced ${lineItems.length} line items for PO ${order.doc_entry}`);
+            }
+          } else {
+            console.warn(`Failed to fetch line items for PO ${order.doc_entry}: ${lineItemsResponse.statusCode}`);
+          }
+          
+          processedOrders++;
+          
+          // Progress logging every 100 orders
+          if (processedOrders % 100 === 0) {
+            console.log(`Progress: ${processedOrders}/${totalOrders} orders processed, ${totalLineItems} line items synced`);
+          }
+          
+        } catch (orderError) {
+          console.error(`Error processing line items for PO ${order.doc_entry}:`, orderError);
+          processedOrders++;
+          continue;
+        }
+      }
+      
+      // Small delay between batches
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    // Logout from SAP
+    try {
+      await sapClient.request({
+        method: 'POST',
+        url: `${sapServiceUrl}/Logout`,
+        headers: requestHeaders
+      });
+    } catch (logoutError) {
+      console.warn('SAP logout warning:', logoutError);
+    }
+
+    console.log(`🎉 Line items sync completed! Processed ${processedOrders} orders, synced ${totalLineItems} line items`);
+
+    res.json({
+      success: true,
+      message: `✅ Line items sync completed! Synced ${totalLineItems} line items from ${processedOrders} purchase orders.`,
+      data: {
+        ordersProcessed: processedOrders,
+        lineItemsProcessed: totalLineItems,
+        completedAt: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('Line items sync error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to sync line items',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      code: 'LINE_ITEMS_SYNC_ERROR'
+    });
+  }
+});
+
 // Export both routers combined
 const combinedRouter = express.Router();
 combinedRouter.use('/', settingsRouter);
