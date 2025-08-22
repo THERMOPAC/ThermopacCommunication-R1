@@ -1111,7 +1111,7 @@ export default function MeetingsManagement() {
   const filteredCommitments = useMemo(() => {
     if (!commitmentsData?.commitments) return [];
     
-    return commitmentsData.commitments.filter((commitment) => {
+    const filtered = commitmentsData.commitments.filter((commitment) => {
       const matchesSearch = !searchTerm || 
         commitment.commitment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         commitment.commitment.description?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -1123,13 +1123,35 @@ export default function MeetingsManagement() {
       const matchesUserFilter = !user || 
         (showOnlyMyCommitments ? commitment.commitment.assignedToId === user.id : commitment.commitment.assignedById === user.id);
       
-      // Status filtering: when toggle is ON show Pending commitments, when OFF show Completed commitments
+      // Status filtering: when toggle is ON show Pending commitments, when OFF show Completed commitments  
       const matchesStatusToggle = showPendingCommitments ? 
         commitment.commitment.status === 'Pending' : 
         commitment.commitment.status === 'Completed';
       
+      // Debug logging for filtering
+      if (user?.id === 4) { // Only log for Pallab to debug
+        console.log(`Commitment "${commitment.commitment.title}" filters:`, {
+          assignedToId: commitment.commitment.assignedToId,
+          assignedById: commitment.commitment.assignedById,
+          currentUserId: user.id,
+          status: commitment.commitment.status,
+          showOnlyMyCommitments,
+          showPendingCommitments,
+          matchesUserFilter,
+          matchesStatusToggle,
+          finalMatch: matchesSearch && matchesStatus && matchesPriority && matchesUserFilter && matchesStatusToggle
+        });
+      }
+      
       return matchesSearch && matchesStatus && matchesPriority && matchesUserFilter && matchesStatusToggle;
     });
+
+    // Debug: log final filtered results for Pallab
+    if (user?.id === 4) {
+      console.log(`Final filtered commitments for ${user.username}:`, filtered.length, 'out of', commitmentsData.commitments.length);
+    }
+
+    return filtered;
   }, [commitmentsData, searchTerm, statusFilter, priorityFilter, showOnlyMyCommitments, showPendingCommitments, user]);
 
   // Forms
