@@ -1128,28 +1128,10 @@ export default function MeetingsManagement() {
         commitment.commitment.status === 'Pending' : 
         commitment.commitment.status === 'Completed';
       
-      // Debug logging for filtering
-      if (user?.id === 4) { // Only log for Pallab to debug
-        console.log(`Commitment "${commitment.commitment.title}" filters:`, {
-          assignedToId: commitment.commitment.assignedToId,
-          assignedById: commitment.commitment.assignedById,
-          currentUserId: user.id,
-          status: commitment.commitment.status,
-          showOnlyMyCommitments,
-          showPendingCommitments,
-          matchesUserFilter,
-          matchesStatusToggle,
-          finalMatch: matchesSearch && matchesStatus && matchesPriority && matchesUserFilter && matchesStatusToggle
-        });
-      }
+
       
       return matchesSearch && matchesStatus && matchesPriority && matchesUserFilter && matchesStatusToggle;
     });
-
-    // Debug: log final filtered results for Pallab
-    if (user?.id === 4) {
-      console.log(`Final filtered commitments for ${user.username}:`, filtered.length, 'out of', commitmentsData.commitments.length);
-    }
 
     return filtered;
   }, [commitmentsData, searchTerm, statusFilter, priorityFilter, showOnlyMyCommitments, showPendingCommitments, user]);
@@ -2793,7 +2775,17 @@ export default function MeetingsManagement() {
               ) : (
                 <div className="text-center py-8">
                   <ListChecksIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">No commitments found</p>
+                  <p className="text-gray-500 mb-2">No commitments found</p>
+                  {user?.id === 4 && (
+                    <div className="text-sm text-blue-600 bg-blue-50 rounded-lg p-4 max-w-md mx-auto">
+                      <p className="font-semibold mb-2">💡 Tip for Pallab:</p>
+                      <p className="mb-2">You have 1 completed commitment. To see it:</p>
+                      <ul className="text-left space-y-1">
+                        <li>• Turn OFF "Pending" toggle to see completed commitments, OR</li>
+                        <li>• Turn OFF "My Commitments" to see commitments you've assigned to others</li>
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
