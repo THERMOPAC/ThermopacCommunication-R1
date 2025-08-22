@@ -95,7 +95,7 @@ export default function MaterialIdentificationListNewPage() {
   const [limit] = useState(10);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [showRecords, setShowRecords] = useState(false);
-  const [keepVisible, setKeepVisible] = useState(false);
+  const [keepVisible, setKeepVisible] = useState(true);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
