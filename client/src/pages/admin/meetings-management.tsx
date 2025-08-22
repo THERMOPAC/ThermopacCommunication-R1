@@ -1119,9 +1119,9 @@ export default function MeetingsManagement() {
       const matchesStatus = !statusFilter || statusFilter === 'all' || commitment.commitment.status === statusFilter;
       const matchesPriority = !priorityFilter || priorityFilter === 'all' || commitment.commitment.priority === priorityFilter;
       
-      // User-specific filtering: when toggle is ON show commitments assigned to user, when OFF show commitments assigned by user
-      const matchesUserFilter = !user || 
-        (showOnlyMyCommitments ? commitment.commitment.assignedToId === user.id : commitment.commitment.assignedById === user.id);
+      // User-specific filtering: when toggle is ON show commitments where user is involved (assigned to OR by), when OFF show all commitments
+      const matchesUserFilter = !user || !showOnlyMyCommitments || 
+        (commitment.commitment.assignedToId === user.id || commitment.commitment.assignedById === user.id);
       
       // Status filtering: when toggle is ON show Pending commitments, when OFF show Completed commitments  
       const matchesStatusToggle = showPendingCommitments ? 
