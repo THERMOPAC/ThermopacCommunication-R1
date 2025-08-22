@@ -49,7 +49,7 @@ type SearchFormData = z.infer<typeof searchFormSchema>;
 
 // Industry options for filtering
 const INDUSTRY_OPTIONS = [
-  { value: "", label: "All Industries" },
+  { value: "all", label: "All Industries" },
   { value: "manufacturing", label: "Manufacturing" },
   { value: "chemical", label: "Chemical Processing" },
   { value: "oil-gas", label: "Oil & Gas" },
@@ -62,7 +62,7 @@ const INDUSTRY_OPTIONS = [
 
 // Country options for filtering
 const COUNTRY_OPTIONS = [
-  { value: "", label: "All Countries" },
+  { value: "all", label: "All Countries" },
   { value: "US", label: "United States" },
   { value: "CA", label: "Canada" },
   { value: "GB", label: "United Kingdom" },
