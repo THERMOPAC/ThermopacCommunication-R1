@@ -705,7 +705,12 @@ router.post("/:id/documents", upload.single('file'), async (req: Request, res: R
     
     if (!uploadResult.success) {
       console.error('Upload failed:', uploadResult.error);
-      return res.status(500).json({ error: uploadResult.error || "Document upload failed" });
+      // Return a more user-friendly error message for document upload failures
+      return res.status(500).json({ 
+        error: "Document upload failed",
+        details: uploadResult.error || "Unable to upload document to cloud storage",
+        suggestion: "Please try uploading the document again or contact support if the issue persists."
+      });
     }
     
     // Get user ID if authenticated
