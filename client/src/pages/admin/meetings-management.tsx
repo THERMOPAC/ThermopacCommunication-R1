@@ -382,6 +382,7 @@ export default function MeetingsManagement() {
       const queryParams = new URLSearchParams({
         status: statusFilter,
         priority: priorityFilter,
+        limit: '100', // Increase limit to get more commitments
       });
       const url = `/api/meetings/commitments?${queryParams}`;
       console.log('Making commitments API request to:', url);
@@ -1111,16 +1112,6 @@ export default function MeetingsManagement() {
   const filteredCommitments = useMemo(() => {
     if (!commitmentsData?.commitments) return [];
     
-    console.log('DEBUG: Filtering commitments', {
-      totalCommitments: commitmentsData.commitments.length,
-      showOnlyMyCommitments,
-      showPendingCommitments,
-      userId: user?.id,
-      searchTerm,
-      statusFilter,
-      priorityFilter
-    });
-    
     const filtered = commitmentsData.commitments.filter((commitment) => {
       const matchesSearch = !searchTerm || 
         commitment.commitment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1138,23 +1129,9 @@ export default function MeetingsManagement() {
         commitment.commitment.status === 'Pending' : 
         commitment.commitment.status === 'Completed';
       
-      console.log(`DEBUG: Commitment ${commitment.commitment.id}`, {
-        title: commitment.commitment.title,
-        status: commitment.commitment.status,
-        assignedToId: commitment.commitment.assignedToId,
-        assignedById: commitment.commitment.assignedById,
-        matchesSearch,
-        matchesStatus,
-        matchesPriority,
-        matchesUserFilter,
-        matchesStatusToggle,
-        finalResult: matchesSearch && matchesStatus && matchesPriority && matchesUserFilter && matchesStatusToggle
-      });
-      
       return matchesSearch && matchesStatus && matchesPriority && matchesUserFilter && matchesStatusToggle;
     });
 
-    console.log('DEBUG: Final filtered commitments', filtered.length);
     return filtered;
   }, [commitmentsData, searchTerm, statusFilter, priorityFilter, showOnlyMyCommitments, showPendingCommitments, user]);
 
