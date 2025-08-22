@@ -73,6 +73,7 @@ import { checkGcsPermissions } from "./utils/gcs-permissions-check";
 import { default as tripManagementRoutes } from "./trip-management-routes";
 import { default as visaManagementRoutes } from "./visa-management-routes";
 import { default as schengenRoutes } from "./schengen-routes";
+import { default as leadGenerationRoutes } from "./lead-generation-routes";
 import { default as legalManagementRoutes } from "./legal-management-routes";
 import { default as llmRoutes } from "./llm-routes";
 import { default as googleCalendarRoutes } from "./google-calendar-routes";
@@ -3555,6 +3556,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { middlewareRoutes } = await import('./sap-b1-integration/middleware-routes');
   app.use('/api/sap/middleware', middlewareRoutes);
   console.log('SAP B1 middleware integration routes registered at /api/sap/middleware');
+
+  // Lead Generation routes  
+  app.use('/api/lead-generation', ensureAuthenticated, leadGenerationRoutes);
+  console.log('Lead Generation routes registered at /api/lead-generation');
 
   // =============================================================================
   // VPN MANAGER INITIALIZATION (for SAP B1 Integration)

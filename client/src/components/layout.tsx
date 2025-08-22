@@ -52,7 +52,8 @@ import {
   ClipboardCheck,
   Brain,
   ShoppingCart,
-  Package
+  Package,
+  Search
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -81,7 +82,8 @@ function Layout({ children }: LayoutProps) {
   const { data: modulePermissions, isLoading: isLoadingPermissions } = useAllModulePermissions();
 
   // Check if we're on any sales and marketing related page
-  const isOnSalesAndMarketingPage = location === '/leads' ||
+  const isOnSalesAndMarketingPage = location === '/lead-generation' ||
+                                  location === '/leads' ||
                                   location === '/campaigns' ||
                                   location === '/marketing-dashboard' ||
                                   location === '/marketing-tools';
@@ -253,6 +255,7 @@ function Layout({ children }: LayoutProps) {
       isOpen: isSalesAndMarketingMenuOpen,
       toggle: () => setIsSalesAndMarketingMenuOpen(!isSalesAndMarketingMenuOpen),
       children: [
+        { icon: Search, label: "Lead Generation", href: "/lead-generation" },
         { icon: UsersRound, label: "Leads", href: "/leads" },
         { icon: BarChart4, label: "Marketing Dashboard", href: "/marketing-dashboard" },
         { icon: TrendingUp, label: "Campaigns", href: "/campaigns" },
