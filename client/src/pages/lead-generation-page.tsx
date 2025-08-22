@@ -625,6 +625,65 @@ export default function LeadGenerationPage() {
         </TabsContent>
       </Tabs>
 
+      {/* View Search Result Details Dialog */}
+      <Dialog open={!!selectedResult} onOpenChange={() => setSelectedResult(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Search Result Details</DialogTitle>
+            <DialogDescription>
+              Detailed view of the search result
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedResult && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-lg text-blue-900 mb-2">
+                  {selectedResult.title}
+                </h3>
+                <div className="flex items-center gap-2 text-sm text-blue-700 mb-3">
+                  <Globe className="h-4 w-4" />
+                  <a 
+                    href={selectedResult.link} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="hover:underline"
+                  >
+                    {selectedResult.displayLink}
+                  </a>
+                </div>
+                <p className="text-gray-700 leading-relaxed">
+                  {selectedResult.snippet}
+                </p>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-2 text-gray-900">Technical Details</h4>
+                <div className="bg-gray-50 p-3 rounded text-sm font-mono text-gray-600">
+                  <div><strong>URL:</strong> {selectedResult.formattedUrl}</div>
+                  <div><strong>Link:</strong> {selectedResult.link}</div>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center pt-4">
+                <div className="text-sm text-gray-500">
+                  <p>This result will be processed by AI for lead qualification</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setSelectedResult(null)}>
+                    Close
+                  </Button>
+                  <Button onClick={() => window.open(selectedResult.link, '_blank')}>
+                    <Globe className="h-4 w-4 mr-2" />
+                    Visit Website
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Promote Lead Dialog */}
       <Dialog open={isPromoteDialogOpen} onOpenChange={setIsPromoteDialogOpen}>
         <DialogContent>
