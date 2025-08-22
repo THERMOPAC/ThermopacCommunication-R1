@@ -48,57 +48,64 @@ async function updateApiQuota(userId: number, callsUsed: number = 1): Promise<vo
   }
 }
 
-// Intelligent query enhancement for oil re-refining business
+// Ultra-intelligent query strategy for oil re-refining business leads
 function enhanceSearchQuery(query: string, industry?: string, country?: string): string {
   const baseQuery = query.trim();
-  let enhancedQuery = baseQuery;
-
-  // Smart industry-specific enhancement for oil re-refining business
-  const industryEnhancements: { [key: string]: string[] } = {
-    'oil-refining': [
-      'waste engine oil', 'used lubricant recycling', 'oil regeneration plant',
-      'automotive oil disposal', 'industrial oil collection'
-    ],
-    'waste-oil-management': [
-      'oil collection services', 'waste oil treatment facility',
-      'environmental oil disposal', 'used oil processing'
-    ],
-    'automotive': [
-      'oil change service', 'automotive service center', 'car dealership',
-      'fleet maintenance', 'vehicle service'
-    ],
-    'environmental-services': [
-      'environmental compliance', 'waste management', 'sustainability',
-      'green technology', 'circular economy'
-    ]
-  };
-
-  // Add targeted business customer types
-  const customerTargets = [
-    'oil collection company',
-    'automotive service center', 
-    'industrial manufacturer',
-    'waste management facility',
-    'environmental agency'
+  
+  // Create multiple targeted search patterns for different customer types
+  const searchPatterns = [
+    // Pattern 1: Oil collection companies
+    `"oil collection company" OR "waste oil collection" OR "used oil disposal" ${baseQuery}`,
+    
+    // Pattern 2: Automotive service centers  
+    `"automotive service center" OR "car dealership" OR "auto repair shop" "waste oil" ${baseQuery}`,
+    
+    // Pattern 3: Industrial manufacturers
+    `"industrial manufacturer" OR "manufacturing plant" "used lubricant" OR "hydraulic oil disposal" ${baseQuery}`,
+    
+    // Pattern 4: Environmental/waste management
+    `"waste management company" OR "environmental services" "oil recycling" OR "oil treatment" ${baseQuery}`,
+    
+    // Pattern 5: Government/regulatory
+    `"environmental agency" OR "government tender" "oil waste" OR "recycling facility" ${baseQuery}`
   ];
 
-  // Smart enhancement based on industry
-  if (industry && industryEnhancements[industry]) {
-    const terms = industryEnhancements[industry].slice(0, 2);
-    enhancedQuery += ` (${terms.join(' OR ')})`;
+  // Select pattern based on query content or random for variety
+  let selectedPattern;
+  if (baseQuery.includes('automotive') || baseQuery.includes('car')) {
+    selectedPattern = searchPatterns[1]; // Automotive pattern
+  } else if (baseQuery.includes('industrial') || baseQuery.includes('manufacturing')) {
+    selectedPattern = searchPatterns[2]; // Industrial pattern
+  } else if (baseQuery.includes('waste') || baseQuery.includes('collection')) {
+    selectedPattern = searchPatterns[0]; // Oil collection pattern
+  } else {
+    // Use random pattern for variety
+    selectedPattern = searchPatterns[Math.floor(Math.random() * searchPatterns.length)];
   }
 
-  // Add customer type targeting
-  const randomTarget = customerTargets[Math.floor(Math.random() * customerTargets.length)];
-  enhancedQuery += ` "${randomTarget}"`;
+  let enhancedQuery = selectedPattern;
 
-  // Add business intent and procurement indicators
-  enhancedQuery += ' (procurement OR tender OR RFP OR "looking for" OR "need supplier" OR "seeking equipment")';
+  // Add country-specific terms if specified
+  if (country && country !== 'all') {
+    const countryNames: { [key: string]: string } = {
+      'US': 'United States', 'IN': 'India', 'AE': 'UAE', 'SA': 'Saudi Arabia',
+      'DE': 'Germany', 'CN': 'China', 'JP': 'Japan', 'GB': 'United Kingdom'
+    };
+    if (countryNames[country]) {
+      enhancedQuery += ` "${countryNames[country]}"`;
+    }
+  }
 
-  // Add site filters for better quality results
-  enhancedQuery += ' (site:linkedin.com OR site:trade.org OR site:gov OR site:company)';
+  // Add business procurement indicators
+  enhancedQuery += ' (tender OR RFP OR procurement OR contract OR supplier OR equipment)';
 
-  console.log(`Smart Query Enhancement: "${baseQuery}" → "${enhancedQuery}"`);
+  // Strong exclusions for irrelevant content
+  enhancedQuery += ' -job -employment -career -hiring -recruitment -vacancy -resume -course -training -education';
+
+  // Target business-focused domains and platforms
+  enhancedQuery += ' (site:linkedin.com/company OR site:thomasnet.com OR site:alibaba.com OR site:indiamart.com OR site:tradeindia.com OR site:kompass.com)';
+
+  console.log(`Ultra-Smart Query: "${baseQuery}" → "${enhancedQuery}"`);
   
   return enhancedQuery;
 }
@@ -168,22 +175,42 @@ function calculateIntelligentScore(title: string, snippet: string, link: string,
   return Math.min(Math.max(score, 0), 1);
 }
 
-// Google Custom Search API call with freshness filters
+// Intelligent search with fallback strategies
 async function performGoogleSearch(query: string, filters: any = {}): Promise<any> {
   if (!GOOGLE_API_KEY || !SEARCH_ENGINE_ID) {
     throw new Error('Google Custom Search API not configured. Please set GOOGLE_CUSTOM_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID environment variables.');
   }
 
-  // Enhance query intelligently
-  const enhancedQuery = enhanceSearchQuery(query, filters.industry, filters.country);
+  // Try primary enhanced search first
+  let enhancedQuery = enhanceSearchQuery(query, filters.industry, filters.country);
+  let searchResult = await executeSearch(enhancedQuery, filters);
+  
+  // If no relevant results, try simplified business-focused search
+  if (!searchResult.items || searchResult.items.length === 0) {
+    console.log('Primary search returned no results, trying simplified approach...');
+    enhancedQuery = `"${query}" (company OR business OR manufacturer OR supplier) -job -employment`;
+    searchResult = await executeSearch(enhancedQuery, filters);
+  }
+  
+  // If still no results, try basic industry search
+  if (!searchResult.items || searchResult.items.length === 0) {
+    console.log('Simplified search failed, trying basic industry search...');
+    enhancedQuery = `${query} oil recycling equipment supplier`;
+    searchResult = await executeSearch(enhancedQuery, filters);
+  }
 
+  return searchResult;
+}
+
+// Execute actual search with given query
+async function executeSearch(enhancedQuery: string, filters: any): Promise<any> {
   const searchParams = new URLSearchParams({
     key: GOOGLE_API_KEY,
     cx: SEARCH_ENGINE_ID,
     q: enhancedQuery,
-    dateRestrict: 'm1', // Smart: Use last 1 month for better relevant results
-    sort: 'relevance', // Smart: Sort by relevance for better quality matches
-    num: '10', // Max results per call
+    dateRestrict: 'm3', // Expand to 3 months for better coverage
+    sort: 'relevance', // Sort by relevance for quality
+    num: '10',
     start: filters.start || '1',
     ...(filters.siteSearch && { siteSearch: filters.siteSearch }),
     ...(filters.country && filters.country !== 'all' && { cr: `country${filters.country}` }),
