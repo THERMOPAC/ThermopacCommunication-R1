@@ -1,6 +1,7 @@
 import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { pool } from '../db';
+import { db } from '../db';
+import { sql } from 'drizzle-orm';
 import { Storage } from '@google-cloud/storage';
 
 // Helper function to get GCS client
@@ -37,6 +38,10 @@ export const uploadMaterialIdentificationDocument = async (req: Request): Promis
   file_type?: string;
   file_size?: number;
 }> => {
+  console.log('=== DOCUMENT UPLOAD DEBUG START ===');
+  console.log('Request file present:', !!req.file);
+  console.log('Request body:', req.body);
+  
   if (!req.file) {
     console.error('uploadMaterialIdentificationDocument: No file was uploaded');
     return {
@@ -47,6 +52,13 @@ export const uploadMaterialIdentificationDocument = async (req: Request): Promis
   
   try {
     console.log('uploadMaterialIdentificationDocument: Starting upload process');
+    console.log('File details:', {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      hasBuffer: !!req.file.buffer,
+      bufferLength: req.file.buffer?.length
+    });
     
     // Get GCS client
     const { storage, bucketName } = getGcsClient();
@@ -87,12 +99,12 @@ export const uploadMaterialIdentificationDocument = async (req: Request): Promis
     // Use the display name from the map, or use the documentType as-is if not found in the map
     const documentTypeName = documentTypeMap[documentType] || documentType;
     
-    // Get the full material_identification_id and project_number from the database using a direct SQL query
-    // since we're having issues with the Drizzle query builder
-    const queryResult = await pool.query(
-      'SELECT material_identification_id, project_number FROM material_identification WHERE id = $1',
-      [parseInt(materialIdentificationId)]
-    );
+    // Get the full material_identification_id and project_number from the database using Drizzle
+    const queryResult = await db.execute(sql`
+      SELECT material_identification_id, project_number 
+      FROM material_identification 
+      WHERE id = ${parseInt(materialIdentificationId)}
+    `) as any;
     
     if (!queryResult.rows || queryResult.rows.length === 0) {
       throw new Error(`Material Identification record with ID ${materialIdentificationId} not found`);
@@ -170,7 +182,13 @@ export const uploadMaterialIdentificationDocument = async (req: Request): Promis
       blobStream.end(req.file.buffer);
     });
   } catch (err: any) {
-    console.error('Error in upload process:', err);
+    console.error('=== DOCUMENT UPLOAD ERROR ===');
+    console.error('Error type:', typeof err);
+    console.error('Error message:', err.message);
+    console.error('Error stack:', err.stack);
+    console.error('Full error object:', err);
+    console.error('=== END ERROR DEBUG ===');
+    
     return {
       error: `Failed to process document upload: ${err.message || 'Unknown error'}`,
       success: false

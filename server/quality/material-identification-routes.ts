@@ -5,6 +5,7 @@ import { z } from "zod";
 import { AnyZodObject } from "zod";
 import multer from "multer";
 import { uploadMaterialIdentificationDocument, deleteMaterialIdentificationDocument, getGcsClient } from "../utils/material-identification-document-upload-fixed";
+import { simpleDocumentUpload } from "../utils/simple-document-upload";
 import { checkGcsPermissions } from '../utils/gcs-permissions-check';
 
 // Configure multer for in-memory file storage
@@ -698,10 +699,20 @@ router.post("/:id/documents", upload.single('file'), async (req: Request, res: R
     // Set materialIdentificationId in request body for the upload util
     req.body.materialIdentificationId = materialIdentificationId;
     
-    // Upload document
+    // Upload document using simple upload function first
     console.log('Starting document upload to GCS...');
-    const uploadResult = await uploadMaterialIdentificationDocument(req);
-    console.log('Upload result:', uploadResult);
+    let uploadResult;
+    
+    try {
+      // Try simple upload first
+      uploadResult = await simpleDocumentUpload(req, materialIdentificationId);
+      console.log('Simple upload result:', uploadResult);
+    } catch (simpleError) {
+      console.log('Simple upload failed, trying complex upload...');
+      // Fallback to complex upload
+      uploadResult = await uploadMaterialIdentificationDocument(req);
+      console.log('Complex upload result:', uploadResult);
+    }
     
     if (!uploadResult.success) {
       console.error('Upload failed:', uploadResult.error);
