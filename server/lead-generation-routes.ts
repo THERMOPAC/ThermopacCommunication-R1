@@ -48,59 +48,122 @@ async function updateApiQuota(userId: number, callsUsed: number = 1): Promise<vo
   }
 }
 
-// Smart query enhancement for better search results
+// Intelligent query enhancement for oil re-refining business
 function enhanceSearchQuery(query: string, industry?: string, country?: string): string {
   const baseQuery = query.trim();
   let enhancedQuery = baseQuery;
 
-  // Add industry-specific terms for oil re-refining business
-  const industryTerms: { [key: string]: string[] } = {
-    'oil-refining': ['recycling', 'regeneration', 'reprocessing', 'waste oil', 'used oil'],
-    'waste-oil-management': ['collection', 'disposal', 'treatment', 'environmental'],
-    'petrochemical': ['processing', 'refinery', 'chemical plant'],
-    'lubricants': ['base oil', 'motor oil', 'industrial lubricants'],
-    'environmental-services': ['sustainability', 'green technology', 'circular economy']
+  // Smart industry-specific enhancement for oil re-refining business
+  const industryEnhancements: { [key: string]: string[] } = {
+    'oil-refining': [
+      'waste engine oil', 'used lubricant recycling', 'oil regeneration plant',
+      'automotive oil disposal', 'industrial oil collection'
+    ],
+    'waste-oil-management': [
+      'oil collection services', 'waste oil treatment facility',
+      'environmental oil disposal', 'used oil processing'
+    ],
+    'automotive': [
+      'oil change service', 'automotive service center', 'car dealership',
+      'fleet maintenance', 'vehicle service'
+    ],
+    'environmental-services': [
+      'environmental compliance', 'waste management', 'sustainability',
+      'green technology', 'circular economy'
+    ]
   };
 
-  if (industry && industryTerms[industry]) {
-    const relevantTerms = industryTerms[industry].slice(0, 2);
-    enhancedQuery += ` ${relevantTerms.join(' OR ')}`;
+  // Add targeted business customer types
+  const customerTargets = [
+    'oil collection company',
+    'automotive service center', 
+    'industrial manufacturer',
+    'waste management facility',
+    'environmental agency'
+  ];
+
+  // Smart enhancement based on industry
+  if (industry && industryEnhancements[industry]) {
+    const terms = industryEnhancements[industry].slice(0, 2);
+    enhancedQuery += ` (${terms.join(' OR ')})`;
   }
 
-  // Add business intent indicators
-  enhancedQuery += ' ("looking for" OR "need" OR "require" OR "seeking" OR "procurement")';
+  // Add customer type targeting
+  const randomTarget = customerTargets[Math.floor(Math.random() * customerTargets.length)];
+  enhancedQuery += ` "${randomTarget}"`;
 
+  // Add business intent and procurement indicators
+  enhancedQuery += ' (procurement OR tender OR RFP OR "looking for" OR "need supplier" OR "seeking equipment")';
+
+  // Add site filters for better quality results
+  enhancedQuery += ' (site:linkedin.com OR site:trade.org OR site:gov OR site:company)';
+
+  console.log(`Smart Query Enhancement: "${baseQuery}" → "${enhancedQuery}"`);
+  
   return enhancedQuery;
 }
 
-// Intelligent lead scoring based on multiple factors
+// Advanced intelligent lead scoring for oil re-refining business
 function calculateIntelligentScore(title: string, snippet: string, link: string, industry?: string): number {
-  let score = 0.5; // Base score
+  let score = 0.1; // Conservative base score
 
-  // Industry relevance scoring
-  const oilTerms = ['oil', 'recycling', 'waste', 'lubricant', 'refinery', 'petroleum', 'engine oil'];
-  const businessTerms = ['company', 'corporation', 'ltd', 'inc', 'group', 'industries'];
-  const intentTerms = ['need', 'looking', 'seeking', 'require', 'procurement', 'supplier', 'equipment'];
-  
   const text = `${title} ${snippet}`.toLowerCase();
   
-  // Check for oil-related terms
-  const oilMatches = oilTerms.filter(term => text.includes(term)).length;
-  score += (oilMatches / oilTerms.length) * 0.3;
+  // High-value oil industry terms (weighted heavily)
+  const primaryOilTerms = ['waste oil', 'used oil', 'engine oil', 'lubricant', 'oil recycling', 'oil collection'];
+  const secondaryOilTerms = ['petroleum', 'refinery', 'automotive', 'industrial oil', 'hydraulic oil'];
   
-  // Check for business indicators
-  const businessMatches = businessTerms.filter(term => text.includes(term)).length;
-  score += (businessMatches > 0) ? 0.2 : 0;
+  // Customer type indicators (strong business signals)
+  const customerTypes = [
+    'service center', 'auto repair', 'car dealer', 'fleet', 'manufacturing',
+    'oil collection', 'waste management', 'environmental', 'industrial'
+  ];
   
-  // Check for buying intent
-  const intentMatches = intentTerms.filter(term => text.includes(term)).length;
-  score += (intentMatches / intentTerms.length) * 0.3;
+  // Business procurement signals (highest value)
+  const procurementTerms = ['tender', 'rfp', 'procurement', 'supplier', 'equipment', 'need', 'require', 'seeking'];
   
-  // Domain authority bonus (trusted domains)
-  const trustedDomains = ['linkedin.com', '.gov', '.edu', 'trade.org'];
+  // Geographic and business quality indicators
+  const qualityIndicators = ['company', 'corporation', 'ltd', 'inc', 'group', 'industries', 'facility', 'plant'];
+  
+  // Scoring algorithm
+  
+  // 1. Primary oil terms (40% weight)
+  const primaryMatches = primaryOilTerms.filter(term => text.includes(term)).length;
+  score += (primaryMatches > 0) ? 0.4 : 0;
+  
+  // 2. Secondary oil terms (20% weight)
+  const secondaryMatches = secondaryOilTerms.filter(term => text.includes(term)).length;
+  score += Math.min(secondaryMatches * 0.1, 0.2);
+  
+  // 3. Customer type detection (25% weight)
+  const customerMatches = customerTypes.filter(term => text.includes(term)).length;
+  score += Math.min(customerMatches * 0.08, 0.25);
+  
+  // 4. Procurement intent (30% weight - highest value)
+  const procurementMatches = procurementTerms.filter(term => text.includes(term)).length;
+  score += Math.min(procurementMatches * 0.1, 0.3);
+  
+  // 5. Business quality indicators (15% weight)
+  const qualityMatches = qualityIndicators.filter(term => text.includes(term)).length;
+  score += Math.min(qualityMatches * 0.05, 0.15);
+  
+  // 6. Domain authority and credibility bonus
+  const trustedDomains = ['linkedin.com', '.gov', '.edu', 'trade.org', 'chamber.com'];
   if (trustedDomains.some(domain => link.includes(domain))) {
-    score += 0.15;
+    score += 0.2;
   }
+  
+  // 7. Penalty for irrelevant content
+  const irrelevantTerms = ['job', 'employment', 'resume', 'career', 'hiring', 'vacancy'];
+  const irrelevantMatches = irrelevantTerms.filter(term => text.includes(term)).length;
+  score -= irrelevantMatches * 0.1;
+  
+  // 8. Boost for specific oil business terms
+  if (text.includes('waste oil') && (text.includes('collection') || text.includes('disposal'))) {
+    score += 0.15; // Perfect match for waste oil collection business
+  }
+  
+  console.log(`Intelligent Scoring: "${title.substring(0, 50)}..." → Score: ${score.toFixed(3)}`);
   
   return Math.min(Math.max(score, 0), 1);
 }
@@ -118,8 +181,8 @@ async function performGoogleSearch(query: string, filters: any = {}): Promise<an
     key: GOOGLE_API_KEY,
     cx: SEARCH_ENGINE_ID,
     q: enhancedQuery,
-    dateRestrict: 'd1', // Critical: Only results from last 1 day for freshness
-    sort: 'date', // Critical: Sort by date to get freshest results
+    dateRestrict: 'm1', // Smart: Use last 1 month for better relevant results
+    sort: 'relevance', // Smart: Sort by relevance for better quality matches
     num: '10', // Max results per call
     start: filters.start || '1',
     ...(filters.siteSearch && { siteSearch: filters.siteSearch }),
