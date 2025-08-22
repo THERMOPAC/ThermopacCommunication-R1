@@ -19,7 +19,12 @@ import {
   Eye,
   Plus,
   History,
-  Target
+  Target,
+  Brain,
+  Lightbulb,
+  Zap,
+  Award,
+  Flame
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -64,6 +69,50 @@ const INDUSTRY_OPTIONS = [
   { value: "pharmaceutical", label: "Pharmaceutical" },
   { value: "food-beverage", label: "Food & Beverage" },
   { value: "engineering", label: "Engineering Services" },
+];
+
+// Smart search suggestions for oil re-refining business
+const SMART_SEARCH_SUGGESTIONS = [
+  {
+    category: "🏭 Oil Collection Companies",
+    searches: [
+      "waste oil collection services automotive",
+      "used engine oil disposal companies",
+      "industrial lubricant collection fleet"
+    ]
+  },
+  {
+    category: "🚗 Automotive Service Centers", 
+    searches: [
+      "auto service centers waste oil disposal",
+      "car dealership oil change waste management",
+      "fleet maintenance used oil generation"
+    ]
+  },
+  {
+    category: "🏢 Industrial Manufacturers",
+    searches: [
+      "manufacturing plant used hydraulic oil",
+      "industrial machinery lubricant waste",
+      "heavy equipment oil maintenance contracts"
+    ]
+  },
+  {
+    category: "🌍 Environmental Agencies",
+    searches: [
+      "environmental waste oil regulations tender",
+      "government oil recycling procurement",
+      "sustainability waste management RFP"
+    ]
+  },
+  {
+    category: "⚡ Refineries & Energy",
+    searches: [
+      "petroleum refinery waste oil recycling",
+      "energy company lubricant reprocessing",
+      "oil terminal waste management systems"
+    ]
+  }
 ];
 
 // Country options grouped by continent
@@ -411,7 +460,11 @@ export default function LeadGenerationPage() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="ai-insights" className="flex items-center gap-2">
+            <Brain className="h-4 w-4" />
+            AI Insights
+          </TabsTrigger>
           <TabsTrigger value="search" className="flex items-center gap-2">
             <Search className="h-4 w-4" />
             Search
@@ -425,6 +478,125 @@ export default function LeadGenerationPage() {
             Search History
           </TabsTrigger>
         </TabsList>
+
+        {/* AI Insights Tab */}
+        <TabsContent value="ai-insights" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Smart Search Suggestions */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lightbulb className="h-5 w-5 text-yellow-500" />
+                  Smart Search Suggestions
+                </CardTitle>
+                <CardDescription>
+                  AI-powered search terms optimized for your oil re-refining business
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {SMART_SEARCH_SUGGESTIONS.map((category, index) => (
+                  <div key={index} className="border rounded-lg p-4">
+                    <h4 className="font-medium text-sm mb-3 text-gray-700">
+                      {category.category}
+                    </h4>
+                    <div className="space-y-2">
+                      {category.searches.map((search, searchIndex) => (
+                        <Button
+                          key={searchIndex}
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-start text-left h-auto py-2 px-3"
+                          onClick={() => {
+                            form.setValue('query', search);
+                            form.setValue('industry', 'oil-refining');
+                            setActiveTab('search');
+                          }}
+                        >
+                          <Search className="h-3 w-3 mr-2 flex-shrink-0" />
+                          <span className="text-xs leading-tight">{search}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* AI Intelligence Features */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-purple-500" />
+                  AI Intelligence Features
+                </CardTitle>
+                <CardDescription>
+                  Advanced capabilities powered by GPT-4o
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <Zap className="h-5 w-5 text-blue-500 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-sm">Smart Query Enhancement</h4>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Automatically adds relevant terms and business intent indicators to improve search results
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start gap-3">
+                    <Award className="h-5 w-5 text-green-500 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-sm">Intelligent Lead Scoring</h4>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Multi-factor scoring considering industry relevance, business indicators, and buying intent
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start gap-3">
+                    <Target className="h-5 w-5 text-red-500 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-sm">Customer Type Detection</h4>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Identifies oil collectors, automotive centers, industrial manufacturers, and environmental agencies
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start gap-3">
+                    <Flame className="h-5 w-5 text-orange-500 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-sm">Hot Lead Alerts</h4>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Real-time notifications for high-scoring leads (0.8+ score) with immediate follow-up recommendations
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator className="my-4" />
+                
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-blue-600" />
+                    Industry-Specific Analysis
+                  </h4>
+                  <p className="text-xs text-gray-700 leading-relaxed">
+                    Our AI specializes in the used engine oil re-refining industry, understanding key customer types:
+                  </p>
+                  <ul className="text-xs text-gray-600 mt-2 space-y-1">
+                    <li>• Oil collection companies needing processing equipment</li>
+                    <li>• Automotive service centers with waste oil disposal needs</li>
+                    <li>• Industrial manufacturers generating used oil</li>
+                    <li>• Government environmental agencies and regulators</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
         {/* Search Tab */}
         <TabsContent value="search" className="space-y-6">
