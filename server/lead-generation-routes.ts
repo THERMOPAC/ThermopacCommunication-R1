@@ -48,44 +48,24 @@ async function updateApiQuota(userId: number, callsUsed: number = 1): Promise<vo
   }
 }
 
-// Ultra-intelligent query strategy for oil re-refining business leads
+// Balanced intelligent query enhancement for oil re-refining business
 function enhanceSearchQuery(query: string, industry?: string, country?: string): string {
   const baseQuery = query.trim();
   
-  // Create multiple targeted search patterns for different customer types
-  const searchPatterns = [
-    // Pattern 1: Oil collection companies
-    `"oil collection company" OR "waste oil collection" OR "used oil disposal" ${baseQuery}`,
-    
-    // Pattern 2: Automotive service centers  
-    `"automotive service center" OR "car dealership" OR "auto repair shop" "waste oil" ${baseQuery}`,
-    
-    // Pattern 3: Industrial manufacturers
-    `"industrial manufacturer" OR "manufacturing plant" "used lubricant" OR "hydraulic oil disposal" ${baseQuery}`,
-    
-    // Pattern 4: Environmental/waste management
-    `"waste management company" OR "environmental services" "oil recycling" OR "oil treatment" ${baseQuery}`,
-    
-    // Pattern 5: Government/regulatory
-    `"environmental agency" OR "government tender" "oil waste" OR "recycling facility" ${baseQuery}`
-  ];
+  // Smart but simpler enhancement approach
+  let enhancedQuery = baseQuery;
 
-  // Select pattern based on query content or random for variety
-  let selectedPattern;
-  if (baseQuery.includes('automotive') || baseQuery.includes('car')) {
-    selectedPattern = searchPatterns[1]; // Automotive pattern
-  } else if (baseQuery.includes('industrial') || baseQuery.includes('manufacturing')) {
-    selectedPattern = searchPatterns[2]; // Industrial pattern
-  } else if (baseQuery.includes('waste') || baseQuery.includes('collection')) {
-    selectedPattern = searchPatterns[0]; // Oil collection pattern
-  } else {
-    // Use random pattern for variety
-    selectedPattern = searchPatterns[Math.floor(Math.random() * searchPatterns.length)];
+  // Add industry-specific context terms
+  if (industry === 'oil-refining' || baseQuery.includes('oil')) {
+    enhancedQuery += ' (waste oil OR used oil OR oil recycling OR lubricant disposal)';
   }
 
-  let enhancedQuery = selectedPattern;
+  // Add customer type context
+  const customerTypes = ['company', 'business', 'manufacturer', 'service center', 'facility'];
+  const randomType = customerTypes[Math.floor(Math.random() * customerTypes.length)];
+  enhancedQuery += ` "${randomType}"`;
 
-  // Add country-specific terms if specified
+  // Add country context if specified
   if (country && country !== 'all') {
     const countryNames: { [key: string]: string } = {
       'US': 'United States', 'IN': 'India', 'AE': 'UAE', 'SA': 'Saudi Arabia',
@@ -96,16 +76,13 @@ function enhanceSearchQuery(query: string, industry?: string, country?: string):
     }
   }
 
-  // Add business procurement indicators
-  enhancedQuery += ' (tender OR RFP OR procurement OR contract OR supplier OR equipment)';
+  // Simple business intent
+  enhancedQuery += ' (supplier OR equipment OR service)';
 
-  // Strong exclusions for irrelevant content
-  enhancedQuery += ' -job -employment -career -hiring -recruitment -vacancy -resume -course -training -education';
+  // Minimal exclusions to avoid over-filtering
+  enhancedQuery += ' -job -employment';
 
-  // Target business-focused domains and platforms
-  enhancedQuery += ' (site:linkedin.com/company OR site:thomasnet.com OR site:alibaba.com OR site:indiamart.com OR site:tradeindia.com OR site:kompass.com)';
-
-  console.log(`Ultra-Smart Query: "${baseQuery}" → "${enhancedQuery}"`);
+  console.log(`Smart Query: "${baseQuery}" → "${enhancedQuery}"`);
   
   return enhancedQuery;
 }
@@ -188,14 +165,14 @@ async function performGoogleSearch(query: string, filters: any = {}): Promise<an
   // If no relevant results, try simplified business-focused search
   if (!searchResult.items || searchResult.items.length === 0) {
     console.log('Primary search returned no results, trying simplified approach...');
-    enhancedQuery = `"${query}" (company OR business OR manufacturer OR supplier) -job -employment`;
+    enhancedQuery = `"${query}" company business`;
     searchResult = await executeSearch(enhancedQuery, filters);
   }
   
-  // If still no results, try basic industry search
+  // If still no results, try basic search without filters
   if (!searchResult.items || searchResult.items.length === 0) {
-    console.log('Simplified search failed, trying basic industry search...');
-    enhancedQuery = `${query} oil recycling equipment supplier`;
+    console.log('Simplified search failed, trying basic search...');
+    enhancedQuery = query; // Use original query without any enhancements
     searchResult = await executeSearch(enhancedQuery, filters);
   }
 
@@ -208,8 +185,6 @@ async function executeSearch(enhancedQuery: string, filters: any): Promise<any> 
     key: GOOGLE_API_KEY,
     cx: SEARCH_ENGINE_ID,
     q: enhancedQuery,
-    dateRestrict: 'm3', // Expand to 3 months for better coverage
-    sort: 'relevance', // Sort by relevance for quality
     num: '10',
     start: filters.start || '1',
     ...(filters.siteSearch && { siteSearch: filters.siteSearch }),
