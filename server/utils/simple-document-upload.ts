@@ -62,8 +62,13 @@ export const simpleDocumentUpload = async (req: Request, materialIdentificationI
     }
     
     // Get project details and material identification ID from database
+    console.log('=== DATABASE LOOKUP DEBUG ===');
+    console.log('Looking up material identification ID:', materialIdentificationId);
+    
     const { sql } = await import('drizzle-orm');
     const { db } = await import('../db');
+    
+    console.log('Database modules imported successfully');
     
     const queryResult = await db.execute(sql`
       SELECT material_identification_id, project_number 
@@ -71,12 +76,21 @@ export const simpleDocumentUpload = async (req: Request, materialIdentificationI
       WHERE id = ${parseInt(materialIdentificationId)}
     `) as any;
     
+    console.log('Query executed, result:', queryResult);
+    console.log('Query result rows:', queryResult?.rows);
+    console.log('Query result length:', queryResult?.rows?.length);
+    
     if (!queryResult.rows || queryResult.rows.length === 0) {
+      console.error('No material identification record found for ID:', materialIdentificationId);
       throw new Error(`Material Identification record with ID ${materialIdentificationId} not found`);
     }
     
     const miId = queryResult.rows[0].material_identification_id;
     const projectNumber = queryResult.rows[0].project_number || 'UNKNOWN';
+    
+    console.log('Retrieved MI ID:', miId);
+    console.log('Retrieved project number:', projectNumber);
+    console.log('=== END DATABASE LOOKUP DEBUG ===');
     
     // Get document type from request body
     const documentType = req.body.documentType || 'inspection_report';
