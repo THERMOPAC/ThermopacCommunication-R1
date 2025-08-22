@@ -65,6 +65,7 @@ const materialIdentificationSchema = z.object({
   inspectionOrderNumber: z.string().optional().or(z.literal("")),
   materialType: z.string().min(1, "Material Type is required"),
   materialDescription: z.string().min(1, "Material Description is required"),
+  materialCode: z.string().default(""), // Add missing material code field
   specification: z.string().min(1, "Specification is required"),
   materialGrade: z.string().min(1, "Material Grade is required"),
   heatNumber: z.string().min(1, "Heat Number is required"),
@@ -267,7 +268,7 @@ export default function MaterialIdentificationCreatePage() {
       inspectionOrderNumber: "",
       materialType: "",
       materialDescription: "",
-
+      materialCode: "", // Add default value for material code
       specification: "",
       materialGrade: "",
       heatNumber: "",

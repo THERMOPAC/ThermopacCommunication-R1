@@ -64,6 +64,7 @@ const materialIdentificationSchema = z.object({
   inspectionOrderNumber: z.string().optional().or(z.literal("")),
   materialType: z.string().min(1, "Material Type is required"),
   materialDescription: z.string(),
+  materialCode: z.string().default(""), // Added missing material_code field
   specification: z.string(),
   materialGrade: z.string(),
   heatNumber: z.string(),
@@ -288,6 +289,7 @@ router.post("/", validateSchema(materialIdentificationSchema), async (req, res) 
         inspection_order_number,
         material_type,
         material_description,
+        material_code,
         specification,
         material_grade,
         heat_number,
@@ -311,6 +313,7 @@ router.post("/", validateSchema(materialIdentificationSchema), async (req, res) 
         ${data.inspectionOrderNumber || ''},
         ${data.materialType || ''},
         ${data.materialDescription},
+        ${data.materialCode || ''},
         ${data.specification},
         ${data.materialGrade},
         ${data.heatNumber},
@@ -377,7 +380,7 @@ router.get("/new", async (req, res) => {
       project_name: '',
       inspection_order_number: '',
       material_description: '',
-
+      material_code: '', // Add missing material_code field
       specification: '',
       material_grade: '',
       heat_number: '',
