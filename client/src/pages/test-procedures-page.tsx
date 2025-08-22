@@ -1021,6 +1021,29 @@ export default function TestProceduresPage() {
                   )}
                 />
 
+                <FormField
+                  control={form.control}
+                  name="tags"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
+                        Tags * 
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="Enter comma-separated tags (e.g., welding, pressure-vessel, API-650)"
+                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
+                        />
+                      </FormControl>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Add searchable keywords separated by commas for easy filtering and categorization
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <div className="flex justify-end space-x-2 pt-4">
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                     Cancel
