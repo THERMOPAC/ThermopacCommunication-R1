@@ -483,17 +483,24 @@ export default function MaterialIdentificationCreatePage() {
             });
             
             if (uploadResponse.ok) {
-              toast({
-                title: "File uploaded successfully",
-                description: `Document "${selectedFile.name}" has been uploaded.`,
-              });
+              // Verify the response contains success data
+              const uploadResult = await uploadResponse.json();
               
-              // Clear file selection after successful upload
-              setSelectedFile(null);
-              setDocumentType('inspection_report');
-              setDocumentDescription('');
-              if (fileInputRef.current) {
-                fileInputRef.current.value = '';
+              if (uploadResult.success) {
+                toast({
+                  title: "File uploaded successfully",
+                  description: `Document "${selectedFile.name}" has been uploaded.`,
+                });
+                
+                // Clear file selection after successful upload
+                setSelectedFile(null);
+                setDocumentType('inspection_report');
+                setDocumentDescription('');
+                if (fileInputRef.current) {
+                  fileInputRef.current.value = '';
+                }
+              } else {
+                throw new Error(uploadResult.error || 'Upload failed despite 200 status');
               }
             } else {
               // Get detailed error information from the response
