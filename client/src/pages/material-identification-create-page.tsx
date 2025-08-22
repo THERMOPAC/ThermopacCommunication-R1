@@ -472,15 +472,24 @@ export default function MaterialIdentificationCreatePage() {
           try {
             setIsUploading(true);
             
+            console.log('🔄 Starting document upload for record ID:', recordId);
+            console.log('📁 Selected file:', selectedFile.name, 'Type:', documentType);
+            
             const fileFormData = new FormData();
             fileFormData.append('file', selectedFile);
             fileFormData.append('documentType', documentType);
             fileFormData.append('description', documentDescription || 'Document uploaded during record creation');
             
-            const uploadResponse = await fetch(`/api/quality/material-identification/${recordId}/documents`, {
+            const uploadUrl = `/api/quality/material-identification/${recordId}/documents`;
+            console.log('📤 Upload URL:', uploadUrl);
+            
+            const uploadResponse = await fetch(uploadUrl, {
               method: 'POST',
               body: fileFormData,
             });
+            
+            console.log('📨 Upload response status:', uploadResponse.status);
+            console.log('📨 Upload response ok:', uploadResponse.ok);
             
             if (uploadResponse.ok) {
               // Verify the response contains success data
@@ -517,7 +526,10 @@ export default function MaterialIdentificationCreatePage() {
               throw new Error(errorDetails.error || errorDetails.message || 'Failed to upload document');
             }
           } catch (uploadError) {
-            console.error('Error uploading document:', uploadError);
+            console.error('❌ Error uploading document:', uploadError);
+            console.error('❌ Error type:', typeof uploadError);
+            console.error('❌ Error message:', uploadError?.message);
+            console.error('❌ Error stack:', uploadError?.stack);
             
             // Extract more meaningful error message
             let errorMessage = "The record was created but the document could not be uploaded. You can upload it later from the list page.";
