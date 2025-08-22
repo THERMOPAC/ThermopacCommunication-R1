@@ -197,7 +197,7 @@ export default function MaterialIdentificationCreatePage() {
   
   // Document upload states
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [documentType] = useState('inspection_report'); // Always use inspection_report
+  const [documentType, setDocumentType] = useState('inspection_report'); // Always use inspection_report
   const [documentDescription, setDocumentDescription] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
