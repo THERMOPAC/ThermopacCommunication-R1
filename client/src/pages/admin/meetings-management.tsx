@@ -2683,6 +2683,9 @@ export default function MeetingsManagement() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-mono text-xs">
+                              ID: {commitment.commitment.id}
+                            </Badge>
                             <h3 className="font-semibold text-lg">{commitment.commitment.title}</h3>
                             <Badge className={getPriorityColor(commitment.commitment.priority)}>
                               {commitment.commitment.priority}
