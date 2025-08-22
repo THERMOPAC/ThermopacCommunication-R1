@@ -60,19 +60,155 @@ const INDUSTRY_OPTIONS = [
   { value: "engineering", label: "Engineering Services" },
 ];
 
-// Country options for filtering
-const COUNTRY_OPTIONS = [
-  { value: "all", label: "All Countries" },
-  { value: "US", label: "United States" },
-  { value: "CA", label: "Canada" },
-  { value: "GB", label: "United Kingdom" },
-  { value: "DE", label: "Germany" },
-  { value: "IN", label: "India" },
-  { value: "CN", label: "China" },
-  { value: "AU", label: "Australia" },
-  { value: "AE", label: "UAE" },
-  { value: "SA", label: "Saudi Arabia" },
-];
+// Country options grouped by continent
+const COUNTRY_OPTIONS_BY_CONTINENT = {
+  "All Countries": [
+    { value: "all", label: "All Countries" }
+  ],
+  "Asia": [
+    { value: "IN", label: "India" },
+    { value: "CN", label: "China" },
+    { value: "JP", label: "Japan" },
+    { value: "SA", label: "Saudi Arabia" },
+    { value: "AE", label: "UAE" },
+    { value: "BH", label: "Bahrain" },
+    { value: "SG", label: "Singapore" },
+    { value: "KR", label: "South Korea" },
+    { value: "TH", label: "Thailand" },
+    { value: "MY", label: "Malaysia" },
+    { value: "ID", label: "Indonesia" },
+    { value: "VN", label: "Vietnam" },
+    { value: "PH", label: "Philippines" },
+    { value: "TW", label: "Taiwan" },
+    { value: "HK", label: "Hong Kong" },
+    { value: "QA", label: "Qatar" },
+    { value: "KW", label: "Kuwait" },
+    { value: "OM", label: "Oman" },
+    { value: "IR", label: "Iran" },
+    { value: "IQ", label: "Iraq" },
+    { value: "TR", label: "Turkey" },
+    { value: "IL", label: "Israel" },
+    { value: "LB", label: "Lebanon" },
+    { value: "JO", label: "Jordan" },
+    { value: "BD", label: "Bangladesh" },
+    { value: "PK", label: "Pakistan" },
+    { value: "LK", label: "Sri Lanka" },
+    { value: "MM", label: "Myanmar" },
+    { value: "KH", label: "Cambodia" },
+    { value: "LA", label: "Laos" }
+  ],
+  "Europe": [
+    { value: "DE", label: "Germany" },
+    { value: "GB", label: "United Kingdom" },
+    { value: "FR", label: "France" },
+    { value: "IT", label: "Italy" },
+    { value: "ES", label: "Spain" },
+    { value: "NL", label: "Netherlands" },
+    { value: "BE", label: "Belgium" },
+    { value: "CH", label: "Switzerland" },
+    { value: "AT", label: "Austria" },
+    { value: "SE", label: "Sweden" },
+    { value: "NO", label: "Norway" },
+    { value: "DK", label: "Denmark" },
+    { value: "FI", label: "Finland" },
+    { value: "PL", label: "Poland" },
+    { value: "CZ", label: "Czech Republic" },
+    { value: "HU", label: "Hungary" },
+    { value: "SK", label: "Slovakia" },
+    { value: "SI", label: "Slovenia" },
+    { value: "HR", label: "Croatia" },
+    { value: "RO", label: "Romania" },
+    { value: "BG", label: "Bulgaria" },
+    { value: "GR", label: "Greece" },
+    { value: "PT", label: "Portugal" },
+    { value: "IE", label: "Ireland" },
+    { value: "LU", label: "Luxembourg" },
+    { value: "MT", label: "Malta" },
+    { value: "CY", label: "Cyprus" },
+    { value: "EE", label: "Estonia" },
+    { value: "LV", label: "Latvia" },
+    { value: "LT", label: "Lithuania" },
+    { value: "RU", label: "Russia" },
+    { value: "UA", label: "Ukraine" },
+    { value: "BY", label: "Belarus" }
+  ],
+  "Africa": [
+    { value: "ZA", label: "South Africa" },
+    { value: "NG", label: "Nigeria" },
+    { value: "EG", label: "Egypt" },
+    { value: "KE", label: "Kenya" },
+    { value: "ET", label: "Ethiopia" },
+    { value: "GH", label: "Ghana" },
+    { value: "TZ", label: "Tanzania" },
+    { value: "UG", label: "Uganda" },
+    { value: "DZ", label: "Algeria" },
+    { value: "MA", label: "Morocco" },
+    { value: "TN", label: "Tunisia" },
+    { value: "LY", label: "Libya" },
+    { value: "SD", label: "Sudan" },
+    { value: "ZM", label: "Zambia" },
+    { value: "ZW", label: "Zimbabwe" },
+    { value: "BW", label: "Botswana" },
+    { value: "NA", label: "Namibia" },
+    { value: "MZ", label: "Mozambique" },
+    { value: "AO", label: "Angola" },
+    { value: "CM", label: "Cameroon" },
+    { value: "CI", label: "Ivory Coast" },
+    { value: "SN", label: "Senegal" },
+    { value: "ML", label: "Mali" },
+    { value: "BF", label: "Burkina Faso" }
+  ],
+  "North America": [
+    { value: "US", label: "United States" },
+    { value: "CA", label: "Canada" },
+    { value: "MX", label: "Mexico" },
+    { value: "GT", label: "Guatemala" },
+    { value: "BZ", label: "Belize" },
+    { value: "SV", label: "El Salvador" },
+    { value: "HN", label: "Honduras" },
+    { value: "NI", label: "Nicaragua" },
+    { value: "CR", label: "Costa Rica" },
+    { value: "PA", label: "Panama" },
+    { value: "CU", label: "Cuba" },
+    { value: "JM", label: "Jamaica" },
+    { value: "HT", label: "Haiti" },
+    { value: "DO", label: "Dominican Republic" },
+    { value: "PR", label: "Puerto Rico" },
+    { value: "TT", label: "Trinidad and Tobago" }
+  ],
+  "South America": [
+    { value: "BR", label: "Brazil" },
+    { value: "AR", label: "Argentina" },
+    { value: "CL", label: "Chile" },
+    { value: "PE", label: "Peru" },
+    { value: "CO", label: "Colombia" },
+    { value: "VE", label: "Venezuela" },
+    { value: "EC", label: "Ecuador" },
+    { value: "BO", label: "Bolivia" },
+    { value: "PY", label: "Paraguay" },
+    { value: "UY", label: "Uruguay" },
+    { value: "GY", label: "Guyana" },
+    { value: "SR", label: "Suriname" },
+    { value: "GF", label: "French Guiana" }
+  ],
+  "Oceania": [
+    { value: "AU", label: "Australia" },
+    { value: "NZ", label: "New Zealand" },
+    { value: "FJ", label: "Fiji" },
+    { value: "PG", label: "Papua New Guinea" },
+    { value: "NC", label: "New Caledonia" },
+    { value: "SB", label: "Solomon Islands" },
+    { value: "VU", label: "Vanuatu" },
+    { value: "WS", label: "Samoa" },
+    { value: "TO", label: "Tonga" },
+    { value: "PW", label: "Palau" },
+    { value: "FM", label: "Micronesia" },
+    { value: "MH", label: "Marshall Islands" },
+    { value: "KI", label: "Kiribati" },
+    { value: "TV", label: "Tuvalu" },
+    { value: "NR", label: "Nauru" }
+  ]
+};
 
 interface SearchResult {
   title: string;
@@ -354,11 +490,24 @@ export default function LeadGenerationPage() {
                                 <SelectValue placeholder="Select country" />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent>
-                              {COUNTRY_OPTIONS.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
+                            <SelectContent className="max-h-[300px]">
+                              {Object.entries(COUNTRY_OPTIONS_BY_CONTINENT).map(([continent, countries]) => (
+                                <div key={continent}>
+                                  {continent !== "All Countries" && (
+                                    <div className="px-2 py-1.5 text-sm font-semibold text-gray-500 bg-gray-50 sticky top-0">
+                                      {continent}
+                                    </div>
+                                  )}
+                                  {countries.map((country) => (
+                                    <SelectItem 
+                                      key={country.value} 
+                                      value={country.value}
+                                      className={continent !== "All Countries" ? "pl-6" : ""}
+                                    >
+                                      {country.label}
+                                    </SelectItem>
+                                  ))}
+                                </div>
                               ))}
                             </SelectContent>
                           </Select>
