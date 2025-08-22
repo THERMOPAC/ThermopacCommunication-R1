@@ -411,43 +411,11 @@ router.get("/test-gcs-connection", async (req, res) => {
     const result = await checkGcsPermissions();
     console.log("GCS Permissions Check Result:", result);
     
-    // Also test the simple upload authentication
-    try {
-      const { Storage } = require('@google-cloud/storage');
-      
-      let storageOptions: any = {};
-      if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
-        const credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS);
-        storageOptions = {
-          projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || credentials.project_id,
-          credentials
-        };
-      }
-      
-      const storage = new Storage(storageOptions);
-      const bucket = storage.bucket('thermopac_storage');
-      const [bucketExists] = await bucket.exists();
-      
-      res.json({
-        success: result.success && bucketExists,
-        message: "GCS connection test completed",
-        result: {
-          ...result,
-          bucketExists,
-          authMethod: process.env.GOOGLE_CLOUD_CREDENTIALS ? 'explicit_credentials' : 'default_auth'
-        }
-      });
-    } catch (bucketError) {
-      console.error("Bucket test error:", bucketError);
-      res.json({
-        success: false,
-        message: "GCS connection test completed with bucket error",
-        result: {
-          ...result,
-          bucketError: bucketError instanceof Error ? bucketError.message : String(bucketError)
-        }
-      });
-    }
+    res.json({
+      success: result.success,
+      message: "GCS connection test completed",
+      result
+    });
   } catch (error) {
     console.error("Error testing GCS connection:", error);
     res.status(500).json({

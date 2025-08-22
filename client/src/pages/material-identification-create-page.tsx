@@ -496,13 +496,38 @@ export default function MaterialIdentificationCreatePage() {
                 fileInputRef.current.value = '';
               }
             } else {
-              throw new Error('Failed to upload document');
+              // Get detailed error information from the response
+              let errorDetails;
+              try {
+                errorDetails = await uploadResponse.json();
+              } catch {
+                errorDetails = { error: 'Unknown upload error' };
+              }
+              
+              console.error('Upload failed with status:', uploadResponse.status);
+              console.error('Upload error details:', errorDetails);
+              
+              throw new Error(errorDetails.error || errorDetails.message || 'Failed to upload document');
             }
           } catch (uploadError) {
             console.error('Error uploading document:', uploadError);
+            
+            // Extract more meaningful error message
+            let errorMessage = "The record was created but the document could not be uploaded. You can upload it later from the list page.";
+            
+            if (uploadError instanceof Error && uploadError.message) {
+              if (uploadError.message.includes('ECONNREFUSED')) {
+                errorMessage = "Document upload failed due to connection issue. Please check your network and try uploading the document later from the list page.";
+              } else if (uploadError.message.includes('timeout')) {
+                errorMessage = "Document upload timed out. Please try uploading a smaller file or try again later from the list page.";
+              } else if (uploadError.message !== 'Failed to upload document') {
+                errorMessage = `Upload failed: ${uploadError.message}. You can try uploading the document later from the list page.`;
+              }
+            }
+            
             toast({
               title: "Document upload failed",
-              description: "The record was created but the document could not be uploaded. You can upload it later from the list page.",
+              description: errorMessage,
               variant: "destructive",
             });
           } finally {

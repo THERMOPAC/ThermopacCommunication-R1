@@ -99,14 +99,26 @@ export const simpleDocumentUpload = async (req: Request, materialIdentificationI
     };
     
   } catch (error: any) {
-    console.error('=== SIMPLE UPLOAD ERROR ===');
-    console.error('Error:', error);
-    console.error('Error message:', error.message);
+    console.error('=== SIMPLE UPLOAD ERROR DEBUG ===');
+    console.error('Error type:', typeof error);
+    console.error('Error name:', error?.name);
+    console.error('Error message:', error?.message);
+    console.error('Error code:', error?.code);
+    console.error('Error stack:', error?.stack);
+    console.error('Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
     console.error('=== END SIMPLE UPLOAD ERROR ===');
+    
+    let errorDetails = {
+      message: error?.message || 'Unknown error',
+      code: error?.code,
+      name: error?.name,
+      type: typeof error
+    };
     
     return {
       success: false,
-      error: `Upload failed: ${error.message || 'Unknown error'}`
+      error: `Upload failed: ${errorDetails.message}`,
+      errorDetails
     };
   }
 };
