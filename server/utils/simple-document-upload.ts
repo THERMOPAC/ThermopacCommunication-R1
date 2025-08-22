@@ -61,10 +61,42 @@ export const simpleDocumentUpload = async (req: Request, materialIdentificationI
       throw new Error(`Cannot access bucket ${bucketName}: ${bucketError.message}`);
     }
     
-    // Simple file path structure
+    // Get project details and material identification ID from database
+    const { sql } = await import('drizzle-orm');
+    const { db } = await import('../db');
+    
+    const queryResult = await db.execute(sql`
+      SELECT material_identification_id, project_number 
+      FROM material_identification 
+      WHERE id = ${parseInt(materialIdentificationId)}
+    `) as any;
+    
+    if (!queryResult.rows || queryResult.rows.length === 0) {
+      throw new Error(`Material Identification record with ID ${materialIdentificationId} not found`);
+    }
+    
+    const miId = queryResult.rows[0].material_identification_id;
+    const projectNumber = queryResult.rows[0].project_number || 'UNKNOWN';
+    
+    // Get document type from request body
+    const documentType = req.body.documentType || 'inspection_report';
+    
+    // Map document type codes to proper display names
+    const documentTypeMap: {[key: string]: string} = {
+      'general': 'General_Document',
+      'mill_test_certificate': 'Mill_Test_Certificate',
+      'inspection_report': 'Inspection_Report',
+      'material_certificate': 'Material_Certificate',
+      'test_report': 'Test_Report',
+      'technical_datasheet': 'Technical_Datasheet',
+      'other': 'Other_Document'
+    };
+    
+    const documentTypeName = documentTypeMap[documentType] || 'Inspection_Report';
     const fileExtension = req.file.originalname.split('.').pop() || 'pdf';
-    const fileName = `MI-${materialIdentificationId}-${uuidv4()}.${fileExtension}`;
-    const filePath = `QMS/Material_Identification/${fileName}`;
+    
+    // Create hierarchical file path: QMS/Material_Identification/{project_number}/{MI_ID}/{Document_Type}.{extension}
+    const filePath = `QMS/Material_Identification/${projectNumber}/${miId}/${documentTypeName}.${fileExtension}`;
     
     console.log('Uploading to path:', filePath);
     console.log('File size:', req.file.size, 'bytes');
@@ -88,12 +120,12 @@ export const simpleDocumentUpload = async (req: Request, materialIdentificationI
       throw new Error(`Upload failed: ${uploadError.message}`);
     }
     
-    // Return basic success response
+    // Return success response with proper hierarchical path
     return {
       success: true,
       document_file_path: filePath,
       document_url: `https://storage.googleapis.com/${bucketName}/${filePath}`,
-      file_name: req.file.originalname,
+      file_name: `${documentTypeName}.${fileExtension}`,
       file_type: req.file.mimetype,
       file_size: req.file.size
     };
