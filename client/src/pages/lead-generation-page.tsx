@@ -50,13 +50,19 @@ type SearchFormData = z.infer<typeof searchFormSchema>;
 // Industry options for filtering
 const INDUSTRY_OPTIONS = [
   { value: "all", label: "All Industries" },
-  { value: "manufacturing", label: "Manufacturing" },
-  { value: "chemical", label: "Chemical Processing" },
+  { value: "oil-refining", label: "Oil Re-refining & Recycling" },
+  { value: "waste-oil-management", label: "Waste Oil Management" },
+  { value: "petrochemical", label: "Petrochemical" },
   { value: "oil-gas", label: "Oil & Gas" },
+  { value: "refining", label: "Petroleum Refining" },
+  { value: "lubricants", label: "Lubricants & Base Oil" },
+  { value: "environmental-services", label: "Environmental Services" },
+  { value: "chemical", label: "Chemical Processing" },
+  { value: "manufacturing", label: "Manufacturing" },
+  { value: "automotive", label: "Automotive Industry" },
+  { value: "industrial-equipment", label: "Industrial Equipment" },
   { value: "pharmaceutical", label: "Pharmaceutical" },
   { value: "food-beverage", label: "Food & Beverage" },
-  { value: "petrochemical", label: "Petrochemical" },
-  { value: "refining", label: "Refining" },
   { value: "engineering", label: "Engineering Services" },
 ];
 
