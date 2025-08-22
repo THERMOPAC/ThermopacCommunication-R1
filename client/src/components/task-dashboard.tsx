@@ -542,6 +542,9 @@ function CommitmentTasksList({ commitmentTasks, isLoading }: CommitmentTasksList
                   </div>
                   
                   <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-mono text-xs">
+                      ID: {commitment.id}
+                    </Badge>
                     <Badge variant={task.priority === 'High' ? 'destructive' : task.priority === 'Medium' ? 'default' : 'secondary'}>
                       {task.priority} Priority
                     </Badge>
