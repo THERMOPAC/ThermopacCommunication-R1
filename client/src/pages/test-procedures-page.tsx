@@ -34,16 +34,11 @@ export default function TestProceduresPage() {
     applicableStandard: z.string().min(1, "Applicable standard is required"),
     procedureRevision: z.string().min(1, "Procedure revision is required"),
     scope: z.string().min(1, "Scope is required"),
-    technique: z.string().min(1, "Technique is required"),
-    sensitivity: z.string().min(1, "Sensitivity is required"),
     preparation: z.string().min(1, "Preparation is required"),
     procedureSteps: z.string().min(1, "Procedure steps are required"),
-    evaluation: z.string().min(1, "Evaluation is required"),
-    documentation: z.string().min(1, "Documentation is required"),
     personnelQualification: z.string().min(1, "Personnel qualification is required"),
     acceptanceCriteria: z.string().min(1, "Acceptance criteria is required"),
     limitations: z.string().min(1, "Limitations are required"),
-    environmentalConditions: z.string().min(1, "Environmental conditions are required"),
     status: z.enum(['Draft', 'Under Review', 'Approved', 'Superseded']),
     approvalLevel: z.enum(['Level 1', 'Level 2', 'Level 3'], {
       errorMap: () => ({ message: "Approval level is required" })
@@ -64,16 +59,11 @@ export default function TestProceduresPage() {
       applicableStandard: "",
       procedureRevision: "R1",
       scope: "",
-      technique: "",
-      sensitivity: "",
       preparation: "",
       procedureSteps: "",
-      evaluation: "",
-      documentation: "",
       personnelQualification: "",
       acceptanceCriteria: "",
       limitations: "",
-      environmentalConditions: "",
       status: "Draft",
       approvalLevel: "Level 1",
       remarks: "",
@@ -174,16 +164,11 @@ export default function TestProceduresPage() {
       applicableStandard: "Applicable Standard",
       procedureRevision: "Procedure Revision",
       scope: "Scope",
-      technique: "Technique",
-      sensitivity: "Sensitivity",
       preparation: "Preparation",
       procedureSteps: "Procedure Steps",
-      evaluation: "Evaluation",
-      documentation: "Documentation",
       personnelQualification: "Personnel Qualification",
       acceptanceCriteria: "Acceptance Criteria",
       limitations: "Limitations",
-      environmentalConditions: "Environmental Conditions",
       status: "Status",
       approvalLevel: "Approval Level",
       tags: "Tags",
@@ -286,16 +271,11 @@ export default function TestProceduresPage() {
       applicableStandard: procedure.applicableStandard || "",
       procedureRevision: procedure.procedureRevision || "R1",
       scope: procedure.scope || "",
-      technique: procedure.technique || "",
-      sensitivity: procedure.sensitivity || "",
       preparation: procedure.preparation || "",
       procedureSteps: procedure.procedureSteps || "",
-      evaluation: procedure.evaluation || "",
-      documentation: procedure.documentation || "",
       personnelQualification: procedure.personnelQualification || "",
       acceptanceCriteria: procedure.acceptanceCriteria || "",
       limitations: procedure.limitations || "",
-      environmentalConditions: procedure.environmentalConditions || "",
       status: procedure.status || "Draft",
       approvalLevel: procedure.approvalLevel || "Level 1",
       remarks: procedure.remarks || "",
@@ -314,16 +294,11 @@ export default function TestProceduresPage() {
       applicableStandard: "",
       procedureRevision: "R1",
       scope: "",
-      technique: "",
-      sensitivity: "",
       preparation: "",
       procedureSteps: "",
-      evaluation: "",
-      documentation: "",
       personnelQualification: "",
       acceptanceCriteria: "",
       limitations: "",
-      environmentalConditions: "",
       status: "Draft",
       approvalLevel: "Level 1",
       remarks: "",
@@ -678,47 +653,7 @@ export default function TestProceduresPage() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="technique"
-                  render={({ field, fieldState }) => (
-                    <FormItem>
-                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
-                        Technique *
-                      </FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          placeholder="Technique details"
-                          rows={2}
-                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
 
-                <FormField
-                  control={form.control}
-                  name="sensitivity"
-                  render={({ field, fieldState }) => (
-                    <FormItem>
-                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
-                        Sensitivity *
-                      </FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          placeholder="Sensitivity requirements"
-                          rows={2}
-                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
 
                 <FormField
                   control={form.control}
@@ -762,47 +697,7 @@ export default function TestProceduresPage() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="evaluation"
-                  render={({ field, fieldState }) => (
-                    <FormItem>
-                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
-                        Evaluation *
-                      </FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          placeholder="Evaluation criteria and methods"
-                          rows={3}
-                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
 
-                <FormField
-                  control={form.control}
-                  name="documentation"
-                  render={({ field, fieldState }) => (
-                    <FormItem>
-                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
-                        Documentation *
-                      </FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          placeholder="Documentation requirements"
-                          rows={2}
-                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
 
                 <FormField
                   control={form.control}
@@ -867,26 +762,7 @@ export default function TestProceduresPage() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="environmentalConditions"
-                  render={({ field, fieldState }) => (
-                    <FormItem>
-                      <FormLabel className={fieldState.error ? "text-red-600" : ""}>
-                        Environmental Conditions *
-                      </FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          placeholder="Environmental conditions requirements"
-                          rows={2}
-                          className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+
 
 
 
