@@ -16,6 +16,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import type { SelectTestProcedure, InsertTestProcedure, insertTestProcedureSchema } from "../../../shared/schema";
+
+type TestProcedure = SelectTestProcedure;
 import { z } from 'zod';
 
 export default function TestProceduresPage() {
@@ -219,18 +221,30 @@ export default function TestProceduresPage() {
       formData.append('file', file);
 
       const targetId = editingProcedure?.id || procedureId;
+      console.log('Uploading file to procedure ID:', targetId);
+      
       const response = await fetch(`/api/quality/test-procedures/${targetId}/upload`, {
         method: 'POST',
         credentials: 'include',
         body: formData,
       });
 
+      console.log('Upload response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Upload failed');
+        const errorText = await response.text();
+        console.error('Upload failed with response:', errorText);
+        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
       }
+
+      const result = await response.json();
+      console.log('Upload result:', result);
 
       setUploadSuccess(true);
       setFileUpload(null);
+      
+      // Clear upload success after 3 seconds
+      setTimeout(() => setUploadSuccess(false), 3000);
       
       toast({
         title: "Success",
@@ -241,7 +255,7 @@ export default function TestProceduresPage() {
       console.error('Upload error:', error);
       toast({
         title: "Error",
-        description: "Failed to upload document",
+        description: error instanceof Error ? error.message : "Failed to upload document",
         variant: "destructive",
       });
     } finally {
@@ -267,7 +281,7 @@ export default function TestProceduresPage() {
     form.reset({
       procedureNumber: procedure.procedureNumber || "",
       procedureName: procedure.procedureName || "",
-      ndtMethod: procedure.ndtMethod || "HT",
+      ndtMethod: (procedure.ndtMethod as "HT" | "PNT" | "RT" | "PT" | "UT" | "MT") || "HT",
       applicableStandard: procedure.applicableStandard || "",
       procedureRevision: procedure.procedureRevision || "R1",
       scope: procedure.scope || "",
@@ -276,8 +290,8 @@ export default function TestProceduresPage() {
       personnelQualification: procedure.personnelQualification || "",
       acceptanceCriteria: procedure.acceptanceCriteria || "",
       limitations: procedure.limitations || "",
-      status: procedure.status || "Draft",
-      approvalLevel: procedure.approvalLevel || "Level 1",
+      status: (procedure.status as "Draft" | "Under Review" | "Approved" | "Superseded") || "Draft",
+      approvalLevel: (procedure.approvalLevel as "Level 1" | "Level 2" | "Level 3") || "Level 1",
       remarks: procedure.remarks || "",
       tags: procedure.tags || ""
     });
@@ -531,9 +545,9 @@ export default function TestProceduresPage() {
                           <Input
                             {...field}
                             placeholder={nextProcedureNumber?.procedureNumber || "Auto-generated"}
-                            className={`bg-gray-50 text-gray-600 ${fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}`}
-                            readOnly={!editingProcedure}
-                            title={editingProcedure ? "Procedure ID can be edited" : "Auto-generated (read-only)"}
+                            className={`${editingProcedure ? 'bg-gray-50 text-gray-600' : ''} ${fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}`}
+                            readOnly={!!editingProcedure}
+                            title={editingProcedure ? "Procedure Number cannot be changed during edit" : "Auto-generated procedure number"}
                           />
                         </FormControl>
                         <FormMessage />
