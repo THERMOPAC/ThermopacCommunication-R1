@@ -520,12 +520,12 @@ router.post('/:id/upload', ensureAuthenticated, upload.single('file'), async (re
     
     // Upload file to GCS
     const uploadResult = await uploadFileWithDiagnostics(
-      req.file.buffer,
       `QMS/Test_Procedures/${procedure.procedureNumber}/${req.file.originalname}`,
+      req.file.buffer,
       req.file.mimetype
     );
     
-    if (!uploadResult.success) {
+    if (!uploadResult.successful) {
       console.error('File upload failed:', uploadResult.error);
       return res.status(500).json({ error: 'Failed to upload file' });
     }
@@ -544,7 +544,7 @@ router.post('/:id/upload', ensureAuthenticated, upload.single('file'), async (re
     // Add new attachment
     const newAttachment = {
       fileName: req.file.originalname,
-      fileUrl: uploadResult.fileUrl,
+      fileUrl: uploadResult.url,
       uploadedAt: new Date().toISOString(),
       uploadedBy: userId
     };
@@ -563,7 +563,7 @@ router.post('/:id/upload', ensureAuthenticated, upload.single('file'), async (re
     
     res.json({
       message: 'File uploaded successfully',
-      fileUrl: uploadResult.fileUrl,
+      fileUrl: uploadResult.url,
       fileName: req.file.originalname
     });
   } catch (error) {
