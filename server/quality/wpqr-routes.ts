@@ -340,9 +340,9 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
     });
     
     // Ensure values don't exceed database column lengths
-    if (welderProcess && welderProcess.length > 20) {
-      console.log(`Trimming welderProcess from ${welderProcess.length} to 20 characters`);
-      welderProcess = welderProcess.substring(0, 20);
+    if (welderProcess && welderProcess.length > 50) {
+      console.log(`Trimming welderProcess from ${welderProcess.length} to 50 characters`);
+      welderProcess = welderProcess.substring(0, 50);
     }
     
     if (certificateNo && certificateNo.length > 100) {
@@ -531,9 +531,9 @@ router.patch('/:id', ensureAuthenticated, upload.single('document'), async (req:
     });
 
     // Ensure values don't exceed database column lengths
-    if (welderProcess && welderProcess.length > 20) {
-      console.log(`Trimming welderProcess from ${welderProcess.length} to 20 characters`);
-      welderProcess = welderProcess.substring(0, 20);
+    if (welderProcess && welderProcess.length > 50) {
+      console.log(`Trimming welderProcess from ${welderProcess.length} to 50 characters`);
+      welderProcess = welderProcess.substring(0, 50);
     }
     
     if (certificateNo && certificateNo.length > 100) {
