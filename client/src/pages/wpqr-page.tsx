@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "../lib/utils";
 import Layout from "@/components/layout";
 
-// Define form schema for WPQR document upload
+// Define form schema for WPQR document upload (CREATE)
 const wpqrFormSchema = z.object({
   title: z.string().min(1, "Title is required").min(3, "Title must be at least 3 characters").max(100, "Title must be 100 characters or less"),
   description: z.string().min(1, "Description is required").min(3, "Description must be at least 3 characters"),
@@ -32,7 +32,21 @@ const wpqrFormSchema = z.object({
   document: z.instanceof(FileList).refine((files) => files.length > 0, "Document file is required"),
 });
 
+// Define form schema for WPQR document editing (EDIT)
+const wpqrEditFormSchema = z.object({
+  title: z.string().min(1, "Title is required").min(3, "Title must be at least 3 characters").max(100, "Title must be 100 characters or less"),
+  description: z.string().min(1, "Description is required").min(3, "Description must be at least 3 characters"),
+  welderProcess: z.string().min(1, "Welding Process is required"),
+  baseMetalGrade: z.string().min(1, "Base Metal Grade is required"),
+  jointType: z.string().min(1, "Joint Type is required"),
+  certificateNo: z.string().min(1, "Certificate Number is required").max(100, "Certificate Number must be 100 characters or less"),
+  inspectionAuthority: z.string().max(50, "Inspection Authority must be 50 characters or less").optional(),
+  welderIds: z.array(z.number()).optional(), // Make welderIds optional for edit since existing document may already have welders
+  document: z.instanceof(FileList).optional(), // Document is optional for editing
+});
+
 type WpqrFormValues = z.infer<typeof wpqrFormSchema>;
+type WpqrEditFormValues = z.infer<typeof wpqrEditFormSchema>;
 
 // Validation Error Summary Component
 const ValidationErrorSummary = ({ errors }: { errors: Record<string, any> }) => {
@@ -161,11 +175,8 @@ export default function WpqrPage() {
   });
 
   // Edit form setup
-  const editForm = useForm<WpqrFormValues>({
-    resolver: zodResolver(wpqrFormSchema.extend({
-      // Override document to make it optional for the edit form
-      document: z.instanceof(FileList).optional(),
-    })),
+  const editForm = useForm<WpqrEditFormValues>({
+    resolver: zodResolver(wpqrEditFormSchema),
     defaultValues: {
       title: "",
       description: "",
@@ -233,7 +244,7 @@ export default function WpqrPage() {
 
   // Update WPQR document mutation
   const updateMutation = useMutation({
-    mutationFn: async (data: { id: number; values: Omit<WpqrFormValues, 'document'> & { document?: FileList } }) => {
+    mutationFn: async (data: { id: number; values: WpqrEditFormValues }) => {
       // Check if we're dealing with a file upload or just metadata update
       if (data.values.document && data.values.document.length > 0) {
         // If we have a new document file, use FormData for the update
