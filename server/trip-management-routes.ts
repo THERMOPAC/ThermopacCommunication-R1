@@ -432,7 +432,9 @@ export const updateTrip = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     const {
+      employeeId,
       tripTitle,
       purpose,
       destination,
@@ -445,15 +447,26 @@ export const updateTrip = async (req: Request, res: Response) => {
       supportingDocumentUrl,
     } = req.body;
 
-    // Check if trip exists and belongs to user
-    const existingTrip = await db
-      .select()
-      .from(businessTrips)
-      .where(and(
-        eq(businessTrips.id, parseInt(id)),
-        eq(businessTrips.employeeId, userId)
-      ))
-      .limit(1);
+    // Check if trip exists
+    let existingTrip;
+    
+    // Allow admins to edit any trip, regular users can only edit their own
+    if (userRole === 'Superuser' || userRole === 'General Manager') {
+      existingTrip = await db
+        .select()
+        .from(businessTrips)
+        .where(eq(businessTrips.id, parseInt(id)))
+        .limit(1);
+    } else {
+      existingTrip = await db
+        .select()
+        .from(businessTrips)
+        .where(and(
+          eq(businessTrips.id, parseInt(id)),
+          eq(businessTrips.employeeId, userId)
+        ))
+        .limit(1);
+    }
 
     if (!existingTrip.length) {
       return res.status(404).json({ error: 'Trip not found or access denied' });
@@ -466,6 +479,7 @@ export const updateTrip = async (req: Request, res: Response) => {
 
     const result = await db.update(businessTrips)
       .set({
+        employeeId: employeeId ? parseInt(employeeId) : existingTrip[0].employeeId,
         tripTitle,
         purpose,
         destination,
@@ -498,16 +512,28 @@ export const submitTrip = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
 
-    // Check if trip exists and belongs to user
-    const existingTrip = await db
-      .select()
-      .from(businessTrips)
-      .where(and(
-        eq(businessTrips.id, parseInt(id)),
-        eq(businessTrips.employeeId, userId)
-      ))
-      .limit(1);
+    // Check if trip exists
+    let existingTrip;
+    
+    // Allow admins to submit any trip, regular users can only submit their own
+    if (userRole === 'Superuser' || userRole === 'General Manager') {
+      existingTrip = await db
+        .select()
+        .from(businessTrips)
+        .where(eq(businessTrips.id, parseInt(id)))
+        .limit(1);
+    } else {
+      existingTrip = await db
+        .select()
+        .from(businessTrips)
+        .where(and(
+          eq(businessTrips.id, parseInt(id)),
+          eq(businessTrips.employeeId, userId)
+        ))
+        .limit(1);
+    }
 
     if (!existingTrip.length) {
       return res.status(404).json({ error: 'Trip not found or access denied' });
