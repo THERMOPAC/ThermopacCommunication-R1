@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Download, FileText, Calendar, HardDrive, AlertCircle } from "lucide-react";
 import { format } from 'date-fns';
 
 // Form schema for calibration instruments
@@ -24,6 +26,7 @@ const calibrationInstrumentSchema = z.object({
   calibration_status: z.string().min(1, { message: "Calibration status is required" }),
   certificate_number: z.string().optional(),
   remarks: z.string().optional(),
+  instrument_id: z.string().optional(), // Add instrument_id to schema
 });
 
 type CalibrationInstrumentFormData = z.infer<typeof calibrationInstrumentSchema>;
@@ -62,6 +65,16 @@ const calibrationStatusOptions = [
   "Pending"
 ];
 
+// GCS file metadata interface
+interface GCSFileMetadata {
+  name: string;
+  size: number;
+  updated: string;
+  contentType: string;
+  gcsPath: string;
+  downloadUrl: string;
+}
+
 interface CalibrationInstrumentFormProps {
   onSuccess: () => void;
   onCancel: () => void;
@@ -73,6 +86,16 @@ export function CalibrationInstrumentForm({ onSuccess, onCancel, defaultValues, 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
   const queryClient = useQueryClient();
+  
+  // Get the instrument ID string (like "INST-00014") from defaultValues if available
+  const instrumentIdString = defaultValues?.instrument_id || '';
+
+  // Query to fetch certificate files from GCS (only when editing existing instrument)
+  const { data: certificateFiles = [], isLoading: isLoadingFiles, error: filesError } = useQuery<GCSFileMetadata[]>({
+    queryKey: ['/api/quality/calibration/instruments', instrumentIdString, 'certificates'],
+    enabled: !!instrumentIdString, // Only fetch when we have an instrument ID
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
   
   // Form setup
   const form = useForm<CalibrationInstrumentFormData>({
@@ -88,6 +111,7 @@ export function CalibrationInstrumentForm({ onSuccess, onCancel, defaultValues, 
       calibration_status: "Calibrated",
       certificate_number: "",
       remarks: "",
+      instrument_id: "",
       ...defaultValues
     },
   });
@@ -174,6 +198,13 @@ export function CalibrationInstrumentForm({ onSuccess, onCancel, defaultValues, 
       // Refresh data
       queryClient.invalidateQueries({ queryKey: ["/api/quality/calibration/instruments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/quality/calibration/instruments/stats/dashboard"] });
+      
+      // Refresh certificate files if we have an instrument ID
+      if (instrumentIdString) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['/api/quality/calibration/instruments', instrumentIdString, 'certificates'] 
+        });
+      }
       
       // Call success callback
       onSuccess();
@@ -403,6 +434,94 @@ export function CalibrationInstrumentForm({ onSuccess, onCancel, defaultValues, 
                 {certificateFile && (
                   <p className="text-sm mt-1">Selected file: {certificateFile.name}</p>
                 )}
+              </div>
+
+              {/* Files in Cloud Storage Section */}
+              <div className="col-span-2">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-sm">
+                      <HardDrive className="h-4 w-4" />
+                      Files in Cloud Storage
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {!instrumentIdString ? (
+                      <div className="text-center py-6 text-sm text-muted-foreground">
+                        <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>Certificate files will appear here after saving the instrument</p>
+                      </div>
+                    ) : isLoadingFiles ? (
+                      <div className="text-center py-6 text-sm text-muted-foreground">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                        <p>Loading certificate files...</p>
+                      </div>
+                    ) : filesError ? (
+                      <div className="text-center py-6 text-sm text-red-600">
+                        <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+                        <p>Error loading certificate files</p>
+                        <p className="text-xs text-muted-foreground mt-1">{filesError.message}</p>
+                      </div>
+                    ) : certificateFiles.length === 0 ? (
+                      <div className="text-center py-6 text-sm text-muted-foreground">
+                        <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No certificate files found for this instrument</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {certificateFiles.map((file, index) => (
+                          <div 
+                            key={index} 
+                            className="flex items-center justify-between p-3 border rounded-md bg-slate-50 dark:bg-slate-800"
+                            data-testid={`file-card-${index}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <FileText className="h-5 w-5 text-blue-600" />
+                              <div>
+                                <p className="font-medium text-sm" data-testid={`file-name-${index}`}>
+                                  {file.name}
+                                </p>
+                                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                  <span data-testid={`file-size-${index}`}>
+                                    {(file.size / 1024).toFixed(1)} KB
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    <span data-testid={`file-date-${index}`}>
+                                      {format(new Date(file.updated), 'MMM dd, yyyy')}
+                                    </span>
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                // Download using the signed URL
+                                const link = document.createElement('a');
+                                link.href = file.downloadUrl;
+                                link.download = file.name;
+                                link.target = '_blank';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                
+                                toast({
+                                  title: "Download Started",
+                                  description: `Downloading ${file.name}`,
+                                });
+                              }}
+                              data-testid={`download-button-${index}`}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </TabsContent>

@@ -782,13 +782,19 @@ export const listCalibrationFilesFromGCS = async (instrumentId: string): Promise
         const [metadata] = await file.getMetadata();
         const filename = file.name.split('/').pop() || file.name;
         
+        // Generate a signed URL for download
+        const [signedUrl] = await file.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 2 * 60 * 60 * 1000, // 2 hours
+        });
+
         fileMetadata.push({
           name: filename,
           size: parseInt(metadata.size || '0'),
           updated: metadata.updated || metadata.timeCreated || new Date().toISOString(),
           contentType: metadata.contentType || 'application/octet-stream',
           gcsPath: file.name,
-          downloadUrl: '', // Will be populated with signed URL when needed
+          downloadUrl: signedUrl,
         });
         
         console.log(`📄 File: ${filename}, Size: ${metadata.size}, Updated: ${metadata.updated}`);
