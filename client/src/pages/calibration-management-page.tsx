@@ -26,6 +26,26 @@ import { Loader2 } from "lucide-react";
 import CalibrationReport from "@/components/calibration-report";
 import { CalibrationInstrumentForm } from "@/components/calibration-instrument-form";
 
+// GCS file metadata interface
+interface GCSFileMetadata {
+  name: string;
+  size: number;
+  updated: string;
+  contentType: string;
+  gcsPath: string;
+  downloadUrl: string;
+}
+
+// Custom hook for fetching instrument certificate files from GCS
+const useInstrumentCertificateFiles = (instrumentId: string | null) => {
+  return useQuery<GCSFileMetadata[]>({
+    queryKey: ['/api/quality/calibration/instruments', instrumentId, 'certificates'],
+    enabled: !!instrumentId,
+    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
+    staleTime: 10000, // Consider data stale after 10 seconds
+  });
+};
+
 // Form schema for calibration instruments
 const calibrationInstrumentSchema = z.object({
   instrument_name: z.string().min(2, { message: "Instrument name is required" }),
@@ -59,8 +79,8 @@ type CalibrationInstrument = {
   calibration_status: string;
   in_use: string;
   certificate_number?: string;
-  certificate_file_path?: string;
-  certificate_url?: string; // Added for GCS signed URLs
+  certificate_gcs_key?: string;
+  certificate_url?: string; // Legacy field for transition
   remarks?: string;
   created_at: string;
   updated_at: string;
@@ -1329,7 +1349,7 @@ export default function CalibrationManagementPage() {
                         >
                           Edit
                         </Button>
-                        {instrument.certificate_file_path && (
+                        {instrument.certificate_gcs_key && (
                           <Button 
                             variant="ghost" 
                             size="sm" 
@@ -1584,7 +1604,7 @@ export default function CalibrationManagementPage() {
                       />
                       <div className="col-span-2 space-y-4">
                         {/* Display current certificate if available */}
-                        {(selectedInstrument?.certificate_url || selectedInstrument?.certificate_file_path) && (
+                        {selectedInstrument?.certificate_gcs_key && (
                           <div className="p-4 border rounded-md bg-gray-50">
                             <div className="flex items-center justify-between">
                               <div>
@@ -1612,7 +1632,7 @@ export default function CalibrationManagementPage() {
                         {/* Upload new certificate */}
                         <div>
                           <Label htmlFor="edit_certificate_file">
-                            {selectedInstrument?.certificate_file_path ? 
+                            {selectedInstrument?.certificate_gcs_key ? 
                               "Replace Certificate" : 
                               "Upload Certificate"}
                           </Label>
