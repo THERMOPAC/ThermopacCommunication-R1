@@ -582,26 +582,24 @@ export const buildProcedureGcsPrefixes = (procedure: {
   // Current path structure: QMS/Test_Procedures/{NDT_Method}/{Standard_Type}/{Procedure_Number}
   if (procedure.ndtMethod) {
     // Determine standard type from applicableStandard field
+    // Group headings: ASME/EN/Others
     const getStandardType = (standard: string | undefined): string => {
-      if (!standard) return 'Other';
+      if (!standard) return 'Others';
       
-      // ASME Standards
-      if (standard.includes('ASME') || standard.includes('ASTM') || 
-          standard.includes('API') || standard.includes('AWS')) {
+      const standardUpper = standard.toUpperCase();
+      
+      // ASME Standards (only ASME, not ASTM)
+      if (standardUpper.includes('ASME')) {
         return 'ASME';
       }
       
-      // EN Standards  
-      if (standard.includes('EN')) {
+      // EN Standards (including ISO)
+      if (standardUpper.includes('EN') || standardUpper.includes('ISO')) {
         return 'EN';
       }
       
-      // ISO Standards
-      if (standard.includes('ISO')) {
-        return 'ISO';
-      }
-      
-      return 'Other';
+      // Everything else goes to Others (ASTM, API, AWS, etc.)
+      return 'Others';
     };
     
     const standardType = getStandardType(procedure.applicableStandard);

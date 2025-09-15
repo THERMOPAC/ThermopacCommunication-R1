@@ -246,21 +246,24 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req: Request
     const fileName = `${data.procedureNumber}.${fileExtension}`;
     
     // Determine standard type from applicableStandard field
+    // Group headings: ASME/EN/Others
     const getStandardType = (standard: string | undefined): string => {
-      if (!standard) return 'Other';
+      if (!standard) return 'Others';
       
-      // ASME Standards
-      if (standard.includes('ASME') || standard.includes('ASTM') || 
-          standard.includes('API') || standard.includes('AWS')) {
+      const standardUpper = standard.toUpperCase();
+      
+      // ASME Standards (only ASME, not ASTM)
+      if (standardUpper.includes('ASME')) {
         return 'ASME';
       }
       
-      // EN Standards  
-      if (standard.includes('EN')) {
+      // EN Standards (including ISO)
+      if (standardUpper.includes('EN') || standardUpper.includes('ISO')) {
         return 'EN';
       }
       
-      return 'Other';
+      // Everything else goes to Others (ASTM, API, AWS, etc.)
+      return 'Others';
     };
     
     const standardType = getStandardType(data.applicableStandard);
@@ -386,21 +389,24 @@ router.put('/:id', ensureAuthenticated, upload.single('file'), async (req: Reque
       const applicableStandard = data.applicableStandard || currentProcedure[0].applicableStandard;
       
       // Determine standard type from applicableStandard field
+      // Group headings: ASME/EN/Others
       const getStandardType = (standard: string | undefined): string => {
-        if (!standard) return 'Other';
+        if (!standard) return 'Others';
         
-        // ASME Standards
-        if (standard.includes('ASME') || standard.includes('ASTM') || 
-            standard.includes('API') || standard.includes('AWS')) {
+        const standardUpper = standard.toUpperCase();
+        
+        // ASME Standards (only ASME, not ASTM)
+        if (standardUpper.includes('ASME')) {
           return 'ASME';
         }
         
-        // EN Standards  
-        if (standard.includes('EN')) {
+        // EN Standards (including ISO)
+        if (standardUpper.includes('EN') || standardUpper.includes('ISO')) {
           return 'EN';
         }
         
-        return 'Other';
+        // Everything else goes to Others (ASTM, API, AWS, etc.)
+        return 'Others';
       };
       
       const fileExtension = req.file.originalname.split('.').pop();
