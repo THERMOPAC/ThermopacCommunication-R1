@@ -507,11 +507,13 @@ router.post('/:id/upload', ensureAuthenticated, upload.single('file'), async (re
       return res.status(400).json({ error: 'File is required' });
     }
     
-    // Check if test procedure exists
+    // Check if test procedure exists and get required data for path construction
     const existingProcedure = await db
       .select({
         id: testProcedures.id,
         procedureNumber: testProcedures.procedureNumber,
+        ndtMethod: testProcedures.ndtMethod,
+        applicableStandard: testProcedures.applicableStandard,
         attachments: testProcedures.attachments
       })
       .from(testProcedures)
@@ -524,9 +526,38 @@ router.post('/:id/upload', ensureAuthenticated, upload.single('file'), async (re
     
     const procedure = existingProcedure[0];
     
+    // Determine standard type from applicableStandard field
+    // Group headings: ASME/EN/Others
+    const getStandardType = (standard: string | undefined): string => {
+      if (!standard) return 'Others';
+      
+      const standardUpper = standard.toUpperCase();
+      
+      // ASME Standards (only ASME, not ASTM)
+      if (standardUpper.includes('ASME')) {
+        return 'ASME';
+      }
+      
+      // EN Standards (including ISO)
+      if (standardUpper.includes('EN') || standardUpper.includes('ISO')) {
+        return 'EN';
+      }
+      
+      // Everything else goes to Others (ASTM, API, AWS, etc.)
+      return 'Others';
+    };
+    
+    // Use standardized file naming and path structure
+    const fileExtension = req.file.originalname.split('.').pop();
+    const fileName = `${procedure.procedureNumber}.${fileExtension}`;
+    const standardType = getStandardType(procedure.applicableStandard);
+    const gcsPath = `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${fileName}`;
+    
+    console.log('Uploading file to GCS path:', gcsPath);
+    
     // Upload file to GCS
     const uploadResult = await uploadFileWithDiagnostics(
-      `QMS/Test_Procedures/${procedure.procedureNumber}/${req.file.originalname}`,
+      gcsPath,
       req.file.buffer,
       req.file.mimetype
     );
