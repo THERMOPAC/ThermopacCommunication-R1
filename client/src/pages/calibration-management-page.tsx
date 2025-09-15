@@ -1715,14 +1715,65 @@ export default function CalibrationManagementPage() {
                                         <Button
                                           variant="outline"
                                           size="sm"
-                                          onClick={() => {
-                                            const link = document.createElement('a');
-                                            link.href = file.downloadUrl;
-                                            link.download = file.name;
-                                            link.target = '_blank';
-                                            document.body.appendChild(link);
-                                            link.click();
-                                            document.body.removeChild(link);
+                                          onClick={async () => {
+                                            try {
+                                              toast({
+                                                title: "Download Started",
+                                                description: `Downloading ${file.name}`,
+                                              });
+
+                                              // Try fetch first (better for file integrity)
+                                              try {
+                                                const response = await fetch(file.downloadUrl);
+                                                
+                                                if (!response.ok) {
+                                                  throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+                                                }
+
+                                                // Get the file as a blob to preserve the full size
+                                                const blob = await response.blob();
+                                                
+                                                // Create download link with blob URL
+                                                const blobUrl = window.URL.createObjectURL(blob);
+                                                const link = document.createElement('a');
+                                                link.href = blobUrl;
+                                                link.download = file.name;
+                                                document.body.appendChild(link);
+                                                link.click();
+                                                document.body.removeChild(link);
+                                                
+                                                // Clean up the blob URL
+                                                window.URL.revokeObjectURL(blobUrl);
+                                                
+                                                toast({
+                                                  title: "Download Complete",
+                                                  description: `${file.name} downloaded successfully`,
+                                                });
+                                              } catch (fetchError) {
+                                                // Fallback to direct navigation (e.g., if CORS not configured)
+                                                console.warn('Fetch download failed, falling back to direct navigation:', fetchError);
+                                                
+                                                const link = document.createElement('a');
+                                                link.href = file.downloadUrl;
+                                                link.download = file.name;
+                                                link.target = '_blank';
+                                                document.body.appendChild(link);
+                                                link.click();
+                                                document.body.removeChild(link);
+                                                
+                                                toast({
+                                                  title: "Download Started",
+                                                  description: `${file.name} download initiated (direct)`,
+                                                });
+                                              }
+                                            } catch (error) {
+                                              console.error('Download error:', error);
+                                              toast({
+                                                title: "Download Failed",
+                                                description: `Failed to download ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                                                variant: "destructive",
+                                              });
+                                            }
                                           }}
                                           data-testid={`download-button-${index}`}
                                         >

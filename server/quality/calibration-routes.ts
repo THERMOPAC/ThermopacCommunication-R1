@@ -624,32 +624,25 @@ router.get('/instruments/:id/certificate', ensureAuthenticated, async (req: Requ
       return res.status(404).json({ error: 'Calibration instrument not found' });
     }
     
-    const certificateFilePath = result.rows[0].certificate_gcs_key;
+    const certificateGcsKey = result.rows[0].certificate_gcs_key;
     const instrumentId = result.rows[0].instrument_id;
     
-    if (!certificateFilePath) {
+    if (!certificateGcsKey) {
       return res.status(404).json({ error: 'No certificate file found for this instrument' });
     }
     
-    // Check if it's a GCS path
-    if (certificateFilePath.startsWith('QMS/')) {
-      // Get signed URL for GCS file
-      const signedUrl = await getCertificateUrl(certificateFilePath);
+    // Build the full GCS path: QMS/Instrument/{filename}
+    const certificateFilePath = `QMS/Instrument/${certificateGcsKey}`;
+    
+    // Get signed URL for GCS file
+    const signedUrl = await getCertificateUrl(certificateFilePath);
       
-      if (!signedUrl) {
-        return res.status(404).json({ error: 'Certificate file not found in cloud storage' });
-      }
-      
-      // Redirect to the signed URL
-      return res.redirect(signedUrl);
-    } else {
-      // Handle legacy local file paths
-      if (!fs.existsSync(certificateFilePath)) {
-        return res.status(404).json({ error: 'Certificate file not found on server' });
-      }
-      
-      res.download(certificateFilePath);
+    if (!signedUrl) {
+      return res.status(404).json({ error: 'Certificate file not found in cloud storage' });
     }
+      
+    // Redirect to the signed URL
+    return res.redirect(signedUrl);
   } catch (error) {
     console.error('Error accessing certificate file:', error);
     res.status(500).json({ error: 'Failed to access certificate file' });
