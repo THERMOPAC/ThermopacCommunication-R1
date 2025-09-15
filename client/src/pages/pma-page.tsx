@@ -323,8 +323,45 @@ export default function PMAPage() {
     }
   };
 
-  const handleDownload = (fileUrl: string, fileName: string) => {
-    window.open(fileUrl, '_blank');
+  const handleDownload = async (documentId: number, fileName: string) => {
+    try {
+      const response = await fetch(`/api/quality/pma/${documentId}/download`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Download failed: ${response.status} ${errorText}`);
+      }
+      
+      const result = await response.json();
+      
+      if (!result.downloadUrl) {
+        throw new Error('No download URL provided');
+      }
+      
+      // Navigate directly to the signed URL to trigger download
+      const link = document.createElement('a');
+      link.href = result.downloadUrl;
+      link.download = fileName;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Download Started",
+        description: `Downloading ${fileName}`,
+      });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: "Download Error",
+        description: error instanceof Error ? error.message : "Failed to download file",
+        variant: "destructive",
+      });
+    }
   };
 
   // Handle file upload for PMA document
@@ -780,7 +817,7 @@ export default function PMAPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDownload(
-                                doc.fileUrl || doc.file_url, 
+                                doc.id, 
                                 doc.originalFileName || doc.original_file_name || 'document'
                               )}
                             >
@@ -805,7 +842,7 @@ export default function PMAPage() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDownload(
-                                  doc.fileUrl || doc.file_url, 
+                                  doc.id, 
                                   doc.originalFileName || doc.original_file_name || 'document'
                                 )}
                                 className="text-purple-600 hover:text-purple-800"
