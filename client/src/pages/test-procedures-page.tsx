@@ -243,6 +243,11 @@ export default function TestProceduresPage() {
       setUploadSuccess(true);
       setFileUpload(null);
       
+      // Invalidate GCS files query to refresh file list from storage
+      await queryClient.invalidateQueries({
+        queryKey: ['/api/quality/test-procedures', targetId, 'files']
+      });
+      
       // Clear upload success after 3 seconds
       setTimeout(() => setUploadSuccess(false), 3000);
       
