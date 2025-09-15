@@ -50,24 +50,8 @@ export function ApprovedDrawingFileInfoSection({
 
   // Fetch documents for this approved drawing record
   const { data: documents, isLoading, error, refetch } = useQuery({
-    queryKey: [`/api/quality/inspection-documents/${inspectionOrderNumber}/Approved Drawing/${recordId}/documents`],
+    queryKey: [`/api/quality/inspection-documents/${inspectionOrderNumber}/Approved%20Drawing/${recordId}/documents`],
     enabled: !!(inspectionOrderNumber && recordId),
-    queryFn: async () => {
-      if (!inspectionOrderNumber || !recordId) return [];
-      
-      const response = await fetch(`/api/quality/inspection-documents/${inspectionOrderNumber}/Approved%20Drawing/${recordId}/documents`, {
-        credentials: 'include',
-      });
-      
-      if (!response.ok) {
-        if (response.status === 404) {
-          return []; // No documents found, return empty array
-        }
-        throw new Error('Failed to fetch documents');
-      }
-      
-      return response.json();
-    }
   });
 
   // Format file size
@@ -167,13 +151,11 @@ export function ApprovedDrawingFileInfoSection({
       setDescription('');
       setShowUploadForm(false);
       
-      // Refresh documents with delay to allow backend processing
-      setTimeout(() => {
-        refetch();
-        queryClient.invalidateQueries({
-          queryKey: [`/api/quality/inspection-documents/${inspectionOrderNumber}/Approved Drawing/${recordId}/documents`]
-        });
-      }, 1000);
+      // Refresh documents immediately
+      refetch();
+      queryClient.invalidateQueries({
+        queryKey: [`/api/quality/inspection-documents/${inspectionOrderNumber}/Approved Drawing/${recordId}/documents`]
+      });
 
     } catch (error) {
       toast({
@@ -193,17 +175,7 @@ export function ApprovedDrawingFileInfoSection({
     setIsUploading(true);
     
     try {
-      // First delete the old file
-      const deleteResponse = await fetch(`/api/quality/inspection-documents/delete/${replacingDocumentId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (!deleteResponse.ok) {
-        console.warn('Failed to delete old file, proceeding with upload anyway');
-      }
-
-      // Upload the new file
+      // First upload the new file
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('inspectionOrderNumber', inspectionOrderNumber);
@@ -226,6 +198,16 @@ export function ApprovedDrawingFileInfoSection({
       const responseData = await uploadResponse.json();
       console.log('Replacement upload response:', responseData);
 
+      // After successful upload, delete the old file
+      const deleteResponse = await fetch(`/api/quality/inspection-documents/delete/${replacingDocumentId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!deleteResponse.ok) {
+        console.warn('Failed to delete old file after upload, but replacement was successful');
+      }
+
       toast({
         title: "File replaced successfully",
         description: `Replaced with ${selectedFile.name}`,
@@ -240,13 +222,11 @@ export function ApprovedDrawingFileInfoSection({
         fileInputRef.current.value = '';
       }
       
-      // Refresh documents with delay to allow backend processing
-      setTimeout(() => {
-        refetch();
-        queryClient.invalidateQueries({
-          queryKey: [`/api/quality/inspection-documents/${inspectionOrderNumber}/Approved Drawing/${recordId}/documents`]
-        });
-      }, 1000);
+      // Refresh documents immediately
+      refetch();
+      queryClient.invalidateQueries({
+        queryKey: [`/api/quality/inspection-documents/${inspectionOrderNumber}/Approved Drawing/${recordId}/documents`]
+      });
 
     } catch (error) {
       toast({

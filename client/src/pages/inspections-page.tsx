@@ -11601,14 +11601,12 @@ export default function InspectionsPage() {
             </div>
 
             {/* Uploaded Files Information Card */}
-            {editingApprovedDrawingRecord && (
-              <ApprovedDrawingFileInfoSection 
-                inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || null}
-                recordId={editingApprovedDrawingRecord.id}
-                showTitle={true}
-                className="mt-4"
-              />
-            )}
+            <ApprovedDrawingFileInfoSection 
+              inspectionOrderNumber={editingApprovedDrawingRecord ? editInspectionOrderDetails?.inspectionOrderNumber || null : null}
+              recordId={editingApprovedDrawingRecord?.id || null}
+              showTitle={true}
+              className="mt-4"
+            />
 
             {/* File Upload Section - Available for both new and edit */}
             <div className="space-y-2">
