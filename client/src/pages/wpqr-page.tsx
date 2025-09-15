@@ -477,7 +477,7 @@ export default function WpqrPage() {
   };
 
   // Handle edit form submission
-  const onSubmitEdit = (values: WpqrFormValues) => {
+  const onSubmitEdit = (values: WpqrEditFormValues) => {
     if (editingDocument) {
       updateMutation.mutate({
         id: editingDocument.id,
@@ -1064,7 +1064,7 @@ export default function WpqrPage() {
                         <FormLabel className={fieldState.error ? "text-red-600" : ""}>Welding Process *</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
-                          value={field.value}
+                          defaultValue={field.value}
                         >
                           <FormControl>
                             <SelectTrigger className={fieldState.error ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}>
