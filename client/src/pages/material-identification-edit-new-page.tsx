@@ -22,6 +22,9 @@ import { materialTypes } from "../../../shared/schema";
 import { Label } from "@/components/ui/label";
 import { MaterialFileInfoSection } from "@/components/MaterialFileInfoSection";
 
+// Unit options for the dropdown
+const unitOptions = ['Kg', 'Ton', 'Litre', 'pcs'];
+
 // Define interfaces for the data types
 interface Project {
   id: number;
@@ -155,7 +158,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
       millName: "",
       millTestCertificateNumber: "",
       quantity: "",
-      unit: "Pcs",
+      unit: "Kg",
       dimensions: "",
       materialStatus: "",
       inspectorName: "",
@@ -186,7 +189,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
         millName: recordData.mill_name,
         millTestCertificateNumber: recordData.mill_test_certificate_number,
         quantity: recordData.quantity,
-        unit: recordData.unit || "Pcs", // Fallback to "Pcs" if not present
+        unit: recordData.unit || "Kg", // Fallback to "Kg" if not present
         dimensions: recordData.dimensions,
         materialStatus: recordData.material_status,
         inspectorName: recordData.inspector_name,
@@ -747,14 +750,20 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Unit</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              placeholder="e.g., Pcs, Kg, Meters"
-                              className="bg-gray-50 text-gray-700"
-                              readOnly
-                            />
-                          </FormControl>
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select unit" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {unitOptions.map((unit) => (
+                                <SelectItem key={unit} value={unit} data-testid={`option-unit-${unit.toLowerCase()}`}>
+                                  {unit}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}

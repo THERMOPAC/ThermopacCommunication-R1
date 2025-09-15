@@ -149,43 +149,8 @@ const materialGradeOptions = [
   }
 ];
 
-// Function to determine unit based on material grade
-const getUnitForMaterialGrade = (materialGrade: string): string => {
-  // Bolts and Nuts are typically counted as individual pieces
-  if (materialGrade.includes('SA-193') || materialGrade.includes('SA-194') || 
-      materialGrade.includes('SA-325') || materialGrade.includes('SA-490') || 
-      materialGrade.includes('SA-563')) {
-    return 'Nos';
-  }
-  
-  // Gaskets are typically counted as individual pieces  
-  if (materialGrade.includes('AF 159') || materialGrade.toLowerCase().includes('gasket')) {
-    return 'Nos';
-  }
-  
-  // Pipes and tubes are typically measured in meters
-  if (materialGrade.includes('SA-106') || materialGrade.includes('SA-312') || 
-      materialGrade.includes('SA-213') || materialGrade.includes('SA-335') || 
-      materialGrade.includes('API 5L')) {
-    return 'Mtr';
-  }
-  
-  // Plates and sheets are typically measured in square meters or pieces
-  if (materialGrade.includes('SA-516') || materialGrade.includes('SA-240') || 
-      materialGrade.includes('SA-36') || materialGrade.includes('SA-537') || 
-      materialGrade.includes('ASTM A36') || materialGrade.includes('SA-387')) {
-    return 'Sqm';
-  }
-  
-  // Fittings and flanges are typically counted as pieces
-  if (materialGrade.includes('SA-234') || materialGrade.includes('SA-182') || 
-      materialGrade.includes('SA-403')) {
-    return 'Pcs';
-  }
-  
-  // Default to pieces for all other materials
-  return 'Pcs';
-};
+// Unit options for the dropdown
+const unitOptions = ['Kg', 'Ton', 'Litre', 'pcs'];
 
 export default function MaterialIdentificationCreatePage() {
   const [, navigate] = useLocation();
@@ -208,8 +173,7 @@ export default function MaterialIdentificationCreatePage() {
   const [isAutoPopulated, setIsAutoPopulated] = useState({
     projectId: false,
     projectName: false,
-    projectNumber: false,
-    unit: false // Track unit field auto-population
+    projectNumber: false
   });
   
   interface NextIdResponse {
@@ -276,7 +240,7 @@ export default function MaterialIdentificationCreatePage() {
       millName: "",
       millTestCertificateNumber: "",
       quantity: "",
-      unit: "Pcs", // Default unit that will be auto-populated
+      unit: "Kg", // Default unit
       dimensions: "",
       materialStatus: "",
       inspectorName: "",
@@ -388,7 +352,7 @@ export default function MaterialIdentificationCreatePage() {
         millName: templateData.mill_name || "",
         millTestCertificateNumber: templateData.mill_test_certificate_number || "",
         quantity: templateData.quantity || "",
-        unit: templateData.unit || "Pcs", // Default to "Pcs" if not provided
+        unit: templateData.unit || "Kg", // Default to "Kg" if not provided
         dimensions: templateData.dimensions || "",
         materialStatus: templateData.material_status || "",
         inspectorName: templateData.inspector_name || "",
@@ -398,15 +362,6 @@ export default function MaterialIdentificationCreatePage() {
       
       // Reset form with formatted data
       form.reset(formattedData);
-      
-      // Mark unit field as auto-populated from backend template
-      if (templateData.unit) {
-        setIsAutoPopulated(prev => ({
-          ...prev,
-          unit: true
-        }));
-        console.log('✨ Unit field auto-populated from backend template:', templateData.unit);
-      }
     }
   }, [templateData, nextIdData, form]);
   
@@ -962,13 +917,20 @@ export default function MaterialIdentificationCreatePage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Unit</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              placeholder="Pcs"
-                              className={isAutoPopulated.unit ? "bg-blue-50 text-blue-700 border-blue-200" : ""}
-                            />
-                          </FormControl>
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select unit" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {unitOptions.map((unit) => (
+                                <SelectItem key={unit} value={unit} data-testid={`option-unit-${unit.toLowerCase()}`}>
+                                  {unit}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
