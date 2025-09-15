@@ -245,7 +245,7 @@ export default function TestProceduresPage() {
       
       // Invalidate GCS files query to refresh file list from storage
       await queryClient.invalidateQueries({
-        queryKey: ['/api/quality/test-procedures', targetId, 'files']
+        queryKey: [`/api/quality/test-procedures/${targetId}/files`]
       });
       
       // Clear upload success after 3 seconds
@@ -406,7 +406,7 @@ export default function TestProceduresPage() {
   const ProcedureFileInfo = ({ procedure }: { procedure?: TestProcedure | null }) => {
     // Use GCS-based file listing instead of database attachments
     const { data: gcsFiles, isLoading: isLoadingFiles, error: filesError } = useQuery({
-      queryKey: ['/api/quality/test-procedures', procedure?.id, 'files'],
+      queryKey: [`/api/quality/test-procedures/${procedure?.id}/files`],
       enabled: !!procedure?.id,
     });
 

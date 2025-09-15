@@ -123,11 +123,24 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  // Helper function to redact sensitive user data for logging
+  private redactSensitiveUserData(user: User | undefined): any {
+    if (!user) return user;
+    return {
+      ...user,
+      password: '[REDACTED]',
+      googleAccessToken: user.googleAccessToken ? '[REDACTED]' : undefined,
+      googleRefreshToken: user.googleRefreshToken ? '[REDACTED]' : undefined,
+      passwordHistory: user.passwordHistory ? '[REDACTED]' : undefined,
+      resetToken: user.resetToken ? '[REDACTED]' : undefined
+    };
+  }
+
   async getUser(id: number): Promise<User | undefined> {
     console.log(`Getting user with ID: ${id}`);
     const result = await db.select().from(users).where(eq(users.id, id));
     const user = result[0] as User | undefined;
-    console.log(`Found user:`, user);
+    console.log(`Found user:`, this.redactSensitiveUserData(user));
     return user;
   }
 
@@ -135,15 +148,18 @@ export class DatabaseStorage implements IStorage {
     console.log(`Looking for user with username: ${username}`);
     const result = await db.select().from(users).where(eq(users.username, username));
     const user = result[0] as User | undefined;
-    console.log(`Found user:`, user);
+    console.log(`Found user:`, this.redactSensitiveUserData(user));
     return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    console.log(`Creating new user:`, insertUser);
+    console.log(`Creating new user:`, {
+      ...insertUser,
+      password: '[REDACTED]'
+    });
     const result = await db.insert(users).values(insertUser).returning();
     const user = result[0] as User;
-    console.log(`Created user:`, user);
+    console.log(`Created user:`, this.redactSensitiveUserData(user));
     return user;
   }
 

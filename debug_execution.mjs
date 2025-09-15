@@ -92,7 +92,12 @@ async function debugExecution() {
     
     if (userRows.length > 0) {
       console.log('\nSample user data:');
-      console.log(JSON.stringify(userRows[0], null, 2));
+      const sanitizedUser = { ...userRows[0] };
+      // Remove any sensitive fields if they exist
+      if (sanitizedUser.password) sanitizedUser.password = '[REDACTED]';
+      if (sanitizedUser.googleAccessToken) sanitizedUser.googleAccessToken = '[REDACTED]';
+      if (sanitizedUser.googleRefreshToken) sanitizedUser.googleRefreshToken = '[REDACTED]';
+      console.log(JSON.stringify(sanitizedUser, null, 2));
     }
     
   } catch (error) {

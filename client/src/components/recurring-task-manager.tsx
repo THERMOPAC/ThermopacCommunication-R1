@@ -399,7 +399,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
         throw new Error("You must be logged in to create or update recurring tasks");
       }
       
-      console.log("🔵 Current user:", JSON.stringify(user, null, 2));
+      console.log("🔵 Current user:", { id: user?.id, username: user?.username, role: user?.role });
       
       if (editingPattern) {
         console.log("🔵 UPDATING PATTERN:", editingPattern.id);
