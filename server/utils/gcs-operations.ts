@@ -20,26 +20,15 @@ export const initializeGCS = async (): Promise<{ storage: Storage | null, bucket
       console.log('Using explicit credentials from GOOGLE_CLOUD_CREDENTIALS');
       
       const credentialsString = process.env.GOOGLE_CLOUD_CREDENTIALS;
-      console.log(`Credentials string length: ${credentialsString.length}`);
-      console.log(`First 20 chars: ${credentialsString.substring(0, 20)}...`);
-      
-      console.log('Attempting to parse Google Cloud credentials...');
+      console.log('Parsing Google Cloud credentials...');
       const credentials = JSON.parse(credentialsString);
       
       // Validate credentials have required fields
-      const validation = {
-        hasType: !!credentials.type,
-        hasProjectId: !!credentials.project_id,
-        hasClientEmail: !!credentials.client_email,
-        hasPrivateKey: !!credentials.private_key
-      };
-      
-      console.log('✅ Successfully parsed credentials JSON');
-      console.log(`Credential validation: ${JSON.stringify(validation)}`);
-      
-      if (!validation.hasType || !validation.hasProjectId || !validation.hasClientEmail || !validation.hasPrivateKey) {
+      if (!credentials.type || !credentials.project_id || !credentials.client_email || !credentials.private_key) {
         throw new Error('Google Cloud credentials are missing required fields');
       }
+      
+      console.log('✅ Successfully validated credentials');
       
       // Create GCS client with explicit credentials
       gcsStorage = new Storage({
@@ -50,11 +39,10 @@ export const initializeGCS = async (): Promise<{ storage: Storage | null, bucket
         }
       });
       
-      console.log(`Using explicit GCS credentials with project: ${credentials.project_id}`);
-      console.log(`Service account: ${credentials.client_email}`);
+      console.log(`✅ GCS client initialized successfully`);
     } else {
       // Fall back to default credentials as a last resort
-      console.log('GOOGLE_CLOUD_CREDENTIALS not found, using default credentials');
+      console.log('Using default GCS credentials');
       gcsStorage = new Storage();
     }
     

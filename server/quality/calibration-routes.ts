@@ -268,8 +268,7 @@ router.post('/instruments', ensureAuthenticated, async (req: Request, res: Respo
     console.log(`Creating new instrument with ID: ${instrument_id}`);
     
     // Handle certificate file upload to GCS if present
-    let certificate_file_path = null;
-    let certificate_url = null;
+    let certificate_gcs_key = null;
     
     if (req.file) {
       try {
@@ -282,9 +281,9 @@ router.post('/instruments', ensureAuthenticated, async (req: Request, res: Respo
         );
         
         if (uploadResult.success && uploadResult.filePath) {
-          certificate_file_path = uploadResult.filePath;
-          certificate_url = uploadResult.url;
-          console.log(`Certificate uploaded to GCS: ${certificate_file_path}`);
+          // Extract only the filename (gcsKey) from the full path
+          certificate_gcs_key = uploadResult.filePath.split('/').pop() || `${instrument_id}.pdf`;
+          console.log(`Certificate uploaded to GCS with key: ${certificate_gcs_key}`);
         } else {
           console.error('Failed to upload certificate to GCS:', uploadResult.error);
         }
@@ -309,7 +308,7 @@ router.post('/instruments', ensureAuthenticated, async (req: Request, res: Respo
         calibration_status,
         in_use,
         certificate_number,
-        certificate_file_path,
+        certificate_gcs_key,
         remarks
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
@@ -327,22 +326,16 @@ router.post('/instruments', ensureAuthenticated, async (req: Request, res: Respo
       calibration_status,
       in_use || 'In Use',
       certificate_number || null,
-      certificate_file_path,
+      certificate_gcs_key,
       remarks || null
     ]);
     
     // Log success of instrument creation
     console.log(`Successfully created calibration instrument with ID: ${instrument_id}`);
     
-    // Add the certificate URL to the response for immediate display
-    const response = {
-      ...result.rows[0],
-      certificate_url: certificate_url
-    };
-    
     // Set content type header explicitly and send success response
     res.setHeader('Content-Type', 'application/json');
-    return res.status(201).json(response);
+    return res.status(201).json(result.rows[0]);
     
   } catch (error) {
     // Log and send error
@@ -407,7 +400,7 @@ router.put('/instruments/:id', ensureAuthenticated, async (req: Request, res: Re
     
     // Get current instrument data to check if we need to delete an old certificate file
     const currentResult = await pool.query(`
-      SELECT instrument_id, certificate_file_path FROM calibration_instruments
+      SELECT instrument_id, certificate_gcs_key FROM calibration_instruments
       WHERE id = $1
     `, [id]);
     
@@ -415,11 +408,11 @@ router.put('/instruments/:id', ensureAuthenticated, async (req: Request, res: Re
       return res.status(404).end(JSON.stringify({ error: 'Calibration instrument not found' }));
     }
     
-    const currentFilePath = currentResult.rows[0].certificate_file_path;
+    const currentFilePath = currentResult.rows[0].certificate_gcs_key;
     const instrumentId = currentResult.rows[0].instrument_id;
     
     // Handle certificate file upload to GCS if present
-    let certificate_file_path = undefined;
+    let certificate_gcs_key = undefined;
     let certificate_url = null;
     
     if (req.file) {
@@ -433,9 +426,9 @@ router.put('/instruments/:id', ensureAuthenticated, async (req: Request, res: Re
         );
         
         if (uploadResult.success && uploadResult.filePath) {
-          certificate_file_path = uploadResult.filePath;
-          certificate_url = uploadResult.url;
-          console.log(`Certificate uploaded to GCS: ${certificate_file_path}`);
+          // Extract only the filename (gcsKey) from the full path
+          certificate_gcs_key = uploadResult.filePath.split('/').pop() || `${instrumentId}.pdf`;
+          console.log(`Certificate uploaded to GCS with key: ${certificate_gcs_key}`);
         } else {
           console.error('Failed to upload certificate to GCS:', uploadResult.error);
         }
@@ -470,9 +463,9 @@ router.put('/instruments/:id', ensureAuthenticated, async (req: Request, res: Re
       updateFields['next_calibration_date'] = next_calibration_date;
     }
     
-    // Add certificate_file_path if a new file was uploaded
-    if (certificate_file_path) {
-      updateFields['certificate_file_path'] = certificate_file_path;
+    // Add certificate_gcs_key if a new file was uploaded
+    if (certificate_gcs_key) {
+      updateFields['certificate_gcs_key'] = certificate_gcs_key;
     }
     
     // Build the query parts and values array
@@ -494,16 +487,9 @@ router.put('/instruments/:id', ensureAuthenticated, async (req: Request, res: Re
       RETURNING *
     `, values);
     
-    // We don't need to delete local files for GCS paths
-    // But we may need to handle old local file paths during the transition
-    if (currentFilePath && !currentFilePath.startsWith('QMS/') && fs.existsSync(currentFilePath)) {
-      try {
-        fs.unlinkSync(currentFilePath);
-        console.log(`Deleted old local certificate file: ${currentFilePath}`);
-      } catch (deleteError) {
-        console.error(`Error deleting old certificate file: ${deleteError}`);
-      }
-    }
+    // GCS files are managed via GCS APIs, not local filesystem operations
+    // No local file deletion needed for GCS-first approach
+    console.log('Certificate management now uses GCS-first approach');
     
     // Add the certificate URL to the response for immediate display
     const response = {
@@ -543,7 +529,7 @@ router.delete('/instruments/:id', ensureAuthenticated, async (req: Request, res:
     
     // Get current instrument data to check if we need to delete a certificate file
     const currentResult = await pool.query(`
-      SELECT instrument_id, certificate_file_path FROM calibration_instruments
+      SELECT instrument_id, certificate_gcs_key FROM calibration_instruments
       WHERE id = $1
     `, [id]);
     
@@ -551,7 +537,7 @@ router.delete('/instruments/:id', ensureAuthenticated, async (req: Request, res:
       return res.status(404).json({ error: 'Calibration instrument not found' });
     }
     
-    const currentFilePath = currentResult.rows[0].certificate_file_path;
+    const currentFilePath = currentResult.rows[0].certificate_gcs_key;
     const instrumentId = currentResult.rows[0].instrument_id;
     
     const result = await pool.query(`
@@ -561,16 +547,10 @@ router.delete('/instruments/:id', ensureAuthenticated, async (req: Request, res:
     `, [id]);
     
     // Handle file deletion based on storage location
+    // GCS files are managed via GCS APIs, not local filesystem operations
+    // Previous certificate (if any) will remain in GCS for data integrity
     if (currentFilePath) {
-      if (currentFilePath.startsWith('QMS/')) {
-        // It's a GCS file - we don't delete GCS files in this version
-        // Just log it for now
-        console.log(`GCS certificate file will be retained: ${currentFilePath}`);
-      } else if (fs.existsSync(currentFilePath)) {
-        // It's a local file
-        fs.unlinkSync(currentFilePath);
-        console.log(`Deleted local certificate file: ${currentFilePath}`);
-      }
+      console.log(`Previous certificate key: ${currentFilePath}`);
     }
     
     res.json(result.rows[0]);
@@ -636,7 +616,7 @@ router.get('/instruments/:id/certificate', ensureAuthenticated, async (req: Requ
     const { id } = req.params;
     
     const result = await pool.query(`
-      SELECT instrument_id, certificate_file_path FROM calibration_instruments
+      SELECT instrument_id, certificate_gcs_key FROM calibration_instruments
       WHERE id = $1
     `, [id]);
     
@@ -644,7 +624,7 @@ router.get('/instruments/:id/certificate', ensureAuthenticated, async (req: Requ
       return res.status(404).json({ error: 'Calibration instrument not found' });
     }
     
-    const certificateFilePath = result.rows[0].certificate_file_path;
+    const certificateFilePath = result.rows[0].certificate_gcs_key;
     const instrumentId = result.rows[0].instrument_id;
     
     if (!certificateFilePath) {
