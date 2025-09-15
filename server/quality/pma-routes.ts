@@ -533,9 +533,13 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
       const { Storage } = await import('@google-cloud/storage');
       
       // Initialize storage with service account credentials
+      const credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS || '{}');
       const storage = new Storage({
-        projectId: 'thermopac-communication-system',
-        keyFilename: process.env.GOOGLE_CLOUD_CREDENTIALS
+        projectId: credentials.project_id || 'thermopac-communication-system',
+        credentials: {
+          client_email: credentials.client_email,
+          private_key: credentials.private_key
+        }
       });
 
       const bucket = storage.bucket('thermopac_storage');
