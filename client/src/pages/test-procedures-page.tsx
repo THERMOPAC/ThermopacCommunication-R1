@@ -397,8 +397,14 @@ export default function TestProceduresPage() {
     }
   };
 
-  // Helper component to display procedure file information
+  // Helper component to display procedure file information from GCS
   const ProcedureFileInfo = ({ procedure }: { procedure?: TestProcedure | null }) => {
+    // Use GCS-based file listing instead of database attachments
+    const { data: gcsFiles, isLoading: isLoadingFiles, error: filesError } = useQuery({
+      queryKey: ['/api/quality/test-procedures', procedure?.id, 'files'],
+      enabled: !!procedure?.id,
+    });
+
     if (!procedure) {
       return (
         <div className="bg-gray-50 border border-gray-200 dark:bg-gray-900/50 dark:border-gray-700 rounded-lg p-4 mt-4">
@@ -412,29 +418,70 @@ export default function TestProceduresPage() {
       );
     }
 
-    const attachments = procedure.attachments ? JSON.parse(procedure.attachments) : [];
+    if (isLoadingFiles) {
+      return (
+        <div className="bg-gray-50 border border-gray-200 dark:bg-gray-900/50 dark:border-gray-700 rounded-lg p-4 mt-4">
+          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            📄 Uploaded Files Information
+          </h4>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Loading files...
+          </p>
+        </div>
+      );
+    }
+
+    if (filesError) {
+      return (
+        <div className="bg-gray-50 border border-gray-200 dark:bg-gray-900/50 dark:border-gray-700 rounded-lg p-4 mt-4">
+          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            📄 Uploaded Files Information
+          </h4>
+          <p className="text-sm text-red-500 dark:text-red-400">
+            Error loading files: {filesError.message || 'Unable to load files from storage'}
+          </p>
+        </div>
+      );
+    }
+
+    const files = gcsFiles?.files || [];
     
     return (
       <div className="bg-gray-50 border border-gray-200 dark:bg-gray-900/50 dark:border-gray-700 rounded-lg p-4 mt-4">
         <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-          📄 Uploaded Files Information
+          📄 Files in Cloud Storage
         </h4>
         
-        {attachments.length > 0 ? (
+        {files.length > 0 ? (
           <div className="space-y-3">
-            {attachments.map((file: any, index: number) => (
-              <div key={index} className="flex items-start space-x-3 p-3 bg-white dark:bg-gray-800 rounded border">
+            {files.map((file: any, index: number) => (
+              <div key={index} className="flex items-start space-x-3 p-3 bg-white dark:bg-gray-800 rounded border" data-testid={`file-item-${index}`}>
                 <File className="w-5 h-5 text-blue-500 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                      {file.fileName}
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" data-testid={`file-name-${index}`}>
+                      {file.name}
                     </p>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => procedure && handleDownload(procedure)}
+                      onClick={() => {
+                        // Use the signed URL directly from GCS
+                        const link = document.createElement('a');
+                        link.href = file.signedUrl;
+                        link.download = file.name;
+                        link.target = '_blank';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        
+                        toast({
+                          title: "Download Started",
+                          description: `Downloading ${file.name}`,
+                        });
+                      }}
                       className="ml-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      data-testid={`download-button-${index}`}
                     >
                       <Download className="w-4 h-4 mr-1" />
                       Download
@@ -443,16 +490,15 @@ export default function TestProceduresPage() {
                   <div className="flex items-center mt-1 space-x-4 text-xs text-gray-500 dark:text-gray-400">
                     <div className="flex items-center">
                       <Calendar className="w-3 h-3 mr-1" />
-                      {new Date(file.uploadedAt).toLocaleDateString()}
+                      {new Date(file.updated).toLocaleDateString()}
                     </div>
                     <div className="flex items-center">
-                      <User className="w-3 h-3 mr-1" />
-                      Uploaded by User {file.uploadedBy}
+                      <span>Size: {(file.size / 1024).toFixed(1)} KB</span>
                     </div>
                   </div>
                   <div className="mt-1">
-                    <p className="text-xs text-gray-600 dark:text-gray-400 font-mono">
-                      📁 GCS Path: QMS/Test_Procedures/{procedure.ndtMethod}/{procedure.applicableStandard?.includes('EN') ? 'EN' : 'ASME'}/{procedure.procedureNumber}.pdf
+                    <p className="text-xs text-gray-600 dark:text-gray-400 font-mono" data-testid={`file-path-${index}`}>
+                      📁 GCS Path: {file.path}
                     </p>
                   </div>
                 </div>
@@ -462,11 +508,11 @@ export default function TestProceduresPage() {
         ) : (
           <div className="text-center py-4">
             <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              No files uploaded yet
+            <p className="text-sm text-gray-500 dark:text-gray-400" data-testid="no-files-message">
+              No files found in storage
             </p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-              Upload a procedure document to see file information here
+              Upload a procedure document to see files here
             </p>
           </div>
         )}
