@@ -1156,6 +1156,118 @@ router.get('/download/:id', async (req: Request, res: Response) => {
   }
 });
 
+// Get WPQR files from GCS for a specific document
+router.get('/:documentId/files', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { documentId } = req.params;
+    
+    console.log(`🔍 WPQR Files API called for document: ${documentId}`);
+    
+    // Validate documentId format
+    if (!documentId || !documentId.startsWith('WPQR-')) {
+      return res.status(400).json({ error: 'Invalid document ID format' });
+    }
+    
+    // Check if the document exists in our database
+    const document = await db.select()
+      .from(wpqrDocuments)
+      .where(eq(wpqrDocuments.documentId, documentId))
+      .limit(1);
+    
+    if (!document.length) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    
+    console.log(`📋 Found document: ${documentId}`);
+    
+    // GCS operations
+    console.log('Using explicit credentials from GOOGLE_CLOUD_CREDENTIALS');
+    
+    if (!process.env.GOOGLE_CLOUD_CREDENTIALS) {
+      throw new Error('GOOGLE_CLOUD_CREDENTIALS environment variable is not set');
+    }
+    
+    const credentialsString = process.env.GOOGLE_CLOUD_CREDENTIALS;
+    console.log('Parsing Google Cloud credentials...');
+    const credentials = JSON.parse(credentialsString);
+    
+    console.log('✅ Successfully validated credentials');
+    
+    // Create GCS client with explicit credentials
+    const storage = new Storage({
+      projectId: credentials.project_id,
+      credentials: {
+        client_email: credentials.client_email,
+        private_key: credentials.private_key
+      }
+    });
+    
+    console.log('✅ GCS client initialized successfully');
+    
+    const bucketName = 'thermopac_storage';
+    console.log(`Using GCS bucket name: ${bucketName}`);
+    
+    const bucket = storage.bucket(bucketName);
+    
+    console.log('Created bucket reference for thermopac_storage');
+    
+    // Skip bucket existence verification to avoid permission issues
+    console.log('Skipping bucket existence verification for thermopac_storage');
+    console.log('Will proceed with assuming bucket exists and attempt operations with object-level permissions');
+    
+    // List files for this WPQR document
+    const prefix = `QMS/WPQR/${documentId}`;
+    console.log(`🔍 Listing WPQR files for document ${documentId} with prefix: ${prefix}`);
+    
+    const [files] = await bucket.getFiles({
+      prefix: prefix
+    });
+    
+    console.log(`📁 Found ${files.length} files for document ${documentId}`);
+    
+    const fileDetails = await Promise.all(
+      files
+        .filter(file => file.name.endsWith('.pdf')) // Only show PDF files
+        .map(async (file) => {
+          try {
+            const [metadata] = await file.getMetadata();
+            console.log(`📄 File: ${file.name}, Size: ${metadata.size}, Updated: ${metadata.updated}`);
+            
+            // Generate signed URL for download
+            const [signedUrl] = await file.getSignedUrl({
+              action: 'read',
+              expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+            });
+            
+            return {
+              name: file.name.split('/').pop(), // Get just the filename
+              gcsPath: file.name,
+              size: parseInt(metadata.size || '0'),
+              updated: metadata.updated,
+              downloadUrl: signedUrl
+            };
+          } catch (error) {
+            console.error(`Error getting metadata for file ${file.name}:`, error);
+            return null;
+          }
+        })
+    );
+    
+    // Filter out any null results from failed metadata requests
+    const validFiles = fileDetails.filter(file => file !== null);
+    
+    console.log(`📁 Found ${validFiles.length} WPQR files for document ${documentId}`);
+    
+    res.json(validFiles);
+  } catch (error) {
+    console.error('Error fetching WPQR files:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch WPQR files',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Get all welders for the frontend dropdown
 router.get('/welders', ensureAuthenticated, async (req: Request, res: Response) => {
   try {

@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, DownloadCloud, FileText, RefreshCw, Trash2, Plus, Eye, PencilLine, Upload, AlertTriangle } from "lucide-react";
+import { Loader2, DownloadCloud, FileText, RefreshCw, Trash2, Plus, Eye, PencilLine, Upload, AlertTriangle, File, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -153,6 +153,15 @@ export default function WpqrPage() {
     queryKey: ['/api/quality/welders'],
     retry: 1,
   });
+
+  // Hook to fetch WPQR files from GCS for a specific document
+  const useWpqrDocumentFiles = (documentId: string | null) => {
+    return useQuery({
+      queryKey: ['/api/quality/wpqr', documentId, 'files'],
+      enabled: !!documentId,
+      staleTime: 30000, // 30 seconds
+    });
+  };
   
   // For the document ID display, we'll count the documents ourselves
   // This avoids issues with authentication on the next-document-id endpoint
@@ -906,6 +915,23 @@ export default function WpqrPage() {
                     </FormItem>
                   )}
                 />
+
+                {/* Files in Cloud Storage Section for Add New */}
+                <div className="bg-gray-50 border border-gray-200 dark:bg-gray-900/50 dark:border-gray-700 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                    📄 Files in Cloud Storage
+                  </h4>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center space-x-2">
+                      <File className="w-4 h-4" />
+                      <span>No files uploaded yet.</span>
+                    </div>
+                    <p className="text-xs mt-2">
+                      After creating the document, files will appear here from: QMS/WPQR/WPQR-{nextDocumentIdNumber}.pdf
+                    </p>
+                  </div>
+                </div>
+
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
                     Cancel
@@ -1292,6 +1318,101 @@ export default function WpqrPage() {
                     </FormItem>
                   )}
                 />
+
+                {/* Files in Cloud Storage Section for Edit */}
+                {editingDocument && (() => {
+                  const wpqrFiles = useWpqrDocumentFiles(editingDocument.documentId);
+                  const files = wpqrFiles.data || [];
+                  
+                  return (
+                    <div className="bg-gray-50 border border-gray-200 dark:bg-gray-900/50 dark:border-gray-700 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                        📄 Files in Cloud Storage
+                      </h4>
+                      
+                      {wpqrFiles.isLoading ? (
+                        <div className="flex items-center space-x-2 text-sm text-gray-500">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Loading files...</span>
+                        </div>
+                      ) : files.length > 0 ? (
+                        <div className="space-y-3">
+                          {files.map((file: any, index: number) => (
+                            <div key={index} className="flex items-start space-x-3 p-3 bg-white dark:bg-gray-800 rounded border" data-testid={`file-item-${index}`}>
+                              <File className="w-5 h-5 text-blue-500 mt-0.5" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" data-testid={`file-name-${index}`}>
+                                    {file.name}
+                                  </p>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      try {
+                                        toast({
+                                          title: "Download Started",
+                                          description: `Downloading ${file.name}`,
+                                        });
+
+                                        // Use direct navigation since GCS CORS is not configured
+                                        // This avoids fetch errors and works reliably
+                                        const link = document.createElement('a');
+                                        link.href = file.downloadUrl;
+                                        link.download = file.name;
+                                        link.target = '_blank';
+                                        link.rel = 'noopener noreferrer';
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                        
+                                        toast({
+                                          title: "Download Complete",
+                                          description: `${file.name} download initiated successfully`,
+                                        });
+                                      } catch (error) {
+                                        console.error('Download error:', error);
+                                        toast({
+                                          title: "Download Failed",
+                                          description: `Failed to download ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                                          variant: "destructive",
+                                        });
+                                      }
+                                    }}
+                                    data-testid={`download-button-${index}`}
+                                  >
+                                    <Download className="w-4 h-4 mr-1" />
+                                    Download
+                                  </Button>
+                                </div>
+                                <div className="mt-1 flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                                  <span>Size: {(file.size / 1024).toFixed(1)} KB</span>
+                                  <span>Modified: {new Date(file.updated).toLocaleDateString()}</span>
+                                </div>
+                                <div className="mt-1">
+                                  <span className="text-xs text-gray-400 font-mono">
+                                    {file.gcsPath}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          <div className="flex items-center space-x-2">
+                            <File className="w-4 h-4" />
+                            <span>No files found in cloud storage.</span>
+                          </div>
+                          <p className="text-xs mt-2">
+                            Path: QMS/WPQR/{editingDocument.documentId}.pdf
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => {
                     editForm.reset();
