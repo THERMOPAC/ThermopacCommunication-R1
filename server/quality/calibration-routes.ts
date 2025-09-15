@@ -725,15 +725,20 @@ router.get('/report', ensureAuthenticated, async (req: Request, res: Response) =
 });
 
 // GCS-first endpoint: List certificate files for a specific instrument
-router.get('/instruments/:id/certificates', ensureAuthenticated, async (req: Request, res: Response) => {
-  const instrumentId = req.params.id;
+router.get('/instruments/:instrumentId/certificates', ensureAuthenticated, async (req: Request, res: Response) => {
+  const instrumentId = req.params.instrumentId;
   
   console.log(`🔍 Calibration Certificates API called for instrument: ${instrumentId}`);
   
   try {
-    // Get instrument details from database to get instrument_id
+    // Validate instrument_id format
+    if (!instrumentId.match(/^INST-\d{5}$/)) {
+      return res.status(400).json({ error: 'Invalid instrument ID format' });
+    }
+    
+    // Verify instrument exists in database
     const instrumentResult = await pool.query(
-      'SELECT instrument_id FROM calibration_instruments WHERE id = $1',
+      'SELECT instrument_id FROM calibration_instruments WHERE instrument_id = $1',
       [instrumentId]
     );
     
@@ -741,13 +746,12 @@ router.get('/instruments/:id/certificates', ensureAuthenticated, async (req: Req
       return res.status(404).json({ error: 'Instrument not found' });
     }
     
-    const instrumentIdCode = instrumentResult.rows[0].instrument_id;
-    console.log(`📋 Found instrument ID code: ${instrumentIdCode}`);
+    console.log(`📋 Found instrument: ${instrumentId}`);
     
     // List files from GCS for this specific instrument
-    const files = await listCalibrationFilesFromGCS(instrumentIdCode);
+    const files = await listCalibrationFilesFromGCS(instrumentId);
     
-    console.log(`📁 Found ${files.length} certificate files for instrument ${instrumentIdCode}`);
+    console.log(`📁 Found ${files.length} certificate files for instrument ${instrumentId}`);
     
     res.json(files);
     

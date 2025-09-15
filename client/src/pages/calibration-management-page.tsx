@@ -39,7 +39,7 @@ interface GCSFileMetadata {
 // Custom hook for fetching instrument certificate files from GCS
 const useInstrumentCertificateFiles = (instrumentId: string | null) => {
   return useQuery<GCSFileMetadata[]>({
-    queryKey: ['/api/quality/calibration/instruments', instrumentId, 'certificates'],
+    queryKey: [`/api/quality/calibration/instruments/${instrumentId}/certificates`],
     enabled: !!instrumentId,
     refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
     staleTime: 10000, // Consider data stale after 10 seconds
