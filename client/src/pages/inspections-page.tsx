@@ -5,6 +5,7 @@ import { Check, Edit, Trash, Eye, Plus, ClipboardCheck, ClipboardList, Calendar 
 import InspectionDocumentUpload from "@/components/inspection-document-upload";
 import InspectionDocumentViewer from "@/components/inspection-document-viewer";
 import DrawingFilesDisplay from "@/components/drawing-files-display";
+import { ApprovedDrawingFileInfoSection } from "@/components/ApprovedDrawingFileInfoSection";
 import { FinalDossierDebugButton } from "@/components/final-dossier-debug-button";
 import { 
   ChartContainer, 
@@ -11598,6 +11599,16 @@ export default function InspectionsPage() {
                 placeholder="Enter any additional remarks..."
               />
             </div>
+
+            {/* Uploaded Files Information Card */}
+            {editingApprovedDrawingRecord && (
+              <ApprovedDrawingFileInfoSection 
+                inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || null}
+                recordId={editingApprovedDrawingRecord.id}
+                showTitle={true}
+                className="mt-4"
+              />
+            )}
 
             {/* File Upload Section - Available for both new and edit */}
             <div className="space-y-2">

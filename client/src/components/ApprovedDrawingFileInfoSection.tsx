@@ -533,7 +533,7 @@ export function ApprovedDrawingFileInfoSection({
                 </div>
                 <div className="flex items-center space-x-2">
                   <Badge variant="outline" className="text-xs">
-                    {document.document_type.replace(/_/g, ' ')}
+                    {(document.document_type || 'document').replace(/_/g, ' ')}
                   </Badge>
                   <Button
                     size="sm"
