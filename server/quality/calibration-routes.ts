@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import { uploadCalibrationCertificate, getCertificateUrl } from '../utils/calibration-certificate-upload';
 import { calculateNextCalibrationDate } from '../utils/date-utils';
+import { listCalibrationFilesFromGCS } from '../utils/gcs-operations';
 
 // Create the router
 const router = Router();
@@ -738,6 +739,42 @@ router.get('/report', ensureAuthenticated, async (req: Request, res: Response) =
     console.error('Error fetching report data:', error);
     res.status(500).json({ 
       error: 'Failed to fetch report data',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// GCS-first endpoint: List certificate files for a specific instrument
+router.get('/instruments/:id/certificates', ensureAuthenticated, async (req: Request, res: Response) => {
+  const instrumentId = req.params.id;
+  
+  console.log(`🔍 Calibration Certificates API called for instrument: ${instrumentId}`);
+  
+  try {
+    // Get instrument details from database to get instrument_id
+    const instrumentResult = await pool.query(
+      'SELECT instrument_id FROM calibration_instruments WHERE id = $1',
+      [instrumentId]
+    );
+    
+    if (instrumentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Instrument not found' });
+    }
+    
+    const instrumentIdCode = instrumentResult.rows[0].instrument_id;
+    console.log(`📋 Found instrument ID code: ${instrumentIdCode}`);
+    
+    // List files from GCS for this specific instrument
+    const files = await listCalibrationFilesFromGCS(instrumentIdCode);
+    
+    console.log(`📁 Found ${files.length} certificate files for instrument ${instrumentIdCode}`);
+    
+    res.json(files);
+    
+  } catch (error) {
+    console.error('❌ Error listing calibration certificate files:', error);
+    res.status(500).json({ 
+      error: 'Failed to list certificate files',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }

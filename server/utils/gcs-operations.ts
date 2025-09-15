@@ -740,5 +740,84 @@ export const listFilesFromGCS = async (prefixes: string[]): Promise<{
   }
 };
 
+/**
+ * Build GCS prefix for calibration certificate files
+ * @param instrumentId - Instrument ID (e.g., INST-00001)
+ * @returns GCS prefix for the instrument's certificate
+ */
+export const buildCalibrationGcsPrefix = (instrumentId: string): string => {
+  return `QMS/Instrument/`;
+};
+
+/**
+ * Build full GCS path for calibration certificate
+ * @param instrumentId - Instrument ID (e.g., INST-00001)  
+ * @param filename - Certificate filename (e.g., INST-00001.pdf)
+ * @returns Full GCS path
+ */
+export const buildCalibrationGcsPath = (instrumentId: string, filename: string): string => {
+  return `QMS/Instrument/${filename}`;
+};
+
+/**
+ * List calibration certificate files for a specific instrument from GCS
+ * @param instrumentId - Instrument ID to filter files
+ * @returns Array of GCS file metadata
+ */
+export const listCalibrationFilesFromGCS = async (instrumentId: string): Promise<GCSFileMetadata[]> => {
+  try {
+    const { storage, bucket } = await initializeGCS();
+    
+    if (!storage || !bucket) {
+      throw new Error('Failed to initialize GCS client');
+    }
+
+    // Build prefix for this specific instrument
+    const prefix = buildCalibrationGcsPrefix(instrumentId);
+    
+    console.log(`🔍 Listing calibration files for instrument ${instrumentId} with prefix: ${prefix}`);
+    
+    // List files with the prefix
+    const [files] = await bucket.getFiles({ prefix });
+    
+    // Filter files that match this specific instrument
+    const instrumentFiles = files.filter(file => {
+      const filename = file.name.split('/').pop() || '';
+      return filename.startsWith(instrumentId);
+    });
+    
+    console.log(`📁 Found ${instrumentFiles.length} files for instrument ${instrumentId}`);
+    
+    // Get metadata for each file
+    const fileMetadata: GCSFileMetadata[] = [];
+    
+    for (const file of instrumentFiles) {
+      try {
+        const [metadata] = await file.getMetadata();
+        const filename = file.name.split('/').pop() || file.name;
+        
+        fileMetadata.push({
+          name: filename,
+          size: parseInt(metadata.size || '0'),
+          updated: metadata.updated || metadata.timeCreated || new Date().toISOString(),
+          contentType: metadata.contentType || 'application/octet-stream',
+          gcsPath: file.name,
+          downloadUrl: '', // Will be populated with signed URL when needed
+        });
+        
+        console.log(`📄 File: ${filename}, Size: ${metadata.size}, Updated: ${metadata.updated}`);
+      } catch (metaError) {
+        console.warn(`Failed to get metadata for file ${file.name}:`, metaError);
+      }
+    }
+    
+    return fileMetadata.sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
+    
+  } catch (error) {
+    console.error('❌ Error listing calibration files from GCS:', error);
+    throw error;
+  }
+};
+
 // Export the storage and bucket instance
 export { gcsStorage, gcsBucket };
