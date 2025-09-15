@@ -5,7 +5,7 @@ import { testProcedures, users } from '@shared/schema';
 import { eq, and, desc, like, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { uploadFileWithDiagnostics } from '../utils/gcs-enhanced-upload';
-import { initializeGCS } from '../utils/gcs-operations';
+import { initializeGCS, buildProcedureGcsPrefixes, listFilesFromGCS } from '../utils/gcs-operations';
 
 // Setup multer for handling file uploads
 const upload = multer({
@@ -843,6 +843,71 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
   } catch (error) {
     console.error('❌ Error in test procedure download:', error);
     res.status(500).json({ error: 'Failed to download test procedure' });
+  }
+});
+
+// GET /api/quality/test-procedures/:id/files - List files from GCS for a test procedure
+router.get('/:id/files', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid procedure ID' });
+    }
+    
+    // Get procedure details needed for path construction
+    const procedure = await db
+      .select({
+        id: testProcedures.id,
+        procedureNumber: testProcedures.procedureNumber,
+        ndtMethod: testProcedures.ndtMethod,
+        applicableStandard: testProcedures.applicableStandard
+      })
+      .from(testProcedures)
+      .where(eq(testProcedures.id, id))
+      .limit(1);
+    
+    if (procedure.length === 0) {
+      return res.status(404).json({ error: 'Test procedure not found' });
+    }
+    
+    const proc = procedure[0];
+    console.log(`📁 Listing files for procedure: ${proc.procedureNumber}`);
+    
+    // Build GCS path prefixes (current and legacy)
+    const prefixes = buildProcedureGcsPrefixes({
+      procedureNumber: proc.procedureNumber,
+      ndtMethod: proc.ndtMethod || undefined,
+      applicableStandard: proc.applicableStandard || undefined,
+    });
+    
+    console.log(`🔍 Searching GCS prefixes:`, prefixes);
+    
+    // List files from GCS
+    const result = await listFilesFromGCS(prefixes);
+    
+    if (!result.success) {
+      console.error('Failed to list files from GCS:', result.error);
+      return res.status(503).json({ 
+        files: [], 
+        error: result.error || 'Failed to access Google Cloud Storage'
+      });
+    }
+    
+    console.log(`📋 Found ${result.files.length} files for procedure ${proc.procedureNumber}`);
+    
+    res.json({
+      files: result.files,
+      procedureNumber: proc.procedureNumber,
+      searchedPrefixes: prefixes
+    });
+    
+  } catch (error) {
+    console.error('Error listing procedure files:', error);
+    res.status(500).json({ 
+      files: [], 
+      error: 'Failed to list procedure files' 
+    });
   }
 });
 
