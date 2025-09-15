@@ -157,7 +157,7 @@ export default function WpqrPage() {
   // Fetch WPQR files for the currently editing document
   const editingDocumentId = editingDocument?.documentId || null;
   const wpqrFiles = useQuery({
-    queryKey: ['/api/quality/wpqr', editingDocumentId, 'files'],
+    queryKey: [`/api/quality/wpqr/${editingDocumentId}/files`],
     enabled: !!editingDocumentId,
     staleTime: 30000, // 30 seconds
   });
