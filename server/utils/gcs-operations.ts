@@ -580,5 +580,165 @@ export const deleteFileFromGCS = async (
   }
 };
 
+/**
+ * Build GCS path prefixes for test procedure files
+ * Returns both current and legacy path structures for compatibility
+ */
+export const buildProcedureGcsPrefixes = (procedure: {
+  procedureNumber: string;
+  ndtMethod?: string;
+  applicableStandard?: string;
+}): string[] => {
+  const prefixes: string[] = [];
+  
+  // Current path structure: QMS/Test_Procedures/{NDT_Method}/{Standard_Type}/{Procedure_Number}
+  if (procedure.ndtMethod) {
+    // Determine standard type from applicableStandard field
+    const getStandardType = (standard: string | undefined): string => {
+      if (!standard) return 'Other';
+      
+      // ASME Standards
+      if (standard.includes('ASME') || standard.includes('ASTM') || 
+          standard.includes('API') || standard.includes('AWS')) {
+        return 'ASME';
+      }
+      
+      // EN Standards  
+      if (standard.includes('EN')) {
+        return 'EN';
+      }
+      
+      // ISO Standards
+      if (standard.includes('ISO')) {
+        return 'ISO';
+      }
+      
+      return 'Other';
+    };
+    
+    const standardType = getStandardType(procedure.applicableStandard);
+    const currentPath = `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${procedure.procedureNumber}`;
+    prefixes.push(currentPath);
+  }
+  
+  // Legacy path structure: QMS/Test_Procedures/{Procedure_Number}/
+  const legacyPath = `QMS/Test_Procedures/${procedure.procedureNumber}`;
+  prefixes.push(legacyPath);
+  
+  return prefixes;
+};
+
+/**
+ * List files from GCS with metadata for given path prefixes
+ */
+export const listFilesFromGCS = async (prefixes: string[]): Promise<{
+  success: boolean;
+  files: Array<{
+    name: string;
+    path: string;
+    size: number;
+    contentType: string;
+    updated: string;
+    signedUrl: string;
+  }>;
+  error?: string;
+}> => {
+  try {
+    console.log('Listing files from GCS with prefixes:', prefixes);
+    
+    // Initialize GCS
+    const { storage, bucket } = await initializeGCS();
+    
+    if (!storage || !bucket) {
+      console.error('Failed to initialize GCS for file listing');
+      return {
+        success: false,
+        files: [],
+        error: 'Failed to initialize Google Cloud Storage'
+      };
+    }
+    
+    const allFiles: any[] = [];
+    const filePathSet = new Set<string>(); // To avoid duplicates
+    
+    // Search each prefix
+    for (const prefix of prefixes) {
+      try {
+        console.log(`Searching GCS prefix: ${prefix}`);
+        
+        const [files] = await bucket.getFiles({
+          prefix: prefix,
+          delimiter: '', // Get all files, including in subdirectories
+        });
+        
+        console.log(`Found ${files.length} files with prefix: ${prefix}`);
+        
+        for (const file of files) {
+          // Skip directory markers and .keep files
+          if (file.name.endsWith('/') || file.name.endsWith('/.keep')) {
+            continue;
+          }
+          
+          // Skip duplicates (same file found in multiple prefixes)
+          if (filePathSet.has(file.name)) {
+            continue;
+          }
+          
+          filePathSet.add(file.name);
+          
+          try {
+            // Get file metadata
+            const [metadata] = await file.getMetadata();
+            
+            // Generate signed URL (valid for 1 hour)
+            const [signedUrl] = await file.getSignedUrl({
+              action: 'read',
+              expires: Date.now() + (60 * 60 * 1000), // 1 hour
+            });
+            
+            // Extract filename from path
+            const fileName = file.name.split('/').pop() || file.name;
+            
+            allFiles.push({
+              name: fileName,
+              path: file.name,
+              size: parseInt(metadata.size || '0'),
+              contentType: metadata.contentType || 'application/octet-stream',
+              updated: metadata.updated || new Date().toISOString(),
+              signedUrl: signedUrl,
+            });
+            
+          } catch (fileError) {
+            console.warn(`Error getting metadata for file ${file.name}:`, fileError);
+            // Continue with other files
+          }
+        }
+        
+      } catch (prefixError) {
+        console.warn(`Error searching prefix ${prefix}:`, prefixError);
+        // Continue with other prefixes
+      }
+    }
+    
+    // Sort files by name
+    allFiles.sort((a, b) => a.name.localeCompare(b.name));
+    
+    console.log(`Total files found: ${allFiles.length}`);
+    
+    return {
+      success: true,
+      files: allFiles,
+    };
+    
+  } catch (error) {
+    console.error('Error listing files from GCS:', error);
+    return {
+      success: false,
+      files: [],
+      error: error instanceof Error ? error.message : 'Unknown error listing files'
+    };
+  }
+};
+
 // Export the storage and bucket instance
 export { gcsStorage, gcsBucket };
