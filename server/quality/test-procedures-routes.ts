@@ -6,6 +6,7 @@ import { eq, and, desc, like, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { uploadFileWithDiagnostics } from '../utils/gcs-enhanced-upload';
 import { initializeGCS, buildProcedureGcsPrefixes, listFilesFromGCS } from '../utils/gcs-operations';
+import { ensureAuthenticated } from '../auth-middleware';
 
 // Setup multer for handling file uploads
 const upload = multer({
@@ -24,14 +25,6 @@ const upload = multer({
   },
 });
 
-// Define ensureAuthenticated middleware
-const ensureAuthenticated = (req: Request, res: Response, next: Function) => {
-  if (req.isAuthenticated && req.isAuthenticated()) {
-    next();
-  } else {
-    res.status(401).json({ error: 'Authentication required' });
-  }
-};
 
 const router = express.Router();
 
