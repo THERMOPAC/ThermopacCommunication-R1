@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Search, Download, FileSpreadsheet, FileText, CalendarClock, AlertTriangle, FileBarChart } from "lucide-react";
+import { PlusCircle, Search, Download, FileSpreadsheet, FileText, CalendarClock, AlertTriangle, FileBarChart, File } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1155,6 +1155,22 @@ export default function CalibrationManagementPage() {
                             )}
                           />
                         </div>
+                        
+                        {/* Files in Cloud Storage Section */}
+                        <div className="col-span-2 bg-gray-50 border border-gray-200 dark:bg-gray-900/50 dark:border-gray-700 rounded-lg p-4 mt-4">
+                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                            📄 Files in Cloud Storage
+                          </h4>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            <div className="flex items-center space-x-2">
+                              <File className="w-4 h-4" />
+                              <span>Files will appear here after the instrument is created.</span>
+                            </div>
+                            <p className="text-xs mt-2">
+                              Path: QMS/Instrument/[instrument-id].pdf
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </TabsContent>
                   </Tabs>
@@ -1664,6 +1680,84 @@ export default function CalibrationManagementPage() {
                             </FormItem>
                           )}
                         />
+                      </div>
+                      
+                      {/* Files in Cloud Storage Section */}
+                      <div className="col-span-2 bg-gray-50 border border-gray-200 dark:bg-gray-900/50 dark:border-gray-700 rounded-lg p-4 mt-4">
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                          📄 Files in Cloud Storage
+                        </h4>
+                        
+                        {(() => {
+                          const certificateFiles = useInstrumentCertificateFiles(selectedInstrument?.instrument_id || null);
+                          const files = certificateFiles.data || [];
+                          
+                          if (certificateFiles.isLoading) {
+                            return (
+                              <div className="flex items-center space-x-2 text-sm text-gray-500">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Loading files...</span>
+                              </div>
+                            );
+                          }
+                          
+                          if (files.length > 0) {
+                            return (
+                              <div className="space-y-3">
+                                {files.map((file: any, index: number) => (
+                                  <div key={index} className="flex items-start space-x-3 p-3 bg-white dark:bg-gray-800 rounded border" data-testid={`file-item-${index}`}>
+                                    <File className="w-5 h-5 text-blue-500 mt-0.5" />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center justify-between">
+                                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" data-testid={`file-name-${index}`}>
+                                          {file.name}
+                                        </p>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => {
+                                            const link = document.createElement('a');
+                                            link.href = file.downloadUrl;
+                                            link.download = file.name;
+                                            link.target = '_blank';
+                                            document.body.appendChild(link);
+                                            link.click();
+                                            document.body.removeChild(link);
+                                          }}
+                                          data-testid={`download-button-${index}`}
+                                        >
+                                          <Download className="w-4 h-4 mr-1" />
+                                          Download
+                                        </Button>
+                                      </div>
+                                      <div className="mt-1 flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                                        <span>Size: {(file.size / 1024).toFixed(1)} KB</span>
+                                        <span>Modified: {new Date(file.updated).toLocaleDateString()}</span>
+                                      </div>
+                                      <div className="mt-1">
+                                        <span className="text-xs text-gray-400 font-mono">
+                                          {file.gcsPath}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          }
+                          
+                          return (
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              <div className="flex items-center space-x-2">
+                                <File className="w-4 h-4" />
+                                <span>No files found in cloud storage.</span>
+                              </div>
+                              <p className="text-xs mt-2">
+                                Path: QMS/Instrument/{selectedInstrument?.instrument_id || '[instrument-id]'}.pdf
+                              </p>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </TabsContent>
