@@ -50,10 +50,9 @@ const oauth2Client = new google.auth.OAuth2(
 // Define the scopes needed for Gmail access
 const SCOPES = [
   'https://www.googleapis.com/auth/gmail.readonly',
-  'https://www.googleapis.com/auth/gmail.modify',
   'https://www.googleapis.com/auth/gmail.send',
   'https://www.googleapis.com/auth/gmail.labels',
-  'https://www.googleapis.com/auth/gmail.metadata',
+  'https://www.googleapis.com/auth/gmail.modify',
   'profile',
   'email'
 ];
@@ -310,31 +309,6 @@ export function setupGoogleAuth(app: Express) {
     } catch (error) {
       console.error('Error disconnecting Google:', error);
       res.status(500).json({ error: 'Failed to disconnect Google' });
-    }
-  });
-
-  // Endpoint to clear Gmail tokens and force re-authentication (for permission issues)
-  app.post('/api/gmail/reauthorize', async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    try {
-      console.log(`Clearing Gmail tokens for user ${req.user!.id} to force re-authentication`);
-      // Delete existing tokens to force re-authentication with correct scopes
-      await storage.deleteGoogleTokens(req.user!.id);
-      
-      // Generate new auth URL with Gmail scopes
-      const authUrl = getAuthUrl();
-      
-      res.json({ 
-        success: true, 
-        authUrl: authUrl,
-        message: 'Please re-authorize Gmail access with proper permissions' 
-      });
-    } catch (error) {
-      console.error('Error forcing Gmail re-authorization:', error);
-      res.status(500).json({ error: 'Failed to initiate re-authorization' });
     }
   });
   

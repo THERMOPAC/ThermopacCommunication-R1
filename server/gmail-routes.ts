@@ -149,42 +149,7 @@ export function setupGmailRoutes(app: express.Express) {
     
     try {
       const token = await storage.getGmailToken(req.user!.id);
-      const connected = !!token;
-      
-      if (connected) {
-        // Test if the token has proper Gmail permissions by making a simple API call
-        try {
-          const gmailClient = await getGmailClient(req.user!.id);
-          // Try to get the user's profile to test permissions
-          await gmailClient.users.getProfile({ userId: 'me' });
-          
-          res.json({ 
-            connected: true,
-            hasPermissions: true
-          });
-        } catch (permissionError: any) {
-          console.log('Gmail permission test failed:', permissionError.message);
-          
-          // Check if this is a permission error
-          if (permissionError.message && permissionError.message.includes('Insufficient Permission')) {
-            res.json({ 
-              connected: true,
-              hasPermissions: false,
-              needsReauth: true,
-              error: 'Insufficient Gmail permissions. Please re-authorize with proper Gmail access.'
-            });
-          } else {
-            // Other types of errors
-            res.json({ 
-              connected: true,
-              hasPermissions: false,
-              error: permissionError.message || 'Unable to access Gmail'
-            });
-          }
-        }
-      } else {
-        res.json({ connected: false });
-      }
+      res.json({ connected: !!token });
     } catch (error) {
       console.error('Error checking Gmail connection status:', error);
       res.status(500).json({ error: 'Failed to check Gmail connection status' });
@@ -719,9 +684,6 @@ export function setupGmailRoutes(app: express.Express) {
             error.message.includes('API not enabled')) {
           errorMessage = 'Gmail API not enabled. Please enable it in your Google Cloud Console.';
           errorCode = 'api_not_enabled';
-        } else if (error.message.includes('Insufficient Permission')) {
-          errorMessage = 'Insufficient Gmail permissions. Please re-authorize with proper Gmail access.';
-          errorCode = 'insufficient_permission';
         } else if (error.message.includes('invalid_grant')) {
           errorMessage = 'Your Gmail authorization has expired. Please reconnect your Gmail account.';
           errorCode = 'token_expired';

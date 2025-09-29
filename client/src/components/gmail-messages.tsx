@@ -89,30 +89,6 @@ export default function GmailMessages() {
     }
   });
 
-  // Re-authorization mutation for insufficient permissions
-  const reauthorizeMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/gmail/reauthorize");
-      return response;
-    },
-    onSuccess: (data) => {
-      if (data.authUrl) {
-        window.open(data.authUrl, '_blank', 'width=600,height=600');
-        toast({
-          title: "Re-authorization Required",
-          description: "Please complete the Gmail re-authorization in the popup window.",
-        });
-      }
-    },
-    onError: (error) => {
-      toast({
-        title: "Re-authorization Failed",
-        description: "Failed to initiate Gmail re-authorization. Please try again.",
-        variant: "destructive"
-      });
-    }
-  });
-
   // Gmail settings
   const { data: settings, isLoading: isLoadingSettings } = useQuery({
     queryKey: ["/api/gmail/settings"],
@@ -954,7 +930,7 @@ export default function GmailMessages() {
     );
   }
 
-  if (!connectionStatus?.connected || connectionStatus?.needsReauth) {
+  if (!connectionStatus?.connected) {
     return (
       <Card className="shadow-lg">
         <CardHeader className="text-center pb-0">
@@ -962,12 +938,10 @@ export default function GmailMessages() {
             <Mail className="h-8 w-8 text-primary" />
           </div>
           <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-red-600 text-transparent bg-clip-text">
-            {connectionStatus?.needsReauth ? 'Re-authorize Gmail Access' : 'Connect to Gmail'}
+            Connect to Gmail
           </CardTitle>
           <CardDescription className="text-base max-w-md mx-auto mt-2">
-            {connectionStatus?.needsReauth 
-              ? 'Your Gmail permissions are insufficient. Please re-authorize with proper Gmail access to continue using email features.'
-              : 'Connect your Gmail account to view and manage THERMOPAC emails directly in this dashboard.'}
+            Connect your Gmail account to view and manage THERMOPAC emails directly in this dashboard.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6 pb-8 text-center">
@@ -1010,24 +984,13 @@ export default function GmailMessages() {
                     </div>
                   </div>
                 </div>
-                {connectionStatus?.needsReauth ? (
-                  <Button 
-                    onClick={() => reauthorizeMutation.mutate()} 
-                    className="w-full bg-gradient-to-r from-amber-600 to-red-600 hover:from-amber-700 hover:to-red-700"
-                    size="lg"
-                    disabled={reauthorizeMutation.isPending}
-                  >
-                    {reauthorizeMutation.isPending ? 'Re-authorizing...' : 'Re-authorize Gmail Access'}
-                  </Button>
-                ) : (
-                  <Button 
-                    onClick={connectToGmail} 
-                    className="w-full bg-gradient-to-r from-blue-600 to-red-600 hover:from-blue-700 hover:to-red-700"
-                    size="lg"
-                  >
-                    Connect Gmail Account
-                  </Button>
-                )}
+                <Button 
+                  onClick={connectToGmail} 
+                  className="w-full bg-gradient-to-r from-blue-600 to-red-600 hover:from-blue-700 hover:to-red-700"
+                  size="lg"
+                >
+                  Connect Gmail Account
+                </Button>
                 <p className="text-xs text-muted-foreground">
                   Note: You'll be redirected to Google to authorize access and then returned to this page.
                 </p>
