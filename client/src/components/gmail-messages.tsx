@@ -68,9 +68,6 @@ export default function GmailMessages() {
   // Get all users for assignment dropdown
   const { data: users } = useQuery<User[]>({
     queryKey: ["/api/users"],
-    queryFn: async () => {
-      return await apiRequest("GET", "/api/users");
-    }
   });
   
   // Group users by role for the task assignment dropdown - same format as task-list.tsx
@@ -80,7 +77,7 @@ export default function GmailMessages() {
       const usersInRole = users.filter((u: User) => u.role === role);
       if (usersInRole.length > 0) {
         // Sort alphabetically within each group
-        usersInRole.sort((a, b) => {
+        usersInRole.sort((a: User, b: User) => {
           const nameA = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
           const nameB = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
           return nameA.localeCompare(nameB);
@@ -175,9 +172,9 @@ export default function GmailMessages() {
 
   // Mark message as read
   const markAsReadMutation = useMutation<GmailMessage, Error, { messageId: number, isRead: boolean }>({
-    mutationFn: async ({ messageId, isRead }: { messageId: number, isRead: boolean }) => {
+    mutationFn: async ({ messageId, isRead }: { messageId: number, isRead: boolean }): Promise<GmailMessage> => {
       console.log(`Marking message ${messageId} as ${isRead ? 'read' : 'unread'}`);
-      return await apiRequest("PATCH", `/api/gmail/messages/${messageId}/read`, { isRead });
+      return await apiRequest("PATCH", `/api/gmail/messages/${messageId}/read`, { isRead }) as GmailMessage;
     },
     onSuccess: (data, variables) => {
       console.log(`Successfully marked message ${variables.messageId} as ${variables.isRead ? 'read' : 'unread'}`);
@@ -204,10 +201,10 @@ export default function GmailMessages() {
 
   // Toggle message importance
   const toggleImportanceMutation = useMutation<GmailMessage, Error, { messageId: number, important: boolean }>({
-    mutationFn: async ({ messageId, important }: { messageId: number, important: boolean }) => {
+    mutationFn: async ({ messageId, important }: { messageId: number, important: boolean }): Promise<GmailMessage> => {
       return await apiRequest("PATCH", `/api/gmail/messages/${messageId}/important`, {
         important
-      });
+      }) as GmailMessage;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
@@ -223,8 +220,8 @@ export default function GmailMessages() {
   
   // Delete message
   const deleteMessageMutation = useMutation<void, Error, number>({
-    mutationFn: async (messageId: number) => {
-      return await apiRequest("DELETE", `/api/gmail/messages/${messageId}`);
+    mutationFn: async (messageId: number): Promise<void> => {
+      await apiRequest("DELETE", `/api/gmail/messages/${messageId}`);
     },
     onSuccess: () => {
       setSelectedMessageId(null); // Return to message list after deletion
@@ -1402,7 +1399,7 @@ export default function GmailMessages() {
                     </Button>
                   </div>
                 </Card>
-              ) : messages?.length > 0 ? (
+              ) : messages && messages.length > 0 ? (
                 <div className="space-y-2">
                   {messages.map((message: GmailMessage) => (
                     <Card 
