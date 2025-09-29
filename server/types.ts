@@ -6,6 +6,7 @@ import {
   RecurringPattern, InsertRecurringPattern, RecurringTask, InsertRecurringTask,
   GmailToken, InsertGmailToken, GmailMessage, InsertGmailMessage, 
   GmailSettings, InsertGmailSettings,
+  EmailAnalysis, InsertEmailAnalysis, EmailReplies, InsertEmailReplies,
   InternalMessage, InsertInternalMessage,
   Customer, InsertCustomer,
   Project, InsertProject,
@@ -143,6 +144,11 @@ export interface IStorage {
   saveGmailSettings(settings: InsertGmailSettings): Promise<GmailSettings>;
   getGmailSettings(userId: number): Promise<GmailSettings | undefined>;
   updateGmailSettings(userId: number, updateData: Partial<GmailSettings>): Promise<GmailSettings>;
+  
+  // Email Analysis
+  saveEmailAnalysis(analysis: InsertEmailAnalysis): Promise<EmailAnalysis>;
+  getEmailAnalysis(messageId: number): Promise<EmailAnalysis | undefined>;
+  saveEmailReplies(replies: InsertEmailReplies): Promise<EmailReplies>;
   
   // Internal Messages
   createInternalMessage(message: InsertInternalMessage): Promise<InternalMessage>;

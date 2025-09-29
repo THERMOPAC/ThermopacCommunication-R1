@@ -12,6 +12,8 @@ import type {
   GmailToken, InsertGmailToken,
   GmailMessage, InsertGmailMessage,
   GmailSettings, InsertGmailSettings,
+  EmailAnalysis, InsertEmailAnalysis,
+  EmailReplies, InsertEmailReplies,
   InternalMessage, InsertInternalMessage,
   Project, InsertProject,
   ProjectPhase, InsertProjectPhase,
@@ -53,6 +55,8 @@ import {
   gmailTokens as gmailTokensTable,
   gmailMessages as gmailMessagesTable,
   gmailSettings as gmailSettingsTable,
+  emailAnalysis as emailAnalysisTable,
+  emailReplies as emailRepliesTable,
   internalMessages as internalMessagesTable,
   customers as customersTable,
   projects as projectsTable,
@@ -1904,6 +1908,40 @@ export class DatabaseStorage implements IStorage {
       .from(gmailMessagesTable)
       .where(eq(gmailMessagesTable.id, id));
     return result[0] as GmailMessage | undefined;
+  }
+
+  // Email Analysis Methods
+  async saveEmailAnalysis(analysis: InsertEmailAnalysis): Promise<EmailAnalysis> {
+    console.log(`Saving email analysis for message ${analysis.messageId}`);
+    const result = await db.insert(emailAnalysisTable).values(analysis).returning();
+    const emailAnalysis = result[0] as EmailAnalysis;
+    console.log(`Saved email analysis: ${emailAnalysis.id}`);
+    return emailAnalysis;
+  }
+
+  async getEmailAnalysis(messageId: number): Promise<EmailAnalysis | undefined> {
+    console.log(`Getting email analysis for message ${messageId}`);
+    const result = await db
+      .select()
+      .from(emailAnalysisTable)
+      .where(eq(emailAnalysisTable.messageId, messageId));
+    
+    if (result.length === 0) {
+      console.log(`Email analysis for message ${messageId} not found`);
+      return undefined;
+    }
+    
+    const analysis = result[0] as EmailAnalysis;
+    console.log(`Retrieved email analysis: ${analysis.id} for message ${messageId}`);
+    return analysis;
+  }
+
+  async saveEmailReplies(replies: InsertEmailReplies): Promise<EmailReplies> {
+    console.log(`Saving email replies for message ${replies.messageId}`);
+    const result = await db.insert(emailRepliesTable).values(replies).returning();
+    const emailReplies = result[0] as EmailReplies;
+    console.log(`Saved email replies: ${emailReplies.id}`);
+    return emailReplies;
   }
 
   async updateGmailMessage(id: number, updateData: Partial<GmailMessage>): Promise<GmailMessage> {

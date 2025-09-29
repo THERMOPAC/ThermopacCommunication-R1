@@ -1326,12 +1326,48 @@ export const insertGmailMessageSchema = createInsertSchema(gmailMessages, {
 
 export const insertGmailSettingsSchema = createInsertSchema(gmailSettings);
 
+// Email AI Analysis results table
+export const emailAnalysis = pgTable('email_analysis', {
+  id: serial('id').primaryKey(),
+  messageId: integer('message_id').notNull().references(() => gmailMessages.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  summary: text('summary').notNull(),
+  keyPoints: jsonb('key_points').notNull(),
+  urgency: text('urgency').notNull(),
+  category: text('category').notNull(),
+  actionItems: jsonb('action_items').notNull(),
+  sentiment: text('sentiment').notNull(),
+  analyzedAt: timestamp('analyzed_at').defaultNow().notNull(),
+});
+
+// Email AI Generated Replies table
+export const emailReplies = pgTable('email_replies', {
+  id: serial('id').primaryKey(),
+  messageId: integer('message_id').notNull().references(() => gmailMessages.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  professionalReply: text('professional_reply').notNull(),
+  briefReply: text('brief_reply').notNull(),
+  detailedReply: text('detailed_reply').notNull(),
+  context: text('context'),
+  generatedAt: timestamp('generated_at').defaultNow().notNull(),
+});
+
+// Email Analysis schema types & insert schemas
+export const insertEmailAnalysisSchema = createInsertSchema(emailAnalysis);
+export const insertEmailRepliesSchema = createInsertSchema(emailReplies, {
+  context: z.string().optional()
+});
+
 export type GmailToken = typeof gmailTokens.$inferSelect;
 export type InsertGmailToken = z.infer<typeof insertGmailTokenSchema>;
 export type GmailMessage = typeof gmailMessages.$inferSelect;
 export type InsertGmailMessage = z.infer<typeof insertGmailMessageSchema>;
 export type GmailSettings = typeof gmailSettings.$inferSelect;
 export type InsertGmailSettings = z.infer<typeof insertGmailSettingsSchema>;
+export type EmailAnalysis = typeof emailAnalysis.$inferSelect;
+export type InsertEmailAnalysis = z.infer<typeof insertEmailAnalysisSchema>;
+export type EmailReplies = typeof emailReplies.$inferSelect;
+export type InsertEmailReplies = z.infer<typeof insertEmailRepliesSchema>;
 
 // Internal messages table for in-system communication
 export const internalMessages = pgTable('internal_messages', {

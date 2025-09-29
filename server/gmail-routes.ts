@@ -3,6 +3,7 @@ import { storage } from './storage';
 import { getGmailClient, getAuthUrl } from './google-auth';
 import { getTokens, sanitizeAuthCode } from './google-oauth';
 import { gmail_v1 } from 'googleapis';
+import { analyzeEmail, generateEmailReplies } from './openai-email-service';
 
 export function setupGmailRoutes(app: express.Express) {
   // Manual authentication endpoint for Gmail
@@ -710,6 +711,169 @@ export function setupGmailRoutes(app: express.Express) {
         errorCode: errorCode,
         details: error.message || 'Unknown error'
       });
+    }
+  });
+
+  // AI Analysis endpoint - Analyze email content
+  app.post('/api/gmail/messages/:id/analyze', async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const messageId = parseInt(req.params.id);
+    
+    if (isNaN(messageId)) {
+      return res.status(400).json({ error: 'Invalid message ID' });
+    }
+
+    try {
+      // Get the message from database
+      const message = await storage.getGmailMessage(messageId);
+      
+      if (!message) {
+        return res.status(404).json({ error: 'Message not found' });
+      }
+
+      // Check if user has access to this message
+      if (message.userId !== req.user!.id && req.user!.id !== 3) {
+        return res.status(403).json({ error: 'You do not have permission to access this message' });
+      }
+
+      // Check if we already have analysis cached
+      const existingAnalysis = await storage.getEmailAnalysis(messageId);
+      if (existingAnalysis) {
+        return res.json(existingAnalysis);
+      }
+
+      // Perform AI analysis
+      const analysis = await analyzeEmail(
+        message.subject || '',
+        message.body || message.snippet || '',
+        message.from || ''
+      );
+
+      // Cache the analysis result
+      const cachedAnalysis = await storage.saveEmailAnalysis({
+        messageId,
+        userId: req.user!.id,
+        summary: analysis.summary,
+        keyPoints: analysis.keyPoints,
+        urgency: analysis.urgency,
+        category: analysis.category,
+        actionItems: analysis.actionItems,
+        sentiment: analysis.sentiment,
+        analyzedAt: new Date()
+      });
+
+      res.json(cachedAnalysis);
+    } catch (error) {
+      console.error('Error analyzing email:', error);
+      
+      if (error instanceof Error && error.message.includes('OpenAI')) {
+        return res.status(503).json({ 
+          error: 'AI service temporarily unavailable',
+          message: 'Please try again in a moment'
+        });
+      }
+      
+      res.status(500).json({ 
+        error: 'Failed to analyze email',
+        message: error instanceof Error ? error.message : 'Unknown error occurred'
+      });
+    }
+  });
+
+  // AI Reply Generation endpoint
+  app.post('/api/gmail/messages/:id/generate-reply', async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const messageId = parseInt(req.params.id);
+    const { context } = req.body; // Optional context from user
+    
+    if (isNaN(messageId)) {
+      return res.status(400).json({ error: 'Invalid message ID' });
+    }
+
+    try {
+      // Get the message from database
+      const message = await storage.getGmailMessage(messageId);
+      
+      if (!message) {
+        return res.status(404).json({ error: 'Message not found' });
+      }
+
+      // Check if user has access to this message
+      if (message.userId !== req.user!.id && req.user!.id !== 3) {
+        return res.status(403).json({ error: 'You do not have permission to access this message' });
+      }
+
+      // Generate reply options using AI
+      const replies = await generateEmailReplies(
+        message.subject || '',
+        message.body || message.snippet || '',
+        message.from || '',
+        context
+      );
+
+      // Cache the generated replies for potential reuse
+      await storage.saveEmailReplies({
+        messageId,
+        userId: req.user!.id,
+        professionalReply: replies.professional,
+        briefReply: replies.brief,
+        detailedReply: replies.detailed,
+        context: context || null,
+        generatedAt: new Date()
+      });
+
+      res.json(replies);
+    } catch (error) {
+      console.error('Error generating email replies:', error);
+      
+      if (error instanceof Error && error.message.includes('OpenAI')) {
+        return res.status(503).json({ 
+          error: 'AI service temporarily unavailable',
+          message: 'Please try again in a moment'
+        });
+      }
+      
+      res.status(500).json({ 
+        error: 'Failed to generate email replies',
+        message: error instanceof Error ? error.message : 'Unknown error occurred'
+      });
+    }
+  });
+
+  // Get cached analysis for a message
+  app.get('/api/gmail/messages/:id/analysis', async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const messageId = parseInt(req.params.id);
+    
+    if (isNaN(messageId)) {
+      return res.status(400).json({ error: 'Invalid message ID' });
+    }
+
+    try {
+      const analysis = await storage.getEmailAnalysis(messageId);
+      
+      if (!analysis) {
+        return res.status(404).json({ error: 'No analysis found for this message' });
+      }
+
+      // Check if user has access to this message analysis
+      if (analysis.userId !== req.user!.id && req.user!.id !== 3) {
+        return res.status(403).json({ error: 'You do not have permission to access this analysis' });
+      }
+
+      res.json(analysis);
+    } catch (error) {
+      console.error('Error fetching email analysis:', error);
+      res.status(500).json({ error: 'Failed to fetch email analysis' });
     }
   });
 }
