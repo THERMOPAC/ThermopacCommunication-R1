@@ -62,6 +62,11 @@ export default function GmailMessages() {
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [showReplyGeneration, setShowReplyGeneration] = useState(false);
 
+  // Bulk selection states
+  const [selectedEmails, setSelectedEmails] = useState<Set<number>>(new Set());
+  const [selectAll, setSelectAll] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Gmail connection status
   const { data: connectionStatus, isLoading: isLoadingStatus } = useQuery({
     queryKey: ["/api/gmail/status"],
@@ -523,6 +528,81 @@ export default function GmailMessages() {
         description: "Failed to copy to clipboard",
         variant: "destructive"
       });
+    }
+  };
+
+  // Bulk selection functions
+  const handleSelectEmail = (emailId: number, checked: boolean) => {
+    const newSelected = new Set(selectedEmails);
+    if (checked) {
+      newSelected.add(emailId);
+    } else {
+      newSelected.delete(emailId);
+    }
+    setSelectedEmails(newSelected);
+    
+    // Update select all state based on current selection
+    const allVisible = messages?.map(m => m.id) || [];
+    setSelectAll(allVisible.every(id => newSelected.has(id)));
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(messages?.map(m => m.id) || []);
+      setSelectedEmails(allIds);
+    } else {
+      setSelectedEmails(new Set());
+    }
+    setSelectAll(checked);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedEmails.size === 0) return;
+    
+    setIsDeleting(true);
+    let successCount = 0;
+    let errorCount = 0;
+    
+    try {
+      // Delete emails one by one
+      for (const emailId of selectedEmails) {
+        try {
+          await apiRequest("DELETE", `/api/gmail/messages/${emailId}`);
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to delete email ${emailId}:`, error);
+          errorCount++;
+        }
+      }
+      
+      // Clear selection
+      setSelectedEmails(new Set());
+      setSelectAll(false);
+      
+      // Refresh messages list
+      queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
+      
+      // Show result toast
+      if (errorCount === 0) {
+        toast({
+          title: "Success",
+          description: `${successCount} email(s) deleted successfully`,
+        });
+      } else {
+        toast({
+          title: "Partial Success",
+          description: `${successCount} email(s) deleted, ${errorCount} failed`,
+          variant: "default"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Delete Failed",
+        description: "Failed to delete selected emails",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
   
@@ -1677,15 +1757,63 @@ export default function GmailMessages() {
                 </Card>
               ) : messages && messages.length > 0 ? (
                 <div className="space-y-2">
+                  {/* Bulk selection header */}
+                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Checkbox
+                        id="select-all"
+                        checked={selectAll}
+                        onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                        data-testid="checkbox-select-all"
+                      />
+                      <Label htmlFor="select-all" className="text-sm font-medium">
+                        Select All ({messages.length} emails)
+                      </Label>
+                    </div>
+                    {selectedEmails.size > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {selectedEmails.size} selected
+                        </span>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleBulkDelete}
+                          disabled={isDeleting}
+                          data-testid="button-bulk-delete"
+                        >
+                          {isDeleting ? (
+                            <>
+                              <RotateCw className="h-4 w-4 mr-2 animate-spin" />
+                              Deleting...
+                            </>
+                          ) : (
+                            <>
+                              <Trash className="h-4 w-4 mr-2" />
+                              Delete Selected
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  
                   {messages.map((message: GmailMessage) => (
                     <Card 
                       key={message.id}
-                      className={`group hover:bg-accent/50 cursor-pointer transition-colors ${!message.isRead ? 'border-l-4 border-l-primary' : ''}`}
+                      className={`group hover:bg-accent/50 cursor-pointer transition-colors ${!message.isRead ? 'border-l-4 border-l-primary' : ''} ${selectedEmails.has(message.id) ? 'ring-2 ring-primary' : ''}`}
                       onClick={() => handleViewMessage(message.id)}
                     >
                       <CardHeader className="p-4">
                         <div className="flex justify-between">
                           <div className="flex items-start space-x-2">
+                            <Checkbox
+                              checked={selectedEmails.has(message.id)}
+                              onCheckedChange={(checked) => handleSelectEmail(message.id, checked as boolean)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-1"
+                              data-testid={`checkbox-email-${message.id}`}
+                            />
                             <Button
                               type="button"
                               size="icon"
