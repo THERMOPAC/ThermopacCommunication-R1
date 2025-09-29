@@ -34,6 +34,11 @@ import {
   FolderCheck,
   ListTodo,
   Shield,
+  Brain,
+  Sparkles,
+  MessageSquare,
+  Copy,
+  CheckCircle,
 } from "lucide-react";
 import GcsDiagnostics from "@/components/gcs-diagnostics";
 import { format } from "date-fns";
@@ -47,6 +52,15 @@ export default function GmailMessages() {
   const [filterImportance, setFilterImportance] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState("inbox");
+  
+  // AI Analysis states
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [isGeneratingReply, setIsGeneratingReply] = useState(false);
+  const [replyData, setReplyData] = useState<any>(null);
+  const [selectedReplyStyle, setSelectedReplyStyle] = useState<'professional' | 'brief' | 'detailed'>('professional');
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [showReplyGeneration, setShowReplyGeneration] = useState(false);
 
   // Gmail connection status
   const { data: connectionStatus, isLoading: isLoadingStatus } = useQuery({
@@ -444,6 +458,73 @@ export default function GmailMessages() {
       setIsSubmittingCode(false); 
     }
   });
+
+  // AI Email Analysis functions
+  const analyzeEmail = async (messageId: number) => {
+    if (isAnalyzing) return;
+    
+    setIsAnalyzing(true);
+    try {
+      const response = await apiRequest("POST", `/api/gmail/messages/${messageId}/analyze`);
+      setAnalysisData(response);
+      setShowAnalysis(true);
+      toast({
+        title: "Analysis Complete",
+        description: "Email has been analyzed successfully!",
+      });
+    } catch (error) {
+      console.error("Email analysis error:", error);
+      toast({
+        title: "Analysis Failed",
+        description: error instanceof Error ? error.message : "Failed to analyze email",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const generateReply = async (messageId: number, context?: string) => {
+    if (isGeneratingReply) return;
+    
+    setIsGeneratingReply(true);
+    try {
+      const response = await apiRequest("POST", `/api/gmail/messages/${messageId}/generate-reply`, {
+        context: context || ""
+      });
+      setReplyData(response);
+      setShowReplyGeneration(true);
+      toast({
+        title: "Reply Generated",
+        description: "AI reply suggestions have been generated!",
+      });
+    } catch (error) {
+      console.error("Reply generation error:", error);
+      toast({
+        title: "Reply Generation Failed",
+        description: error instanceof Error ? error.message : "Failed to generate reply",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingReply(false);
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Copied!",
+        description: "Reply has been copied to clipboard",
+      });
+    } catch (error) {
+      toast({
+        title: "Copy Failed",
+        description: "Failed to copy to clipboard",
+        variant: "destructive"
+      });
+    }
+  };
   
   const connectToGmail = async () => {
     try {
@@ -1312,6 +1393,40 @@ export default function GmailMessages() {
                       Convert to Task
                     </Button>
                     <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (selectedMessage) {
+                          analyzeEmail(selectedMessage.id);
+                        }
+                      }}
+                      disabled={isAnalyzing}
+                    >
+                      {isAnalyzing ? (
+                        <RotateCw className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Brain className="h-4 w-4 mr-2 text-blue-600" />
+                      )}
+                      {isAnalyzing ? 'Analyzing...' : 'AI Analyze'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (selectedMessage) {
+                          generateReply(selectedMessage.id);
+                        }
+                      }}
+                      disabled={isGeneratingReply}
+                    >
+                      {isGeneratingReply ? (
+                        <RotateCw className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <MessageSquare className="h-4 w-4 mr-2 text-green-600" />
+                      )}
+                      {isGeneratingReply ? 'Generating...' : 'Generate Reply'}
+                    </Button>
+                    <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => {
@@ -1342,6 +1457,167 @@ export default function GmailMessages() {
                   dangerouslySetInnerHTML={{ __html: selectedMessage?.body || selectedMessage?.snippet || 'No content' }} 
                 />
               </CardContent>
+              
+              {/* AI Analysis Results */}
+              {showAnalysis && analysisData && (
+                <>
+                  <Separator />
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Sparkles className="h-5 w-5 text-blue-600" />
+                      <h3 className="text-lg font-semibold">AI Analysis</h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowAnalysis(false)}
+                        className="ml-auto"
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      {/* Summary */}
+                      <div>
+                        <h4 className="font-medium text-sm text-muted-foreground mb-2">SUMMARY</h4>
+                        <p className="text-sm">{analysisData.summary}</p>
+                      </div>
+                      
+                      {/* Key Points */}
+                      <div>
+                        <h4 className="font-medium text-sm text-muted-foreground mb-2">KEY POINTS</h4>
+                        <ul className="text-sm space-y-1">
+                          {analysisData.keyPoints?.map((point: string, index: number) => (
+                            <li key={index} className="flex items-start gap-2">
+                              <span className="text-blue-600 mt-1">•</span>
+                              <span>{point}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      
+                      {/* Urgency and Category */}
+                      <div className="flex gap-4">
+                        <div>
+                          <h4 className="font-medium text-sm text-muted-foreground mb-2">URGENCY</h4>
+                          <Badge 
+                            variant={analysisData.urgency === 'High' ? 'destructive' : 
+                                    analysisData.urgency === 'Medium' ? 'default' : 'secondary'}
+                          >
+                            {analysisData.urgency}
+                          </Badge>
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-sm text-muted-foreground mb-2">CATEGORY</h4>
+                          <Badge variant="outline">{analysisData.category}</Badge>
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-sm text-muted-foreground mb-2">SENTIMENT</h4>
+                          <Badge 
+                            variant={analysisData.sentiment === 'Positive' ? 'default' : 
+                                    analysisData.sentiment === 'Negative' ? 'destructive' : 'secondary'}
+                          >
+                            {analysisData.sentiment}
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      {/* Action Items */}
+                      {analysisData.actionItems && analysisData.actionItems.length > 0 && (
+                        <div>
+                          <h4 className="font-medium text-sm text-muted-foreground mb-2">ACTION ITEMS</h4>
+                          <ul className="text-sm space-y-1">
+                            {analysisData.actionItems.map((item: string, index: number) => (
+                              <li key={index} className="flex items-start gap-2">
+                                <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </>
+              )}
+              
+              {/* Reply Generation Results */}
+              {showReplyGeneration && replyData && (
+                <>
+                  <Separator />
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <MessageSquare className="h-5 w-5 text-green-600" />
+                      <h3 className="text-lg font-semibold">AI Reply Suggestions</h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowReplyGeneration(false)}
+                        className="ml-auto"
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      {/* Reply Style Selector */}
+                      <div>
+                        <h4 className="font-medium text-sm text-muted-foreground mb-2">REPLY STYLE</h4>
+                        <div className="flex gap-2">
+                          <Button
+                            variant={selectedReplyStyle === 'professional' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setSelectedReplyStyle('professional')}
+                          >
+                            Professional
+                          </Button>
+                          <Button
+                            variant={selectedReplyStyle === 'brief' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setSelectedReplyStyle('brief')}
+                          >
+                            Brief
+                          </Button>
+                          <Button
+                            variant={selectedReplyStyle === 'detailed' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setSelectedReplyStyle('detailed')}
+                          >
+                            Detailed
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {/* Reply Content */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium text-sm text-muted-foreground">
+                            {selectedReplyStyle.toUpperCase()} REPLY
+                          </h4>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => copyToClipboard(replyData[`${selectedReplyStyle}Reply`] || '')}
+                          >
+                            <Copy className="h-4 w-4 mr-2" />
+                            Copy
+                          </Button>
+                        </div>
+                        <div className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap">
+                          {replyData[`${selectedReplyStyle}Reply`] || 'No reply available for this style.'}
+                        </div>
+                      </div>
+                      
+                      {replyData.context && (
+                        <div>
+                          <h4 className="font-medium text-sm text-muted-foreground mb-2">CONTEXT USED</h4>
+                          <p className="text-xs text-muted-foreground">{replyData.context}</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </>
+              )}
             </Card>
           ) : (
             <div>
