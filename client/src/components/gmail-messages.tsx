@@ -23,7 +23,6 @@ import {
   Mail,
   MailOpen,
   Star,
-  Search,
   Trash,
   Trash2,
   AlertCircle,
@@ -40,7 +39,6 @@ import {
   MessageSquare,
   Copy,
   CheckCircle,
-  X,
 } from "lucide-react";
 import GcsDiagnostics from "@/components/gcs-diagnostics";
 import { format } from "date-fns";
@@ -1385,37 +1383,6 @@ export default function GmailMessages() {
             Settings
           </Button>
         </div>
-      </div>
-
-      {/* Prominent Search Bar */}
-      <div className="mb-4">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search emails by subject or sender..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-            data-testid="input-search-emails"
-          />
-          {searchTerm && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
-              onClick={() => setSearchTerm("")}
-              data-testid="button-clear-search"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-        {searchTerm && (
-          <p className="text-sm text-muted-foreground mt-1">
-            Searching for: "{searchTerm}"
-          </p>
-        )}
       </div>
 
       {showFilters && (
