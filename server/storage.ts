@@ -1775,12 +1775,41 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getGmailToken(userId: number): Promise<GmailToken | undefined> {
-    console.log(`Getting Gmail token for user ${userId}`);
+    console.log(`Getting Gmail token for user ${userId} (using Calendar tokens)`);
+    
+    // Use Calendar tokens from users table for Gmail access
     const result = await db
-      .select()
-      .from(gmailTokensTable)
-      .where(eq(gmailTokensTable.userId, userId));
-    return result[0] as GmailToken | undefined;
+      .select({
+        id: users.id,
+        userId: users.id,
+        accessToken: users.googleAccessToken,
+        refreshToken: users.googleRefreshToken,
+        expiresAt: users.googleTokenExpiresAt,
+        scope: sql<string | null>`null`,
+        createdAt: sql<Date>`now()`,
+        updatedAt: sql<Date>`now()`
+      })
+      .from(users)
+      .where(eq(users.id, userId));
+    
+    const user = result[0];
+    if (!user || !user.accessToken) {
+      console.log(`No Calendar/Gmail token found for user ${userId}`);
+      return undefined;
+    }
+    
+    console.log(`Found Calendar token for user ${userId}, using it for Gmail`);
+    // Map the Calendar token fields to GmailToken structure
+    return {
+      id: user.id,
+      userId: user.userId,
+      accessToken: user.accessToken,
+      refreshToken: user.refreshToken,
+      tokenExpiry: user.expiresAt,
+      scope: user.scope,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    } as GmailToken;
   }
   
   // Alias for getGmailToken to match naming convention in google-auth.ts
