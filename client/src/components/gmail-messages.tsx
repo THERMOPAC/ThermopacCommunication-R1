@@ -632,8 +632,8 @@ export default function GmailMessages() {
         // Log the complete URL for debugging (careful with sensitive data)
         console.log("Full auth URL for debugging:", data.url);
         
-        // Navigate to Google auth page in the same window
-        window.location.href = data.url;
+        // Navigate to Google auth page, breaking out of any iframe
+        window.open(data.url, '_self');
       } else if (data.error) {
         // Display specific error from the server
         console.error("OAuth configuration error:", data);
