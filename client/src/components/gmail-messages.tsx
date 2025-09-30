@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { GmailMessage, InsertTask, User } from "@shared/schema";
@@ -69,18 +69,6 @@ export default function GmailMessages() {
   const [selectAll, setSelectAll] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Debounced search term for better performance
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-
-  // Debounce search term to prevent excessive filtering
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 300);
-    
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
   // Gmail connection status
   const { data: connectionStatus, isLoading: isLoadingStatus } = useQuery({
     queryKey: ["/api/gmail/status"],
@@ -120,12 +108,12 @@ export default function GmailMessages() {
       return acc;
     }, {} as Record<string, User[]>) : {};
 
-  // Gmail messages (removed searchTerm from queryKey to prevent API calls on every keystroke)
-  const { data: allMessages, isLoading: isLoadingMessages, error: messagesError } = useQuery<GmailMessage[]>({
-    queryKey: ["/api/gmail/messages", filterStatus, filterImportance],
+  // Gmail messages
+  const { data: messages, isLoading: isLoadingMessages, error: messagesError } = useQuery<GmailMessage[]>({
+    queryKey: ["/api/gmail/messages", filterStatus, filterImportance, searchTerm],
     queryFn: async () => {
       try {
-        console.log('Fetching messages with filters:', { filterStatus, filterImportance });
+        console.log('Fetching messages with filters:', { filterStatus, filterImportance, searchTerm });
         const queryParams = new URLSearchParams();
         
         // Always exclude spam emails
@@ -143,6 +131,14 @@ export default function GmailMessages() {
         if (filterImportance === "important") queryParams.set("isImportant", "true");
         if (filterImportance === "notImportant") queryParams.set("isImportant", "false");
         
+        if (searchTerm) {
+          // Search across multiple fields
+          if (searchTerm.includes("@")) {
+            queryParams.set("from", searchTerm);
+          } else {
+            queryParams.set("subject", searchTerm);
+          }
+        }
         
         const queryString = queryParams.toString();
         console.log('Final query string:', queryString);
@@ -166,6 +162,20 @@ export default function GmailMessages() {
           return data.filter((m: GmailMessage) => m.isRead);
         }
         
+        // Apply client-side search filtering
+        if (searchTerm && data.length > 0) {
+          console.log('Applying client-side search filter for:', searchTerm);
+          const lowercaseSearch = searchTerm.toLowerCase();
+          
+          // Filter by subject or from email address
+          return data.filter((m: GmailMessage) => {
+            const subject = (m.subject || '').toLowerCase();
+            const from = (m.from || '').toLowerCase();
+            
+            return subject.includes(lowercaseSearch) || 
+                   from.includes(lowercaseSearch);
+          });
+        }
         
         return data;
       } catch (error) {
@@ -175,23 +185,6 @@ export default function GmailMessages() {
     },
     enabled: connectionStatus?.connected === true
   });
-
-  // Client-side filtering for search (much faster than API calls)
-  const messages = useMemo(() => {
-    if (!allMessages || allMessages.length === 0) return allMessages;
-    
-    if (!debouncedSearchTerm) {
-      return allMessages;
-    }
-    
-    const lowercaseSearch = debouncedSearchTerm.toLowerCase();
-    return allMessages.filter((message: GmailMessage) => {
-      const subject = (message.subject || '').toLowerCase();
-      const from = (message.from || '').toLowerCase();
-      
-      return subject.includes(lowercaseSearch) || from.includes(lowercaseSearch);
-    });
-  }, [allMessages, debouncedSearchTerm]);
 
   // Selected message details
   const selectedMessage = selectedMessageId 
@@ -641,13 +634,12 @@ export default function GmailMessages() {
         // Log the complete URL for debugging (careful with sensitive data)
         console.log("Full auth URL for debugging:", data.url);
         
-        // Open OAuth in a new tab (works around iframe restrictions in Replit)
-        // The callback will redirect back to /emails in that tab
+        // Open Google auth page in a new tab
         window.open(data.url, '_blank');
         
         toast({
-          title: "Authorization Window Opened",
-          description: "Complete the Google authorization in the new tab. You'll be redirected back when done.",
+          title: "Gmail Authorization",
+          description: "Google authorization page has been opened in a new tab. Please complete the authorization there.",
         });
       } else if (data.error) {
         // Display specific error from the server

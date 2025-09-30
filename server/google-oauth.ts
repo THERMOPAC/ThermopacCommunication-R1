@@ -62,11 +62,7 @@ export const oauth2Client = new OAuth2Client(
 // Define the scopes we need for Gmail access
 export const SCOPES = [
   'https://www.googleapis.com/auth/gmail.readonly',  // Read-only access to Gmail
-  'https://www.googleapis.com/auth/gmail.send',      // Send emails
-  'https://www.googleapis.com/auth/gmail.labels',    // Manage labels
-  'https://www.googleapis.com/auth/gmail.modify',    // Modify but not delete access to Gmail
-  'profile',                                         // Access basic profile info
-  'email'                                            // Access email address
+  'https://www.googleapis.com/auth/gmail.modify'     // Modify but not delete access to Gmail
 ];
 
 /**
