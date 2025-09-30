@@ -225,8 +225,96 @@ export function setupGoogleAuth(app: Express) {
             if (err) {
               console.error('Error saving session after OAuth:', err);
             }
-            console.log('Session saved successfully, redirecting to emails page');
-            res.redirect('/emails?success=true');
+            console.log('Session saved successfully, sending close popup HTML');
+            
+            // Send HTML that closes the popup and signals the parent window
+            res.send(`
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <title>Gmail Connected</title>
+                <style>
+                  body {
+                    font-family: Arial, sans-serif;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100vh;
+                    margin: 0;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                  }
+                  .container {
+                    text-align: center;
+                  }
+                  .checkmark {
+                    width: 80px;
+                    height: 80px;
+                    border-radius: 50%;
+                    display: block;
+                    stroke-width: 2;
+                    stroke: #fff;
+                    stroke-miterlimit: 10;
+                    margin: 10% auto;
+                    animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+                  }
+                  .checkmark__circle {
+                    stroke-dasharray: 166;
+                    stroke-dashoffset: 166;
+                    stroke-width: 2;
+                    stroke-miterlimit: 10;
+                    stroke: #fff;
+                    fill: none;
+                    animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+                  }
+                  .checkmark__check {
+                    transform-origin: 50% 50%;
+                    stroke-dasharray: 48;
+                    stroke-dashoffset: 48;
+                    animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+                  }
+                  @keyframes stroke {
+                    100% {
+                      stroke-dashoffset: 0;
+                    }
+                  }
+                  @keyframes scale {
+                    0%, 100% {
+                      transform: none;
+                    }
+                    50% {
+                      transform: scale3d(1.1, 1.1, 1);
+                    }
+                  }
+                  @keyframes fill {
+                    100% {
+                      box-shadow: inset 0px 0px 0px 30px #fff;
+                    }
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="container">
+                  <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                    <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+                    <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                  </svg>
+                  <h2>Gmail Connected Successfully!</h2>
+                  <p>This window will close automatically...</p>
+                </div>
+                <script>
+                  // Close the popup window after a short delay
+                  setTimeout(function() {
+                    window.close();
+                    // If window.close() didn't work (some browsers block it), redirect to main page
+                    setTimeout(function() {
+                      window.location.href = '/emails?success=true';
+                    }, 500);
+                  }, 2000);
+                </script>
+              </body>
+              </html>
+            `);
           });
         } catch (error) {
           const saveError = error as Error;
