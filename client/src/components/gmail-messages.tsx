@@ -641,49 +641,9 @@ export default function GmailMessages() {
         // Log the complete URL for debugging (careful with sensitive data)
         console.log("Full auth URL for debugging:", data.url);
         
-        // Open Google auth page in a new window/tab
-        // Note: In Replit's iframe environment, direct redirects may fail due to Google's iframe restrictions
-        const authWindow = window.open(data.url, 'gmail-auth', 'width=600,height=700');
-        
-        if (!authWindow) {
-          // Popup was blocked, fall back to manual mode
-          toast({
-            title: "Popup Blocked",
-            description: "Please allow popups or use manual authentication below",
-            variant: "destructive"
-          });
-          setManualMode(true);
-        } else {
-          toast({
-            title: "Gmail Authorization",
-            description: "Complete the authorization in the popup window. This page will automatically update when done.",
-          });
-          
-          // Poll for connection status
-          const pollInterval = setInterval(async () => {
-            try {
-              const statusResponse = await fetch("/api/gmail/status", {
-                credentials: "include"
-              });
-              const statusData = await statusResponse.json();
-              
-              if (statusData.connected) {
-                clearInterval(pollInterval);
-                authWindow?.close();
-                queryClient.invalidateQueries({ queryKey: ["/api/gmail/status"] });
-                toast({
-                  title: "Success",
-                  description: "Gmail connected successfully!",
-                });
-              }
-            } catch (error) {
-              // Continue polling
-            }
-          }, 2000);
-          
-          // Stop polling after 5 minutes
-          setTimeout(() => clearInterval(pollInterval), 300000);
-        }
+        // Redirect to Google OAuth in the same window
+        // This preserves the session and allows the callback to work properly
+        window.location.href = data.url;
       } else if (data.error) {
         // Display specific error from the server
         console.error("OAuth configuration error:", data);
