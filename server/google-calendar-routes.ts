@@ -118,58 +118,10 @@ export async function handleOAuthCallback(req: any, res: any) {
     // Save tokens to user account
     await googleCalendarService.saveUserTokens(userId, tokens);
 
-    console.log(`Google OAuth successful for ${stateData.service}, sending auto-close HTML`);
+    console.log(`Google OAuth successful for ${stateData.service}, redirecting to ${successRedirect}`);
     
-    // Always send auto-close HTML for popup windows
-    // Send HTML that closes the popup window
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Authorization Successful</title>
-        <style>
-          body {
-            font-family: system-ui, -apple-system, sans-serif;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-          }
-          .container {
-            text-align: center;
-            padding: 2rem;
-          }
-          .checkmark {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-          }
-          .message {
-            font-size: 1.5rem;
-            margin-bottom: 0.5rem;
-          }
-          .sub-message {
-            opacity: 0.9;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="checkmark">✓</div>
-          <div class="message">Authorization Successful!</div>
-          <div class="sub-message">This window will close automatically...</div>
-        </div>
-        <script>
-          // Close the popup window after a brief delay
-          setTimeout(() => {
-            window.close();
-          }, 1500);
-        </script>
-      </body>
-      </html>
-    `);
+    // Redirect to the appropriate page with success indicator
+    res.redirect(successRedirect);
   } catch (error) {
     console.error(`Error handling Google OAuth callback for ${stateData?.service || 'unknown'}:`, error);
     res.redirect(errorRedirect);

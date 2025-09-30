@@ -610,97 +610,13 @@ export default function GmailMessages() {
     try {
       console.log("Initiating Gmail connection...");
       
-      // First attempt to get the URL
-      const response = await fetch("/api/gmail/auth-url", {
-        method: "GET",
-        credentials: "include",
-      });
+      // Simply redirect to the auth endpoint - server will handle the full OAuth flow
+      // Save timestamp to track the auth attempt
+      localStorage.setItem('gmailAuthAttempt', new Date().toISOString());
       
-      // Parse the response
-      const data = await response.json();
-      console.log("Auth URL response:", data);
-      
-      // Check if we got a URL or an error
-      if (data.url) {
-        // Save the URL for manual mode
-        setAuthUrl(data.url);
-        console.log("Auth URL received:", data.url.substring(0, 50) + "...");
-        
-        // Verify the URL is a Google OAuth URL
-        if (!data.url.startsWith('https://accounts.google.com')) {
-          console.error("INVALID AUTH URL - not a Google URL:", data.url);
-          toast({
-            title: "Invalid Authorization URL",
-            description: "The server returned an invalid Google OAuth URL. Please contact support.",
-            variant: "destructive"
-          });
-          return;
-        }
-        
-        // Save the timestamp in localStorage to help diagnose redirect issues
-        localStorage.setItem('gmailAuthAttempt', new Date().toISOString());
-        
-        // Log the complete URL for debugging (careful with sensitive data)
-        console.log("Full auth URL for debugging:", data.url);
-        console.log("URL length:", data.url.length);
-        console.log("URL starts with:", data.url.substring(0, 100));
-        
-        // Open OAuth in popup window (no redirect, stays on same page)
-        console.log("Opening Google OAuth in popup window...");
-        
-        // Calculate popup window dimensions (centered on screen)
-        const width = 600;
-        const height = 700;
-        const left = (window.screen.width - width) / 2;
-        const top = (window.screen.height - height) / 2;
-        
-        // Open popup window with OAuth URL
-        console.log("Calling window.open with URL:", data.url);
-        const authWindow = window.open(
-          data.url,
-          'GmailAuth',
-          `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,location=yes,status=no,scrollbars=yes`
-        );
-        
-        console.log("window.open returned:", authWindow ? "Window object" : "null (blocked)");
-        
-        if (!authWindow) {
-          toast({
-            title: "Pop-up Blocked",
-            description: "Please allow pop-ups for this site and try again.",
-            variant: "destructive"
-          });
-          return;
-        }
-        
-        // Show loading toast
-        toast({
-          title: "Authorization Window Opened",
-          description: "Complete the authorization in the popup window.",
-        });
-        
-        // Poll to detect when popup closes
-        const pollTimer = setInterval(() => {
-          if (authWindow.closed) {
-            clearInterval(pollTimer);
-            console.log("OAuth popup closed, refreshing connection status...");
-            
-            // Wait a moment for the backend to save tokens, then refresh
-            setTimeout(() => {
-              queryClient.invalidateQueries({ queryKey: ["/api/gmail/status"] });
-              queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
-            }, 1000);
-          }
-        }, 500);
-      } else if (data.error) {
-        // Display specific error from the server
-        console.error("OAuth configuration error:", data);
-        toast({
-          title: "OAuth Configuration Error",
-          description: data.message || "Google OAuth is not properly configured on the server.",
-          variant: "destructive"
-        });
-      }
+      // Redirect directly to the auth initiation endpoint
+      // After successful authorization, user will be redirected back to /emails
+      window.location.href = "/api/gmail/auth-url-redirect";
     } catch (error) {
       // Handle any other errors
       console.error("Gmail connection error:", error);
@@ -712,7 +628,7 @@ export default function GmailMessages() {
         title: "Gmail Connection Error",
         description: error instanceof Error 
           ? `Error: ${error.message}` 
-          : "Failed to generate authentication URL. Please try again later.",
+          : "Failed to initiate Google authorization. Please try again later.",
         variant: "destructive"
       });
     }

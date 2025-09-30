@@ -86,6 +86,46 @@ export function setupGmailRoutes(app: express.Express) {
       });
     }
   });
+  
+  // Direct redirect to Google OAuth for Gmail (simpler flow without popups)
+  app.get('/api/gmail/auth-url-redirect', async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.redirect('/login?message=Please+login+first');
+    }
+    
+    try {
+      console.log('=== INITIATING GMAIL OAUTH REDIRECT ===');
+      console.log(`User ${req.user!.username} (ID: ${req.user!.id}) initiating Gmail OAuth`);
+      
+      // Store the user ID in the session to help with redirects
+      req.session.gmailAuthUser = req.user!.id;
+      
+      // Save the session before proceeding
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            console.error('Error saving session before Gmail auth:', err);
+            reject(err);
+          } else {
+            console.log('Session saved successfully with ID:', req.sessionID);
+            resolve();
+          }
+        });
+      });
+      
+      // Generate the OAuth URL
+      const authUrl = getAuthUrl(req.user!.id);
+      
+      console.log('Redirecting to Google OAuth...');
+      
+      // Redirect directly to Google OAuth
+      res.redirect(authUrl);
+    } catch (error) {
+      console.error('Error initiating Gmail OAuth:', error);
+      res.redirect('/emails?error=oauth_init_failed');
+    }
+  });
+  
   // Get Gmail auth URL for connecting account
   app.get('/api/gmail/auth-url', async (req: Request, res: Response) => {
     if (!req.isAuthenticated()) {
