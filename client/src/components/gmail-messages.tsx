@@ -610,15 +610,62 @@ export default function GmailMessages() {
     try {
       console.log("Initiating Gmail connection...");
       
-      // Simply redirect to the auth endpoint - server will handle the full OAuth flow
-      // Save timestamp to track the auth attempt
-      localStorage.setItem('gmailAuthAttempt', new Date().toISOString());
+      const response = await fetch("/api/gmail/auth-url", {
+        method: "GET",
+        credentials: "include",
+      });
       
-      // Redirect directly to the auth initiation endpoint
-      // After successful authorization, user will be redirected back to /emails
-      window.location.href = "/api/gmail/auth-url-redirect";
+      const data = await response.json();
+      console.log("Auth URL response:", data);
+      
+      if (data.url) {
+        setAuthUrl(data.url);
+        localStorage.setItem('gmailAuthAttempt', new Date().toISOString());
+        
+        const width = 600;
+        const height = 700;
+        const left = (window.screen.width - width) / 2;
+        const top = (window.screen.height - height) / 2;
+        
+        const authWindow = window.open(
+          data.url,
+          'GmailAuth',
+          `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,location=yes,status=no,scrollbars=yes`
+        );
+        
+        if (!authWindow) {
+          toast({
+            title: "Pop-up Blocked",
+            description: "Please allow pop-ups for this site and try again.",
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        toast({
+          title: "Authorization Window Opened",
+          description: "Complete the authorization in the popup window.",
+        });
+        
+        const pollTimer = setInterval(() => {
+          if (authWindow.closed) {
+            clearInterval(pollTimer);
+            console.log("OAuth popup closed, refreshing connection status...");
+            setTimeout(() => {
+              queryClient.invalidateQueries({ queryKey: ["/api/gmail/status"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
+            }, 1000);
+          }
+        }, 500);
+      } else if (data.error) {
+        console.error("OAuth configuration error:", data);
+        toast({
+          title: "OAuth Configuration Error",
+          description: data.message || "Google OAuth is not properly configured on the server.",
+          variant: "destructive"
+        });
+      }
     } catch (error) {
-      // Handle any other errors
       console.error("Gmail connection error:", error);
       if (error instanceof Error) {
         console.error("Error details:", error.message, error.stack);
@@ -628,7 +675,7 @@ export default function GmailMessages() {
         title: "Gmail Connection Error",
         description: error instanceof Error 
           ? `Error: ${error.message}` 
-          : "Failed to initiate Google authorization. Please try again later.",
+          : "Failed to generate authentication URL. Please try again later.",
         variant: "destructive"
       });
     }
