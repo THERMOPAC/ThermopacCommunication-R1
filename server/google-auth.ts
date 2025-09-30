@@ -58,7 +58,7 @@ const SCOPES = [
 ];
 
 // Generate authentication URL
-export function getAuthUrl() {
+export function getAuthUrl(userId?: number) {
   // Create a direct implementation to avoid import issues
   console.log('===== GENERATING OAUTH URL DIRECTLY =====');
   
@@ -69,15 +69,24 @@ export function getAuthUrl() {
     redirectUri
   );
   
+  // Create state parameter to identify this as Gmail OAuth and include user ID
+  const stateData = {
+    service: 'gmail',
+    userId: userId
+  };
+  const state = encodeURIComponent(JSON.stringify(stateData));
+  
   const authUrl = authClient.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
     prompt: 'consent', // Force re-consent to get refresh token each time
     include_granted_scopes: true,
-    redirect_uri: redirectUri // Explicitly set redirect URI
+    redirect_uri: redirectUri, // Explicitly set redirect URI
+    state: state // Add state parameter to identify Gmail OAuth
   });
   
-  console.log(`Successfully generated auth URL: ${authUrl.substring(0, 50)}...`);
+  console.log(`Successfully generated auth URL with state: ${authUrl.substring(0, 50)}...`);
+  console.log('State data:', stateData);
   return authUrl;
 }
 
@@ -116,7 +125,7 @@ export function setupGoogleAuth(app: Express) {
         req.session.gmailAuthUser = req.user?.id;
         
         try {
-          const authUrl = getAuthUrl();
+          const authUrl = getAuthUrl(req.user?.id);
           console.log('Generated auth URL:', authUrl.substring(0, 50) + '...');
           res.json({ url: authUrl, authUrl: authUrl });
         } catch (error) {
@@ -150,31 +159,38 @@ export function setupGoogleAuth(app: Express) {
     console.log('User ID:', req.user?.id);
     console.log('Session data:', JSON.stringify(req.session));
     
-    // Check if this is a Google Calendar OAuth callback
+    // Check the OAuth callback type based on state parameter
     const { state, code } = req.query;
-    let isCalendarCallback = false;
+    let serviceType = 'gmail'; // Default to gmail for backward compatibility
     
-    // Check for both old and new state formats
-    if (state === 'service=calendar') {
-      isCalendarCallback = true;
-    } else if (state && typeof state === 'string') {
-      try {
-        const stateData = JSON.parse(decodeURIComponent(state));
-        if (stateData.service === 'calendar') {
-          isCalendarCallback = true;
+    // Parse state parameter to determine service type
+    if (state && typeof state === 'string') {
+      // Check for old state format first
+      if (state === 'service=calendar') {
+        serviceType = 'calendar';
+      } else {
+        // Try to parse new JSON state format
+        try {
+          const stateData = JSON.parse(decodeURIComponent(state));
+          serviceType = stateData.service || 'gmail';
+        } catch (e) {
+          console.log('Could not parse state parameter, defaulting to gmail');
         }
-      } catch (e) {
-        // Not JSON, continue with normal processing
       }
     }
     
-    if (isCalendarCallback) {
-      console.log('Calendar OAuth callback detected, passing to next handler');
-      // Let the next handler (Google Calendar routes) handle this
+    console.log(`OAuth callback detected for service: ${serviceType}`);
+    
+    // If this is a calendar callback, pass to the unified handler in google-calendar-routes
+    if (serviceType === 'calendar') {
+      console.log('Calendar OAuth callback detected, passing to unified handler');
       return next();
     }
     
-    // Continue with Gmail OAuth handling
+    // If this is a Gmail callback, continue with Gmail OAuth handling
+    if (serviceType !== 'gmail') {
+      console.log(`Unexpected service type: ${serviceType}, treating as Gmail for backward compatibility`);
+    }
     
     if (!code || typeof code !== 'string') {
       console.error('Authentication failed: No code provided');

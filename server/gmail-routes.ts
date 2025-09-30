@@ -113,7 +113,7 @@ export function setupGmailRoutes(app: express.Express) {
       });
       
       // Use the auth utility to generate the URL - with fallback credentials if needed
-      const authUrl = getAuthUrl();
+      const authUrl = getAuthUrl(req.user!.id);
       
       // Log the auth operation
       console.log('Auth URL generated and returning to client');

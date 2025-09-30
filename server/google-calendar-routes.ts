@@ -83,11 +83,15 @@ callbackRouter.get('/auth/google/callback', async (req, res) => {
       }
     }
     
-    // Check if this is a calendar OAuth callback
-    if (stateData.service !== 'calendar') {
-      console.log('OAuth callback not for calendar service, ignoring');
+    // Check if this is a calendar or Gmail OAuth callback
+    if (stateData.service !== 'calendar' && stateData.service !== 'gmail') {
+      console.log('OAuth callback not for calendar or gmail service, ignoring');
       return res.redirect('/admin/meetings-management?error=invalid_state');
     }
+    
+    // Route to appropriate page based on service type
+    const successRedirect = stateData.service === 'gmail' ? '/emails?connected=true' : '/admin/meetings-management?connected=true';
+    const errorRedirect = stateData.service === 'gmail' ? '/emails?error=auth_failed' : '/admin/meetings-management?error=auth_failed';
 
     // Get user ID from state or session
     const userId = stateData.userId || req.user?.id;
@@ -96,7 +100,7 @@ callbackRouter.get('/auth/google/callback', async (req, res) => {
       return res.redirect('/login?message=please_login_first');
     }
 
-    console.log('Exchanging code for tokens for user:', userId);
+    console.log(`Exchanging code for tokens for user: ${userId} (service: ${stateData.service})`);
     console.log('Authorization code length:', code.length);
     console.log('Using redirect URI:', process.env.GOOGLE_REDIRECT_URI);
     
@@ -112,12 +116,12 @@ callbackRouter.get('/auth/google/callback', async (req, res) => {
     // Save tokens to user account
     await googleCalendarService.saveUserTokens(userId, tokens);
 
-    console.log('Google Calendar OAuth successful, redirecting...');
-    // Redirect to meetings page with success message
-    res.redirect('/admin/meetings-management?connected=true');
+    console.log(`Google OAuth successful for ${stateData.service}, redirecting to ${successRedirect}`);
+    // Redirect to appropriate page with success message
+    res.redirect(successRedirect);
   } catch (error) {
-    console.error('Error handling Google Calendar callback:', error);
-    res.redirect('/admin/meetings-management?error=auth_failed');
+    console.error(`Error handling Google OAuth callback for ${stateData?.service || 'unknown'}:`, error);
+    res.redirect(errorRedirect || '/admin/meetings-management?error=auth_failed');
   }
 });
 
