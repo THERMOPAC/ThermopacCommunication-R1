@@ -632,32 +632,50 @@ export default function GmailMessages() {
         // Log the complete URL for debugging (careful with sensitive data)
         console.log("Full auth URL for debugging:", data.url);
         
-        // Navigate to Google auth page, breaking out of any iframe context
-        // Try multiple methods due to cross-origin restrictions in Replit's iframe
-        try {
-          // Try to break out of iframe first
-          if (window.top && window.top !== window.self) {
-            window.top.location.href = data.url;
-          } else {
-            window.location.href = data.url;
-          }
-        } catch (e) {
-          // If cross-origin restrictions block us, use window.open as fallback
-          console.log("Using fallback method for navigation");
-          const authWindow = window.open(data.url, '_blank');
-          if (!authWindow) {
-            toast({
-              title: "Pop-up Blocked",
-              description: "Please allow pop-ups and try again, or copy the URL from the console.",
-              variant: "destructive"
-            });
-          } else {
-            toast({
-              title: "Authorization Window Opened",
-              description: "Complete the authorization in the new tab, then return here.",
-            });
-          }
+        // Open OAuth in popup window (no redirect, stays on same page)
+        console.log("Opening Google OAuth in popup window...");
+        
+        // Calculate popup window dimensions (centered on screen)
+        const width = 600;
+        const height = 700;
+        const left = (window.screen.width - width) / 2;
+        const top = (window.screen.height - height) / 2;
+        
+        // Open popup window with OAuth URL
+        const authWindow = window.open(
+          data.url,
+          'Gmail Authorization',
+          `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,location=no,status=no`
+        );
+        
+        if (!authWindow) {
+          toast({
+            title: "Pop-up Blocked",
+            description: "Please allow pop-ups for this site and try again.",
+            variant: "destructive"
+          });
+          return;
         }
+        
+        // Show loading toast
+        toast({
+          title: "Authorization Window Opened",
+          description: "Complete the authorization in the popup window.",
+        });
+        
+        // Poll to detect when popup closes
+        const pollTimer = setInterval(() => {
+          if (authWindow.closed) {
+            clearInterval(pollTimer);
+            console.log("OAuth popup closed, refreshing connection status...");
+            
+            // Wait a moment for the backend to save tokens, then refresh
+            setTimeout(() => {
+              queryClient.invalidateQueries({ queryKey: ["/api/gmail/status"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
+            }, 1000);
+          }
+        }, 500);
       } else if (data.error) {
         // Display specific error from the server
         console.error("OAuth configuration error:", data);
