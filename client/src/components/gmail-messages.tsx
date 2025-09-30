@@ -633,11 +633,30 @@ export default function GmailMessages() {
         console.log("Full auth URL for debugging:", data.url);
         
         // Navigate to Google auth page, breaking out of any iframe context
-        // Use window.top to ensure we break out of Replit's iframe
-        if (window.top) {
-          window.top.location.href = data.url;
-        } else {
-          window.location.href = data.url;
+        // Try multiple methods due to cross-origin restrictions in Replit's iframe
+        try {
+          // Try to break out of iframe first
+          if (window.top && window.top !== window.self) {
+            window.top.location.href = data.url;
+          } else {
+            window.location.href = data.url;
+          }
+        } catch (e) {
+          // If cross-origin restrictions block us, use window.open as fallback
+          console.log("Using fallback method for navigation");
+          const authWindow = window.open(data.url, '_blank');
+          if (!authWindow) {
+            toast({
+              title: "Pop-up Blocked",
+              description: "Please allow pop-ups and try again, or copy the URL from the console.",
+              variant: "destructive"
+            });
+          } else {
+            toast({
+              title: "Authorization Window Opened",
+              description: "Complete the authorization in the new tab, then return here.",
+            });
+          }
         }
       } else if (data.error) {
         // Display specific error from the server
