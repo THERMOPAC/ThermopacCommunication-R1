@@ -323,7 +323,6 @@ export default function GmailMessages() {
   });
 
   // Connect to Gmail
-  const [manualMode, setManualMode] = useState(false);
   const [authCode, setAuthCode] = useState("");
   const [isSubmittingCode, setIsSubmittingCode] = useState(false);
   const [authUrl, setAuthUrl] = useState<string | null>(null);
@@ -449,7 +448,6 @@ export default function GmailMessages() {
         description: "Gmail account connected successfully!",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/gmail/status"] });
-      setManualMode(false);
       setAuthCode("");
     },
     onError: (error: Error) => {
@@ -953,69 +951,12 @@ export default function GmailMessages() {
         </CardHeader>
         <CardContent className="pt-6 pb-8 text-center">
           <div className="space-y-6 mx-auto max-w-md">
-            {!manualMode ? (
-              /* Regular Connect Mode */
-              <>
-                <div className="grid grid-cols-1 gap-4 text-left">
-                  <div className="flex items-start">
-                    <div className="bg-primary/10 p-2 rounded mr-3 mt-1">
-                      <MailOpen className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Stay Connected</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Access your Gmail inbox without leaving the THERMOPAC platform
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start">
-                    <div className="bg-primary/10 p-2 rounded mr-3 mt-1">
-                      <Star className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Priority Handling</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Mark important emails and manage priorities efficiently
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start">
-                    <div className="bg-primary/10 p-2 rounded mr-3 mt-1">
-                      <RotateCw className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Auto-Sync</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Set up automatic synchronization to always stay up-to-date
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <Button 
-                  onClick={connectToGmail} 
-                  className="w-full bg-gradient-to-r from-blue-600 to-red-600 hover:from-blue-700 hover:to-red-700"
-                  size="lg"
-                >
-                  Connect Gmail Account
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  Note: You'll be redirected to Google to authorize access and then returned to this page.
-                </p>
-                <Button 
-                  variant="link" 
-                  onClick={() => setManualMode(true)} 
-                  className="text-sm w-full"
-                >
-                  Having problems? Try manual authentication
-                </Button>
-              </>
-            ) : (
-              /* Manual Connect Mode */
-              <>
+            {/* Manual Connect Mode */}
+            <>
                 <div className="text-left mb-6">
-                  <h3 className="text-lg font-medium mb-2">Manual Gmail Authentication</h3>
+                  <h3 className="text-lg font-medium mb-2">Gmail Authentication</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    If automatic redirect isn't working, follow these steps carefully:
+                    Follow these steps carefully to connect your Gmail account:
                   </p>
                   <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-4">
                     <div className="flex">
@@ -1126,14 +1067,7 @@ export default function GmailMessages() {
                       )}
                     </div>
                     
-                    <div className="flex justify-between">
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        onClick={() => setManualMode(false)}
-                      >
-                        Back
-                      </Button>
+                    <div className="flex justify-end">
                       <Button 
                         type="submit" 
                         disabled={isSubmittingCode || manualAuthMutation.isPending || !authCode.trim()}
@@ -1145,7 +1079,6 @@ export default function GmailMessages() {
                   </div>
                 </form>
               </>
-            )}
           </div>
         </CardContent>
       </Card>
