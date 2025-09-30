@@ -565,7 +565,7 @@ export default function GmailMessages() {
     
     try {
       // Delete emails one by one
-      for (const emailId of selectedEmails) {
+      for (const emailId of Array.from(selectedEmails)) {
         try {
           await apiRequest("DELETE", `/api/gmail/messages/${emailId}`);
           successCount++;
@@ -632,8 +632,13 @@ export default function GmailMessages() {
         // Log the complete URL for debugging (careful with sensitive data)
         console.log("Full auth URL for debugging:", data.url);
         
-        // Navigate to Google auth page, breaking out of any iframe
-        window.open(data.url, '_self');
+        // Navigate to Google auth page, breaking out of any iframe context
+        // Use window.top to ensure we break out of Replit's iframe
+        if (window.top) {
+          window.top.location.href = data.url;
+        } else {
+          window.location.href = data.url;
+        }
       } else if (data.error) {
         // Display specific error from the server
         console.error("OAuth configuration error:", data);
