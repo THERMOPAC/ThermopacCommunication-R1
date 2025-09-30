@@ -10,10 +10,15 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 // Use the authorized redirect URI from environment
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'https://thermopac-communication-thermopacllp.replit.app/api/auth/google/callback';
 
-// Scopes required for Google Calendar and Meet access
+// Scopes required for Google Calendar, Meet, and Gmail access
 const CALENDAR_SCOPES = [
   'https://www.googleapis.com/auth/calendar',
-  'https://www.googleapis.com/auth/userinfo.email'
+  'https://www.googleapis.com/auth/userinfo.email',
+  // Gmail scopes (Calendar tokens will also work for Gmail)
+  'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/gmail.send',
+  'https://www.googleapis.com/auth/gmail.labels',
+  'https://www.googleapis.com/auth/gmail.modify'
 ];
 
 export class GoogleCalendarService {
