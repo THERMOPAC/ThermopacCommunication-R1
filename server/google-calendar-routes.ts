@@ -2,7 +2,7 @@ import express from 'express';
 import { ensureAuthenticated } from './auth-middleware';
 import { googleCalendarService } from './google-calendar-service';
 import { db } from './db';
-import { users, businessMeetings, concludedCalendarEvents, insertConcludedCalendarEventSchema } from '@shared/schema';
+import { users, businessMeetings, concludedCalendarEvents, insertConcludedCalendarEventSchema, gmailTokens } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 
@@ -115,8 +115,31 @@ export async function handleOAuthCallback(req: any, res: any) {
     });
     
     console.log('Saving tokens for user:', userId);
-    // Save tokens to user account
-    await googleCalendarService.saveUserTokens(userId, tokens);
+    
+    // Save tokens to appropriate location based on service type
+    if (stateData.service === 'gmail') {
+      console.log('Saving Gmail tokens to gmail_tokens table');
+      // Save to gmail_tokens table
+      await db.insert(gmailTokens).values({
+        userId,
+        accessToken: tokens.access_token!,
+        refreshToken: tokens.refresh_token || null,
+        expiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : new Date(Date.now() + 3600 * 1000),
+        scope: tokens.scope || null
+      }).onConflictDoUpdate({
+        target: gmailTokens.userId,
+        set: {
+          accessToken: tokens.access_token!,
+          refreshToken: tokens.refresh_token || null,
+          expiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : new Date(Date.now() + 3600 * 1000),
+          scope: tokens.scope || null
+        }
+      });
+    } else {
+      console.log('Saving Calendar tokens to users table');
+      // Save to users table for calendar
+      await googleCalendarService.saveUserTokens(userId, tokens);
+    }
 
     console.log(`Google OAuth successful for ${stateData.service}`);
     
