@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import { Calendar, CheckCircle, AlertCircle, Settings, Link, Unlink } from 'lucide-react';
+import { Calendar, CheckCircle, AlertCircle, Settings, Link, Unlink, ExternalLink } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import Layout from '@/components/layout';
 
@@ -180,13 +180,26 @@ export default function GoogleCalendarSettings() {
                     {disconnectMutation.isPending ? 'Disconnecting...' : 'Disconnect'}
                   </Button>
                 ) : (
-                  <Button
-                    onClick={handleConnect}
-                    disabled={isConnecting || connectMutation.isPending}
-                  >
-                    <Link className="h-4 w-4 mr-2" />
-                    {isConnecting ? 'Connecting...' : 'Connect Google Calendar'}
-                  </Button>
+                  <>
+                    <Button
+                      onClick={handleConnect}
+                      disabled={isConnecting || connectMutation.isPending}
+                    >
+                      <Link className="h-4 w-4 mr-2" />
+                      {isConnecting ? 'Connecting...' : 'Connect Google Calendar'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        // Open in new tab to bypass iframe restrictions
+                        window.open('/api/auth/google/calendar', '_blank');
+                      }}
+                      disabled={isConnecting || connectMutation.isPending}
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Open in New Tab
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
