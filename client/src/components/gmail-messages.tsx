@@ -641,9 +641,15 @@ export default function GmailMessages() {
         // Log the complete URL for debugging (careful with sensitive data)
         console.log("Full auth URL for debugging:", data.url);
         
-        // Redirect to Google OAuth in the same window
-        // This preserves the session and allows the callback to work properly
-        window.location.href = data.url;
+        // Break out of Replit's iframe and redirect to Google OAuth in the top-level window
+        // This is necessary because Google blocks OAuth in iframes
+        if (window.top && window.top !== window.self) {
+          // We're in an iframe (Replit's preview), break out to the top window
+          window.top.location.href = data.url;
+        } else {
+          // We're already in the top window, just redirect
+          window.location.href = data.url;
+        }
       } else if (data.error) {
         // Display specific error from the server
         console.error("OAuth configuration error:", data);
