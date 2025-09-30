@@ -632,13 +632,8 @@ export default function GmailMessages() {
         // Log the complete URL for debugging (careful with sensitive data)
         console.log("Full auth URL for debugging:", data.url);
         
-        // Open Google auth page in a new tab
-        window.open(data.url, '_blank');
-        
-        toast({
-          title: "Gmail Authorization",
-          description: "Google authorization page has been opened in a new tab. Please complete the authorization there.",
-        });
+        // Navigate to Google auth page in the same window
+        window.location.href = data.url;
       } else if (data.error) {
         // Display specific error from the server
         console.error("OAuth configuration error:", data);
