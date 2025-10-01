@@ -214,20 +214,33 @@ callbackRouter.get('/auth/google/callback', handleOAuthCallback);
  * Debug endpoint to check Google OAuth configuration
  */
 router.get('/calendar/debug', ensureAuthenticated, (req, res) => {
+  const stateData = {
+    service: 'calendar',
+    userId: req.user!.id
+  };
+  const state = encodeURIComponent(JSON.stringify(stateData));
+  const authUrl = googleCalendarService.generateAuthUrl(state);
+  
   res.json({
     clientId: process.env.GOOGLE_CLIENT_ID?.substring(0, 15) + '...',
     redirectUri: process.env.GOOGLE_REDIRECT_URI,
+    oauthUrl: authUrl,
     requiredScopes: [
       'https://www.googleapis.com/auth/calendar',
-      'https://www.googleapis.com/auth/userinfo.email'
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/gmail.readonly',
+      'https://www.googleapis.com/auth/gmail.send',
+      'https://www.googleapis.com/auth/gmail.labels',
+      'https://www.googleapis.com/auth/gmail.modify'
     ],
     instructions: {
       step1: 'Go to Google Cloud Console (console.cloud.google.com)',
       step2: 'Select your project: thermopac-communication-system',
-      step3: 'Enable Google Calendar API in APIs & Services > Library',
+      step3: 'Enable Google Calendar API AND Gmail API in APIs & Services > Library',
       step4: 'Configure OAuth consent screen in APIs & Services > OAuth consent screen',
-      step5: 'Add authorized redirect URI in APIs & Services > Credentials',
-      step6: 'Make sure both scopes above are added to the OAuth consent screen'
+      step5: 'Add ALL 6 scopes above to the OAuth consent screen',
+      step6: 'Add authorized redirect URI in APIs & Services > Credentials',
+      step7: 'Make sure the redirect URI exactly matches the one shown above'
     }
   });
 });
