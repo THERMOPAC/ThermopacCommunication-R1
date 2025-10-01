@@ -12,6 +12,7 @@ export const modules = [
   "Finance",
   "Project Management",
   "Task Management",
+  "Emails",
   "Meetings & Commitments",
   "Procurement Management", 
   "Production Management", 
