@@ -217,6 +217,7 @@ function Layout({ children }: LayoutProps) {
       label: "LLM Prompt Engine", 
       href: "/llm-prompt-engine" 
     }] : []),
+    { icon: Mail, label: "Emails", href: "/emails" },
     ...(hasViewPermission("Meetings & Commitments") ? [{ 
       icon: CalendarDays, 
       label: "Meetings & Commitments", 
@@ -385,7 +386,6 @@ function Layout({ children }: LayoutProps) {
 
     { icon: Lightbulb, label: "Recommendations", href: "/recommendations" },
     { icon: Award, label: "Leaderboard", href: "/leaderboard" },
-    { icon: Mail, label: "Emails", href: "/emails" },
     ...(user?.role === "Superuser" ? [{ icon: Settings, label: "Diagnostics", href: "/tools" }] : []),
     { icon: UserIcon, label: "Profile", href: "/profile" }
   ];
@@ -456,6 +456,7 @@ function Layout({ children }: LayoutProps) {
                 {(() => {
                   // Define the exact order requested by user
                   const moduleOrder = [
+                    { type: 'single', href: '/emails', label: 'Emails' },
                     { type: 'submenu', label: 'Meetings & Commitments' },
                     { type: 'single', href: '/sap-integration', label: 'SAP B1 Integration' },
                     { type: 'submenu', label: 'SAP Purchasing' },
@@ -478,12 +479,11 @@ function Layout({ children }: LayoutProps) {
                   return moduleOrder.map((orderItem, orderIndex) => {
                     if (orderItem.type === 'single') {
                       // Find single menu item
-                      const item = singleItems.find(item => 
-                        item.href === orderItem.href && 
-                        hasViewPermission(orderItem.label as Module)
-                      );
+                      const item = singleItems.find(item => item.href === orderItem.href);
                       
+                      // Check if item exists and has permission (if required)
                       if (!item) return null;
+                      if (orderItem.label !== 'Emails' && !hasViewPermission(orderItem.label as Module)) return null;
                       
                       const Icon = item.icon;
                       const isActive = item.href ? location === item.href : false;
