@@ -1819,20 +1819,58 @@ export class DatabaseStorage implements IStorage {
 
   async updateGmailToken(userId: number, updateData: Partial<GmailToken>): Promise<GmailToken> {
     console.log(`Updating Gmail token for user ${userId}`);
-    const result = await db
-      .update(gmailTokensTable)
-      .set({
-        ...updateData,
+    
+    // Check if token exists in gmail_tokens table
+    const gmailTokenResult = await db
+      .select()
+      .from(gmailTokensTable)
+      .where(eq(gmailTokensTable.userId, userId));
+    
+    if (gmailTokenResult.length > 0) {
+      // Update gmail_tokens table (Gmail-specific OAuth)
+      console.log(`Updating gmail_tokens table for user ${userId}`);
+      const result = await db
+        .update(gmailTokensTable)
+        .set({
+          ...updateData,
+          updatedAt: new Date()
+        })
+        .where(eq(gmailTokensTable.userId, userId))
+        .returning();
+      
+      const token = result[0] as GmailToken;
+      console.log(`Updated Gmail token for user ${userId}`);
+      return token;
+    } else {
+      // Update users table (Calendar OAuth with Gmail scopes)
+      console.log(`Updating users table (Calendar OAuth) for user ${userId}`);
+      const userUpdate: any = {
         updatedAt: new Date()
-      })
-      .where(eq(gmailTokensTable.userId, userId))
-      .returning();
-    
-    const token = result[0] as GmailToken;
-    if (!token) throw new Error(`No Gmail token found for user ${userId}`);
-    
-    console.log(`Updated Gmail token for user ${userId}`);
-    return token;
+      };
+      
+      if (updateData.accessToken) {
+        userUpdate.googleAccessToken = updateData.accessToken;
+      }
+      if (updateData.refreshToken) {
+        userUpdate.googleRefreshToken = updateData.refreshToken;
+      }
+      if (updateData.tokenExpiry) {
+        userUpdate.googleTokenExpiresAt = updateData.tokenExpiry;
+      }
+      
+      await db
+        .update(users)
+        .set(userUpdate)
+        .where(eq(users.id, userId));
+      
+      console.log(`Updated Calendar OAuth tokens in users table for user ${userId}`);
+      
+      // Return the updated token in GmailToken format
+      return this.getGmailToken(userId).then(token => {
+        if (!token) throw new Error(`Failed to retrieve updated token for user ${userId}`);
+        return token;
+      });
+    }
   }
 
   async deleteGmailToken(userId: number): Promise<void> {
