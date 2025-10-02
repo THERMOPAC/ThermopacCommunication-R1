@@ -46,13 +46,44 @@ import {
 import GcsDiagnostics from "@/components/gcs-diagnostics";
 import { format } from "date-fns";
 
+// Helper function to get priority badge style
+const getPriorityBadgeStyle = (priority?: string | null) => {
+  switch (priority) {
+    case 'P0':
+      return 'bg-red-100 text-red-700 border-red-300';
+    case 'P1':
+      return 'bg-orange-100 text-orange-700 border-orange-300';
+    case 'P2':
+      return 'bg-blue-100 text-blue-700 border-blue-300';
+    case 'P3':
+      return 'bg-gray-100 text-gray-700 border-gray-300';
+    default:
+      return 'bg-gray-100 text-gray-600 border-gray-200';
+  }
+};
+
+const getPriorityLabel = (priority?: string | null) => {
+  switch (priority) {
+    case 'P0':
+      return 'Critical';
+    case 'P1':
+      return 'High';
+    case 'P2':
+      return 'Normal';
+    case 'P3':
+      return 'Low';
+    default:
+      return 'Unknown';
+  }
+};
+
 export default function GmailMessages() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterImportance, setFilterImportance] = useState<string>("all");
+  const [filterPriority, setFilterPriority] = useState<string>("high"); // Default to P0+P1 (high priority)
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState("inbox");
   
@@ -122,10 +153,10 @@ export default function GmailMessages() {
 
   // Gmail messages
   const { data: messages, isLoading: isLoadingMessages, error: messagesError } = useQuery<GmailMessage[]>({
-    queryKey: ["/api/gmail/messages", filterStatus, filterImportance, searchTerm],
+    queryKey: ["/api/gmail/messages", filterStatus, filterPriority, searchTerm],
     queryFn: async () => {
       try {
-        console.log('Fetching messages with filters:', { filterStatus, filterImportance, searchTerm });
+        console.log('Fetching messages with filters:', { filterStatus, filterPriority, searchTerm });
         const queryParams = new URLSearchParams();
         
         // Always exclude spam emails
@@ -140,8 +171,11 @@ export default function GmailMessages() {
           console.log('Setting isRead=false in query params');
         }
         
-        if (filterImportance === "important") queryParams.set("isImportant", "true");
-        if (filterImportance === "notImportant") queryParams.set("isImportant", "false");
+        // Priority filtering
+        if (filterPriority === "critical") queryParams.set("priority", "P0");
+        else if (filterPriority === "high") queryParams.set("priority", "P0,P1");
+        else if (filterPriority === "normal") queryParams.set("priority", "P2");
+        else if (filterPriority === "low") queryParams.set("priority", "P3");
         
         if (searchTerm) {
           // Search across multiple fields
@@ -1757,15 +1791,17 @@ export default function GmailMessages() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="importance">Importance</Label>
-                <Select value={filterImportance} onValueChange={setFilterImportance}>
-                  <SelectTrigger id="importance">
-                    <SelectValue placeholder="Select importance" />
+                <Label htmlFor="priority">Priority</Label>
+                <Select value={filterPriority} onValueChange={setFilterPriority}>
+                  <SelectTrigger id="priority">
+                    <SelectValue placeholder="Select priority" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="important">Important</SelectItem>
-                    <SelectItem value="notImportant">Not Important</SelectItem>
+                    <SelectItem value="critical">P0 - Critical</SelectItem>
+                    <SelectItem value="high">P0 + P1 - High Priority (Default)</SelectItem>
+                    <SelectItem value="normal">P2 - Normal</SelectItem>
+                    <SelectItem value="low">P3 - Low</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1864,11 +1900,23 @@ export default function GmailMessages() {
                     </Button>
                   </div>
                 </div>
-                <CardTitle>{selectedMessage?.subject || 'No Subject'}</CardTitle>
+                <CardTitle className="flex items-center gap-3">
+                  {selectedMessage?.subject || 'No Subject'}
+                  {(selectedMessage as any)?.priority && (
+                    <Badge className={`text-xs px-2 py-1 border ${getPriorityBadgeStyle((selectedMessage as any).priority)}`}>
+                      {(selectedMessage as any).priority} - {getPriorityLabel((selectedMessage as any).priority)}
+                    </Badge>
+                  )}
+                </CardTitle>
                 <div className="flex justify-between text-sm text-muted-foreground mt-2">
                   <div>
                     <div><strong>From:</strong> {selectedMessage?.from}</div>
                     <div><strong>To:</strong> {selectedMessage?.to}</div>
+                    {(selectedMessage as any)?.classificationReason && (
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
+                        <strong>🤖 AI Classification:</strong> {(selectedMessage as any).classificationReason}
+                      </div>
+                    )}
                   </div>
                   <div>
                     {selectedMessage?.receivedAt && formatDate(selectedMessage.receivedAt.toString())}
@@ -2125,14 +2173,14 @@ export default function GmailMessages() {
                     </Button>
                   </div>
                   <div className="mt-4">
-                    <p className="text-xs text-blue-600 mb-2">Note: Only emails marked as 'IMPORTANT' in Gmail will be synced</p>
+                    <p className="text-xs text-blue-600 mb-2">Note: All inbox emails will be synced and classified by AI</p>
                     <Button 
                       onClick={() => syncMutation.mutate()}
                       disabled={syncMutation.isPending}
                       className="w-full"
                     >
                       <RotateCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-                      Sync Important Messages
+                      Sync Messages
                     </Button>
                   </div>
                 </Card>
@@ -2263,10 +2311,15 @@ export default function GmailMessages() {
                               <Mail className="h-5 w-5 text-primary mt-1" />
                             )}
                             <div>
-                              <div className="font-medium">
+                              <div className="font-medium flex items-center gap-2">
                                 {message.from}
+                                {(message as any).priority && (
+                                  <Badge className={`text-xs px-2 py-0 border ${getPriorityBadgeStyle((message as any).priority)}`}>
+                                    {(message as any).priority} - {getPriorityLabel((message as any).priority)}
+                                  </Badge>
+                                )}
                                 {message.isImportant && (
-                                  <Star className="h-4 w-4 inline-block ml-2 fill-yellow-400 text-yellow-400" />
+                                  <Star className="h-4 w-4 inline-block fill-yellow-400 text-yellow-400" />
                                 )}
                               </div>
                               <div className="font-bold">{message.subject || 'No Subject'}</div>
@@ -2353,10 +2406,10 @@ export default function GmailMessages() {
                       ? "Your inbox is empty or no messages match your filters"
                       : "Connect your Gmail account to view messages"}
                   </p>
-                  <p className="text-xs text-blue-600 mb-3">Note: Only emails marked as 'IMPORTANT' in Gmail will be synced</p>
+                  <p className="text-xs text-blue-600 mb-3">Note: All inbox emails will be synced and classified by AI</p>
                   <Button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
                     <RotateCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-                    Sync Important Messages
+                    Sync Messages
                   </Button>
                 </Card>
               )}
@@ -2447,10 +2500,10 @@ export default function GmailMessages() {
                         size="sm"
                         onClick={() => syncMutation.mutate()}
                         disabled={syncMutation.isPending}
-                        title="Only emails marked as IMPORTANT in Gmail will be synced"
+                        title="All inbox emails will be synced and classified by AI"
                       >
                         <RotateCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-                        Sync Important Now
+                        Sync Now
                       </Button>
                       <Button 
                         variant="outline" 
