@@ -1972,6 +1972,9 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(desc(gmailMessagesTable.receivedAt));
     
+    // Debug: log the query
+    console.log("🔍 Executing query with conditions:", JSON.stringify(conditions, null, 2));
+    
     const messages = await query;
     console.log(`Found ${messages.length} Gmail messages for user ${userId}`);
     return messages as GmailMessage[];
