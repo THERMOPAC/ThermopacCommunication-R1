@@ -1125,23 +1125,6 @@ export default function GmailMessages() {
     setShowReplyGeneration(false);
     setAnalysisData(null);
     setShowAnalysis(false);
-    
-    // Mark as read immediately when opening
-    const message = messages?.find((m: GmailMessage) => m.id === messageId);
-    
-    if (message && !message.isRead) {
-      console.log(`Message ${messageId} is unread, marking as read immediately`);
-      markAsReadMutation.mutate({ 
-        messageId, 
-        isRead: true 
-      }, {
-        onSuccess: () => {
-          console.log(`Successfully marked message ${messageId} as read on view`);
-        }
-      });
-    } else {
-      console.log(`Message ${messageId} is already read`);
-    }
   };
 
   // Handle back button
@@ -1150,26 +1133,6 @@ export default function GmailMessages() {
     if (readTimeout) {
       clearTimeout(readTimeout);
       setReadTimeout(null);
-    }
-    
-    // If there's a selected message and it's not already marked as read, mark it as read now
-    if (selectedMessageId) {
-      const message = messages?.find((m: GmailMessage) => m.id === selectedMessageId);
-      
-      if (message && !message.isRead) {
-        console.log("Marking message as read on back button:", selectedMessageId);
-        // Ensure we mark as read when clicking back
-        markAsReadMutation.mutate({ 
-          messageId: selectedMessageId, 
-          isRead: true 
-        }, {
-          // Add onSuccess handler to ensure state is updated
-          onSuccess: () => {
-            // Force refresh the messages
-            queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
-          }
-        });
-      }
     }
     
     // Clear AI suggestions when going back to inbox
