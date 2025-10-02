@@ -392,12 +392,30 @@ export default function GmailMessages() {
     // Create a clean description by stripping HTML and limiting length
     let description = '';
     if (message.body) {
-      // Strip HTML tags
+      // Strip HTML tags, CSS, and scripts
+      let cleanText = message.body;
+      
+      // Remove style tags and their content
+      cleanText = cleanText.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+      
+      // Remove script tags and their content
+      cleanText = cleanText.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+      
+      // Remove HTML comments (including CSS in comments)
+      cleanText = cleanText.replace(/<!--[\s\S]*?-->/g, '');
+      
+      // Create a temporary div to extract text content
       const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = message.body;
-      const textContent = tempDiv.textContent || tempDiv.innerText || '';
+      tempDiv.innerHTML = cleanText;
+      
+      // Get text content and clean it up
+      let textContent = (tempDiv.textContent || tempDiv.innerText || '').trim();
+      
+      // Remove excessive whitespace and line breaks
+      textContent = textContent.replace(/\s+/g, ' ').trim();
+      
       // Limit to 500 characters for readability
-      description = textContent.trim().substring(0, 500);
+      description = textContent.substring(0, 500);
       if (textContent.length > 500) {
         description += '...';
       }
