@@ -25,7 +25,8 @@ const GOVERNMENT_TAX_DOMAINS = [
 const CRITICAL_KEYWORDS = {
   tax: ['GSTR', 'ITR', 'TDS', 'challan', '143(1)', 'penalty', 'notice', 'assessment', 'demand', 'intimation', 'scrutiny'],
   compliance: ['compliance', 'statutory', 'regulatory', 'audit', 'verification'],
-  urgent: ['urgent', 'immediate', 'critical', 'deadline', 'overdue', 'final reminder', 'last notice']
+  urgent: ['urgent', 'immediate', 'critical', 'deadline', 'overdue', 'final reminder', 'last notice'],
+  resignation: ['resignation', 'i resign', 'notice of resignation', 'resigning from my position', 'last working day', 'serving notice period']
 };
 
 const HIGH_PRIORITY_KEYWORDS = {
@@ -195,7 +196,7 @@ ${email.body ? `Body: ${email.body.substring(0, 1000)}` : ''}
 
     const prompt = `You are an intelligent email priority classifier for a business. Analyze the email and classify it into one of these priority levels:
 
-P0 (Critical): Government/tax notices, legal demands, critical compliance, urgent regulatory matters
+P0 (Critical): Government/tax notices, legal demands, critical compliance, urgent regulatory matters, EMPLOYEE RESIGNATIONS
 P1 (High): Client communications, business proposals, payment-related, action required
 P2 (Normal): Regular business emails, informational updates
 P3 (Low): Newsletters, marketing, promotional content, social media notifications
