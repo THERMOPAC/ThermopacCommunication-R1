@@ -544,7 +544,7 @@ export function setupGmailRoutes(app: express.Express) {
           // Fetch all inbox emails (excluding spam and trash)
           response = await gmail.users.messages.list({
             userId: 'me',
-            maxResults: 20, // Limit to 20 messages for manual sync
+            maxResults: 50, // Limit to 50 messages for manual sync
             q: 'in:inbox -in:spam -in:trash', // Gmail API query to get all inbox emails and exclude spam and trash folders
           });
           console.log('Gmail API messages.list request successful');
