@@ -1,5 +1,5 @@
 import { IStorage, UserUpdate } from "./types";
-import { desc, sql } from 'drizzle-orm';
+import { desc, sql, inArray } from 'drizzle-orm';
 import type { 
   User, Task, InsertUser, InsertTask,
   TaskHistory, InsertTaskHistory,
@@ -1898,6 +1898,7 @@ export class DatabaseStorage implements IStorage {
   async getGmailMessagesForUser(userId: number, filters?: {
     isRead?: boolean;
     isImportant?: boolean;
+    priority?: string[];
     from?: string;
     to?: string;
     subject?: string;
@@ -1930,6 +1931,12 @@ export class DatabaseStorage implements IStorage {
       
       if (filters.isImportant !== undefined) {
         query = query.where(eq(gmailMessagesTable.isImportant, filters.isImportant));
+      }
+      
+      // Add priority filter
+      if (filters.priority && filters.priority.length > 0) {
+        console.log("Applying priority filter:", filters.priority);
+        query = query.where(inArray(gmailMessagesTable.priority, filters.priority));
       }
       
       if (filters.from) {

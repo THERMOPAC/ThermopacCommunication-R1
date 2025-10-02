@@ -246,6 +246,18 @@ export function setupGmailRoutes(app: express.Express) {
         filters.isImportant = req.query.isImportant === 'true';
       }
       
+      // Add priority filter support
+      if (req.query.priority) {
+        const priorityValue = req.query.priority;
+        if (Array.isArray(priorityValue)) {
+          filters.priority = priorityValue;
+        } else if (typeof priorityValue === 'string') {
+          // Support comma-separated values like "P0,P1"
+          filters.priority = priorityValue.split(',').map(p => p.trim());
+        }
+        console.log('Setting priority filter to:', filters.priority);
+      }
+      
       if (req.query.from) {
         filters.from = req.query.from as string;
       }
