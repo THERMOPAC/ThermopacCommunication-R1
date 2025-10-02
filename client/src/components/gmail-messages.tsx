@@ -39,6 +39,9 @@ import {
   MessageSquare,
   Copy,
   CheckCircle,
+  Reply,
+  ReplyAll,
+  Forward,
 } from "lucide-react";
 import GcsDiagnostics from "@/components/gcs-diagnostics";
 import { format } from "date-fns";
@@ -1485,6 +1488,39 @@ export default function GmailMessages() {
                   className="prose max-w-none" 
                   dangerouslySetInnerHTML={{ __html: selectedMessage?.body || selectedMessage?.snippet || 'No content' }} 
                 />
+              </CardContent>
+              
+              {/* Email Action Buttons */}
+              <CardContent className="pb-6">
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="rounded-full px-6"
+                    data-testid="button-reply-all"
+                  >
+                    <ReplyAll className="h-4 w-4 mr-2" />
+                    Reply to all
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="rounded-full px-6"
+                    data-testid="button-reply"
+                  >
+                    <Reply className="h-4 w-4 mr-2" />
+                    Reply
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="rounded-full px-6"
+                    data-testid="button-forward"
+                  >
+                    <Forward className="h-4 w-4 mr-2" />
+                    Forward
+                  </Button>
+                </div>
               </CardContent>
               
               {/* AI Analysis Results */}
