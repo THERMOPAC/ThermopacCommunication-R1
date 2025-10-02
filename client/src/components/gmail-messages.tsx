@@ -69,6 +69,8 @@ export default function GmailMessages() {
   const [selectedEmails, setSelectedEmails] = useState<Set<number>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isBulkMarkingRead, setIsBulkMarkingRead] = useState(false);
+  const [isBulkMarkingUnread, setIsBulkMarkingUnread] = useState(false);
 
   // Compose email states
   const [showComposeDialog, setShowComposeDialog] = useState(false);
@@ -723,6 +725,106 @@ export default function GmailMessages() {
       });
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleBulkMarkAsRead = async () => {
+    if (selectedEmails.size === 0) return;
+    
+    setIsBulkMarkingRead(true);
+    let successCount = 0;
+    let errorCount = 0;
+    
+    try {
+      // Mark emails as read one by one
+      for (const emailId of Array.from(selectedEmails)) {
+        try {
+          await apiRequest("PATCH", `/api/gmail/messages/${emailId}/read`, { isRead: true });
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to mark email ${emailId} as read:`, error);
+          errorCount++;
+        }
+      }
+      
+      // Clear selection
+      setSelectedEmails(new Set());
+      setSelectAll(false);
+      
+      // Refresh messages list
+      queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
+      
+      // Show result toast
+      if (errorCount === 0) {
+        toast({
+          title: "Success",
+          description: `${successCount} email(s) marked as read`,
+        });
+      } else {
+        toast({
+          title: "Partial Success",
+          description: `${successCount} email(s) marked as read, ${errorCount} failed`,
+          variant: "default"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Action Failed",
+        description: "Failed to mark selected emails as read",
+        variant: "destructive"
+      });
+    } finally {
+      setIsBulkMarkingRead(false);
+    }
+  };
+
+  const handleBulkMarkAsUnread = async () => {
+    if (selectedEmails.size === 0) return;
+    
+    setIsBulkMarkingUnread(true);
+    let successCount = 0;
+    let errorCount = 0;
+    
+    try {
+      // Mark emails as unread one by one
+      for (const emailId of Array.from(selectedEmails)) {
+        try {
+          await apiRequest("PATCH", `/api/gmail/messages/${emailId}/read`, { isRead: false });
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to mark email ${emailId} as unread:`, error);
+          errorCount++;
+        }
+      }
+      
+      // Clear selection
+      setSelectedEmails(new Set());
+      setSelectAll(false);
+      
+      // Refresh messages list
+      queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
+      
+      // Show result toast
+      if (errorCount === 0) {
+        toast({
+          title: "Success",
+          description: `${successCount} email(s) marked as unread`,
+        });
+      } else {
+        toast({
+          title: "Partial Success",
+          description: `${successCount} email(s) marked as unread, ${errorCount} failed`,
+          variant: "default"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Action Failed",
+        description: "Failed to mark selected emails as unread",
+        variant: "destructive"
+      });
+    } finally {
+      setIsBulkMarkingUnread(false);
     }
   };
   
@@ -2054,6 +2156,44 @@ export default function GmailMessages() {
                         <span className="text-sm text-muted-foreground">
                           {selectedEmails.size} selected
                         </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleBulkMarkAsUnread}
+                          disabled={isBulkMarkingUnread}
+                          data-testid="button-bulk-mark-unread"
+                        >
+                          {isBulkMarkingUnread ? (
+                            <>
+                              <RotateCw className="h-4 w-4 mr-2 animate-spin" />
+                              Marking...
+                            </>
+                          ) : (
+                            <>
+                              <Mail className="h-4 w-4 mr-2" />
+                              Mark as Unread
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleBulkMarkAsRead}
+                          disabled={isBulkMarkingRead}
+                          data-testid="button-bulk-mark-read"
+                        >
+                          {isBulkMarkingRead ? (
+                            <>
+                              <RotateCw className="h-4 w-4 mr-2 animate-spin" />
+                              Marking...
+                            </>
+                          ) : (
+                            <>
+                              <MailOpen className="h-4 w-4 mr-2" />
+                              Mark as Read
+                            </>
+                          )}
+                        </Button>
                         <Button
                           variant="destructive"
                           size="sm"
