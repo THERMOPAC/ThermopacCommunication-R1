@@ -538,32 +538,64 @@ export function setupGmailRoutes(app: express.Express) {
         
         console.log('Gmail client initialized successfully');
         
-        // Get most recent messages
-        let response;
-        try {
-          // Fetch all inbox emails (excluding spam and trash)
-          response = await gmail.users.messages.list({
-            userId: 'me',
-            maxResults: 50, // Limit to 50 messages for manual sync
-            q: 'in:inbox -in:spam -in:trash', // Gmail API query to get all inbox emails and exclude spam and trash folders
-          });
-          console.log('Gmail API messages.list request successful');
-        } catch (apiError) {
-          console.error('Gmail API messages.list request failed:', apiError);
-          throw apiError;
+        // Get existing messages first to filter out duplicates
+        const existingMessages = await storage.getGmailMessagesForUser(req.user!.id, {});
+        const existingMessageIds = new Set(existingMessages.map(m => m.messageId));
+        
+        // Fetch messages with pagination until we get enough new messages or run out
+        let pageToken: string | undefined = undefined;
+        let totalFetched = 0;
+        const maxPages = 10; // Fetch up to 10 pages (500 messages max)
+        let pagesChecked = 0;
+        
+        do {
+          try {
+            // Fetch inbox emails (excluding spam and trash)
+            const response = await gmail.users.messages.list({
+              userId: 'me',
+              maxResults: 50,
+              q: 'in:inbox -in:spam -in:trash',
+              pageToken: pageToken
+            });
+            console.log(`Gmail API messages.list request successful (page ${pagesChecked + 1})`);
+            
+            const messages = response.data.messages || [];
+            
+            if (messages.length === 0) {
+              console.log('No more messages found in Gmail');
+              break;
+            }
+            
+            // Filter for new messages only
+            const newMessagesInBatch = messages.filter((m: any) => !existingMessageIds.has(m.id));
+            const newIds = newMessagesInBatch.map((m: any) => m.id).filter(Boolean) as string[];
+            
+            messageIds.push(...newIds);
+            totalFetched += messages.length;
+            
+            console.log(`Page ${pagesChecked + 1}: Found ${messages.length} messages, ${newIds.length} are new (total new: ${messageIds.length})`);
+            
+            // Get next page token
+            pageToken = response.data.nextPageToken;
+            pagesChecked++;
+            
+            // Stop if we found enough new messages or no more pages
+            if (messageIds.length >= 50 || !pageToken) {
+              break;
+            }
+            
+          } catch (apiError) {
+            console.error('Gmail API messages.list request failed:', apiError);
+            throw apiError;
+          }
+        } while (pageToken && pagesChecked < maxPages);
+        
+        console.log(`Pagination complete: Checked ${pagesChecked} pages, ${totalFetched} total messages, found ${messageIds.length} new messages`);
+        
+        if (messageIds.length === 0) {
+          console.log('No new messages to sync for user:', req.user!.id);
+          return res.json({ messageCount: 0, message: 'No new messages found. All recent emails are already synced.' });
         }
-        
-        const messages = response.data.messages || [];
-        
-        if (messages.length === 0) {
-          console.log('No messages found in Gmail for user:', req.user!.id);
-          return res.json({ messageCount: 0, message: 'No new messages found.' });
-        }
-        
-        console.log(`Found ${messages.length} messages in Gmail for user:`, req.user!.id);
-        
-        // Get all message IDs from the response
-        messageIds = messages.map((m: any) => m.id).filter(Boolean) as string[];
       } catch (apiError: any) {
         console.error('Gmail API Error:', apiError);
         
@@ -591,24 +623,10 @@ export function setupGmailRoutes(app: express.Express) {
         });
       }
       
-      // Check if we successfully got messageIds
-      if (!messageIds.length) {
-        return res.json({ messageCount: 0, message: 'No messages found to sync.' });
-      }
-      
-      // Get existing messages in one query to avoid querying multiple times
-      const existingMessages = await storage.getGmailMessagesForUser(req.user!.id, {});
-      const existingMessageIds = new Set(existingMessages.map(m => m.messageId));
-      
-      // Filter to only process new messages
-      const newMessageIds = messageIds.filter((id: string) => !existingMessageIds.has(id));
-      
-      console.log(`Found ${newMessageIds.length} new messages to sync for user:`, req.user!.id);
-      
       const syncedMessages = [];
       
-      // Process each new message
-      for (const messageId of newMessageIds) {
+      // Process each new message (messageIds already filtered for new messages only)
+      for (const messageId of messageIds) {
         try {
           console.log(`Processing message ${messageId} for user:`, req.user!.id);
           
