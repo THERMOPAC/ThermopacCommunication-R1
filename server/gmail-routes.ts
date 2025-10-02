@@ -939,4 +939,57 @@ export function setupGmailRoutes(app: express.Express) {
       res.status(500).json({ error: 'Failed to fetch email analysis' });
     }
   });
+
+  // Send email endpoint
+  app.post('/api/gmail/send', async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    try {
+      const { to, cc, subject, body, inReplyTo } = req.body;
+
+      if (!to || !subject) {
+        return res.status(400).json({ error: 'To and subject are required' });
+      }
+
+      const gmail = await getGmailClient(req.user!.id);
+      
+      // Create email message in RFC 2822 format
+      const emailLines = [
+        `To: ${to}`,
+        cc ? `Cc: ${cc}` : '',
+        `Subject: ${subject}`,
+        inReplyTo ? `In-Reply-To: ${inReplyTo}` : '',
+        'Content-Type: text/html; charset=utf-8',
+        '',
+        body || ''
+      ].filter(line => line !== '');
+
+      const email = emailLines.join('\r\n');
+      const encodedMessage = Buffer.from(email)
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
+      await gmail.users.messages.send({
+        userId: 'me',
+        requestBody: {
+          raw: encodedMessage
+        }
+      });
+
+      res.json({ 
+        success: true, 
+        message: 'Email sent successfully' 
+      });
+    } catch (error) {
+      console.error('Error sending email:', error);
+      res.status(500).json({ 
+        error: 'Failed to send email',
+        message: error instanceof Error ? error.message : 'Unknown error occurred'
+      });
+    }
+  });
 }

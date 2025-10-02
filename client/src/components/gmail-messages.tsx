@@ -70,6 +70,15 @@ export default function GmailMessages() {
   const [selectAll, setSelectAll] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Compose email states
+  const [showComposeDialog, setShowComposeDialog] = useState(false);
+  const [composeType, setComposeType] = useState<'reply' | 'replyAll' | 'forward'>('reply');
+  const [composeTo, setComposeTo] = useState('');
+  const [composeCc, setComposeCc] = useState('');
+  const [composeSubject, setComposeSubject] = useState('');
+  const [composeBody, setComposeBody] = useState('');
+  const [isSending, setIsSending] = useState(false);
+
   // Gmail connection status
   const { data: connectionStatus, isLoading: isLoadingStatus } = useQuery({
     queryKey: ["/api/gmail/status"],
@@ -529,6 +538,82 @@ export default function GmailMessages() {
         description: "Failed to copy to clipboard",
         variant: "destructive"
       });
+    }
+  };
+
+  // Email compose functions
+  const handleReply = () => {
+    if (!selectedMessage) return;
+    
+    setComposeType('reply');
+    setComposeTo(selectedMessage.from);
+    setComposeCc('');
+    setComposeSubject(`Re: ${selectedMessage.subject}`);
+    setComposeBody('');
+    setShowComposeDialog(true);
+  };
+
+  const handleReplyAll = () => {
+    if (!selectedMessage) return;
+    
+    setComposeType('replyAll');
+    setComposeTo(selectedMessage.from);
+    setComposeCc(selectedMessage.to !== user?.email ? selectedMessage.to : '');
+    setComposeSubject(`Re: ${selectedMessage.subject}`);
+    setComposeBody('');
+    setShowComposeDialog(true);
+  };
+
+  const handleForward = () => {
+    if (!selectedMessage) return;
+    
+    setComposeType('forward');
+    setComposeTo('');
+    setComposeCc('');
+    setComposeSubject(`Fwd: ${selectedMessage.subject}`);
+    setComposeBody(`\n\n---------- Forwarded message ---------\nFrom: ${selectedMessage.from}\nDate: ${selectedMessage.receivedAt}\nSubject: ${selectedMessage.subject}\nTo: ${selectedMessage.to}\n\n${selectedMessage.body || selectedMessage.snippet}`);
+    setShowComposeDialog(true);
+  };
+
+  const handleSendEmail = async () => {
+    if (!composeTo.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a recipient",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      await apiRequest("POST", "/api/gmail/send", {
+        to: composeTo,
+        cc: composeCc,
+        subject: composeSubject,
+        body: composeBody,
+        inReplyTo: composeType !== 'forward' ? selectedMessage?.messageId : undefined
+      });
+
+      toast({
+        title: "Email Sent",
+        description: "Your email has been sent successfully!",
+      });
+
+      setShowComposeDialog(false);
+      setComposeTo('');
+      setComposeCc('');
+      setComposeSubject('');
+      setComposeBody('');
+    } catch (error) {
+      console.error("Send email error:", error);
+      toast({
+        title: "Send Failed",
+        description: error instanceof Error ? error.message : "Failed to send email",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -1309,6 +1394,86 @@ export default function GmailMessages() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Compose Email Dialog */}
+      <Dialog open={showComposeDialog} onOpenChange={setShowComposeDialog}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>
+              {composeType === 'reply' && 'Reply to Email'}
+              {composeType === 'replyAll' && 'Reply to All'}
+              {composeType === 'forward' && 'Forward Email'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="compose-to">To</Label>
+              <Input
+                id="compose-to"
+                value={composeTo}
+                onChange={(e) => setComposeTo(e.target.value)}
+                placeholder="recipient@example.com"
+                data-testid="input-compose-to"
+              />
+            </div>
+            
+            {composeType === 'replyAll' && (
+              <div>
+                <Label htmlFor="compose-cc">Cc</Label>
+                <Input
+                  id="compose-cc"
+                  value={composeCc}
+                  onChange={(e) => setComposeCc(e.target.value)}
+                  placeholder="cc@example.com"
+                  data-testid="input-compose-cc"
+                />
+              </div>
+            )}
+            
+            <div>
+              <Label htmlFor="compose-subject">Subject</Label>
+              <Input
+                id="compose-subject"
+                value={composeSubject}
+                onChange={(e) => setComposeSubject(e.target.value)}
+                placeholder="Email subject"
+                data-testid="input-compose-subject"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="compose-body">Message</Label>
+              <Textarea
+                id="compose-body"
+                value={composeBody}
+                onChange={(e) => setComposeBody(e.target.value)}
+                placeholder="Type your message here..."
+                className="min-h-[200px]"
+                data-testid="textarea-compose-body"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setShowComposeDialog(false)}
+              data-testid="button-compose-cancel"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSendEmail}
+              disabled={isSending}
+              data-testid="button-compose-send"
+            >
+              {isSending ? 'Sending...' : 'Send'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Messages</h2>
@@ -1497,6 +1662,7 @@ export default function GmailMessages() {
                     variant="outline"
                     size="lg"
                     className="rounded-full px-6"
+                    onClick={handleReplyAll}
                     data-testid="button-reply-all"
                   >
                     <ReplyAll className="h-4 w-4 mr-2" />
@@ -1506,6 +1672,7 @@ export default function GmailMessages() {
                     variant="outline"
                     size="lg"
                     className="rounded-full px-6"
+                    onClick={handleReply}
                     data-testid="button-reply"
                   >
                     <Reply className="h-4 w-4 mr-2" />
@@ -1515,6 +1682,7 @@ export default function GmailMessages() {
                     variant="outline"
                     size="lg"
                     className="rounded-full px-6"
+                    onClick={handleForward}
                     data-testid="button-forward"
                   >
                     <Forward className="h-4 w-4 mr-2" />
