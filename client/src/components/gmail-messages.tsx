@@ -388,7 +388,23 @@ export default function GmailMessages() {
     
     // Extract content from email
     const title = message.subject || 'Email task';
-    const description = message.body || message.snippet || '';
+    
+    // Create a clean description by stripping HTML and limiting length
+    let description = '';
+    if (message.body) {
+      // Strip HTML tags
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = message.body;
+      const textContent = tempDiv.textContent || tempDiv.innerText || '';
+      // Limit to 500 characters for readability
+      description = textContent.trim().substring(0, 500);
+      if (textContent.length > 500) {
+        description += '...';
+      }
+    } else {
+      description = message.snippet || '';
+    }
+    
     const fromEmail = message.from || '';
     
     const today = new Date();
