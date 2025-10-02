@@ -872,11 +872,25 @@ export function setupGmailRoutes(app: express.Express) {
         return res.status(403).json({ error: 'You do not have permission to access this message' });
       }
 
+      // Prepare user information for signature
+      const userName = req.user!.firstName && req.user!.lastName 
+        ? `${req.user!.firstName} ${req.user!.lastName}`
+        : req.user!.username;
+      
+      const userInfo = {
+        name: userName,
+        title: req.user!.jobTitle || undefined,
+        company: 'THERMOPAC',
+        email: req.user!.email,
+        phone: req.user!.mobileNumber ? `${req.user!.countryCode || ''} ${req.user!.mobileNumber}`.trim() : undefined
+      };
+
       // Generate reply options using AI
       const replies = await generateEmailReplies(
         message.subject || '',
         message.body || message.snippet || '',
         message.from || '',
+        userInfo,
         context
       );
 

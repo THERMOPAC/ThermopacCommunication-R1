@@ -88,6 +88,13 @@ export async function generateEmailReplies(
   originalSubject: string,
   originalBody: string,
   originalFrom: string,
+  userInfo?: {
+    name: string;
+    title?: string;
+    company: string;
+    email: string;
+    phone?: string;
+  },
   context?: string
 ): Promise<EmailReply> {
   try {
@@ -109,10 +116,11 @@ Guidelines:
 - Maintain a professional business tone
 - Address the sender appropriately
 - Respond to key points raised in the original email
-- Include appropriate greetings and closings
-- Professional: Formal language, complete structure
+- Include appropriate greetings and closings with signature
+- Professional: Formal language, complete structure with signature
 - Brief: Direct and to-the-point while remaining courteous
-- Detailed: Thorough coverage of all topics with explanations`;
+- Detailed: Thorough coverage of all topics with explanations and signature
+- End each reply with a professional signature block including: Best regards, [Name], [Title], [Company], [Contact Information]`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-5",
@@ -131,10 +139,27 @@ Guidelines:
 
     const result = JSON.parse(response.choices[0].message.content || '{}');
 
+    // Helper function to replace signature placeholders
+    const replaceSignature = (text: string): string => {
+      if (!userInfo) return text;
+      
+      let updatedText = text
+        .replace(/\[Your Name\]/gi, userInfo.name)
+        .replace(/\[Name\]/gi, userInfo.name)
+        .replace(/\[Your Title\]/gi, userInfo.title || '')
+        .replace(/\[Title\]/gi, userInfo.title || '')
+        .replace(/\[Your Company\]/gi, userInfo.company)
+        .replace(/\[Company\]/gi, userInfo.company)
+        .replace(/\[Your Contact Information\]/gi, `${userInfo.email}${userInfo.phone ? ' | ' + userInfo.phone : ''}`)
+        .replace(/\[Contact Information\]/gi, `${userInfo.email}${userInfo.phone ? ' | ' + userInfo.phone : ''}`);
+      
+      return updatedText;
+    };
+
     return {
-      professional: result.professional || 'Thank you for your email. I will review this and get back to you shortly.',
-      brief: result.brief || 'Thank you. I will follow up soon.',
-      detailed: result.detailed || 'Thank you for your email. I appreciate you taking the time to reach out. I will review the information you have provided and get back to you with a comprehensive response shortly.'
+      professional: replaceSignature(result.professional || 'Thank you for your email. I will review this and get back to you shortly.'),
+      brief: replaceSignature(result.brief || 'Thank you. I will follow up soon.'),
+      detailed: replaceSignature(result.detailed || 'Thank you for your email. I appreciate you taking the time to reach out. I will review the information you have provided and get back to you with a comprehensive response shortly.')
     };
   } catch (error) {
     console.error('Error generating email replies with OpenAI:', error);
