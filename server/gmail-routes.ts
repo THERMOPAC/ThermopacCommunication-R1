@@ -298,13 +298,18 @@ export function setupGmailRoutes(app: express.Express) {
       try {
         const gmail = await getGmailClient(req.user!.id);
         const labels = isRead ? { removeLabelIds: ['UNREAD'] } : { addLabelIds: ['UNREAD'] };
-        await gmail.users.messages.modify({
+        console.log(`Updating Gmail message ${message.messageId} read status: ${isRead ? 'marking as read (removing UNREAD)' : 'marking as unread (adding UNREAD)'}`);
+        
+        const result = await gmail.users.messages.modify({
           userId: 'me',
           id: message.messageId,
           requestBody: labels
         });
+        
+        console.log(`✅ Successfully updated Gmail message ${message.messageId} read status in Gmail`);
       } catch (error) {
-        console.warn('Could not update read status in Gmail:', error);
+        console.error('❌ Failed to update read status in Gmail:', error);
+        console.error('Error details:', error instanceof Error ? error.message : error);
         // Continue anyway as we've updated the local database
       }
       
