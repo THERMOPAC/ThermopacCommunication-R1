@@ -551,7 +551,7 @@ export function setupGmailRoutes(app: express.Express) {
         do {
           try {
             // Fetch only unread inbox emails (excluding spam and trash)
-            const response = await gmail.users.messages.list({
+            const response: any = await gmail.users.messages.list({
               userId: 'me',
               maxResults: 50,
               q: 'in:inbox -in:spam -in:trash is:unread',
@@ -624,31 +624,24 @@ export function setupGmailRoutes(app: express.Express) {
       }
       
       const syncedMessages = [];
+      const errors: { messageId: string; error: string }[] = [];
       
-      // Process each new message (messageIds already filtered for new messages only)
-      for (const messageId of messageIds) {
+      // Helper function to process a single message
+      const processMessage = async (messageId: string) => {
         try {
           console.log(`Processing message ${messageId} for user:`, req.user!.id);
           
           // Fetch full message details
-          let messageDetails;
-          try {
-            console.log(`Fetching details for message ${messageId}`);
-            messageDetails = await gmail.users.messages.get({
-              userId: 'me',
-              id: messageId,
-              format: 'full',
-            });
-            console.log(`Successfully fetched details for message ${messageId}`);
-          } catch (error: any) {
-            console.error(`Error fetching details for message ${messageId}:`, error);
-            throw new Error(`Failed to fetch message details: ${error.message || 'Unknown error'}`);
-          }
+          const messageDetails = await gmail.users.messages.get({
+            userId: 'me',
+            id: messageId,
+            format: 'full',
+          });
           
           const payload = messageDetails.data.payload;
           if (!payload) {
             console.log(`No payload found for message ${messageId}`);
-            continue;
+            return { success: false, messageId, error: 'No payload found' };
           }
           
           // Extract headers
@@ -664,19 +657,16 @@ export function setupGmailRoutes(app: express.Express) {
             let plain = '';
             
             for (const part of parts) {
-              // Recursively search nested parts
               if (part.parts) {
                 const nested = extractBody(part.parts);
                 if (nested.html) html = nested.html;
                 if (nested.plain) plain = nested.plain;
               }
               
-              // Extract HTML content
               if (part.mimeType === 'text/html' && part.body?.data) {
                 html = Buffer.from(part.body.data.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');
               }
               
-              // Extract plain text content
               if (part.mimeType === 'text/plain' && part.body?.data) {
                 plain = Buffer.from(part.body.data.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');
               }
@@ -687,12 +677,9 @@ export function setupGmailRoutes(app: express.Express) {
           
           let body = '';
           if (payload.body?.data) {
-            // Single part message - base64 encoded body
             body = Buffer.from(payload.body.data.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');
           } else if (payload.parts) {
-            // Multipart message - extract both HTML and plain text
             const { html, plain } = extractBody(payload.parts);
-            // Prefer HTML content for rich formatting, fallback to plain text
             body = html || plain;
           }
           
@@ -701,13 +688,13 @@ export function setupGmailRoutes(app: express.Express) {
           const isRead = !labels.includes('UNREAD');
           const isImportant = labels.includes('IMPORTANT');
           
-          // Double-check: Skip any messages with SPAM or TRASH labels (security feature)
+          // Skip SPAM/TRASH
           if (labels.includes('SPAM') || labels.includes('TRASH')) {
-            console.log(`Skipping message ${messageId} as it has SPAM or TRASH label`);
-            continue;
+            console.log(`Skipping message ${messageId} - SPAM/TRASH`);
+            return { success: false, messageId, error: 'SPAM/TRASH' };
           }
           
-          // Classify email with AI-driven priority classification
+          // Classify email with AI
           console.log(`🤖 Classifying email ${messageId}...`);
           const classification = await emailClassifier.classifyEmail({
             from: fromHeader?.value || 'Unknown',
@@ -717,7 +704,7 @@ export function setupGmailRoutes(app: express.Express) {
           });
           console.log(`✅ Email ${messageId} classified as ${classification.priority} (score: ${classification.priorityScore})`);
           
-          // Create message in database with classification results
+          // Save to database
           const newMessage = await storage.saveGmailMessage({
             userId: req.user!.id,
             messageId: messageId,
@@ -737,27 +724,32 @@ export function setupGmailRoutes(app: express.Express) {
             classificationSignals: classification.classificationSignals
           });
           
-          syncedMessages.push(newMessage);
+          return { success: true, message: newMessage };
         } catch (error: any) {
-          console.error(`Error processing message ${messageId}:`, error);
-          
-          // Add more detailed error logging
-          if (error.response) {
-            console.error(`Message ${messageId} API Error Response:`, {
-              status: error.response.status,
-              statusText: error.response.statusText,
-              data: error.response.data
-            });
-          }
-          
-          if (error.stack) {
-            console.error(`Message ${messageId} Error Stack:`, error.stack);
-          }
-          
-          console.error(`Skipping message ${messageId} due to error: ${error.message || 'Unknown error'}`);
-          // Continue with the next message even if one fails
-          continue;
+          const errorMsg = error.message || 'Unknown error';
+          console.error(`❌ Error processing message ${messageId}:`, errorMsg);
+          return { success: false, messageId, error: errorMsg };
         }
+      };
+      
+      // Process messages in parallel with concurrency limit
+      const CONCURRENCY = 5;
+      console.log(`⚡ Processing ${messageIds.length} messages with ${CONCURRENCY} concurrent workers...`);
+      
+      for (let i = 0; i < messageIds.length; i += CONCURRENCY) {
+        const batch = messageIds.slice(i, i + CONCURRENCY);
+        const results = await Promise.all(batch.map(processMessage));
+        
+        // Collect successes and errors
+        results.forEach(result => {
+          if (result.success && result.message) {
+            syncedMessages.push(result.message);
+          } else if (!result.success && result.messageId) {
+            errors.push({ messageId: result.messageId, error: result.error });
+          }
+        });
+        
+        console.log(`📦 Batch ${Math.floor(i / CONCURRENCY) + 1}: Processed ${batch.length} messages (${syncedMessages.length} synced, ${errors.length} errors)`);
       }
       
       console.log(`Successfully synced ${syncedMessages.length} messages for user:`, req.user!.id);
