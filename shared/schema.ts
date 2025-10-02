@@ -1293,6 +1293,15 @@ export const gmailMessages = pgTable('gmail_messages', {
   isRead: boolean('is_read').default(false),
   isImportant: boolean('is_important').default(false),
   labels: text('labels').array(),
+  priority: varchar('priority', { length: 10 }),
+  priorityScore: integer('priority_score'),
+  classificationReason: text('classification_reason'),
+  classificationSignals: jsonb('classification_signals').$type<{
+    hardRules?: string[];
+    aiScore?: number;
+    confidence?: number;
+    factors?: string[];
+  }>(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -1322,7 +1331,11 @@ export const insertGmailMessageSchema = createInsertSchema(gmailMessages, {
   snippet: z.string().optional(),
   body: z.string().optional(),
   receivedAt: z.date().optional(),
-  labels: z.array(z.string()).optional()
+  labels: z.array(z.string()).optional(),
+  priority: z.string().optional(),
+  priorityScore: z.number().optional(),
+  classificationReason: z.string().optional(),
+  classificationSignals: z.any().optional()
 });
 
 export const insertGmailSettingsSchema = createInsertSchema(gmailSettings);
