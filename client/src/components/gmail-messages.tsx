@@ -1626,14 +1626,14 @@ export default function GmailMessages() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => copyToClipboard(replyData[`${selectedReplyStyle}Reply`] || '')}
+                            onClick={() => copyToClipboard(replyData[selectedReplyStyle] || '')}
                           >
                             <Copy className="h-4 w-4 mr-2" />
                             Copy
                           </Button>
                         </div>
                         <div className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap">
-                          {replyData[`${selectedReplyStyle}Reply`] || 'No reply available for this style.'}
+                          {replyData[selectedReplyStyle] || 'No reply available for this style.'}
                         </div>
                       </div>
                       
