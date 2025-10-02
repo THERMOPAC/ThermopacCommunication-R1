@@ -6,7 +6,36 @@ import { gmail_v1 } from 'googleapis';
 import { analyzeEmail, generateEmailReplies } from './openai-email-service';
 import { emailClassifier } from './email-classifier';
 
+// Sync progress tracking
+interface SyncProgress {
+  userId: number;
+  status: 'running' | 'completed' | 'error';
+  total: number;
+  processed: number;
+  synced: number;
+  errors: number;
+  startTime: Date;
+  endTime?: Date;
+  errorMessage?: string;
+}
+
+const syncProgressStore = new Map<number, SyncProgress>();
+
 export function setupGmailRoutes(app: express.Express) {
+  // Get sync progress
+  app.get('/api/gmail/sync/progress', async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    const progress = syncProgressStore.get(req.user!.id);
+    
+    if (!progress) {
+      return res.json({ status: 'idle' });
+    }
+    
+    return res.json(progress);
+  });
   // Manual authentication endpoint for Gmail
   app.post('/api/gmail/manual-auth', async (req: Request, res: Response) => {
     if (!req.isAuthenticated()) {
@@ -509,9 +538,21 @@ export function setupGmailRoutes(app: express.Express) {
     try {
       console.log('Starting Gmail sync for user:', req.user!.id);
       
+      // Initialize progress tracking
+      syncProgressStore.set(req.user!.id, {
+        userId: req.user!.id,
+        status: 'running',
+        total: 0,
+        processed: 0,
+        synced: 0,
+        errors: 0,
+        startTime: new Date()
+      });
+      
       const token = await storage.getGmailToken(req.user!.id);
       if (!token) {
         console.log('No Gmail token found for user:', req.user!.id);
+        syncProgressStore.delete(req.user!.id);
         return res.status(400).json({ error: 'Gmail not connected. Please connect your Gmail account first.' });
       }
       
@@ -736,6 +777,12 @@ export function setupGmailRoutes(app: express.Express) {
       const CONCURRENCY = 5;
       console.log(`⚡ Processing ${messageIds.length} messages with ${CONCURRENCY} concurrent workers...`);
       
+      // Update total count
+      const progress = syncProgressStore.get(req.user!.id);
+      if (progress) {
+        progress.total = messageIds.length;
+      }
+      
       for (let i = 0; i < messageIds.length; i += CONCURRENCY) {
         const batch = messageIds.slice(i, i + CONCURRENCY);
         const results = await Promise.all(batch.map(processMessage));
@@ -749,13 +796,34 @@ export function setupGmailRoutes(app: express.Express) {
           }
         });
         
+        // Update progress
+        if (progress) {
+          progress.processed = i + batch.length;
+          progress.synced = syncedMessages.length;
+          progress.errors = errors.length;
+        }
+        
         console.log(`📦 Batch ${Math.floor(i / CONCURRENCY) + 1}: Processed ${batch.length} messages (${syncedMessages.length} synced, ${errors.length} errors)`);
+      }
+      
+      // Mark as completed
+      if (progress) {
+        progress.status = 'completed';
+        progress.endTime = new Date();
       }
       
       console.log(`Successfully synced ${syncedMessages.length} messages for user:`, req.user!.id);
       res.json({ messageCount: syncedMessages.length, message: `Successfully synced ${syncedMessages.length} messages` });
     } catch (error: any) {
       console.error('Error syncing Gmail messages:', error);
+      
+      // Mark progress as error
+      const progress = syncProgressStore.get(req.user!.id);
+      if (progress) {
+        progress.status = 'error';
+        progress.endTime = new Date();
+        progress.errorMessage = error.message || 'Unknown error';
+      }
       
       // More detailed error logging
       if (error.response) {

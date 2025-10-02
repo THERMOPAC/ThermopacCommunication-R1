@@ -103,6 +103,10 @@ export default function GmailMessages() {
   const [isBulkMarkingRead, setIsBulkMarkingRead] = useState(false);
   const [isBulkMarkingUnread, setIsBulkMarkingUnread] = useState(false);
 
+  // Sync progress state
+  const [syncProgress, setSyncProgress] = useState<any>(null);
+  const progressIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+
   // Compose email states
   const [showComposeDialog, setShowComposeDialog] = useState(false);
   const [composeType, setComposeType] = useState<'reply' | 'replyAll' | 'forward'>('reply');
@@ -322,6 +326,39 @@ export default function GmailMessages() {
     }
   };
 
+  // Poll for sync progress
+  const pollSyncProgress = async () => {
+    try {
+      const progress = await apiRequest("GET", "/api/gmail/sync/progress");
+      setSyncProgress(progress);
+      
+      // Stop polling if sync is completed or errored
+      if (progress.status === 'completed' || progress.status === 'error') {
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+        }
+        
+        // Show completion/error toast
+        if (progress.status === 'completed') {
+          queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
+          toast({
+            title: "Sync Complete",
+            description: `Successfully synced ${progress.synced} messages (${progress.errors} errors)`,
+          });
+        } else if (progress.status === 'error') {
+          toast({
+            title: "Sync Failed",
+            description: progress.errorMessage || "An error occurred during sync",
+            variant: "destructive"
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error polling sync progress:', error);
+    }
+  };
+
   // Sync Gmail messages
   const syncMutation = useMutation<any, Error, void>({
     mutationFn: async () => {
@@ -334,12 +371,11 @@ export default function GmailMessages() {
       }
     },
     onSuccess: (data) => {
-      console.log('Sync successful:', data);
-      queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
-      toast({
-        title: "Success",
-        description: data.message || `Synced ${data.messageCount} messages from Gmail`,
-      });
+      console.log('Sync started, beginning progress polling');
+      // Start polling for progress
+      const interval = setInterval(pollSyncProgress, 1000); // Poll every second
+      progressIntervalRef.current = interval;
+      pollSyncProgress(); // Poll immediately
     },
     onError: (error: Error) => {
       console.error('Sync mutation error in callback:', error);
@@ -1116,6 +1152,15 @@ export default function GmailMessages() {
     };
   }, [readTimeout]);
 
+  // Clean up progress polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+    };
+  }, []);
+
   const handleViewMessage = (messageId: number) => {
     console.log(`Opening message ${messageId}`);
     setSelectedMessageId(messageId);
@@ -1704,15 +1749,22 @@ export default function GmailMessages() {
             <Filter className="h-4 w-4 mr-2" />
             Filters
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => syncMutation.mutate()}
-            disabled={syncMutation.isPending}
-          >
-            <RotateCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-            Sync
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => syncMutation.mutate()}
+              disabled={syncMutation.isPending || syncProgress?.status === 'running'}
+            >
+              <RotateCw className={`h-4 w-4 mr-2 ${(syncMutation.isPending || syncProgress?.status === 'running') ? 'animate-spin' : ''}`} />
+              Sync
+            </Button>
+            {syncProgress?.status === 'running' && syncProgress.total > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {syncProgress.processed}/{syncProgress.total} ({Math.round((syncProgress.processed / syncProgress.total) * 100)}%)
+              </span>
+            )}
+          </div>
           <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/gmail/settings"] })}>
             <Settings className="h-4 w-4 mr-2" />
             Settings
