@@ -550,11 +550,11 @@ export function setupGmailRoutes(app: express.Express) {
         
         do {
           try {
-            // Fetch inbox emails (excluding spam and trash)
+            // Fetch only unread inbox emails (excluding spam and trash)
             const response = await gmail.users.messages.list({
               userId: 'me',
               maxResults: 50,
-              q: 'in:inbox -in:spam -in:trash',
+              q: 'in:inbox -in:spam -in:trash is:unread',
               pageToken: pageToken
             });
             console.log(`Gmail API messages.list request successful (page ${pagesChecked + 1})`);
