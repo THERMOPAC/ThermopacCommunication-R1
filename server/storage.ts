@@ -1908,10 +1908,8 @@ export class DatabaseStorage implements IStorage {
   }): Promise<GmailMessage[]> {
     console.log(`Getting Gmail messages for user ${userId} with filters:`, filters);
     
-    let query = db
-      .select()
-      .from(gmailMessagesTable)
-      .where(eq(gmailMessagesTable.userId, userId));
+    // Build all conditions in an array
+    const conditions = [eq(gmailMessagesTable.userId, userId)];
     
     // Apply filters if provided
     if (filters) {
@@ -1926,49 +1924,53 @@ export class DatabaseStorage implements IStorage {
           isReadValue = Boolean(filters.isRead);
         }
         console.log("Converted isRead value:", isReadValue, "original type:", typeof filters.isRead);
-        query = query.where(eq(gmailMessagesTable.isRead, isReadValue));
+        conditions.push(eq(gmailMessagesTable.isRead, isReadValue));
       }
       
       if (filters.isImportant !== undefined) {
-        query = query.where(eq(gmailMessagesTable.isImportant, filters.isImportant));
+        conditions.push(eq(gmailMessagesTable.isImportant, filters.isImportant));
       }
       
       // Add priority filter
       if (filters.priority && filters.priority.length > 0) {
         console.log("Applying priority filter:", filters.priority);
-        query = query.where(inArray(gmailMessagesTable.priority, filters.priority));
+        conditions.push(inArray(gmailMessagesTable.priority, filters.priority));
       }
       
       if (filters.from) {
-        query = query.where(like(gmailMessagesTable.from, `%${filters.from}%`));
+        conditions.push(like(gmailMessagesTable.from, `%${filters.from}%`));
       }
       
       if (filters.to) {
-        query = query.where(like(gmailMessagesTable.to, `%${filters.to}%`));
+        conditions.push(like(gmailMessagesTable.to, `%${filters.to}%`));
       }
       
       if (filters.subject) {
-        query = query.where(like(gmailMessagesTable.subject, `%${filters.subject}%`));
+        conditions.push(like(gmailMessagesTable.subject, `%${filters.subject}%`));
       }
       
       if (filters.startDate) {
-        query = query.where(sql`${gmailMessagesTable.receivedAt} >= ${filters.startDate.toISOString()}`);
+        conditions.push(sql`${gmailMessagesTable.receivedAt} >= ${filters.startDate.toISOString()}`);
       }
       
       if (filters.endDate) {
-        query = query.where(sql`${gmailMessagesTable.receivedAt} <= ${filters.endDate.toISOString()}`);
+        conditions.push(sql`${gmailMessagesTable.receivedAt} <= ${filters.endDate.toISOString()}`);
       }
       
       // Filter out spam emails if requested
       if (filters.excludeSpam) {
-        query = query.where(
+        conditions.push(
           sql`NOT (${gmailMessagesTable.labels}::text LIKE '%SPAM%')`
         );
       }
     }
     
-    // Order by most recent messages first
-    query = query.orderBy(desc(gmailMessagesTable.receivedAt));
+    // Apply all conditions using AND
+    const query = db
+      .select()
+      .from(gmailMessagesTable)
+      .where(and(...conditions))
+      .orderBy(desc(gmailMessagesTable.receivedAt));
     
     const messages = await query;
     console.log(`Found ${messages.length} Gmail messages for user ${userId}`);
