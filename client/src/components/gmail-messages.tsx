@@ -950,6 +950,12 @@ export default function GmailMessages() {
     console.log(`Opening message ${messageId}`);
     setSelectedMessageId(messageId);
     
+    // Clear AI reply suggestions when opening a new email
+    setReplyData(null);
+    setShowReplyGeneration(false);
+    setAnalysisData(null);
+    setShowAnalysis(false);
+    
     // Only mark as read immediately if not in unread filter mode
     const message = messages?.find((m: GmailMessage) => m.id === messageId);
     
@@ -1002,6 +1008,12 @@ export default function GmailMessages() {
         });
       }
     }
+    
+    // Clear AI suggestions when going back to inbox
+    setReplyData(null);
+    setShowReplyGeneration(false);
+    setAnalysisData(null);
+    setShowAnalysis(false);
     
     // Reset the selected message
     setSelectedMessageId(null);
