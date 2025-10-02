@@ -215,7 +215,7 @@ Respond with a JSON object in this exact format:
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: 'You are an expert email classification assistant. Always respond with valid JSON.' },
           { role: 'user', content: prompt }
