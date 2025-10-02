@@ -4,6 +4,7 @@ import { getGmailClient, getAuthUrl } from './google-auth';
 import { getTokens, sanitizeAuthCode } from './google-oauth';
 import { gmail_v1 } from 'googleapis';
 import { analyzeEmail, generateEmailReplies } from './openai-email-service';
+import { emailClassifier } from './email-classifier';
 
 export function setupGmailRoutes(app: express.Express) {
   // Manual authentication endpoint for Gmail
@@ -528,11 +529,11 @@ export function setupGmailRoutes(app: express.Express) {
         // Get most recent messages
         let response;
         try {
-          // Only fetch emails with IMPORTANT label and exclude SPAM and TRASH
+          // Fetch all inbox emails (excluding spam and trash)
           response = await gmail.users.messages.list({
             userId: 'me',
             maxResults: 20, // Limit to 20 messages for manual sync
-            q: 'is:important -in:spam -in:trash', // Gmail API query to get important emails only and exclude spam and trash folders
+            q: 'in:inbox -in:spam -in:trash', // Gmail API query to get all inbox emails and exclude spam and trash folders
           });
           console.log('Gmail API messages.list request successful');
         } catch (apiError) {
@@ -676,7 +677,17 @@ export function setupGmailRoutes(app: express.Express) {
             continue;
           }
           
-          // Create message in database
+          // Classify email with AI-driven priority classification
+          console.log(`🤖 Classifying email ${messageId}...`);
+          const classification = await emailClassifier.classifyEmail({
+            from: fromHeader?.value || 'Unknown',
+            subject: subjectHeader?.value || '',
+            snippet: messageDetails.data.snippet || '',
+            body: body
+          });
+          console.log(`✅ Email ${messageId} classified as ${classification.priority} (score: ${classification.priorityScore})`);
+          
+          // Create message in database with classification results
           const newMessage = await storage.saveGmailMessage({
             userId: req.user!.id,
             messageId: messageId,
@@ -689,7 +700,11 @@ export function setupGmailRoutes(app: express.Express) {
             receivedAt: dateHeader?.value ? new Date(dateHeader.value) : new Date(),
             isRead,
             isImportant,
-            labels
+            labels,
+            priority: classification.priority,
+            priorityScore: classification.priorityScore,
+            classificationReason: classification.classificationReason,
+            classificationSignals: classification.classificationSignals
           });
           
           syncedMessages.push(newMessage);
