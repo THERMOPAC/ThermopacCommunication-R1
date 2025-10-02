@@ -1397,7 +1397,7 @@ export default function GmailMessages() {
 
       {/* Compose Email Dialog */}
       <Dialog open={showComposeDialog} onOpenChange={setShowComposeDialog}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {composeType === 'reply' && 'Reply to Email'}
@@ -1441,6 +1441,86 @@ export default function GmailMessages() {
                 data-testid="input-compose-subject"
               />
             </div>
+            
+            {/* AI Generate Reply Section - Only for Reply and Reply All */}
+            {(composeType === 'reply' || composeType === 'replyAll') && (
+              <div className="border rounded-lg p-4 bg-muted/30">
+                <div className="flex items-center justify-between mb-3">
+                  <Label className="text-sm font-semibold flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-blue-600" />
+                    AI Reply Generator
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (selectedMessage) {
+                        generateReply(selectedMessage.id);
+                      }
+                    }}
+                    disabled={isGeneratingReply}
+                    data-testid="button-generate-reply-in-dialog"
+                  >
+                    {isGeneratingReply ? (
+                      <RotateCw className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <MessageSquare className="h-4 w-4 mr-2 text-green-600" />
+                    )}
+                    {isGeneratingReply ? 'Generating...' : 'Generate Reply'}
+                  </Button>
+                </div>
+                
+                {replyData && (
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={selectedReplyStyle === 'professional' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedReplyStyle('professional')}
+                        data-testid="button-style-professional"
+                      >
+                        Professional
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={selectedReplyStyle === 'brief' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedReplyStyle('brief')}
+                        data-testid="button-style-brief"
+                      >
+                        Brief
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={selectedReplyStyle === 'detailed' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedReplyStyle('detailed')}
+                        data-testid="button-style-detailed"
+                      >
+                        Detailed
+                      </Button>
+                    </div>
+                    
+                    <div className="bg-background border rounded p-3 text-sm whitespace-pre-wrap">
+                      {replyData[selectedReplyStyle] || 'No reply available for this style.'}
+                    </div>
+                    
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setComposeBody(replyData[selectedReplyStyle] || '')}
+                      className="w-full"
+                      data-testid="button-use-reply"
+                    >
+                      Use This Reply
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
             
             <div>
               <Label htmlFor="compose-body">Message</Label>
