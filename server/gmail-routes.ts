@@ -618,19 +618,42 @@ export function setupGmailRoutes(app: express.Express) {
           const subjectHeader = headers.find((h: any) => h.name?.toLowerCase() === 'subject');
           const dateHeader = headers.find((h: any) => h.name?.toLowerCase() === 'date');
           
-          // Extract message body
-          let body = '';
-          if (payload.body?.data) {
-            // Base64 encoded body
-            body = Buffer.from(payload.body.data, 'base64').toString('utf-8');
-          } else if (payload.parts) {
-            // Multipart message
-            for (const part of payload.parts) {
+          // Extract message body - prefer HTML, fallback to plain text
+          const extractBody = (parts: any[]): { html: string, plain: string } => {
+            let html = '';
+            let plain = '';
+            
+            for (const part of parts) {
+              // Recursively search nested parts
+              if (part.parts) {
+                const nested = extractBody(part.parts);
+                if (nested.html) html = nested.html;
+                if (nested.plain) plain = nested.plain;
+              }
+              
+              // Extract HTML content
+              if (part.mimeType === 'text/html' && part.body?.data) {
+                html = Buffer.from(part.body.data.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');
+              }
+              
+              // Extract plain text content
               if (part.mimeType === 'text/plain' && part.body?.data) {
-                body = Buffer.from(part.body.data, 'base64').toString('utf-8');
-                break;
+                plain = Buffer.from(part.body.data.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');
               }
             }
+            
+            return { html, plain };
+          };
+          
+          let body = '';
+          if (payload.body?.data) {
+            // Single part message - base64 encoded body
+            body = Buffer.from(payload.body.data.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');
+          } else if (payload.parts) {
+            // Multipart message - extract both HTML and plain text
+            const { html, plain } = extractBody(payload.parts);
+            // Prefer HTML content for rich formatting, fallback to plain text
+            body = html || plain;
           }
           
           // Determine labels
