@@ -1966,17 +1966,28 @@ export class DatabaseStorage implements IStorage {
     }
     
     // Apply all conditions using AND
+    console.log(`🔍 Building query with ${conditions.length} conditions`);
+    console.log(`🔍 Priority filter applied: ${filters?.priority ? 'YES - ' + JSON.stringify(filters.priority) : 'NO'}`);
+    
     const query = db
       .select()
       .from(gmailMessagesTable)
       .where(and(...conditions))
       .orderBy(desc(gmailMessagesTable.receivedAt));
     
-    // Debug: log the query
-    console.log("🔍 Executing query with conditions:", JSON.stringify(conditions, null, 2));
-    
     const messages = await query;
     console.log(`Found ${messages.length} Gmail messages for user ${userId}`);
+    
+    // Debug: show priority distribution in results
+    if (filters?.priority && messages.length > 0) {
+      const priorities = messages.map((m: any) => m.priority);
+      const counts = priorities.reduce((acc: any, p: any) => {
+        acc[p || 'null'] = (acc[p || 'null'] || 0) + 1;
+        return acc;
+      }, {});
+      console.log(`📊 Priority distribution in results:`, counts);
+    }
+    
     return messages as GmailMessage[];
   }
 
