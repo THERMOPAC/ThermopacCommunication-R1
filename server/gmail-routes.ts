@@ -465,13 +465,17 @@ export function setupGmailRoutes(app: express.Express) {
       // Then try to delete from Gmail if connected (but don't block if it fails)
       try {
         const gmail = await getGmailClient(req.user!.id);
+        console.log(`🗑️ Attempting to move Gmail message ${message.messageId} to trash in Gmail...`);
+        
         await gmail.users.messages.trash({
           userId: 'me',
           id: message.messageId
         });
-        console.log(`Moved Gmail message ${message.messageId} to trash in Gmail`);
+        
+        console.log(`✅ Successfully moved Gmail message ${message.messageId} to trash in Gmail`);
       } catch (error) {
-        console.warn('Could not delete message in Gmail, but deleted from database:', error);
+        console.error('❌ Failed to delete message in Gmail (but deleted from local database):', error);
+        console.error('Error details:', error instanceof Error ? error.message : error);
         // This is ok - message is already deleted from local database
       }
       
