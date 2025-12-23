@@ -919,6 +919,7 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
         date: attendanceRecords.date,
         checkInTime: attendanceRecords.checkInTime,
         checkOutTime: attendanceRecords.checkOutTime,
+        status: attendanceRecords.status,
         userName: users.username,
         firstName: users.firstName,
         lastName: users.lastName,
@@ -963,7 +964,20 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
     // Transform records with calculated fields
     const transformedRecords = Array.isArray(records) ? records.map((record: any) => {
       const workHours = calculateWorkHours(record.checkInTime, record.checkOutTime);
-      const status = getAttendanceStatus(record.checkInTime, record.checkOutTime);
+      // Use actual database status if available, otherwise calculate from check-in time
+      const dbStatus = record.status;
+      let displayStatus: string;
+      
+      if (dbStatus === 'absent') {
+        displayStatus = 'Absent';
+      } else if (dbStatus === 'late') {
+        displayStatus = 'Late';
+      } else if (dbStatus === 'half_day') {
+        displayStatus = 'Half Day';
+      } else {
+        // For 'present' status or unknown, calculate based on check-in time
+        displayStatus = getAttendanceStatus(record.checkInTime, record.checkOutTime);
+      }
       
       return {
         id: record.id,
@@ -974,7 +988,7 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
         timeIn: record.checkInTime,
         timeOut: record.checkOutTime,
         workHours,
-        status,
+        status: displayStatus,
         location: 'Office'
       };
     }) : [];
