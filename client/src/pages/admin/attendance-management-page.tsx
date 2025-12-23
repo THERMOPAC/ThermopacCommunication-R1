@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
-import { Calendar, Clock, User, Search, Filter, Download, Users, AlertCircle, CheckCircle, FileText } from 'lucide-react';
+import { Calendar, Clock, User, Search, Filter, Download, Users, AlertCircle, CheckCircle, FileText, RefreshCw } from 'lucide-react';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -31,6 +32,7 @@ export default function AttendanceManagementPage() {
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [selectedEmployee, setSelectedEmployee] = useState('all');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isProcessingDwar, setIsProcessingDwar] = useState(false);
 
   // Query for attendance summary stats
   const { data: attendanceStats } = useQuery({
@@ -387,6 +389,50 @@ export default function AttendanceManagementPage() {
     }
   };
 
+  // Process historical DWAR compliance for current month
+  const processHistoricalDwarCompliance = async () => {
+    setIsProcessingDwar(true);
+    try {
+      const today = new Date();
+      const monthStart = startOfMonth(today);
+      const startDate = format(monthStart, 'yyyy-MM-dd');
+      const endDate = format(today, 'yyyy-MM-dd');
+
+      const response = await apiRequest('POST', '/api/attendance/process-historical-dwar', {
+        startDate,
+        endDate
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: 'DWAR Compliance Processed',
+          description: `Checked ${result.processed} records, marked ${result.markedAbsent} as absent due to missing DWAR.`,
+        });
+
+        // Refresh attendance data
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/attendance/records'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/attendance/stats'] });
+      } else {
+        toast({
+          title: 'Processing Failed',
+          description: result.message || 'Failed to process DWAR compliance',
+          variant: 'destructive',
+        });
+      }
+    } catch (error: any) {
+      console.error('Error processing DWAR compliance:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to process DWAR compliance. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsProcessingDwar(false);
+    }
+  };
+
   return (
     <>
       <Helmet>
@@ -401,6 +447,16 @@ export default function AttendanceManagementPage() {
           <p className="text-gray-600 mt-1">Monitor and manage employee attendance records</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            onClick={processHistoricalDwarCompliance}
+            variant="outline"
+            className="flex items-center gap-2"
+            disabled={isProcessingDwar}
+            data-testid="button-process-dwar"
+          >
+            <RefreshCw className={`h-4 w-4 ${isProcessingDwar ? 'animate-spin' : ''}`} />
+            {isProcessingDwar ? 'Processing...' : 'Process DWAR Compliance'}
+          </Button>
           <Button 
             onClick={generateUserPdfReport} 
             variant={selectedEmployee !== 'all' ? 'default' : 'outline'}

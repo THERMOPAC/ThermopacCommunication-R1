@@ -1,6 +1,6 @@
 import { db } from './db';
 import { attendanceRecords, attendanceIssues, dailyWorkReports, users } from '@shared/schema';
-import { eq, and, isNull, lt } from 'drizzle-orm';
+import { eq, and, isNull, lt, gte, lte } from 'drizzle-orm';
 
 /**
  * Midnight Attendance Processor
@@ -330,6 +330,146 @@ export class AttendanceMidnightProcessor {
       return {
         success: false,
         message: `Error in attendance processing: ${error}`
+      };
+    }
+  }
+
+  /**
+   * Process historical attendance records for a date range
+   * This is used to retroactively mark users as absent if they didn't submit DWAR
+   */
+  async processHistoricalDwarCompliance(
+    startDate: string,
+    endDate: string
+  ): Promise<{ 
+    success: boolean; 
+    message: string; 
+    processed: number; 
+    markedAbsent: number;
+    details: Array<{ userId: number; username: string; date: string; action: string }>;
+  }> {
+    const details: Array<{ userId: number; username: string; date: string; action: string }> = [];
+    let processed = 0;
+    let markedAbsent = 0;
+
+    try {
+      console.log(`Processing historical DWAR compliance from ${startDate} to ${endDate}...`);
+
+      // Find all attendance records in the date range that are still marked as 'present'
+      // but either have no checkout or might be missing DWAR
+      const recordsToCheck = await db
+        .select({
+          attendanceRecord: attendanceRecords,
+          user: {
+            id: users.id,
+            username: users.username,
+            email: users.email,
+          }
+        })
+        .from(attendanceRecords)
+        .leftJoin(users, eq(attendanceRecords.userId, users.id))
+        .where(and(
+          gte(attendanceRecords.date, startDate),
+          lte(attendanceRecords.date, endDate),
+          eq(attendanceRecords.status, 'present') // Only check records still marked as present
+        ));
+
+      console.log(`Found ${recordsToCheck.length} records to check in date range`);
+
+      for (const record of recordsToCheck) {
+        processed++;
+        const rec = record.attendanceRecord;
+        const user = record.user;
+
+        // Check if DWAR was submitted for this date
+        const [dwarRecord] = await db
+          .select()
+          .from(dailyWorkReports)
+          .where(and(
+            eq(dailyWorkReports.userId, rec.userId),
+            eq(dailyWorkReports.reportDate, rec.date)
+          ));
+
+        const hasValidDwar = dwarRecord && 
+          (dwarRecord.status === 'submitted' || dwarRecord.status === 'approved');
+
+        if (!hasValidDwar) {
+          // Mark as absent and reset approval flags for consistent state
+          const description = `Retroactive: DWAR not submitted for ${rec.date}. Status: ${dwarRecord?.status || 'Not created'}`;
+
+          await db
+            .update(attendanceRecords)
+            .set({
+              status: 'absent',
+              incompleteReason: description,
+              flaggedAt: new Date(),
+              isIncomplete: false,
+              requiresApproval: false,
+              updatedAt: new Date()
+            })
+            .where(eq(attendanceRecords.id, rec.id));
+
+          // Check if issue already exists
+          const existingIssue = await db
+            .select()
+            .from(attendanceIssues)
+            .where(and(
+              eq(attendanceIssues.attendanceRecordId, rec.id),
+              eq(attendanceIssues.issueType, 'no_dwar')
+            ));
+
+          if (existingIssue.length === 0) {
+            await db
+              .insert(attendanceIssues)
+              .values({
+                attendanceRecordId: rec.id,
+                userId: rec.userId,
+                issueType: 'no_dwar',
+                description,
+                severity: 'high',
+                status: 'pending',
+                detectedAt: new Date(),
+                managerNotified: false,
+                hrNotified: false
+              });
+          }
+
+          markedAbsent++;
+          details.push({
+            userId: rec.userId,
+            username: user?.username || 'Unknown',
+            date: rec.date,
+            action: 'marked_absent'
+          });
+
+          console.log(`Marked absent: ${user?.username || rec.userId} on ${rec.date} (DWAR: ${dwarRecord?.status || 'none'})`);
+        } else {
+          details.push({
+            userId: rec.userId,
+            username: user?.username || 'Unknown',
+            date: rec.date,
+            action: 'dwar_valid'
+          });
+        }
+      }
+
+      console.log(`Historical processing complete: ${processed} checked, ${markedAbsent} marked absent`);
+
+      return {
+        success: true,
+        message: `Processed ${processed} records, marked ${markedAbsent} as absent due to missing DWAR`,
+        processed,
+        markedAbsent,
+        details
+      };
+    } catch (error) {
+      console.error('Error in historical DWAR compliance processing:', error);
+      return {
+        success: false,
+        message: `Error: ${error}`,
+        processed,
+        markedAbsent,
+        details
       };
     }
   }

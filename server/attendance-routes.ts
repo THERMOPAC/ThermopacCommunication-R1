@@ -645,6 +645,67 @@ router.post('/process-midnight', ensureAuthenticated, async (req: Request, res: 
   }
 });
 
+// Process historical DWAR compliance for a date range (admin only)
+router.post('/process-historical-dwar', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userRole = req.user?.role;
+    if (!userRole || !['Superuser', 'Administrator', 'General Manager', 'HR'].includes(userRole)) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Only administrators can run historical DWAR compliance processing' 
+      });
+    }
+
+    const { startDate, endDate } = req.body;
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'startDate and endDate are required'
+      });
+    }
+
+    // Validate date format (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dates must be in YYYY-MM-DD format'
+      });
+    }
+
+    // Validate date ordering
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (start > end) {
+      return res.status(400).json({
+        success: false,
+        message: 'startDate must be before or equal to endDate'
+      });
+    }
+
+    // Limit date range to 90 days maximum
+    const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysDiff > 90) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date range cannot exceed 90 days. Please process in smaller batches.'
+      });
+    }
+
+    console.log(`Admin ${req.user?.username} triggered historical DWAR processing from ${startDate} to ${endDate}`);
+    
+    const result = await attendanceMidnightProcessor.processHistoricalDwarCompliance(startDate, endDate);
+    res.json(result);
+  } catch (error) {
+    console.error('Error in historical DWAR processing:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to process historical DWAR compliance' 
+    });
+  }
+});
+
 // Get daily Buddha quote
 router.get('/daily-quote', async (req: Request, res: Response) => {
   try {
