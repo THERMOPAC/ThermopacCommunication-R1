@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import UserProfile from "@/components/user-profile";
 import AttendanceGatekeeper from "@/components/attendance-gatekeeper";
 import { Separator } from "@/components/ui/separator";
+import { useHeartbeat } from "@/hooks/useHeartbeat";
 import {
   LayoutDashboard,
   LayoutTemplate,
@@ -80,6 +81,9 @@ function Layout({ children }: LayoutProps) {
 
   // Get all module permissions for the current user
   const { data: modulePermissions, isLoading: isLoadingPermissions } = useAllModulePermissions();
+
+  // Send heartbeat for live user tracking across all pages
+  useHeartbeat({ interval: 30000 }); // Send heartbeat every 30 seconds
 
   // Check if we're on any sales and marketing related page
   const isOnSalesAndMarketingPage = location === '/lead-generation' ||
