@@ -23,9 +23,75 @@ import { z } from 'zod';
 
 const router = Router();
 
-// Middleware to ensure only Superusers can access Business Intelligence
+// ============================================================================
+// LIVE USER TRACKING & HEARTBEAT (Available to ALL authenticated users)
+// ============================================================================
+
+// Store live users in memory (for development - in production use Redis or database)
+const liveUsers = new Map();
+
+// Clean up stale users (remove users inactive for more than 5 minutes)
+const cleanupStaleUsers = () => {
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  for (const [userId, userData] of liveUsers.entries()) {
+    if (userData.lastSeen < fiveMinutesAgo) {
+      liveUsers.delete(userId);
+    }
+  }
+};
+
+// Run cleanup every minute
+setInterval(cleanupStaleUsers, 60 * 1000);
+
+// Heartbeat endpoint - MUST be before Superuser middleware so ALL users can send heartbeats
+router.post('/heartbeat', ensureAuthenticated, (req: any, res: any) => {
+  try {
+    if (req.user && req.user.id) {
+      const userId = req.user.id;
+      const timestamp = new Date();
+      
+      // Debug logging for heartbeat
+      console.log('=== HEARTBEAT RECEIVED ===');
+      console.log('User ID:', userId);
+      console.log('Username:', req.user.username);
+      console.log('Role:', req.user.role);
+      console.log('Timestamp:', timestamp);
+      console.log('Current Map size before update:', liveUsers.size);
+      
+      liveUsers.set(userId, {
+        userId,
+        username: req.user.username,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        role: req.user.role,
+        lastSeen: timestamp
+      });
+      
+      console.log('Map size after update:', liveUsers.size);
+      console.log('==========================');
+      
+      res.json({ success: true, timestamp });
+    } else {
+      console.log('Heartbeat failed: User not authenticated');
+      res.status(401).json({ error: 'User not authenticated' });
+    }
+  } catch (error) {
+    console.error('Error recording heartbeat:', error);
+    res.status(500).json({ error: 'Failed to record heartbeat' });
+  }
+});
+
+// ============================================================================
+// SUPERUSER-ONLY ROUTES BELOW
+// ============================================================================
+
+// Middleware to ensure only Superusers can access Business Intelligence analytics
 router.use(ensureAuthenticated);
 router.use((req: any, res: any, next: any) => {
+  // Skip Superuser check for heartbeat (already handled above)
+  if (req.path === '/heartbeat') {
+    return next();
+  }
   if (req.user?.role !== 'Superuser') {
     return res.status(403).json({ 
       success: false, 
@@ -785,62 +851,6 @@ router.get('/insights', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch business insights' });
   }
 });
-
-// ============================================================================
-// LIVE USER TRACKING & HEARTBEAT
-// ============================================================================
-
-// Store live users in memory (for development - in production use Redis or database)
-const liveUsers = new Map();
-
-// Heartbeat endpoint to track live users
-router.post('/heartbeat', (req: any, res: any) => {
-  try {
-    if (req.user && req.user.id) {
-      const userId = req.user.id;
-      const timestamp = new Date();
-      
-      // Debug logging for heartbeat
-      console.log('=== HEARTBEAT RECEIVED ===');
-      console.log('User ID:', userId);
-      console.log('Username:', req.user.username);
-      console.log('Timestamp:', timestamp);
-      console.log('Current Map size before update:', liveUsers.size);
-      
-      liveUsers.set(userId, {
-        userId,
-        username: req.user.username,
-        firstName: req.user.firstName,
-        lastName: req.user.lastName,
-        lastSeen: timestamp
-      });
-      
-      console.log('Map size after update:', liveUsers.size);
-      console.log('==========================');
-      
-      res.json({ success: true, timestamp });
-    } else {
-      console.log('Heartbeat failed: User not authenticated');
-      res.status(401).json({ error: 'User not authenticated' });
-    }
-  } catch (error) {
-    console.error('Error recording heartbeat:', error);
-    res.status(500).json({ error: 'Failed to record heartbeat' });
-  }
-});
-
-// Clean up stale users (remove users inactive for more than 5 minutes)
-const cleanupStaleUsers = () => {
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-  for (const [userId, userData] of liveUsers.entries()) {
-    if (userData.lastSeen < fiveMinutesAgo) {
-      liveUsers.delete(userId);
-    }
-  }
-};
-
-// Run cleanup every minute
-setInterval(cleanupStaleUsers, 60 * 1000);
 
 // ============================================================================
 // MEETINGS & COMMITMENTS ANALYTICS
