@@ -398,12 +398,10 @@ export default function AttendanceManagementPage() {
       const startDate = format(monthStart, 'yyyy-MM-dd');
       const endDate = format(today, 'yyyy-MM-dd');
 
-      const response = await apiRequest('POST', '/api/attendance/process-historical-dwar', {
+      const result = await apiRequest('POST', '/api/attendance/process-historical-dwar', {
         startDate,
         endDate
-      });
-
-      const result = await response.json();
+      }) as { success: boolean; processed?: number; markedAbsent?: number; message?: string };
 
       if (result.success) {
         toast({
