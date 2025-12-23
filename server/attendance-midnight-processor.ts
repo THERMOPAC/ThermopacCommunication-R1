@@ -353,7 +353,27 @@ export class AttendanceMidnightProcessor {
     let markedAbsent = 0;
 
     try {
-      console.log(`Processing historical DWAR compliance from ${startDate} to ${endDate}...`);
+      // Exclude today's date - users may not have submitted DWAR yet since day is ongoing
+      const today = new Date().toISOString().split('T')[0];
+      let effectiveEndDate = endDate;
+      if (endDate >= today) {
+        effectiveEndDate = new Date(new Date(today).getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        console.log(`Excluding today (${today}) from processing. Adjusted end date: ${effectiveEndDate}`);
+      }
+      
+      // If start date is after effective end date, nothing to process
+      if (startDate > effectiveEndDate) {
+        console.log('No historical records to process (date range only includes today)');
+        return {
+          success: true,
+          message: 'No historical records to process - cannot process today\'s records as day is still ongoing',
+          processed: 0,
+          markedAbsent: 0,
+          details: []
+        };
+      }
+
+      console.log(`Processing historical DWAR compliance from ${startDate} to ${effectiveEndDate}...`);
 
       // Find all attendance records in the date range that are still marked as 'present'
       // but either have no checkout or might be missing DWAR
@@ -370,7 +390,7 @@ export class AttendanceMidnightProcessor {
         .leftJoin(users, eq(attendanceRecords.userId, users.id))
         .where(and(
           gte(attendanceRecords.date, startDate),
-          lte(attendanceRecords.date, endDate),
+          lte(attendanceRecords.date, effectiveEndDate),
           eq(attendanceRecords.status, 'present') // Only check records still marked as present
         ));
 
