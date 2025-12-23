@@ -105,6 +105,12 @@ export default function DwarPage() {
 
   const [editingActivity, setEditingActivity] = useState<number | null>(null);
   
+  // Local state for text fields to prevent API calls on every keystroke
+  const [localChallenges, setLocalChallenges] = useState('');
+  const [localIssuesEncountered, setLocalIssuesEncountered] = useState('');
+  const [localSupportRequired, setLocalSupportRequired] = useState('');
+  const [localTomorrowPlans, setLocalTomorrowPlans] = useState('');
+  
   // Check if coming from checkout flow
   const isFromCheckout = new URLSearchParams(window.location.search).get('checkout') === 'true';
   const [newActivity, setNewActivity] = useState<Activity>({
@@ -124,6 +130,16 @@ export default function DwarPage() {
     queryKey: ["/api/dwar/today"],
     refetchInterval: 60000, // Refresh every minute
   });
+
+  // Sync local state with todayReport when it loads
+  useEffect(() => {
+    if (todayReport) {
+      setLocalChallenges(todayReport.challenges || '');
+      setLocalIssuesEncountered(todayReport.issuesEncountered || '');
+      setLocalSupportRequired(todayReport.supportRequired || '');
+      setLocalTomorrowPlans(todayReport.tomorrowPlans || '');
+    }
+  }, [todayReport?.id]);
 
   // Get recent reports for history
   const { data: recentReports = [] } = useQuery({
@@ -694,25 +710,43 @@ export default function DwarPage() {
             <div>
               <Label>Challenges Faced</Label>
               <Textarea
-                value={todayReport?.challenges || ''}
-                onChange={(e) => handleUpdateText('challenges', e.target.value)}
+                value={localChallenges}
+                onChange={(e) => setLocalChallenges(e.target.value)}
+                onBlur={() => {
+                  if (localChallenges !== (todayReport?.challenges || '')) {
+                    handleUpdateText('challenges', localChallenges);
+                  }
+                }}
                 placeholder="Describe any challenges you faced today..."
+                disabled={todayReport?.status !== 'draft'}
               />
             </div>
             <div>
               <Label>Issues Encountered</Label>
               <Textarea
-                value={todayReport?.issuesEncountered || ''}
-                onChange={(e) => handleUpdateText('issuesEncountered', e.target.value)}
+                value={localIssuesEncountered}
+                onChange={(e) => setLocalIssuesEncountered(e.target.value)}
+                onBlur={() => {
+                  if (localIssuesEncountered !== (todayReport?.issuesEncountered || '')) {
+                    handleUpdateText('issuesEncountered', localIssuesEncountered);
+                  }
+                }}
                 placeholder="Any technical or process issues..."
+                disabled={todayReport?.status !== 'draft'}
               />
             </div>
             <div>
               <Label>Support Required</Label>
               <Textarea
-                value={todayReport?.supportRequired || ''}
-                onChange={(e) => handleUpdateText('supportRequired', e.target.value)}
+                value={localSupportRequired}
+                onChange={(e) => setLocalSupportRequired(e.target.value)}
+                onBlur={() => {
+                  if (localSupportRequired !== (todayReport?.supportRequired || '')) {
+                    handleUpdateText('supportRequired', localSupportRequired);
+                  }
+                }}
                 placeholder="What support do you need from your team or manager..."
+                disabled={todayReport?.status !== 'draft'}
               />
             </div>
           </CardContent>
@@ -774,9 +808,15 @@ export default function DwarPage() {
             <div className="mt-4">
               <Label>Tomorrow's Plans</Label>
               <Textarea
-                value={todayReport?.tomorrowPlans || ''}
-                onChange={(e) => handleUpdateText('tomorrowPlans', e.target.value)}
+                value={localTomorrowPlans}
+                onChange={(e) => setLocalTomorrowPlans(e.target.value)}
+                onBlur={() => {
+                  if (localTomorrowPlans !== (todayReport?.tomorrowPlans || '')) {
+                    handleUpdateText('tomorrowPlans', localTomorrowPlans);
+                  }
+                }}
                 placeholder="Describe your overall plans for tomorrow..."
+                disabled={todayReport?.status !== 'draft'}
               />
             </div>
           </CardContent>
