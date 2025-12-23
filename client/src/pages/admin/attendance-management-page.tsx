@@ -238,8 +238,15 @@ export default function AttendanceManagementPage() {
     setIsGeneratingPdf(true);
 
     try {
+      console.log('Starting PDF generation...');
+      console.log('Selected user details:', selectedUserDetails);
+      console.log('Attendance records count:', attendanceRecords?.length);
+      
       const doc = new jsPDF();
+      console.log('jsPDF instance created');
+      
       const pageWidth = doc.internal.pageSize.getWidth();
+      console.log('Page width:', pageWidth);
       
       // Header
       doc.setFillColor(0, 51, 102);
@@ -302,14 +309,28 @@ export default function AttendanceManagementPage() {
       doc.setFont('helvetica', 'bold');
       doc.text('Attendance Records', 14, 125);
       
-      const tableData = attendanceRecords.map(record => [
-        safeFormatDate(record.date),
-        safeFormatTime(record.timeIn),
-        safeFormatTime(record.timeOut),
-        record.workHours ? `${Number(record.workHours).toFixed(1)}h` : '-',
-        record.status || '-',
-        record.location || '-'
-      ]);
+      console.log('Creating table data...');
+      const tableData = attendanceRecords.map((record, index) => {
+        try {
+          return [
+            safeFormatDate(record.date),
+            safeFormatTime(record.timeIn),
+            safeFormatTime(record.timeOut),
+            record.workHours ? `${Number(record.workHours).toFixed(1)}h` : '-',
+            record.status || '-',
+            record.location || '-'
+          ];
+        } catch (e) {
+          console.error(`Error processing record ${index}:`, record, e);
+          return ['-', '-', '-', '-', '-', '-'];
+        }
+      });
+      console.log('Table data created:', tableData.length, 'rows');
+      
+      console.log('autoTable available:', typeof doc.autoTable);
+      if (typeof doc.autoTable !== 'function') {
+        throw new Error('jspdf-autotable plugin not loaded correctly');
+      }
       
       doc.autoTable({
         startY: 130,
@@ -360,11 +381,14 @@ export default function AttendanceManagementPage() {
         title: 'PDF Generated',
         description: `Attendance report for ${userName} has been downloaded.`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating PDF:', error);
+      console.error('Error name:', error?.name);
+      console.error('Error message:', error?.message);
+      console.error('Error stack:', error?.stack);
       toast({
         title: 'Error',
-        description: 'Failed to generate PDF report. Please try again.',
+        description: `Failed to generate PDF report: ${error?.message || 'Unknown error'}`,
         variant: 'destructive',
       });
     } finally {
