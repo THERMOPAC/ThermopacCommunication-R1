@@ -83,6 +83,31 @@ export class AttendanceMidnightProcessor {
         await this.processIncompleteCheckout(record.attendanceRecord, record.user);
       }
 
+      // Check for completed attendance records (with checkout) that don't have submitted DWAR
+      // These should also be marked as absent retroactively
+      const completedRecords = await db
+        .select({
+          attendanceRecord: attendanceRecords,
+          user: {
+            id: users.id,
+            username: users.username,
+            email: users.email,
+            reportingManagerId: users.reportingManagerId,
+          }
+        })
+        .from(attendanceRecords)
+        .leftJoin(users, eq(attendanceRecords.userId, users.id))
+        .where(and(
+          eq(attendanceRecords.date, yesterdayStr),
+          eq(attendanceRecords.status, 'present') // Only check records still marked as present
+        ));
+
+      console.log(`Checking ${completedRecords.length} completed records for DWAR compliance on ${yesterdayStr}`);
+
+      for (const record of completedRecords) {
+        await this.processDwarCompliance(record.attendanceRecord, record.user);
+      }
+
       console.log(`[${new Date().toISOString()}] Midnight attendance processing completed`);
     } catch (error) {
       console.error('Error in midnight attendance processing:', error);
@@ -169,11 +194,15 @@ export class AttendanceMidnightProcessor {
       const hasValidDwar = dwarRecord && dwarRecord.status === 'submitted';
       const description = `Employee ${user?.username || 'Unknown'} checked in at ${record.checkInTime} but did not check out on ${record.date}${hasValidDwar ? ' (DWAR submitted)' : ' (No DWAR submitted)'}`;
 
+      // Determine status based on DWAR completion
+      // If DWAR not submitted, mark as ABSENT
+      const attendanceStatus = hasValidDwar ? 'incomplete' : 'absent';
+      
       // Update attendance record
       await db
         .update(attendanceRecords)
         .set({
-          status: 'incomplete',
+          status: attendanceStatus,
           isIncomplete: true,
           incompleteReason: description,
           flaggedAt: new Date(),
@@ -188,7 +217,7 @@ export class AttendanceMidnightProcessor {
         .values({
           attendanceRecordId: record.id,
           userId: record.userId,
-          issueType: 'incomplete_checkout',
+          issueType: hasValidDwar ? 'incomplete_checkout' : 'no_dwar',
           description,
           severity: hasValidDwar ? 'medium' : 'high',
           status: 'pending',
@@ -197,9 +226,67 @@ export class AttendanceMidnightProcessor {
           hrNotified: false
         });
 
-      console.log(`Flagged incomplete checkout for user ${user?.username || record.userId} on ${record.date}`);
+      console.log(`Flagged ${attendanceStatus} for user ${user?.username || record.userId} on ${record.date} (DWAR: ${hasValidDwar ? 'submitted' : 'not submitted'})`);
     } catch (error) {
       console.error(`Error processing incomplete checkout for user ${record.userId}:`, error);
+    }
+  }
+
+  /**
+   * Process DWAR compliance for completed attendance records
+   * If DWAR was not submitted, mark the attendance as absent
+   */
+  private async processDwarCompliance(record: any, user: any): Promise<void> {
+    try {
+      // Check if DWAR was submitted
+      const [dwarRecord] = await db
+        .select()
+        .from(dailyWorkReports)
+        .where(and(
+          eq(dailyWorkReports.userId, record.userId),
+          eq(dailyWorkReports.reportDate, record.date)
+        ));
+
+      const hasValidDwar = dwarRecord && (dwarRecord.status === 'submitted' || dwarRecord.status === 'approved');
+      
+      // If DWAR was submitted, no action needed
+      if (hasValidDwar) {
+        return;
+      }
+
+      const description = `Employee ${user?.username || 'Unknown'} did not submit DWAR for ${record.date}. Marked as absent.`;
+
+      // Update attendance record to absent
+      await db
+        .update(attendanceRecords)
+        .set({
+          status: 'absent',
+          isIncomplete: true,
+          incompleteReason: description,
+          flaggedAt: new Date(),
+          requiresApproval: true,
+          updatedAt: new Date()
+        })
+        .where(eq(attendanceRecords.id, record.id));
+
+      // Create attendance issue
+      await db
+        .insert(attendanceIssues)
+        .values({
+          attendanceRecordId: record.id,
+          userId: record.userId,
+          issueType: 'no_dwar',
+          description,
+          severity: 'high',
+          status: 'pending',
+          detectedAt: new Date(),
+          managerNotified: false,
+          hrNotified: false
+        });
+
+      console.log(`Marked absent (DWAR not submitted) for user ${user?.username || record.userId} on ${record.date}`);
+    } catch (error) {
+      console.error(`Error processing DWAR compliance for user ${record.userId}:`, error);
     }
   }
 

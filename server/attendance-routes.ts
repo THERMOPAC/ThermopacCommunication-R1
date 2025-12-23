@@ -1,11 +1,47 @@
 import { Router, Request, Response } from 'express';
 import { db } from './db';
-import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations, users, dailyQuotes } from '@shared/schema';
+import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations, users, dailyQuotes, dailyWorkReports } from '@shared/schema';
 import { eq, and, gte, lte, desc, sql, isNull } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 import { attendanceMidnightProcessor } from './attendance-midnight-processor';
 
 const router = Router();
+
+// Helper function to check if user has submitted DWAR for a given date
+export async function checkDwarCompletionStatus(userId: number, date: string): Promise<{
+  isCompleted: boolean;
+  status: string | null;
+  reportId: number | null;
+}> {
+  try {
+    const [dwar] = await db
+      .select({
+        id: dailyWorkReports.id,
+        status: dailyWorkReports.status
+      })
+      .from(dailyWorkReports)
+      .where(and(
+        eq(dailyWorkReports.userId, userId),
+        eq(dailyWorkReports.reportDate, date)
+      ));
+
+    if (!dwar) {
+      return { isCompleted: false, status: null, reportId: null };
+    }
+
+    // DWAR is considered complete only if status is 'submitted' or 'approved'
+    const isCompleted = dwar.status === 'submitted' || dwar.status === 'approved';
+    
+    return { 
+      isCompleted, 
+      status: dwar.status, 
+      reportId: dwar.id 
+    };
+  } catch (error) {
+    console.error('Error checking DWAR completion status:', error);
+    return { isCompleted: false, status: null, reportId: null };
+  }
+}
 
 // Get current user's attendance status for today
 router.get('/status', ensureAuthenticated, async (req: Request, res: Response) => {
@@ -193,6 +229,10 @@ router.post('/check-out', ensureAuthenticated, async (req: Request, res: Respons
       });
     }
 
+    // Check DWAR completion status
+    const dwarStatus = await checkDwarCompletionStatus(userId, today);
+    const isDwarCompleted = dwarStatus.isCompleted;
+    
     // Calculate working hours
     const checkInTime = new Date(existingRecord.checkInTime);
     const workingHours = (now.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
@@ -218,6 +258,10 @@ router.post('/check-out', ensureAuthenticated, async (req: Request, res: Respons
       }
     }
 
+    // Determine attendance status based on DWAR completion
+    // If DWAR is not submitted, mark as absent
+    const attendanceStatus = isDwarCompleted ? 'present' : 'absent';
+    
     // Update attendance record
     const [updatedRecord] = await db
       .update(attendanceRecords)
@@ -231,10 +275,31 @@ router.post('/check-out', ensureAuthenticated, async (req: Request, res: Respons
         workingHours: workingHours.toFixed(2),
         overtimeHours: overtimeHours.toFixed(2),
         employeeNotes,
+        status: attendanceStatus,
         updatedAt: now
       })
       .where(eq(attendanceRecords.id, existingRecord.id))
       .returning();
+
+    // If DWAR not completed, create an attendance issue
+    if (!isDwarCompleted) {
+      try {
+        await db.insert(attendanceIssues).values({
+          attendanceRecordId: existingRecord.id,
+          userId: userId,
+          issueType: 'no_dwar',
+          description: `DWAR not submitted at checkout. DWAR status: ${dwarStatus.status || 'Not created'}. Marked as absent.`,
+          severity: 'high',
+          status: 'pending',
+          detectedAt: now,
+          managerNotified: false,
+          hrNotified: false
+        });
+        console.log(`Created attendance issue for user ${userId}: DWAR incomplete at checkout`);
+      } catch (issueError) {
+        console.error('Error creating attendance issue:', issueError);
+      }
+    }
 
     // Get user details for personalized message
     const [user] = await db
@@ -260,13 +325,27 @@ router.post('/check-out', ensureAuthenticated, async (req: Request, res: Respons
       gratitudeMessage = `🙏 Thank you for your contributions today, ${user?.username || 'User'}! Looking forward to working with you tomorrow.`;
     }
 
+    // Build response based on DWAR status
+    let responseMessage = 'Checked out successfully';
+    let dwarWarning = null;
+    
+    if (!isDwarCompleted) {
+      dwarWarning = 'Your DWAR was not submitted. You have been marked as ABSENT for today. Please contact your manager if this was an error.';
+      responseMessage = 'Checked out - DWAR incomplete, marked as absent';
+    }
+
     res.json({
       success: true,
-      message: 'Checked out successfully',
+      message: responseMessage,
       record: updatedRecord,
       workingHours: Number(workingHours.toFixed(2)),
       overtimeHours: Number(overtimeHours.toFixed(2)),
-      gratitudeMessage
+      gratitudeMessage: isDwarCompleted ? gratitudeMessage : null,
+      dwarWarning,
+      dwarStatus: {
+        isCompleted: isDwarCompleted,
+        status: dwarStatus.status
+      }
     });
   } catch (error) {
     console.error('Error during check-out:', error);
