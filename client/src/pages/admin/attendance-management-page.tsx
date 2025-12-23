@@ -129,7 +129,37 @@ export default function AttendanceManagementPage() {
 
   const formatTime = (timeString: string) => {
     if (!timeString) return '-';
-    return format(new Date(timeString), 'HH:mm');
+    try {
+      const date = new Date(timeString);
+      if (isNaN(date.getTime())) return '-';
+      return format(date, 'HH:mm');
+    } catch {
+      return '-';
+    }
+  };
+
+  // Safe format time for PDF (returns string, never throws)
+  const safeFormatTime = (timeString: string | null | undefined): string => {
+    if (!timeString) return '-';
+    try {
+      const date = new Date(timeString);
+      if (isNaN(date.getTime())) return '-';
+      return format(date, 'HH:mm');
+    } catch {
+      return '-';
+    }
+  };
+
+  // Safe format date for PDF (returns string, never throws)
+  const safeFormatDate = (dateString: string | null | undefined): string => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '-';
+      return format(date, 'MMM dd, yyyy');
+    } catch {
+      return '-';
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -273,11 +303,11 @@ export default function AttendanceManagementPage() {
       doc.text('Attendance Records', 14, 125);
       
       const tableData = attendanceRecords.map(record => [
-        format(new Date(record.date), 'MMM dd, yyyy'),
-        formatTime(record.timeIn),
-        record.timeOut ? formatTime(record.timeOut) : '-',
-        record.workHours ? `${record.workHours.toFixed(1)}h` : '-',
-        record.status,
+        safeFormatDate(record.date),
+        safeFormatTime(record.timeIn),
+        safeFormatTime(record.timeOut),
+        record.workHours ? `${Number(record.workHours).toFixed(1)}h` : '-',
+        record.status || '-',
         record.location || '-'
       ]);
       
