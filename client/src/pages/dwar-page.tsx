@@ -37,7 +37,8 @@ import {
   Calendar,
   FileText,
   Award,
-  Plus
+  Plus,
+  Save
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -712,11 +713,6 @@ export default function DwarPage() {
               <Textarea
                 value={localChallenges}
                 onChange={(e) => setLocalChallenges(e.target.value)}
-                onBlur={() => {
-                  if (localChallenges !== (todayReport?.challenges || '')) {
-                    handleUpdateText('challenges', localChallenges);
-                  }
-                }}
                 placeholder="Describe any challenges you faced today..."
                 disabled={todayReport?.status !== 'draft'}
               />
@@ -726,11 +722,6 @@ export default function DwarPage() {
               <Textarea
                 value={localIssuesEncountered}
                 onChange={(e) => setLocalIssuesEncountered(e.target.value)}
-                onBlur={() => {
-                  if (localIssuesEncountered !== (todayReport?.issuesEncountered || '')) {
-                    handleUpdateText('issuesEncountered', localIssuesEncountered);
-                  }
-                }}
                 placeholder="Any technical or process issues..."
                 disabled={todayReport?.status !== 'draft'}
               />
@@ -740,11 +731,6 @@ export default function DwarPage() {
               <Textarea
                 value={localSupportRequired}
                 onChange={(e) => setLocalSupportRequired(e.target.value)}
-                onBlur={() => {
-                  if (localSupportRequired !== (todayReport?.supportRequired || '')) {
-                    handleUpdateText('supportRequired', localSupportRequired);
-                  }
-                }}
                 placeholder="What support do you need from your team or manager..."
                 disabled={todayReport?.status !== 'draft'}
               />
@@ -810,11 +796,6 @@ export default function DwarPage() {
               <Textarea
                 value={localTomorrowPlans}
                 onChange={(e) => setLocalTomorrowPlans(e.target.value)}
-                onBlur={() => {
-                  if (localTomorrowPlans !== (todayReport?.tomorrowPlans || '')) {
-                    handleUpdateText('tomorrowPlans', localTomorrowPlans);
-                  }
-                }}
                 placeholder="Describe your overall plans for tomorrow..."
                 disabled={todayReport?.status !== 'draft'}
               />
@@ -878,16 +859,33 @@ export default function DwarPage() {
                   Once submitted, you cannot make changes to today's report.
                 </p>
               </div>
-              <Button 
-                onClick={() => {
-                  submitReportMutation.mutate(todayReport.id);
-                }}
-                disabled={submitReportMutation.isPending}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <Send className="h-4 w-4 mr-2" />
-                {submitReportMutation.isPending ? 'Submitting...' : 'Submit DWAR'}
-              </Button>
+              <div className="flex gap-3">
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    updateReportMutation.mutate({
+                      challenges: localChallenges,
+                      issuesEncountered: localIssuesEncountered,
+                      supportRequired: localSupportRequired,
+                      tomorrowPlans: localTomorrowPlans,
+                    });
+                  }}
+                  disabled={updateReportMutation.isPending}
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {updateReportMutation.isPending ? 'Saving...' : 'Update DWAR'}
+                </Button>
+                <Button 
+                  onClick={() => {
+                    submitReportMutation.mutate(todayReport.id);
+                  }}
+                  disabled={submitReportMutation.isPending}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {submitReportMutation.isPending ? 'Submitting...' : 'Submit DWAR'}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
