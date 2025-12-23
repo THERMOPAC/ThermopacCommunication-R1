@@ -9,14 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { Calendar, Clock, User, Search, Filter, Download, Users, AlertCircle, CheckCircle, FileText } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { useToast } from '@/hooks/use-toast';
-
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
-}
 
 interface AttendanceRecord {
   id: number;
@@ -327,12 +321,9 @@ export default function AttendanceManagementPage() {
       });
       console.log('Table data created:', tableData.length, 'rows');
       
-      console.log('autoTable available:', typeof doc.autoTable);
-      if (typeof doc.autoTable !== 'function') {
-        throw new Error('jspdf-autotable plugin not loaded correctly');
-      }
+      console.log('autoTable available:', typeof autoTable);
       
-      doc.autoTable({
+      autoTable(doc, {
         startY: 130,
         head: [['Date', 'Time In', 'Time Out', 'Hours', 'Status', 'Location']],
         body: tableData,
