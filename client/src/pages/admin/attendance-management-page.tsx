@@ -6,8 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
-import { Calendar, Clock, User, Search, Filter, Download, Users, AlertCircle, CheckCircle } from 'lucide-react';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { Calendar, Clock, User, Search, Filter, Download, Users, AlertCircle, CheckCircle, FileText } from 'lucide-react';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import { useToast } from '@/hooks/use-toast';
+
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 
 interface AttendanceRecord {
   id: number;
@@ -23,9 +32,11 @@ interface AttendanceRecord {
 }
 
 export default function AttendanceManagementPage() {
+  const { toast } = useToast();
   const [selectedDateRange, setSelectedDateRange] = useState('thisMonth');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [selectedEmployee, setSelectedEmployee] = useState('all');
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Query for attendance summary stats
   const { data: attendanceStats } = useQuery({
@@ -143,6 +154,194 @@ export default function AttendanceManagementPage() {
     console.log('Exporting attendance data...');
   };
 
+  // Get selected user details
+  const selectedUserDetails = useMemo(() => {
+    if (selectedEmployee === 'all' || !Array.isArray(users)) return null;
+    return users.find((u: any) => u.id.toString() === selectedEmployee);
+  }, [selectedEmployee, users]);
+
+  // Get date range label for report
+  const getDateRangeLabel = () => {
+    const now = new Date();
+    switch (selectedDateRange) {
+      case 'today':
+        return format(now, 'MMMM d, yyyy');
+      case 'yesterday':
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        return format(yesterday, 'MMMM d, yyyy');
+      case 'thisWeek':
+        return `${format(startOfWeek(now), 'MMM d')} - ${format(endOfWeek(now), 'MMM d, yyyy')}`;
+      case 'lastWeek':
+        const lastWeekStart = startOfWeek(new Date(now.setDate(now.getDate() - 7)));
+        return `${format(lastWeekStart, 'MMM d')} - ${format(endOfWeek(lastWeekStart), 'MMM d, yyyy')}`;
+      case 'thisMonth':
+        return format(now, 'MMMM yyyy');
+      case 'lastMonth':
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        return format(lastMonth, 'MMMM yyyy');
+      default:
+        return selectedDateRange;
+    }
+  };
+
+  // Generate PDF report for selected user
+  const generateUserPdfReport = async () => {
+    if (selectedEmployee === 'all' || !selectedUserDetails) {
+      toast({
+        title: 'Select an Employee',
+        description: 'Please select a specific employee to generate their attendance report.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!Array.isArray(attendanceRecords) || attendanceRecords.length === 0) {
+      toast({
+        title: 'No Records',
+        description: 'No attendance records found for the selected criteria.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsGeneratingPdf(true);
+
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      
+      // Header
+      doc.setFillColor(0, 51, 102);
+      doc.rect(0, 0, pageWidth, 35, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('THERMOPAC', 14, 15);
+      
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Attendance Report', 14, 25);
+      
+      // Report date
+      doc.setFontSize(10);
+      doc.text(`Generated: ${format(new Date(), 'MMM d, yyyy HH:mm')}`, pageWidth - 14, 15, { align: 'right' });
+      
+      // Employee Details Section
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Employee Information', 14, 50);
+      
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      const userName = selectedUserDetails.firstName && selectedUserDetails.lastName 
+        ? `${selectedUserDetails.firstName} ${selectedUserDetails.lastName}` 
+        : selectedUserDetails.username;
+      
+      doc.text(`Name: ${userName}`, 14, 60);
+      doc.text(`Username: ${selectedUserDetails.username}`, 14, 68);
+      doc.text(`Role: ${selectedUserDetails.role || 'Employee'}`, 14, 76);
+      doc.text(`Department: ${selectedUserDetails.department || 'N/A'}`, pageWidth / 2, 60);
+      doc.text(`Email: ${selectedUserDetails.email || 'N/A'}`, pageWidth / 2, 68);
+      doc.text(`Report Period: ${getDateRangeLabel()}`, pageWidth / 2, 76);
+      
+      // Summary Statistics
+      doc.setFillColor(240, 240, 240);
+      doc.rect(14, 85, pageWidth - 28, 25, 'F');
+      
+      const presentCount = attendanceRecords.filter(r => r.status === 'Present').length;
+      const lateCount = attendanceRecords.filter(r => r.status === 'Late').length;
+      const absentCount = attendanceRecords.filter(r => r.status === 'Absent').length;
+      const halfDayCount = attendanceRecords.filter(r => r.status === 'Half Day').length;
+      const totalHours = attendanceRecords.reduce((sum, r) => sum + (r.workHours || 0), 0);
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Summary:', 18, 95);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Present: ${presentCount}`, 18, 103);
+      doc.text(`Late: ${lateCount}`, 55, 103);
+      doc.text(`Absent: ${absentCount}`, 85, 103);
+      doc.text(`Half Day: ${halfDayCount}`, 120, 103);
+      doc.text(`Total Hours: ${totalHours.toFixed(1)}h`, 160, 103);
+      
+      // Attendance Records Table
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Attendance Records', 14, 125);
+      
+      const tableData = attendanceRecords.map(record => [
+        format(new Date(record.date), 'MMM dd, yyyy'),
+        formatTime(record.timeIn),
+        record.timeOut ? formatTime(record.timeOut) : '-',
+        record.workHours ? `${record.workHours.toFixed(1)}h` : '-',
+        record.status,
+        record.location || '-'
+      ]);
+      
+      doc.autoTable({
+        startY: 130,
+        head: [['Date', 'Time In', 'Time Out', 'Hours', 'Status', 'Location']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [0, 51, 102],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 9
+        },
+        bodyStyles: {
+          fontSize: 9
+        },
+        columnStyles: {
+          0: { cellWidth: 35 },
+          1: { cellWidth: 25 },
+          2: { cellWidth: 25 },
+          3: { cellWidth: 20 },
+          4: { cellWidth: 25 },
+          5: { cellWidth: 'auto' }
+        },
+        alternateRowStyles: {
+          fillColor: [245, 245, 245]
+        }
+      });
+      
+      // Footer
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(128, 128, 128);
+        doc.text(
+          `Page ${i} of ${pageCount} | THERMOPAC - Confidential`,
+          pageWidth / 2,
+          doc.internal.pageSize.getHeight() - 10,
+          { align: 'center' }
+        );
+      }
+      
+      // Save the PDF
+      const fileName = `Attendance_Report_${userName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      doc.save(fileName);
+      
+      toast({
+        title: 'PDF Generated',
+        description: `Attendance report for ${userName} has been downloaded.`,
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to generate PDF report. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   return (
     <>
       <Helmet>
@@ -156,10 +355,22 @@ export default function AttendanceManagementPage() {
           <h1 className="text-3xl font-bold text-gray-900 pl-4">Attendance Management</h1>
           <p className="text-gray-600 mt-1">Monitor and manage employee attendance records</p>
         </div>
-        <Button onClick={exportAttendance} className="flex items-center gap-2">
-          <Download className="h-4 w-4" />
-          Export Data
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={generateUserPdfReport} 
+            variant={selectedEmployee !== 'all' ? 'default' : 'outline'}
+            className="flex items-center gap-2"
+            disabled={isGeneratingPdf}
+            data-testid="button-generate-pdf"
+          >
+            <FileText className="h-4 w-4" />
+            {isGeneratingPdf ? 'Generating...' : 'PDF Report'}
+          </Button>
+          <Button onClick={exportAttendance} variant="outline" className="flex items-center gap-2">
+            <Download className="h-4 w-4" />
+            Export Data
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
