@@ -266,4 +266,178 @@ router.post('/request/:id/cancel', ensureAuthenticated, async (req: Request, res
   }
 });
 
+router.get('/team-requests', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const managerId = (req.user as any).id;
+    const currentYear = new Date().getFullYear();
+
+    const requests = await db
+      .select({
+        id: leaveRequests.id,
+        employeeId: leaveRequests.employeeId,
+        leaveTypeId: leaveRequests.leaveTypeId,
+        leaveTypeName: leaveTypes.name,
+        leaveTypeColor: leaveTypes.colorCode,
+        startDate: leaveRequests.startDate,
+        endDate: leaveRequests.endDate,
+        totalDays: leaveRequests.totalDays,
+        isHalfDay: leaveRequests.isHalfDay,
+        halfDayPeriod: leaveRequests.halfDayPeriod,
+        reason: leaveRequests.reason,
+        status: leaveRequests.status,
+        appliedDate: leaveRequests.appliedDate,
+        managerApprovalStatus: leaveRequests.managerApprovalStatus,
+        employeeName: users.username,
+        employeeFirstName: users.firstName,
+        employeeEmail: users.email
+      })
+      .from(leaveRequests)
+      .innerJoin(leaveTypes, eq(leaveRequests.leaveTypeId, leaveTypes.id))
+      .innerJoin(users, eq(leaveRequests.employeeId, users.id))
+      .where(and(
+        eq(leaveRequests.managerId, managerId),
+        gte(leaveRequests.startDate, `${currentYear}-01-01`)
+      ))
+      .orderBy(desc(leaveRequests.appliedDate));
+
+    const formattedRequests = requests.map(r => ({
+      ...r,
+      employeeDisplayName: r.employeeFirstName || r.employeeName
+    }));
+
+    res.json(formattedRequests);
+  } catch (error) {
+    console.error('Error fetching team leave requests:', error);
+    res.status(500).json({ error: 'Failed to fetch team leave requests' });
+  }
+});
+
+router.get('/has-direct-reports', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any).id;
+
+    const directReports = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.reportingManagerId, userId))
+      .limit(1);
+
+    res.json({ hasDirectReports: directReports.length > 0 });
+  } catch (error) {
+    console.error('Error checking direct reports:', error);
+    res.status(500).json({ error: 'Failed to check direct reports' });
+  }
+});
+
+router.post('/request/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const managerId = (req.user as any).id;
+    const requestId = parseInt(req.params.id);
+    const { comments } = req.body;
+
+    const [existingRequest] = await db
+      .select()
+      .from(leaveRequests)
+      .where(and(
+        eq(leaveRequests.id, requestId),
+        eq(leaveRequests.managerId, managerId)
+      ));
+
+    if (!existingRequest) {
+      return res.status(404).json({ error: 'Request not found or you are not the manager' });
+    }
+
+    if (existingRequest.managerApprovalStatus !== 'pending') {
+      return res.status(400).json({ error: 'Request has already been processed' });
+    }
+
+    await db
+      .update(leaveRequests)
+      .set({
+        status: 'approved',
+        managerApprovalStatus: 'approved',
+        managerApprovalDate: new Date(),
+        managerComments: comments || null,
+        updatedAt: new Date()
+      })
+      .where(eq(leaveRequests.id, requestId));
+
+    const currentYear = new Date().getFullYear();
+    await db
+      .update(leaveBalances)
+      .set({
+        pendingDays: sql`GREATEST(0, pending_days - ${existingRequest.totalDays})`,
+        usedDays: sql`used_days + ${existingRequest.totalDays}`,
+        lastUpdated: new Date()
+      })
+      .where(and(
+        eq(leaveBalances.userId, existingRequest.employeeId),
+        eq(leaveBalances.leaveTypeId, existingRequest.leaveTypeId),
+        eq(leaveBalances.year, currentYear)
+      ));
+
+    res.json({ success: true, message: 'Leave request approved successfully' });
+  } catch (error) {
+    console.error('Error approving leave request:', error);
+    res.status(500).json({ error: 'Failed to approve request' });
+  }
+});
+
+router.post('/request/:id/reject', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const managerId = (req.user as any).id;
+    const requestId = parseInt(req.params.id);
+    const { comments } = req.body;
+
+    if (!comments) {
+      return res.status(400).json({ error: 'Rejection reason is required' });
+    }
+
+    const [existingRequest] = await db
+      .select()
+      .from(leaveRequests)
+      .where(and(
+        eq(leaveRequests.id, requestId),
+        eq(leaveRequests.managerId, managerId)
+      ));
+
+    if (!existingRequest) {
+      return res.status(404).json({ error: 'Request not found or you are not the manager' });
+    }
+
+    if (existingRequest.managerApprovalStatus !== 'pending') {
+      return res.status(400).json({ error: 'Request has already been processed' });
+    }
+
+    await db
+      .update(leaveRequests)
+      .set({
+        status: 'rejected',
+        managerApprovalStatus: 'rejected',
+        managerApprovalDate: new Date(),
+        managerComments: comments,
+        updatedAt: new Date()
+      })
+      .where(eq(leaveRequests.id, requestId));
+
+    const currentYear = new Date().getFullYear();
+    await db
+      .update(leaveBalances)
+      .set({
+        pendingDays: sql`GREATEST(0, pending_days - ${existingRequest.totalDays})`,
+        lastUpdated: new Date()
+      })
+      .where(and(
+        eq(leaveBalances.userId, existingRequest.employeeId),
+        eq(leaveBalances.leaveTypeId, existingRequest.leaveTypeId),
+        eq(leaveBalances.year, currentYear)
+      ));
+
+    res.json({ success: true, message: 'Leave request rejected' });
+  } catch (error) {
+    console.error('Error rejecting leave request:', error);
+    res.status(500).json({ error: 'Failed to reject request' });
+  }
+});
+
 export default router;

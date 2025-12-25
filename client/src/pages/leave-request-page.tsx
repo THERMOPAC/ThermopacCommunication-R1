@@ -91,10 +91,34 @@ interface ReportingManager {
   email: string;
 }
 
+interface TeamLeaveRequest {
+  id: number;
+  employeeId: number;
+  leaveTypeId: number;
+  leaveTypeName: string;
+  leaveTypeColor: string;
+  startDate: string;
+  endDate: string;
+  totalDays: string;
+  isHalfDay: boolean;
+  halfDayPeriod: string | null;
+  reason: string;
+  status: string;
+  appliedDate: string;
+  managerApprovalStatus: string | null;
+  employeeName: string;
+  employeeFirstName: string | null;
+  employeeEmail: string;
+  employeeDisplayName: string;
+}
+
 export default function LeaveRequestPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [showNewRequestDialog, setShowNewRequestDialog] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [selectedRequestForReject, setSelectedRequestForReject] = useState<number | null>(null);
+  const [rejectComment, setRejectComment] = useState("");
   const [activeTab, setActiveTab] = useState("my-requests");
   const currentYear = new Date().getFullYear();
 
@@ -127,6 +151,15 @@ export default function LeaveRequestPage() {
 
   const { data: companyHolidays = [] } = useQuery<any[]>({
     queryKey: ['/api/leave/company-holidays', currentYear],
+  });
+
+  const { data: hasDirectReports } = useQuery<{ hasDirectReports: boolean }>({
+    queryKey: ['/api/leave/has-direct-reports'],
+  });
+
+  const { data: teamRequests = [] } = useQuery<TeamLeaveRequest[]>({
+    queryKey: ['/api/leave/team-requests'],
+    enabled: hasDirectReports?.hasDirectReports === true,
   });
 
   const createRequestMutation = useMutation({
@@ -168,6 +201,49 @@ export default function LeaveRequestPage() {
       toast({
         title: 'Error',
         description: error.message || 'Failed to cancel request',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const approveRequestMutation = useMutation({
+    mutationFn: async ({ requestId, comments }: { requestId: number; comments?: string }) => {
+      return await apiRequest('POST', `/api/leave/request/${requestId}/approve`, { comments });
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Request Approved',
+        description: 'Leave request has been approved.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/leave/team-requests'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to approve request',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const rejectRequestMutation = useMutation({
+    mutationFn: async ({ requestId, comments }: { requestId: number; comments: string }) => {
+      return await apiRequest('POST', `/api/leave/request/${requestId}/reject`, { comments });
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Request Rejected',
+        description: 'Leave request has been rejected.',
+      });
+      setShowRejectDialog(false);
+      setSelectedRequestForReject(null);
+      setRejectComment("");
+      queryClient.invalidateQueries({ queryKey: ['/api/leave/team-requests'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to reject request',
         variant: 'destructive',
       });
     },
@@ -231,6 +307,9 @@ export default function LeaveRequestPage() {
   const pendingRequests = myRequests.filter(r => r.status === 'pending');
   const approvedRequests = myRequests.filter(r => r.status === 'approved');
   const otherRequests = myRequests.filter(r => r.status !== 'pending' && r.status !== 'approved');
+  
+  const pendingTeamRequests = teamRequests.filter(r => r.managerApprovalStatus === 'pending');
+  const processedTeamRequests = teamRequests.filter(r => r.managerApprovalStatus !== 'pending');
 
   return (
     <>
@@ -307,6 +386,16 @@ export default function LeaveRequestPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="my-requests" data-testid="tab-my-requests">My Requests</TabsTrigger>
+            {hasDirectReports?.hasDirectReports && (
+              <TabsTrigger value="team-requests" data-testid="tab-team-requests" className="relative">
+                Team Requests
+                {pendingTeamRequests.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {pendingTeamRequests.length}
+                  </span>
+                )}
+              </TabsTrigger>
+            )}
             <TabsTrigger value="leave-balance" data-testid="tab-leave-balance">Leave Balance</TabsTrigger>
             <TabsTrigger value="holidays" data-testid="tab-holidays">Company Holidays</TabsTrigger>
           </TabsList>
@@ -403,6 +492,133 @@ export default function LeaveRequestPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {hasDirectReports?.hasDirectReports && (
+            <TabsContent value="team-requests" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Team Leave Requests</CardTitle>
+                  <CardDescription>Approve or reject leave requests from your team members</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {teamRequests.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>No leave requests from your team</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {pendingTeamRequests.length > 0 && (
+                        <div>
+                          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                            <AlertCircle className="w-5 h-5 text-yellow-500" />
+                            Pending Approval ({pendingTeamRequests.length})
+                          </h3>
+                          <div className="space-y-3">
+                            {pendingTeamRequests.map((request) => (
+                              <Card key={request.id} className="p-4 border-l-4 border-yellow-500" data-testid={`team-request-${request.id}`}>
+                                <div className="flex justify-between items-start">
+                                  <div className="space-y-2 flex-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="font-semibold text-lg">{request.employeeDisplayName}</span>
+                                      <div 
+                                        className="w-3 h-3 rounded-full" 
+                                        style={{ backgroundColor: request.leaveTypeColor || '#3B82F6' }}
+                                      />
+                                      <span className="text-gray-600">{request.leaveTypeName}</span>
+                                      {getStatusBadge('pending')}
+                                    </div>
+                                    <div className="text-sm text-gray-600">
+                                      <div className="flex items-center gap-2">
+                                        <Calendar className="w-4 h-4" />
+                                        {format(parseISO(request.startDate), 'MMM dd, yyyy')}
+                                        {request.startDate !== request.endDate && (
+                                          <> - {format(parseISO(request.endDate), 'MMM dd, yyyy')}</>
+                                        )}
+                                        <span className="text-gray-400">|</span>
+                                        <span className="font-medium">{request.totalDays} day{parseFloat(request.totalDays) !== 1 ? 's' : ''}</span>
+                                        {request.isHalfDay && (
+                                          <Badge variant="outline" className="text-xs">{request.halfDayPeriod} half</Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
+                                      <strong>Reason:</strong> {request.reason}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      Applied on {format(parseISO(request.appliedDate), 'MMM dd, yyyy')}
+                                    </p>
+                                  </div>
+                                  <div className="flex gap-2 ml-4">
+                                    <Button
+                                      size="sm"
+                                      className="bg-green-600 hover:bg-green-700"
+                                      onClick={() => {
+                                        if (confirm(`Approve leave request from ${request.employeeDisplayName}?`)) {
+                                          approveRequestMutation.mutate({ requestId: request.id });
+                                        }
+                                      }}
+                                      disabled={approveRequestMutation.isPending}
+                                      data-testid={`button-approve-${request.id}`}
+                                    >
+                                      <CheckCircle className="w-4 h-4 mr-1" />
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => {
+                                        setSelectedRequestForReject(request.id);
+                                        setShowRejectDialog(true);
+                                      }}
+                                      data-testid={`button-reject-${request.id}`}
+                                    >
+                                      <XCircle className="w-4 h-4 mr-1" />
+                                      Reject
+                                    </Button>
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {processedTeamRequests.length > 0 && (
+                        <div className="mt-6">
+                          <h3 className="text-lg font-semibold mb-3 text-gray-600">
+                            Previously Processed ({processedTeamRequests.length})
+                          </h3>
+                          <div className="space-y-3">
+                            {processedTeamRequests.map((request) => (
+                              <Card key={request.id} className="p-4 opacity-75" data-testid={`team-request-processed-${request.id}`}>
+                                <div className="flex justify-between items-start">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">{request.employeeDisplayName}</span>
+                                      <span className="text-gray-600">{request.leaveTypeName}</span>
+                                      {getStatusBadge(request.status)}
+                                    </div>
+                                    <div className="text-sm text-gray-600">
+                                      {format(parseISO(request.startDate), 'MMM dd')}
+                                      {request.startDate !== request.endDate && (
+                                        <> - {format(parseISO(request.endDate), 'MMM dd')}</>
+                                      )}
+                                      <span className="ml-2">({request.totalDays} days)</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
 
           <TabsContent value="leave-balance" className="space-y-4">
             <Card>
@@ -656,6 +872,56 @@ export default function LeaveRequestPage() {
                 </Button>
               </div>
             </form>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reject Leave Request</DialogTitle>
+              <DialogDescription>
+                Please provide a reason for rejecting this leave request.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="rejectReason">Rejection Reason *</Label>
+                <Textarea
+                  id="rejectReason"
+                  placeholder="Please explain why this request is being rejected..."
+                  value={rejectComment}
+                  onChange={(e) => setRejectComment(e.target.value)}
+                  data-testid="input-reject-reason"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowRejectDialog(false);
+                    setSelectedRequestForReject(null);
+                    setRejectComment("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  disabled={!rejectComment.trim() || rejectRequestMutation.isPending}
+                  onClick={() => {
+                    if (selectedRequestForReject && rejectComment.trim()) {
+                      rejectRequestMutation.mutate({
+                        requestId: selectedRequestForReject,
+                        comments: rejectComment.trim()
+                      });
+                    }
+                  }}
+                  data-testid="button-confirm-reject"
+                >
+                  {rejectRequestMutation.isPending ? 'Rejecting...' : 'Reject Request'}
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
