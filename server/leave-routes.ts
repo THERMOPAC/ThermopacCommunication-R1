@@ -1,0 +1,269 @@
+import { Router, Request, Response } from "express";
+import { ensureAuthenticated } from "./auth-middleware";
+import { db } from "./db";
+import { leaveTypes, leaveBalances, leaveRequests, companyHolidays, users } from "@shared/schema";
+import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
+
+const router = Router();
+
+router.get('/types', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const types = await db
+      .select()
+      .from(leaveTypes)
+      .where(eq(leaveTypes.isActive, true))
+      .orderBy(leaveTypes.name);
+    
+    res.json(types);
+  } catch (error) {
+    console.error('Error fetching leave types:', error);
+    res.status(500).json({ error: 'Failed to fetch leave types' });
+  }
+});
+
+router.get('/my-balance', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any).id;
+    const currentYear = new Date().getFullYear();
+
+    const balances = await db
+      .select({
+        id: leaveBalances.id,
+        leaveTypeId: leaveBalances.leaveTypeId,
+        leaveTypeName: leaveTypes.name,
+        leaveTypeCode: leaveTypes.code,
+        colorCode: leaveTypes.colorCode,
+        allocatedDays: leaveBalances.allocatedDays,
+        usedDays: leaveBalances.usedDays,
+        pendingDays: leaveBalances.pendingDays,
+        carryoverDays: leaveBalances.carryoverDays
+      })
+      .from(leaveBalances)
+      .innerJoin(leaveTypes, eq(leaveBalances.leaveTypeId, leaveTypes.id))
+      .where(and(
+        eq(leaveBalances.userId, userId),
+        eq(leaveBalances.year, currentYear)
+      ));
+
+    const balancesWithAvailable = balances.map(b => ({
+      ...b,
+      availableDays: parseFloat(b.allocatedDays || '0') + parseFloat(b.carryoverDays || '0') 
+                     - parseFloat(b.usedDays || '0') - parseFloat(b.pendingDays || '0')
+    }));
+
+    res.json(balancesWithAvailable);
+  } catch (error) {
+    console.error('Error fetching leave balance:', error);
+    res.status(500).json({ error: 'Failed to fetch leave balance' });
+  }
+});
+
+router.get('/my-requests', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any).id;
+    const currentYear = new Date().getFullYear();
+
+    const requests = await db
+      .select({
+        id: leaveRequests.id,
+        leaveTypeId: leaveRequests.leaveTypeId,
+        leaveTypeName: leaveTypes.name,
+        leaveTypeColor: leaveTypes.colorCode,
+        startDate: leaveRequests.startDate,
+        endDate: leaveRequests.endDate,
+        totalDays: leaveRequests.totalDays,
+        isHalfDay: leaveRequests.isHalfDay,
+        halfDayPeriod: leaveRequests.halfDayPeriod,
+        reason: leaveRequests.reason,
+        status: leaveRequests.status,
+        appliedDate: leaveRequests.appliedDate,
+        managerId: leaveRequests.managerId,
+        managerApprovalStatus: leaveRequests.managerApprovalStatus,
+        managerApprovalDate: leaveRequests.managerApprovalDate,
+        managerComments: leaveRequests.managerComments
+      })
+      .from(leaveRequests)
+      .innerJoin(leaveTypes, eq(leaveRequests.leaveTypeId, leaveTypes.id))
+      .where(and(
+        eq(leaveRequests.employeeId, userId),
+        gte(leaveRequests.startDate, `${currentYear}-01-01`)
+      ))
+      .orderBy(desc(leaveRequests.appliedDate));
+
+    const requestsWithManager = await Promise.all(requests.map(async (r) => {
+      let managerName = null;
+      if (r.managerId) {
+        const [manager] = await db
+          .select({ username: users.username, firstName: users.firstName, lastName: users.lastName })
+          .from(users)
+          .where(eq(users.id, r.managerId));
+        if (manager) {
+          managerName = manager.firstName || manager.username;
+        }
+      }
+      return { ...r, managerName };
+    }));
+
+    res.json(requestsWithManager);
+  } catch (error) {
+    console.error('Error fetching leave requests:', error);
+    res.status(500).json({ error: 'Failed to fetch leave requests' });
+  }
+});
+
+router.get('/my-reporting-manager', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any).id;
+
+    const [currentUser] = await db
+      .select({ reportingManagerId: users.reportingManagerId })
+      .from(users)
+      .where(eq(users.id, userId));
+
+    if (!currentUser?.reportingManagerId) {
+      return res.json(null);
+    }
+
+    const [manager] = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email
+      })
+      .from(users)
+      .where(eq(users.id, currentUser.reportingManagerId));
+
+    res.json(manager || null);
+  } catch (error) {
+    console.error('Error fetching reporting manager:', error);
+    res.status(500).json({ error: 'Failed to fetch reporting manager' });
+  }
+});
+
+router.get('/company-holidays', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+
+    const holidays = await db
+      .select()
+      .from(companyHolidays)
+      .where(and(
+        gte(companyHolidays.date, `${year}-01-01`),
+        lte(companyHolidays.date, `${year}-12-31`)
+      ))
+      .orderBy(companyHolidays.date);
+
+    res.json(holidays);
+  } catch (error) {
+    console.error('Error fetching company holidays:', error);
+    res.status(500).json({ error: 'Failed to fetch company holidays' });
+  }
+});
+
+router.post('/request', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any).id;
+    const { leaveTypeId, startDate, endDate, totalDays, isHalfDay, halfDayPeriod, reason, emergencyContact, workHandoverNotes } = req.body;
+
+    if (!leaveTypeId || !startDate || !reason) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const [currentUser] = await db
+      .select({ reportingManagerId: users.reportingManagerId })
+      .from(users)
+      .where(eq(users.id, userId));
+
+    const managerId = currentUser?.reportingManagerId || null;
+
+    const [newRequest] = await db
+      .insert(leaveRequests)
+      .values({
+        employeeId: userId,
+        leaveTypeId,
+        startDate,
+        endDate: endDate || startDate,
+        totalDays: totalDays.toString(),
+        isHalfDay: isHalfDay || false,
+        halfDayPeriod: isHalfDay ? halfDayPeriod : null,
+        reason,
+        emergencyContact: emergencyContact || null,
+        workHandoverNotes: workHandoverNotes || null,
+        status: 'pending',
+        managerId,
+        managerApprovalStatus: managerId ? 'pending' : null
+      })
+      .returning();
+
+    const currentYear = new Date().getFullYear();
+    await db
+      .update(leaveBalances)
+      .set({
+        pendingDays: sql`pending_days + ${totalDays}`,
+        lastUpdated: new Date()
+      })
+      .where(and(
+        eq(leaveBalances.userId, userId),
+        eq(leaveBalances.leaveTypeId, leaveTypeId),
+        eq(leaveBalances.year, currentYear)
+      ));
+
+    res.status(201).json(newRequest);
+  } catch (error) {
+    console.error('Error creating leave request:', error);
+    res.status(500).json({ error: 'Failed to create leave request' });
+  }
+});
+
+router.post('/request/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any).id;
+    const requestId = parseInt(req.params.id);
+
+    const [existingRequest] = await db
+      .select()
+      .from(leaveRequests)
+      .where(and(
+        eq(leaveRequests.id, requestId),
+        eq(leaveRequests.employeeId, userId)
+      ));
+
+    if (!existingRequest) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    if (existingRequest.status !== 'pending') {
+      return res.status(400).json({ error: 'Only pending requests can be cancelled' });
+    }
+
+    await db
+      .update(leaveRequests)
+      .set({
+        status: 'cancelled',
+        updatedAt: new Date()
+      })
+      .where(eq(leaveRequests.id, requestId));
+
+    const currentYear = new Date().getFullYear();
+    await db
+      .update(leaveBalances)
+      .set({
+        pendingDays: sql`GREATEST(0, pending_days - ${existingRequest.totalDays})`,
+        lastUpdated: new Date()
+      })
+      .where(and(
+        eq(leaveBalances.userId, userId),
+        eq(leaveBalances.leaveTypeId, existingRequest.leaveTypeId),
+        eq(leaveBalances.year, currentYear)
+      ));
+
+    res.json({ success: true, message: 'Request cancelled successfully' });
+  } catch (error) {
+    console.error('Error cancelling leave request:', error);
+    res.status(500).json({ error: 'Failed to cancel request' });
+  }
+});
+
+export default router;

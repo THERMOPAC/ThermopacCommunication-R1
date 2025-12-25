@@ -56,6 +56,7 @@ import { default as testCaspianEndpoint } from "./test-caspian-endpoint";
 import { default as llmRoutes } from "./llm-routes";
 import { default as attendanceRoutes } from "./attendance-routes";
 import { default as dwarRoutes } from "./dwar-routes";
+import { default as leaveRoutes } from "./leave-routes";
 import { default as payrollRoutes } from "./payroll-routes-simple";
 import { default as salaryCalculationRoutes } from "./salary-calculation-routes";
 import { setupDedicatedPaymentCreation } from "./dedicated-payment-creation";
@@ -751,6 +752,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up DWAR (Daily Work Activity Report) routes
   app.use('/api/dwar', dwarRoutes);
   console.log('DWAR routes registered at /api/dwar');
+  
+  // Set up Leave Management routes for users
+  app.use('/api/leave', leaveRoutes);
+  console.log('Leave routes registered at /api/leave');
   
   // Set up Payroll Management routes
   app.use('/api/payroll', payrollRoutes);

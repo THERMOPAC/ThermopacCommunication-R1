@@ -387,6 +387,7 @@ function Layout({ children }: LayoutProps) {
     ...(user?.role === "Superuser" ? [{ icon: Factory, label: "Work Locations", href: "/work-locations" }] : []),
     { icon: CalendarClock, label: "Attendance", href: "/attendance" },
     { icon: FileText, label: "Daily Work Report", href: "/dwar" },
+    { icon: CalendarDays, label: "Leave Request", href: "/leave-request" },
 
     { icon: Lightbulb, label: "Recommendations", href: "/recommendations" },
     { icon: Award, label: "Leaderboard", href: "/leaderboard" },
@@ -427,7 +428,7 @@ function Layout({ children }: LayoutProps) {
             <div>
               <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-2 px-3">Main</h3>
               <ul className="space-y-1">
-                {menuItems.filter(item => !item.isSubmenu && (item.href === '/attendance' || item.href === '/' || item.href === '/tasks' || item.href === '/recurring-tasks' || item.href === '/business-intelligence' || item.href === '/llm-prompt-engine' || item.href === '/messages')).map((item, index) => {
+                {menuItems.filter(item => !item.isSubmenu && (item.href === '/attendance' || item.href === '/dwar' || item.href === '/leave-request' || item.href === '/' || item.href === '/tasks' || item.href === '/recurring-tasks' || item.href === '/business-intelligence' || item.href === '/llm-prompt-engine' || item.href === '/messages')).map((item, index) => {
                   const Icon = item.icon;
                   const isActive = item.href ? location === item.href : false;
                   
