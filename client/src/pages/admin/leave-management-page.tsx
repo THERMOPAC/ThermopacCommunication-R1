@@ -100,6 +100,7 @@ type HolidayForm = z.infer<typeof holidaySchema>;
 export default function LeaveManagementPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [allocationsYear, setAllocationsYear] = useState(new Date().getFullYear());
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterEmployee, setFilterEmployee] = useState('all');
   const [showNewRequestDialog, setShowNewRequestDialog] = useState(false);
@@ -137,6 +138,11 @@ export default function LeaveManagementPage() {
   const { data: holidays = [] } = useQuery({
     queryKey: ['/api/admin/company-holidays', selectedYear],
     queryFn: () => apiRequest('GET', `/api/admin/company-holidays?year=${selectedYear}`)
+  });
+
+  const { data: allocationsData, isLoading: allocationsLoading } = useQuery({
+    queryKey: ['/api/leave/admin/allocations', allocationsYear],
+    queryFn: () => apiRequest('GET', `/api/leave/admin/allocations?year=${allocationsYear}`)
   });
 
   // Mutations
@@ -513,9 +519,10 @@ export default function LeaveManagementPage() {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="requests">Leave Requests</TabsTrigger>
+            <TabsTrigger value="allocations">Allocations</TabsTrigger>
             <TabsTrigger value="balances">Leave Balances</TabsTrigger>
             <TabsTrigger value="types">Leave Types</TabsTrigger>
             <TabsTrigger value="holidays">Company Holidays</TabsTrigger>
@@ -991,6 +998,215 @@ export default function LeaveManagementPage() {
                     ))}
                   </TableBody>
                 </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Leave Allocations Tab */}
+          <TabsContent value="allocations" className="space-y-4">
+            {/* Year Selector */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Label className="font-medium">Year:</Label>
+                <Select value={allocationsYear.toString()} onValueChange={(value) => setAllocationsYear(parseInt(value))}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 13 }, (_, i) => 2023 + i).map(year => (
+                      <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Organization Summary Cards */}
+            {allocationsData?.orgSummary && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card className="border-l-4 border-l-green-500">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Total Paid Leave Allocated</p>
+                        <p className="text-2xl font-bold text-green-600">{allocationsData.orgSummary.totalPaidAllocated}</p>
+                        <p className="text-xs text-muted-foreground">Across {allocationsData.orgSummary.totalUsers} employees</p>
+                      </div>
+                      <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                        <Calendar className="h-6 w-6 text-green-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-l-4 border-l-blue-500">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Paid Leave Used</p>
+                        <p className="text-2xl font-bold text-blue-600">{allocationsData.orgSummary.totalPaidUsed}</p>
+                        <p className="text-xs text-muted-foreground">Days consumed</p>
+                      </div>
+                      <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                        <UserCheck className="h-6 w-6 text-blue-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-l-4 border-l-orange-500">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Unpaid Leave Allocated</p>
+                        <p className="text-2xl font-bold text-orange-600">{allocationsData.orgSummary.totalUnpaidAllocated}</p>
+                        <p className="text-xs text-muted-foreground">LOP days available</p>
+                      </div>
+                      <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center">
+                        <AlertCircle className="h-6 w-6 text-orange-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-l-4 border-l-red-500">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Unpaid Leave Used</p>
+                        <p className="text-2xl font-bold text-red-600">{allocationsData.orgSummary.totalUnpaidUsed}</p>
+                        <p className="text-xs text-muted-foreground">LOP days taken</p>
+                      </div>
+                      <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+                        <XCircle className="h-6 w-6 text-red-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* User Allocations Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Employee Leave Allocations ({allocationsYear})</CardTitle>
+                <CardDescription>
+                  View and manage leave allocations for all employees. Paid vs Unpaid breakdown shown.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {allocationsLoading ? (
+                  <div className="flex items-center justify-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[200px]">Employee</TableHead>
+                          <TableHead>Department</TableHead>
+                          <TableHead className="text-center">Weekly Off</TableHead>
+                          {allocationsData?.leaveTypes?.map((lt: any) => (
+                            <TableHead key={lt.id} className="text-center">
+                              <div className="flex items-center justify-center space-x-1">
+                                <div 
+                                  className="w-2 h-2 rounded-full" 
+                                  style={{ backgroundColor: lt.colorCode }}
+                                />
+                                <span>{lt.code}</span>
+                                {lt.isPaid ? (
+                                  <Badge variant="outline" className="text-xs px-1 text-green-600 border-green-200">P</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-xs px-1 text-red-600 border-red-200">U</Badge>
+                                )}
+                              </div>
+                            </TableHead>
+                          ))}
+                          <TableHead className="text-center text-green-600">Total Paid</TableHead>
+                          <TableHead className="text-center text-red-600">Total Unpaid</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {allocationsData?.users?.map((user: any) => {
+                          const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                          const offDays = (user.weeklyOffDays || [0, 6]).map((d: number) => dayNames[d]).join(', ');
+                          
+                          return (
+                            <TableRow key={user.userId}>
+                              <TableCell>
+                                <div className="flex items-center space-x-2">
+                                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                    <User className="h-4 w-4 text-primary" />
+                                  </div>
+                                  <div>
+                                    <p className="font-medium">{user.fullName}</p>
+                                    <p className="text-xs text-muted-foreground">{user.employeeCode || `ID: ${user.userId}`}</p>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline">{user.department || 'N/A'}</Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant="secondary" className="text-xs">{offDays}</Badge>
+                              </TableCell>
+                              {user.allocations?.map((alloc: any) => (
+                                <TableCell key={alloc.leaveTypeId} className="text-center">
+                                  <div className="space-y-1">
+                                    <div className="font-medium">{alloc.allocated}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      Used: {alloc.used}
+                                    </div>
+                                    <Progress 
+                                      value={alloc.allocated > 0 ? (alloc.used / alloc.allocated) * 100 : 0} 
+                                      className="h-1"
+                                    />
+                                  </div>
+                                </TableCell>
+                              ))}
+                              <TableCell className="text-center">
+                                <div className="space-y-1">
+                                  <div className="font-bold text-green-600">{user.summary.totalPaidAllocated}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    Avail: {user.summary.totalPaidAvailable}
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <div className="space-y-1">
+                                  <div className="font-bold text-red-600">{user.summary.totalUnpaidAllocated}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    Used: {user.summary.totalUnpaidUsed}
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Legend */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-6 text-sm">
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="outline" className="text-green-600 border-green-200">P</Badge>
+                    <span>Paid Leave</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="outline" className="text-red-600 border-red-200">U</Badge>
+                    <span>Unpaid Leave (LOP)</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-muted-foreground">Weekly Off: Days employee is not working (affects payroll calculation)</span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

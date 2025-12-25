@@ -468,12 +468,19 @@ router.get('/admin/allocations', ensureAuthenticated, async (req: Request, res: 
       .where(eq(users.isActive, true))
       .orderBy(users.firstName);
 
-    // Get all leave types
-    const allLeaveTypes = await db
+    // Get all leave types with normalized fields
+    const rawLeaveTypes = await db
       .select()
       .from(leaveTypes)
       .where(eq(leaveTypes.isActive, true))
       .orderBy(leaveTypes.name);
+    
+    const allLeaveTypes = rawLeaveTypes.map(lt => ({
+      ...lt,
+      code: lt.code || lt.name?.substring(0, 3).toUpperCase() || 'N/A',
+      colorCode: lt.colorCode || '#6B7280',
+      isPaid: lt.isPaid ?? true
+    }));
 
     // Get all balances for the year
     const allBalances = await db
@@ -529,14 +536,45 @@ router.get('/admin/allocations', ensureAuthenticated, async (req: Request, res: 
         };
       });
 
+      // Ensure weeklyOffDays is always a valid array of integers 0-6
+      let weeklyOff: number[] = [0, 6]; // Default: Sunday and Saturday off
+      const rawWeeklyOff = user.weeklyOffDays;
+      
+      if (rawWeeklyOff != null) {
+        if (Array.isArray(rawWeeklyOff) && rawWeeklyOff.length > 0) {
+          // Filter to only valid day numbers (0-6)
+          const validDays = rawWeeklyOff.filter((d: any) => 
+            typeof d === 'number' && Number.isInteger(d) && d >= 0 && d <= 6
+          );
+          if (validDays.length > 0) {
+            weeklyOff = validDays;
+          }
+        } else if (typeof rawWeeklyOff === 'string' && rawWeeklyOff.trim().startsWith('[')) {
+          try {
+            const parsed = JSON.parse(rawWeeklyOff);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const validDays = parsed.filter((d: any) => 
+                typeof d === 'number' && Number.isInteger(d) && d >= 0 && d <= 6
+              );
+              if (validDays.length > 0) {
+                weeklyOff = validDays;
+              }
+            }
+          } catch {
+            // Keep default
+          }
+        }
+        // Empty objects {}, non-array types, etc. all fall through to default
+      }
+
       return {
         userId: user.id,
         username: user.username,
         displayName: user.firstName || user.username,
         fullName: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || user.username,
-        department: user.department,
-        employeeCode: user.employeeCode,
-        weeklyOffDays: user.weeklyOffDays || [0, 6],
+        department: user.department || null,
+        employeeCode: user.employeeCode || null,
+        weeklyOffDays: weeklyOff,
         allocations,
         summary: {
           totalPaidAllocated,
@@ -700,9 +738,20 @@ router.patch('/admin/users/:userId/weekly-off', ensureAuthenticated, async (req:
       return res.status(400).json({ error: 'weeklyOffDays must be an array' });
     }
 
+    // Validate each day is an integer between 0 and 6
+    const validDays = weeklyOffDays.every((day: any) => 
+      Number.isInteger(day) && day >= 0 && day <= 6
+    );
+    if (!validDays) {
+      return res.status(400).json({ error: 'weeklyOffDays must contain integers between 0 (Sunday) and 6 (Saturday)' });
+    }
+
+    // Remove duplicates and sort
+    const uniqueDays = [...new Set(weeklyOffDays)].sort((a, b) => a - b);
+
     await db
       .update(users)
-      .set({ weeklyOffDays })
+      .set({ weeklyOffDays: uniqueDays })
       .where(eq(users.id, userId));
 
     res.json({ success: true, message: 'Weekly off days updated' });
