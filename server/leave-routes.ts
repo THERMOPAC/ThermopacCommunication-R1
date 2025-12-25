@@ -24,7 +24,7 @@ router.get('/types', ensureAuthenticated, async (req: Request, res: Response) =>
 router.get('/my-balance', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any).id;
-    const currentYear = new Date().getFullYear();
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
 
     const balances = await db
       .select({
@@ -42,7 +42,7 @@ router.get('/my-balance', ensureAuthenticated, async (req: Request, res: Respons
       .innerJoin(leaveTypes, eq(leaveBalances.leaveTypeId, leaveTypes.id))
       .where(and(
         eq(leaveBalances.userId, userId),
-        eq(leaveBalances.year, currentYear)
+        eq(leaveBalances.year, year)
       ));
 
     const balancesWithAvailable = balances.map(b => ({
@@ -61,7 +61,7 @@ router.get('/my-balance', ensureAuthenticated, async (req: Request, res: Respons
 router.get('/my-requests', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any).id;
-    const currentYear = new Date().getFullYear();
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
 
     const requests = await db
       .select({
@@ -86,7 +86,8 @@ router.get('/my-requests', ensureAuthenticated, async (req: Request, res: Respon
       .innerJoin(leaveTypes, eq(leaveRequests.leaveTypeId, leaveTypes.id))
       .where(and(
         eq(leaveRequests.employeeId, userId),
-        gte(leaveRequests.startDate, `${currentYear}-01-01`)
+        gte(leaveRequests.startDate, `${year}-01-01`),
+        lte(leaveRequests.startDate, `${year}-12-31`)
       ))
       .orderBy(desc(leaveRequests.appliedDate));
 
@@ -269,7 +270,7 @@ router.post('/request/:id/cancel', ensureAuthenticated, async (req: Request, res
 router.get('/team-requests', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const managerId = (req.user as any).id;
-    const currentYear = new Date().getFullYear();
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
 
     const requests = await db
       .select({
@@ -296,7 +297,8 @@ router.get('/team-requests', ensureAuthenticated, async (req: Request, res: Resp
       .innerJoin(users, eq(leaveRequests.employeeId, users.id))
       .where(and(
         eq(leaveRequests.managerId, managerId),
-        gte(leaveRequests.startDate, `${currentYear}-01-01`)
+        gte(leaveRequests.startDate, `${year}-01-01`),
+        lte(leaveRequests.startDate, `${year}-12-31`)
       ))
       .orderBy(desc(leaveRequests.appliedDate));
 

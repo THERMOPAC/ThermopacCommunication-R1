@@ -121,6 +121,9 @@ export default function LeaveRequestPage() {
   const [rejectComment, setRejectComment] = useState("");
   const [activeTab, setActiveTab] = useState("my-requests");
   const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  
+  const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
   const [formData, setFormData] = useState({
     leaveTypeId: "",
@@ -138,11 +141,21 @@ export default function LeaveRequestPage() {
   });
 
   const { data: leaveBalances = [] } = useQuery<LeaveBalance[]>({
-    queryKey: ['/api/leave/my-balance'],
+    queryKey: ['/api/leave/my-balance', selectedYear],
+    queryFn: async () => {
+      const res = await fetch(`/api/leave/my-balance?year=${selectedYear}`);
+      if (!res.ok) throw new Error('Failed to fetch balance');
+      return res.json();
+    }
   });
 
   const { data: myRequests = [] } = useQuery<LeaveRequest[]>({
-    queryKey: ['/api/leave/my-requests'],
+    queryKey: ['/api/leave/my-requests', selectedYear],
+    queryFn: async () => {
+      const res = await fetch(`/api/leave/my-requests?year=${selectedYear}`);
+      if (!res.ok) throw new Error('Failed to fetch requests');
+      return res.json();
+    }
   });
 
   const { data: reportingManager } = useQuery<ReportingManager>({
@@ -150,7 +163,12 @@ export default function LeaveRequestPage() {
   });
 
   const { data: companyHolidays = [] } = useQuery<any[]>({
-    queryKey: ['/api/leave/company-holidays', currentYear],
+    queryKey: ['/api/leave/company-holidays', selectedYear],
+    queryFn: async () => {
+      const res = await fetch(`/api/leave/company-holidays?year=${selectedYear}`);
+      if (!res.ok) throw new Error('Failed to fetch holidays');
+      return res.json();
+    }
   });
 
   const { data: hasDirectReports } = useQuery<{ hasDirectReports: boolean }>({
@@ -158,7 +176,12 @@ export default function LeaveRequestPage() {
   });
 
   const { data: teamRequests = [] } = useQuery<TeamLeaveRequest[]>({
-    queryKey: ['/api/leave/team-requests'],
+    queryKey: ['/api/leave/team-requests', selectedYear],
+    queryFn: async () => {
+      const res = await fetch(`/api/leave/team-requests?year=${selectedYear}`);
+      if (!res.ok) throw new Error('Failed to fetch team requests');
+      return res.json();
+    },
     enabled: hasDirectReports?.hasDirectReports === true,
   });
 
@@ -384,7 +407,8 @@ export default function LeaveRequestPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList>
+          <div className="flex items-center justify-between">
+            <TabsList>
             <TabsTrigger value="my-requests" data-testid="tab-my-requests">My Requests</TabsTrigger>
             {hasDirectReports?.hasDirectReports && (
               <TabsTrigger value="team-requests" data-testid="tab-team-requests" className="relative">
@@ -398,7 +422,27 @@ export default function LeaveRequestPage() {
             )}
             <TabsTrigger value="leave-balance" data-testid="tab-leave-balance">Leave Balance</TabsTrigger>
             <TabsTrigger value="holidays" data-testid="tab-holidays">Company Holidays</TabsTrigger>
-          </TabsList>
+            </TabsList>
+            
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium">Year:</Label>
+              <Select 
+                value={selectedYear.toString()} 
+                onValueChange={(value) => setSelectedYear(parseInt(value))}
+              >
+                <SelectTrigger className="w-[100px]" data-testid="select-year">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {yearOptions.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           <TabsContent value="my-requests" className="space-y-4">
             <Card>
@@ -623,7 +667,7 @@ export default function LeaveRequestPage() {
           <TabsContent value="leave-balance" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Leave Balance ({currentYear})</CardTitle>
+                <CardTitle>Leave Balance ({selectedYear})</CardTitle>
                 <CardDescription>Your available leave days by type</CardDescription>
               </CardHeader>
               <CardContent>
