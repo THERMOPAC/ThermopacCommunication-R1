@@ -123,7 +123,7 @@ export default function LeaveRequestPage() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
   
-  const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+  const yearOptions = Array.from({ length: 2035 - (currentYear - 2) + 1 }, (_, i) => currentYear - 2 + i);
 
   const [formData, setFormData] = useState({
     leaveTypeId: "",
