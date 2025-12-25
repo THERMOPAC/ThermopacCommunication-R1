@@ -446,7 +446,7 @@ router.post('/request/:id/reject', ensureAuthenticated, async (req: Request, res
 router.get('/admin/allocations', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const userRole = (req.user as any).role;
-    if (!['admin', 'manager', 'hr'].includes(userRole)) {
+    if (!['admin', 'manager', 'hr', 'Superuser', 'General Manager', 'Senior Manager'].includes(userRole)) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
@@ -611,7 +611,7 @@ router.get('/admin/allocations', ensureAuthenticated, async (req: Request, res: 
 router.post('/admin/allocations', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const userRole = (req.user as any).role;
-    if (!['admin', 'hr'].includes(userRole)) {
+    if (!['admin', 'hr', 'Superuser', 'General Manager'].includes(userRole)) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
@@ -668,7 +668,7 @@ router.post('/admin/allocations', ensureAuthenticated, async (req: Request, res:
 router.post('/admin/allocations/bulk', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const userRole = (req.user as any).role;
-    if (!['admin', 'hr'].includes(userRole)) {
+    if (!['admin', 'hr', 'Superuser', 'General Manager'].includes(userRole)) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
@@ -727,7 +727,7 @@ router.post('/admin/allocations/bulk', ensureAuthenticated, async (req: Request,
 router.patch('/admin/users/:userId/weekly-off', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const userRole = (req.user as any).role;
-    if (!['admin', 'hr'].includes(userRole)) {
+    if (!['admin', 'hr', 'Superuser', 'General Manager'].includes(userRole)) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 

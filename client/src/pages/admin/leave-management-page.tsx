@@ -110,6 +110,11 @@ export default function LeaveManagementPage() {
   const [showEditHolidayDialog, setShowEditHolidayDialog] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [selectedHoliday, setSelectedHoliday] = useState<any>(null);
+  const [showEditUserAllocDialog, setShowEditUserAllocDialog] = useState(false);
+  const [selectedUserForAlloc, setSelectedUserForAlloc] = useState<any>(null);
+  const [showEditWeeklyOffDialog, setShowEditWeeklyOffDialog] = useState(false);
+  const [selectedUserForWeeklyOff, setSelectedUserForWeeklyOff] = useState<any>(null);
+  const [weeklyOffSelection, setWeeklyOffSelection] = useState<number[]>([0, 6]);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -233,6 +238,32 @@ export default function LeaveManagementPage() {
     },
     onError: () => {
       toast({ title: 'Failed to delete holiday', variant: 'destructive' });
+    }
+  });
+
+  const updateAllocationMutation = useMutation({
+    mutationFn: (data: { userId: number; leaveTypeId: number; year: number; allocatedDays: number }) => 
+      apiRequest('POST', '/api/leave/admin/allocations', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/leave/admin/allocations'] });
+      toast({ title: 'Leave allocation updated successfully' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to update leave allocation', variant: 'destructive' });
+    }
+  });
+
+  const updateWeeklyOffMutation = useMutation({
+    mutationFn: ({ userId, weeklyOffDays }: { userId: number; weeklyOffDays: number[] }) => 
+      apiRequest('PATCH', `/api/leave/admin/users/${userId}/weekly-off`, { weeklyOffDays }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/leave/admin/allocations'] });
+      setShowEditWeeklyOffDialog(false);
+      setSelectedUserForWeeklyOff(null);
+      toast({ title: 'Weekly off days updated successfully' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to update weekly off days', variant: 'destructive' });
     }
   });
 
@@ -1125,6 +1156,7 @@ export default function LeaveManagementPage() {
                           ))}
                           <TableHead className="text-center text-green-600">Total Paid</TableHead>
                           <TableHead className="text-center text-red-600">Total Unpaid</TableHead>
+                          <TableHead className="text-center">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1179,6 +1211,35 @@ export default function LeaveManagementPage() {
                                   <div className="text-xs text-muted-foreground">
                                     Used: {user.summary.totalUnpaidUsed}
                                   </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <div className="flex items-center justify-center space-x-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setSelectedUserForAlloc(user);
+                                      setShowEditUserAllocDialog(true);
+                                    }}
+                                    data-testid={`button-edit-alloc-${user.userId}`}
+                                  >
+                                    <Edit className="h-3 w-3 mr-1" />
+                                    Leaves
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setSelectedUserForWeeklyOff(user);
+                                      setWeeklyOffSelection(user.weeklyOffDays || [0, 6]);
+                                      setShowEditWeeklyOffDialog(true);
+                                    }}
+                                    data-testid={`button-edit-weekly-${user.userId}`}
+                                  >
+                                    <CalendarDays className="h-3 w-3 mr-1" />
+                                    Weekly Off
+                                  </Button>
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -1964,6 +2025,136 @@ export default function LeaveManagementPage() {
                 </Button>
               </div>
             </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Leave Allocations Dialog */}
+        <Dialog open={showEditUserAllocDialog} onOpenChange={setShowEditUserAllocDialog}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Leave Allocations - {selectedUserForAlloc?.fullName}</DialogTitle>
+              <DialogDescription>
+                Update leave allocation for {allocationsYear}. Changes take effect immediately.
+              </DialogDescription>
+            </DialogHeader>
+            {selectedUserForAlloc && (
+              <div className="space-y-4">
+                {selectedUserForAlloc.allocations?.map((alloc: any) => (
+                  <div key={alloc.leaveTypeId} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div 
+                        className="w-3 h-3 rounded-full" 
+                        style={{ backgroundColor: alloc.colorCode }}
+                      />
+                      <div>
+                        <p className="font-medium">{alloc.leaveTypeName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {alloc.isPaid ? 'Paid Leave' : 'Unpaid Leave'} • Used: {alloc.used} days
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Label className="text-sm">Allocated:</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        defaultValue={alloc.allocated}
+                        className="w-20"
+                        onBlur={(e) => {
+                          const newValue = parseFloat(e.target.value) || 0;
+                          if (newValue !== alloc.allocated) {
+                            updateAllocationMutation.mutate({
+                              userId: selectedUserForAlloc.userId,
+                              leaveTypeId: alloc.leaveTypeId,
+                              year: allocationsYear,
+                              allocatedDays: newValue
+                            });
+                          }
+                        }}
+                        data-testid={`input-alloc-${alloc.leaveTypeId}`}
+                      />
+                      <span className="text-sm text-muted-foreground">days</span>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex justify-end">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setShowEditUserAllocDialog(false);
+                      setSelectedUserForAlloc(null);
+                    }}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Weekly Off Days Dialog */}
+        <Dialog open={showEditWeeklyOffDialog} onOpenChange={setShowEditWeeklyOffDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Weekly Off Days - {selectedUserForWeeklyOff?.fullName}</DialogTitle>
+              <DialogDescription>
+                Select which days of the week are off for this employee. This affects payroll calculations.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-7 gap-2">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+                  <div key={day} className="flex flex-col items-center">
+                    <Checkbox
+                      id={`day-${index}`}
+                      checked={weeklyOffSelection.includes(index)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setWeeklyOffSelection([...weeklyOffSelection, index].sort());
+                        } else {
+                          setWeeklyOffSelection(weeklyOffSelection.filter(d => d !== index));
+                        }
+                      }}
+                      data-testid={`checkbox-day-${index}`}
+                    />
+                    <Label htmlFor={`day-${index}`} className="text-xs mt-1">{day}</Label>
+                  </div>
+                ))}
+              </div>
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm">
+                  Selected off days: {weeklyOffSelection.length > 0 
+                    ? weeklyOffSelection.map(d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]).join(', ')
+                    : 'None (works all days)'}
+                </p>
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowEditWeeklyOffDialog(false);
+                    setSelectedUserForWeeklyOff(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (selectedUserForWeeklyOff) {
+                      updateWeeklyOffMutation.mutate({
+                        userId: selectedUserForWeeklyOff.userId,
+                        weeklyOffDays: weeklyOffSelection
+                      });
+                    }
+                  }}
+                  disabled={updateWeeklyOffMutation.isPending}
+                >
+                  {updateWeeklyOffMutation.isPending ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
