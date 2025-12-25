@@ -442,4 +442,274 @@ router.post('/request/:id/reject', ensureAuthenticated, async (req: Request, res
   }
 });
 
+// Admin endpoint: Get all users' leave allocations by year
+router.get('/admin/allocations', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userRole = (req.user as any).role;
+    if (!['admin', 'manager', 'hr'].includes(userRole)) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+
+    // Get all users with their leave allocations
+    const allUsers = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        department: users.department,
+        employeeCode: users.employeeCode,
+        weeklyOffDays: users.weeklyOffDays,
+        isActive: users.isActive
+      })
+      .from(users)
+      .where(eq(users.isActive, true))
+      .orderBy(users.firstName);
+
+    // Get all leave types
+    const allLeaveTypes = await db
+      .select()
+      .from(leaveTypes)
+      .where(eq(leaveTypes.isActive, true))
+      .orderBy(leaveTypes.name);
+
+    // Get all balances for the year
+    const allBalances = await db
+      .select({
+        id: leaveBalances.id,
+        userId: leaveBalances.userId,
+        leaveTypeId: leaveBalances.leaveTypeId,
+        allocatedDays: leaveBalances.allocatedDays,
+        usedDays: leaveBalances.usedDays,
+        pendingDays: leaveBalances.pendingDays,
+        carryoverDays: leaveBalances.carryoverDays
+      })
+      .from(leaveBalances)
+      .where(eq(leaveBalances.year, year));
+
+    // Build user allocation data
+    const usersWithAllocations = allUsers.map(user => {
+      const userBalances = allBalances.filter(b => b.userId === user.id);
+      
+      let totalPaidAllocated = 0;
+      let totalPaidUsed = 0;
+      let totalUnpaidAllocated = 0;
+      let totalUnpaidUsed = 0;
+
+      const allocations = allLeaveTypes.map(lt => {
+        const balance = userBalances.find(b => b.leaveTypeId === lt.id);
+        const allocated = parseFloat(balance?.allocatedDays || '0');
+        const used = parseFloat(balance?.usedDays || '0');
+        const pending = parseFloat(balance?.pendingDays || '0');
+        const carryover = parseFloat(balance?.carryoverDays || '0');
+        const available = allocated + carryover - used - pending;
+
+        if (lt.isPaid) {
+          totalPaidAllocated += allocated;
+          totalPaidUsed += used;
+        } else {
+          totalUnpaidAllocated += allocated;
+          totalUnpaidUsed += used;
+        }
+
+        return {
+          balanceId: balance?.id || null,
+          leaveTypeId: lt.id,
+          leaveTypeName: lt.name,
+          leaveTypeCode: lt.code,
+          isPaid: lt.isPaid,
+          colorCode: lt.colorCode,
+          allocated,
+          used,
+          pending,
+          carryover,
+          available
+        };
+      });
+
+      return {
+        userId: user.id,
+        username: user.username,
+        displayName: user.firstName || user.username,
+        fullName: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || user.username,
+        department: user.department,
+        employeeCode: user.employeeCode,
+        weeklyOffDays: user.weeklyOffDays || [0, 6],
+        allocations,
+        summary: {
+          totalPaidAllocated,
+          totalPaidUsed,
+          totalPaidAvailable: totalPaidAllocated - totalPaidUsed,
+          totalUnpaidAllocated,
+          totalUnpaidUsed
+        }
+      };
+    });
+
+    // Calculate org-wide summary
+    const orgSummary = {
+      totalPaidAllocated: usersWithAllocations.reduce((sum, u) => sum + u.summary.totalPaidAllocated, 0),
+      totalPaidUsed: usersWithAllocations.reduce((sum, u) => sum + u.summary.totalPaidUsed, 0),
+      totalUnpaidAllocated: usersWithAllocations.reduce((sum, u) => sum + u.summary.totalUnpaidAllocated, 0),
+      totalUnpaidUsed: usersWithAllocations.reduce((sum, u) => sum + u.summary.totalUnpaidUsed, 0),
+      totalUsers: usersWithAllocations.length
+    };
+
+    res.json({
+      year,
+      leaveTypes: allLeaveTypes,
+      users: usersWithAllocations,
+      orgSummary
+    });
+  } catch (error) {
+    console.error('Error fetching admin leave allocations:', error);
+    res.status(500).json({ error: 'Failed to fetch leave allocations' });
+  }
+});
+
+// Admin endpoint: Update or create leave allocation for a user
+router.post('/admin/allocations', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userRole = (req.user as any).role;
+    if (!['admin', 'hr'].includes(userRole)) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const { userId, leaveTypeId, year, allocatedDays, carryoverDays } = req.body;
+
+    if (!userId || !leaveTypeId || !year) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Check if balance exists
+    const [existing] = await db
+      .select()
+      .from(leaveBalances)
+      .where(and(
+        eq(leaveBalances.userId, userId),
+        eq(leaveBalances.leaveTypeId, leaveTypeId),
+        eq(leaveBalances.year, year)
+      ));
+
+    if (existing) {
+      // Update existing
+      await db
+        .update(leaveBalances)
+        .set({
+          allocatedDays: allocatedDays?.toString() || existing.allocatedDays,
+          carryoverDays: carryoverDays?.toString() || existing.carryoverDays,
+          lastUpdated: new Date()
+        })
+        .where(eq(leaveBalances.id, existing.id));
+    } else {
+      // Create new
+      await db
+        .insert(leaveBalances)
+        .values({
+          userId,
+          leaveTypeId,
+          year,
+          allocatedDays: allocatedDays?.toString() || '0',
+          usedDays: '0',
+          pendingDays: '0',
+          carryoverDays: carryoverDays?.toString() || '0',
+          lastUpdated: new Date()
+        });
+    }
+
+    res.json({ success: true, message: 'Leave allocation updated' });
+  } catch (error) {
+    console.error('Error updating leave allocation:', error);
+    res.status(500).json({ error: 'Failed to update leave allocation' });
+  }
+});
+
+// Admin endpoint: Bulk allocate leave for a year
+router.post('/admin/allocations/bulk', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userRole = (req.user as any).role;
+    if (!['admin', 'hr'].includes(userRole)) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const { year, leaveTypeId, defaultDays } = req.body;
+
+    if (!year || !leaveTypeId || defaultDays === undefined) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Get all active users
+    const allUsers = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.isActive, true));
+
+    let created = 0;
+    let skipped = 0;
+
+    for (const user of allUsers) {
+      const [existing] = await db
+        .select()
+        .from(leaveBalances)
+        .where(and(
+          eq(leaveBalances.userId, user.id),
+          eq(leaveBalances.leaveTypeId, leaveTypeId),
+          eq(leaveBalances.year, year)
+        ));
+
+      if (!existing) {
+        await db
+          .insert(leaveBalances)
+          .values({
+            userId: user.id,
+            leaveTypeId,
+            year,
+            allocatedDays: defaultDays.toString(),
+            usedDays: '0',
+            pendingDays: '0',
+            carryoverDays: '0',
+            lastUpdated: new Date()
+          });
+        created++;
+      } else {
+        skipped++;
+      }
+    }
+
+    res.json({ success: true, message: `Bulk allocation complete. Created: ${created}, Skipped: ${skipped}` });
+  } catch (error) {
+    console.error('Error bulk allocating leave:', error);
+    res.status(500).json({ error: 'Failed to bulk allocate leave' });
+  }
+});
+
+// Admin endpoint: Update user weekly off days
+router.patch('/admin/users/:userId/weekly-off', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userRole = (req.user as any).role;
+    if (!['admin', 'hr'].includes(userRole)) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const userId = parseInt(req.params.userId);
+    const { weeklyOffDays } = req.body;
+
+    if (!Array.isArray(weeklyOffDays)) {
+      return res.status(400).json({ error: 'weeklyOffDays must be an array' });
+    }
+
+    await db
+      .update(users)
+      .set({ weeklyOffDays })
+      .where(eq(users.id, userId));
+
+    res.json({ success: true, message: 'Weekly off days updated' });
+  } catch (error) {
+    console.error('Error updating weekly off days:', error);
+    res.status(500).json({ error: 'Failed to update weekly off days' });
+  }
+});
+
 export default router;

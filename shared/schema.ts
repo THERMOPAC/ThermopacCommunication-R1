@@ -772,6 +772,10 @@ const userSchema = {
   // Password Reset Functionality
   resetToken: varchar('reset_token', { length: 255 }),
   resetTokenExpiresAt: timestamp('reset_token_expires_at'),
+  
+  // Weekly Off Days for Payroll (JSON array of day numbers: 0=Sunday, 1=Monday, etc.)
+  // Default is Saturday(6) and Sunday(0) off
+  weeklyOffDays: jsonb('weekly_off_days').default('[0,6]'),
 };
 
 // Create the users table with self-reference after definition
