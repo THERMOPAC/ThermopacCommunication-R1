@@ -1272,13 +1272,30 @@ export default function LeaveManagementPage() {
           <TabsContent value="holidays" className="space-y-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Company Holidays ({selectedYear})</CardTitle>
-                  <CardDescription>
-                    Manage company-wide holidays and observances
-                  </CardDescription>
+                <div className="flex items-center gap-4">
+                  <div>
+                    <CardTitle>Company Holidays ({selectedYear})</CardTitle>
+                    <CardDescription>
+                      Manage company-wide holidays and observances
+                    </CardDescription>
+                  </div>
+                  <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
+                    <SelectTrigger className="w-32" data-testid="select-holiday-year">
+                      <SelectValue placeholder="Select Year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[...Array(5)].map((_, i) => {
+                        const year = new Date().getFullYear() - 1 + i;
+                        return (
+                          <SelectItem key={year} value={year.toString()} data-testid={`select-year-${year}`}>
+                            {year}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Button onClick={() => setShowNewHolidayDialog(true)}>
+                <Button onClick={() => setShowNewHolidayDialog(true)} data-testid="button-add-holiday">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Holiday
                 </Button>
