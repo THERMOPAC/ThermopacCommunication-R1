@@ -561,46 +561,6 @@ export default function LeaveManagementPage() {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
-            {/* Your Leave Balance */}
-            {dashboardData?.userBalances && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>My Leave Balance ({selectedYear})</CardTitle>
-                  <CardDescription>
-                    Your current leave allocation and usage
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {dashboardData.userBalances.map((balance: any) => {
-                      const remaining = parseFloat(balance.remainingDays) || 0;
-                      const allocated = parseFloat(balance.allocatedDays) || 0;
-                      const used = parseFloat(balance.usedDays) || 0;
-                      const progressPercentage = allocated > 0 ? (used / allocated) * 100 : 0;
-
-                      return (
-                        <Card key={balance.leaveType}>
-                          <CardContent className="p-4">
-                            <div className="space-y-2">
-                              <div className="flex justify-between items-center">
-                                <h4 className="font-medium">{balance.leaveType}</h4>
-                                <Badge variant="outline">{remaining} remaining</Badge>
-                              </div>
-                              <Progress value={progressPercentage} className="h-2" />
-                              <div className="flex justify-between text-sm text-muted-foreground">
-                                <span>Used: {used}</span>
-                                <span>Allocated: {allocated}</span>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
             {/* Recent Requests */}
             {dashboardData?.recentRequests && (
               <Card>
