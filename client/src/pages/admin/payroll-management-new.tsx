@@ -1216,6 +1216,53 @@ export default function PayrollManagementNew() {
                   )}
                 </div>
 
+                {/* Auto-Applied Leave Adjustment */}
+                {calculationPreview.data?.autoAppliedLeaves && (
+                  <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg">
+                    <h3 className="font-medium text-orange-900 mb-3">🔄 Auto-Applied Leave Adjustment</h3>
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div className="bg-white p-2 rounded">
+                          <p className="text-orange-700 font-medium">Total Absent Days</p>
+                          <p className="text-2xl font-bold text-orange-800">{calculationPreview.data.autoAppliedLeaves.totalAbsentDays}</p>
+                        </div>
+                        <div className="bg-green-100 p-2 rounded">
+                          <p className="text-green-700 font-medium">Covered by Leave</p>
+                          <p className="text-2xl font-bold text-green-800">{calculationPreview.data.autoAppliedLeaves.coveredByLeave}</p>
+                        </div>
+                        <div className={`p-2 rounded ${calculationPreview.data.autoAppliedLeaves.lopDays > 0 ? 'bg-red-100' : 'bg-gray-100'}`}>
+                          <p className={`font-medium ${calculationPreview.data.autoAppliedLeaves.lopDays > 0 ? 'text-red-700' : 'text-gray-700'}`}>LOP Days</p>
+                          <p className={`text-2xl font-bold ${calculationPreview.data.autoAppliedLeaves.lopDays > 0 ? 'text-red-800' : 'text-gray-800'}`}>{calculationPreview.data.autoAppliedLeaves.lopDays}</p>
+                        </div>
+                      </div>
+                      
+                      {calculationPreview.data.autoAppliedLeaves.appliedLeaves && calculationPreview.data.autoAppliedLeaves.appliedLeaves.length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-sm font-medium text-orange-800 mb-2">Leave Applied (Priority Order):</p>
+                          <div className="space-y-1">
+                            {calculationPreview.data.autoAppliedLeaves.appliedLeaves.map((leave: any, index: number) => (
+                              <div key={index} className="flex justify-between items-center bg-white p-2 rounded text-sm">
+                                <span className="text-orange-700">{leave.leaveTypeName} ({leave.leaveTypeCode})</span>
+                                <span className="font-medium text-green-700">{leave.daysApplied} days applied</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {calculationPreview.data.autoAppliedLeaves.lopDays > 0 && (
+                        <div className="bg-red-100 border-l-4 border-red-500 p-3 rounded mt-2">
+                          <p className="text-red-800 text-sm font-medium">⚠️ Loss of Pay Warning</p>
+                          <p className="text-red-700 text-xs mt-1">
+                            {calculationPreview.data.autoAppliedLeaves.lopDays} day(s) will be deducted from salary as LOP. 
+                            No more paid leave balance available to cover these absences.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Salary Breakdown */}
                 <div className="grid grid-cols-2 gap-6">
                   {/* Earnings */}
