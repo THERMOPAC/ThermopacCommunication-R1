@@ -98,6 +98,11 @@ const userFormSchema = z.object({
   stdCode: z.string().optional(),
   reportingManagerId: z.number().optional(),
   workLocationId: z.number().optional(),
+  // Duty Schedule fields
+  dutyTimeIn: z.string().optional(),
+  dutyTimeOut: z.string().optional(),
+  allowedLateMinutes: z.number().optional(),
+  earlyExitMinutes: z.number().optional(),
 });
 
 type UserFormValues = z.infer<typeof userFormSchema>;
@@ -127,6 +132,11 @@ interface User {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  // Duty Schedule fields
+  dutyTimeIn?: string;
+  dutyTimeOut?: string;
+  allowedLateMinutes?: number;
+  earlyExitMinutes?: number;
 }
 
 export default function UserManagementPage() {
@@ -681,6 +691,93 @@ export default function UserManagementPage() {
               )}
             />
           )}
+        </div>
+
+        {/* Duty Schedule Section */}
+        <div className="border-t pt-4 mt-4">
+          <h3 className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-4">Duty Schedule</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="dutyTimeIn"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Duty Time In</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="time" 
+                      {...field} 
+                      value={field.value || '09:00'}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="dutyTimeOut"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Duty Time Out</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="time" 
+                      {...field}
+                      value={field.value || '18:00'}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <FormField
+              control={form.control}
+              name="allowedLateMinutes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Allowed Late Minutes</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      min={0}
+                      max={120}
+                      placeholder="15"
+                      {...field}
+                      value={field.value ?? 15}
+                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                  <p className="text-xs text-muted-foreground">Minutes allowed after duty time in</p>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="earlyExitMinutes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Early Exit Minutes</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number"
+                      min={0}
+                      max={120}
+                      placeholder="15"
+                      {...field}
+                      value={field.value ?? 15}
+                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                  <p className="text-xs text-muted-foreground">Minutes allowed before duty time out</p>
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
 
         <div className="flex justify-end space-x-2 pt-4">

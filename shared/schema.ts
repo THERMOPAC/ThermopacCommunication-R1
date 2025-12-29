@@ -776,6 +776,12 @@ const userSchema = {
   // Weekly Off Days for Payroll (JSON array of day numbers: 0=Sunday, 1=Monday, etc.)
   // Default is Saturday(6) and Sunday(0) off
   weeklyOffDays: jsonb('weekly_off_days').default('[0,6]'),
+  
+  // Duty Schedule fields for attendance status calculation
+  dutyTimeIn: text('duty_time_in').default('09:00'), // HH:mm format
+  dutyTimeOut: text('duty_time_out').default('18:00'), // HH:mm format
+  allowedLateMinutes: integer('allowed_late_minutes').default(15), // Minutes allowed after duty time in
+  earlyExitMinutes: integer('early_exit_minutes').default(15), // Minutes allowed before duty time out
 };
 
 // Create the users table with self-reference after definition

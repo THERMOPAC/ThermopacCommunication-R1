@@ -55,6 +55,11 @@ const editUserSchema = z.object({
   reportingManagerId: z.string().optional(), // Keep as string to avoid conversion issues
   workLocationId: z.string().optional(), // Keep as string to avoid conversion issues
   password: z.string().optional(), // Optional for updates
+  // Duty Schedule fields
+  dutyTimeIn: z.string().optional(),
+  dutyTimeOut: z.string().optional(),
+  allowedLateMinutes: z.number().optional(),
+  earlyExitMinutes: z.number().optional(),
 });
 
 type EditUserFormValues = z.infer<typeof editUserSchema>;
@@ -82,6 +87,11 @@ interface User {
   reportingManagerId?: number;
   workLocationId?: number;
   isActive: boolean;
+  // Duty Schedule fields
+  dutyTimeIn?: string;
+  dutyTimeOut?: string;
+  allowedLateMinutes?: number;
+  earlyExitMinutes?: number;
 }
 
 interface UserEditDialogProps {
@@ -130,6 +140,11 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
       reportingManagerId: 'none',
       workLocationId: 'none',
       password: '',
+      // Duty Schedule defaults
+      dutyTimeIn: '09:00',
+      dutyTimeOut: '18:00',
+      allowedLateMinutes: 15,
+      earlyExitMinutes: 15,
     },
   });
 
@@ -157,6 +172,11 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         reportingManagerId: user.reportingManagerId ? user.reportingManagerId.toString() : 'none',
         workLocationId: user.workLocationId ? user.workLocationId.toString() : 'none',
         password: '',
+        // Duty Schedule fields
+        dutyTimeIn: user.dutyTimeIn || '09:00',
+        dutyTimeOut: user.dutyTimeOut || '18:00',
+        allowedLateMinutes: user.allowedLateMinutes ?? 15,
+        earlyExitMinutes: user.earlyExitMinutes ?? 15,
       });
     }
   }, [user, open, form]);
@@ -191,6 +211,11 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         workLocationId: data.workLocationId && data.workLocationId !== '' && data.workLocationId !== 'none'
           ? parseInt(data.workLocationId) 
           : null,
+        // Duty Schedule fields
+        dutyTimeIn: data.dutyTimeIn || '09:00',
+        dutyTimeOut: data.dutyTimeOut || '18:00',
+        allowedLateMinutes: data.allowedLateMinutes ?? 15,
+        earlyExitMinutes: data.earlyExitMinutes ?? 15,
       };
 
       // Only include password if it's provided
@@ -470,6 +495,91 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
                   </FormItem>
                 )}
               />
+            </div>
+
+            {/* Duty Schedule Section */}
+            <div className="border-t pt-4 mt-4">
+              <h3 className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-4">Duty Schedule</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="dutyTimeIn"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Duty Time In</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="time" 
+                          {...field} 
+                          value={field.value || '09:00'}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="dutyTimeOut"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Duty Time Out</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="time" 
+                          {...field}
+                          value={field.value || '18:00'}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="allowedLateMinutes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Allowed Late Minutes</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min={0}
+                          max={120}
+                          placeholder="15"
+                          {...field}
+                          value={field.value ?? 15}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <p className="text-xs text-muted-foreground">Minutes allowed after duty time in</p>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="earlyExitMinutes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Early Exit Minutes</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number"
+                          min={0}
+                          max={120}
+                          placeholder="15"
+                          {...field}
+                          value={field.value ?? 15}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <p className="text-xs text-muted-foreground">Minutes allowed before duty time out</p>
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
             <div className="flex justify-end space-x-2 pt-4">
