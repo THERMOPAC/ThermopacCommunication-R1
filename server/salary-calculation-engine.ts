@@ -1,6 +1,6 @@
 import { db } from './db';
-import { users, employeeSalaries, attendanceRecords, leaveRequests, workweekPolicies, companyHolidays, workLocations } from '@shared/schema';
-import { eq, and, between, sql, desc, asc } from 'drizzle-orm';
+import { users, employeeSalaries, attendanceRecords, leaveRequests, workweekPolicies, companyHolidays, workLocations, leaveBalances, leaveTypes } from '@shared/schema';
+import { eq, and, between, sql, desc, asc, gte, lte } from 'drizzle-orm';
 
 export interface SalaryCalculationInput {
   userId: number;
@@ -85,6 +85,20 @@ export interface SalaryCalculationResult {
     earnedLeave: number;
     maternityLeave: number;
     paternityLeave: number;
+  };
+  
+  // Auto-Applied Leave Breakdown (for absent days)
+  autoAppliedLeaves?: {
+    totalAbsentDays: number;
+    coveredByLeave: number;
+    lopDays: number;
+    breakdown: Array<{
+      leaveTypeId: number;
+      leaveTypeName: string;
+      daysApplied: number;
+      balanceBefore: number;
+      balanceAfter: number;
+    }>;
   };
   
   // Calculation Details
