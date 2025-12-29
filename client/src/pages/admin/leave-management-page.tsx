@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -54,7 +56,8 @@ import {
   Trash2,
   Heart,
   Plane,
-  User
+  User,
+  Download
 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -288,6 +291,93 @@ export default function LeaveManagementPage() {
       toast({ title: 'Failed to bulk allocate leave', variant: 'destructive' });
     }
   });
+
+  // Generate PDF for Company Holidays
+  const generateHolidaysPdf = () => {
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('THERMOPAC', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Company Holidays - ${selectedYear}`, 105, 30, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${new Date().toLocaleDateString('en-IN', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    })}`, 105, 38, { align: 'center' });
+    
+    // Sort holidays by date
+    const sortedHolidays = [...holidays].sort((a: any, b: any) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    
+    // Table data
+    const tableData = sortedHolidays.map((holiday: any, index: number) => {
+      const holidayDate = new Date(holiday.date);
+      return [
+        (index + 1).toString(),
+        holiday.name,
+        holidayDate.toLocaleDateString('en-IN', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        }),
+        holiday.isOptional ? 'Optional' : 'Mandatory',
+        holiday.description || '-'
+      ];
+    });
+    
+    // Generate table
+    autoTable(doc, {
+      startY: 45,
+      head: [['#', 'Holiday Name', 'Date', 'Type', 'Description']],
+      body: tableData,
+      headStyles: {
+        fillColor: [59, 130, 246],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 10 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 50 },
+        3: { halign: 'center', cellWidth: 25 },
+        4: { cellWidth: 55 }
+      },
+      alternateRowStyles: {
+        fillColor: [245, 247, 250]
+      },
+      margin: { left: 14, right: 14 }
+    });
+    
+    // Footer with total count
+    const finalY = (doc as any).lastAutoTable?.finalY || 100;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total Holidays: ${holidays.length}`, 14, finalY + 10);
+    
+    const mandatoryCount = holidays.filter((h: any) => !h.isOptional).length;
+    const optionalCount = holidays.filter((h: any) => h.isOptional).length;
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Mandatory: ${mandatoryCount} | Optional: ${optionalCount}`, 14, finalY + 16);
+    
+    // Save
+    doc.save(`Company_Holidays_${selectedYear}.pdf`);
+    
+    toast({
+      title: 'PDF Generated',
+      description: `Company Holidays list for ${selectedYear} has been downloaded.`
+    });
+  };
 
   // Forms
   const requestForm = useForm<LeaveRequestForm>({
@@ -1569,10 +1659,21 @@ export default function LeaveManagementPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button onClick={() => setShowNewHolidayDialog(true)} data-testid="button-add-holiday">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Holiday
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={generateHolidaysPdf}
+                    disabled={holidays.length === 0}
+                    data-testid="button-download-holidays-pdf"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download PDF
+                  </Button>
+                  <Button onClick={() => setShowNewHolidayDialog(true)} data-testid="button-add-holiday">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Holiday
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
