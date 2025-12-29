@@ -103,6 +103,10 @@ const userFormSchema = z.object({
   dutyTimeOut: z.string().optional(),
   allowedLateMinutes: z.number().optional(),
   earlyExitMinutes: z.number().optional(),
+  // Work Time Policy
+  workTimePolicy: z.enum(['Fixed', 'Flexible']).optional(),
+  minimumDailyHours: z.number().optional(),
+  halfDayMinimumHours: z.number().optional(),
 });
 
 type UserFormValues = z.infer<typeof userFormSchema>;
@@ -137,6 +141,10 @@ interface User {
   dutyTimeOut?: string;
   allowedLateMinutes?: number;
   earlyExitMinutes?: number;
+  // Work Time Policy
+  workTimePolicy?: 'Fixed' | 'Flexible';
+  minimumDailyHours?: number;
+  halfDayMinimumHours?: number;
 }
 
 export default function UserManagementPage() {
@@ -696,88 +704,169 @@ export default function UserManagementPage() {
         {/* Duty Schedule Section */}
         <div className="border-t pt-4 mt-4">
           <h3 className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-4">Duty Schedule</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="dutyTimeIn"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Duty Time In</FormLabel>
+          
+          {/* Work Time Policy */}
+          <FormField
+            control={form.control}
+            name="workTimePolicy"
+            render={({ field }) => (
+              <FormItem className="mb-4">
+                <FormLabel>Work Time Policy</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value || 'Fixed'}>
                   <FormControl>
-                    <Input 
-                      type="time" 
-                      {...field} 
-                      value={field.value || '09:00'}
-                    />
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select policy" />
+                    </SelectTrigger>
                   </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="dutyTimeOut"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Duty Time Out</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="time" 
-                      {...field}
-                      value={field.value || '18:00'}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            <FormField
-              control={form.control}
-              name="allowedLateMinutes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Allowed Late Minutes</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      min={0}
-                      max={120}
-                      placeholder="15"
-                      {...field}
-                      value={field.value ?? 15}
-                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                  <p className="text-xs text-muted-foreground">Minutes allowed after duty time in</p>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="earlyExitMinutes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Early Exit Minutes</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number"
-                      min={0}
-                      max={120}
-                      placeholder="15"
-                      {...field}
-                      value={field.value ?? 15}
-                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                  <p className="text-xs text-muted-foreground">Minutes allowed before duty time out</p>
-                </FormItem>
-              )}
-            />
-          </div>
+                  <SelectContent>
+                    <SelectItem value="Fixed">Fixed - Uses duty time with late/early rules</SelectItem>
+                    <SelectItem value="Flexible">Flexible - Uses minimum daily hours only</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Fixed Policy Fields */}
+          {form.watch('workTimePolicy') !== 'Flexible' && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="dutyTimeIn"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Duty Time In</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="time" 
+                          {...field} 
+                          value={field.value || '09:00'}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="dutyTimeOut"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Duty Time Out</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="time" 
+                          {...field}
+                          value={field.value || '18:00'}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <FormField
+                  control={form.control}
+                  name="allowedLateMinutes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Allowed Late Minutes</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min={0}
+                          max={120}
+                          placeholder="15"
+                          {...field}
+                          value={field.value ?? 15}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <p className="text-xs text-muted-foreground">Minutes allowed after duty time in</p>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="earlyExitMinutes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Early Exit Minutes</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number"
+                          min={0}
+                          max={120}
+                          placeholder="15"
+                          {...field}
+                          value={field.value ?? 15}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <p className="text-xs text-muted-foreground">Minutes allowed before duty time out</p>
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Flexible Policy Fields */}
+          {form.watch('workTimePolicy') === 'Flexible' && (
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="minimumDailyHours"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Minimum Daily Hours (Present)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min={1}
+                        max={24}
+                        step={0.5}
+                        placeholder="8"
+                        {...field}
+                        value={field.value ?? 8}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 8)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                    <p className="text-xs text-muted-foreground">Hours required for Present status</p>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="halfDayMinimumHours"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Minimum Hours (Half Day)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number"
+                        min={1}
+                        max={24}
+                        step={0.5}
+                        placeholder="4"
+                        {...field}
+                        value={field.value ?? 4}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 4)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                    <p className="text-xs text-muted-foreground">Hours required for Half Day (below = Absent)</p>
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end space-x-2 pt-4">

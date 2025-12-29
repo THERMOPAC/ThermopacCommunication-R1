@@ -782,6 +782,13 @@ const userSchema = {
   dutyTimeOut: text('duty_time_out').default('18:00'), // HH:mm format
   allowedLateMinutes: integer('allowed_late_minutes').default(15), // Minutes allowed after duty time in
   earlyExitMinutes: integer('early_exit_minutes').default(15), // Minutes allowed before duty time out
+  
+  // Work Time Policy: Fixed or Flexible
+  // Fixed: Uses duty time in/out with late/early rules
+  // Flexible: Uses minimum daily work hours only (no late/early rules)
+  workTimePolicy: text('work_time_policy').default('Fixed'), // 'Fixed' or 'Flexible'
+  minimumDailyHours: doublePrecision('minimum_daily_hours').default(8), // Minimum hours for Present status (Flexible policy)
+  halfDayMinimumHours: doublePrecision('half_day_minimum_hours').default(4), // Minimum hours for Half Day status (Flexible policy)
 };
 
 // Create the users table with self-reference after definition
