@@ -100,7 +100,16 @@ router.get('/users', ensureAuthenticated, async (req: Request, res: Response) =>
         workLocationId: users.workLocationId,
         isActive: users.isActive,
         createdAt: users.createdAt,
-        updatedAt: users.updatedAt
+        updatedAt: users.updatedAt,
+        // Duty Schedule fields
+        dutyTimeIn: users.dutyTimeIn,
+        dutyTimeOut: users.dutyTimeOut,
+        allowedLateMinutes: users.allowedLateMinutes,
+        earlyExitMinutes: users.earlyExitMinutes,
+        // Work Time Policy fields
+        workTimePolicy: users.workTimePolicy,
+        minimumDailyHours: users.minimumDailyHours,
+        halfDayMinimumHours: users.halfDayMinimumHours
       })
       .from(users)
       .orderBy(asc(users.firstName));
