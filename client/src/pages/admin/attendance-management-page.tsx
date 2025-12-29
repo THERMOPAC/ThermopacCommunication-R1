@@ -22,7 +22,7 @@ interface AttendanceRecord {
   timeIn: string;
   timeOut: string | null;
   workHours: number | null;
-  status: 'Present' | 'Absent' | 'Late' | 'Half Day' | 'Weekly Off';
+  status: 'Present' | 'Absent' | 'Late' | 'Half Day' | 'Weekly Off' | 'Holiday';
   location: string;
   weeklyOffDays?: number[];
 }
@@ -165,7 +165,8 @@ export default function AttendanceManagementPage() {
       'Absent': { variant: 'destructive', color: 'bg-red-100 text-red-800' },
       'Late': { variant: 'secondary', color: 'bg-yellow-100 text-yellow-800' },
       'Half Day': { variant: 'outline', color: 'bg-orange-100 text-orange-800' },
-      'Weekly Off': { variant: 'outline', color: 'bg-blue-100 text-blue-800' }
+      'Weekly Off': { variant: 'outline', color: 'bg-blue-100 text-blue-800' },
+      'Holiday': { variant: 'outline', color: 'bg-purple-100 text-purple-800' }
     };
     
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig['Present'];

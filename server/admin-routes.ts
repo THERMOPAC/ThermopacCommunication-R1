@@ -1012,8 +1012,8 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
       };
     }) : [];
 
-    // When filtering by a specific employee, add synthetic "Weekly Off" records for days 
-    // that are weekly off but don't have attendance records
+    // When filtering by a specific employee, add synthetic records for days 
+    // that are weekly off or absent (no attendance record)
     let allRecords = transformedRecords;
     
     if (employee !== 'all') {
@@ -1037,31 +1037,82 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
             ? employeeData.weeklyOffDays 
             : [0, 6];
           
-          // Get all dates in the range that are weekly off days
+          // Fetch company holidays in the date range
+          const holidays = await db
+            .select({ date: companyHolidays.date })
+            .from(companyHolidays)
+            .where(and(
+              gte(companyHolidays.date, startDate.toISOString().split('T')[0]),
+              lte(companyHolidays.date, endDate.toISOString().split('T')[0])
+            ));
+          const holidayDates = new Set(holidays.map((h: any) => h.date));
+          
+          // Get all dates in the range that need synthetic records
           const existingDates = new Set(transformedRecords.map((r: any) => r.date));
           const syntheticRecords: any[] = [];
           
+          // Clamp end date to today (don't show future dates as Absent)
+          const today = new Date();
+          today.setHours(23, 59, 59, 999);
+          const effectiveEndDate = endDate > today ? today : endDate;
+          
           // Iterate through all dates in the range
           const currentDate = new Date(startDate);
-          while (currentDate <= endDate) {
+          while (currentDate <= effectiveEndDate) {
             const dateStr = currentDate.toISOString().split('T')[0];
             const dayOfWeek = currentDate.getDay();
             
-            // If this day is a weekly off day and no record exists for it
-            if (empWeeklyOffDays.includes(dayOfWeek) && !existingDates.has(dateStr)) {
-              syntheticRecords.push({
-                id: -1, // Synthetic record indicator
-                userId: employeeData.id,
-                userName: employeeData.firstName || employeeData.username || 'Unknown',
-                department: employeeData.department || 'N/A',
-                date: dateStr,
-                timeIn: null,
-                timeOut: null,
-                workHours: null,
-                status: 'Weekly Off',
-                location: 'N/A',
-                weeklyOffDays: empWeeklyOffDays
-              });
+            // Skip if record already exists for this date
+            if (!existingDates.has(dateStr)) {
+              const isWeeklyOff = empWeeklyOffDays.includes(dayOfWeek);
+              const isHoliday = holidayDates.has(dateStr);
+              
+              if (isWeeklyOff) {
+                // Weekly Off day - no attendance required
+                syntheticRecords.push({
+                  id: -1, // Synthetic record indicator
+                  userId: employeeData.id,
+                  userName: employeeData.firstName || employeeData.username || 'Unknown',
+                  department: employeeData.department || 'N/A',
+                  date: dateStr,
+                  timeIn: null,
+                  timeOut: null,
+                  workHours: null,
+                  status: 'Weekly Off',
+                  location: 'N/A',
+                  weeklyOffDays: empWeeklyOffDays
+                });
+              } else if (isHoliday) {
+                // Company Holiday - no attendance required
+                syntheticRecords.push({
+                  id: -2, // Synthetic holiday record indicator
+                  userId: employeeData.id,
+                  userName: employeeData.firstName || employeeData.username || 'Unknown',
+                  department: employeeData.department || 'N/A',
+                  date: dateStr,
+                  timeIn: null,
+                  timeOut: null,
+                  workHours: null,
+                  status: 'Holiday',
+                  location: 'N/A',
+                  weeklyOffDays: empWeeklyOffDays
+                });
+              } else {
+                // Working day with no attendance - mark as Absent
+                syntheticRecords.push({
+                  id: -3, // Synthetic absent record indicator
+                  userId: employeeData.id,
+                  userName: employeeData.firstName || employeeData.username || 'Unknown',
+                  department: employeeData.department || 'N/A',
+                  date: dateStr,
+                  timeIn: null,
+                  timeOut: null,
+                  workHours: null,
+                  status: 'Absent',
+                  location: 'N/A',
+                  weeklyOffDays: empWeeklyOffDays
+                });
+              }
             }
             
             currentDate.setDate(currentDate.getDate() + 1);
