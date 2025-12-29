@@ -252,7 +252,7 @@ export default function LeaveManagementPage() {
     mutationFn: (data: { userId: number; leaveTypeId: number; year: number; allocatedDays: number }) => 
       apiRequest('POST', '/api/leave/admin/allocations', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/leave/admin/allocations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/leave/admin/allocations'], exact: false });
       toast({ title: 'Leave allocation updated successfully' });
     },
     onError: () => {
@@ -264,7 +264,7 @@ export default function LeaveManagementPage() {
     mutationFn: ({ userId, weeklyOffDays }: { userId: number; weeklyOffDays: number[] }) => 
       apiRequest('PATCH', `/api/leave/admin/users/${userId}/weekly-off`, { weeklyOffDays }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/leave/admin/allocations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/leave/admin/allocations'], exact: false });
       setShowEditWeeklyOffDialog(false);
       setSelectedUserForWeeklyOff(null);
       toast({ title: 'Weekly off days updated successfully' });
@@ -278,7 +278,7 @@ export default function LeaveManagementPage() {
     mutationFn: (data: { year: number; allocations: { leaveTypeId: number; days: number }[]; overwriteExisting: boolean }) => 
       apiRequest('POST', '/api/leave/admin/allocations/bulk', data),
     onSuccess: (response: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/leave/admin/allocations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/leave/admin/allocations'], exact: false });
       setShowQuickAllocDialog(false);
       setQuickAllocValues({});
       setOverwriteExisting(false);
