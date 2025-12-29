@@ -677,7 +677,7 @@ router.post('/admin/allocations', ensureAuthenticated, async (req: Request, res:
   }
 });
 
-// Admin endpoint: Bulk allocate leave for a year
+// Admin endpoint: Bulk allocate leave for a year (supports multiple leave types)
 router.post('/admin/allocations/bulk', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const currentUserId = (req.user as any).id;
@@ -691,10 +691,11 @@ router.post('/admin/allocations/bulk', ensureAuthenticated, async (req: Request,
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    const { year, leaveTypeId, defaultDays } = req.body;
+    const { year, allocations, overwriteExisting } = req.body;
 
-    if (!year || !leaveTypeId || defaultDays === undefined) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    // Support both old single-type format and new multi-type format
+    if (!year) {
+      return res.status(400).json({ error: 'Year is required' });
     }
 
     // Get all active users
@@ -704,7 +705,68 @@ router.post('/admin/allocations/bulk', ensureAuthenticated, async (req: Request,
       .where(eq(users.isActive, true));
 
     let created = 0;
+    let updated = 0;
     let skipped = 0;
+
+    // Handle new multi-type format: { year, allocations: [{ leaveTypeId, days }], overwriteExisting }
+    if (allocations && Array.isArray(allocations)) {
+      for (const alloc of allocations) {
+        const { leaveTypeId, days } = alloc;
+        if (!leaveTypeId || days === undefined) continue;
+
+        for (const user of allUsers) {
+          const [existing] = await db
+            .select()
+            .from(leaveBalances)
+            .where(and(
+              eq(leaveBalances.userId, user.id),
+              eq(leaveBalances.leaveTypeId, leaveTypeId),
+              eq(leaveBalances.year, year)
+            ));
+
+          if (!existing) {
+            await db
+              .insert(leaveBalances)
+              .values({
+                userId: user.id,
+                leaveTypeId,
+                year,
+                allocatedDays: days.toString(),
+                usedDays: '0',
+                pendingDays: '0',
+                carryoverDays: '0',
+                lastUpdated: new Date()
+              });
+            created++;
+          } else if (overwriteExisting) {
+            await db
+              .update(leaveBalances)
+              .set({
+                allocatedDays: days.toString(),
+                lastUpdated: new Date()
+              })
+              .where(eq(leaveBalances.id, existing.id));
+            updated++;
+          } else {
+            skipped++;
+          }
+        }
+      }
+      res.json({ 
+        success: true, 
+        message: `Bulk allocation complete. Created: ${created}, Updated: ${updated}, Skipped: ${skipped}`,
+        created,
+        updated,
+        skipped
+      });
+      return;
+    }
+
+    // Handle old single-type format for backwards compatibility
+    const { leaveTypeId, defaultDays } = req.body;
+    if (!leaveTypeId || defaultDays === undefined) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
 
     for (const user of allUsers) {
       const [existing] = await db

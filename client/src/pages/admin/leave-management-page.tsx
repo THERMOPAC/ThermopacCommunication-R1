@@ -115,6 +115,10 @@ export default function LeaveManagementPage() {
   const [showEditWeeklyOffDialog, setShowEditWeeklyOffDialog] = useState(false);
   const [selectedUserForWeeklyOff, setSelectedUserForWeeklyOff] = useState<any>(null);
   const [weeklyOffSelection, setWeeklyOffSelection] = useState<number[]>([0, 6]);
+  const [showQuickAllocDialog, setShowQuickAllocDialog] = useState(false);
+  const [quickAllocYear, setQuickAllocYear] = useState(new Date().getFullYear());
+  const [quickAllocValues, setQuickAllocValues] = useState<Record<number, number>>({});
+  const [overwriteExisting, setOverwriteExisting] = useState(false);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -264,6 +268,24 @@ export default function LeaveManagementPage() {
     },
     onError: () => {
       toast({ title: 'Failed to update weekly off days', variant: 'destructive' });
+    }
+  });
+
+  const bulkAllocationMutation = useMutation({
+    mutationFn: (data: { year: number; allocations: { leaveTypeId: number; days: number }[]; overwriteExisting: boolean }) => 
+      apiRequest('POST', '/api/leave/admin/allocations/bulk', data),
+    onSuccess: (response: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/leave/admin/allocations'] });
+      setShowQuickAllocDialog(false);
+      setQuickAllocValues({});
+      setOverwriteExisting(false);
+      toast({ 
+        title: 'Bulk allocation complete',
+        description: `Created: ${response.created || 0}, Updated: ${response.updated || 0}, Skipped: ${response.skipped || 0}`
+      });
+    },
+    onError: () => {
+      toast({ title: 'Failed to bulk allocate leave', variant: 'destructive' });
     }
   });
 
@@ -995,7 +1017,7 @@ export default function LeaveManagementPage() {
 
           {/* Leave Allocations Tab */}
           <TabsContent value="allocations" className="space-y-4">
-            {/* Year Selector */}
+            {/* Year Selector and Quick Allocations Button */}
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <Label className="font-medium">Year:</Label>
@@ -1010,6 +1032,21 @@ export default function LeaveManagementPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <Button 
+                onClick={() => {
+                  setQuickAllocYear(allocationsYear);
+                  const defaultValues: Record<number, number> = {};
+                  leaveTypes.forEach((lt: any) => {
+                    defaultValues[lt.id] = lt.maxDaysPerYear || 0;
+                  });
+                  setQuickAllocValues(defaultValues);
+                  setShowQuickAllocDialog(true);
+                }}
+                data-testid="button-quick-allocations"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Quick Leave Allocations
+              </Button>
             </div>
 
             {/* Organization Summary Cards */}
@@ -2112,6 +2149,118 @@ export default function LeaveManagementPage() {
                   disabled={updateWeeklyOffMutation.isPending}
                 >
                   {updateWeeklyOffMutation.isPending ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Quick Leave Allocations Dialog */}
+        <Dialog open={showQuickAllocDialog} onOpenChange={setShowQuickAllocDialog}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Quick Leave Allocations</DialogTitle>
+              <DialogDescription>
+                Allocate leave for all employees at once. Set default days for each leave type and apply to all active employees.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <Label className="font-medium">Year:</Label>
+                <Select value={quickAllocYear.toString()} onValueChange={(value) => setQuickAllocYear(parseInt(value))}>
+                  <SelectTrigger className="w-[120px]" data-testid="select-quick-alloc-year">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 13 }, (_, i) => 2023 + i).map(year => (
+                      <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="font-medium">Leave Allocations</Label>
+                {leaveTypes.map((lt: any) => (
+                  <div key={lt.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div 
+                        className="w-3 h-3 rounded-full" 
+                        style={{ backgroundColor: lt.colorCode }}
+                      />
+                      <div>
+                        <p className="font-medium">{lt.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {lt.isPaid ? 'Paid Leave' : 'Unpaid Leave'} • Max: {lt.maxDaysPerYear} days/year
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Label className="text-sm">Days:</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        value={quickAllocValues[lt.id] ?? lt.maxDaysPerYear ?? 0}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setQuickAllocValues(prev => ({ ...prev, [lt.id]: val }));
+                        }}
+                        className="w-20"
+                        data-testid={`input-quick-alloc-${lt.id}`}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
+                <Checkbox
+                  id="overwriteExisting"
+                  checked={overwriteExisting}
+                  onCheckedChange={(checked) => setOverwriteExisting(!!checked)}
+                  data-testid="checkbox-overwrite-existing"
+                />
+                <Label htmlFor="overwriteExisting" className="text-sm">
+                  Overwrite existing allocations (otherwise only creates new ones)
+                </Label>
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowQuickAllocDialog(false);
+                    setQuickAllocValues({});
+                    setOverwriteExisting(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    const allocations = Object.entries(quickAllocValues)
+                      .filter(([_, days]) => days > 0)
+                      .map(([leaveTypeId, days]) => ({
+                        leaveTypeId: parseInt(leaveTypeId),
+                        days
+                      }));
+                    
+                    if (allocations.length === 0) {
+                      toast({ title: 'Please set at least one leave type allocation', variant: 'destructive' });
+                      return;
+                    }
+
+                    bulkAllocationMutation.mutate({
+                      year: quickAllocYear,
+                      allocations,
+                      overwriteExisting
+                    });
+                  }}
+                  disabled={bulkAllocationMutation.isPending}
+                  data-testid="button-apply-quick-alloc"
+                >
+                  {bulkAllocationMutation.isPending ? 'Applying...' : 'Apply to All Employees'}
                 </Button>
               </div>
             </div>
