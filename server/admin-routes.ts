@@ -2213,10 +2213,12 @@ router.post('/generate-salary', ensureAuthenticated, async (req: Request, res: R
     console.log(`💰 Generating salary for employee ${employeeId}, ${month}/${year}`);
     
     // Use the salary calculation engine to generate salary
+    // updateLeaveBalances: true will deduct auto-applied leaves from leave balances
     const salaryInput = {
       userId: parseInt(employeeId),
       month: monthNum,
-      year: yearNum
+      year: yearNum,
+      updateLeaveBalances: true  // This will update leave balances when generating final salary
     };
     
     const result = await salaryCalculationEngine.calculateSalary(salaryInput);
