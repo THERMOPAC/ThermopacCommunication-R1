@@ -691,7 +691,9 @@ router.post('/admin/allocations/bulk', ensureAuthenticated, async (req: Request,
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    const { year, allocations, overwriteExisting } = req.body;
+    const { year, allocations } = req.body;
+    // Coerce overwriteExisting to boolean (handles both boolean true and string "true")
+    const overwriteExisting = req.body.overwriteExisting === true || req.body.overwriteExisting === 'true';
 
     // Support both old single-type format and new multi-type format
     if (!year) {
