@@ -1127,7 +1127,8 @@ export default function LeaveManagementPage() {
                   setQuickAllocYear(allocationsYear);
                   const defaultValues: Record<number, number> = {};
                   leaveTypes.forEach((lt: any) => {
-                    defaultValues[lt.id] = parseFloat(lt.maxDaysPerYear) || 0;
+                    // Annual Leave (id=1) defaults to 16, all others default to 0
+                    defaultValues[lt.id] = lt.id === 1 ? 16 : 0;
                   });
                   setQuickAllocValues(defaultValues);
                   // Auto-check overwrite if records already exist for this year
@@ -2346,14 +2347,14 @@ export default function LeaveManagementPage() {
                 <Button
                   onClick={() => {
                     const allocations = Object.entries(quickAllocValues)
-                      .filter(([_, days]) => Number(days) > 0)
+                      .filter(([_, days]) => Number(days) >= 0)
                       .map(([leaveTypeId, days]) => ({
                         leaveTypeId: parseInt(leaveTypeId),
                         days: Number(days)
                       }));
                     
                     if (allocations.length === 0) {
-                      toast({ title: 'Please set at least one leave type allocation', variant: 'destructive' });
+                      toast({ title: 'Please configure leave type allocations', variant: 'destructive' });
                       return;
                     }
 
