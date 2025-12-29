@@ -1127,7 +1127,7 @@ export default function LeaveManagementPage() {
                   setQuickAllocYear(allocationsYear);
                   const defaultValues: Record<number, number> = {};
                   leaveTypes.forEach((lt: any) => {
-                    defaultValues[lt.id] = lt.maxDaysPerYear || 0;
+                    defaultValues[lt.id] = parseFloat(lt.maxDaysPerYear) || 0;
                   });
                   setQuickAllocValues(defaultValues);
                   // Auto-check overwrite if records already exist for this year
@@ -2346,10 +2346,10 @@ export default function LeaveManagementPage() {
                 <Button
                   onClick={() => {
                     const allocations = Object.entries(quickAllocValues)
-                      .filter(([_, days]) => days > 0)
+                      .filter(([_, days]) => Number(days) > 0)
                       .map(([leaveTypeId, days]) => ({
                         leaveTypeId: parseInt(leaveTypeId),
-                        days
+                        days: Number(days)
                       }));
                     
                     if (allocations.length === 0) {
