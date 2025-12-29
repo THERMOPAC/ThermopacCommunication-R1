@@ -1130,6 +1130,11 @@ export default function LeaveManagementPage() {
                     defaultValues[lt.id] = lt.maxDaysPerYear || 0;
                   });
                   setQuickAllocValues(defaultValues);
+                  // Auto-check overwrite if records already exist for this year
+                  const hasExistingRecords = allocationsData?.userAllocations?.some((ua: any) => 
+                    ua.allocations?.some((a: any) => a.allocatedDays !== null && a.allocatedDays !== undefined)
+                  );
+                  setOverwriteExisting(!!hasExistingRecords);
                   setShowQuickAllocDialog(true);
                 }}
                 data-testid="button-quick-allocations"
