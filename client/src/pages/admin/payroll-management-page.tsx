@@ -57,7 +57,12 @@ import {
   Calculator,
   Receipt,
   Users,
-  TrendingUp
+  TrendingUp,
+  FileText,
+  Loader2,
+  Calendar,
+  AlertTriangle,
+  CheckCircle
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -142,11 +147,78 @@ interface User {
   employeeCode?: string;
 }
 
+interface AutoAppliedLeave {
+  leaveTypeId: number;
+  leaveTypeName: string;
+  daysApplied: number;
+  balanceBefore: number;
+  balanceAfter: number;
+}
+
+interface SalaryCalculationResult {
+  employeeId: number;
+  employeeName: string;
+  employeeCode: string;
+  department: string;
+  designation: string;
+  salaryType: 'monthly' | 'daily';
+  month: number;
+  year: number;
+  workingDays: number;
+  actualDays: number;
+  paidDays: number;
+  presentDays: number;
+  absentDays: number;
+  leaveDays: number;
+  holidayDays: number;
+  basicSalary: number;
+  grossBasic: number;
+  houseRentAllowance: number;
+  conveyanceAllowance: number;
+  ltaAllowance: number;
+  specialAllowance: number;
+  supplementaryAllowance: number;
+  kgpAllowance: number;
+  bonus: number;
+  overtimePay: number;
+  grossEarnings: number;
+  employeePF: number;
+  employeeESIC: number;
+  professionalTax: number;
+  loanDeduction: number;
+  advanceDeduction: number;
+  otherDeductions: number;
+  leaveWithoutPayDeduction: number;
+  totalDeductions: number;
+  netPay: number;
+  employerPF: number;
+  employerESIC: number;
+  gratuity: number;
+  groupInsurance: number;
+  totalEmployerContributions: number;
+  ctcMonthly: number;
+  ctcYearly: number;
+  autoAppliedLeaves?: {
+    totalAbsentDays: number;
+    coveredByLeave: number;
+    lopDays: number;
+    breakdown: AutoAppliedLeave[];
+  };
+}
+
 export default function PayrollManagementPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<SalaryConfig | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  
+  // Salary Generation State
+  const [isSalaryGenDialogOpen, setIsSalaryGenDialogOpen] = useState(false);
+  const [selectedForSalary, setSelectedForSalary] = useState<SalaryConfig | null>(null);
+  const [salaryGenMonth, setSalaryGenMonth] = useState(new Date().getMonth() + 1);
+  const [salaryGenYear, setSalaryGenYear] = useState(new Date().getFullYear());
+  const [salaryResult, setSalaryResult] = useState<SalaryCalculationResult | null>(null);
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -195,6 +267,55 @@ export default function PayrollManagementPage() {
       });
     },
   });
+
+  // Salary calculation mutation
+  const calculateSalaryMutation = useMutation({
+    mutationFn: async (data: { userId: number; month: number; year: number; updateLeaveBalances?: boolean }) => {
+      const response = await apiRequest('POST', '/api/salary-calculation/calculate', data);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        setSalaryResult(data.data);
+        toast({
+          title: "Salary Calculated",
+          description: "Salary calculation completed with auto-leave adjustment.",
+        });
+      } else {
+        toast({
+          title: "Calculation Error",
+          description: data.message || "Failed to calculate salary.",
+          variant: "destructive",
+        });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to calculate salary. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle generate salary button click
+  const handleGenerateSalary = (config: SalaryConfig) => {
+    setSelectedForSalary(config);
+    setSalaryResult(null);
+    setIsSalaryGenDialogOpen(true);
+  };
+
+  // Handle calculate salary
+  const handleCalculateSalary = () => {
+    if (selectedForSalary) {
+      calculateSalaryMutation.mutate({
+        userId: selectedForSalary.userId,
+        month: salaryGenMonth,
+        year: salaryGenYear,
+        updateLeaveBalances: false // Preview mode - don't update balances
+      });
+    }
+  };
 
   // Form for salary configuration
   const form = useForm<SalaryFormValues>({
@@ -1483,13 +1604,27 @@ export default function PayrollManagementPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(config)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(config)}
+                            title="Edit Configuration"
+                            data-testid={`btn-edit-salary-${config.userId}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleGenerateSalary(config)}
+                            title="Generate Salary"
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                            data-testid={`btn-generate-salary-${config.userId}`}
+                          >
+                            <Calculator className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -1522,6 +1657,272 @@ export default function PayrollManagementPage() {
               </DialogDescription>
             </DialogHeader>
             <SalaryForm />
+          </DialogContent>
+        </Dialog>
+
+        {/* Generate Salary Dialog */}
+        <Dialog open={isSalaryGenDialogOpen} onOpenChange={setIsSalaryGenDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Calculator className="h-5 w-5 text-green-600" />
+                Generate Salary
+              </DialogTitle>
+              <DialogDescription>
+                Calculate salary for {selectedForSalary?.firstName} {selectedForSalary?.lastName || selectedForSalary?.username}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-6">
+              {/* Month/Year Selection */}
+              <div className="flex gap-4 items-end">
+                <div className="flex-1">
+                  <label className="text-sm font-medium">Month</label>
+                  <Select 
+                    value={String(salaryGenMonth)} 
+                    onValueChange={(v) => setSalaryGenMonth(parseInt(v))}
+                  >
+                    <SelectTrigger data-testid="select-salary-month">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 12 }, (_, i) => (
+                        <SelectItem key={i + 1} value={String(i + 1)}>
+                          {new Date(2024, i, 1).toLocaleString('default', { month: 'long' })}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1">
+                  <label className="text-sm font-medium">Year</label>
+                  <Select 
+                    value={String(salaryGenYear)} 
+                    onValueChange={(v) => setSalaryGenYear(parseInt(v))}
+                  >
+                    <SelectTrigger data-testid="select-salary-year">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[2023, 2024, 2025, 2026].map((year) => (
+                        <SelectItem key={year} value={String(year)}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button 
+                  onClick={handleCalculateSalary}
+                  disabled={calculateSalaryMutation.isPending}
+                  className="bg-green-600 hover:bg-green-700"
+                  data-testid="btn-calculate-salary"
+                >
+                  {calculateSalaryMutation.isPending ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Calculating...</>
+                  ) : (
+                    <><Calculator className="h-4 w-4 mr-2" /> Calculate</>
+                  )}
+                </Button>
+              </div>
+
+              {/* Salary Calculation Result */}
+              {salaryResult && (
+                <div className="space-y-4">
+                  {/* Auto-Applied Leaves Section */}
+                  {salaryResult.autoAppliedLeaves && salaryResult.autoAppliedLeaves.totalAbsentDays > 0 && (
+                    <Card className="border-2 border-orange-200 bg-orange-50">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-orange-600" />
+                          Auto-Applied Leave Adjustment
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <div className="p-3 bg-white rounded border">
+                            <div className="text-muted-foreground">Absent Days</div>
+                            <div className="text-xl font-bold text-red-600">
+                              {salaryResult.autoAppliedLeaves.totalAbsentDays}
+                            </div>
+                          </div>
+                          <div className="p-3 bg-white rounded border">
+                            <div className="text-muted-foreground">Covered by Leave</div>
+                            <div className="text-xl font-bold text-green-600">
+                              {salaryResult.autoAppliedLeaves.coveredByLeave}
+                            </div>
+                          </div>
+                          <div className="p-3 bg-white rounded border">
+                            <div className="text-muted-foreground">LOP Days</div>
+                            <div className="text-xl font-bold text-orange-600">
+                              {salaryResult.autoAppliedLeaves.lopDays}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {salaryResult.autoAppliedLeaves.breakdown.length > 0 && (
+                          <div>
+                            <div className="text-sm font-medium mb-2">Leave Breakdown:</div>
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Leave Type</TableHead>
+                                  <TableHead className="text-right">Days Applied</TableHead>
+                                  <TableHead className="text-right">Balance Before</TableHead>
+                                  <TableHead className="text-right">Balance After</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {salaryResult.autoAppliedLeaves.breakdown.map((leave, idx) => (
+                                  <TableRow key={idx}>
+                                    <TableCell className="font-medium">{leave.leaveTypeName}</TableCell>
+                                    <TableCell className="text-right text-green-600">
+                                      {leave.daysApplied}
+                                    </TableCell>
+                                    <TableCell className="text-right">{leave.balanceBefore}</TableCell>
+                                    <TableCell className="text-right">{leave.balanceAfter}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
+                        
+                        {salaryResult.autoAppliedLeaves.lopDays > 0 && (
+                          <div className="flex items-center gap-2 p-2 bg-orange-100 rounded text-sm">
+                            <AlertTriangle className="h-4 w-4 text-orange-600" />
+                            <span className="text-orange-800">
+                              {salaryResult.autoAppliedLeaves.lopDays} day(s) will be deducted as Loss of Pay (no leave balance available)
+                            </span>
+                          </div>
+                        )}
+                        
+                        {salaryResult.autoAppliedLeaves.coveredByLeave > 0 && salaryResult.autoAppliedLeaves.lopDays === 0 && (
+                          <div className="flex items-center gap-2 p-2 bg-green-100 rounded text-sm">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <span className="text-green-800">
+                              All absent days covered by available leave balance
+                            </span>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Attendance Summary */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">Attendance Summary</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-4 gap-3 text-sm">
+                        <div className="p-3 bg-slate-50 rounded">
+                          <div className="text-muted-foreground">Working Days</div>
+                          <div className="text-lg font-bold">{salaryResult.workingDays}</div>
+                        </div>
+                        <div className="p-3 bg-green-50 rounded">
+                          <div className="text-muted-foreground">Present Days</div>
+                          <div className="text-lg font-bold text-green-600">{salaryResult.presentDays}</div>
+                        </div>
+                        <div className="p-3 bg-blue-50 rounded">
+                          <div className="text-muted-foreground">Leave Days</div>
+                          <div className="text-lg font-bold text-blue-600">{salaryResult.leaveDays}</div>
+                        </div>
+                        <div className="p-3 bg-purple-50 rounded">
+                          <div className="text-muted-foreground">Paid Days</div>
+                          <div className="text-lg font-bold text-purple-600">{salaryResult.paidDays}</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Earnings & Deductions */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base text-green-600">Earnings</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span>Gross Basic</span>
+                          <span className="font-medium">₹{salaryResult.grossBasic.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>HRA</span>
+                          <span>₹{salaryResult.houseRentAllowance.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Conveyance</span>
+                          <span>₹{salaryResult.conveyanceAllowance.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>LTA</span>
+                          <span>₹{salaryResult.ltaAllowance.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Special Allowance</span>
+                          <span>₹{salaryResult.specialAllowance.toLocaleString()}</span>
+                        </div>
+                        <div className="border-t pt-2 flex justify-between font-bold">
+                          <span>Gross Earnings</span>
+                          <span className="text-green-600">₹{salaryResult.grossEarnings.toLocaleString()}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base text-red-600">Deductions</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span>PF (Employee)</span>
+                          <span>₹{salaryResult.employeePF.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>ESIC</span>
+                          <span>₹{salaryResult.employeeESIC.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Professional Tax</span>
+                          <span>₹{salaryResult.professionalTax.toLocaleString()}</span>
+                        </div>
+                        {salaryResult.leaveWithoutPayDeduction > 0 && (
+                          <div className="flex justify-between text-orange-600">
+                            <span>LOP Deduction</span>
+                            <span>₹{salaryResult.leaveWithoutPayDeduction.toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div className="border-t pt-2 flex justify-between font-bold">
+                          <span>Total Deductions</span>
+                          <span className="text-red-600">₹{salaryResult.totalDeductions.toLocaleString()}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Net Pay */}
+                  <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200">
+                    <CardContent className="pt-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="text-sm text-muted-foreground">Net Pay</div>
+                          <div className="text-3xl font-bold text-green-700">
+                            ₹{salaryResult.netPay.toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm text-muted-foreground">CTC Monthly</div>
+                          <div className="text-lg font-medium">
+                            ₹{salaryResult.ctcMonthly.toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
       </div>
