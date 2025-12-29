@@ -964,8 +964,9 @@ export default function PayrollManagementNew() {
                               size="sm"
                               onClick={() => handleGenerateSalary(config)}
                               title="Generate Salary"
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
                             >
-                              <Calculator className="h-4 w-4" />
+                              <Calculator className="h-4 w-4 text-green-600" />
                             </Button>
                             <Button
                               variant="outline"
