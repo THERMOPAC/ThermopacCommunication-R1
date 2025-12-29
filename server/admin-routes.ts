@@ -923,7 +923,8 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
         userName: users.username,
         firstName: users.firstName,
         lastName: users.lastName,
-        department: users.department
+        department: users.department,
+        weeklyOffDays: users.weeklyOffDays
       })
       .from(attendanceRecords)
       .innerJoin(users, eq(attendanceRecords.userId, users.id))
@@ -968,7 +969,15 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
       const dbStatus = record.status;
       let displayStatus: string;
       
-      if (dbStatus === 'absent') {
+      // Check if this date is a weekly off day for this employee
+      const recordDate = new Date(record.date);
+      const dayOfWeek = recordDate.getDay(); // 0 = Sunday, 6 = Saturday
+      const weeklyOffDays = Array.isArray(record.weeklyOffDays) ? record.weeklyOffDays : [0, 6];
+      const isWeeklyOff = weeklyOffDays.includes(dayOfWeek);
+      
+      if (isWeeklyOff) {
+        displayStatus = 'Weekly Off';
+      } else if (dbStatus === 'absent') {
         displayStatus = 'Absent';
       } else if (dbStatus === 'late') {
         displayStatus = 'Late';
@@ -989,7 +998,8 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
         timeOut: record.checkOutTime,
         workHours,
         status: displayStatus,
-        location: 'Office'
+        location: 'Office',
+        weeklyOffDays
       };
     }) : [];
 
