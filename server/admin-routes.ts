@@ -1003,7 +1003,69 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
       };
     }) : [];
 
-    res.json(transformedRecords);
+    // When filtering by a specific employee, add synthetic "Weekly Off" records for days 
+    // that are weekly off but don't have attendance records
+    let allRecords = transformedRecords;
+    
+    if (employee !== 'all') {
+      const employeeId = parseInt(employee as string);
+      if (!isNaN(employeeId)) {
+        // Get the employee's weekly off days
+        const [employeeData] = await db
+          .select({
+            id: users.id,
+            username: users.username,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            department: users.department,
+            weeklyOffDays: users.weeklyOffDays
+          })
+          .from(users)
+          .where(eq(users.id, employeeId));
+        
+        if (employeeData) {
+          const empWeeklyOffDays = Array.isArray(employeeData.weeklyOffDays) 
+            ? employeeData.weeklyOffDays 
+            : [0, 6];
+          
+          // Get all dates in the range that are weekly off days
+          const existingDates = new Set(transformedRecords.map((r: any) => r.date));
+          const syntheticRecords: any[] = [];
+          
+          // Iterate through all dates in the range
+          const currentDate = new Date(startDate);
+          while (currentDate <= endDate) {
+            const dateStr = currentDate.toISOString().split('T')[0];
+            const dayOfWeek = currentDate.getDay();
+            
+            // If this day is a weekly off day and no record exists for it
+            if (empWeeklyOffDays.includes(dayOfWeek) && !existingDates.has(dateStr)) {
+              syntheticRecords.push({
+                id: -1, // Synthetic record indicator
+                userId: employeeData.id,
+                userName: employeeData.firstName || employeeData.username || 'Unknown',
+                department: employeeData.department || 'N/A',
+                date: dateStr,
+                timeIn: null,
+                timeOut: null,
+                workHours: null,
+                status: 'Weekly Off',
+                location: 'N/A',
+                weeklyOffDays: empWeeklyOffDays
+              });
+            }
+            
+            currentDate.setDate(currentDate.getDate() + 1);
+          }
+          
+          // Merge and sort all records by date (descending)
+          allRecords = [...transformedRecords, ...syntheticRecords]
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        }
+      }
+    }
+
+    res.json(allRecords);
   } catch (error) {
     console.error('Error fetching attendance records:', error);
     res.status(500).json({ error: 'Failed to fetch attendance records' });
