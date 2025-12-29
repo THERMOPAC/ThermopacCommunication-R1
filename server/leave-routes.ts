@@ -3,6 +3,7 @@ import { ensureAuthenticated } from "./auth-middleware";
 import { db } from "./db";
 import { leaveTypes, leaveBalances, leaveRequests, companyHolidays, users } from "@shared/schema";
 import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
+import { checkModulePermission } from "./utils/permission-utils";
 
 const router = Router();
 
@@ -445,8 +446,14 @@ router.post('/request/:id/reject', ensureAuthenticated, async (req: Request, res
 // Admin endpoint: Get all users' leave allocations by year
 router.get('/admin/allocations', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    const userId = (req.user as any).id;
     const userRole = (req.user as any).role;
-    if (!['admin', 'manager', 'hr', 'Superuser', 'General Manager', 'Senior Manager'].includes(userRole)) {
+    
+    // Check if user has Administration module permission or is in allowed roles
+    const hasAdminPermission = await checkModulePermission(userId, 'Administration', 'view');
+    const isAllowedRole = ['admin', 'manager', 'hr', 'Superuser', 'General Manager', 'Senior Manager'].includes(userRole);
+    
+    if (!hasAdminPermission && !isAllowedRole) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
@@ -610,8 +617,14 @@ router.get('/admin/allocations', ensureAuthenticated, async (req: Request, res: 
 // Admin endpoint: Update or create leave allocation for a user
 router.post('/admin/allocations', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    const currentUserId = (req.user as any).id;
     const userRole = (req.user as any).role;
-    if (!['admin', 'hr', 'Superuser', 'General Manager'].includes(userRole)) {
+    
+    // Check if user has Administration module permission or is in allowed roles
+    const hasAdminPermission = await checkModulePermission(currentUserId, 'Administration', 'edit');
+    const isAllowedRole = ['admin', 'hr', 'Superuser', 'General Manager'].includes(userRole);
+    
+    if (!hasAdminPermission && !isAllowedRole) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
@@ -667,8 +680,14 @@ router.post('/admin/allocations', ensureAuthenticated, async (req: Request, res:
 // Admin endpoint: Bulk allocate leave for a year
 router.post('/admin/allocations/bulk', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    const currentUserId = (req.user as any).id;
     const userRole = (req.user as any).role;
-    if (!['admin', 'hr', 'Superuser', 'General Manager'].includes(userRole)) {
+    
+    // Check if user has Administration module permission or is in allowed roles
+    const hasAdminPermission = await checkModulePermission(currentUserId, 'Administration', 'edit');
+    const isAllowedRole = ['admin', 'hr', 'Superuser', 'General Manager'].includes(userRole);
+    
+    if (!hasAdminPermission && !isAllowedRole) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
@@ -726,8 +745,14 @@ router.post('/admin/allocations/bulk', ensureAuthenticated, async (req: Request,
 // Admin endpoint: Update user weekly off days
 router.patch('/admin/users/:userId/weekly-off', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    const currentUserId = (req.user as any).id;
     const userRole = (req.user as any).role;
-    if (!['admin', 'hr', 'Superuser', 'General Manager'].includes(userRole)) {
+    
+    // Check if user has Administration module permission or is in allowed roles
+    const hasAdminPermission = await checkModulePermission(currentUserId, 'Administration', 'edit');
+    const isAllowedRole = ['admin', 'hr', 'Superuser', 'General Manager'].includes(userRole);
+    
+    if (!hasAdminPermission && !isAllowedRole) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
