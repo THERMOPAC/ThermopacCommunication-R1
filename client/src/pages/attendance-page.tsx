@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -21,7 +22,8 @@ import {
   LogIn,
   LogOut,
   Wifi,
-  WifiOff
+  WifiOff,
+  ClipboardList
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -46,6 +48,21 @@ interface DailyQuote {
   source: string;
 }
 
+interface AttendanceRecord {
+  id: number;
+  date: string;
+  checkInTime: string | null;
+  checkOutTime: string | null;
+  workingHours: number | null;
+  overtimeHours: number | null;
+  status: string;
+  isLocationVerified: boolean;
+  isIpVerified: boolean;
+  employeeNotes: string | null;
+  adminNotes: string | null;
+  workLocation: { id: number; name: string; city: string } | null;
+}
+
 export default function AttendancePage() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -53,6 +70,11 @@ export default function AttendancePage() {
   const [currentLocation, setCurrentLocation] = useState<{latitude: number, longitude: number} | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null);
+  
+  // State for attendance records filtering
+  const currentDate = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
 
   // Function to get greeting based on current time
   const getGreeting = () => {
@@ -94,6 +116,24 @@ export default function AttendancePage() {
   const { data: recentRecords = [] } = useQuery({
     queryKey: ["/api/attendance/my-records"],
     queryParams: { limit: 5 }
+  });
+
+  // Calculate date range for filtered records
+  const dateRange = useMemo(() => {
+    const startDate = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-01`;
+    const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
+    const endDate = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+    return { startDate, endDate };
+  }, [selectedMonth, selectedYear]);
+
+  // Get attendance records for selected month
+  const { data: attendanceRecords = [], isLoading: recordsLoading } = useQuery<AttendanceRecord[]>({
+    queryKey: ["/api/attendance/my-records", selectedMonth, selectedYear],
+    queryFn: async () => {
+      const res = await fetch(`/api/attendance/my-records?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&limit=100`);
+      if (!res.ok) throw new Error('Failed to fetch records');
+      return res.json();
+    }
   });
 
   // Check-in mutation
@@ -233,6 +273,49 @@ export default function AttendancePage() {
   const todayRecord = attendanceStatus?.record;
   const canCheckIn = attendanceStatus?.canCheckIn;
   const canCheckOut = attendanceStatus?.canCheckOut;
+
+  // Helper function to format time
+  const formatTime = (timeString: string | null) => {
+    if (!timeString) return '-';
+    try {
+      return format(new Date(timeString), 'hh:mm a');
+    } catch {
+      return timeString;
+    }
+  };
+
+  // Helper function to get status badge
+  const getStatusBadge = (status: string) => {
+    const statusLower = status?.toLowerCase() || '';
+    switch (statusLower) {
+      case 'present':
+        return <Badge className="bg-green-100 text-green-800">Present</Badge>;
+      case 'late':
+        return <Badge className="bg-yellow-100 text-yellow-800">Late</Badge>;
+      case 'absent':
+        return <Badge className="bg-red-100 text-red-800">Absent</Badge>;
+      case 'half day':
+        return <Badge className="bg-orange-100 text-orange-800">Half Day</Badge>;
+      case 'weekly off':
+        return <Badge className="bg-blue-100 text-blue-800">Weekly Off</Badge>;
+      case 'holiday':
+        return <Badge className="bg-purple-100 text-purple-800">Holiday</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  // Generate year options
+  const yearOptions = [];
+  for (let y = currentDate.getFullYear(); y >= currentDate.getFullYear() - 2; y--) {
+    yearOptions.push(y);
+  }
+
+  // Month names
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
 
   return (
     <div className="space-y-6">
@@ -425,51 +508,104 @@ export default function AttendancePage() {
         </Card>
       )}
 
-      {/* Recent Records */}
-      {recentRecords.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Recent Attendance
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {recentRecords.map((record: any) => (
-                <div key={record.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="text-sm font-medium">
-                      {format(new Date(record.date), "MMM dd, yyyy")}
-                    </div>
-                    <Badge variant={
-                      record.status === 'present' ? 'default' :
-                      record.status === 'late' ? 'secondary' :
-                      record.status === 'absent' ? 'destructive' : 'outline'
-                    }>
-                      {record.status}
-                    </Badge>
-                  </div>
-                  <div className="text-right text-sm">
-                    {record.checkInTime && record.checkOutTime ? (
-                      <div>
-                        <div>{format(new Date(record.checkInTime), "HH:mm")} - {format(new Date(record.checkOutTime), "HH:mm")}</div>
-                        {record.workingHours && (
-                          <div className="text-muted-foreground">{record.workingHours}h worked</div>
-                        )}
-                      </div>
-                    ) : record.checkInTime ? (
-                      <div className="text-yellow-600">In progress</div>
-                    ) : (
-                      <div className="text-muted-foreground">No records</div>
-                    )}
-                  </div>
-                </div>
-              ))}
+      {/* Attendance Records Table */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardList className="h-5 w-5" />
+                Attendance Records
+              </CardTitle>
+              <CardDescription>
+                Your detailed attendance history
+              </CardDescription>
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <div className="flex gap-2">
+              <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
+                <SelectTrigger className="w-[140px]" data-testid="select-month">
+                  <SelectValue placeholder="Select month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {monthNames.map((month, index) => (
+                    <SelectItem key={index + 1} value={(index + 1).toString()}>
+                      {month}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
+                <SelectTrigger className="w-[100px]" data-testid="select-year">
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {yearOptions.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-3 font-medium">Date</th>
+                  <th className="text-left p-3 font-medium">Time In</th>
+                  <th className="text-left p-3 font-medium">Time Out</th>
+                  <th className="text-left p-3 font-medium">Work Hours</th>
+                  <th className="text-left p-3 font-medium">Status</th>
+                  <th className="text-left p-3 font-medium">Location</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recordsLoading ? (
+                  <tr>
+                    <td colSpan={6} className="text-center p-8 text-gray-500">
+                      <div className="flex justify-center items-center">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                        <span className="ml-2">Loading records...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : attendanceRecords.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center p-8 text-gray-500">
+                      No attendance records found for {monthNames[selectedMonth - 1]} {selectedYear}
+                    </td>
+                  </tr>
+                ) : (
+                  attendanceRecords.map((record) => (
+                    <tr key={`${record.date}-${record.id}`} className="border-b hover:bg-gray-50">
+                      <td className="p-3">
+                        {format(new Date(record.date), 'EEE, MMM dd, yyyy')}
+                      </td>
+                      <td className="p-3">{formatTime(record.checkInTime)}</td>
+                      <td className="p-3">{formatTime(record.checkOutTime)}</td>
+                      <td className="p-3">
+                        {record.workingHours ? `${Number(record.workingHours).toFixed(1)}h` : '-'}
+                        {record.overtimeHours && Number(record.overtimeHours) > 0 && (
+                          <span className="text-purple-600 text-xs ml-1">
+                            (+{Number(record.overtimeHours).toFixed(1)}h OT)
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3">{getStatusBadge(record.status)}</td>
+                      <td className="p-3 text-gray-600">
+                        {record.workLocation ? `${record.workLocation.name}` : '-'}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
