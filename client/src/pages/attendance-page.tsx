@@ -23,9 +23,11 @@ import {
   LogOut,
   Wifi,
   WifiOff,
-  ClipboardList
+  ClipboardList,
+  Filter,
+  User
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subWeeks, subMonths } from "date-fns";
 
 interface AttendanceStatus {
   hasRecord: boolean;
@@ -72,9 +74,7 @@ export default function AttendancePage() {
   const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null);
   
   // State for attendance records filtering
-  const currentDate = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
+  const [selectedDateRange, setSelectedDateRange] = useState('thisMonth');
 
   // Function to get greeting based on current time
   const getGreeting = () => {
@@ -112,29 +112,76 @@ export default function AttendancePage() {
     queryKey: ["/api/attendance/my-summary"],
   });
 
-  // Get recent attendance records
-  const { data: recentRecords = [] } = useQuery({
-    queryKey: ["/api/attendance/my-records"],
-    queryParams: { limit: 5 }
-  });
-
-  // Calculate date range for filtered records
+  // Calculate date range based on selected filter
   const dateRange = useMemo(() => {
-    const startDate = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-01`;
-    const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
-    const endDate = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
-    return { startDate, endDate };
-  }, [selectedMonth, selectedYear]);
+    const today = new Date();
+    let startDate: Date;
+    let endDate: Date = today;
 
-  // Get attendance records for selected month
+    switch (selectedDateRange) {
+      case 'today':
+        startDate = today;
+        break;
+      case 'yesterday':
+        startDate = subDays(today, 1);
+        endDate = subDays(today, 1);
+        break;
+      case 'thisWeek':
+        startDate = startOfWeek(today, { weekStartsOn: 1 });
+        endDate = endOfWeek(today, { weekStartsOn: 1 });
+        break;
+      case 'lastWeek':
+        const lastWeekStart = subWeeks(today, 1);
+        startDate = startOfWeek(lastWeekStart, { weekStartsOn: 1 });
+        endDate = endOfWeek(lastWeekStart, { weekStartsOn: 1 });
+        break;
+      case 'thisMonth':
+        startDate = startOfMonth(today);
+        endDate = endOfMonth(today);
+        break;
+      case 'lastMonth':
+        const lastMonth = subMonths(today, 1);
+        startDate = startOfMonth(lastMonth);
+        endDate = endOfMonth(lastMonth);
+        break;
+      default:
+        startDate = startOfMonth(today);
+        endDate = endOfMonth(today);
+    }
+
+    return {
+      startDate: format(startDate, 'yyyy-MM-dd'),
+      endDate: format(endDate, 'yyyy-MM-dd')
+    };
+  }, [selectedDateRange]);
+
+  // Get attendance records for selected date range
   const { data: attendanceRecords = [], isLoading: recordsLoading } = useQuery<AttendanceRecord[]>({
-    queryKey: ["/api/attendance/my-records", selectedMonth, selectedYear],
+    queryKey: ["/api/attendance/my-records", selectedDateRange],
     queryFn: async () => {
       const res = await fetch(`/api/attendance/my-records?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&limit=100`);
       if (!res.ok) throw new Error('Failed to fetch records');
       return res.json();
     }
   });
+
+  // Calculate stats from attendance records
+  const attendanceStats = useMemo(() => {
+    const presentCount = attendanceRecords.filter(r => r.status?.toLowerCase() === 'present').length;
+    const absentCount = attendanceRecords.filter(r => r.status?.toLowerCase() === 'absent').length;
+    const lateCount = attendanceRecords.filter(r => r.status?.toLowerCase() === 'late').length;
+    const halfDayCount = attendanceRecords.filter(r => r.status?.toLowerCase() === 'half day').length;
+    const totalHours = attendanceRecords.reduce((sum, r) => sum + (Number(r.workingHours) || 0), 0);
+    
+    return {
+      totalDays: attendanceRecords.length,
+      presentDays: presentCount,
+      absentDays: absentCount,
+      lateDays: lateCount,
+      halfDays: halfDayCount,
+      totalHours: totalHours.toFixed(1)
+    };
+  }, [attendanceRecords]);
 
   // Check-in mutation
   const checkInMutation = useMutation({
@@ -305,17 +352,18 @@ export default function AttendancePage() {
     }
   };
 
-  // Generate year options
-  const yearOptions = [];
-  for (let y = currentDate.getFullYear(); y >= currentDate.getFullYear() - 2; y--) {
-    yearOptions.push(y);
-  }
-
-  // Month names
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
+  // Get date range label for display
+  const getDateRangeLabel = () => {
+    switch (selectedDateRange) {
+      case 'today': return 'Today';
+      case 'yesterday': return 'Yesterday';
+      case 'thisWeek': return 'This Week';
+      case 'lastWeek': return 'Last Week';
+      case 'thisMonth': return 'This Month';
+      case 'lastMonth': return 'Last Month';
+      default: return 'This Month';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -476,78 +524,95 @@ export default function AttendancePage() {
         </CardContent>
       </Card>
 
-      {/* Monthly Summary */}
-      {summary && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              This Month Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{summary.presentDays}</div>
-                <div className="text-sm text-muted-foreground">Present Days</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">{summary.absentDays}</div>
-                <div className="text-sm text-muted-foreground">Absent Days</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{summary.totalWorkingHours.toFixed(1)}h</div>
-                <div className="text-sm text-muted-foreground">Total Hours</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">{summary.totalOvertimeHours.toFixed(1)}h</div>
-                <div className="text-sm text-muted-foreground">Overtime</div>
-              </div>
+      {/* Summary Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="pt-4">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-blue-600">{attendanceStats.totalDays}</div>
+              <div className="text-sm text-blue-700">Total Days</div>
+              <div className="text-xs text-gray-500 mt-1">{getDateRangeLabel()}</div>
             </div>
           </CardContent>
         </Card>
-      )}
+        <Card className="bg-green-50 border-green-200">
+          <CardContent className="pt-4">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-green-600">{attendanceStats.presentDays}</div>
+              <div className="text-sm text-green-700">Present</div>
+              <div className="text-xs text-gray-500 mt-1">Days present</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-red-50 border-red-200">
+          <CardContent className="pt-4">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-red-600">{attendanceStats.absentDays}</div>
+              <div className="text-sm text-red-700">Absent</div>
+              <div className="text-xs text-gray-500 mt-1">Days absent</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-yellow-50 border-yellow-200">
+          <CardContent className="pt-4">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-yellow-600">{attendanceStats.lateDays}</div>
+              <div className="text-sm text-yellow-700">Late</div>
+              <div className="text-xs text-gray-500 mt-1">Days late</div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters & Search */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filters & Search
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Date Range</label>
+              <Select value={selectedDateRange} onValueChange={setSelectedDateRange}>
+                <SelectTrigger data-testid="select-date-range">
+                  <SelectValue placeholder="Select date range" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="yesterday">Yesterday</SelectItem>
+                  <SelectItem value="thisWeek">This Week</SelectItem>
+                  <SelectItem value="lastWeek">Last Week</SelectItem>
+                  <SelectItem value="thisMonth">This Month</SelectItem>
+                  <SelectItem value="lastMonth">Last Month</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button
+                variant="outline"
+                onClick={() => setSelectedDateRange('thisMonth')}
+                className="w-full"
+              >
+                Clear Filters
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Attendance Records Table */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <ClipboardList className="h-5 w-5" />
-                Attendance Records
-              </CardTitle>
-              <CardDescription>
-                Your detailed attendance history
-              </CardDescription>
-            </div>
-            <div className="flex gap-2">
-              <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
-                <SelectTrigger className="w-[140px]" data-testid="select-month">
-                  <SelectValue placeholder="Select month" />
-                </SelectTrigger>
-                <SelectContent>
-                  {monthNames.map((month, index) => (
-                    <SelectItem key={index + 1} value={(index + 1).toString()}>
-                      {month}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
-                <SelectTrigger className="w-[100px]" data-testid="select-year">
-                  <SelectValue placeholder="Year" />
-                </SelectTrigger>
-                <SelectContent>
-                  {yearOptions.map((year) => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Attendance Records
+          </CardTitle>
+          <CardDescription>
+            Detailed attendance records for {getDateRangeLabel().toLowerCase()}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -575,7 +640,7 @@ export default function AttendancePage() {
                 ) : attendanceRecords.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="text-center p-8 text-gray-500">
-                      No attendance records found for {monthNames[selectedMonth - 1]} {selectedYear}
+                      No attendance records found for {getDateRangeLabel().toLowerCase()}
                     </td>
                   </tr>
                 ) : (
