@@ -434,6 +434,7 @@ export class SalaryCalculationEngine {
   /**
    * Get available leave balances in priority order for auto-deduction
    * Priority: Annual Leave → Casual Leave → Sick Leave → Other Paid Leaves
+   * Uses leave type CODE for deterministic ordering (not name matching)
    */
   private async getAvailableLeaveBalances(userId: number, year: number) {
     const balances = await db
@@ -461,14 +462,28 @@ export class SalaryCalculationEngine {
       availableDays: Math.max(0, parseFloat(b.allocatedDays || '0') - parseFloat(b.usedDays || '0') - parseFloat(b.pendingDays || '0'))
     })).filter(b => b.availableDays > 0);
     
-    // Sort by priority: Annual Leave first, then others
-    const priorityOrder = ['annual', 'casual', 'sick', 'earned', 'emergency'];
+    // Priority map using leave type CODE (deterministic, not name-based)
+    // Lower number = higher priority
+    const priorityByCode: Record<string, number> = {
+      'AL': 1,      // Annual Leave
+      'ANNUAL': 1,  // Annual Leave (alternate code)
+      'CL': 2,      // Casual Leave
+      'CASUAL': 2,  // Casual Leave (alternate code)
+      'SL': 3,      // Sick Leave  
+      'SICK': 3,    // Sick Leave (alternate code)
+      'EL': 4,      // Earned Leave
+      'EARNED': 4,  // Earned Leave (alternate code)
+      'EMR': 5,     // Emergency Leave
+      'EMERGENCY': 5, // Emergency Leave (alternate code)
+    };
+    
+    // Sort by priority using CODE
     availableBalances.sort((a, b) => {
-      const aIndex = priorityOrder.findIndex(p => a.leaveTypeName.toLowerCase().includes(p));
-      const bIndex = priorityOrder.findIndex(p => b.leaveTypeName.toLowerCase().includes(p));
-      const aPriority = aIndex === -1 ? 999 : aIndex;
-      const bPriority = bIndex === -1 ? 999 : bIndex;
-      return aPriority - bPriority;
+      const codeA = (a.leaveTypeCode || '').toUpperCase();
+      const codeB = (b.leaveTypeCode || '').toUpperCase();
+      const priorityA = priorityByCode[codeA] ?? 999;
+      const priorityB = priorityByCode[codeB] ?? 999;
+      return priorityA - priorityB;
     });
     
     return availableBalances;
@@ -483,15 +498,19 @@ export class SalaryCalculationEngine {
     month: number, 
     year: number, 
     workweekPolicy: any,
-    attendanceRecords: any[],
+    attendanceRecordsList: any[],
     approvedLeaves: any[]
   ): Promise<string[]> {
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0);
     
-    // Get company holidays
+    // Get company holidays - use 'date' column from schema
     const holidays = await db
-      .select()
+      .select({
+        id: companyHolidays.id,
+        name: companyHolidays.name,
+        date: companyHolidays.date,
+      })
       .from(companyHolidays)
       .where(
         between(companyHolidays.date, startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0])
@@ -502,7 +521,7 @@ export class SalaryCalculationEngine {
     
     // Get dates with attendance (check-in)
     const presentDates = new Set(
-      attendanceRecords
+      attendanceRecordsList
         .filter(r => r.checkInTime)
         .map(r => r.date)
     );
@@ -519,8 +538,16 @@ export class SalaryCalculationEngine {
       }
     });
     
-    // Holiday dates
-    const holidayDates = new Set(holidays.map(h => h.date));
+    // Holiday dates - explicitly use the 'date' field from query result
+    const holidayDates = new Set<string>();
+    holidays.forEach(h => {
+      // The date column returns string in 'YYYY-MM-DD' format
+      if (h.date) {
+        holidayDates.add(String(h.date));
+      }
+    });
+    
+    console.log(`🗓️ Holidays in ${month}/${year}: ${holidayDates.size} days`);
     
     // Find absent days
     for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
@@ -592,10 +619,12 @@ export class SalaryCalculationEngine {
         // Update leave balance in database
         if (updateBalances) {
           const currentUsed = parseFloat(balance.usedDays || '0');
+          const newUsedDays = currentUsed + daysToApply;
+          // Use string representation for decimal column (Drizzle expects string for decimal type)
           await db
             .update(leaveBalances)
             .set({
-              usedDays: (currentUsed + daysToApply).toFixed(2),
+              usedDays: String(Math.round(newUsedDays * 100) / 100), // Round to 2 decimals, convert to string for decimal column
               lastUpdated: new Date()
             })
             .where(eq(leaveBalances.id, balance.id));
