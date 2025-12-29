@@ -113,7 +113,7 @@ export class SalaryCalculationEngine {
   /**
    * Calculate comprehensive salary for an employee for a given month
    */
-  async calculateSalary(input: SalaryCalculationInput): Promise<SalaryCalculationResult> {
+  async calculateSalary(input: SalaryCalculationInput & { updateLeaveBalances?: boolean }): Promise<SalaryCalculationResult> {
     console.log(`🔢 Starting salary calculation for user ${input.userId} for ${input.month}/${input.year}`);
     
     // Get employee details
@@ -137,11 +137,48 @@ export class SalaryCalculationEngine {
     // Get attendance data
     const attendanceData = await this.getAttendanceData(input.userId, input.month, input.year);
     
-    // Get leave data
+    // Get leave data (approved leave requests)
     const leaveData = await this.getLeaveData(input.userId, input.month, input.year);
     
-    // Calculate leave balance
+    // Identify absent days (working days without check-in or approved leave)
+    const absentDates = await this.identifyAbsentDays(
+      input.userId,
+      input.month,
+      input.year,
+      workweekPolicy,
+      attendanceData.records,
+      leaveData.leaves
+    );
+    
+    console.log(`📊 User ${input.userId}: ${absentDates.length} absent days identified for ${input.month}/${input.year}`);
+    
+    // Auto-apply leave for absent days (priority: Annual Leave → others)
+    // Only update balances if explicitly requested (during finalization)
+    const updateBalances = input.updateLeaveBalances ?? false;
+    const autoAppliedLeaves = await this.autoApplyLeaveForAbsentDays(
+      input.userId,
+      input.year,
+      absentDates.length,
+      updateBalances
+    );
+    
+    if (autoAppliedLeaves.coveredByLeave > 0) {
+      console.log(`📅 Auto-applied ${autoAppliedLeaves.coveredByLeave} days of leave for absent days`);
+    }
+    if (autoAppliedLeaves.lopDays > 0) {
+      console.log(`⚠️ ${autoAppliedLeaves.lopDays} LOP days (no leave balance available)`);
+    }
+    
+    // Calculate leave balance (after potential auto-deductions)
     const leaveBalance = await this.calculateLeaveBalance(input.userId, input.year);
+    
+    // Update leaveData with auto-applied leaves
+    const enhancedLeaveData = {
+      ...leaveData,
+      paidLeaveDays: leaveData.paidLeaveDays + autoAppliedLeaves.coveredByLeave,
+      unpaidLeaveDays: autoAppliedLeaves.lopDays,
+      autoAppliedLeaves
+    };
     
     // Perform salary calculations
     const result = await this.performSalaryCalculations({
@@ -150,10 +187,13 @@ export class SalaryCalculationEngine {
       workweekPolicy,
       workingDays,
       attendanceData,
-      leaveData,
+      leaveData: enhancedLeaveData,
       leaveBalance,
       input
     });
+    
+    // Add auto-applied leaves to result
+    result.autoAppliedLeaves = autoAppliedLeaves;
     
     console.log(`✅ Salary calculation completed for ${employee.username}`);
     return result;
@@ -358,17 +398,222 @@ export class SalaryCalculationEngine {
   }
   
   /**
-   * Calculate leave balance
+   * Calculate leave balance from database
    */
   private async calculateLeaveBalance(userId: number, year: number) {
-    // This would typically be based on leave policy and used leaves
-    // For now, returning default values
+    const balances = await db
+      .select({
+        leaveTypeId: leaveBalances.leaveTypeId,
+        leaveTypeName: leaveTypes.name,
+        allocatedDays: leaveBalances.allocatedDays,
+        usedDays: leaveBalances.usedDays,
+        pendingDays: leaveBalances.pendingDays,
+      })
+      .from(leaveBalances)
+      .innerJoin(leaveTypes, eq(leaveBalances.leaveTypeId, leaveTypes.id))
+      .where(and(
+        eq(leaveBalances.userId, userId),
+        eq(leaveBalances.year, year)
+      ));
+    
+    const getBalance = (typeName: string) => {
+      const balance = balances.find(b => b.leaveTypeName.toLowerCase().includes(typeName.toLowerCase()));
+      if (!balance) return 0;
+      return Math.max(0, parseFloat(balance.allocatedDays || '0') - parseFloat(balance.usedDays || '0'));
+    };
+    
     return {
-      casualLeave: 12,
-      sickLeave: 12,
-      earnedLeave: 21,
-      maternityLeave: 180,
-      paternityLeave: 15
+      casualLeave: getBalance('casual'),
+      sickLeave: getBalance('sick'),
+      earnedLeave: getBalance('annual'),
+      maternityLeave: getBalance('maternity'),
+      paternityLeave: getBalance('paternity')
+    };
+  }
+  
+  /**
+   * Get available leave balances in priority order for auto-deduction
+   * Priority: Annual Leave → Casual Leave → Sick Leave → Other Paid Leaves
+   */
+  private async getAvailableLeaveBalances(userId: number, year: number) {
+    const balances = await db
+      .select({
+        id: leaveBalances.id,
+        leaveTypeId: leaveBalances.leaveTypeId,
+        leaveTypeName: leaveTypes.name,
+        leaveTypeCode: leaveTypes.code,
+        isPaid: leaveTypes.isPaid,
+        allocatedDays: leaveBalances.allocatedDays,
+        usedDays: leaveBalances.usedDays,
+        pendingDays: leaveBalances.pendingDays,
+      })
+      .from(leaveBalances)
+      .innerJoin(leaveTypes, eq(leaveBalances.leaveTypeId, leaveTypes.id))
+      .where(and(
+        eq(leaveBalances.userId, userId),
+        eq(leaveBalances.year, year),
+        eq(leaveTypes.isPaid, true) // Only paid leaves
+      ));
+    
+    // Calculate available days for each leave type
+    const availableBalances = balances.map(b => ({
+      ...b,
+      availableDays: Math.max(0, parseFloat(b.allocatedDays || '0') - parseFloat(b.usedDays || '0') - parseFloat(b.pendingDays || '0'))
+    })).filter(b => b.availableDays > 0);
+    
+    // Sort by priority: Annual Leave first, then others
+    const priorityOrder = ['annual', 'casual', 'sick', 'earned', 'emergency'];
+    availableBalances.sort((a, b) => {
+      const aIndex = priorityOrder.findIndex(p => a.leaveTypeName.toLowerCase().includes(p));
+      const bIndex = priorityOrder.findIndex(p => b.leaveTypeName.toLowerCase().includes(p));
+      const aPriority = aIndex === -1 ? 999 : aIndex;
+      const bPriority = bIndex === -1 ? 999 : bIndex;
+      return aPriority - bPriority;
+    });
+    
+    return availableBalances;
+  }
+  
+  /**
+   * Identify absent days for a user in a month
+   * Absent = Working day with no check-in AND no approved leave
+   */
+  private async identifyAbsentDays(
+    userId: number, 
+    month: number, 
+    year: number, 
+    workweekPolicy: any,
+    attendanceRecords: any[],
+    approvedLeaves: any[]
+  ): Promise<string[]> {
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0);
+    
+    // Get company holidays
+    const holidays = await db
+      .select()
+      .from(companyHolidays)
+      .where(
+        between(companyHolidays.date, startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0])
+      );
+    
+    const workingDays = workweekPolicy?.workingDays || [1, 2, 3, 4, 5, 6]; // Default: Mon-Sat
+    const absentDates: string[] = [];
+    
+    // Get dates with attendance (check-in)
+    const presentDates = new Set(
+      attendanceRecords
+        .filter(r => r.checkInTime)
+        .map(r => r.date)
+    );
+    
+    // Get dates with approved leaves
+    const leaveDates = new Set<string>();
+    approvedLeaves.forEach(leave => {
+      const leaveStart = new Date(leave.startDate);
+      const leaveEnd = new Date(leave.endDate);
+      for (let d = new Date(leaveStart); d <= leaveEnd; d.setDate(d.getDate() + 1)) {
+        if (d >= startDate && d <= endDate) {
+          leaveDates.add(d.toISOString().split('T')[0]);
+        }
+      }
+    });
+    
+    // Holiday dates
+    const holidayDates = new Set(holidays.map(h => h.date));
+    
+    // Find absent days
+    for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
+      const dateStr = date.toISOString().split('T')[0];
+      const dayOfWeek = date.getDay();
+      const isWorkingDay = workingDays.includes(dayOfWeek);
+      const isHoliday = holidayDates.has(dateStr);
+      const isPresent = presentDates.has(dateStr);
+      const hasLeave = leaveDates.has(dateStr);
+      
+      // If it's a working day, not a holiday, not present, and no approved leave = ABSENT
+      if (isWorkingDay && !isHoliday && !isPresent && !hasLeave) {
+        absentDates.push(dateStr);
+      }
+    }
+    
+    return absentDates;
+  }
+  
+  /**
+   * Auto-apply leave for absent days and update leave balances
+   * Returns breakdown of applied leaves and remaining LOP days
+   */
+  private async autoApplyLeaveForAbsentDays(
+    userId: number,
+    year: number,
+    absentDays: number,
+    updateBalances: boolean = true
+  ): Promise<{
+    totalAbsentDays: number;
+    coveredByLeave: number;
+    lopDays: number;
+    breakdown: Array<{
+      leaveTypeId: number;
+      leaveTypeName: string;
+      daysApplied: number;
+      balanceBefore: number;
+      balanceAfter: number;
+    }>;
+  }> {
+    const availableBalances = await this.getAvailableLeaveBalances(userId, year);
+    
+    let remainingAbsentDays = absentDays;
+    const breakdown: Array<{
+      leaveTypeId: number;
+      leaveTypeName: string;
+      daysApplied: number;
+      balanceBefore: number;
+      balanceAfter: number;
+    }> = [];
+    
+    // Apply leaves in priority order
+    for (const balance of availableBalances) {
+      if (remainingAbsentDays <= 0) break;
+      
+      const daysToApply = Math.min(remainingAbsentDays, balance.availableDays);
+      if (daysToApply > 0) {
+        const balanceBefore = balance.availableDays;
+        const balanceAfter = balanceBefore - daysToApply;
+        
+        breakdown.push({
+          leaveTypeId: balance.leaveTypeId,
+          leaveTypeName: balance.leaveTypeName,
+          daysApplied: daysToApply,
+          balanceBefore,
+          balanceAfter
+        });
+        
+        // Update leave balance in database
+        if (updateBalances) {
+          const currentUsed = parseFloat(balance.usedDays || '0');
+          await db
+            .update(leaveBalances)
+            .set({
+              usedDays: (currentUsed + daysToApply).toFixed(2),
+              lastUpdated: new Date()
+            })
+            .where(eq(leaveBalances.id, balance.id));
+          
+          console.log(`📅 Auto-applied ${daysToApply} days of ${balance.leaveTypeName} for user ${userId}`);
+        }
+        
+        remainingAbsentDays -= daysToApply;
+      }
+    }
+    
+    const coveredByLeave = absentDays - remainingAbsentDays;
+    
+    return {
+      totalAbsentDays: absentDays,
+      coveredByLeave,
+      lopDays: remainingAbsentDays,
+      breakdown
     };
   }
   
