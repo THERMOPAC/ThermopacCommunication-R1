@@ -426,6 +426,25 @@ export default function LLMPromptEnginePage() {
     },
   });
 
+  const deleteAllInsightsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/llm/insights`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to delete all insights');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/llm/insights'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/llm/dashboard/stats'] });
+      toast({ title: "All Insights Deleted", description: "All generated insights have been removed." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete all insights.", variant: "destructive" });
+    },
+  });
+
   // A/B Test mutation
   const abTestMutation = useMutation({
     mutationFn: async (promptId: number) => {
@@ -2539,6 +2558,28 @@ export default function LLMPromptEnginePage() {
             </div>
           ) : (
             <div className="space-y-4">
+              {insights && insights.length > 0 && (
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      if (confirm('Are you sure you want to delete ALL generated insights? This cannot be undone.')) {
+                        deleteAllInsightsMutation.mutate();
+                      }
+                    }}
+                    disabled={deleteAllInsightsMutation.isPending}
+                    className="h-9 px-4 flex items-center gap-2 bg-red-50 text-red-700 border-red-300 hover:bg-red-100"
+                  >
+                    {deleteAllInsightsMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                    Delete All Insights
+                  </Button>
+                </div>
+              )}
               {insights?.map((insight: BusinessInsight) => (
                 <Card key={insight.id}>
                   <CardHeader>

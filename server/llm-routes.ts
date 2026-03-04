@@ -512,6 +512,18 @@ router.post('/insights/:id/view', ensureAuthenticated, async (req: Request, res:
   }
 });
 
+router.delete('/insights', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    await pool.query(`DELETE FROM llm_prompt_feedback WHERE execution_id IN (SELECT execution_id FROM llm_business_insights)`);
+    await pool.query(`DELETE FROM llm_business_insights`);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting all insights:', error);
+    res.status(500).json({ error: 'Failed to delete all insights' });
+  }
+});
+
 router.delete('/insights/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
