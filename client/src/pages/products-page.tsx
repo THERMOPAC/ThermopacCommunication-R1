@@ -138,13 +138,18 @@ export default function ProductsPage() {
     return family?.id ?? null;
   }, [familyOptions, watchFamily]);
 
+  const selectedProp1Id = useMemo(() => {
+    const prop1 = allProperty1Options.find((o) => o.code === watchProp1 && o.parentId === selectedFamilyId);
+    return prop1?.id ?? null;
+  }, [allProperty1Options, watchProp1, selectedFamilyId]);
+
   const property1Options = useMemo(() =>
     selectedFamilyId ? allProperty1Options.filter((o) => o.parentId === selectedFamilyId) : allProperty1Options,
     [allProperty1Options, selectedFamilyId]
   );
   const property2Options = useMemo(() =>
-    selectedFamilyId ? allProperty2Options.filter((o) => o.parentId === selectedFamilyId) : allProperty2Options,
-    [allProperty2Options, selectedFamilyId]
+    selectedProp1Id ? allProperty2Options.filter((o) => o.parentId === selectedProp1Id) : [],
+    [allProperty2Options, selectedProp1Id]
   );
 
   const liveProductCode = useMemo(() => {
@@ -335,6 +340,11 @@ export default function ProductsPage() {
     if (opt) {
       productForm.setValue("itemFamily", opt.code);
       productForm.setValue("itemFamilyLabel", opt.label);
+      productForm.setValue("itemProperty1", "");
+      productForm.setValue("itemProperty1Label", "");
+      productForm.setValue("itemProperty2", "");
+      productForm.setValue("itemProperty2Label", "");
+      productForm.setValue("itemProperty3", "");
     }
   };
 
@@ -343,6 +353,9 @@ export default function ProductsPage() {
     if (opt) {
       productForm.setValue("itemProperty1", opt.code);
       productForm.setValue("itemProperty1Label", opt.label);
+      productForm.setValue("itemProperty2", "");
+      productForm.setValue("itemProperty2Label", "");
+      productForm.setValue("itemProperty3", "");
     }
   };
 
@@ -533,8 +546,11 @@ export default function ProductsPage() {
                             <TableRow>
                               <TableHead>Code</TableHead>
                               <TableHead>Label</TableHead>
-                              {(activeAttributeTab === "property_1" || activeAttributeTab === "property_2") && (
+                              {activeAttributeTab === "property_1" && (
                                 <TableHead>Item Family</TableHead>
+                              )}
+                              {activeAttributeTab === "property_2" && (
+                                <TableHead>Property 1</TableHead>
                               )}
                               <TableHead className="w-[100px]"></TableHead>
                             </TableRow>
@@ -543,13 +559,21 @@ export default function ProductsPage() {
                             {currentAttributeOptions
                               .sort((a, b) => a.label.localeCompare(b.label))
                               .map((attr) => {
-                              const parentFamily = attr.parentId ? familyOptions.find(f => f.id === attr.parentId) : null;
+                              const parentOption = attr.parentId ? attributeOptions.find(f => f.id === attr.parentId) : null;
                               return (
                               <TableRow key={attr.id}>
                                 <TableCell className="font-mono font-medium">{attr.code}</TableCell>
                                 <TableCell>{attr.label}</TableCell>
-                                {(activeAttributeTab === "property_1" || activeAttributeTab === "property_2") && (
-                                  <TableCell>{parentFamily ? `${parentFamily.code} - ${parentFamily.label}` : "—"}</TableCell>
+                                {activeAttributeTab === "property_1" && (
+                                  <TableCell>{parentOption ? `${parentOption.code} - ${parentOption.label}` : "—"}</TableCell>
+                                )}
+                                {activeAttributeTab === "property_2" && (
+                                  <TableCell>
+                                    {parentOption ? (() => {
+                                      const grandParent = parentOption.parentId ? familyOptions.find(f => f.id === parentOption.parentId) : null;
+                                      return `${parentOption.code} - ${parentOption.label}${grandParent ? ` (${grandParent.label})` : ""}`;
+                                    })() : "—"}
+                                  </TableCell>
                                 )}
                                 <TableCell>
                                   <div className="flex gap-1">
@@ -893,22 +917,31 @@ export default function ProductsPage() {
                     name="parentId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Item Family</FormLabel>
+                        <FormLabel>Property 1</FormLabel>
                         <Select
                           value={field.value?.toString() ?? ""}
                           onValueChange={(val) => field.onChange(parseInt(val))}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select Item Family" />
+                              <SelectValue placeholder="Select Property 1" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {familyOptions.sort((a, b) => a.label.localeCompare(b.label)).map((opt) => (
-                              <SelectItem key={opt.id} value={opt.id.toString()}>
-                                {opt.code} - {opt.label}
-                              </SelectItem>
-                            ))}
+                            {allProperty1Options.sort((a, b) => {
+                              const parentA = familyOptions.find(f => f.id === a.parentId);
+                              const parentB = familyOptions.find(f => f.id === b.parentId);
+                              const familyCompare = (parentA?.label ?? "").localeCompare(parentB?.label ?? "");
+                              if (familyCompare !== 0) return familyCompare;
+                              return a.label.localeCompare(b.label);
+                            }).map((opt) => {
+                              const parentFamily = familyOptions.find(f => f.id === opt.parentId);
+                              return (
+                                <SelectItem key={opt.id} value={opt.id.toString()}>
+                                  {parentFamily ? `${parentFamily.code}-` : ""}{opt.code} - {opt.label}{parentFamily ? ` (${parentFamily.label})` : ""}
+                                </SelectItem>
+                              );
+                            })}
                           </SelectContent>
                         </Select>
                         <FormMessage />
