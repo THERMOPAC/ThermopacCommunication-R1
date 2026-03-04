@@ -49,6 +49,7 @@ const attributeFormSchema = z.object({
   attributeType: z.string().min(1),
   code: z.string().length(3, "Code must be exactly 3 characters"),
   label: z.string().min(1, "Label is required"),
+  parentId: z.number().nullable().optional(),
 });
 
 type AttributeFormValues = z.infer<typeof attributeFormSchema>;
@@ -77,11 +78,11 @@ export default function ProductsPage() {
     attributeOptions.filter((o) => o.attributeType === "item_family" && o.isActive),
     [attributeOptions]
   );
-  const property1Options = useMemo(() =>
+  const allProperty1Options = useMemo(() =>
     attributeOptions.filter((o) => o.attributeType === "property_1" && o.isActive),
     [attributeOptions]
   );
-  const property2Options = useMemo(() =>
+  const allProperty2Options = useMemo(() =>
     attributeOptions.filter((o) => o.attributeType === "property_2" && o.isActive),
     [attributeOptions]
   );
@@ -120,7 +121,7 @@ export default function ProductsPage() {
   const attributeForm = useForm<AttributeFormValues>({
     resolver: zodResolver(attributeFormSchema),
     defaultValues: {
-      attributeType: "item_family", code: "", label: "",
+      attributeType: "item_family", code: "", label: "", parentId: null,
     },
   });
 
@@ -131,6 +132,20 @@ export default function ProductsPage() {
   const watchFamilyLabel = productForm.watch("itemFamilyLabel");
   const watchProp1Label = productForm.watch("itemProperty1Label");
   const watchProp2Label = productForm.watch("itemProperty2Label");
+
+  const selectedFamilyId = useMemo(() => {
+    const family = familyOptions.find((o) => o.code === watchFamily);
+    return family?.id ?? null;
+  }, [familyOptions, watchFamily]);
+
+  const property1Options = useMemo(() =>
+    selectedFamilyId ? allProperty1Options.filter((o) => o.parentId === selectedFamilyId) : allProperty1Options,
+    [allProperty1Options, selectedFamilyId]
+  );
+  const property2Options = useMemo(() =>
+    selectedFamilyId ? allProperty2Options.filter((o) => o.parentId === selectedFamilyId) : allProperty2Options,
+    [allProperty2Options, selectedFamilyId]
+  );
 
   const liveProductCode = useMemo(() => {
     if (watchFamily && watchProp1 && watchProp2 && watchProp3) {
@@ -212,7 +227,7 @@ export default function ProductsPage() {
     },
     onSuccess: () => {
       toast({ title: "Attribute created", description: "Attribute option has been created" });
-      attributeForm.reset({ attributeType: activeAttributeTab, code: "", label: "" });
+      attributeForm.reset({ attributeType: activeAttributeTab, code: "", label: "", parentId: null });
       setEditingAttribute(null);
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/product-attributes'] });
     },
@@ -228,7 +243,7 @@ export default function ProductsPage() {
     onSuccess: () => {
       toast({ title: "Attribute updated", description: "Attribute option has been updated" });
       setEditingAttribute(null);
-      attributeForm.reset({ attributeType: activeAttributeTab, code: "", label: "" });
+      attributeForm.reset({ attributeType: activeAttributeTab, code: "", label: "", parentId: null });
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/product-attributes'] });
     },
     onError: (error) => {
@@ -302,6 +317,7 @@ export default function ProductsPage() {
       attributeType: attr.attributeType,
       code: attr.code,
       label: attr.label,
+      parentId: attr.parentId ?? null,
     });
     setIsAttributeDialogOpen(true);
   };
@@ -517,16 +533,24 @@ export default function ProductsPage() {
                             <TableRow>
                               <TableHead>Code</TableHead>
                               <TableHead>Label</TableHead>
+                              {(activeAttributeTab === "property_1" || activeAttributeTab === "property_2") && (
+                                <TableHead>Item Family</TableHead>
+                              )}
                               <TableHead className="w-[100px]"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {currentAttributeOptions
                               .sort((a, b) => a.label.localeCompare(b.label))
-                              .map((attr) => (
+                              .map((attr) => {
+                              const parentFamily = attr.parentId ? familyOptions.find(f => f.id === attr.parentId) : null;
+                              return (
                               <TableRow key={attr.id}>
                                 <TableCell className="font-mono font-medium">{attr.code}</TableCell>
                                 <TableCell>{attr.label}</TableCell>
+                                {(activeAttributeTab === "property_1" || activeAttributeTab === "property_2") && (
+                                  <TableCell>{parentFamily ? `${parentFamily.code} - ${parentFamily.label}` : "—"}</TableCell>
+                                )}
                                 <TableCell>
                                   <div className="flex gap-1">
                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditAttribute(attr)}>
@@ -545,7 +569,8 @@ export default function ProductsPage() {
                                   </div>
                                 </TableCell>
                               </TableRow>
-                            ))}
+                            );
+                            })}
                           </TableBody>
                         </Table>
                       )}
@@ -815,7 +840,7 @@ export default function ProductsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Attribute Type</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange} disabled={!!editingAttribute}>
+                      <Select value={field.value} onValueChange={(val) => { field.onChange(val); attributeForm.setValue('parentId', null); }} disabled={!!editingAttribute}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue />
@@ -831,6 +856,66 @@ export default function ProductsPage() {
                     </FormItem>
                   )}
                 />
+
+                {attributeForm.watch("attributeType") === "property_1" && (
+                  <FormField
+                    control={attributeForm.control}
+                    name="parentId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Item Family</FormLabel>
+                        <Select
+                          value={field.value?.toString() ?? ""}
+                          onValueChange={(val) => field.onChange(parseInt(val))}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Item Family" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {familyOptions.sort((a, b) => a.label.localeCompare(b.label)).map((opt) => (
+                              <SelectItem key={opt.id} value={opt.id.toString()}>
+                                {opt.code} - {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {attributeForm.watch("attributeType") === "property_2" && (
+                  <FormField
+                    control={attributeForm.control}
+                    name="parentId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Item Family</FormLabel>
+                        <Select
+                          value={field.value?.toString() ?? ""}
+                          onValueChange={(val) => field.onChange(parseInt(val))}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Item Family" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {familyOptions.sort((a, b) => a.label.localeCompare(b.label)).map((opt) => (
+                              <SelectItem key={opt.id} value={opt.id.toString()}>
+                                {opt.code} - {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <FormField
                   control={attributeForm.control}

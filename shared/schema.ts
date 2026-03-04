@@ -8590,6 +8590,7 @@ export const productAttributeOptions = pgTable('product_attribute_options', {
   attributeType: text('attribute_type').notNull(),
   code: text('code').notNull(),
   label: text('label').notNull(),
+  parentId: integer('parent_id'),
   sortOrder: integer('sort_order').default(0),
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
