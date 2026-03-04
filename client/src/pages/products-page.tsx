@@ -51,6 +51,14 @@ const attributeFormSchema = z.object({
   code: z.string().length(3, "Code must be exactly 3 characters"),
   label: z.string().min(1, "Label is required"),
   parentId: z.number().nullable().optional(),
+}).refine((data) => {
+  if (data.attributeType === "property_1" || data.attributeType === "property_2") {
+    return data.parentId != null;
+  }
+  return true;
+}, {
+  message: "Parent selection is required",
+  path: ["parentId"],
 });
 
 type AttributeFormValues = z.infer<typeof attributeFormSchema>;
@@ -927,7 +935,7 @@ export default function ProductsPage() {
                     name="parentId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Item Family</FormLabel>
+                        <FormLabel>Item Family <span className="text-destructive">*</span></FormLabel>
                         <Select
                           value={field.value?.toString() ?? ""}
                           onValueChange={(val) => field.onChange(parseInt(val))}
@@ -957,7 +965,7 @@ export default function ProductsPage() {
                     name="parentId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Property 1</FormLabel>
+                        <FormLabel>Property 1 <span className="text-destructive">*</span></FormLabel>
                         <Select
                           value={field.value?.toString() ?? ""}
                           onValueChange={(val) => field.onChange(parseInt(val))}
