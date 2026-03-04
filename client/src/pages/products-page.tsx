@@ -607,7 +607,7 @@ export default function ProductsPage() {
         </Tabs>
 
         <Dialog open={isProductDialogOpen} onOpenChange={(open) => { if (!open) { setIsProductDialogOpen(false); setEditingProduct(null); } }}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingProduct ? "Edit Product" : "Create Product"}</DialogTitle>
               <DialogDescription>
@@ -617,7 +617,7 @@ export default function ProductsPage() {
 
             <Form {...productForm}>
               <form onSubmit={productForm.handleSubmit(onProductSubmit)} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <FormField
                     control={productForm.control}
                     name="itemFamily"
@@ -751,7 +751,7 @@ export default function ProductsPage() {
                   )}
                 />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <FormField
                     control={productForm.control}
                     name="unit"
