@@ -29,15 +29,15 @@ const unitOptions = ["pcs", "kg", "m", "ltr", "hours", "set", "lot", "nos"] as c
 
 const productFormSchema = z.object({
   itemFamily: z.string().min(1, "Item Family is required"),
-  itemFamilyLabel: z.string().min(1),
+  itemFamilyLabel: z.string(),
   itemProperty1: z.string().min(1, "Property 1 is required"),
-  itemProperty1Label: z.string().min(1),
+  itemProperty1Label: z.string(),
   itemProperty2: z.string().min(1, "Property 2 is required"),
-  itemProperty2Label: z.string().min(1),
-  itemProperty3: z.string().regex(/^\d{4}$/, "Must be exactly 4 digits"),
+  itemProperty2Label: z.string(),
+  itemProperty3: z.string().min(1, "Property 3 is required").regex(/^\d{4}$/, "Must be exactly 4 digits"),
   description: z.string().optional(),
   unit: z.string().min(1, "Unit is required"),
-  unitPrice: z.string().min(1, "Unit Price is required").regex(/^\d+(\.\d{1,2})?$/, "Invalid price"),
+  unitPrice: z.string().min(1, "Unit Price is required").regex(/^\d+(\.\d{1,2})?$/, "Enter a valid price (e.g. 100.00)"),
   currency: z.string().min(1, "Currency is required"),
   category: z.string().optional(),
   hsnSacCode: z.string().optional(),
@@ -625,7 +625,7 @@ export default function ProductsPage() {
                     name="itemFamily"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Item Family</FormLabel>
+                        <FormLabel>Item Family <span className="text-destructive">*</span></FormLabel>
                         <Select
                           value={field.value}
                           onValueChange={handleSelectFamily}
@@ -653,7 +653,7 @@ export default function ProductsPage() {
                     name="itemProperty1"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Item Property 1</FormLabel>
+                        <FormLabel>Item Property 1 <span className="text-destructive">*</span></FormLabel>
                         <Select
                           value={field.value}
                           onValueChange={handleSelectProp1}
@@ -681,7 +681,7 @@ export default function ProductsPage() {
                     name="itemProperty2"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Item Property 2</FormLabel>
+                        <FormLabel>Item Property 2 <span className="text-destructive">*</span></FormLabel>
                         <Select
                           value={field.value}
                           onValueChange={handleSelectProp2}
@@ -709,7 +709,7 @@ export default function ProductsPage() {
                     name="itemProperty3"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Item Property 3 (4-digit)</FormLabel>
+                        <FormLabel>Item Property 3 (4-digit) <span className="text-destructive">*</span></FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -759,7 +759,7 @@ export default function ProductsPage() {
                     name="unit"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Unit</FormLabel>
+                        <FormLabel>Unit <span className="text-destructive">*</span></FormLabel>
                         <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
                             <SelectTrigger>
@@ -782,7 +782,7 @@ export default function ProductsPage() {
                     name="unitPrice"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Unit Price</FormLabel>
+                        <FormLabel>Unit Price <span className="text-destructive">*</span></FormLabel>
                         <FormControl>
                           <Input {...field} placeholder="0.00" type="text" />
                         </FormControl>
@@ -796,7 +796,7 @@ export default function ProductsPage() {
                     name="currency"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Currency</FormLabel>
+                        <FormLabel>Currency <span className="text-destructive">*</span></FormLabel>
                         <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
                             <SelectTrigger>
