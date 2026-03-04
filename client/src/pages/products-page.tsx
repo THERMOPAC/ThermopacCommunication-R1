@@ -49,7 +49,6 @@ const attributeFormSchema = z.object({
   attributeType: z.string().min(1),
   code: z.string().length(3, "Code must be exactly 3 characters"),
   label: z.string().min(1, "Label is required"),
-  sortOrder: z.number().default(0),
   isActive: z.boolean().default(true),
 });
 
@@ -123,7 +122,7 @@ export default function ProductsPage() {
     resolver: zodResolver(attributeFormSchema),
     defaultValues: {
       attributeType: "item_family", code: "", label: "",
-      sortOrder: 0, isActive: true,
+      isActive: true,
     },
   });
 
@@ -215,7 +214,7 @@ export default function ProductsPage() {
     },
     onSuccess: () => {
       toast({ title: "Attribute created", description: "Attribute option has been created" });
-      attributeForm.reset({ attributeType: activeAttributeTab, code: "", label: "", sortOrder: 0, isActive: true });
+      attributeForm.reset({ attributeType: activeAttributeTab, code: "", label: "", isActive: true });
       setEditingAttribute(null);
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/product-attributes'] });
     },
@@ -231,7 +230,7 @@ export default function ProductsPage() {
     onSuccess: () => {
       toast({ title: "Attribute updated", description: "Attribute option has been updated" });
       setEditingAttribute(null);
-      attributeForm.reset({ attributeType: activeAttributeTab, code: "", label: "", sortOrder: 0, isActive: true });
+      attributeForm.reset({ attributeType: activeAttributeTab, code: "", label: "", isActive: true });
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/product-attributes'] });
     },
     onError: (error) => {
@@ -305,7 +304,6 @@ export default function ProductsPage() {
       attributeType: attr.attributeType,
       code: attr.code,
       label: attr.label,
-      sortOrder: attr.sortOrder ?? 0,
       isActive: attr.isActive ?? true,
     });
     setIsAttributeDialogOpen(true);
@@ -522,19 +520,17 @@ export default function ProductsPage() {
                             <TableRow>
                               <TableHead>Code</TableHead>
                               <TableHead>Label</TableHead>
-                              <TableHead>Sort Order</TableHead>
                               <TableHead>Status</TableHead>
                               <TableHead className="w-[100px]"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {currentAttributeOptions
-                              .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+                              .sort((a, b) => a.label.localeCompare(b.label))
                               .map((attr) => (
                               <TableRow key={attr.id}>
                                 <TableCell className="font-mono font-medium">{attr.code}</TableCell>
                                 <TableCell>{attr.label}</TableCell>
-                                <TableCell>{attr.sortOrder ?? 0}</TableCell>
                                 <TableCell>
                                   <Badge variant={attr.isActive ? "default" : "secondary"}>
                                     {attr.isActive ? "Active" : "Inactive"}
@@ -882,24 +878,6 @@ export default function ProductsPage() {
                           placeholder="e.g. UOR"
                           maxLength={3}
                           onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={attributeForm.control}
-                  name="sortOrder"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sort Order</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          value={field.value}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                         />
                       </FormControl>
                       <FormMessage />
