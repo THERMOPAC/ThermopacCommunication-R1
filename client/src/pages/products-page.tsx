@@ -847,16 +847,22 @@ export default function ProductsPage() {
 
                 <FormField
                   control={attributeForm.control}
-                  name="code"
+                  name="label"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Code (3 characters)</FormLabel>
+                      <FormLabel>Label</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
-                          placeholder="e.g. VAL"
-                          maxLength={3}
-                          onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                          placeholder="e.g. Used Oil Refinery"
+                          onChange={(e) => {
+                            field.onChange(e.target.value);
+                            const words = e.target.value.trim().split(/\s+/).filter(Boolean);
+                            const autoCode = words.map(w => w[0]).join('').toUpperCase().slice(0, 3);
+                            if (autoCode) {
+                              attributeForm.setValue('code', autoCode);
+                            }
+                          }}
                         />
                       </FormControl>
                       <FormMessage />
@@ -866,12 +872,17 @@ export default function ProductsPage() {
 
                 <FormField
                   control={attributeForm.control}
-                  name="label"
+                  name="code"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Label</FormLabel>
+                      <FormLabel>Code (3 characters, auto-generated)</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="e.g. Valve" />
+                        <Input
+                          {...field}
+                          placeholder="e.g. UOR"
+                          maxLength={3}
+                          onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
