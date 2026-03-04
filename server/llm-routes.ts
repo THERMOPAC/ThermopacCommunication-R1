@@ -508,6 +508,20 @@ router.post('/insights/:id/view', ensureAuthenticated, async (req: Request, res:
   }
 });
 
+router.delete('/insights/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    await pool.query(`DELETE FROM llm_prompt_feedback WHERE execution_id IN (SELECT execution_id FROM llm_business_insights WHERE id = $1)`, [id]);
+    await pool.query(`DELETE FROM llm_business_insights WHERE id = $1`, [id]);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting insight:', error);
+    res.status(500).json({ error: 'Failed to delete insight' });
+  }
+});
+
 // Get dashboard statistics
 router.get('/dashboard/stats', ensureAuthenticated, async (req: Request, res: Response) => {
   try {

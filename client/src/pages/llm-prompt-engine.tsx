@@ -407,6 +407,25 @@ export default function LLMPromptEnginePage() {
     });
   };
 
+  const deleteInsightMutation = useMutation({
+    mutationFn: async (insightId: number) => {
+      const response = await fetch(`/api/llm/insights/${insightId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to delete insight');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/llm/insights'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/llm/dashboard/stats'] });
+      toast({ title: "Insight Deleted", description: "The insight has been removed successfully." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete insight.", variant: "destructive" });
+    },
+  });
+
   // A/B Test mutation
   const abTestMutation = useMutation({
     mutationFn: async (promptId: number) => {
@@ -2554,6 +2573,20 @@ export default function LLMPromptEnginePage() {
                         >
                           <ListChecks className="w-3 h-3" />
                           Generate Tasks
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            if (confirm('Are you sure you want to delete this insight?')) {
+                              deleteInsightMutation.mutate(insight.id);
+                            }
+                          }}
+                          disabled={deleteInsightMutation.isPending}
+                          className="h-8 px-3 flex items-center gap-1 bg-red-50 text-red-700 border-red-300 hover:bg-red-100"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          Delete
                         </Button>
                         <span className="text-sm text-gray-500">
                           {new Date(insight.generated_at).toLocaleString()}
