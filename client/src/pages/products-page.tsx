@@ -39,8 +39,8 @@ const productFormSchema = z.object({
   unit: z.string().min(1, "Unit is required"),
   unitPrice: z.string().min(1, "Unit Price is required").regex(/^\d+(\.\d{1,2})?$/, "Enter a valid price (e.g. 100.00)"),
   currency: z.string().min(1, "Currency is required"),
-  category: z.string().optional(),
-  hsnSacCode: z.string().optional(),
+  category: z.string().min(1, "Product Category is required"),
+  hsnSacCode: z.string().min(1, "HSN/SAC Code is required"),
   isActive: z.boolean().default(true),
 });
 
@@ -88,11 +88,7 @@ export default function ProductsPage() {
     [attributeOptions]
   );
 
-  const categories = useMemo(() => {
-    const cats = new Set<string>();
-    products.forEach((p) => { if (p.category) cats.add(p.category); });
-    return Array.from(cats).sort();
-  }, [products]);
+  const categories = ["Finish Goods", "Bought-Out Items", "Raw Materials", "Consumables"];
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
@@ -114,7 +110,7 @@ export default function ProductsPage() {
       itemProperty1: "", itemProperty1Label: "",
       itemProperty2: "", itemProperty2Label: "",
       itemProperty3: "", description: "",
-      unit: "", unitPrice: "", currency: "USD", category: "", hsnSacCode: "",
+      unit: "", unitPrice: "", currency: "USD", category: "Finish Goods", hsnSacCode: "",
       isActive: true,
     },
   });
@@ -277,7 +273,7 @@ export default function ProductsPage() {
       itemProperty1: "", itemProperty1Label: "",
       itemProperty2: "", itemProperty2Label: "",
       itemProperty3: "", description: "",
-      unit: "", unitPrice: "", currency: "USD", category: "", hsnSacCode: "",
+      unit: "", unitPrice: "", currency: "USD", category: "Finish Goods", hsnSacCode: "",
       isActive: true,
     });
     setIsProductDialogOpen(true);
@@ -297,7 +293,7 @@ export default function ProductsPage() {
       unit: product.unit,
       unitPrice: product.unitPrice,
       currency: product.currency || "USD",
-      category: product.category || "",
+      category: product.category || "Finish Goods",
       hsnSacCode: product.hsnSacCode || "",
       isActive: product.isActive ?? true,
     });
@@ -828,10 +824,20 @@ export default function ProductsPage() {
                     name="category"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Category</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="e.g. Valves, Pipes" />
-                        </FormControl>
+                        <FormLabel>Product Category <span className="text-destructive">*</span></FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Finish Goods">Finish Goods</SelectItem>
+                            <SelectItem value="Bought-Out Items">Bought-Out Items</SelectItem>
+                            <SelectItem value="Raw Materials">Raw Materials</SelectItem>
+                            <SelectItem value="Consumables">Consumables</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -842,7 +848,7 @@ export default function ProductsPage() {
                     name="hsnSacCode"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>HSN/SAC Code</FormLabel>
+                        <FormLabel>HSN/SAC Code <span className="text-destructive">*</span></FormLabel>
                         <FormControl>
                           <Input {...field} placeholder="e.g. 8481" />
                         </FormControl>
