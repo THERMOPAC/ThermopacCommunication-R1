@@ -8617,6 +8617,7 @@ export const products = pgTable('products', {
   description: text('description').notNull(),
   unit: text('unit').notNull(),
   unitPrice: numeric('unit_price', { precision: 15, scale: 2 }).notNull(),
+  currency: text('currency').default('USD').notNull(),
   category: text('category'),
   hsnSacCode: text('hsn_sac_code'),
   isActive: boolean('is_active').default(true),

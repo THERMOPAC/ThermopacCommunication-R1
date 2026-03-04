@@ -38,6 +38,7 @@ const productFormSchema = z.object({
   description: z.string().optional(),
   unit: z.string().min(1, "Unit is required"),
   unitPrice: z.string().min(1, "Unit Price is required").regex(/^\d+(\.\d{1,2})?$/, "Invalid price"),
+  currency: z.string().min(1, "Currency is required"),
   category: z.string().optional(),
   hsnSacCode: z.string().optional(),
   isActive: z.boolean().default(true),
@@ -113,7 +114,7 @@ export default function ProductsPage() {
       itemProperty1: "", itemProperty1Label: "",
       itemProperty2: "", itemProperty2Label: "",
       itemProperty3: "", description: "",
-      unit: "", unitPrice: "", category: "", hsnSacCode: "",
+      unit: "", unitPrice: "", currency: "USD", category: "", hsnSacCode: "",
       isActive: true,
     },
   });
@@ -276,7 +277,7 @@ export default function ProductsPage() {
       itemProperty1: "", itemProperty1Label: "",
       itemProperty2: "", itemProperty2Label: "",
       itemProperty3: "", description: "",
-      unit: "", unitPrice: "", category: "", hsnSacCode: "",
+      unit: "", unitPrice: "", currency: "USD", category: "", hsnSacCode: "",
       isActive: true,
     });
     setIsProductDialogOpen(true);
@@ -295,6 +296,7 @@ export default function ProductsPage() {
       description: product.description,
       unit: product.unit,
       unitPrice: product.unitPrice,
+      currency: product.currency || "USD",
       category: product.category || "",
       hsnSacCode: product.hsnSacCode || "",
       isActive: product.isActive ?? true,
@@ -473,7 +475,7 @@ export default function ProductsPage() {
                           <TableCell>{product.description}</TableCell>
                           <TableCell>{product.category || "-"}</TableCell>
                           <TableCell>{product.unit}</TableCell>
-                          <TableCell className="text-right">{parseFloat(product.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right">{product.currency || "USD"} {parseFloat(product.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                           <TableCell>{product.hsnSacCode || "-"}</TableCell>
                           <TableCell>
                             <Badge variant={product.isActive ? "default" : "secondary"}>
@@ -784,6 +786,38 @@ export default function ProductsPage() {
                         <FormControl>
                           <Input {...field} placeholder="0.00" type="text" />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={productForm.control}
+                    name="currency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Currency</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Currency" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="USD">USD - US Dollar</SelectItem>
+                            <SelectItem value="EUR">EUR - Euro</SelectItem>
+                            <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                            <SelectItem value="INR">INR - Indian Rupee</SelectItem>
+                            <SelectItem value="AED">AED - UAE Dirham</SelectItem>
+                            <SelectItem value="SAR">SAR - Saudi Riyal</SelectItem>
+                            <SelectItem value="JPY">JPY - Japanese Yen</SelectItem>
+                            <SelectItem value="CNY">CNY - Chinese Yuan</SelectItem>
+                            <SelectItem value="CHF">CHF - Swiss Franc</SelectItem>
+                            <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
+                            <SelectItem value="AUD">AUD - Australian Dollar</SelectItem>
+                            <SelectItem value="SGD">SGD - Singapore Dollar</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
