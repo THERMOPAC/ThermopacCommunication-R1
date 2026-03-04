@@ -444,17 +444,19 @@ router.get('/insights', ensureAuthenticated, async (req: Request, res: Response)
   try {
     const { category, limit = 20 } = req.query;
     
-    // Get insights with feedback information
     let query = `
-      SELECT 
+      SELECT DISTINCT ON (i.id)
         i.*,
         e.id as execution_id,
+        p.name as prompt_name,
+        e.model_used,
         f.rating,
         f.feedback_type,
         f.feedback_text,
         f.action_taken
       FROM llm_business_insights i
       LEFT JOIN llm_prompt_executions e ON i.execution_id = e.id
+      LEFT JOIN llm_prompts_registry p ON e.prompt_id = p.id
       LEFT JOIN llm_prompt_feedback f ON e.id = f.execution_id
       WHERE i.id IS NOT NULL
     `;
@@ -466,10 +468,12 @@ router.get('/insights', ensureAuthenticated, async (req: Request, res: Response)
       params.push(category);
     }
     
-    query += ` ORDER BY i.generated_at DESC LIMIT $${params.length + 1}`;
+    query += ` ORDER BY i.id DESC, i.generated_at DESC`;
+    
+    const wrappedQuery = `SELECT * FROM (${query}) sub ORDER BY generated_at DESC LIMIT $${params.length + 1}`;
     params.push(parseInt(limit as string));
 
-    const result = await pool.query(query, params);
+    const result = await pool.query(wrappedQuery, params);
     
     // Format the response to include user feedback
     const insights = result.rows.map(row => ({
