@@ -75,7 +75,9 @@ import {
   paymentInvoiceLinks as paymentInvoiceLinksTable,
   bankRealizationCertificates as bankRealizationCertificatesTable,
   productAttributeOptions as productAttributeOptionsTable,
-  products as productsTable
+  products as productsTable,
+  offers as offersTable,
+  offerItems as offerItemsTable
 } from "@shared/schema";
 import { eq, or, inArray, desc, and, sql, like, not } from "drizzle-orm";
 
@@ -4030,6 +4032,58 @@ export class DatabaseStorage implements IStorage {
 
   async deleteProduct(id: number): Promise<void> {
     await db.delete(productsTable).where(eq(productsTable.id, id));
+  }
+
+  async getOffers(): Promise<any[]> {
+    return await db.select().from(offersTable).orderBy(desc(offersTable.createdAt));
+  }
+
+  async getOfferById(id: number): Promise<any | undefined> {
+    const [result] = await db.select().from(offersTable).where(eq(offersTable.id, id));
+    return result;
+  }
+
+  async createOffer(data: any): Promise<any> {
+    const [result] = await db.insert(offersTable).values(data).returning();
+    return result;
+  }
+
+  async updateOffer(id: number, data: any): Promise<any> {
+    const [result] = await db.update(offersTable).set({ ...data, updatedAt: new Date() }).where(eq(offersTable.id, id)).returning();
+    if (!result) throw new Error("Offer not found");
+    return result;
+  }
+
+  async deleteOffer(id: number): Promise<void> {
+    await db.delete(offerItemsTable).where(eq(offerItemsTable.offerId, id));
+    await db.delete(offersTable).where(eq(offersTable.id, id));
+  }
+
+  async getOfferItems(offerId: number): Promise<any[]> {
+    return await db.select().from(offerItemsTable).where(eq(offerItemsTable.offerId, offerId)).orderBy(offerItemsTable.sortOrder);
+  }
+
+  async createOfferItem(data: any): Promise<any> {
+    const [result] = await db.insert(offerItemsTable).values(data).returning();
+    return result;
+  }
+
+  async updateOfferItem(id: number, data: any): Promise<any> {
+    const [result] = await db.update(offerItemsTable).set(data).where(eq(offerItemsTable.id, id)).returning();
+    if (!result) throw new Error("Offer item not found");
+    return result;
+  }
+
+  async deleteOfferItem(id: number): Promise<void> {
+    await db.delete(offerItemsTable).where(eq(offerItemsTable.id, id));
+  }
+
+  async getNextOfferNumber(): Promise<string> {
+    const result = await db.select({ maxNum: sql<string>`MAX(offer_number)` }).from(offersTable);
+    const maxNum = result[0]?.maxNum;
+    if (!maxNum) return 'OFR-0001';
+    const num = parseInt(maxNum.replace('OFR-', '')) + 1;
+    return `OFR-${num.toString().padStart(4, '0')}`;
   }
 }
 

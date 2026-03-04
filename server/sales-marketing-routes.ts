@@ -748,5 +748,143 @@ export function setupSalesMarketingRoutes(app: Express) {
     }
   });
   
+  // ==================== OFFERS / QUOTATIONS ====================
+
+  router.get('/offers', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const offers = await storage.getOffers();
+      res.json(offers);
+    } catch (error) {
+      console.error('Error fetching offers:', error);
+      res.status(500).json({ error: 'Failed to fetch offers' });
+    }
+  });
+
+  router.get('/offers/next-number', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const nextNumber = await storage.getNextOfferNumber();
+      res.json({ offerNumber: nextNumber });
+    } catch (error) {
+      console.error('Error getting next offer number:', error);
+      res.status(500).json({ error: 'Failed to get next offer number' });
+    }
+  });
+
+  router.get('/offers/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      const offer = await storage.getOfferById(id);
+      if (!offer) return res.status(404).json({ error: 'Offer not found' });
+      const items = await storage.getOfferItems(id);
+      res.json({ ...offer, items });
+    } catch (error) {
+      console.error('Error fetching offer:', error);
+      res.status(500).json({ error: 'Failed to fetch offer' });
+    }
+  });
+
+  router.post('/offers', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { items, ...offerData } = req.body;
+      const user = req.user as any;
+      const offerNumber = await storage.getNextOfferNumber();
+      const offer = await storage.createOffer({
+        ...offerData,
+        offerNumber,
+        createdBy: user.id,
+      });
+
+      if (items && Array.isArray(items)) {
+        for (let i = 0; i < items.length; i++) {
+          await storage.createOfferItem({
+            ...items[i],
+            offerId: offer.id,
+            sortOrder: i,
+          });
+        }
+      }
+
+      const savedItems = await storage.getOfferItems(offer.id);
+      res.status(201).json({ ...offer, items: savedItems });
+    } catch (error) {
+      console.error('Error creating offer:', error);
+      res.status(500).json({ error: 'Failed to create offer' });
+    }
+  });
+
+  router.patch('/offers/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      const { items, ...offerData } = req.body;
+      const offer = await storage.updateOffer(id, offerData);
+
+      if (items && Array.isArray(items)) {
+        const existingItems = await storage.getOfferItems(id);
+        for (const existing of existingItems) {
+          await storage.deleteOfferItem(existing.id);
+        }
+        for (let i = 0; i < items.length; i++) {
+          await storage.createOfferItem({
+            ...items[i],
+            offerId: id,
+            sortOrder: i,
+          });
+        }
+      }
+
+      const savedItems = await storage.getOfferItems(id);
+      res.json({ ...offer, items: savedItems });
+    } catch (error) {
+      console.error('Error updating offer:', error);
+      res.status(500).json({ error: 'Failed to update offer' });
+    }
+  });
+
+  router.patch('/offers/:id/status', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      const { status } = req.body;
+      const user = req.user as any;
+      const updateData: any = { status };
+      if (status === 'Approved') {
+        updateData.approvedBy = user.id;
+        updateData.approvedAt = new Date();
+      }
+      const offer = await storage.updateOffer(id, updateData);
+      res.json(offer);
+    } catch (error) {
+      console.error('Error updating offer status:', error);
+      res.status(500).json({ error: 'Failed to update offer status' });
+    }
+  });
+
+  router.delete('/offers/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      await storage.deleteOffer(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting offer:', error);
+      res.status(500).json({ error: 'Failed to delete offer' });
+    }
+  });
+
+  // Get customers for offer customer selection
+  router.get('/customers', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { db } = await import('./db');
+      const { customers } = await import('@shared/schema');
+      const result = await db.select().from(customers).orderBy(customers.bpName);
+      res.json(result);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      res.status(500).json({ error: 'Failed to fetch customers' });
+    }
+  });
+
   console.log('Sales and marketing routes registered with tank prices');
 }

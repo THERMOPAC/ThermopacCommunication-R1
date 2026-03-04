@@ -8634,3 +8634,67 @@ export const insertProductSchema = createInsertSchema(products).omit({
 
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
+
+// ==================== OFFERS / QUOTATIONS ====================
+
+export const offers = pgTable('offers', {
+  id: serial('id').primaryKey(),
+  offerNumber: text('offer_number').notNull().unique(),
+  customerId: integer('customer_id').references(() => customers.id),
+  customerName: text('customer_name').notNull(),
+  customerEmail: text('customer_email'),
+  customerAddress: text('customer_address'),
+  contactPerson: text('contact_person'),
+  subject: text('subject').notNull(),
+  currency: text('currency').default('USD').notNull(),
+  subtotal: numeric('subtotal', { precision: 15, scale: 2 }).default('0').notNull(),
+  discountPercent: numeric('discount_percent', { precision: 5, scale: 2 }).default('0'),
+  discountAmount: numeric('discount_amount', { precision: 15, scale: 2 }).default('0'),
+  taxPercent: numeric('tax_percent', { precision: 5, scale: 2 }).default('0'),
+  taxAmount: numeric('tax_amount', { precision: 15, scale: 2 }).default('0'),
+  totalAmount: numeric('total_amount', { precision: 15, scale: 2 }).default('0').notNull(),
+  status: text('status').default('Draft').notNull(),
+  validUntil: timestamp('valid_until'),
+  paymentTerms: text('payment_terms'),
+  deliveryTerms: text('delivery_terms'),
+  notes: text('notes'),
+  termsAndConditions: text('terms_and_conditions'),
+  createdBy: integer('created_by').references(() => users.id),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const insertOfferSchema = createInsertSchema(offers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Offer = typeof offers.$inferSelect;
+export type InsertOffer = z.infer<typeof insertOfferSchema>;
+
+export const offerItems = pgTable('offer_items', {
+  id: serial('id').primaryKey(),
+  offerId: integer('offer_id').notNull().references(() => offers.id, { onDelete: 'cascade' }),
+  productId: integer('product_id').references(() => products.id),
+  productCode: text('product_code'),
+  description: text('description').notNull(),
+  unit: text('unit').notNull(),
+  quantity: numeric('quantity', { precision: 15, scale: 3 }).notNull(),
+  unitPrice: numeric('unit_price', { precision: 15, scale: 2 }).notNull(),
+  discountPercent: numeric('discount_percent', { precision: 5, scale: 2 }).default('0'),
+  totalPrice: numeric('total_price', { precision: 15, scale: 2 }).notNull(),
+  hsnSacCode: text('hsn_sac_code'),
+  sortOrder: integer('sort_order').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const insertOfferItemSchema = createInsertSchema(offerItems).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type OfferItem = typeof offerItems.$inferSelect;
+export type InsertOfferItem = z.infer<typeof insertOfferItemSchema>;
