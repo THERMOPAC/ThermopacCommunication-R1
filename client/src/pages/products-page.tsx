@@ -49,7 +49,6 @@ const attributeFormSchema = z.object({
   attributeType: z.string().min(1),
   code: z.string().length(3, "Code must be exactly 3 characters"),
   label: z.string().min(1, "Label is required"),
-  isActive: z.boolean().default(true),
 });
 
 type AttributeFormValues = z.infer<typeof attributeFormSchema>;
@@ -122,7 +121,6 @@ export default function ProductsPage() {
     resolver: zodResolver(attributeFormSchema),
     defaultValues: {
       attributeType: "item_family", code: "", label: "",
-      isActive: true,
     },
   });
 
@@ -214,7 +212,7 @@ export default function ProductsPage() {
     },
     onSuccess: () => {
       toast({ title: "Attribute created", description: "Attribute option has been created" });
-      attributeForm.reset({ attributeType: activeAttributeTab, code: "", label: "", isActive: true });
+      attributeForm.reset({ attributeType: activeAttributeTab, code: "", label: "" });
       setEditingAttribute(null);
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/product-attributes'] });
     },
@@ -230,7 +228,7 @@ export default function ProductsPage() {
     onSuccess: () => {
       toast({ title: "Attribute updated", description: "Attribute option has been updated" });
       setEditingAttribute(null);
-      attributeForm.reset({ attributeType: activeAttributeTab, code: "", label: "", isActive: true });
+      attributeForm.reset({ attributeType: activeAttributeTab, code: "", label: "" });
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/product-attributes'] });
     },
     onError: (error) => {
@@ -304,7 +302,6 @@ export default function ProductsPage() {
       attributeType: attr.attributeType,
       code: attr.code,
       label: attr.label,
-      isActive: attr.isActive ?? true,
     });
     setIsAttributeDialogOpen(true);
   };
@@ -520,7 +517,6 @@ export default function ProductsPage() {
                             <TableRow>
                               <TableHead>Code</TableHead>
                               <TableHead>Label</TableHead>
-                              <TableHead>Status</TableHead>
                               <TableHead className="w-[100px]"></TableHead>
                             </TableRow>
                           </TableHeader>
@@ -531,11 +527,6 @@ export default function ProductsPage() {
                               <TableRow key={attr.id}>
                                 <TableCell className="font-mono font-medium">{attr.code}</TableCell>
                                 <TableCell>{attr.label}</TableCell>
-                                <TableCell>
-                                  <Badge variant={attr.isActive ? "default" : "secondary"}>
-                                    {attr.isActive ? "Active" : "Inactive"}
-                                  </Badge>
-                                </TableCell>
                                 <TableCell>
                                   <div className="flex gap-1">
                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditAttribute(attr)}>
@@ -881,19 +872,6 @@ export default function ProductsPage() {
                         />
                       </FormControl>
                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={attributeForm.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center gap-3">
-                      <FormLabel className="mt-0">Active</FormLabel>
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
                     </FormItem>
                   )}
                 />
