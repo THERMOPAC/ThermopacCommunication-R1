@@ -1,7 +1,7 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import { storage } from './storage';
 import { z } from 'zod';
-import { insertLeadSchema, tankPrices, plantCosts } from '@shared/schema';
+import { insertLeadSchema, tankPrices, plantCosts, insertProductAttributeOptionSchema, insertProductSchema } from '@shared/schema';
 import { db } from './db';
 import { eq } from 'drizzle-orm';
 
@@ -536,6 +536,158 @@ router.get('/dashboard/orders-in-hand', ensureAuthenticated, async (req: Request
       error: 'Failed to fetch orders in hand',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
+  }
+});
+
+// Product Attribute Options Routes
+router.get('/product-attributes', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const type = req.query.type as string | undefined;
+    const options = await storage.getAttributeOptions(type);
+    res.json(options);
+  } catch (error) {
+    console.error('Error fetching product attribute options:', error);
+    res.status(500).json({ error: 'Failed to fetch product attribute options' });
+  }
+});
+
+router.post('/product-attributes', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const validated = insertProductAttributeOptionSchema.parse(req.body);
+    if (validated.code && validated.code.length !== 3) {
+      return res.status(400).json({ error: 'Code must be exactly 3 characters' });
+    }
+    const option = await storage.createAttributeOption(validated);
+    res.status(201).json(option);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid data', details: error.errors });
+    }
+    console.error('Error creating product attribute option:', error);
+    res.status(500).json({ error: 'Failed to create product attribute option' });
+  }
+});
+
+router.patch('/product-attributes/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    const option = await storage.updateAttributeOption(id, req.body);
+    res.json(option);
+  } catch (error) {
+    console.error('Error updating product attribute option:', error);
+    res.status(500).json({ error: 'Failed to update product attribute option' });
+  }
+});
+
+router.delete('/product-attributes/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    await storage.deleteAttributeOption(id);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting product attribute option:', error);
+    res.status(500).json({ error: 'Failed to delete product attribute option' });
+  }
+});
+
+// Product Routes
+router.get('/products', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const products = await storage.getProducts();
+    res.json(products);
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
+
+router.get('/products/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid product ID' });
+    const product = await storage.getProductById(id);
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+    res.json(product);
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    res.status(500).json({ error: 'Failed to fetch product' });
+  }
+});
+
+router.post('/products', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { itemFamily, itemFamilyLabel, itemProperty1, itemProperty1Label, itemProperty2, itemProperty2Label, itemProperty3, ...rest } = req.body;
+    const productCode = `${itemFamily}-${itemProperty1}-${itemProperty2}-${itemProperty3}`;
+    const description = `${itemFamilyLabel} ${itemProperty1Label} ${itemProperty2Label} ${itemProperty3}`;
+    const productData = {
+      itemFamily,
+      itemFamilyLabel,
+      itemProperty1,
+      itemProperty1Label,
+      itemProperty2,
+      itemProperty2Label,
+      itemProperty3,
+      productCode,
+      description: rest.description || description,
+      ...rest,
+      createdBy: (req.user as any)?.id,
+    };
+    const validated = insertProductSchema.parse(productData);
+    const product = await storage.createProduct(validated);
+    res.status(201).json(product);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid product data', details: error.errors });
+    }
+    console.error('Error creating product:', error);
+    res.status(500).json({ error: 'Failed to create product', details: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+router.patch('/products/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid product ID' });
+    const existing = await storage.getProductById(id);
+    if (!existing) return res.status(404).json({ error: 'Product not found' });
+
+    const updateData = { ...req.body };
+    if (updateData.itemFamily || updateData.itemProperty1 || updateData.itemProperty2 || updateData.itemProperty3) {
+      const family = updateData.itemFamily || existing.itemFamily;
+      const prop1 = updateData.itemProperty1 || existing.itemProperty1;
+      const prop2 = updateData.itemProperty2 || existing.itemProperty2;
+      const prop3 = updateData.itemProperty3 || existing.itemProperty3;
+      updateData.productCode = `${family}-${prop1}-${prop2}-${prop3}`;
+
+      const familyLabel = updateData.itemFamilyLabel || existing.itemFamilyLabel;
+      const prop1Label = updateData.itemProperty1Label || existing.itemProperty1Label;
+      const prop2Label = updateData.itemProperty2Label || existing.itemProperty2Label;
+      if (!updateData.description) {
+        updateData.description = `${familyLabel} ${prop1Label} ${prop2Label} ${prop3}`;
+      }
+    }
+
+    const product = await storage.updateProduct(id, updateData);
+    res.json(product);
+  } catch (error) {
+    console.error('Error updating product:', error);
+    res.status(500).json({ error: 'Failed to update product' });
+  }
+});
+
+router.delete('/products/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid product ID' });
+    const existing = await storage.getProductById(id);
+    if (!existing) return res.status(404).json({ error: 'Product not found' });
+    await storage.deleteProduct(id);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    res.status(500).json({ error: 'Failed to delete product' });
   }
 });
 

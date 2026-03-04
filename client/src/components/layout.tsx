@@ -262,6 +262,7 @@ function Layout({ children }: LayoutProps) {
       children: [
         { icon: Search, label: "Lead Generation", href: "/lead-generation" },
         { icon: UsersRound, label: "Leads", href: "/leads" },
+        { icon: Package, label: "Products", href: "/products" },
         { icon: BarChart4, label: "Marketing Dashboard", href: "/marketing-dashboard" },
         { icon: TrendingUp, label: "Campaigns", href: "/campaigns" },
         { icon: Wrench, label: "Marketing Tools", href: "/marketing-tools" }

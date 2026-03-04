@@ -44,6 +44,7 @@ import SpecialFixesPage from "@/pages/special-fixes-page";
 // Sales and Marketing pages
 import LeadGenerationPage from "@/pages/lead-generation-page";
 import LeadsPage from "@/pages/leads-page";
+import ProductsPage from "@/pages/products-page";
 import CampaignsPage from "@/pages/campaigns-page";
 import MarketingDashboardPage from "@/pages/marketing-dashboard-page";
 import MarketingToolsPage from "@/pages/marketing-tools-page";
@@ -196,6 +197,7 @@ function Router() {
       {/* Sales and Marketing Routes */}
       <ProtectedRoute path="/lead-generation" component={LeadGenerationPage} />
       <ProtectedRoute path="/leads" component={LeadsPage} />
+      <ProtectedRoute path="/products" component={ProductsPage} />
       <ProtectedRoute path="/campaigns" component={CampaignsPage} />
       <ProtectedRoute path="/marketing-dashboard" component={MarketingDashboardPage} />
       <ProtectedRoute path="/marketing-tools" component={MarketingToolsPage} />

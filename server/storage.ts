@@ -73,7 +73,9 @@ import {
   invoiceItems as invoiceItemsTable,
   payments as paymentsTable,
   paymentInvoiceLinks as paymentInvoiceLinksTable,
-  bankRealizationCertificates as bankRealizationCertificatesTable
+  bankRealizationCertificates as bankRealizationCertificatesTable,
+  productAttributeOptions as productAttributeOptionsTable,
+  products as productsTable
 } from "@shared/schema";
 import { eq, or, inArray, desc, and, sql, like, not } from "drizzle-orm";
 
@@ -3981,6 +3983,53 @@ export class DatabaseStorage implements IStorage {
       console.error('Error getting password compliance analysis:', error);
       throw error;
     }
+  }
+  async getAttributeOptions(type?: string): Promise<any[]> {
+    let query = db.select().from(productAttributeOptionsTable);
+    if (type) {
+      const results = await db.select().from(productAttributeOptionsTable).where(eq(productAttributeOptionsTable.attributeType, type));
+      return results;
+    }
+    return await query;
+  }
+
+  async createAttributeOption(data: any): Promise<any> {
+    const [result] = await db.insert(productAttributeOptionsTable).values(data).returning();
+    return result;
+  }
+
+  async updateAttributeOption(id: number, data: any): Promise<any> {
+    const [result] = await db.update(productAttributeOptionsTable).set(data).where(eq(productAttributeOptionsTable.id, id)).returning();
+    if (!result) throw new Error("Attribute option not found");
+    return result;
+  }
+
+  async deleteAttributeOption(id: number): Promise<void> {
+    await db.delete(productAttributeOptionsTable).where(eq(productAttributeOptionsTable.id, id));
+  }
+
+  async getProducts(): Promise<any[]> {
+    return await db.select().from(productsTable).orderBy(desc(productsTable.createdAt));
+  }
+
+  async getProductById(id: number): Promise<any | undefined> {
+    const [result] = await db.select().from(productsTable).where(eq(productsTable.id, id));
+    return result;
+  }
+
+  async createProduct(data: any): Promise<any> {
+    const [result] = await db.insert(productsTable).values(data).returning();
+    return result;
+  }
+
+  async updateProduct(id: number, data: any): Promise<any> {
+    const [result] = await db.update(productsTable).set({ ...data, updatedAt: new Date() }).where(eq(productsTable.id, id)).returning();
+    if (!result) throw new Error("Product not found");
+    return result;
+  }
+
+  async deleteProduct(id: number): Promise<void> {
+    await db.delete(productsTable).where(eq(productsTable.id, id));
   }
 }
 

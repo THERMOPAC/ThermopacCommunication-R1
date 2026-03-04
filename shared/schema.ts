@@ -8582,3 +8582,53 @@ export type LlmPrompt = typeof llmPrompts.$inferSelect;
 export type InsertLlmPrompt = z.infer<typeof insertLlmPromptSchema>;
 export type LlmLog = typeof llmLogs.$inferSelect;
 export type InsertLlmLog = z.infer<typeof insertLlmLogSchema>;
+
+// ==================== PRODUCT DATABASE ====================
+
+export const productAttributeOptions = pgTable('product_attribute_options', {
+  id: serial('id').primaryKey(),
+  attributeType: text('attribute_type').notNull(),
+  code: text('code').notNull(),
+  label: text('label').notNull(),
+  sortOrder: integer('sort_order').default(0),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const insertProductAttributeOptionSchema = createInsertSchema(productAttributeOptions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ProductAttributeOption = typeof productAttributeOptions.$inferSelect;
+export type InsertProductAttributeOption = z.infer<typeof insertProductAttributeOptionSchema>;
+
+export const products = pgTable('products', {
+  id: serial('id').primaryKey(),
+  itemFamily: text('item_family').notNull(),
+  itemFamilyLabel: text('item_family_label').notNull(),
+  itemProperty1: text('item_property_1').notNull(),
+  itemProperty1Label: text('item_property_1_label').notNull(),
+  itemProperty2: text('item_property_2').notNull(),
+  itemProperty2Label: text('item_property_2_label').notNull(),
+  itemProperty3: text('item_property_3').notNull(),
+  productCode: text('product_code').notNull().unique(),
+  description: text('description').notNull(),
+  unit: text('unit').notNull(),
+  unitPrice: numeric('unit_price', { precision: 15, scale: 2 }).notNull(),
+  category: text('category'),
+  hsnSacCode: text('hsn_sac_code'),
+  isActive: boolean('is_active').default(true),
+  createdBy: integer('created_by'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const insertProductSchema = createInsertSchema(products).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Product = typeof products.$inferSelect;
+export type InsertProduct = z.infer<typeof insertProductSchema>;

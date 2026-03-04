@@ -22,7 +22,9 @@ import {
   InvoiceItem, InsertInvoiceItem,
   Payment, InsertPayment,
   PaymentInvoiceLink, InsertPaymentInvoiceLink,
-  BankRealizationCertificate, InsertBankRealizationCertificate
+  BankRealizationCertificate, InsertBankRealizationCertificate,
+  ProductAttributeOption, InsertProductAttributeOption,
+  Product, InsertProduct
 } from "@shared/schema";
 import { Store } from "express-session";
 
@@ -269,4 +271,17 @@ export interface IStorage {
   getBankRealizationCertificate(id: number): Promise<BankRealizationCertificate | undefined>;
   getBankRealizationCertificatesForPayment(paymentId: number): Promise<BankRealizationCertificate[]>;
   updateBankRealizationCertificate(id: number, updateData: Partial<BankRealizationCertificate>): Promise<BankRealizationCertificate>;
+
+  // Product Database - Attribute Options
+  getAttributeOptions(type?: string): Promise<ProductAttributeOption[]>;
+  createAttributeOption(data: InsertProductAttributeOption): Promise<ProductAttributeOption>;
+  updateAttributeOption(id: number, data: Partial<ProductAttributeOption>): Promise<ProductAttributeOption>;
+  deleteAttributeOption(id: number): Promise<void>;
+
+  // Product Database - Products
+  getProducts(): Promise<Product[]>;
+  getProductById(id: number): Promise<Product | undefined>;
+  createProduct(data: InsertProduct): Promise<Product>;
+  updateProduct(id: number, data: Partial<Product>): Promise<Product>;
+  deleteProduct(id: number): Promise<void>;
 }
