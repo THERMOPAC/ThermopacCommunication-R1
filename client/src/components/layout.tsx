@@ -88,6 +88,9 @@ function Layout({ children }: LayoutProps) {
   // Check if we're on any sales and marketing related page
   const isOnSalesAndMarketingPage = location === '/lead-generation' ||
                                   location === '/leads' ||
+                                  location === '/products' ||
+                                  location === '/offer-templates' ||
+                                  location === '/offers' ||
                                   location === '/campaigns' ||
                                   location === '/marketing-dashboard' ||
                                   location === '/marketing-tools';
@@ -263,6 +266,7 @@ function Layout({ children }: LayoutProps) {
         { icon: Search, label: "Lead Generation", href: "/lead-generation" },
         { icon: UsersRound, label: "Leads", href: "/leads" },
         { icon: Package, label: "Products", href: "/products" },
+        { icon: FileText, label: "Offer Templates", href: "/offer-templates" },
         { icon: FileText, label: "Offers / Quotations", href: "/offers" },
         { icon: BarChart4, label: "Marketing Dashboard", href: "/marketing-dashboard" },
         { icon: TrendingUp, label: "Campaigns", href: "/campaigns" },

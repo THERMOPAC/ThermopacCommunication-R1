@@ -1,7 +1,7 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import { storage } from './storage';
 import { z } from 'zod';
-import { insertLeadSchema, tankPrices, plantCosts, insertProductAttributeOptionSchema, insertProductSchema, offers } from '@shared/schema';
+import { insertLeadSchema, tankPrices, plantCosts, insertProductAttributeOptionSchema, insertProductSchema, offers, offerTemplates } from '@shared/schema';
 import { db } from './db';
 import { eq } from 'drizzle-orm';
 import { OfferPdfGenerator } from './offer-pdf-generator';
@@ -862,6 +862,141 @@ export function setupSalesMarketingRoutes(app: Express) {
     } catch (error) {
       console.error('Error removing product child:', error);
       res.status(500).json({ error: 'Failed to remove product child' });
+    }
+  });
+
+  // ==================== OFFER TEMPLATES ====================
+
+  router.get('/offer-templates', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const templates = await db.select().from(offerTemplates).orderBy(offerTemplates.subject, offerTemplates.name);
+      res.json(templates);
+    } catch (error) {
+      console.error('Error fetching offer templates:', error);
+      res.status(500).json({ error: 'Failed to fetch offer templates' });
+    }
+  });
+
+  router.get('/offer-templates/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      const [template] = await db.select().from(offerTemplates).where(eq(offerTemplates.id, id));
+      if (!template) return res.status(404).json({ error: 'Template not found' });
+      res.json(template);
+    } catch (error) {
+      console.error('Error fetching offer template:', error);
+      res.status(500).json({ error: 'Failed to fetch template' });
+    }
+  });
+
+  router.post('/offer-templates', ensureAuthenticated, templateUpload.single('template'), async (req: Request, res: Response) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: 'No PDF file uploaded' });
+      const { name, subject, description, position } = req.body;
+      if (!name || !subject) return res.status(400).json({ error: 'Name and subject are required' });
+
+      const [template] = await db.insert(offerTemplates).values({
+        name,
+        subject,
+        description: description || null,
+        filePath: req.file.path,
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        position: position || 'after',
+        isActive: true,
+        createdBy: (req.user as any)?.id || null,
+      }).returning();
+
+      res.json(template);
+    } catch (error) {
+      console.error('Error creating offer template:', error);
+      res.status(500).json({ error: 'Failed to create template' });
+    }
+  });
+
+  router.patch('/offer-templates/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      const { name, subject, description, position, isActive } = req.body;
+      const updateData: any = { updatedAt: new Date() };
+      if (name !== undefined) updateData.name = name;
+      if (subject !== undefined) updateData.subject = subject;
+      if (description !== undefined) updateData.description = description;
+      if (position !== undefined) updateData.position = position;
+      if (isActive !== undefined) updateData.isActive = isActive;
+
+      const [template] = await db.update(offerTemplates).set(updateData).where(eq(offerTemplates.id, id)).returning();
+      if (!template) return res.status(404).json({ error: 'Template not found' });
+      res.json(template);
+    } catch (error) {
+      console.error('Error updating offer template:', error);
+      res.status(500).json({ error: 'Failed to update template' });
+    }
+  });
+
+  router.post('/offer-templates/:id/replace', ensureAuthenticated, templateUpload.single('template'), async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      if (!req.file) return res.status(400).json({ error: 'No PDF file uploaded' });
+
+      const [existing] = await db.select().from(offerTemplates).where(eq(offerTemplates.id, id));
+      if (!existing) return res.status(404).json({ error: 'Template not found' });
+
+      if (existing.filePath && fs.existsSync(existing.filePath)) {
+        fs.unlinkSync(existing.filePath);
+      }
+
+      const [template] = await db.update(offerTemplates).set({
+        filePath: req.file.path,
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        updatedAt: new Date(),
+      }).where(eq(offerTemplates.id, id)).returning();
+
+      res.json(template);
+    } catch (error) {
+      console.error('Error replacing offer template file:', error);
+      res.status(500).json({ error: 'Failed to replace template file' });
+    }
+  });
+
+  router.delete('/offer-templates/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+
+      const [existing] = await db.select().from(offerTemplates).where(eq(offerTemplates.id, id));
+      if (!existing) return res.status(404).json({ error: 'Template not found' });
+
+      if (existing.filePath && fs.existsSync(existing.filePath)) {
+        fs.unlinkSync(existing.filePath);
+      }
+
+      await db.delete(offerTemplates).where(eq(offerTemplates.id, id));
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting offer template:', error);
+      res.status(500).json({ error: 'Failed to delete template' });
+    }
+  });
+
+  router.get('/offer-templates/:id/download', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      const [template] = await db.select().from(offerTemplates).where(eq(offerTemplates.id, id));
+      if (!template) return res.status(404).json({ error: 'Template not found' });
+      if (!fs.existsSync(template.filePath)) return res.status(404).json({ error: 'Template file not found' });
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${template.fileName}"`);
+      fs.createReadStream(template.filePath).pipe(res);
+    } catch (error) {
+      console.error('Error downloading template:', error);
+      res.status(500).json({ error: 'Failed to download template' });
     }
   });
 

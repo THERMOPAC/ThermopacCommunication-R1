@@ -8652,6 +8652,32 @@ export const insertProductChildSchema = createInsertSchema(productChildren).omit
 export type ProductChild = typeof productChildren.$inferSelect;
 export type InsertProductChild = z.infer<typeof insertProductChildSchema>;
 
+// ==================== OFFER TEMPLATES ====================
+
+export const offerTemplates = pgTable('offer_templates', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  subject: text('subject').notNull(),
+  description: text('description'),
+  filePath: text('file_path').notNull(),
+  fileName: text('file_name').notNull(),
+  fileSize: integer('file_size'),
+  position: text('position').default('after').notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const insertOfferTemplateSchema = createInsertSchema(offerTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type OfferTemplate = typeof offerTemplates.$inferSelect;
+export type InsertOfferTemplate = z.infer<typeof insertOfferTemplateSchema>;
+
 // ==================== OFFERS / QUOTATIONS ====================
 
 export const offers = pgTable('offers', {

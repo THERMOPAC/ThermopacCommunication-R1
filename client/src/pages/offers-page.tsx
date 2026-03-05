@@ -110,6 +110,10 @@ export default function OffersPage() {
     queryKey: ['/api/sales-marketing/customers'],
   });
 
+  const { data: offerTemplates = [] } = useQuery<any[]>({
+    queryKey: ['/api/sales-marketing/offer-templates'],
+  });
+
   const form = useForm<OfferFormValues>({
     resolver: zodResolver(offerFormSchema),
     defaultValues: {
@@ -230,6 +234,22 @@ export default function OffersPage() {
       }
     } catch {
       toast({ title: "Failed to remove template", variant: "destructive" });
+    }
+  };
+
+  const handleApplyLibraryTemplate = async (offerId: number, template: any) => {
+    setIsUploadingTemplate(true);
+    try {
+      const downloadRes = await fetch(`/api/sales-marketing/offer-templates/${template.id}/download`);
+      if (!downloadRes.ok) throw new Error('Failed to download template');
+      const blob = await downloadRes.blob();
+      const file = new File([blob], template.fileName, { type: 'application/pdf' });
+      await handleTemplateUpload(offerId, file, template.position);
+      setEditingOffer((prev: any) => prev ? { ...prev, templatePdfName: template.fileName, templatePdfPosition: template.position } : prev);
+    } catch {
+      toast({ title: "Failed to apply template", variant: "destructive" });
+    } finally {
+      setIsUploadingTemplate(false);
     }
   };
 
@@ -854,37 +874,88 @@ export default function OffersPage() {
                           <p className="text-xs text-muted-foreground">This PDF will be merged {editingOffer.templatePdfPosition === 'before' ? 'before' : 'after'} the offer pages when you download.</p>
                         </div>
                       ) : (
-                        <div className="space-y-2">
-                          <p className="text-sm text-muted-foreground">Upload a PDF to merge with this offer (e.g. technical specs, drawings, process descriptions).</p>
-                          <div className="flex items-center gap-3">
-                            <input
-                              ref={templateFileRef}
-                              type="file"
-                              accept=".pdf"
-                              className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file && editingOffer) {
-                                  handleTemplateUpload(editingOffer.id, file, templatePosition).then(() => {
-                                    setEditingOffer({ ...editingOffer, templatePdfName: file.name, templatePdfPosition: templatePosition });
-                                  });
-                                }
-                              }}
-                            />
-                            <Select value={templatePosition} onValueChange={setTemplatePosition}>
-                              <SelectTrigger className="w-44">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="after">Add after offer</SelectItem>
-                                <SelectItem value="before">Add before offer</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Button type="button" variant="outline" size="sm" disabled={isUploadingTemplate} onClick={() => templateFileRef.current?.click()}>
-                              {isUploadingTemplate ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Upload className="h-3 w-3 mr-1" />}
-                              {isUploadingTemplate ? "Uploading..." : "Upload PDF"}
-                            </Button>
-                          </div>
+                        <div className="space-y-3">
+                          {(() => {
+                            const currentSubject = form.getValues('subject');
+                            const matchingTemplates = offerTemplates.filter((t: any) => t.isActive && t.subject === currentSubject);
+                            const otherTemplates = offerTemplates.filter((t: any) => t.isActive && t.subject !== currentSubject);
+                            return (
+                              <>
+                                {matchingTemplates.length > 0 && (
+                                  <div>
+                                    <p className="text-sm font-medium mb-2">Templates matching this subject:</p>
+                                    <div className="space-y-1">
+                                      {matchingTemplates.map((t: any) => (
+                                        <div key={t.id} className="flex items-center gap-2 bg-white border rounded px-3 py-2">
+                                          <FileText className="h-4 w-4 text-red-500 shrink-0" />
+                                          <span className="text-sm font-medium truncate flex-1">{t.name}</span>
+                                          <span className="text-xs text-muted-foreground">{t.fileName}</span>
+                                          <Badge variant="secondary" className="text-xs shrink-0">{t.position === 'before' ? 'Before' : 'After'}</Badge>
+                                          <Button type="button" variant="default" size="sm" disabled={isUploadingTemplate}
+                                            onClick={() => handleApplyLibraryTemplate(editingOffer.id, t)}>
+                                            {isUploadingTemplate ? <Loader2 className="h-3 w-3 animate-spin" /> : "Apply"}
+                                          </Button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                {otherTemplates.length > 0 && (
+                                  <div>
+                                    <p className="text-sm text-muted-foreground mb-2">Other templates:</p>
+                                    <div className="space-y-1">
+                                      {otherTemplates.map((t: any) => (
+                                        <div key={t.id} className="flex items-center gap-2 bg-muted/30 border rounded px-3 py-2">
+                                          <FileText className="h-4 w-4 text-red-500 shrink-0" />
+                                          <span className="text-sm truncate flex-1">{t.name}</span>
+                                          <Badge variant="outline" className="text-xs shrink-0">{t.subject.substring(0, 30)}...</Badge>
+                                          <Button type="button" variant="outline" size="sm" disabled={isUploadingTemplate}
+                                            onClick={() => handleApplyLibraryTemplate(editingOffer.id, t)}>
+                                            Apply
+                                          </Button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                {matchingTemplates.length === 0 && otherTemplates.length === 0 && (
+                                  <p className="text-sm text-muted-foreground">No templates available. Add templates from the Offer Templates page.</p>
+                                )}
+                                <div className="border-t pt-2">
+                                  <p className="text-xs text-muted-foreground mb-2">Or upload a custom PDF:</p>
+                                  <div className="flex items-center gap-3">
+                                    <input
+                                      ref={templateFileRef}
+                                      type="file"
+                                      accept=".pdf"
+                                      className="hidden"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file && editingOffer) {
+                                          handleTemplateUpload(editingOffer.id, file, templatePosition).then(() => {
+                                            setEditingOffer({ ...editingOffer, templatePdfName: file.name, templatePdfPosition: templatePosition });
+                                          });
+                                        }
+                                      }}
+                                    />
+                                    <Select value={templatePosition} onValueChange={setTemplatePosition}>
+                                      <SelectTrigger className="w-44">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="after">Add after offer</SelectItem>
+                                        <SelectItem value="before">Add before offer</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <Button type="button" variant="outline" size="sm" disabled={isUploadingTemplate} onClick={() => templateFileRef.current?.click()}>
+                                      {isUploadingTemplate ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Upload className="h-3 w-3 mr-1" />}
+                                      {isUploadingTemplate ? "Uploading..." : "Upload PDF"}
+                                    </Button>
+                                  </div>
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
                       )
                     ) : (
