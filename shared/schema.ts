@@ -8613,6 +8613,7 @@ export const products = pgTable('products', {
   itemProperty2: text('item_property_2').notNull(),
   itemProperty2Label: text('item_property_2_label').notNull(),
   itemProperty3: text('item_property_3').notNull(),
+  parentId: integer('parent_id'),
   productCode: text('product_code').notNull().unique(),
   description: text('description').notNull(),
   unit: text('unit').notNull(),

@@ -1,8 +1,8 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Fragment } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Plus, Pencil, Trash2, MoreHorizontal, Search, Settings, Package,
-  Loader2, X, Filter
+  Loader2, X, Filter, ChevronRight, ChevronDown, GitBranch
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +28,7 @@ import type { Product, ProductAttributeOption } from "@shared/schema";
 const unitOptions = ["pcs", "kg", "m", "ltr", "hours", "set", "lot", "nos"] as const;
 
 const productFormSchema = z.object({
+  parentId: z.number().nullable().optional(),
   itemFamily: z.string().min(1, "Item Family is required"),
   itemFamilyLabel: z.string(),
   itemProperty1: z.string().min(1, "Property 1 is required"),
@@ -74,6 +75,8 @@ export default function ProductsPage() {
   const [editingAttribute, setEditingAttribute] = useState<ProductAttributeOption | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [activeAttributeTab, setActiveAttributeTab] = useState("item_family");
+  const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
+  const [addingSubProductFor, setAddingSubProductFor] = useState<Product | null>(null);
 
   const { data: products = [], isLoading: isLoadingProducts } = useQuery<Product[]>({
     queryKey: ['/api/sales-marketing/products'],
@@ -98,22 +101,50 @@ export default function ProductsPage() {
 
   const categories = ["Finish Goods", "Bought-Out Items", "Raw Materials", "Consumables"];
 
+  const parentProducts = useMemo(() => {
+    return products.filter((p) => !(p as any).parentId);
+  }, [products]);
+
+  const childProductsMap = useMemo(() => {
+    const map = new Map<number, Product[]>();
+    products.forEach((p) => {
+      const pid = (p as any).parentId;
+      if (pid) {
+        if (!map.has(pid)) map.set(pid, []);
+        map.get(pid)!.push(p);
+      }
+    });
+    return map;
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
+    return parentProducts.filter((p) => {
+      const children = childProductsMap.get(p.id) || [];
       const matchesSearch = !searchQuery ||
         p.productCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.description.toLowerCase().includes(searchQuery.toLowerCase());
+        p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        children.some(c => c.productCode.toLowerCase().includes(searchQuery.toLowerCase()) || c.description.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchesCategory = categoryFilter === "all" || p.category === categoryFilter;
       const matchesStatus = statusFilter === "all" ||
         (statusFilter === "active" && p.isActive) ||
         (statusFilter === "inactive" && !p.isActive);
       return matchesSearch && matchesCategory && matchesStatus;
     });
-  }, [products, searchQuery, categoryFilter, statusFilter]);
+  }, [parentProducts, childProductsMap, searchQuery, categoryFilter, statusFilter]);
+
+  const toggleExpand = (productId: number) => {
+    setExpandedProducts((prev) => {
+      const next = new Set(prev);
+      if (next.has(productId)) next.delete(productId);
+      else next.add(productId);
+      return next;
+    });
+  };
 
   const productForm = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
+      parentId: null,
       itemFamily: "", itemFamilyLabel: "",
       itemProperty1: "", itemProperty1Label: "",
       itemProperty2: "", itemProperty2Label: "",
@@ -173,6 +204,7 @@ export default function ProductsPage() {
     mutationFn: async (data: ProductFormValues) => {
       const payload = {
         ...data,
+        parentId: data.parentId || null,
         productCode: `${data.itemFamily}-${data.itemProperty1}-${data.itemProperty2}-${data.itemProperty3}`,
         description: data.description || `${data.itemFamilyLabel} ${data.itemProperty1Label} ${data.itemProperty2Label} ${data.itemProperty3}`,
         unitPrice: data.unitPrice,
@@ -182,9 +214,13 @@ export default function ProductsPage() {
       return apiRequest('POST', '/api/sales-marketing/products', payload);
     },
     onSuccess: () => {
-      toast({ title: "Product created", description: "Product has been created successfully" });
+      toast({ title: "Product created", description: addingSubProductFor ? "Sub-product has been added successfully" : "Product has been created successfully" });
+      if (addingSubProductFor) {
+        setExpandedProducts((prev) => new Set([...prev, addingSubProductFor.id]));
+      }
       setIsProductDialogOpen(false);
       setEditingProduct(null);
+      setAddingSubProductFor(null);
       productForm.reset();
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/products'] });
     },
@@ -197,6 +233,7 @@ export default function ProductsPage() {
     mutationFn: async ({ id, data }: { id: number; data: ProductFormValues }) => {
       const payload = {
         ...data,
+        parentId: data.parentId || null,
         productCode: `${data.itemFamily}-${data.itemProperty1}-${data.itemProperty2}-${data.itemProperty3}`,
         description: data.description || `${data.itemFamilyLabel} ${data.itemProperty1Label} ${data.itemProperty2Label} ${data.itemProperty3}`,
         unitPrice: data.unitPrice,
@@ -276,7 +313,9 @@ export default function ProductsPage() {
 
   const handleOpenCreateProduct = () => {
     setEditingProduct(null);
+    setAddingSubProductFor(null);
     productForm.reset({
+      parentId: null,
       itemFamily: "", itemFamilyLabel: "",
       itemProperty1: "", itemProperty1Label: "",
       itemProperty2: "", itemProperty2Label: "",
@@ -287,9 +326,28 @@ export default function ProductsPage() {
     setIsProductDialogOpen(true);
   };
 
+  const handleOpenAddSubProduct = (parent: Product) => {
+    setEditingProduct(null);
+    setAddingSubProductFor(parent);
+    productForm.reset({
+      parentId: parent.id,
+      itemFamily: parent.itemFamily, itemFamilyLabel: parent.itemFamilyLabel,
+      itemProperty1: parent.itemProperty1, itemProperty1Label: parent.itemProperty1Label,
+      itemProperty2: parent.itemProperty2, itemProperty2Label: parent.itemProperty2Label,
+      itemProperty3: "", description: "",
+      unit: parent.unit, unitPrice: "0.00", currency: parent.currency || "USD",
+      category: parent.category || "Finish Goods",
+      hsnSacCode: parent.hsnSacCode || "",
+      isActive: true,
+    });
+    setIsProductDialogOpen(true);
+  };
+
   const handleOpenEditProduct = (product: Product) => {
     setEditingProduct(product);
+    setAddingSubProductFor(null);
     productForm.reset({
+      parentId: (product as any).parentId || null,
       itemFamily: product.itemFamily,
       itemFamilyLabel: product.itemFamilyLabel,
       itemProperty1: product.itemProperty1,
@@ -462,6 +520,7 @@ export default function ProductsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-[40px]"></TableHead>
                         <TableHead>Product Code</TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead>Category</TableHead>
@@ -473,41 +532,106 @@ export default function ProductsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredProducts.map((product) => (
-                        <TableRow key={product.id}>
-                          <TableCell className="font-mono font-medium">{product.productCode}</TableCell>
-                          <TableCell>{product.description}</TableCell>
-                          <TableCell>{product.category || "-"}</TableCell>
-                          <TableCell>{product.unit}</TableCell>
-                          <TableCell className="text-right">{product.currency || "USD"} {parseFloat(product.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                          <TableCell>{product.hsnSacCode || "-"}</TableCell>
-                          <TableCell>
-                            <Badge variant={product.isActive ? "default" : "secondary"}>
-                              {product.isActive ? "Active" : "Inactive"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleOpenEditProduct(product)}>
-                                  <Pencil className="mr-2 h-4 w-4" /> Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onClick={() => setDeleteConfirmId(product.id)}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {filteredProducts.map((product) => {
+                        const children = childProductsMap.get(product.id) || [];
+                        const hasChildren = children.length > 0;
+                        const isExpanded = expandedProducts.has(product.id);
+                        return (
+                          <Fragment key={product.id}>
+                            <TableRow className="group">
+                              <TableCell className="w-[40px] px-2">
+                                {hasChildren ? (
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => toggleExpand(product.id)}>
+                                    {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                  </Button>
+                                ) : (
+                                  <span className="w-6 h-6 inline-block" />
+                                )}
+                              </TableCell>
+                              <TableCell className="font-mono font-medium">
+                                {product.productCode}
+                                {hasChildren && (
+                                  <Badge variant="outline" className="ml-2 text-xs">{children.length} sub</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>{product.description}</TableCell>
+                              <TableCell>{product.category || "-"}</TableCell>
+                              <TableCell>{product.unit}</TableCell>
+                              <TableCell className="text-right">{product.currency || "USD"} {parseFloat(product.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                              <TableCell>{product.hsnSacCode || "-"}</TableCell>
+                              <TableCell>
+                                <Badge variant={product.isActive ? "default" : "secondary"}>
+                                  {product.isActive ? "Active" : "Inactive"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleOpenEditProduct(product)}>
+                                      <Pencil className="mr-2 h-4 w-4" /> Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleOpenAddSubProduct(product)}>
+                                      <GitBranch className="mr-2 h-4 w-4" /> Add Sub-Product
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="text-destructive"
+                                      onClick={() => setDeleteConfirmId(product.id)}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                            {isExpanded && children.map((child) => (
+                              <TableRow key={child.id} className="bg-muted/30">
+                                <TableCell className="w-[40px] px-2" />
+                                <TableCell className="font-mono text-sm pl-8">
+                                  <span className="text-muted-foreground mr-1">└</span>
+                                  {child.productCode}
+                                </TableCell>
+                                <TableCell className="text-sm">{child.description}</TableCell>
+                                <TableCell className="text-sm">{child.category || "-"}</TableCell>
+                                <TableCell className="text-sm">{child.unit}</TableCell>
+                                <TableCell className="text-right text-sm text-muted-foreground">
+                                  {child.currency || "USD"} {parseFloat(child.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </TableCell>
+                                <TableCell className="text-sm">{child.hsnSacCode || "-"}</TableCell>
+                                <TableCell>
+                                  <Badge variant={child.isActive ? "default" : "secondary"} className="text-xs">
+                                    {child.isActive ? "Active" : "Inactive"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7">
+                                        <MoreHorizontal className="h-3 w-3" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => handleOpenEditProduct(child)}>
+                                        <Pencil className="mr-2 h-4 w-4" /> Edit
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        className="text-destructive"
+                                        onClick={() => setDeleteConfirmId(child.id)}
+                                      >
+                                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </Fragment>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 )}
@@ -612,12 +736,18 @@ export default function ProductsPage() {
           </TabsContent>
         </Tabs>
 
-        <Dialog open={isProductDialogOpen} onOpenChange={(open) => { if (!open) { setIsProductDialogOpen(false); setEditingProduct(null); } }}>
+        <Dialog open={isProductDialogOpen} onOpenChange={(open) => { if (!open) { setIsProductDialogOpen(false); setEditingProduct(null); setAddingSubProductFor(null); } }}>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{editingProduct ? "Edit Product" : "Create Product"}</DialogTitle>
+              <DialogTitle>
+                {editingProduct ? "Edit Product" : addingSubProductFor ? "Add Sub-Product" : "Create Product"}
+              </DialogTitle>
               <DialogDescription>
-                {editingProduct ? "Update product details" : "Define a new product with item attributes"}
+                {editingProduct
+                  ? "Update product details"
+                  : addingSubProductFor
+                  ? `Adding sub-product under ${addingSubProductFor.productCode} — ${addingSubProductFor.description}`
+                  : "Define a new product with item attributes"}
               </DialogDescription>
             </DialogHeader>
 
@@ -880,14 +1010,14 @@ export default function ProductsPage() {
                 />
 
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => { setIsProductDialogOpen(false); setEditingProduct(null); }}>
+                  <Button type="button" variant="outline" onClick={() => { setIsProductDialogOpen(false); setEditingProduct(null); setAddingSubProductFor(null); }}>
                     Cancel
                   </Button>
                   <Button type="submit" disabled={createProductMutation.isPending || updateProductMutation.isPending}>
                     {(createProductMutation.isPending || updateProductMutation.isPending) && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
-                    {editingProduct ? "Update Product" : "Create Product"}
+                    {editingProduct ? "Update Product" : addingSubProductFor ? "Add Sub-Product" : "Create Product"}
                   </Button>
                 </DialogFooter>
               </form>

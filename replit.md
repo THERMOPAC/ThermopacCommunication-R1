@@ -29,7 +29,7 @@ All file metadata must be retrieved from Google Cloud Storage (GCS) only. Upload
 - **Finance Management**: Invoicing, payments, allocations, and BRC tracking.
 - **HR Management**: User management, attendance tracking, daily work activity reports, and payroll.
 - **Document Management**: GCS integration with hierarchical structure, metadata tracking, template system, and access control.
-- **Sales & Marketing**: Lead generation system with AI intelligence, campaign management, customer management, and Product Database with attribute-based product codes (Item Family + Property 1 + Property 2 + Property 3 forming codes like "VAL-GAT-SS3-0200").
+- **Sales & Marketing**: Lead generation system with AI intelligence, campaign management, customer management, Product Database with attribute-based product codes (Item Family + Property 1 + Property 2 + Property 3 forming codes like "VAL-GAT-SS3-0200") and parent-child product hierarchy (main products with sub-products like Dehydration Skid, Distillation Skid under a parent plant product — offers quote the parent product price only), and Offers/Quotations module (auto-numbered OFR-0001, customer linking, multi-currency, line items from product database, discount/tax calculations, status workflow: Draft→Sent→Approved/Rejected/Expired/Converted, duplicate offers).
 - **Business Intelligence**: An LLM Prompt Engine for analytics across modules.
 - **Travel Management**: Business trip and visa management.
 - **Design Management**: Drawing Registry for version control, CAD file management, review/approval workflows, and drawing transmittals.
