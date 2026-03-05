@@ -130,6 +130,14 @@ export default function ProductsPage() {
         (statusFilter === "active" && p.isActive) ||
         (statusFilter === "inactive" && !p.isActive);
       return matchesSearch && matchesCategory && matchesStatus;
+    }).sort((a, b) => {
+      const familyCompare = a.itemFamily.localeCompare(b.itemFamily);
+      if (familyCompare !== 0) return familyCompare;
+      const prop1Compare = a.itemProperty1.localeCompare(b.itemProperty1);
+      if (prop1Compare !== 0) return prop1Compare;
+      const prop2Compare = a.itemProperty2.localeCompare(b.itemProperty2);
+      if (prop2Compare !== 0) return prop2Compare;
+      return a.itemProperty3.localeCompare(b.itemProperty3);
     });
   }, [products, childProductsMap, searchQuery, categoryFilter, statusFilter]);
 
@@ -689,8 +697,6 @@ export default function ProductsPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Code</TableHead>
-                              <TableHead>Label</TableHead>
                               {activeAttributeTab === "property_1" && (
                                 <TableHead>Item Family</TableHead>
                               )}
@@ -700,18 +706,33 @@ export default function ProductsPage() {
                                   <TableHead>Property 1</TableHead>
                                 </>
                               )}
+                              <TableHead>Code</TableHead>
+                              <TableHead>Label</TableHead>
                               <TableHead className="w-[100px]"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {currentAttributeOptions
-                              .sort((a, b) => a.label.localeCompare(b.label))
+                              .sort((a, b) => {
+                                const parentA = a.parentId ? attributeOptions.find(f => f.id === a.parentId) : null;
+                                const parentB = b.parentId ? attributeOptions.find(f => f.id === b.parentId) : null;
+                                if (activeAttributeTab === "property_2") {
+                                  const grandParentA = parentA?.parentId ? familyOptions.find(f => f.id === parentA.parentId) : null;
+                                  const grandParentB = parentB?.parentId ? familyOptions.find(f => f.id === parentB.parentId) : null;
+                                  const familyCompare = (grandParentA?.code ?? "zzz").localeCompare(grandParentB?.code ?? "zzz");
+                                  if (familyCompare !== 0) return familyCompare;
+                                  const prop1Compare = (parentA?.code ?? "zzz").localeCompare(parentB?.code ?? "zzz");
+                                  if (prop1Compare !== 0) return prop1Compare;
+                                } else if (activeAttributeTab === "property_1") {
+                                  const familyCompare = (parentA?.code ?? "zzz").localeCompare(parentB?.code ?? "zzz");
+                                  if (familyCompare !== 0) return familyCompare;
+                                }
+                                return a.code.localeCompare(b.code);
+                              })
                               .map((attr) => {
                               const parentOption = attr.parentId ? attributeOptions.find(f => f.id === attr.parentId) : null;
                               return (
                               <TableRow key={attr.id}>
-                                <TableCell className="font-mono font-medium">{attr.code}</TableCell>
-                                <TableCell>{attr.label}</TableCell>
                                 {activeAttributeTab === "property_1" && (
                                   <TableCell>{parentOption ? `${parentOption.code} - ${parentOption.label}` : "—"}</TableCell>
                                 )}
@@ -728,6 +749,8 @@ export default function ProductsPage() {
                                     </TableCell>
                                   </>
                                 )}
+                                <TableCell className="font-mono font-medium">{attr.code}</TableCell>
+                                <TableCell>{attr.label}</TableCell>
                                 <TableCell>
                                   <div className="flex gap-1">
                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditAttribute(attr)}>
