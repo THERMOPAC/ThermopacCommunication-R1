@@ -2,8 +2,9 @@ import { useState, useMemo, useEffect, Fragment } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Plus, Pencil, Trash2, MoreHorizontal, Search, Settings, Package,
-  Loader2, X, Filter, ChevronRight, ChevronDown, GitBranch
+  Loader2, X, Filter, ChevronRight, ChevronDown, GitBranch, FileText
 } from "lucide-react";
+import { OffersContent } from "@/pages/offers-page";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/layout";
@@ -495,6 +496,7 @@ export default function ProductsPage() {
             </div>
             <TabsList>
               <TabsTrigger value="products">Products</TabsTrigger>
+              <TabsTrigger value="offers" className="flex items-center gap-1"><FileText className="h-4 w-4" /> Offers</TabsTrigger>
               <TabsTrigger value="attributes">Manage Attributes</TabsTrigger>
             </TabsList>
           </div>
@@ -712,6 +714,10 @@ export default function ProductsPage() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="offers" className="space-y-4">
+            <OffersContent />
           </TabsContent>
 
           <TabsContent value="attributes" className="space-y-4">

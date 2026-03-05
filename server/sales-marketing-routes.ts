@@ -1078,6 +1078,13 @@ export function setupSalesMarketingRoutes(app: Express) {
       if (offerData.validUntil) {
         offerData.validUntil = new Date(offerData.validUntil);
       }
+
+      const existingOffer = await storage.getOfferById(id);
+      if (existingOffer && existingOffer.status === 'Sent') {
+        offerData.revision = (existingOffer.revision || 0) + 1;
+        offerData.status = 'Draft';
+      }
+
       const offer = await storage.updateOffer(id, offerData);
 
       if (items && Array.isArray(items)) {
@@ -1147,6 +1154,7 @@ export function setupSalesMarketingRoutes(app: Express) {
 
       const generator = new OfferPdfGenerator({
         offerNumber: offer.offerNumber,
+        revision: offer.revision || 0,
         createdAt: offer.createdAt?.toISOString() || new Date().toISOString(),
         customerName: offer.customerName,
         customerEmail: offer.customerEmail || '',

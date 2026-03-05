@@ -5,6 +5,7 @@ import * as fs from 'fs';
 
 interface OfferPdfData {
   offerNumber: string;
+  revision: number;
   createdAt: string;
   customerName: string;
   customerEmail: string;
@@ -140,7 +141,7 @@ export class OfferPdfGenerator {
       .text('Quotation No:', col2X, this.currentY);
     this.doc
       .font('Helvetica')
-      .text(this.data.offerNumber, col2X + 80, this.currentY);
+      .text(this.data.offerNumber + (this.data.revision > 0 ? ` Rev.${this.data.revision}` : ''), col2X + 80, this.currentY);
 
     this.currentY += 14;
 

@@ -8697,6 +8697,7 @@ export const offers = pgTable('offers', {
   taxPercent: numeric('tax_percent', { precision: 5, scale: 2 }).default('0'),
   taxAmount: numeric('tax_amount', { precision: 15, scale: 2 }).default('0'),
   totalAmount: numeric('total_amount', { precision: 15, scale: 2 }).default('0').notNull(),
+  revision: integer('revision').default(0).notNull(),
   status: text('status').default('Draft').notNull(),
   validUntil: timestamp('valid_until'),
   paymentTerms: text('payment_terms'),

@@ -512,6 +512,7 @@ export function OffersContent() {
                     <TableRow key={offer.id}>
                       <TableCell className="font-mono font-medium">
                         {offer.offerNumber}
+                        {offer.revision > 0 && <Badge variant="outline" className="ml-1 text-xs">Rev.{offer.revision}</Badge>}
                         {offer.templatePdfName && <Paperclip className="inline h-3 w-3 ml-1 text-muted-foreground" title={`Template: ${offer.templatePdfName}`} />}
                       </TableCell>
                       <TableCell>{offer.customerName}</TableCell>
