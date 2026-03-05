@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,7 +34,7 @@ const productFormSchema = z.object({
   itemProperty1Label: z.string(),
   itemProperty2: z.string().min(1, "Property 2 is required"),
   itemProperty2Label: z.string(),
-  itemProperty3: z.string().min(1, "Property 3 is required").regex(/^\d{4}$/, "Must be exactly 4 digits"),
+  itemProperty3: z.string().min(6, "Minimum 6 characters required").max(12, "Maximum 12 characters allowed").regex(/^\d{3,6}[A-Za-z0-9]{3,6}$/, "Must be 3-6 digits followed by 3-6 alphanumeric characters (e.g. 123ABC)"),
   description: z.string().optional(),
   unit: z.string().min(1, "Unit is required"),
   unitPrice: z.string().min(1, "Unit Price is required").regex(/^\d+(\.\d{1,2})?$/, "Enter a valid price (e.g. 100.00)"),
@@ -852,16 +852,17 @@ export default function ProductsPage() {
                     name="itemProperty3"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Item Property 3 (4-digit) <span className="text-destructive">*</span></FormLabel>
+                        <FormLabel>Item Property 3 <span className="text-destructive">*</span></FormLabel>
+                        <FormDescription className="text-xs">3-6 digits + 3-6 alphanumeric (e.g. 123ABC, 5555A12)</FormDescription>
                         <FormControl>
                           <Input
                             {...field}
                             onChange={(e) => {
-                              field.onChange(e);
+                              field.onChange(e.target.value.toUpperCase());
                               productForm.setValue("description", "");
                             }}
-                            placeholder="e.g. 0200"
-                            maxLength={4}
+                            placeholder="e.g. 123ABC"
+                            maxLength={12}
                           />
                         </FormControl>
                         <FormMessage />
