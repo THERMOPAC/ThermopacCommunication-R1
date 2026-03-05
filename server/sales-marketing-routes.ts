@@ -1,10 +1,36 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import { storage } from './storage';
 import { z } from 'zod';
-import { insertLeadSchema, tankPrices, plantCosts, insertProductAttributeOptionSchema, insertProductSchema } from '@shared/schema';
+import { insertLeadSchema, tankPrices, plantCosts, insertProductAttributeOptionSchema, insertProductSchema, offers } from '@shared/schema';
 import { db } from './db';
 import { eq } from 'drizzle-orm';
 import { OfferPdfGenerator } from './offer-pdf-generator';
+import multer from 'multer';
+import * as fs from 'fs';
+import * as path from 'path';
+
+const templateUploadDir = path.join(process.cwd(), 'uploads', 'offer-templates');
+if (!fs.existsSync(templateUploadDir)) {
+  fs.mkdirSync(templateUploadDir, { recursive: true });
+}
+
+const templateUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, templateUploadDir),
+    filename: (_req, file, cb) => {
+      const uniqueName = `template_${Date.now()}_${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      cb(null, uniqueName);
+    },
+  }),
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files are allowed'));
+    }
+  },
+  limits: { fileSize: 50 * 1024 * 1024 },
+});
 
 // Define ensureAuthenticated middleware
 function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -1011,10 +1037,69 @@ export function setupSalesMarketingRoutes(app: Express) {
         })),
       });
 
-      generator.generate(res);
+      if (offer.templatePdfPath && fs.existsSync(offer.templatePdfPath)) {
+        await generator.generateWithTemplate(res, offer.templatePdfPath, offer.templatePdfPosition || 'after');
+      } else {
+        generator.generate(res);
+      }
     } catch (error) {
       console.error('Error generating offer PDF:', error);
       res.status(500).json({ error: 'Failed to generate PDF' });
+    }
+  });
+
+  router.post('/offers/:id/template', ensureAuthenticated, templateUpload.single('template'), async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      const offer = await storage.getOfferById(id);
+      if (!offer) return res.status(404).json({ error: 'Offer not found' });
+
+      if (!req.file) return res.status(400).json({ error: 'No PDF file uploaded' });
+
+      if (offer.templatePdfPath && fs.existsSync(offer.templatePdfPath)) {
+        fs.unlinkSync(offer.templatePdfPath);
+      }
+
+      const position = req.body.position || 'after';
+      await db.update(offers).set({
+        templatePdfPath: req.file.path,
+        templatePdfName: req.file.originalname,
+        templatePdfPosition: position,
+      }).where(eq(offers.id, id));
+
+      res.json({
+        success: true,
+        templateName: req.file.originalname,
+        templatePosition: position,
+      });
+    } catch (error) {
+      console.error('Error uploading offer template:', error);
+      res.status(500).json({ error: 'Failed to upload template' });
+    }
+  });
+
+  router.delete('/offers/:id/template', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      const offer = await storage.getOfferById(id);
+      if (!offer) return res.status(404).json({ error: 'Offer not found' });
+
+      if (offer.templatePdfPath && fs.existsSync(offer.templatePdfPath)) {
+        fs.unlinkSync(offer.templatePdfPath);
+      }
+
+      await db.update(offers).set({
+        templatePdfPath: null,
+        templatePdfName: null,
+        templatePdfPosition: 'after',
+      }).where(eq(offers.id, id));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error removing offer template:', error);
+      res.status(500).json({ error: 'Failed to remove template' });
     }
   });
 

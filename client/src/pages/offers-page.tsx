@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,8 +18,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
-  FileText, Plus, Pencil, Trash2, Loader2, Search, Eye, Package, Download,
-  CheckCircle, XCircle, Send, Copy, Calendar, ChevronDown, ChevronRight, GitBranch, X
+  FileText, Plus, Pencil, Trash2, Loader2, Search, Eye, Package, Download, Upload,
+  CheckCircle, XCircle, Send, Copy, Calendar, ChevronDown, ChevronRight, GitBranch, X, Paperclip
 } from "lucide-react";
 import type { Product } from "@shared/schema";
 
@@ -77,6 +77,9 @@ export default function OffersPage() {
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isProductPickerOpen, setIsProductPickerOpen] = useState(false);
   const [productPickerSearch, setProductPickerSearch] = useState("");
+  const [templatePosition, setTemplatePosition] = useState<string>("after");
+  const [isUploadingTemplate, setIsUploadingTemplate] = useState(false);
+  const templateFileRef = useRef<HTMLInputElement>(null);
 
   const { data: offers = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/sales-marketing/offers'],
@@ -191,6 +194,44 @@ export default function OffersPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
     },
   });
+
+  const handleTemplateUpload = async (offerId: number, file: File, position: string) => {
+    setIsUploadingTemplate(true);
+    try {
+      const formData = new FormData();
+      formData.append('template', file);
+      formData.append('position', position);
+      const res = await fetch(`/api/sales-marketing/offers/${offerId}/template`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      const data = await res.json();
+      toast({ title: "Template uploaded", description: `${data.templateName} will be merged ${data.templatePosition === 'before' ? 'before' : 'after'} the offer pages` });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
+      if (viewingOffer) {
+        setViewingOffer({ ...viewingOffer, templatePdfName: data.templateName, templatePdfPosition: data.templatePosition });
+      }
+    } catch {
+      toast({ title: "Upload failed", variant: "destructive" });
+    } finally {
+      setIsUploadingTemplate(false);
+      if (templateFileRef.current) templateFileRef.current.value = '';
+    }
+  };
+
+  const handleTemplateRemove = async (offerId: number) => {
+    try {
+      await apiRequest('DELETE', `/api/sales-marketing/offers/${offerId}/template`);
+      toast({ title: "Template removed" });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
+      if (viewingOffer) {
+        setViewingOffer({ ...viewingOffer, templatePdfName: null, templatePdfPath: null });
+      }
+    } catch {
+      toast({ title: "Failed to remove template", variant: "destructive" });
+    }
+  };
 
   const resetAndClose = () => {
     setIsFormOpen(false);
@@ -504,7 +545,10 @@ export default function OffersPage() {
                 <TableBody>
                   {filteredOffers.map((offer: any) => (
                     <TableRow key={offer.id}>
-                      <TableCell className="font-mono font-medium">{offer.offerNumber}</TableCell>
+                      <TableCell className="font-mono font-medium">
+                        {offer.offerNumber}
+                        {offer.templatePdfName && <Paperclip className="inline h-3 w-3 ml-1 text-muted-foreground" title={`Template: ${offer.templatePdfName}`} />}
+                      </TableCell>
                       <TableCell>{offer.customerName}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{offer.subject}</TableCell>
                       <TableCell>{offer.createdAt ? new Date(offer.createdAt).toLocaleDateString() : "-"}</TableCell>
@@ -638,6 +682,65 @@ export default function OffersPage() {
                 {viewingOffer.deliveryTerms && <div><Label className="text-muted-foreground">Delivery Terms</Label><p className="text-sm">{viewingOffer.deliveryTerms}</p></div>}
                 {viewingOffer.notes && <div><Label className="text-muted-foreground">Notes</Label><p className="text-sm">{viewingOffer.notes}</p></div>}
                 {viewingOffer.termsAndConditions && <div><Label className="text-muted-foreground">Terms & Conditions</Label><p className="text-sm whitespace-pre-wrap">{viewingOffer.termsAndConditions}</p></div>}
+
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <Label className="text-sm font-semibold flex items-center gap-2 mb-3">
+                    <Paperclip className="h-4 w-4" /> PDF Template Attachment
+                  </Label>
+                  {viewingOffer.templatePdfName ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 bg-white border rounded px-3 py-2 flex-1">
+                          <FileText className="h-4 w-4 text-red-500" />
+                          <span className="text-sm font-medium truncate">{viewingOffer.templatePdfName}</span>
+                          <Badge variant="secondary" className="text-xs ml-auto">
+                            {viewingOffer.templatePdfPosition === 'before' ? 'Before offer' : 'After offer'}
+                          </Badge>
+                        </div>
+                        <Button variant="destructive" size="sm" onClick={() => handleTemplateRemove(viewingOffer.id)}>
+                          <Trash2 className="h-3 w-3 mr-1" /> Remove
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">This PDF will be merged {viewingOffer.templatePdfPosition === 'before' ? 'before' : 'after'} the offer pages when you download.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">Upload a PDF file to merge with this offer (e.g. technical details, specifications, drawings).</p>
+                      <div className="flex items-center gap-3">
+                        <input
+                          ref={templateFileRef}
+                          type="file"
+                          accept=".pdf"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file && viewingOffer) {
+                              handleTemplateUpload(viewingOffer.id, file, templatePosition);
+                            }
+                          }}
+                        />
+                        <Select value={templatePosition} onValueChange={setTemplatePosition}>
+                          <SelectTrigger className="w-44">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="after">Add after offer</SelectItem>
+                            <SelectItem value="before">Add before offer</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={isUploadingTemplate}
+                          onClick={() => templateFileRef.current?.click()}
+                        >
+                          {isUploadingTemplate ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Upload className="h-3 w-3 mr-1" />}
+                          {isUploadingTemplate ? "Uploading..." : "Upload PDF Template"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </DialogContent>

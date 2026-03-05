@@ -1,5 +1,7 @@
 import PDFDocument from 'pdfkit';
 import { Response } from 'express';
+import { PDFDocument as PDFLibDocument } from 'pdf-lib';
+import * as fs from 'fs';
 
 interface OfferPdfData {
   offerNumber: string;
@@ -600,6 +602,28 @@ export class OfferPdfGenerator {
       );
   }
 
+  private generateToBuffer(): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      this.doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+      this.doc.on('end', () => resolve(Buffer.concat(chunks)));
+      this.doc.on('error', reject);
+
+      this.drawHeader();
+      this.drawOfferInfo();
+      this.drawCustomerInfo();
+      this.drawSubject();
+      this.drawDearLine();
+      this.drawItemsTable();
+      this.drawTotals();
+      this.drawTerms();
+      this.drawSignature();
+      this.drawPageFooter();
+
+      this.doc.end();
+    });
+  }
+
   public generate(res: Response): void {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
@@ -621,5 +645,44 @@ export class OfferPdfGenerator {
     this.drawPageFooter();
 
     this.doc.end();
+  }
+
+  public async generateWithTemplate(res: Response, templatePdfPath: string, position: string = 'after'): Promise<void> {
+    try {
+      const offerPdfBytes = await this.generateToBuffer();
+
+      const templateBytes = fs.readFileSync(templatePdfPath);
+
+      const mergedPdf = await PDFLibDocument.create();
+
+      const offerDoc = await PDFLibDocument.load(offerPdfBytes);
+      const templateDoc = await PDFLibDocument.load(templateBytes);
+
+      if (position === 'before') {
+        const templatePages = await mergedPdf.copyPages(templateDoc, templateDoc.getPageIndices());
+        templatePages.forEach((page) => mergedPdf.addPage(page));
+
+        const offerPages = await mergedPdf.copyPages(offerDoc, offerDoc.getPageIndices());
+        offerPages.forEach((page) => mergedPdf.addPage(page));
+      } else {
+        const offerPages = await mergedPdf.copyPages(offerDoc, offerDoc.getPageIndices());
+        offerPages.forEach((page) => mergedPdf.addPage(page));
+
+        const templatePages = await mergedPdf.copyPages(templateDoc, templateDoc.getPageIndices());
+        templatePages.forEach((page) => mergedPdf.addPage(page));
+      }
+
+      const mergedBytes = await mergedPdf.save();
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${this.data.offerNumber.replace(/\//g, '-')}_Quotation.pdf"`
+      );
+      res.end(Buffer.from(mergedBytes));
+    } catch (error) {
+      console.error('Error merging PDFs:', error);
+      this.generate(res);
+    }
   }
 }
