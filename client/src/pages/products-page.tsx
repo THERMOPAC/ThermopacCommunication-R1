@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, Fragment } from "react";
+import { OffersContent } from "./offers-page";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Plus, Pencil, Trash2, MoreHorizontal, Search, Settings, Package,
@@ -495,6 +496,7 @@ export default function ProductsPage() {
             </div>
             <TabsList>
               <TabsTrigger value="products">Products</TabsTrigger>
+              <TabsTrigger value="offers">Offers / Quotations</TabsTrigger>
               <TabsTrigger value="attributes">Manage Attributes</TabsTrigger>
             </TabsList>
           </div>
@@ -712,6 +714,10 @@ export default function ProductsPage() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="offers" className="space-y-4">
+            <OffersContent />
           </TabsContent>
 
           <TabsContent value="attributes" className="space-y-4">

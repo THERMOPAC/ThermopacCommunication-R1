@@ -3,7 +3,6 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -436,22 +435,16 @@ export default function OffersPage() {
     }
   };
 
-  return (
-    <Layout>
-      <div className="p-4 md:p-6 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <FileText className="h-6 w-6" /> Offers / Quotations
-            </h1>
-            <p className="text-muted-foreground">Create and manage customer offers and quotations</p>
-          </div>
-          <Button onClick={handleNewOffer}>
-            <Plus className="mr-2 h-4 w-4" /> New Offer
-          </Button>
-        </div>
+  const offersContent = (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div />
+        <Button onClick={handleNewOffer}>
+          <Plus className="mr-2 h-4 w-4" /> New Offer
+        </Button>
+      </div>
 
-        <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -926,6 +919,9 @@ export default function OffersPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </Layout>
   );
+
+  return offersContent;
 }
+
+export { OffersPage as OffersContent };
