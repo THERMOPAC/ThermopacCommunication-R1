@@ -643,9 +643,13 @@ export default function ProductsPage() {
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
                                         className="text-destructive"
-                                        onClick={() => removeChildMutation.mutate({ parentId: product.id, childId: child.id })}
+                                        onClick={() => {
+                                          if (confirm(`Remove "${child.productCode}" as a sub-product of "${product.productCode}"?`)) {
+                                            removeChildMutation.mutate({ parentId: product.id, childId: child.id });
+                                          }
+                                        }}
                                       >
-                                        <X className="mr-2 h-4 w-4" /> Unlink
+                                        <X className="mr-2 h-4 w-4" /> Remove Sub-Product
                                       </DropdownMenuItem>
                                     </DropdownMenuContent>
                                   </DropdownMenu>
