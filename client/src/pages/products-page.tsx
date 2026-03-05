@@ -66,6 +66,8 @@ type AttributeFormValues = z.infer<typeof attributeFormSchema>;
 export default function ProductsPage() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
+  const [codeFilter, setCodeFilter] = useState("");
+  const [descriptionFilter, setDescriptionFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
@@ -125,11 +127,13 @@ export default function ProductsPage() {
         p.productCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         children.some(c => c.productCode.toLowerCase().includes(searchQuery.toLowerCase()) || c.description.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesCode = !codeFilter || p.productCode.toLowerCase().includes(codeFilter.toLowerCase());
+      const matchesDescription = !descriptionFilter || p.description.toLowerCase().includes(descriptionFilter.toLowerCase());
       const matchesCategory = categoryFilter === "all" || p.category === categoryFilter;
       const matchesStatus = statusFilter === "all" ||
         (statusFilter === "active" && p.isActive) ||
         (statusFilter === "inactive" && !p.isActive);
-      return matchesSearch && matchesCategory && matchesStatus;
+      return matchesSearch && matchesCode && matchesDescription && matchesCategory && matchesStatus;
     }).sort((a, b) => {
       const familyCompare = a.itemFamily.localeCompare(b.itemFamily);
       if (familyCompare !== 0) return familyCompare;
@@ -139,7 +143,7 @@ export default function ProductsPage() {
       if (prop2Compare !== 0) return prop2Compare;
       return a.itemProperty3.localeCompare(b.itemProperty3);
     });
-  }, [products, childProductsMap, searchQuery, categoryFilter, statusFilter]);
+  }, [products, childProductsMap, searchQuery, codeFilter, descriptionFilter, categoryFilter, statusFilter]);
 
   const toggleExpand = (productId: number) => {
     setExpandedProducts((prev) => {
@@ -482,43 +486,54 @@ export default function ProductsPage() {
           </div>
 
           <TabsContent value="products" className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-              <div className="flex flex-1 gap-2 flex-wrap items-center">
-                <div className="relative flex-1 min-w-[200px] max-w-sm">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by code or description..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                  />
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center justify-between">
+                <div className="flex flex-1 gap-2 flex-wrap items-center">
+                  <div className="relative min-w-[180px] max-w-[220px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Product Code..."
+                      value={codeFilter}
+                      onChange={(e) => setCodeFilter(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <div className="relative flex-1 min-w-[200px] max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Description..."
+                      value={descriptionFilter}
+                      onChange={(e) => setDescriptionFilter(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="w-[160px]">
+                      <Filter className="h-4 w-4 mr-1" />
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="w-[160px]">
-                    <Filter className="h-4 w-4 mr-1" />
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Button onClick={handleOpenCreateProduct}>
+                  <Plus className="mr-2 h-4 w-4" /> Add Product
+                </Button>
               </div>
-              <Button onClick={handleOpenCreateProduct}>
-                <Plus className="mr-2 h-4 w-4" /> Add Product
-              </Button>
             </div>
 
             <Card>
@@ -534,7 +549,7 @@ export default function ProductsPage() {
                     <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
                     <p className="text-lg font-medium">No products found</p>
                     <p className="text-sm">
-                      {searchQuery || categoryFilter !== "all" || statusFilter !== "all"
+                      {codeFilter || descriptionFilter || categoryFilter !== "all" || statusFilter !== "all"
                         ? "Try adjusting your search or filters"
                         : "Get started by adding your first product"}
                     </p>
