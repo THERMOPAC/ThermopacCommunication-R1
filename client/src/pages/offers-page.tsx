@@ -634,7 +634,7 @@ export default function OffersPage() {
 
         {/* CREATE/EDIT OFFER DIALOG */}
         <Dialog open={isFormOpen} onOpenChange={(open) => { if (!open) resetAndClose(); }}>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingOffer ? `Edit Offer ${editingOffer.offerNumber}` : "Create New Offer"}</DialogTitle>
               <DialogDescription>
