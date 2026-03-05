@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
-  FileText, Plus, Pencil, Trash2, Loader2, Search, Eye,
+  FileText, Plus, Pencil, Trash2, Loader2, Search, Eye, Package,
   CheckCircle, XCircle, Send, Copy, Calendar, ChevronDown, ChevronRight, GitBranch, X
 } from "lucide-react";
 import type { Product } from "@shared/schema";
@@ -75,6 +75,8 @@ export default function OffersPage() {
   const [editingOffer, setEditingOffer] = useState<any>(null);
   const [viewingOffer, setViewingOffer] = useState<any>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
+  const [isProductPickerOpen, setIsProductPickerOpen] = useState(false);
+  const [productPickerSearch, setProductPickerSearch] = useState("");
 
   const { data: offers = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/sales-marketing/offers'],
@@ -89,12 +91,12 @@ export default function OffersPage() {
   });
 
   const childProductsMap = useMemo(() => {
-    const map = new Map<number, Product[]>();
+    const map = new Map<number, Array<Product & { quantity: number }>>();
     for (const link of productChildLinks) {
       const childProduct = products.find(p => p.id === link.childProductId);
       if (childProduct) {
         const existing = map.get(link.parentProductId) || [];
-        existing.push(childProduct);
+        existing.push({ ...childProduct, quantity: link.quantity || 1 });
         map.set(link.parentProductId, existing);
       }
     }
@@ -274,38 +276,35 @@ export default function OffersPage() {
     }
   };
 
-  const handleAddProduct = (productId: string) => {
-    const product = products.find((p) => p.id === parseInt(productId));
-    if (product) {
-      const children = childProductsMap.get(product.id) || [];
-      const parentIndex = fields.length;
-      append({
-        productId: product.id,
-        productCode: product.productCode,
-        description: product.description,
-        unit: product.unit,
-        quantity: "1",
-        unitPrice: product.unitPrice,
-        discountPercent: "0",
-        hsnSacCode: product.hsnSacCode || "",
-        isSubItem: false,
-        parentItemIndex: null,
-      });
-      if (children.length > 0) {
-        for (const child of children) {
-          append({
-            productId: child.id,
-            productCode: child.productCode,
-            description: child.description,
-            unit: child.unit,
-            quantity: "1",
-            unitPrice: child.unitPrice,
-            discountPercent: "0",
-            hsnSacCode: child.hsnSacCode || "",
-            isSubItem: true,
-            parentItemIndex: parentIndex,
-          });
-        }
+  const handleAddProduct = (product: Product) => {
+    const children = childProductsMap.get(product.id) || [];
+    const parentIndex = fields.length;
+    append({
+      productId: product.id,
+      productCode: product.productCode,
+      description: product.description,
+      unit: product.unit,
+      quantity: "1",
+      unitPrice: product.unitPrice,
+      discountPercent: "0",
+      hsnSacCode: product.hsnSacCode || "",
+      isSubItem: false,
+      parentItemIndex: null,
+    });
+    if (children.length > 0) {
+      for (const child of children) {
+        append({
+          productId: child.id,
+          productCode: child.productCode,
+          description: child.description,
+          unit: child.unit,
+          quantity: String(child.quantity || 1),
+          unitPrice: child.unitPrice,
+          discountPercent: "0",
+          hsnSacCode: child.hsnSacCode || "",
+          isSubItem: true,
+          parentItemIndex: parentIndex,
+        });
       }
     }
   };
@@ -753,18 +752,9 @@ export default function OffersPage() {
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Line Items</h3>
                     <div className="flex gap-2">
-                      <Select onValueChange={handleAddProduct}>
-                        <SelectTrigger className="w-[200px]">
-                          <SelectValue placeholder="Add from Products" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {products.filter(p => p.isActive).map((p) => (
-                            <SelectItem key={p.id} value={p.id.toString()}>
-                              {p.productCode} - {p.description}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Button type="button" variant="outline" size="sm" onClick={() => { setProductPickerSearch(""); setIsProductPickerOpen(true); }}>
+                        <Package className="mr-1 h-3 w-3" /> Add from Products
+                      </Button>
                       <Button type="button" variant="outline" size="sm" onClick={handleAddBlankItem}>
                         <Plus className="mr-1 h-3 w-3" /> Custom Item
                       </Button>
@@ -917,6 +907,74 @@ export default function OffersPage() {
                 </DialogFooter>
               </form>
             </Form>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isProductPickerOpen} onOpenChange={(open) => { if (!open) { setIsProductPickerOpen(false); setProductPickerSearch(""); } }}>
+          <DialogContent className="max-w-4xl max-h-[80vh]">
+            <DialogHeader>
+              <DialogTitle>Select Product</DialogTitle>
+              <DialogDescription>Search and select a product to add as a line item</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Filter by product code or description..."
+                  value={productPickerSearch}
+                  onChange={(e) => setProductPickerSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="max-h-[400px] overflow-y-auto border rounded-md">
+                {(() => {
+                  const activeProducts = products
+                    .filter(p => p.isActive)
+                    .filter(p => {
+                      if (!productPickerSearch) return true;
+                      const q = productPickerSearch.toLowerCase();
+                      return p.productCode.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
+                    })
+                    .sort((a, b) => {
+                      const fc = a.itemFamily.localeCompare(b.itemFamily);
+                      if (fc !== 0) return fc;
+                      const p1 = a.itemProperty1.localeCompare(b.itemProperty1);
+                      if (p1 !== 0) return p1;
+                      const p2 = a.itemProperty2.localeCompare(b.itemProperty2);
+                      if (p2 !== 0) return p2;
+                      return a.itemProperty3.localeCompare(b.itemProperty3);
+                    });
+                  if (activeProducts.length === 0) {
+                    return (
+                      <div className="p-6 text-center text-muted-foreground">
+                        <p>No matching products found</p>
+                      </div>
+                    );
+                  }
+                  return activeProducts.map(p => {
+                    const children = childProductsMap.get(p.id) || [];
+                    return (
+                      <div
+                        key={p.id}
+                        className="flex items-center justify-between p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer"
+                        onClick={() => { handleAddProduct(p); setIsProductPickerOpen(false); setProductPickerSearch(""); }}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-medium text-sm">{p.productCode}</span>
+                            {children.length > 0 && <Badge variant="outline" className="text-xs">{children.length} sub</Badge>}
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate">{p.description}</p>
+                        </div>
+                        <div className="text-right ml-3">
+                          <p className="text-sm font-medium">{p.currency || "USD"} {parseFloat(p.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
