@@ -829,6 +829,69 @@ export default function OffersPage() {
                     </FormItem>
                   )} />
 
+                  <div className="border rounded-lg p-4 bg-muted/30">
+                    <Label className="text-sm font-semibold flex items-center gap-2 mb-3">
+                      <Paperclip className="h-4 w-4" /> PDF Template Attachment
+                    </Label>
+                    {editingOffer ? (
+                      editingOffer.templatePdfName ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 bg-white border rounded px-3 py-2 flex-1">
+                              <FileText className="h-4 w-4 text-red-500" />
+                              <span className="text-sm font-medium truncate">{editingOffer.templatePdfName}</span>
+                              <Badge variant="secondary" className="text-xs ml-auto">
+                                {editingOffer.templatePdfPosition === 'before' ? 'Before offer' : 'After offer'}
+                              </Badge>
+                            </div>
+                            <Button type="button" variant="destructive" size="sm" onClick={async () => {
+                              await handleTemplateRemove(editingOffer.id);
+                              setEditingOffer({ ...editingOffer, templatePdfName: null, templatePdfPath: null });
+                            }}>
+                              <Trash2 className="h-3 w-3 mr-1" /> Remove
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">This PDF will be merged {editingOffer.templatePdfPosition === 'before' ? 'before' : 'after'} the offer pages when you download.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <p className="text-sm text-muted-foreground">Upload a PDF to merge with this offer (e.g. technical specs, drawings, process descriptions).</p>
+                          <div className="flex items-center gap-3">
+                            <input
+                              ref={templateFileRef}
+                              type="file"
+                              accept=".pdf"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file && editingOffer) {
+                                  handleTemplateUpload(editingOffer.id, file, templatePosition).then(() => {
+                                    setEditingOffer({ ...editingOffer, templatePdfName: file.name, templatePdfPosition: templatePosition });
+                                  });
+                                }
+                              }}
+                            />
+                            <Select value={templatePosition} onValueChange={setTemplatePosition}>
+                              <SelectTrigger className="w-44">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="after">Add after offer</SelectItem>
+                                <SelectItem value="before">Add before offer</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button type="button" variant="outline" size="sm" disabled={isUploadingTemplate} onClick={() => templateFileRef.current?.click()}>
+                              {isUploadingTemplate ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Upload className="h-3 w-3 mr-1" />}
+                              {isUploadingTemplate ? "Uploading..." : "Upload PDF"}
+                            </Button>
+                          </div>
+                        </div>
+                      )
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Save the offer first, then edit it to attach a PDF template.</p>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <FormField control={form.control} name="currency" render={({ field }) => (
                       <FormItem>
