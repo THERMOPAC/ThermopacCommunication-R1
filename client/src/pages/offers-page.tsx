@@ -43,6 +43,7 @@ const offerFormSchema = z.object({
   customerAddress: z.string().optional(),
   contactPerson: z.string().optional(),
   subject: z.string().min(1, "Subject is required"),
+  language: z.string().min(1, "Language is required"),
   currency: z.string().min(1, "Currency is required"),
   discountPercent: z.string().optional(),
   taxPercent: z.string().optional(),
@@ -117,7 +118,7 @@ export function OffersContent() {
     resolver: zodResolver(offerFormSchema),
     defaultValues: {
       customerId: null, customerName: "", customerEmail: "", customerAddress: "",
-      contactPerson: "", subject: "", currency: "USD", discountPercent: "0",
+      contactPerson: "", subject: "", language: "English", currency: "USD", discountPercent: "0",
       taxPercent: "0", validUntil: "", paymentTerms: "", deliveryTerms: "",
       notes: "", termsAndConditions: "", items: [],
     },
@@ -257,7 +258,7 @@ export function OffersContent() {
     setEditingOffer(null);
     form.reset({
       customerId: null, customerName: "", customerEmail: "", customerAddress: "",
-      contactPerson: "", subject: "", currency: "USD", discountPercent: "0",
+      contactPerson: "", subject: "", language: "English", currency: "USD", discountPercent: "0",
       taxPercent: "0", validUntil: "", paymentTerms: "", deliveryTerms: "",
       notes: "", termsAndConditions: "", items: [],
     });
@@ -287,6 +288,7 @@ export function OffersContent() {
         customerAddress: data.customerAddress || "",
         contactPerson: data.contactPerson || "",
         subject: data.subject || "",
+        language: data.language || "English",
         currency: data.currency || "USD",
         discountPercent: data.discountPercent || "0",
         taxPercent: data.taxPercent || "0",
@@ -468,6 +470,7 @@ export function OffersContent() {
         customerAddress: data.customerAddress || "",
         contactPerson: data.contactPerson || "",
         subject: data.subject || "",
+        language: data.language || "English",
         currency: data.currency || "USD",
         discountPercent: data.discountPercent || "0",
         taxPercent: data.taxPercent || "0",
@@ -648,6 +651,7 @@ export function OffersContent() {
                   <div><Label className="text-muted-foreground">Email</Label><p>{viewingOffer.customerEmail || "-"}</p></div>
                   <div><Label className="text-muted-foreground">Valid Until</Label><p>{viewingOffer.validUntil ? new Date(viewingOffer.validUntil).toLocaleDateString() : "-"}</p></div>
                   <div className="col-span-2"><Label className="text-muted-foreground">Subject</Label><p className="font-medium">{viewingOffer.subject}</p></div>
+                  <div><Label className="text-muted-foreground">Language</Label><p>{viewingOffer.language || "English"}</p></div>
                   {viewingOffer.customerAddress && <div className="col-span-2"><Label className="text-muted-foreground">Address</Label><p>{viewingOffer.customerAddress}</p></div>}
                 </div>
 
@@ -822,20 +826,41 @@ export function OffersContent() {
                 {/* Offer Details */}
                 <div className="space-y-4">
                   <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Offer Details</h3>
-                  <FormField control={form.control} name="subject" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Subject <span className="text-destructive">*</span></FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          <SelectItem value="Used Engine Oil Refinery Fully Automated PLC SCADA Control">Used Engine Oil Refinery Fully Automated PLC SCADA Control</SelectItem>
-                          <SelectItem value="Continuous Polishing System By Regenerative Adsorption">Continuous Polishing System By Regenerative Adsorption</SelectItem>
-                          <SelectItem value="Spares for Refinery Equipment">Spares for Refinery Equipment</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2">
+                      <FormField control={form.control} name="subject" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Subject <span className="text-destructive">*</span></FormLabel>
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger></FormControl>
+                            <SelectContent>
+                              <SelectItem value="Used Engine Oil Refinery Fully Automated PLC SCADA Control">Used Engine Oil Refinery Fully Automated PLC SCADA Control</SelectItem>
+                              <SelectItem value="Continuous Polishing System By Regenerative Adsorption">Continuous Polishing System By Regenerative Adsorption</SelectItem>
+                              <SelectItem value="Spares for Refinery Equipment">Spares for Refinery Equipment</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+                    <FormField control={form.control} name="language" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Language <span className="text-destructive">*</span></FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select language" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            <SelectItem value="English">English</SelectItem>
+                            <SelectItem value="Spanish">Spanish</SelectItem>
+                            <SelectItem value="French">French</SelectItem>
+                            <SelectItem value="Arabic">Arabic</SelectItem>
+                            <SelectItem value="Portuguese">Portuguese</SelectItem>
+                            <SelectItem value="Russian">Russian</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
 
                   <div className="border rounded-lg p-4 bg-muted/30">
                     <Label className="text-sm font-semibold flex items-center gap-2 mb-3">
