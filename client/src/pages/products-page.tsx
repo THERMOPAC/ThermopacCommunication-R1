@@ -695,7 +695,10 @@ export default function ProductsPage() {
                                 <TableHead>Item Family</TableHead>
                               )}
                               {activeAttributeTab === "property_2" && (
-                                <TableHead>Property 1</TableHead>
+                                <>
+                                  <TableHead>Item Family</TableHead>
+                                  <TableHead>Property 1</TableHead>
+                                </>
                               )}
                               <TableHead className="w-[100px]"></TableHead>
                             </TableRow>
@@ -713,12 +716,17 @@ export default function ProductsPage() {
                                   <TableCell>{parentOption ? `${parentOption.code} - ${parentOption.label}` : "—"}</TableCell>
                                 )}
                                 {activeAttributeTab === "property_2" && (
-                                  <TableCell>
-                                    {parentOption ? (() => {
-                                      const grandParent = parentOption.parentId ? familyOptions.find(f => f.id === parentOption.parentId) : null;
-                                      return `${parentOption.code} - ${parentOption.label}${grandParent ? ` (${grandParent.label})` : ""}`;
-                                    })() : "—"}
-                                  </TableCell>
+                                  <>
+                                    <TableCell>
+                                      {parentOption ? (() => {
+                                        const grandParent = parentOption.parentId ? familyOptions.find(f => f.id === parentOption.parentId) : null;
+                                        return grandParent ? `${grandParent.code} - ${grandParent.label}` : "—";
+                                      })() : "—"}
+                                    </TableCell>
+                                    <TableCell>
+                                      {parentOption ? `${parentOption.code} - ${parentOption.label}` : "—"}
+                                    </TableCell>
+                                  </>
                                 )}
                                 <TableCell>
                                   <div className="flex gap-1">
