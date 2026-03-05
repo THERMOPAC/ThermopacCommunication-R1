@@ -8663,6 +8663,7 @@ export const offerTemplates = pgTable('offer_templates', {
   fileName: text('file_name').notNull(),
   fileSize: integer('file_size'),
   position: text('position').default('after').notNull(),
+  language: text('language').default('English').notNull(),
   isActive: boolean('is_active').default(true).notNull(),
   createdBy: integer('created_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow(),

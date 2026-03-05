@@ -25,6 +25,15 @@ const subjectOptions = [
   "Spares for Refinery Equipment",
 ];
 
+const languageOptions = [
+  "English",
+  "Spanish",
+  "French",
+  "Arabic",
+  "Portuguese",
+  "Russian",
+];
+
 export default function OfferTemplatesPage() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
@@ -40,6 +49,7 @@ export default function OfferTemplatesPage() {
   const [formSubject, setFormSubject] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formPosition, setFormPosition] = useState("after");
+  const [formLanguage, setFormLanguage] = useState("English");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const { data: templates = [], isLoading } = useQuery<OfferTemplate[]>({
@@ -67,6 +77,7 @@ export default function OfferTemplatesPage() {
     setFormSubject("");
     setFormDescription("");
     setFormPosition("after");
+    setFormLanguage("English");
     setSelectedFile(null);
     setEditingTemplate(null);
     setIsFormOpen(false);
@@ -91,6 +102,7 @@ export default function OfferTemplatesPage() {
       formData.append('subject', formSubject);
       formData.append('description', formDescription);
       formData.append('position', formPosition);
+      formData.append('language', formLanguage);
 
       const res = await fetch('/api/sales-marketing/offer-templates', {
         method: 'POST',
@@ -119,6 +131,7 @@ export default function OfferTemplatesPage() {
         subject: formSubject,
         description: formDescription,
         position: formPosition,
+        language: formLanguage,
       });
       toast({ title: "Template updated" });
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offer-templates'] });
@@ -154,6 +167,7 @@ export default function OfferTemplatesPage() {
     setFormSubject(template.subject);
     setFormDescription(template.description || "");
     setFormPosition(template.position);
+    setFormLanguage(template.language || "English");
     setIsFormOpen(true);
   };
 
@@ -233,6 +247,7 @@ export default function OfferTemplatesPage() {
                     <TableHead>Subject</TableHead>
                     <TableHead>File</TableHead>
                     <TableHead>Size</TableHead>
+                    <TableHead>Language</TableHead>
                     <TableHead>Position</TableHead>
                     <TableHead>Active</TableHead>
                     <TableHead>Created</TableHead>
@@ -262,6 +277,9 @@ export default function OfferTemplatesPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">{formatFileSize(template.fileSize)}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">{template.language || "English"}</Badge>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="text-xs">
                           {template.position === 'before' ? 'Before offer' : 'After offer'}
@@ -329,6 +347,17 @@ export default function OfferTemplatesPage() {
                   <SelectContent>
                     {subjectOptions.map(s => (
                       <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Language <span className="text-destructive">*</span></Label>
+                <Select value={formLanguage} onValueChange={setFormLanguage}>
+                  <SelectTrigger><SelectValue placeholder="Select language" /></SelectTrigger>
+                  <SelectContent>
+                    {languageOptions.map(l => (
+                      <SelectItem key={l} value={l}>{l}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

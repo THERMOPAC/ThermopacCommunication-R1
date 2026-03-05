@@ -893,7 +893,7 @@ export function setupSalesMarketingRoutes(app: Express) {
   router.post('/offer-templates', ensureAuthenticated, templateUpload.single('template'), async (req: Request, res: Response) => {
     try {
       if (!req.file) return res.status(400).json({ error: 'No PDF file uploaded' });
-      const { name, subject, description, position } = req.body;
+      const { name, subject, description, position, language } = req.body;
       if (!name || !subject) return res.status(400).json({ error: 'Name and subject are required' });
 
       const [template] = await db.insert(offerTemplates).values({
@@ -904,6 +904,7 @@ export function setupSalesMarketingRoutes(app: Express) {
         fileName: req.file.originalname,
         fileSize: req.file.size,
         position: position || 'after',
+        language: language || 'English',
         isActive: true,
         createdBy: (req.user as any)?.id || null,
       }).returning();
@@ -919,12 +920,13 @@ export function setupSalesMarketingRoutes(app: Express) {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
-      const { name, subject, description, position, isActive } = req.body;
+      const { name, subject, description, position, language, isActive } = req.body;
       const updateData: any = { updatedAt: new Date() };
       if (name !== undefined) updateData.name = name;
       if (subject !== undefined) updateData.subject = subject;
       if (description !== undefined) updateData.description = description;
       if (position !== undefined) updateData.position = position;
+      if (language !== undefined) updateData.language = language;
       if (isActive !== undefined) updateData.isActive = isActive;
 
       const [template] = await db.update(offerTemplates).set(updateData).where(eq(offerTemplates.id, id)).returning();
