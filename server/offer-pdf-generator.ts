@@ -602,28 +602,6 @@ export class OfferPdfGenerator {
       );
   }
 
-  private generateToBuffer(): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-      const chunks: Buffer[] = [];
-      this.doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-      this.doc.on('end', () => resolve(Buffer.concat(chunks)));
-      this.doc.on('error', reject);
-
-      this.drawHeader();
-      this.drawOfferInfo();
-      this.drawCustomerInfo();
-      this.drawSubject();
-      this.drawDearLine();
-      this.drawItemsTable();
-      this.drawTotals();
-      this.drawTerms();
-      this.drawSignature();
-      this.drawPageFooter();
-
-      this.doc.end();
-    });
-  }
-
   private generatePartBuffer(drawFns: (() => void)[]): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const partDoc = new PDFDocument({
@@ -674,51 +652,32 @@ export class OfferPdfGenerator {
     this.doc.end();
   }
 
-  public async generateWithTemplate(res: Response, templatePdfPath: string, position: string = 'middle'): Promise<void> {
+  public async generateWithTemplate(res: Response, templatePdfPath: string): Promise<void> {
     try {
       const templateBytes = fs.readFileSync(templatePdfPath);
       const templateDoc = await PDFLibDocument.load(templateBytes);
       const mergedPdf = await PDFLibDocument.create();
 
-      if (position === 'middle') {
-        const part1Bytes = await this.generatePartBuffer([
-          this.drawHeader, this.drawOfferInfo, this.drawCustomerInfo,
-          this.drawSubject, this.drawDearLine, this.drawItemsTable,
-          this.drawTotals, this.drawPageFooter,
-        ]);
-        const part2Bytes = await this.generatePartBuffer([
-          this.drawTerms, this.drawSignature, this.drawPageFooter,
-        ]);
+      const part1Bytes = await this.generatePartBuffer([
+        this.drawHeader, this.drawOfferInfo, this.drawCustomerInfo,
+        this.drawSubject, this.drawDearLine, this.drawItemsTable,
+        this.drawTotals, this.drawPageFooter,
+      ]);
+      const part2Bytes = await this.generatePartBuffer([
+        this.drawTerms, this.drawSignature, this.drawPageFooter,
+      ]);
 
-        const part1Doc = await PDFLibDocument.load(part1Bytes);
-        const part2Doc = await PDFLibDocument.load(part2Bytes);
+      const part1Doc = await PDFLibDocument.load(part1Bytes);
+      const part2Doc = await PDFLibDocument.load(part2Bytes);
 
-        const p1Pages = await mergedPdf.copyPages(part1Doc, part1Doc.getPageIndices());
-        p1Pages.forEach((page) => mergedPdf.addPage(page));
+      const p1Pages = await mergedPdf.copyPages(part1Doc, part1Doc.getPageIndices());
+      p1Pages.forEach((page) => mergedPdf.addPage(page));
 
-        const tplPages = await mergedPdf.copyPages(templateDoc, templateDoc.getPageIndices());
-        tplPages.forEach((page) => mergedPdf.addPage(page));
+      const tplPages = await mergedPdf.copyPages(templateDoc, templateDoc.getPageIndices());
+      tplPages.forEach((page) => mergedPdf.addPage(page));
 
-        const p2Pages = await mergedPdf.copyPages(part2Doc, part2Doc.getPageIndices());
-        p2Pages.forEach((page) => mergedPdf.addPage(page));
-      } else {
-        const offerPdfBytes = await this.generateToBuffer();
-        const offerDoc = await PDFLibDocument.load(offerPdfBytes);
-
-        if (position === 'before') {
-          const tplPages = await mergedPdf.copyPages(templateDoc, templateDoc.getPageIndices());
-          tplPages.forEach((page) => mergedPdf.addPage(page));
-
-          const offerPages = await mergedPdf.copyPages(offerDoc, offerDoc.getPageIndices());
-          offerPages.forEach((page) => mergedPdf.addPage(page));
-        } else {
-          const offerPages = await mergedPdf.copyPages(offerDoc, offerDoc.getPageIndices());
-          offerPages.forEach((page) => mergedPdf.addPage(page));
-
-          const tplPages = await mergedPdf.copyPages(templateDoc, templateDoc.getPageIndices());
-          tplPages.forEach((page) => mergedPdf.addPage(page));
-        }
-      }
+      const p2Pages = await mergedPdf.copyPages(part2Doc, part2Doc.getPageIndices());
+      p2Pages.forEach((page) => mergedPdf.addPage(page));
 
       const mergedBytes = await mergedPdf.save();
 

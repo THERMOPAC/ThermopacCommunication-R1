@@ -1175,7 +1175,6 @@ export function setupSalesMarketingRoutes(app: Express) {
       });
 
       let templatePath = offer.templatePdfPath;
-      let templatePosition = offer.templatePdfPosition || 'middle';
 
       if (!templatePath || !fs.existsSync(templatePath)) {
         const offerLang = (offer as any).language || 'English';
@@ -1188,12 +1187,11 @@ export function setupSalesMarketingRoutes(app: Express) {
         ).limit(1);
         if (autoTemplate && fs.existsSync(autoTemplate.filePath)) {
           templatePath = autoTemplate.filePath;
-          templatePosition = autoTemplate.position;
         }
       }
 
       if (templatePath && fs.existsSync(templatePath)) {
-        await generator.generateWithTemplate(res, templatePath, templatePosition);
+        await generator.generateWithTemplate(res, templatePath);
       } else {
         generator.generate(res);
       }

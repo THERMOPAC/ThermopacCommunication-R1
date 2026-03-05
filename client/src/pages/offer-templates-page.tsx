@@ -48,7 +48,6 @@ export default function OfferTemplatesPage() {
   const [formName, setFormName] = useState("");
   const [formSubject, setFormSubject] = useState("");
   const [formDescription, setFormDescription] = useState("");
-  const [formPosition, setFormPosition] = useState("middle");
   const [formLanguage, setFormLanguage] = useState("English");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -76,7 +75,6 @@ export default function OfferTemplatesPage() {
     setFormName("");
     setFormSubject("");
     setFormDescription("");
-    setFormPosition("middle");
     setFormLanguage("English");
     setSelectedFile(null);
     setEditingTemplate(null);
@@ -101,7 +99,7 @@ export default function OfferTemplatesPage() {
       formData.append('name', formName);
       formData.append('subject', formSubject);
       formData.append('description', formDescription);
-      formData.append('position', formPosition);
+      formData.append('position', 'middle');
       formData.append('language', formLanguage);
 
       const res = await fetch('/api/sales-marketing/offer-templates', {
@@ -130,7 +128,7 @@ export default function OfferTemplatesPage() {
         name: formName,
         subject: formSubject,
         description: formDescription,
-        position: formPosition,
+        position: 'middle',
         language: formLanguage,
       });
       toast({ title: "Template updated" });
@@ -166,7 +164,6 @@ export default function OfferTemplatesPage() {
     setFormName(template.name);
     setFormSubject(template.subject);
     setFormDescription(template.description || "");
-    setFormPosition(template.position);
     setFormLanguage(template.language || "English");
     setIsFormOpen(true);
   };
@@ -248,7 +245,6 @@ export default function OfferTemplatesPage() {
                     <TableHead>File</TableHead>
                     <TableHead>Size</TableHead>
                     <TableHead>Language</TableHead>
-                    <TableHead>Position</TableHead>
                     <TableHead>Active</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -279,11 +275,6 @@ export default function OfferTemplatesPage() {
                       <TableCell className="text-sm">{formatFileSize(template.fileSize)}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs">{template.language || "English"}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="text-xs">
-                          {template.position === 'before' ? 'Before offer' : template.position === 'middle' ? 'Middle' : 'After offer'}
-                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Switch
@@ -365,20 +356,6 @@ export default function OfferTemplatesPage() {
               <div>
                 <Label>Description</Label>
                 <Textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder="Optional description" rows={2} />
-              </div>
-              <div>
-                <Label>Merge Position</Label>
-                <Select value={formPosition} onValueChange={setFormPosition}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="middle">Middle (after price schedule)</SelectItem>
-                    <SelectItem value="after">After offer pages</SelectItem>
-                    <SelectItem value="before">Before offer pages</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Where the template pages appear relative to the generated offer in the final PDF
-                </p>
               </div>
               {!editingTemplate && (
                 <div>

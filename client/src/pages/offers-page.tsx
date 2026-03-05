@@ -77,7 +77,6 @@ export function OffersContent() {
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isProductPickerOpen, setIsProductPickerOpen] = useState(false);
   const [productPickerSearch, setProductPickerSearch] = useState("");
-  const [templatePosition, setTemplatePosition] = useState<string>("middle");
   const [isUploadingTemplate, setIsUploadingTemplate] = useState(false);
   const templateFileRef = useRef<HTMLInputElement>(null);
 
@@ -199,22 +198,22 @@ export function OffersContent() {
     },
   });
 
-  const handleTemplateUpload = async (offerId: number, file: File, position: string) => {
+  const handleTemplateUpload = async (offerId: number, file: File) => {
     setIsUploadingTemplate(true);
     try {
       const formData = new FormData();
       formData.append('template', file);
-      formData.append('position', position);
+      formData.append('position', 'middle');
       const res = await fetch(`/api/sales-marketing/offers/${offerId}/template`, {
         method: 'POST',
         body: formData,
       });
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
-      toast({ title: "Template uploaded", description: `${data.templateName} will be merged ${data.templatePosition === 'before' ? 'before' : 'after'} the offer pages` });
+      toast({ title: "Template uploaded", description: `${data.templateName} will be inserted between price schedule and terms` });
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
       if (viewingOffer) {
-        setViewingOffer({ ...viewingOffer, templatePdfName: data.templateName, templatePdfPosition: data.templatePosition });
+        setViewingOffer({ ...viewingOffer, templatePdfName: data.templateName, templatePdfPosition: 'middle' });
       }
     } catch {
       toast({ title: "Upload failed", variant: "destructive" });
@@ -244,8 +243,8 @@ export function OffersContent() {
       if (!downloadRes.ok) throw new Error('Failed to download template');
       const blob = await downloadRes.blob();
       const file = new File([blob], template.fileName, { type: 'application/pdf' });
-      await handleTemplateUpload(offerId, file, template.position);
-      setEditingOffer((prev: any) => prev ? { ...prev, templatePdfName: template.fileName, templatePdfPosition: template.position } : prev);
+      await handleTemplateUpload(offerId, file);
+      setEditingOffer((prev: any) => prev ? { ...prev, templatePdfName: template.fileName, templatePdfPosition: 'middle' } : prev);
     } catch {
       toast({ title: "Failed to apply template", variant: "destructive" });
     } finally {
@@ -713,15 +712,13 @@ export function OffersContent() {
                         <div className="flex items-center gap-2 bg-white border rounded px-3 py-2 flex-1">
                           <FileText className="h-4 w-4 text-red-500" />
                           <span className="text-sm font-medium truncate">{viewingOffer.templatePdfName}</span>
-                          <Badge variant="secondary" className="text-xs ml-auto">
-                            {viewingOffer.templatePdfPosition === 'before' ? 'Before offer' : viewingOffer.templatePdfPosition === 'middle' ? 'Middle' : 'After offer'}
-                          </Badge>
+                          <Badge variant="secondary" className="text-xs ml-auto">Middle</Badge>
                         </div>
                         <Button variant="destructive" size="sm" onClick={() => handleTemplateRemove(viewingOffer.id)}>
                           <Trash2 className="h-3 w-3 mr-1" /> Remove
                         </Button>
                       </div>
-                      <p className="text-xs text-muted-foreground">This PDF will be merged {viewingOffer.templatePdfPosition === 'before' ? 'before' : 'after'} the offer pages when you download.</p>
+                      <p className="text-xs text-muted-foreground">This PDF will be inserted between the price schedule and terms/signature pages.</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -735,20 +732,10 @@ export function OffersContent() {
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file && viewingOffer) {
-                              handleTemplateUpload(viewingOffer.id, file, templatePosition);
+                              handleTemplateUpload(viewingOffer.id, file);
                             }
                           }}
                         />
-                        <Select value={templatePosition} onValueChange={setTemplatePosition}>
-                          <SelectTrigger className="w-44">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="middle">Middle (after price schedule)</SelectItem>
-                            <SelectItem value="after">Add after offer</SelectItem>
-                            <SelectItem value="before">Add before offer</SelectItem>
-                          </SelectContent>
-                        </Select>
                         <Button
                           variant="outline"
                           size="sm"
@@ -861,9 +848,7 @@ export function OffersContent() {
                             <div className="flex items-center gap-2 bg-white border rounded px-3 py-2 flex-1">
                               <FileText className="h-4 w-4 text-red-500" />
                               <span className="text-sm font-medium truncate">{editingOffer.templatePdfName}</span>
-                              <Badge variant="secondary" className="text-xs ml-auto">
-                                {editingOffer.templatePdfPosition === 'before' ? 'Before offer' : editingOffer.templatePdfPosition === 'middle' ? 'Middle' : 'After offer'}
-                              </Badge>
+                              <Badge variant="secondary" className="text-xs ml-auto">Middle</Badge>
                             </div>
                             <Button type="button" variant="destructive" size="sm" onClick={async () => {
                               await handleTemplateRemove(editingOffer.id);
@@ -872,7 +857,7 @@ export function OffersContent() {
                               <Trash2 className="h-3 w-3 mr-1" /> Remove
                             </Button>
                           </div>
-                          <p className="text-xs text-muted-foreground">This PDF will be merged {editingOffer.templatePdfPosition === 'before' ? 'before' : 'after'} the offer pages when you download.</p>
+                          <p className="text-xs text-muted-foreground">This PDF will be inserted between the price schedule and terms/signature pages.</p>
                         </div>
                       ) : (
                         <div className="space-y-3">
@@ -891,7 +876,7 @@ export function OffersContent() {
                                           <FileText className="h-4 w-4 text-red-500 shrink-0" />
                                           <span className="text-sm font-medium truncate flex-1">{t.name}</span>
                                           <span className="text-xs text-muted-foreground">{t.fileName}</span>
-                                          <Badge variant="secondary" className="text-xs shrink-0">{t.position === 'before' ? 'Before' : 'After'}</Badge>
+                                          <Badge variant="secondary" className="text-xs shrink-0">Middle</Badge>
                                           <Button type="button" variant="default" size="sm" disabled={isUploadingTemplate}
                                             onClick={() => handleApplyLibraryTemplate(editingOffer.id, t)}>
                                             {isUploadingTemplate ? <Loader2 className="h-3 w-3 animate-spin" /> : "Apply"}
@@ -933,22 +918,12 @@ export function OffersContent() {
                                       onChange={(e) => {
                                         const file = e.target.files?.[0];
                                         if (file && editingOffer) {
-                                          handleTemplateUpload(editingOffer.id, file, templatePosition).then(() => {
-                                            setEditingOffer({ ...editingOffer, templatePdfName: file.name, templatePdfPosition: templatePosition });
+                                          handleTemplateUpload(editingOffer.id, file).then(() => {
+                                            setEditingOffer({ ...editingOffer, templatePdfName: file.name, templatePdfPosition: 'middle' });
                                           });
                                         }
                                       }}
                                     />
-                                    <Select value={templatePosition} onValueChange={setTemplatePosition}>
-                                      <SelectTrigger className="w-44">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="middle">Middle (after price schedule)</SelectItem>
-                                        <SelectItem value="after">Add after offer</SelectItem>
-                                        <SelectItem value="before">Add before offer</SelectItem>
-                                      </SelectContent>
-                                    </Select>
                                     <Button type="button" variant="outline" size="sm" disabled={isUploadingTemplate} onClick={() => templateFileRef.current?.click()}>
                                       {isUploadingTemplate ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Upload className="h-3 w-3 mr-1" />}
                                       {isUploadingTemplate ? "Uploading..." : "Upload PDF"}
