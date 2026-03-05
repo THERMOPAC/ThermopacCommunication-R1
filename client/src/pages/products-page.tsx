@@ -109,12 +109,12 @@ export default function ProductsPage() {
   const categories = ["Finish Goods", "Bought-Out Items", "Raw Materials", "Consumables"];
 
   const childProductsMap = useMemo(() => {
-    const map = new Map<number, Product[]>();
+    const map = new Map<number, Array<Product & { quantity: number }>>();
     productChildLinks.forEach((link: any) => {
       const child = products.find(p => p.id === link.childProductId);
       if (child) {
         if (!map.has(link.parentProductId)) map.set(link.parentProductId, []);
-        map.get(link.parentProductId)!.push(child);
+        map.get(link.parentProductId)!.push({ ...child, quantity: link.quantity || 1 });
       }
     });
     return map;
@@ -318,8 +318,8 @@ export default function ProductsPage() {
   });
 
   const addChildMutation = useMutation({
-    mutationFn: async ({ parentId, childProductId }: { parentId: number; childProductId: number }) => {
-      return apiRequest('POST', `/api/sales-marketing/products/${parentId}/children`, { childProductId });
+    mutationFn: async ({ parentId, childProductId, quantity }: { parentId: number; childProductId: number; quantity?: number }) => {
+      return apiRequest('POST', `/api/sales-marketing/products/${parentId}/children`, { childProductId, quantity: quantity || 1 });
     },
     onSuccess: () => {
       toast({ title: "Sub-product linked", description: "Sub-product has been added successfully" });
@@ -331,6 +331,20 @@ export default function ProductsPage() {
     },
     onError: (error) => {
       toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to link sub-product", variant: "destructive" });
+    },
+  });
+
+  const updateChildQuantityMutation = useMutation({
+    mutationFn: async ({ parentId, childId, quantity }: { parentId: number; childId: number; quantity: number }) => {
+      return apiRequest('PATCH', `/api/sales-marketing/products/${parentId}/children/${childId}`, { quantity });
+    },
+    onSuccess: () => {
+      toast({ title: "Quantity updated" });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/product-children'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/products'] });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to update quantity", variant: "destructive" });
     },
   });
 
@@ -563,6 +577,7 @@ export default function ProductsPage() {
                         <TableHead>Description</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead>Unit</TableHead>
+                        <TableHead className="text-center w-[70px]">Qty</TableHead>
                         <TableHead className="text-right">Unit Price</TableHead>
                         <TableHead>HSN/SAC</TableHead>
                         <TableHead>Status</TableHead>
@@ -595,6 +610,7 @@ export default function ProductsPage() {
                               <TableCell>{product.description}</TableCell>
                               <TableCell>{product.category || "-"}</TableCell>
                               <TableCell>{product.unit}</TableCell>
+                              <TableCell className="text-center text-muted-foreground">—</TableCell>
                               <TableCell className="text-right">{product.currency || "USD"} {parseFloat(product.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                               <TableCell>{product.hsnSacCode || "-"}</TableCell>
                               <TableCell>
@@ -636,8 +652,25 @@ export default function ProductsPage() {
                                 <TableCell className="text-sm">{child.description}</TableCell>
                                 <TableCell className="text-sm">{child.category || "-"}</TableCell>
                                 <TableCell className="text-sm">{child.unit}</TableCell>
+                                <TableCell className="text-center">
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    className="w-[60px] h-7 text-center text-sm mx-auto"
+                                    defaultValue={child.quantity}
+                                    onBlur={(e) => {
+                                      const newQty = parseInt(e.target.value);
+                                      if (newQty && newQty > 0 && newQty !== child.quantity) {
+                                        updateChildQuantityMutation.mutate({ parentId: product.id, childId: child.id, quantity: newQty });
+                                      }
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                    }}
+                                  />
+                                </TableCell>
                                 <TableCell className="text-right text-sm text-muted-foreground">
-                                  {child.currency || "USD"} {parseFloat(child.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  {child.currency || "USD"} {(parseFloat(child.unitPrice) * child.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </TableCell>
                                 <TableCell className="text-sm">{child.hsnSacCode || "-"}</TableCell>
                                 <TableCell>
@@ -1315,12 +1348,7 @@ export default function ProductsPage() {
                   return availableProducts.map(p => (
                     <div
                       key={p.id}
-                      className="flex items-center justify-between p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer"
-                      onClick={() => {
-                        if (linkingParentProduct) {
-                          addChildMutation.mutate({ parentId: linkingParentProduct.id, childProductId: p.id });
-                        }
-                      }}
+                      className="flex items-center justify-between p-3 border-b last:border-b-0 hover:bg-muted/50"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -1329,8 +1357,29 @@ export default function ProductsPage() {
                         </div>
                         <p className="text-sm text-muted-foreground truncate">{p.description}</p>
                       </div>
-                      <div className="text-right ml-3">
-                        <p className="text-sm font-medium">{p.currency || "USD"} {parseFloat(p.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                      <div className="flex items-center gap-2 ml-3">
+                        <p className="text-sm font-medium whitespace-nowrap">{p.currency || "USD"} {parseFloat(p.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                        <Input
+                          type="number"
+                          min={1}
+                          defaultValue={1}
+                          className="w-[60px] h-8 text-center text-sm"
+                          id={`sub-qty-${p.id}`}
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8"
+                          onClick={() => {
+                            if (linkingParentProduct) {
+                              const qtyInput = document.getElementById(`sub-qty-${p.id}`) as HTMLInputElement;
+                              const qty = parseInt(qtyInput?.value || '1') || 1;
+                              addChildMutation.mutate({ parentId: linkingParentProduct.id, childProductId: p.id, quantity: qty });
+                            }
+                          }}
+                        >
+                          <Plus className="h-3 w-3 mr-1" /> Add
+                        </Button>
                       </div>
                     </div>
                   ));

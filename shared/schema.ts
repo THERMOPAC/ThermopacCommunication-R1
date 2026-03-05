@@ -8640,6 +8640,7 @@ export const productChildren = pgTable('product_children', {
   id: serial('id').primaryKey(),
   parentProductId: integer('parent_product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
   childProductId: integer('child_product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  quantity: integer('quantity').notNull().default(1),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

@@ -795,15 +795,32 @@ export function setupSalesMarketingRoutes(app: Express) {
   router.post('/products/:id/children', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const parentId = parseInt(req.params.id);
-      const { childProductId } = req.body;
+      const { childProductId, quantity } = req.body;
       if (isNaN(parentId) || !childProductId) return res.status(400).json({ error: 'Invalid parameters' });
       if (parentId === childProductId) return res.status(400).json({ error: 'A product cannot be its own child' });
-      const result = await storage.addProductChild(parentId, childProductId);
+      const qty = quantity && Number(quantity) > 0 ? Number(quantity) : 1;
+      const result = await storage.addProductChild(parentId, childProductId, qty);
       const updatedParent = await storage.recalculateParentPrice(parentId);
       res.status(201).json({ link: result, parent: updatedParent });
     } catch (error) {
       console.error('Error adding product child:', error);
       res.status(500).json({ error: 'Failed to add product child' });
+    }
+  });
+
+  router.patch('/products/:parentId/children/:childId', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const parentId = parseInt(req.params.parentId);
+      const childId = parseInt(req.params.childId);
+      const { quantity } = req.body;
+      if (isNaN(parentId) || isNaN(childId)) return res.status(400).json({ error: 'Invalid IDs' });
+      if (!quantity || Number(quantity) < 1) return res.status(400).json({ error: 'Quantity must be at least 1' });
+      const result = await storage.updateProductChildQuantity(parentId, childId, Number(quantity));
+      const updatedParent = await storage.recalculateParentPrice(parentId);
+      res.json({ link: result, parent: updatedParent });
+    } catch (error) {
+      console.error('Error updating product child quantity:', error);
+      res.status(500).json({ error: 'Failed to update quantity' });
     }
   });
 

@@ -4099,8 +4099,21 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(productChildrenTable);
   }
 
-  async addProductChild(parentProductId: number, childProductId: number): Promise<any> {
-    const [result] = await db.insert(productChildrenTable).values({ parentProductId, childProductId }).returning();
+  async addProductChild(parentProductId: number, childProductId: number, quantity: number = 1): Promise<any> {
+    const [result] = await db.insert(productChildrenTable).values({ parentProductId, childProductId, quantity }).returning();
+    return result;
+  }
+
+  async updateProductChildQuantity(parentProductId: number, childProductId: number, quantity: number): Promise<any> {
+    const [result] = await db.update(productChildrenTable)
+      .set({ quantity })
+      .where(
+        and(
+          eq(productChildrenTable.parentProductId, parentProductId),
+          eq(productChildrenTable.childProductId, childProductId)
+        )
+      )
+      .returning();
     return result;
   }
 
@@ -4114,9 +4127,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async recalculateParentPrice(parentProductId: number): Promise<any> {
-    const children = await this.getProductChildren(parentProductId);
-    if (children.length === 0) return await this.getProductById(parentProductId);
-    const totalPrice = children.reduce((sum: number, c: any) => sum + parseFloat(c.unitPrice || '0'), 0);
+    const links = await db.select().from(productChildrenTable).where(eq(productChildrenTable.parentProductId, parentProductId));
+    if (links.length === 0) return await this.getProductById(parentProductId);
+    const childIds = links.map(l => l.childProductId);
+    const children = await db.select().from(productsTable).where(inArray(productsTable.id, childIds));
+    const totalPrice = links.reduce((sum: number, link: any) => {
+      const child = children.find((c: any) => c.id === link.childProductId);
+      return sum + (parseFloat(child?.unitPrice || '0') * (link.quantity || 1));
+    }, 0);
     return await this.updateProduct(parentProductId, { unitPrice: totalPrice.toFixed(2) });
   }
 }
