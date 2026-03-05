@@ -46,6 +46,7 @@ import LeadGenerationPage from "@/pages/lead-generation-page";
 import LeadsPage from "@/pages/leads-page";
 import ProductsPage from "@/pages/products-page";
 import OfferTemplatesPage from "@/pages/offer-templates-page";
+import OffersPage from "@/pages/offers-page";
 import CampaignsPage from "@/pages/campaigns-page";
 import MarketingDashboardPage from "@/pages/marketing-dashboard-page";
 import MarketingToolsPage from "@/pages/marketing-tools-page";
@@ -200,6 +201,7 @@ function Router() {
       <ProtectedRoute path="/leads" component={LeadsPage} />
       <ProtectedRoute path="/products" component={ProductsPage} />
       <ProtectedRoute path="/offer-templates" component={OfferTemplatesPage} />
+      <ProtectedRoute path="/offers" component={OffersPage} />
       <ProtectedRoute path="/campaigns" component={CampaignsPage} />
       <ProtectedRoute path="/marketing-dashboard" component={MarketingDashboardPage} />
       <ProtectedRoute path="/marketing-tools" component={MarketingToolsPage} />
