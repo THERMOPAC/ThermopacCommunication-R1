@@ -1225,7 +1225,7 @@ export default function ProductsPage() {
         </Dialog>
 
         <Dialog open={isSubProductPickerOpen} onOpenChange={(open) => { if (!open) { setIsSubProductPickerOpen(false); setLinkingParentProduct(null); setSubProductSearch(""); } }}>
-          <DialogContent className="max-w-3xl max-h-[80vh]">
+          <DialogContent className="max-w-5xl max-h-[80vh]">
             <DialogHeader>
               <DialogTitle>Link Sub-Product</DialogTitle>
               <DialogDescription>
@@ -1250,6 +1250,7 @@ export default function ProductsPage() {
                   const availableProducts = products.filter(p => {
                     if (linkingParentProduct && p.id === linkingParentProduct.id) return false;
                     if (existingChildIds.includes(p.id)) return false;
+                    if (linkingParentProduct && p.itemFamily !== linkingParentProduct.itemFamily) return false;
                     if (!subProductSearch) return true;
                     return p.productCode.toLowerCase().includes(subProductSearch.toLowerCase()) ||
                       p.description.toLowerCase().includes(subProductSearch.toLowerCase());
