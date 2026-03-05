@@ -683,8 +683,9 @@ router.patch('/products/:id', ensureAuthenticated, async (req: Request, res: Res
       const familyLabel = updateData.itemFamilyLabel || existing.itemFamilyLabel;
       const prop1Label = updateData.itemProperty1Label || existing.itemProperty1Label;
       const prop2Label = updateData.itemProperty2Label || existing.itemProperty2Label;
-      if (!updateData.description) {
-        updateData.description = `${familyLabel} ${prop1Label} ${prop2Label} ${prop3}`;
+      const autoDescription = `${familyLabel} ${prop1Label} ${prop2Label} ${prop3}`;
+      if (!updateData.description || updateData.description === existing.description) {
+        updateData.description = autoDescription;
       }
     }
 

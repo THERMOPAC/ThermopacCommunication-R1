@@ -421,6 +421,7 @@ export default function ProductsPage() {
       productForm.setValue("itemProperty2", "");
       productForm.setValue("itemProperty2Label", "");
       productForm.setValue("itemProperty3", "");
+      productForm.setValue("description", "");
     }
   };
 
@@ -432,6 +433,7 @@ export default function ProductsPage() {
       productForm.setValue("itemProperty2", "");
       productForm.setValue("itemProperty2Label", "");
       productForm.setValue("itemProperty3", "");
+      productForm.setValue("description", "");
     }
   };
 
@@ -440,6 +442,7 @@ export default function ProductsPage() {
     if (opt) {
       productForm.setValue("itemProperty2", opt.code);
       productForm.setValue("itemProperty2Label", opt.label);
+      productForm.setValue("description", "");
     }
   };
 
@@ -853,6 +856,10 @@ export default function ProductsPage() {
                         <FormControl>
                           <Input
                             {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              productForm.setValue("description", "");
+                            }}
                             placeholder="e.g. 0200"
                             maxLength={4}
                           />
