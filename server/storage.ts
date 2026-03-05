@@ -4080,11 +4080,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getNextOfferNumber(): Promise<string> {
-    const result = await db.select({ maxNum: sql<string>`MAX(offer_number)` }).from(offersTable);
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+    const fyStart = month >= 4 ? year : year - 1;
+    const fyEnd = fyStart + 1;
+    const fyCode = `${fyStart.toString().slice(2)}${fyEnd.toString().slice(2)}`;
+    const prefix = `OFR-${fyCode}-`;
+
+    const result = await db.select({ maxNum: sql<string>`MAX(offer_number)` })
+      .from(offersTable)
+      .where(sql`offer_number LIKE ${prefix + '%'}`);
     const maxNum = result[0]?.maxNum;
-    if (!maxNum) return 'OFR-0001';
-    const num = parseInt(maxNum.replace('OFR-', '')) + 1;
-    return `OFR-${num.toString().padStart(4, '0')}`;
+    if (!maxNum) return `${prefix}0001`;
+    const lastNum = parseInt(maxNum.split('-').pop() || '0') + 1;
+    return `${prefix}${lastNum.toString().padStart(4, '0')}`;
   }
 
   async getProductChildren(parentProductId: number): Promise<any[]> {
