@@ -207,6 +207,10 @@ export default function OffersPage() {
 
   const handleNewOffer = () => {
     resetAndClose();
+    const now = new Date();
+    const validUntil = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+    const formatted = validUntil.toISOString().split('T')[0];
+    form.setValue("validUntil", formatted);
     setIsFormOpen(true);
   };
 
@@ -800,7 +804,8 @@ export default function OffersPage() {
                                 </TableCell>
                                 <TableCell>
                                   <Input
-                                    {...form.register(`items.${index}.description`)}
+                                    value={item?.description || ""}
+                                    onChange={(e) => form.setValue(`items.${index}.description`, e.target.value, { shouldDirty: true })}
                                     className={`h-8 text-sm ${isSubItem ? "pl-6" : ""}`}
                                     placeholder="Item description"
                                   />
@@ -827,13 +832,25 @@ export default function OffersPage() {
                                   </select>
                                 </TableCell>
                                 <TableCell>
-                                  <Input {...form.register(`items.${index}.quantity`)} className="h-8 text-sm text-right" type="number" step="0.001" />
+                                  <Input
+                                    value={item?.quantity || ""}
+                                    onChange={(e) => form.setValue(`items.${index}.quantity`, e.target.value, { shouldDirty: true })}
+                                    className="h-8 text-sm text-right" type="number" step="0.001"
+                                  />
                                 </TableCell>
                                 <TableCell>
-                                  <Input {...form.register(`items.${index}.unitPrice`)} className="h-8 text-sm text-right" type="number" step="0.01" />
+                                  <Input
+                                    value={item?.unitPrice || ""}
+                                    onChange={(e) => form.setValue(`items.${index}.unitPrice`, e.target.value, { shouldDirty: true })}
+                                    className="h-8 text-sm text-right" type="number" step="0.01"
+                                  />
                                 </TableCell>
                                 <TableCell>
-                                  <Input {...form.register(`items.${index}.discountPercent`)} className="h-8 text-sm text-right" type="number" step="0.01" />
+                                  <Input
+                                    value={item?.discountPercent || ""}
+                                    onChange={(e) => form.setValue(`items.${index}.discountPercent`, e.target.value, { shouldDirty: true })}
+                                    className="h-8 text-sm text-right" type="number" step="0.01"
+                                  />
                                 </TableCell>
                                 <TableCell className={`text-right font-medium text-sm ${isSubItem ? "text-muted-foreground" : ""}`}>
                                   {lineTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
