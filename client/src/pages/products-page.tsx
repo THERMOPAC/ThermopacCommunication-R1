@@ -34,7 +34,7 @@ const productFormSchema = z.object({
   itemProperty1Label: z.string(),
   itemProperty2: z.string().min(1, "Property 2 is required"),
   itemProperty2Label: z.string(),
-  itemProperty3: z.string().min(1, "Property 3 is required").regex(/^\d{3,6}(\s?[A-Za-z0-9/]{1,8})?$/, "Must start with 3-6 digits, optionally followed by text (e.g. 1000, 2000 LPH, 60000 KCAL/H)"),
+  itemProperty3: z.string().min(1, "Property 3 is required").regex(/^\d{3,}(\s?[A-Za-z0-9/]{1,8})?$/, "Must start with at least 3 digits, optionally followed by text (e.g. 1000, 2000 LPH, 1000000 KCAL/H)"),
   description: z.string().optional(),
   unit: z.string().min(1, "Unit is required"),
   unitPrice: z.string().min(1, "Unit Price is required").regex(/^\d+(\.\d{1,2})?$/, "Enter a valid price (e.g. 100.00)"),
@@ -853,7 +853,7 @@ export default function ProductsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Item Property 3 <span className="text-destructive">*</span></FormLabel>
-                        <FormDescription className="text-xs">Starts with 3-6 digits, optionally followed by text (e.g. 1000, 2000 LPH, 60000 KCAL/H)</FormDescription>
+                        <FormDescription className="text-xs">Starts with digits, optionally followed by text (e.g. 1000, 2000 LPH, 1000000 KCAL/H)</FormDescription>
                         <FormControl>
                           <Input
                             {...field}
@@ -862,7 +862,7 @@ export default function ProductsPage() {
                               productForm.setValue("description", "");
                             }}
                             placeholder="e.g. 2000 LPH"
-                            maxLength={15}
+                            maxLength={20}
                           />
                         </FormControl>
                         <FormMessage />
