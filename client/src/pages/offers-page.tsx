@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Layout from "@/components/layout";
@@ -119,27 +119,25 @@ export default function OffersPage() {
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
 
-  const watchItems = form.watch("items");
-  const watchDiscountPercent = form.watch("discountPercent");
-  const watchTaxPercent = form.watch("taxPercent");
+  const watchItems = useWatch({ control: form.control, name: "items" });
+  const watchDiscountPercent = useWatch({ control: form.control, name: "discountPercent" });
+  const watchTaxPercent = useWatch({ control: form.control, name: "taxPercent" });
 
-  const calculations = useMemo(() => {
-    const subtotal = (watchItems || []).reduce((sum, item) => {
-      if (item.isSubItem) return sum;
-      const qty = parseFloat(item.quantity || "0");
-      const price = parseFloat(item.unitPrice || "0");
-      const disc = parseFloat(item.discountPercent || "0");
-      const lineTotal = qty * price * (1 - disc / 100);
-      return sum + lineTotal;
-    }, 0);
-    const discPct = parseFloat(watchDiscountPercent || "0");
-    const discountAmount = subtotal * (discPct / 100);
-    const afterDiscount = subtotal - discountAmount;
-    const taxPct = parseFloat(watchTaxPercent || "0");
-    const taxAmount = afterDiscount * (taxPct / 100);
-    const totalAmount = afterDiscount + taxAmount;
-    return { subtotal, discountAmount, taxAmount, totalAmount };
-  }, [watchItems, watchDiscountPercent, watchTaxPercent]);
+  const subtotal = (watchItems || []).reduce((sum, item) => {
+    if (item.isSubItem) return sum;
+    const qty = parseFloat(item.quantity || "0");
+    const price = parseFloat(item.unitPrice || "0");
+    const disc = parseFloat(item.discountPercent || "0");
+    const lineTotal = qty * price * (1 - disc / 100);
+    return sum + lineTotal;
+  }, 0);
+  const discPct = parseFloat(watchDiscountPercent || "0");
+  const discountAmount = subtotal * (discPct / 100);
+  const afterDiscount = subtotal - discountAmount;
+  const taxPct = parseFloat(watchTaxPercent || "0");
+  const taxAmount = afterDiscount * (taxPct / 100);
+  const totalAmount = afterDiscount + taxAmount;
+  const calculations = { subtotal, discountAmount, taxAmount, totalAmount };
 
   const filteredOffers = useMemo(() => {
     return offers.filter((o: any) => {
