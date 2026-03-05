@@ -34,7 +34,7 @@ const productFormSchema = z.object({
   itemProperty1Label: z.string(),
   itemProperty2: z.string().min(1, "Property 2 is required"),
   itemProperty2Label: z.string(),
-  itemProperty3: z.string().min(1, "Property 3 is required").regex(/^\d{3,}(\s?[A-Za-z0-9/]{1,8})?$/, "Must start with at least 3 digits, optionally followed by text (e.g. 1000, 2000 LPH, 1000000 KCAL/H)"),
+  itemProperty3: z.string().min(1, "Property 3 is required").regex(/^\d{2,}(\s?[A-Za-z0-9/]{1,8})?$/, "Must start with at least 2 digits, optionally followed by text (e.g. 50, 1000, 2000 LPH, 1000000 KCAL/H)"),
   description: z.string().optional(),
   unit: z.string().min(1, "Unit is required"),
   unitPrice: z.string().min(1, "Unit Price is required").regex(/^\d+(\.\d{1,2})?$/, "Enter a valid price (e.g. 100.00)"),
