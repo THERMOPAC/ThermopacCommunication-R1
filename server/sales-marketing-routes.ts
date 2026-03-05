@@ -1141,6 +1141,10 @@ export function setupSalesMarketingRoutes(app: Express) {
       if (!offer) return res.status(404).json({ error: 'Offer not found' });
       const items = await storage.getOfferItems(id);
 
+      if (offer.status === 'Draft') {
+        await storage.updateOffer(id, { status: 'Sent' });
+      }
+
       const generator = new OfferPdfGenerator({
         offerNumber: offer.offerNumber,
         createdAt: offer.createdAt?.toISOString() || new Date().toISOString(),

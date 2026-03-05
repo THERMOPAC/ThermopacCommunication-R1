@@ -534,7 +534,7 @@ export function OffersContent() {
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditOffer(offer)} title="Edit">
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => window.open(`/api/sales-marketing/offers/${offer.id}/pdf`, '_blank')} title="Download PDF">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { window.open(`/api/sales-marketing/offers/${offer.id}/pdf`, '_blank'); queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] }); }} title="Download PDF">
                             <Download className="h-4 w-4" />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDuplicate(offer)} title="Duplicate">
@@ -581,7 +581,7 @@ export function OffersContent() {
               <DialogTitle className="flex items-center gap-2">
                 Offer {viewingOffer?.offerNumber}
                 <Badge className={statusColors[viewingOffer?.status] || ""}>{viewingOffer?.status}</Badge>
-                <Button variant="outline" size="sm" className="ml-auto text-indigo-600" onClick={() => window.open(`/api/sales-marketing/offers/${viewingOffer?.id}/pdf`, '_blank')}>
+                <Button variant="outline" size="sm" className="ml-auto text-indigo-600" onClick={() => { window.open(`/api/sales-marketing/offers/${viewingOffer?.id}/pdf`, '_blank'); queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] }); }}>
                   <Download className="mr-1 h-3 w-3" /> Download PDF
                 </Button>
               </DialogTitle>
@@ -986,6 +986,7 @@ export function OffersContent() {
                   {editingOffer && (
                     <Button type="button" variant="secondary" onClick={() => {
                       window.open(`/api/sales-marketing/offers/${editingOffer.id}/pdf`, '_blank');
+                      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
                     }}>
                       <Download className="mr-2 h-4 w-4" /> Download PDF
                     </Button>
