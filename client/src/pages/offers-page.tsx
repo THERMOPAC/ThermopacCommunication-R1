@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
-  FileText, Plus, Pencil, Trash2, Loader2, Search, Eye, Package, Download, Upload,
+  FileText, Plus, Pencil, Trash2, Loader2, Search, Eye, Package, Download,
   CheckCircle, XCircle, Send, Copy, Calendar, ChevronDown, ChevronRight, GitBranch, X, Paperclip
 } from "lucide-react";
 import type { Product } from "@shared/schema";
@@ -78,8 +78,6 @@ export function OffersContent() {
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isProductPickerOpen, setIsProductPickerOpen] = useState(false);
   const [productPickerSearch, setProductPickerSearch] = useState("");
-  const [isUploadingTemplate, setIsUploadingTemplate] = useState(false);
-  const templateFileRef = useRef<HTMLInputElement>(null);
 
   const { data: offers = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/sales-marketing/offers'],
@@ -108,10 +106,6 @@ export function OffersContent() {
 
   const { data: customers = [] } = useQuery<any[]>({
     queryKey: ['/api/sales-marketing/customers'],
-  });
-
-  const { data: offerTemplates = [] } = useQuery<any[]>({
-    queryKey: ['/api/sales-marketing/offer-templates'],
   });
 
   const form = useForm<OfferFormValues>({
@@ -198,60 +192,6 @@ export function OffersContent() {
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
     },
   });
-
-  const handleTemplateUpload = async (offerId: number, file: File) => {
-    setIsUploadingTemplate(true);
-    try {
-      const formData = new FormData();
-      formData.append('template', file);
-      formData.append('position', 'middle');
-      const res = await fetch(`/api/sales-marketing/offers/${offerId}/template`, {
-        method: 'POST',
-        body: formData,
-      });
-      if (!res.ok) throw new Error('Upload failed');
-      const data = await res.json();
-      toast({ title: "Template uploaded", description: `${data.templateName} will be inserted between price schedule and terms` });
-      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
-      if (viewingOffer) {
-        setViewingOffer({ ...viewingOffer, templatePdfName: data.templateName, templatePdfPosition: 'middle' });
-      }
-    } catch {
-      toast({ title: "Upload failed", variant: "destructive" });
-    } finally {
-      setIsUploadingTemplate(false);
-      if (templateFileRef.current) templateFileRef.current.value = '';
-    }
-  };
-
-  const handleTemplateRemove = async (offerId: number) => {
-    try {
-      await apiRequest('DELETE', `/api/sales-marketing/offers/${offerId}/template`);
-      toast({ title: "Template removed" });
-      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
-      if (viewingOffer) {
-        setViewingOffer({ ...viewingOffer, templatePdfName: null, templatePdfPath: null });
-      }
-    } catch {
-      toast({ title: "Failed to remove template", variant: "destructive" });
-    }
-  };
-
-  const handleApplyLibraryTemplate = async (offerId: number, template: any) => {
-    setIsUploadingTemplate(true);
-    try {
-      const downloadRes = await fetch(`/api/sales-marketing/offer-templates/${template.id}/download`);
-      if (!downloadRes.ok) throw new Error('Failed to download template');
-      const blob = await downloadRes.blob();
-      const file = new File([blob], template.fileName, { type: 'application/pdf' });
-      await handleTemplateUpload(offerId, file);
-      setEditingOffer((prev: any) => prev ? { ...prev, templatePdfName: template.fileName, templatePdfPosition: 'middle' } : prev);
-    } catch {
-      toast({ title: "Failed to apply template", variant: "destructive" });
-    } finally {
-      setIsUploadingTemplate(false);
-    }
-  };
 
   const resetAndClose = () => {
     setIsFormOpen(false);
@@ -706,53 +646,6 @@ export function OffersContent() {
                 {viewingOffer.notes && <div><Label className="text-muted-foreground">Notes</Label><p className="text-sm">{viewingOffer.notes}</p></div>}
                 {viewingOffer.termsAndConditions && <div><Label className="text-muted-foreground">Terms & Conditions</Label><p className="text-sm whitespace-pre-wrap">{viewingOffer.termsAndConditions}</p></div>}
 
-                <div className="border rounded-lg p-4 bg-muted/30">
-                  <Label className="text-sm font-semibold flex items-center gap-2 mb-3">
-                    <Paperclip className="h-4 w-4" /> PDF Template Attachment
-                  </Label>
-                  {viewingOffer.templatePdfName ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 bg-white border rounded px-3 py-2 flex-1">
-                          <FileText className="h-4 w-4 text-red-500" />
-                          <span className="text-sm font-medium truncate">{viewingOffer.templatePdfName}</span>
-                          <Badge variant="secondary" className="text-xs ml-auto">Middle</Badge>
-                        </div>
-                        <Button variant="destructive" size="sm" onClick={() => handleTemplateRemove(viewingOffer.id)}>
-                          <Trash2 className="h-3 w-3 mr-1" /> Remove
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground">This PDF will be inserted between the price schedule and terms/signature pages.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <p className="text-sm text-muted-foreground">Upload a PDF file to merge with this offer (e.g. technical details, specifications, drawings).</p>
-                      <div className="flex items-center gap-3">
-                        <input
-                          ref={templateFileRef}
-                          type="file"
-                          accept=".pdf"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file && viewingOffer) {
-                              handleTemplateUpload(viewingOffer.id, file);
-                            }
-                          }}
-                        />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={isUploadingTemplate}
-                          onClick={() => templateFileRef.current?.click()}
-                        >
-                          {isUploadingTemplate ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Upload className="h-3 w-3 mr-1" />}
-                          {isUploadingTemplate ? "Uploading..." : "Upload PDF Template"}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
             )}
           </DialogContent>
@@ -862,108 +755,6 @@ export function OffersContent() {
                     )} />
                   </div>
 
-                  <div className="border rounded-lg p-4 bg-muted/30">
-                    <Label className="text-sm font-semibold flex items-center gap-2 mb-3">
-                      <Paperclip className="h-4 w-4" /> PDF Template Attachment
-                    </Label>
-                    {editingOffer ? (
-                      editingOffer.templatePdfName ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2 bg-white border rounded px-3 py-2 flex-1">
-                              <FileText className="h-4 w-4 text-red-500" />
-                              <span className="text-sm font-medium truncate">{editingOffer.templatePdfName}</span>
-                              <Badge variant="secondary" className="text-xs ml-auto">Middle</Badge>
-                            </div>
-                            <Button type="button" variant="destructive" size="sm" onClick={async () => {
-                              await handleTemplateRemove(editingOffer.id);
-                              setEditingOffer({ ...editingOffer, templatePdfName: null, templatePdfPath: null });
-                            }}>
-                              <Trash2 className="h-3 w-3 mr-1" /> Remove
-                            </Button>
-                          </div>
-                          <p className="text-xs text-muted-foreground">This PDF will be inserted between the price schedule and terms/signature pages.</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {(() => {
-                            const currentSubject = form.getValues('subject');
-                            const matchingTemplates = offerTemplates.filter((t: any) => t.isActive && t.subject === currentSubject);
-                            const otherTemplates = offerTemplates.filter((t: any) => t.isActive && t.subject !== currentSubject);
-                            return (
-                              <>
-                                {matchingTemplates.length > 0 && (
-                                  <div>
-                                    <p className="text-sm font-medium mb-2">Templates matching this subject:</p>
-                                    <div className="space-y-1">
-                                      {matchingTemplates.map((t: any) => (
-                                        <div key={t.id} className="flex items-center gap-2 bg-white border rounded px-3 py-2">
-                                          <FileText className="h-4 w-4 text-red-500 shrink-0" />
-                                          <span className="text-sm font-medium truncate flex-1">{t.name}</span>
-                                          <span className="text-xs text-muted-foreground">{t.fileName}</span>
-                                          <Badge variant="secondary" className="text-xs shrink-0">Middle</Badge>
-                                          <Button type="button" variant="default" size="sm" disabled={isUploadingTemplate}
-                                            onClick={() => handleApplyLibraryTemplate(editingOffer.id, t)}>
-                                            {isUploadingTemplate ? <Loader2 className="h-3 w-3 animate-spin" /> : "Apply"}
-                                          </Button>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                                {otherTemplates.length > 0 && (
-                                  <div>
-                                    <p className="text-sm text-muted-foreground mb-2">Other templates:</p>
-                                    <div className="space-y-1">
-                                      {otherTemplates.map((t: any) => (
-                                        <div key={t.id} className="flex items-center gap-2 bg-muted/30 border rounded px-3 py-2">
-                                          <FileText className="h-4 w-4 text-red-500 shrink-0" />
-                                          <span className="text-sm truncate flex-1">{t.name}</span>
-                                          <Badge variant="outline" className="text-xs shrink-0">{t.subject.substring(0, 30)}...</Badge>
-                                          <Button type="button" variant="outline" size="sm" disabled={isUploadingTemplate}
-                                            onClick={() => handleApplyLibraryTemplate(editingOffer.id, t)}>
-                                            Apply
-                                          </Button>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                                {matchingTemplates.length === 0 && otherTemplates.length === 0 && (
-                                  <p className="text-sm text-muted-foreground">No templates available. Add templates from the Offer Templates page.</p>
-                                )}
-                                <div className="border-t pt-2">
-                                  <p className="text-xs text-muted-foreground mb-2">Or upload a custom PDF:</p>
-                                  <div className="flex items-center gap-3">
-                                    <input
-                                      ref={templateFileRef}
-                                      type="file"
-                                      accept=".pdf"
-                                      className="hidden"
-                                      onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file && editingOffer) {
-                                          handleTemplateUpload(editingOffer.id, file).then(() => {
-                                            setEditingOffer({ ...editingOffer, templatePdfName: file.name, templatePdfPosition: 'middle' });
-                                          });
-                                        }
-                                      }}
-                                    />
-                                    <Button type="button" variant="outline" size="sm" disabled={isUploadingTemplate} onClick={() => templateFileRef.current?.click()}>
-                                      {isUploadingTemplate ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Upload className="h-3 w-3 mr-1" />}
-                                      {isUploadingTemplate ? "Uploading..." : "Upload PDF"}
-                                    </Button>
-                                  </div>
-                                </div>
-                              </>
-                            );
-                          })()}
-                        </div>
-                      )
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Save the offer first, then edit it to attach a PDF template.</p>
-                    )}
-                  </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <FormField control={form.control} name="currency" render={({ field }) => (
