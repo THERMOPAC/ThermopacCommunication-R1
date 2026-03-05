@@ -660,10 +660,10 @@ export class OfferPdfGenerator {
 
       const part1Bytes = await this.generatePartBuffer([
         this.drawHeader, this.drawOfferInfo, this.drawCustomerInfo,
-        this.drawSubject, this.drawDearLine, this.drawItemsTable,
-        this.drawTotals, this.drawPageFooter,
+        this.drawSubject, this.drawDearLine, this.drawPageFooter,
       ]);
       const part2Bytes = await this.generatePartBuffer([
+        this.drawHeader, this.drawItemsTable, this.drawTotals,
         this.drawTerms, this.drawSignature, this.drawPageFooter,
       ]);
 
