@@ -705,7 +705,14 @@ export default function OffersPage() {
                   <FormField control={form.control} name="subject" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Subject <span className="text-destructive">*</span></FormLabel>
-                      <FormControl><Input {...field} placeholder="e.g. Quotation for Used Oil Refinery Equipment" /></FormControl>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="Used Engine Oil Refinery Fully Automated PLC SCADA Control">Used Engine Oil Refinery Fully Automated PLC SCADA Control</SelectItem>
+                          <SelectItem value="Continuous Polishing System By Regenerative Adsorption">Continuous Polishing System By Regenerative Adsorption</SelectItem>
+                          <SelectItem value="Spares for Refinery Equipment">Spares for Refinery Equipment</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )} />
