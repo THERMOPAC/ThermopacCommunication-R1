@@ -554,8 +554,16 @@ router.get('/product-attributes', ensureAuthenticated, async (req: Request, res:
 router.post('/product-attributes', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const validated = insertProductAttributeOptionSchema.parse(req.body);
-    if (validated.code && validated.code.length !== 3) {
+    if (validated.code && validated.attributeType !== 'property_3' && validated.code.length !== 3) {
       return res.status(400).json({ error: 'Code must be exactly 3 characters' });
+    }
+    const allOptions = await storage.getAttributeOptions(validated.attributeType);
+    const duplicate = allOptions.find((o: any) =>
+      o.code === validated.code &&
+      (o.parentId ?? null) === (validated.parentId ?? null)
+    );
+    if (duplicate) {
+      return res.status(400).json({ error: `Code "${validated.code}" already exists under this parent. Each code must be unique within its parent scope.` });
     }
     const option = await storage.createAttributeOption(validated);
     res.status(201).json(option);
@@ -572,6 +580,17 @@ router.patch('/product-attributes/:id', ensureAuthenticated, async (req: Request
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+    if (req.body.code) {
+      const allOptions = await storage.getAttributeOptions(req.body.attributeType);
+      const duplicate = allOptions.find((o: any) =>
+        o.id !== id &&
+        o.code === req.body.code &&
+        (o.parentId ?? null) === (req.body.parentId ?? null)
+      );
+      if (duplicate) {
+        return res.status(400).json({ error: `Code "${req.body.code}" already exists under this parent. Each code must be unique within its parent scope.` });
+      }
+    }
     const option = await storage.updateAttributeOption(id, req.body);
     res.json(option);
   } catch (error) {
