@@ -67,7 +67,7 @@ const statusColors: Record<string, string> = {
   Converted: "bg-purple-100 text-purple-800",
 };
 
-export default function OffersPage() {
+export function OffersContent() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -1269,6 +1269,10 @@ export default function OffersPage() {
       </div>
   );
 
+  return offersContent;
+}
+
+export default function OffersPage() {
   return (
     <Layout>
       <div className="p-4 md:p-6 space-y-6">
@@ -1280,7 +1284,7 @@ export default function OffersPage() {
             <p className="text-muted-foreground">Create and manage customer offers and quotations</p>
           </div>
         </div>
-        {offersContent}
+        <OffersContent />
       </div>
     </Layout>
   );

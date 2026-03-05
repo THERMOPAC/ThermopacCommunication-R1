@@ -3,7 +3,7 @@ import { storage } from './storage';
 import { z } from 'zod';
 import { insertLeadSchema, tankPrices, plantCosts, insertProductAttributeOptionSchema, insertProductSchema, offers, offerTemplates } from '@shared/schema';
 import { db } from './db';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { OfferPdfGenerator } from './offer-pdf-generator';
 import multer from 'multer';
 import * as fs from 'fs';
@@ -1174,8 +1174,26 @@ export function setupSalesMarketingRoutes(app: Express) {
         })),
       });
 
-      if (offer.templatePdfPath && fs.existsSync(offer.templatePdfPath)) {
-        await generator.generateWithTemplate(res, offer.templatePdfPath, offer.templatePdfPosition || 'after');
+      let templatePath = offer.templatePdfPath;
+      let templatePosition = offer.templatePdfPosition || 'middle';
+
+      if (!templatePath || !fs.existsSync(templatePath)) {
+        const offerLang = (offer as any).language || 'English';
+        const [autoTemplate] = await db.select().from(offerTemplates).where(
+          and(
+            eq(offerTemplates.subject, offer.subject),
+            eq(offerTemplates.language, offerLang),
+            eq(offerTemplates.isActive, true)
+          )
+        ).limit(1);
+        if (autoTemplate && fs.existsSync(autoTemplate.filePath)) {
+          templatePath = autoTemplate.filePath;
+          templatePosition = autoTemplate.position;
+        }
+      }
+
+      if (templatePath && fs.existsSync(templatePath)) {
+        await generator.generateWithTemplate(res, templatePath, templatePosition);
       } else {
         generator.generate(res);
       }
