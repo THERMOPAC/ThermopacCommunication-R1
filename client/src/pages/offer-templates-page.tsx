@@ -48,7 +48,7 @@ export default function OfferTemplatesPage() {
   const [formName, setFormName] = useState("");
   const [formSubject, setFormSubject] = useState("");
   const [formDescription, setFormDescription] = useState("");
-  const [formPosition, setFormPosition] = useState("after");
+  const [formPosition, setFormPosition] = useState("middle");
   const [formLanguage, setFormLanguage] = useState("English");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -76,7 +76,7 @@ export default function OfferTemplatesPage() {
     setFormName("");
     setFormSubject("");
     setFormDescription("");
-    setFormPosition("after");
+    setFormPosition("middle");
     setFormLanguage("English");
     setSelectedFile(null);
     setEditingTemplate(null);
@@ -282,7 +282,7 @@ export default function OfferTemplatesPage() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="text-xs">
-                          {template.position === 'before' ? 'Before offer' : 'After offer'}
+                          {template.position === 'before' ? 'Before offer' : template.position === 'middle' ? 'Middle' : 'After offer'}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -371,6 +371,7 @@ export default function OfferTemplatesPage() {
                 <Select value={formPosition} onValueChange={setFormPosition}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="middle">Middle (after price schedule)</SelectItem>
                     <SelectItem value="after">After offer pages</SelectItem>
                     <SelectItem value="before">Before offer pages</SelectItem>
                   </SelectContent>

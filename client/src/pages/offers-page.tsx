@@ -77,7 +77,7 @@ export default function OffersPage() {
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isProductPickerOpen, setIsProductPickerOpen] = useState(false);
   const [productPickerSearch, setProductPickerSearch] = useState("");
-  const [templatePosition, setTemplatePosition] = useState<string>("after");
+  const [templatePosition, setTemplatePosition] = useState<string>("middle");
   const [isUploadingTemplate, setIsUploadingTemplate] = useState(false);
   const templateFileRef = useRef<HTMLInputElement>(null);
 
@@ -714,7 +714,7 @@ export default function OffersPage() {
                           <FileText className="h-4 w-4 text-red-500" />
                           <span className="text-sm font-medium truncate">{viewingOffer.templatePdfName}</span>
                           <Badge variant="secondary" className="text-xs ml-auto">
-                            {viewingOffer.templatePdfPosition === 'before' ? 'Before offer' : 'After offer'}
+                            {viewingOffer.templatePdfPosition === 'before' ? 'Before offer' : viewingOffer.templatePdfPosition === 'middle' ? 'Middle' : 'After offer'}
                           </Badge>
                         </div>
                         <Button variant="destructive" size="sm" onClick={() => handleTemplateRemove(viewingOffer.id)}>
@@ -744,6 +744,7 @@ export default function OffersPage() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="middle">Middle (after price schedule)</SelectItem>
                             <SelectItem value="after">Add after offer</SelectItem>
                             <SelectItem value="before">Add before offer</SelectItem>
                           </SelectContent>
@@ -861,7 +862,7 @@ export default function OffersPage() {
                               <FileText className="h-4 w-4 text-red-500" />
                               <span className="text-sm font-medium truncate">{editingOffer.templatePdfName}</span>
                               <Badge variant="secondary" className="text-xs ml-auto">
-                                {editingOffer.templatePdfPosition === 'before' ? 'Before offer' : 'After offer'}
+                                {editingOffer.templatePdfPosition === 'before' ? 'Before offer' : editingOffer.templatePdfPosition === 'middle' ? 'Middle' : 'After offer'}
                               </Badge>
                             </div>
                             <Button type="button" variant="destructive" size="sm" onClick={async () => {
@@ -943,6 +944,7 @@ export default function OffersPage() {
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
+                                        <SelectItem value="middle">Middle (after price schedule)</SelectItem>
                                         <SelectItem value="after">Add after offer</SelectItem>
                                         <SelectItem value="before">Add before offer</SelectItem>
                                       </SelectContent>

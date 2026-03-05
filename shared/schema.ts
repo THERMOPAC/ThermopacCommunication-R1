@@ -8705,7 +8705,7 @@ export const offers = pgTable('offers', {
   termsAndConditions: text('terms_and_conditions'),
   templatePdfPath: text('template_pdf_path'),
   templatePdfName: text('template_pdf_name'),
-  templatePdfPosition: text('template_pdf_position').default('after'),
+  templatePdfPosition: text('template_pdf_position').default('middle'),
   createdBy: integer('created_by').references(() => users.id),
   approvedBy: integer('approved_by').references(() => users.id),
   approvedAt: timestamp('approved_at'),
