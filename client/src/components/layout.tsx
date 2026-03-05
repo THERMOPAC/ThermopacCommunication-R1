@@ -90,6 +90,7 @@ function Layout({ children }: LayoutProps) {
                                   location === '/leads' ||
                                   location === '/products' ||
                                   location === '/offer-templates' ||
+                                  location === '/offers' ||
                                   location === '/campaigns' ||
                                   location === '/marketing-dashboard' ||
                                   location === '/marketing-tools';
@@ -266,6 +267,7 @@ function Layout({ children }: LayoutProps) {
         { icon: UsersRound, label: "Leads", href: "/leads" },
         { icon: Package, label: "Products", href: "/products" },
         { icon: FileText, label: "Offer Templates", href: "/offer-templates" },
+        { icon: FileText, label: "Offers / Quotations", href: "/offers" },
         { icon: BarChart4, label: "Marketing Dashboard", href: "/marketing-dashboard" },
         { icon: TrendingUp, label: "Campaigns", href: "/campaigns" },
         { icon: Wrench, label: "Marketing Tools", href: "/marketing-tools" }
