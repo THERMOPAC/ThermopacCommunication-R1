@@ -28,7 +28,6 @@ import type { Product, ProductAttributeOption } from "@shared/schema";
 const unitOptions = ["pcs", "kg", "m", "ltr", "hours", "set", "lot", "nos"] as const;
 
 const productFormSchema = z.object({
-  parentId: z.number().nullable().optional(),
   itemFamily: z.string().min(1, "Item Family is required"),
   itemFamilyLabel: z.string(),
   itemProperty1: z.string().min(1, "Property 1 is required"),
@@ -76,7 +75,9 @@ export default function ProductsPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [activeAttributeTab, setActiveAttributeTab] = useState("item_family");
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
-  const [addingSubProductFor, setAddingSubProductFor] = useState<Product | null>(null);
+  const [isSubProductPickerOpen, setIsSubProductPickerOpen] = useState(false);
+  const [linkingParentProduct, setLinkingParentProduct] = useState<Product | null>(null);
+  const [subProductSearch, setSubProductSearch] = useState("");
 
   const { data: products = [], isLoading: isLoadingProducts } = useQuery<Product[]>({
     queryKey: ['/api/sales-marketing/products'],
@@ -84,6 +85,10 @@ export default function ProductsPage() {
 
   const { data: attributeOptions = [], isLoading: isLoadingAttributes } = useQuery<ProductAttributeOption[]>({
     queryKey: ['/api/sales-marketing/product-attributes'],
+  });
+
+  const { data: productChildLinks = [] } = useQuery<any[]>({
+    queryKey: ['/api/sales-marketing/product-children'],
   });
 
   const familyOptions = useMemo(() =>
@@ -101,24 +106,20 @@ export default function ProductsPage() {
 
   const categories = ["Finish Goods", "Bought-Out Items", "Raw Materials", "Consumables"];
 
-  const parentProducts = useMemo(() => {
-    return products.filter((p) => !(p as any).parentId);
-  }, [products]);
-
   const childProductsMap = useMemo(() => {
     const map = new Map<number, Product[]>();
-    products.forEach((p) => {
-      const pid = (p as any).parentId;
-      if (pid) {
-        if (!map.has(pid)) map.set(pid, []);
-        map.get(pid)!.push(p);
+    productChildLinks.forEach((link: any) => {
+      const child = products.find(p => p.id === link.childProductId);
+      if (child) {
+        if (!map.has(link.parentProductId)) map.set(link.parentProductId, []);
+        map.get(link.parentProductId)!.push(child);
       }
     });
     return map;
-  }, [products]);
+  }, [products, productChildLinks]);
 
   const filteredProducts = useMemo(() => {
-    return parentProducts.filter((p) => {
+    return products.filter((p) => {
       const children = childProductsMap.get(p.id) || [];
       const matchesSearch = !searchQuery ||
         p.productCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -130,7 +131,7 @@ export default function ProductsPage() {
         (statusFilter === "inactive" && !p.isActive);
       return matchesSearch && matchesCategory && matchesStatus;
     });
-  }, [parentProducts, childProductsMap, searchQuery, categoryFilter, statusFilter]);
+  }, [products, childProductsMap, searchQuery, categoryFilter, statusFilter]);
 
   const toggleExpand = (productId: number) => {
     setExpandedProducts((prev) => {
@@ -144,7 +145,6 @@ export default function ProductsPage() {
   const productForm = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
-      parentId: null,
       itemFamily: "", itemFamilyLabel: "",
       itemProperty1: "", itemProperty1Label: "",
       itemProperty2: "", itemProperty2Label: "",
@@ -204,7 +204,6 @@ export default function ProductsPage() {
     mutationFn: async (data: ProductFormValues) => {
       const payload = {
         ...data,
-        parentId: data.parentId || null,
         productCode: `${data.itemFamily}-${data.itemProperty1}-${data.itemProperty2}-${data.itemProperty3}`,
         description: data.description || `${data.itemFamilyLabel} ${data.itemProperty1Label} ${data.itemProperty2Label} ${data.itemProperty3}`,
         unitPrice: data.unitPrice,
@@ -214,13 +213,9 @@ export default function ProductsPage() {
       return apiRequest('POST', '/api/sales-marketing/products', payload);
     },
     onSuccess: () => {
-      toast({ title: "Product created", description: addingSubProductFor ? "Sub-product has been added successfully" : "Product has been created successfully" });
-      if (addingSubProductFor) {
-        setExpandedProducts((prev) => new Set([...prev, addingSubProductFor.id]));
-      }
+      toast({ title: "Product created", description: "Product has been created successfully" });
       setIsProductDialogOpen(false);
       setEditingProduct(null);
-      setAddingSubProductFor(null);
       productForm.reset();
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/products'] });
     },
@@ -233,7 +228,6 @@ export default function ProductsPage() {
     mutationFn: async ({ id, data }: { id: number; data: ProductFormValues }) => {
       const payload = {
         ...data,
-        parentId: data.parentId || null,
         productCode: `${data.itemFamily}-${data.itemProperty1}-${data.itemProperty2}-${data.itemProperty3}`,
         description: data.description || `${data.itemFamilyLabel} ${data.itemProperty1Label} ${data.itemProperty2Label} ${data.itemProperty3}`,
         unitPrice: data.unitPrice,
@@ -311,11 +305,40 @@ export default function ProductsPage() {
     },
   });
 
+  const addChildMutation = useMutation({
+    mutationFn: async ({ parentId, childProductId }: { parentId: number; childProductId: number }) => {
+      return apiRequest('POST', `/api/sales-marketing/products/${parentId}/children`, { childProductId });
+    },
+    onSuccess: () => {
+      toast({ title: "Sub-product linked", description: "Sub-product has been added successfully" });
+      setIsSubProductPickerOpen(false);
+      setLinkingParentProduct(null);
+      setSubProductSearch("");
+      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/product-children'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/products'] });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to link sub-product", variant: "destructive" });
+    },
+  });
+
+  const removeChildMutation = useMutation({
+    mutationFn: async ({ parentId, childId }: { parentId: number; childId: number }) => {
+      return apiRequest('DELETE', `/api/sales-marketing/products/${parentId}/children/${childId}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Sub-product removed" });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/product-children'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/products'] });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to remove sub-product", variant: "destructive" });
+    },
+  });
+
   const handleOpenCreateProduct = () => {
     setEditingProduct(null);
-    setAddingSubProductFor(null);
     productForm.reset({
-      parentId: null,
       itemFamily: "", itemFamilyLabel: "",
       itemProperty1: "", itemProperty1Label: "",
       itemProperty2: "", itemProperty2Label: "",
@@ -327,27 +350,16 @@ export default function ProductsPage() {
   };
 
   const handleOpenAddSubProduct = (parent: Product) => {
-    setEditingProduct(null);
-    setAddingSubProductFor(parent);
-    productForm.reset({
-      parentId: parent.id,
-      itemFamily: parent.itemFamily, itemFamilyLabel: parent.itemFamilyLabel,
-      itemProperty1: parent.itemProperty1, itemProperty1Label: parent.itemProperty1Label,
-      itemProperty2: parent.itemProperty2, itemProperty2Label: parent.itemProperty2Label,
-      itemProperty3: "", description: "",
-      unit: parent.unit, unitPrice: "0.00", currency: parent.currency || "USD",
-      category: parent.category || "Finish Goods",
-      hsnSacCode: parent.hsnSacCode || "",
-      isActive: true,
-    });
-    setIsProductDialogOpen(true);
+    setLinkingParentProduct(parent);
+    setSubProductSearch("");
+    setIsSubProductPickerOpen(true);
+    setExpandedProducts((prev) => new Set([...prev, parent.id]));
   };
 
   const handleOpenEditProduct = (product: Product) => {
     setEditingProduct(product);
-    setAddingSubProductFor(null);
+    const hasChildren = (childProductsMap.get(product.id) || []).length > 0;
     productForm.reset({
-      parentId: (product as any).parentId || null,
       itemFamily: product.itemFamily,
       itemFamilyLabel: product.itemFamilyLabel,
       itemProperty1: product.itemProperty1,
@@ -357,7 +369,7 @@ export default function ProductsPage() {
       itemProperty3: product.itemProperty3,
       description: product.description,
       unit: product.unit,
-      unitPrice: product.unitPrice,
+      unitPrice: hasChildren ? parseFloat(product.unitPrice).toFixed(2) : product.unitPrice,
       currency: product.currency || "USD",
       category: product.category || "Finish Goods",
       hsnSacCode: product.hsnSacCode || "",
@@ -620,9 +632,9 @@ export default function ProductsPage() {
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
                                         className="text-destructive"
-                                        onClick={() => setDeleteConfirmId(child.id)}
+                                        onClick={() => removeChildMutation.mutate({ parentId: product.id, childId: child.id })}
                                       >
-                                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                        <X className="mr-2 h-4 w-4" /> Unlink
                                       </DropdownMenuItem>
                                     </DropdownMenuContent>
                                   </DropdownMenu>
@@ -736,18 +748,12 @@ export default function ProductsPage() {
           </TabsContent>
         </Tabs>
 
-        <Dialog open={isProductDialogOpen} onOpenChange={(open) => { if (!open) { setIsProductDialogOpen(false); setEditingProduct(null); setAddingSubProductFor(null); } }}>
+        <Dialog open={isProductDialogOpen} onOpenChange={(open) => { if (!open) { setIsProductDialogOpen(false); setEditingProduct(null); } }}>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>
-                {editingProduct ? "Edit Product" : addingSubProductFor ? "Add Sub-Product" : "Create Product"}
-              </DialogTitle>
+              <DialogTitle>{editingProduct ? "Edit Product" : "Create Product"}</DialogTitle>
               <DialogDescription>
-                {editingProduct
-                  ? "Update product details"
-                  : addingSubProductFor
-                  ? `Adding sub-product under ${addingSubProductFor.productCode} — ${addingSubProductFor.description}`
-                  : "Define a new product with item attributes"}
+                {editingProduct ? "Update product details" : "Define a new product with item attributes"}
               </DialogDescription>
             </DialogHeader>
 
@@ -1010,14 +1016,14 @@ export default function ProductsPage() {
                 />
 
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => { setIsProductDialogOpen(false); setEditingProduct(null); setAddingSubProductFor(null); }}>
+                  <Button type="button" variant="outline" onClick={() => { setIsProductDialogOpen(false); setEditingProduct(null); }}>
                     Cancel
                   </Button>
                   <Button type="submit" disabled={createProductMutation.isPending || updateProductMutation.isPending}>
                     {(createProductMutation.isPending || updateProductMutation.isPending) && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
-                    {editingProduct ? "Update Product" : addingSubProductFor ? "Add Sub-Product" : "Create Product"}
+                    {editingProduct ? "Update Product" : "Create Product"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -1207,6 +1213,76 @@ export default function ProductsPage() {
                 Delete
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isSubProductPickerOpen} onOpenChange={(open) => { if (!open) { setIsSubProductPickerOpen(false); setLinkingParentProduct(null); setSubProductSearch(""); } }}>
+          <DialogContent className="max-w-lg max-h-[80vh]">
+            <DialogHeader>
+              <DialogTitle>Link Sub-Product</DialogTitle>
+              <DialogDescription>
+                {linkingParentProduct && `Select an existing product to add as a sub-product under ${linkingParentProduct.productCode} — ${linkingParentProduct.description}`}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search products by code or description..."
+                  value={subProductSearch}
+                  onChange={(e) => setSubProductSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="max-h-[400px] overflow-y-auto border rounded-md">
+                {(() => {
+                  const existingChildIds = linkingParentProduct
+                    ? (childProductsMap.get(linkingParentProduct.id) || []).map(c => c.id)
+                    : [];
+                  const availableProducts = products.filter(p => {
+                    if (linkingParentProduct && p.id === linkingParentProduct.id) return false;
+                    if (existingChildIds.includes(p.id)) return false;
+                    if (!subProductSearch) return true;
+                    return p.productCode.toLowerCase().includes(subProductSearch.toLowerCase()) ||
+                      p.description.toLowerCase().includes(subProductSearch.toLowerCase());
+                  });
+                  if (availableProducts.length === 0) {
+                    return (
+                      <div className="p-6 text-center text-muted-foreground">
+                        <p>No matching products found</p>
+                      </div>
+                    );
+                  }
+                  return availableProducts.map(p => (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer"
+                      onClick={() => {
+                        if (linkingParentProduct) {
+                          addChildMutation.mutate({ parentId: linkingParentProduct.id, childProductId: p.id });
+                        }
+                      }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-medium text-sm">{p.productCode}</span>
+                          <Badge variant="outline" className="text-xs">{p.category || "—"}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate">{p.description}</p>
+                      </div>
+                      <div className="text-right ml-3">
+                        <p className="text-sm font-medium">{p.currency || "USD"} {parseFloat(p.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+              {addChildMutation.isPending && (
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Linking...
+                </div>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
       </div>

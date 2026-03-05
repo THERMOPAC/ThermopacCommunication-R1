@@ -8636,6 +8636,21 @@ export const insertProductSchema = createInsertSchema(products).omit({
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 
+export const productChildren = pgTable('product_children', {
+  id: serial('id').primaryKey(),
+  parentProductId: integer('parent_product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  childProductId: integer('child_product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const insertProductChildSchema = createInsertSchema(productChildren).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ProductChild = typeof productChildren.$inferSelect;
+export type InsertProductChild = z.infer<typeof insertProductChildSchema>;
+
 // ==================== OFFERS / QUOTATIONS ====================
 
 export const offers = pgTable('offers', {
@@ -8688,6 +8703,8 @@ export const offerItems = pgTable('offer_items', {
   discountPercent: numeric('discount_percent', { precision: 5, scale: 2 }).default('0'),
   totalPrice: numeric('total_price', { precision: 15, scale: 2 }).notNull(),
   hsnSacCode: text('hsn_sac_code'),
+  isSubItem: boolean('is_sub_item').default(false),
+  parentItemId: integer('parent_item_id'),
   sortOrder: integer('sort_order').default(0),
   createdAt: timestamp('created_at').defaultNow(),
 });

@@ -77,7 +77,8 @@ import {
   productAttributeOptions as productAttributeOptionsTable,
   products as productsTable,
   offers as offersTable,
-  offerItems as offerItemsTable
+  offerItems as offerItemsTable,
+  productChildren as productChildrenTable
 } from "@shared/schema";
 import { eq, or, inArray, desc, and, sql, like, not } from "drizzle-orm";
 
@@ -4084,6 +4085,39 @@ export class DatabaseStorage implements IStorage {
     if (!maxNum) return 'OFR-0001';
     const num = parseInt(maxNum.replace('OFR-', '')) + 1;
     return `OFR-${num.toString().padStart(4, '0')}`;
+  }
+
+  async getProductChildren(parentProductId: number): Promise<any[]> {
+    const links = await db.select().from(productChildrenTable).where(eq(productChildrenTable.parentProductId, parentProductId));
+    if (links.length === 0) return [];
+    const childIds = links.map(l => l.childProductId);
+    const children = await db.select().from(productsTable).where(inArray(productsTable.id, childIds));
+    return children;
+  }
+
+  async getAllProductChildren(): Promise<any[]> {
+    return await db.select().from(productChildrenTable);
+  }
+
+  async addProductChild(parentProductId: number, childProductId: number): Promise<any> {
+    const [result] = await db.insert(productChildrenTable).values({ parentProductId, childProductId }).returning();
+    return result;
+  }
+
+  async removeProductChild(parentProductId: number, childProductId: number): Promise<void> {
+    await db.delete(productChildrenTable).where(
+      and(
+        eq(productChildrenTable.parentProductId, parentProductId),
+        eq(productChildrenTable.childProductId, childProductId)
+      )
+    );
+  }
+
+  async recalculateParentPrice(parentProductId: number): Promise<any> {
+    const children = await this.getProductChildren(parentProductId);
+    if (children.length === 0) return await this.getProductById(parentProductId);
+    const totalPrice = children.reduce((sum: number, c: any) => sum + parseFloat(c.unitPrice || '0'), 0);
+    return await this.updateProduct(parentProductId, { unitPrice: totalPrice.toFixed(2) });
   }
 }
 

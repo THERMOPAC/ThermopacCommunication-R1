@@ -748,6 +748,59 @@ export function setupSalesMarketingRoutes(app: Express) {
     }
   });
   
+  // ==================== PRODUCT CHILDREN ====================
+
+  router.get('/product-children', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const children = await storage.getAllProductChildren();
+      res.json(children);
+    } catch (error) {
+      console.error('Error fetching product children:', error);
+      res.status(500).json({ error: 'Failed to fetch product children' });
+    }
+  });
+
+  router.get('/products/:id/children', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      const children = await storage.getProductChildren(id);
+      res.json(children);
+    } catch (error) {
+      console.error('Error fetching product children:', error);
+      res.status(500).json({ error: 'Failed to fetch product children' });
+    }
+  });
+
+  router.post('/products/:id/children', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const parentId = parseInt(req.params.id);
+      const { childProductId } = req.body;
+      if (isNaN(parentId) || !childProductId) return res.status(400).json({ error: 'Invalid parameters' });
+      if (parentId === childProductId) return res.status(400).json({ error: 'A product cannot be its own child' });
+      const result = await storage.addProductChild(parentId, childProductId);
+      const updatedParent = await storage.recalculateParentPrice(parentId);
+      res.status(201).json({ link: result, parent: updatedParent });
+    } catch (error) {
+      console.error('Error adding product child:', error);
+      res.status(500).json({ error: 'Failed to add product child' });
+    }
+  });
+
+  router.delete('/products/:parentId/children/:childId', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const parentId = parseInt(req.params.parentId);
+      const childId = parseInt(req.params.childId);
+      if (isNaN(parentId) || isNaN(childId)) return res.status(400).json({ error: 'Invalid IDs' });
+      await storage.removeProductChild(parentId, childId);
+      const updatedParent = await storage.recalculateParentPrice(parentId);
+      res.json({ success: true, parent: updatedParent });
+    } catch (error) {
+      console.error('Error removing product child:', error);
+      res.status(500).json({ error: 'Failed to remove product child' });
+    }
+  });
+
   // ==================== OFFERS / QUOTATIONS ====================
 
   router.get('/offers', ensureAuthenticated, async (req: Request, res: Response) => {
