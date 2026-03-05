@@ -152,10 +152,13 @@ export function OffersContent() {
   }, [offers, searchQuery, statusFilter]);
 
   const createMutation = useMutation({
-    mutationFn: async (data: any) => apiRequest('POST', '/api/sales-marketing/offers', data),
-    onSuccess: () => {
-      toast({ title: "Offer created", description: "Offer has been created successfully" });
-      resetAndClose();
+    mutationFn: async (data: any) => {
+      const res = await apiRequest('POST', '/api/sales-marketing/offers', data);
+      return res.json();
+    },
+    onSuccess: (savedOffer: any) => {
+      toast({ title: "Offer created", description: "Offer has been created successfully. You can now download the PDF." });
+      setEditingOffer(savedOffer);
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
     },
     onError: (error: any) => {
@@ -978,11 +981,18 @@ export function OffersContent() {
                   )} />
                 </div>
 
-                <DialogFooter>
+                <DialogFooter className="flex items-center gap-2">
                   <Button type="button" variant="outline" onClick={resetAndClose}>Cancel</Button>
+                  {editingOffer && (
+                    <Button type="button" variant="secondary" onClick={() => {
+                      window.open(`/api/sales-marketing/offers/${editingOffer.id}/pdf`, '_blank');
+                    }}>
+                      <Download className="mr-2 h-4 w-4" /> Download PDF
+                    </Button>
+                  )}
                   <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
                     {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {editingOffer ? "Update Offer" : "Create Offer"}
+                    {editingOffer ? "Update Offer" : "Save Offer"}
                   </Button>
                 </DialogFooter>
               </form>
