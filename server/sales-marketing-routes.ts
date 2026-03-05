@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { insertLeadSchema, tankPrices, plantCosts, insertProductAttributeOptionSchema, insertProductSchema } from '@shared/schema';
 import { db } from './db';
 import { eq } from 'drizzle-orm';
+import { OfferPdfGenerator } from './offer-pdf-generator';
 
 // Define ensureAuthenticated middleware
 function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -966,6 +967,54 @@ export function setupSalesMarketingRoutes(app: Express) {
     } catch (error) {
       console.error('Error deleting offer:', error);
       res.status(500).json({ error: 'Failed to delete offer' });
+    }
+  });
+
+  router.get('/offers/:id/pdf', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      const offer = await storage.getOfferById(id);
+      if (!offer) return res.status(404).json({ error: 'Offer not found' });
+      const items = await storage.getOfferItems(id);
+
+      const generator = new OfferPdfGenerator({
+        offerNumber: offer.offerNumber,
+        createdAt: offer.createdAt?.toISOString() || new Date().toISOString(),
+        customerName: offer.customerName,
+        customerEmail: offer.customerEmail || '',
+        customerAddress: offer.customerAddress || '',
+        contactPerson: offer.contactPerson || '',
+        subject: offer.subject,
+        currency: offer.currency,
+        subtotal: offer.subtotal,
+        discountPercent: offer.discountPercent || '0',
+        discountAmount: offer.discountAmount || '0',
+        taxPercent: offer.taxPercent || '0',
+        taxAmount: offer.taxAmount || '0',
+        totalAmount: offer.totalAmount,
+        validUntil: offer.validUntil?.toISOString() || '',
+        paymentTerms: offer.paymentTerms || '',
+        deliveryTerms: offer.deliveryTerms || '',
+        notes: offer.notes || '',
+        termsAndConditions: offer.termsAndConditions || '',
+        items: items.map(item => ({
+          description: item.description,
+          productCode: item.productCode || '',
+          unit: item.unit,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discountPercent: item.discountPercent || '0',
+          totalPrice: item.totalPrice,
+          hsnSacCode: item.hsnSacCode || '',
+          isSubItem: item.isSubItem || false,
+        })),
+      });
+
+      generator.generate(res);
+    } catch (error) {
+      console.error('Error generating offer PDF:', error);
+      res.status(500).json({ error: 'Failed to generate PDF' });
     }
   });
 

@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
-  FileText, Plus, Pencil, Trash2, Loader2, Search, Eye, Package,
+  FileText, Plus, Pencil, Trash2, Loader2, Search, Eye, Package, Download,
   CheckCircle, XCircle, Send, Copy, Calendar, ChevronDown, ChevronRight, GitBranch, X
 } from "lucide-react";
 import type { Product } from "@shared/schema";
@@ -525,6 +525,9 @@ export default function OffersPage() {
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditOffer(offer)} title="Edit">
                             <Pencil className="h-4 w-4" />
                           </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => window.open(`/api/sales-marketing/offers/${offer.id}/pdf`, '_blank')} title="Download PDF">
+                            <Download className="h-4 w-4" />
+                          </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDuplicate(offer)} title="Duplicate">
                             <Copy className="h-4 w-4" />
                           </Button>
@@ -569,6 +572,9 @@ export default function OffersPage() {
               <DialogTitle className="flex items-center gap-2">
                 Offer {viewingOffer?.offerNumber}
                 <Badge className={statusColors[viewingOffer?.status] || ""}>{viewingOffer?.status}</Badge>
+                <Button variant="outline" size="sm" className="ml-auto text-indigo-600" onClick={() => window.open(`/api/sales-marketing/offers/${viewingOffer?.id}/pdf`, '_blank')}>
+                  <Download className="mr-1 h-3 w-3" /> Download PDF
+                </Button>
               </DialogTitle>
             </DialogHeader>
             {viewingOffer && (
