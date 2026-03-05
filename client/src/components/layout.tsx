@@ -263,7 +263,6 @@ function Layout({ children }: LayoutProps) {
         { icon: Search, label: "Lead Generation", href: "/lead-generation" },
         { icon: UsersRound, label: "Leads", href: "/leads" },
         { icon: Package, label: "Products", href: "/products" },
-        { icon: FileText, label: "Offers / Quotations", href: "/offers" },
         { icon: BarChart4, label: "Marketing Dashboard", href: "/marketing-dashboard" },
         { icon: TrendingUp, label: "Campaigns", href: "/campaigns" },
         { icon: Wrench, label: "Marketing Tools", href: "/marketing-tools" }

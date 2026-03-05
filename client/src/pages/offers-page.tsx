@@ -3,7 +3,6 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -634,7 +633,7 @@ export default function OffersPage() {
 
         {/* CREATE/EDIT OFFER DIALOG */}
         <Dialog open={isFormOpen} onOpenChange={(open) => { if (!open) resetAndClose(); }}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingOffer ? `Edit Offer ${editingOffer.offerNumber}` : "Create New Offer"}</DialogTitle>
               <DialogDescription>
@@ -980,19 +979,9 @@ export default function OffersPage() {
       </div>
   );
 
-  return (
-    <Layout>
-      <div className="p-4 md:p-6 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <FileText className="h-6 w-6" /> Offers / Quotations
-            </h1>
-            <p className="text-muted-foreground">Create and manage customer offers and quotations</p>
-          </div>
-        </div>
-        {offersContent}
-      </div>
-    </Layout>
-  );
+  return offersContent;
+}
+
+export function OffersContent() {
+  return <OffersPage />;
 }
