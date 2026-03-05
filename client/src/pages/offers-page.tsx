@@ -209,6 +209,9 @@ export default function OffersPage() {
     const validUntil = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
     const formatted = validUntil.toISOString().split('T')[0];
     form.setValue("validUntil", formatted);
+    form.setValue("currency", "USD");
+    form.setValue("paymentTerms", "40% Advance with PO, 60% against readiness");
+    form.setValue("deliveryTerms", "Ex-Works Mumbai Factory");
     setIsFormOpen(true);
   };
 
@@ -743,7 +746,17 @@ export default function OffersPage() {
                     <FormField control={form.control} name="paymentTerms" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Payment Terms</FormLabel>
-                        <FormControl><Input {...field} placeholder="e.g. Net 30 days" /></FormControl>
+                        <Select value={field.value || ""} onValueChange={field.onChange}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select payment terms" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            <SelectItem value="40% Advance with PO, 60% against readiness">40% Advance with PO, 60% against readiness</SelectItem>
+                            <SelectItem value="50% Advance with PO, 50% against readiness">50% Advance with PO, 50% against readiness</SelectItem>
+                            <SelectItem value="100% Advance with PO">100% Advance with PO</SelectItem>
+                            <SelectItem value="Net 30 days">Net 30 days</SelectItem>
+                            <SelectItem value="Net 60 days">Net 60 days</SelectItem>
+                            <SelectItem value="LC at Sight">LC at Sight</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </FormItem>
                     )} />
                   </div>
@@ -751,7 +764,16 @@ export default function OffersPage() {
                   <FormField control={form.control} name="deliveryTerms" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Delivery Terms</FormLabel>
-                      <FormControl><Input {...field} placeholder="e.g. FOB, CIF, Ex-Works" /></FormControl>
+                      <Select value={field.value || ""} onValueChange={field.onChange}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select delivery terms" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="Ex-Works Mumbai Factory">Ex-Works Mumbai Factory</SelectItem>
+                          <SelectItem value="FOB Mumbai Port">FOB Mumbai Port</SelectItem>
+                          <SelectItem value="CIF Destination Port">CIF Destination Port</SelectItem>
+                          <SelectItem value="DDP Destination">DDP Destination</SelectItem>
+                          <SelectItem value="5-6 Months for shipment, 1.5 Months shipping, 1 Month commissioning">5-6 Months shipment + 1.5 Months shipping + 1 Month commissioning</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </FormItem>
                   )} />
                 </div>
