@@ -1225,7 +1225,7 @@ export default function ProductsPage() {
         </Dialog>
 
         <Dialog open={isSubProductPickerOpen} onOpenChange={(open) => { if (!open) { setIsSubProductPickerOpen(false); setLinkingParentProduct(null); setSubProductSearch(""); } }}>
-          <DialogContent className="max-w-lg max-h-[80vh]">
+          <DialogContent className="max-w-3xl max-h-[80vh]">
             <DialogHeader>
               <DialogTitle>Link Sub-Product</DialogTitle>
               <DialogDescription>
