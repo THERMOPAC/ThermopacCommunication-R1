@@ -34,7 +34,7 @@ const productFormSchema = z.object({
   itemProperty1Label: z.string(),
   itemProperty2: z.string().min(1, "Property 2 is required"),
   itemProperty2Label: z.string(),
-  itemProperty3: z.string().min(6, "Minimum 6 characters required").max(12, "Maximum 12 characters allowed").regex(/^\d{3,6}[A-Za-z0-9]{3,6}$/, "Must be 3-6 digits followed by 3-6 alphanumeric characters (e.g. 123ABC)"),
+  itemProperty3: z.string().min(1, "Property 3 is required").regex(/^\d{3,6}\s?[A-Za-z0-9]{3,6}$/, "Must be 3-6 digits followed by 3-6 alphanumeric characters, space allowed (e.g. 2000 LPH, 123ABC)"),
   description: z.string().optional(),
   unit: z.string().min(1, "Unit is required"),
   unitPrice: z.string().min(1, "Unit Price is required").regex(/^\d+(\.\d{1,2})?$/, "Enter a valid price (e.g. 100.00)"),
@@ -853,7 +853,7 @@ export default function ProductsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Item Property 3 <span className="text-destructive">*</span></FormLabel>
-                        <FormDescription className="text-xs">3-6 digits + 3-6 alphanumeric (e.g. 123ABC, 5555A12)</FormDescription>
+                        <FormDescription className="text-xs">3-6 digits + 3-6 alphanumeric, space allowed (e.g. 2000 LPH, 123ABC)</FormDescription>
                         <FormControl>
                           <Input
                             {...field}
@@ -861,8 +861,8 @@ export default function ProductsPage() {
                               field.onChange(e.target.value.toUpperCase());
                               productForm.setValue("description", "");
                             }}
-                            placeholder="e.g. 123ABC"
-                            maxLength={12}
+                            placeholder="e.g. 2000 LPH"
+                            maxLength={13}
                           />
                         </FormControl>
                         <FormMessage />
