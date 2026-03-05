@@ -19,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   FileText, Plus, Pencil, Trash2, Loader2, Search, Eye,
-  CheckCircle, XCircle, Send, Copy, Calendar
+  CheckCircle, XCircle, Send, Copy, Calendar, ChevronDown, ChevronRight, GitBranch, X
 } from "lucide-react";
 import type { Product } from "@shared/schema";
 
@@ -32,6 +32,8 @@ const offerItemSchema = z.object({
   unitPrice: z.string().min(1, "Price is required"),
   discountPercent: z.string().optional(),
   hsnSacCode: z.string().optional(),
+  isSubItem: z.boolean().optional(),
+  parentItemIndex: z.number().nullable().optional(),
 });
 
 const offerFormSchema = z.object({
@@ -82,6 +84,23 @@ export default function OffersPage() {
     queryKey: ['/api/sales-marketing/products'],
   });
 
+  const { data: productChildLinks = [] } = useQuery<any[]>({
+    queryKey: ['/api/sales-marketing/product-children'],
+  });
+
+  const childProductsMap = useMemo(() => {
+    const map = new Map<number, Product[]>();
+    for (const link of productChildLinks) {
+      const childProduct = products.find(p => p.id === link.childProductId);
+      if (childProduct) {
+        const existing = map.get(link.parentProductId) || [];
+        existing.push(childProduct);
+        map.set(link.parentProductId, existing);
+      }
+    }
+    return map;
+  }, [products, productChildLinks]);
+
   const { data: customers = [] } = useQuery<any[]>({
     queryKey: ['/api/sales-marketing/customers'],
   });
@@ -104,6 +123,7 @@ export default function OffersPage() {
 
   const calculations = useMemo(() => {
     const subtotal = (watchItems || []).reduce((sum, item) => {
+      if (item.isSubItem) return sum;
       const qty = parseFloat(item.quantity || "0");
       const price = parseFloat(item.unitPrice || "0");
       const disc = parseFloat(item.discountPercent || "0");
@@ -208,7 +228,7 @@ export default function OffersPage() {
         deliveryTerms: data.deliveryTerms || "",
         notes: data.notes || "",
         termsAndConditions: data.termsAndConditions || "",
-        items: (data.items || []).map((item: any) => ({
+        items: (data.items || []).map((item: any, idx: number) => ({
           productId: item.productId,
           productCode: item.productCode || "",
           description: item.description || "",
@@ -217,6 +237,13 @@ export default function OffersPage() {
           unitPrice: item.unitPrice || "0",
           discountPercent: item.discountPercent || "0",
           hsnSacCode: item.hsnSacCode || "",
+          isSubItem: item.isSubItem || false,
+          parentItemIndex: item.isSubItem ? idx - 1 >= 0 ? (() => {
+            for (let pi = idx - 1; pi >= 0; pi--) {
+              if (!(data.items[pi]?.isSubItem)) return pi;
+            }
+            return null;
+          })() : null : null,
         })),
       });
       setIsFormOpen(true);
@@ -250,6 +277,8 @@ export default function OffersPage() {
   const handleAddProduct = (productId: string) => {
     const product = products.find((p) => p.id === parseInt(productId));
     if (product) {
+      const children = childProductsMap.get(product.id) || [];
+      const parentIndex = fields.length;
       append({
         productId: product.id,
         productCode: product.productCode,
@@ -259,8 +288,62 @@ export default function OffersPage() {
         unitPrice: product.unitPrice,
         discountPercent: "0",
         hsnSacCode: product.hsnSacCode || "",
+        isSubItem: false,
+        parentItemIndex: null,
       });
+      if (children.length > 0) {
+        for (const child of children) {
+          append({
+            productId: child.id,
+            productCode: child.productCode,
+            description: child.description,
+            unit: child.unit,
+            quantity: "1",
+            unitPrice: child.unitPrice,
+            discountPercent: "0",
+            hsnSacCode: child.hsnSacCode || "",
+            isSubItem: true,
+            parentItemIndex: parentIndex,
+          });
+        }
+      }
     }
+  };
+
+  const handleRemoveItem = (index: number) => {
+    const item = watchItems?.[index];
+    if (item?.isSubItem && item?.parentItemIndex != null) {
+      const parentIdx = item.parentItemIndex;
+      const parentItem = watchItems?.[parentIdx];
+      if (parentItem) {
+        const childPrice = parseFloat(item.unitPrice || "0") * parseFloat(item.quantity || "1");
+        const currentParentPrice = parseFloat(parentItem.unitPrice || "0");
+        const newParentPrice = Math.max(0, currentParentPrice - childPrice);
+        form.setValue(`items.${parentIdx}.unitPrice`, newParentPrice.toFixed(2));
+      }
+    }
+    if (!item?.isSubItem) {
+      const indicesToRemove: number[] = [index];
+      (watchItems || []).forEach((wi, i) => {
+        if (wi.isSubItem && wi.parentItemIndex === index) {
+          indicesToRemove.push(i);
+        }
+      });
+      indicesToRemove.sort((a, b) => b - a);
+      for (const idx of indicesToRemove) {
+        remove(idx);
+      }
+      const currentItems = form.getValues("items");
+      const updatedItems = currentItems.map((ci) => {
+        if (ci.parentItemIndex != null && ci.parentItemIndex > index) {
+          return { ...ci, parentItemIndex: ci.parentItemIndex - indicesToRemove.length };
+        }
+        return ci;
+      });
+      form.setValue("items", updatedItems);
+      return;
+    }
+    remove(index);
   };
 
   const handleAddBlankItem = () => {
@@ -273,6 +356,8 @@ export default function OffersPage() {
       unitPrice: "0",
       discountPercent: "0",
       hsnSacCode: "",
+      isSubItem: false,
+      parentItemIndex: null,
     });
   };
 
@@ -289,8 +374,11 @@ export default function OffersPage() {
         const price = parseFloat(item.unitPrice || "0");
         const disc = parseFloat(item.discountPercent || "0");
         const lineTotal = qty * price * (1 - disc / 100);
+        const { parentItemIndex, ...rest } = item;
         return {
-          ...item,
+          ...rest,
+          isSubItem: item.isSubItem || false,
+          parentItemId: null,
           totalPrice: lineTotal.toFixed(2),
           sortOrder: idx,
         };
@@ -324,7 +412,7 @@ export default function OffersPage() {
         deliveryTerms: data.deliveryTerms || "",
         notes: data.notes || "",
         termsAndConditions: data.termsAndConditions || "",
-        items: (data.items || []).map((item: any) => ({
+        items: (data.items || []).map((item: any, idx: number) => ({
           productId: item.productId,
           productCode: item.productCode || "",
           description: item.description || "",
@@ -333,6 +421,13 @@ export default function OffersPage() {
           unitPrice: item.unitPrice || "0",
           discountPercent: item.discountPercent || "0",
           hsnSacCode: item.hsnSacCode || "",
+          isSubItem: item.isSubItem || false,
+          parentItemIndex: item.isSubItem ? (() => {
+            for (let pi = idx - 1; pi >= 0; pi--) {
+              if (!(data.items[pi]?.isSubItem)) return pi;
+            }
+            return null;
+          })() : null,
         })),
       });
       setIsFormOpen(true);
@@ -503,18 +598,22 @@ export default function OffersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(viewingOffer.items || []).map((item: any, idx: number) => (
-                      <TableRow key={item.id}>
-                        <TableCell>{idx + 1}</TableCell>
-                        <TableCell className="font-mono">{item.productCode || "-"}</TableCell>
-                        <TableCell>{item.description}</TableCell>
-                        <TableCell>{item.unit}</TableCell>
-                        <TableCell className="text-right">{item.quantity}</TableCell>
-                        <TableCell className="text-right">{parseFloat(item.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right">{item.discountPercent || "0"}%</TableCell>
-                        <TableCell className="text-right font-medium">{parseFloat(item.totalPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                      </TableRow>
-                    ))}
+                    {(viewingOffer.items || []).map((item: any, idx: number) => {
+                      const isSub = item.isSubItem || false;
+                      const mainIndex = isSub ? "" : (viewingOffer.items || []).slice(0, idx + 1).filter((i: any) => !i.isSubItem).length;
+                      return (
+                        <TableRow key={item.id} className={isSub ? "bg-muted/30" : ""}>
+                          <TableCell>{isSub ? <span className="text-muted-foreground ml-1">└</span> : mainIndex}</TableCell>
+                          <TableCell className={`font-mono ${isSub ? "pl-6 text-muted-foreground" : ""}`}>{item.productCode || "-"}</TableCell>
+                          <TableCell className={isSub ? "text-muted-foreground" : ""}>{item.description}{isSub && <Badge variant="secondary" className="ml-2 text-xs h-4">sub-item</Badge>}</TableCell>
+                          <TableCell>{item.unit}</TableCell>
+                          <TableCell className="text-right">{item.quantity}</TableCell>
+                          <TableCell className="text-right">{parseFloat(item.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right">{item.discountPercent || "0"}%</TableCell>
+                          <TableCell className={`text-right font-medium ${isSub ? "text-muted-foreground" : ""}`}>{parseFloat(item.totalPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
 
@@ -699,22 +798,41 @@ export default function OffersPage() {
                         </TableHeader>
                         <TableBody>
                           {fields.map((field, index) => {
-                            const qty = parseFloat(watchItems?.[index]?.quantity || "0");
-                            const price = parseFloat(watchItems?.[index]?.unitPrice || "0");
-                            const disc = parseFloat(watchItems?.[index]?.discountPercent || "0");
+                            const item = watchItems?.[index];
+                            const isSubItem = item?.isSubItem || false;
+                            const qty = parseFloat(item?.quantity || "0");
+                            const price = parseFloat(item?.unitPrice || "0");
+                            const disc = parseFloat(item?.discountPercent || "0");
                             const lineTotal = qty * price * (1 - disc / 100);
+                            const hasChildren = !isSubItem && (watchItems || []).some(wi => wi.isSubItem && wi.parentItemIndex === index);
                             return (
-                              <TableRow key={field.id}>
-                                <TableCell className="text-muted-foreground">{index + 1}</TableCell>
+                              <TableRow key={field.id} className={isSubItem ? "bg-muted/30" : ""}>
+                                <TableCell className="text-muted-foreground">
+                                  {isSubItem ? (
+                                    <span className="text-muted-foreground ml-2">└</span>
+                                  ) : (
+                                    index + 1 - (watchItems || []).slice(0, index).filter(wi => wi.isSubItem).length
+                                  )}
+                                </TableCell>
                                 <TableCell>
                                   <Input
                                     {...form.register(`items.${index}.description`)}
-                                    className="h-8 text-sm"
+                                    className={`h-8 text-sm ${isSubItem ? "pl-6" : ""}`}
                                     placeholder="Item description"
                                   />
-                                  {watchItems?.[index]?.productCode && (
-                                    <span className="text-xs text-muted-foreground font-mono">{watchItems[index].productCode}</span>
-                                  )}
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    {item?.productCode && (
+                                      <span className="text-xs text-muted-foreground font-mono">{item.productCode}</span>
+                                    )}
+                                    {hasChildren && (
+                                      <Badge variant="outline" className="text-xs h-4 gap-1">
+                                        <GitBranch className="h-2.5 w-2.5" /> breakdown
+                                      </Badge>
+                                    )}
+                                    {isSubItem && (
+                                      <Badge variant="secondary" className="text-xs h-4">sub-item</Badge>
+                                    )}
+                                  </div>
                                 </TableCell>
                                 <TableCell>
                                   <select
@@ -733,12 +851,12 @@ export default function OffersPage() {
                                 <TableCell>
                                   <Input {...form.register(`items.${index}.discountPercent`)} className="h-8 text-sm text-right" type="number" step="0.01" />
                                 </TableCell>
-                                <TableCell className="text-right font-medium text-sm">
+                                <TableCell className={`text-right font-medium text-sm ${isSubItem ? "text-muted-foreground" : ""}`}>
                                   {lineTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </TableCell>
                                 <TableCell>
-                                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => remove(index)}>
-                                    <Trash2 className="h-3 w-3" />
+                                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleRemoveItem(index)}>
+                                    {isSubItem ? <X className="h-3 w-3" /> : <Trash2 className="h-3 w-3" />}
                                   </Button>
                                 </TableCell>
                               </TableRow>
