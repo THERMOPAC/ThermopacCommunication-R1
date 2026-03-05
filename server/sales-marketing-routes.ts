@@ -879,6 +879,9 @@ export function setupSalesMarketingRoutes(app: Express) {
       const { items, ...offerData } = req.body;
       const user = req.user as any;
       const offerNumber = await storage.getNextOfferNumber();
+      if (offerData.validUntil) {
+        offerData.validUntil = new Date(offerData.validUntil);
+      }
       const offer = await storage.createOffer({
         ...offerData,
         offerNumber,
@@ -908,6 +911,9 @@ export function setupSalesMarketingRoutes(app: Express) {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
       const { items, ...offerData } = req.body;
+      if (offerData.validUntil) {
+        offerData.validUntil = new Date(offerData.validUntil);
+      }
       const offer = await storage.updateOffer(id, offerData);
 
       if (items && Array.isArray(items)) {
