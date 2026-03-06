@@ -120,7 +120,7 @@ const customerSchema = z.object({
   phone1: z.string().min(1, "Phone is required"),
   billToAddress: z.string().min(1, "Billing Address is required"),
   shipToAddress: z.string().min(1, "Shipping Address is required"),
-  continent: z.string().optional().nullable(),
+  continent: z.string().min(1, "Continent is required"),
   countryName: z.string().min(1, "Country is required"),
 });
 
@@ -444,7 +444,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   name="contactPerson"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Contact Person</FormLabel>
+                      <FormLabel>Contact Person *</FormLabel>
                       <FormControl>
                         <Input placeholder="e.g., John Smith" {...field} />
                       </FormControl>
@@ -457,7 +457,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>Email *</FormLabel>
                       <FormControl>
                         <Input
                           type="email"
@@ -474,7 +474,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   name="phone1"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone</FormLabel>
+                      <FormLabel>Phone *</FormLabel>
                       <FormControl>
                         <Input placeholder="e.g., +91 22 2617 8080" {...field} />
                       </FormControl>
@@ -491,7 +491,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   name="billToAddress"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Billing Address</FormLabel>
+                      <FormLabel>Billing Address *</FormLabel>
                       <FormControl>
                         <Input placeholder="e.g., 123 Business St, Mumbai" {...field} />
                       </FormControl>
@@ -505,7 +505,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="flex items-center justify-between">
-                        Shipping Address
+                        Shipping Address *
                         <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => form.setValue('shipToAddress', form.getValues('billToAddress') || '')}>
                           Copy from Billing
                         </Button>
@@ -525,7 +525,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   name="countryName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Country</FormLabel>
+                      <FormLabel>Country *</FormLabel>
                       <Select onValueChange={(val) => { field.onChange(val); const cont = countryToContinent[val]; if (cont) form.setValue('continent', cont); }} value={field.value || ""}>
                         <FormControl>
                           <SelectTrigger>
@@ -547,7 +547,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   name="continent"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Continent</FormLabel>
+                      <FormLabel>Continent *</FormLabel>
                       <FormControl>
                         <Input {...field} value={field.value || ""} readOnly className="bg-muted" />
                       </FormControl>
@@ -636,7 +636,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   name="contactPerson"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Contact Person</FormLabel>
+                      <FormLabel>Contact Person *</FormLabel>
                       <FormControl>
                         <Input placeholder="e.g., John Smith" {...field} />
                       </FormControl>
@@ -649,7 +649,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>Email *</FormLabel>
                       <FormControl>
                         <Input
                           type="email"
@@ -666,7 +666,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   name="phone1"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone</FormLabel>
+                      <FormLabel>Phone *</FormLabel>
                       <FormControl>
                         <Input placeholder="e.g., +91 22 2617 8080" {...field} />
                       </FormControl>
@@ -683,7 +683,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   name="billToAddress"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Billing Address</FormLabel>
+                      <FormLabel>Billing Address *</FormLabel>
                       <FormControl>
                         <Input placeholder="e.g., 123 Business St, Mumbai" {...field} />
                       </FormControl>
@@ -697,7 +697,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="flex items-center justify-between">
-                        Shipping Address
+                        Shipping Address *
                         <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => form.setValue('shipToAddress', form.getValues('billToAddress') || '')}>
                           Copy from Billing
                         </Button>
@@ -717,7 +717,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   name="countryName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Country</FormLabel>
+                      <FormLabel>Country *</FormLabel>
                       <Select onValueChange={(val) => { field.onChange(val); const cont = countryToContinent[val]; if (cont) form.setValue('continent', cont); }} value={field.value || ""}>
                         <FormControl>
                           <SelectTrigger>
@@ -739,7 +739,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   name="continent"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Continent</FormLabel>
+                      <FormLabel>Continent *</FormLabel>
                       <FormControl>
                         <Input {...field} value={field.value || ""} readOnly className="bg-muted" />
                       </FormControl>
