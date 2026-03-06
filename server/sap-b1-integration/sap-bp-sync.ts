@@ -135,7 +135,7 @@ class SapBPSyncService {
       'Lead': 'cLid',
     };
 
-    return {
+    const result: SapBPData = {
       CardCode: customer.bpCode,
       CardName: customer.bpName,
       CardType: cardTypeMap[customer.cardType] || 'cCustomer',
@@ -143,10 +143,24 @@ class SapBPSyncService {
       EmailAddress: customer.email || undefined,
       ContactPerson: customer.contactPerson || undefined,
       Country: this.countryNameToCode(customer.countryName),
-      GlblLocNum: customer.glblLocNum || 'NA',
-      U_StateSupply: customer.uStateSupply || 'MH',
-      U_BP_GST_Type: customer.uBpGstType || 'G',
     };
+
+    const gln = customer.glblLocNum;
+    if (gln && gln !== 'NA' && gln.trim() !== '') {
+      result.GlblLocNum = gln;
+    }
+
+    const stateSupply = customer.uStateSupply;
+    if (stateSupply && stateSupply.trim() !== '') {
+      result.U_StateSupply = stateSupply;
+    }
+
+    const gstType = customer.uBpGstType;
+    if (gstType && gstType.trim() !== '') {
+      result.U_BP_GST_Type = gstType;
+    }
+
+    return result;
   }
 
   async checkBPExists(cardCode: string): Promise<boolean> {
