@@ -269,12 +269,12 @@ export class OfferPdfGenerator {
     this.currentY += 20;
 
     const colWidths = {
-      sl: 30,
-      description: 230,
+      sl: 25,
+      description: 210,
       price: 80,
       qty: 50,
       tax: 40,
-      amount: 80,
+      amount: 90,
     };
 
     const headerY = this.currentY;
@@ -649,12 +649,12 @@ export class OfferPdfGenerator {
     this.drawTerms();
     this.drawSignature();
 
-    const pageRange = this.doc.bufferedPageRange();
-    for (let i = 0; i < pageRange.count; i++) {
+    const range = this.doc.bufferedPageRange();
+    for (let i = 0; i < range.count; i++) {
       this.doc.switchToPage(i);
       this.drawPageFooter();
     }
-
+    this.doc.flushPages();
     this.doc.end();
   }
 
