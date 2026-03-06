@@ -484,7 +484,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <FormItem>
                         <FormLabel>GlblLocNum</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} readOnly disabled className="opacity-70 cursor-not-allowed" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -497,7 +497,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <FormItem>
                         <FormLabel>State of Supply</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} readOnly disabled className="opacity-70 cursor-not-allowed" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -510,7 +510,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <FormItem>
                         <FormLabel>BP GST Type</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} readOnly disabled className="opacity-70 cursor-not-allowed" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -707,7 +707,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <FormItem>
                         <FormLabel>GlblLocNum</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} readOnly disabled className="opacity-70 cursor-not-allowed" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -720,7 +720,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <FormItem>
                         <FormLabel>State of Supply</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} readOnly disabled className="opacity-70 cursor-not-allowed" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -733,7 +733,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <FormItem>
                         <FormLabel>BP GST Type</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} readOnly disabled className="opacity-70 cursor-not-allowed" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
