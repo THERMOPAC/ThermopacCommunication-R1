@@ -1439,6 +1439,7 @@ export const customers = pgTable('customers', {
   uBpGstType: text('u_bp_gst_type').default('G'),
   billToAddress: text('bill_to_address'),
   shipToAddress: text('ship_to_address'),
+  currency: text('currency').default('USD'),
   continent: text('continent'),
   countryName: text('country_name'),
   createdAt: timestamp('created_at').defaultNow().notNull(),

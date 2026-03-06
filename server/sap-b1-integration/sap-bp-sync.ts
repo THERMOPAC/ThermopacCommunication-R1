@@ -1,5 +1,12 @@
 import { sapHttpsClient } from './sap-https-client';
 
+interface SapBPAddress {
+  AddressName: string;
+  AddressType: string;
+  Street?: string;
+  Country?: string;
+}
+
 interface SapBPData {
   CardCode: string;
   CardName: string;
@@ -8,9 +15,9 @@ interface SapBPData {
   EmailAddress?: string;
   ContactPerson?: string;
   ContactEmployees?: Array<{ Name: string; E_Mail?: string; Phone1?: string }>;
-  BillToAddress?: string;
-  ShipToAddress?: string;
+  BPAddresses?: SapBPAddress[];
   Country?: string;
+  Currency?: string;
   GlblLocNum?: string;
   U_StateSupply?: string;
   U_BP_GST_Type?: string;
@@ -136,13 +143,16 @@ class SapBPSyncService {
       'Lead': 'cLid',
     };
 
+    const countryCode = this.countryNameToCode(customer.countryName);
+
     const result: SapBPData = {
       CardCode: customer.bpCode,
       CardName: customer.bpName,
       CardType: cardTypeMap[customer.cardType] || 'cCustomer',
       Cellular: customer.phone1 || undefined,
       EmailAddress: customer.email || undefined,
-      Country: this.countryNameToCode(customer.countryName),
+      Country: countryCode,
+      Currency: customer.currency || (customer.countryName === 'India' ? 'INR' : 'USD'),
     };
 
     if (customer.contactPerson) {
@@ -152,6 +162,27 @@ class SapBPSyncService {
         Phone1: customer.phone1 || undefined,
       }];
       result.ContactPerson = customer.contactPerson;
+    }
+
+    const bpAddresses: SapBPAddress[] = [];
+    if (customer.billToAddress) {
+      bpAddresses.push({
+        AddressName: 'Bill To',
+        AddressType: 'bo_BillTo',
+        Street: customer.billToAddress,
+        Country: countryCode,
+      });
+    }
+    if (customer.shipToAddress) {
+      bpAddresses.push({
+        AddressName: 'Ship To',
+        AddressType: 'bo_ShipTo',
+        Street: customer.shipToAddress,
+        Country: countryCode,
+      });
+    }
+    if (bpAddresses.length > 0) {
+      result.BPAddresses = bpAddresses;
     }
 
     const gln = customer.glblLocNum;

@@ -175,6 +175,7 @@ const customerSchema = z.object({
   glblLocNum: z.string().default("NA"),
   uStateSupply: z.string().default("MH"),
   uBpGstType: z.string().default("G"),
+  currency: z.string().default("USD"),
   continent: z.string().min(1, "Continent is required"),
   countryName: z.string().min(1, "Country is required"),
 });
@@ -207,6 +208,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       glblLocNum: "NA",
       uStateSupply: "MH",
       uBpGstType: "G",
+      currency: "USD",
       continent: "",
       countryName: "",
     },
@@ -339,6 +341,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       glblLocNum: (customer as any).glblLocNum || "NA",
       uStateSupply: (customer as any).uStateSupply || "MH",
       uBpGstType: (customer as any).uBpGstType || "G",
+      currency: (customer as any).currency || (customer.countryName === 'India' ? 'INR' : 'USD'),
       continent: customer.continent || "",
       countryName: customer.countryName || "",
     });
@@ -396,6 +399,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                 glblLocNum: "NA",
                 uStateSupply: "MH",
                 uBpGstType: "G",
+                currency: "USD",
                 continent: "",
                 countryName: "",
               });
@@ -623,7 +627,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Country *</FormLabel>
-                        <Select onValueChange={(val) => { field.onChange(val); const cont = countryToContinent[val]; if (cont) form.setValue('continent', cont); const phoneCode = countryToPhoneCode[val]; if (phoneCode) { const currentPhone = form.getValues('phone1') || ''; const stripped = currentPhone.replace(/^\+\d+\s*/, ''); form.setValue('phone1', phoneCode + ' ' + stripped); } }} value={field.value || ""}>
+                        <Select onValueChange={(val) => { field.onChange(val); const cont = countryToContinent[val]; if (cont) form.setValue('continent', cont); form.setValue('currency', val === 'India' ? 'INR' : 'USD'); const phoneCode = countryToPhoneCode[val]; if (phoneCode) { const currentPhone = form.getValues('phone1') || ''; const stripped = currentPhone.replace(/^\+\d+\s*/, ''); form.setValue('phone1', phoneCode + ' ' + stripped); } }} value={field.value || ""}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select country" />
@@ -648,6 +652,40 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                         <FormControl>
                           <Input {...field} value={field.value || ""} readOnly className="bg-muted" />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="currency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Currency</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || "USD"}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select currency" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="USD">USD - US Dollar</SelectItem>
+                            <SelectItem value="EUR">EUR - Euro</SelectItem>
+                            <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                            <SelectItem value="INR">INR - Indian Rupee</SelectItem>
+                            <SelectItem value="AED">AED - UAE Dirham</SelectItem>
+                            <SelectItem value="SAR">SAR - Saudi Riyal</SelectItem>
+                            <SelectItem value="BRL">BRL - Brazilian Real</SelectItem>
+                            <SelectItem value="JPY">JPY - Japanese Yen</SelectItem>
+                            <SelectItem value="CNY">CNY - Chinese Yuan</SelectItem>
+                            <SelectItem value="CHF">CHF - Swiss Franc</SelectItem>
+                            <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
+                            <SelectItem value="AUD">AUD - Australian Dollar</SelectItem>
+                            <SelectItem value="SGD">SGD - Singapore Dollar</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -806,7 +844,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Country *</FormLabel>
-                        <Select onValueChange={(val) => { field.onChange(val); const cont = countryToContinent[val]; if (cont) form.setValue('continent', cont); const phoneCode = countryToPhoneCode[val]; if (phoneCode) { const currentPhone = form.getValues('phone1') || ''; const stripped = currentPhone.replace(/^\+\d+\s*/, ''); form.setValue('phone1', phoneCode + ' ' + stripped); } }} value={field.value || ""}>
+                        <Select onValueChange={(val) => { field.onChange(val); const cont = countryToContinent[val]; if (cont) form.setValue('continent', cont); form.setValue('currency', val === 'India' ? 'INR' : 'USD'); const phoneCode = countryToPhoneCode[val]; if (phoneCode) { const currentPhone = form.getValues('phone1') || ''; const stripped = currentPhone.replace(/^\+\d+\s*/, ''); form.setValue('phone1', phoneCode + ' ' + stripped); } }} value={field.value || ""}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select country" />
@@ -831,6 +869,40 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                         <FormControl>
                           <Input {...field} value={field.value || ""} readOnly className="bg-muted" />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="currency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Currency</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || "USD"}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select currency" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="USD">USD - US Dollar</SelectItem>
+                            <SelectItem value="EUR">EUR - Euro</SelectItem>
+                            <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                            <SelectItem value="INR">INR - Indian Rupee</SelectItem>
+                            <SelectItem value="AED">AED - UAE Dirham</SelectItem>
+                            <SelectItem value="SAR">SAR - Saudi Riyal</SelectItem>
+                            <SelectItem value="BRL">BRL - Brazilian Real</SelectItem>
+                            <SelectItem value="JPY">JPY - Japanese Yen</SelectItem>
+                            <SelectItem value="CNY">CNY - Chinese Yuan</SelectItem>
+                            <SelectItem value="CHF">CHF - Swiss Franc</SelectItem>
+                            <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
+                            <SelectItem value="AUD">AUD - Australian Dollar</SelectItem>
+                            <SelectItem value="SGD">SGD - Singapore Dollar</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
