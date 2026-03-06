@@ -839,40 +839,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                     )}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <FormField
-                    control={form.control}
-                    name="currency"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Currency</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || "USD"}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select currency" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="USD">USD - US Dollar</SelectItem>
-                            <SelectItem value="EUR">EUR - Euro</SelectItem>
-                            <SelectItem value="GBP">GBP - British Pound</SelectItem>
-                            <SelectItem value="INR">INR - Indian Rupee</SelectItem>
-                            <SelectItem value="AED">AED - UAE Dirham</SelectItem>
-                            <SelectItem value="SAR">SAR - Saudi Riyal</SelectItem>
-                            <SelectItem value="BRL">BRL - Brazilian Real</SelectItem>
-                            <SelectItem value="JPY">JPY - Japanese Yen</SelectItem>
-                            <SelectItem value="CNY">CNY - Chinese Yuan</SelectItem>
-                            <SelectItem value="CHF">CHF - Swiss Franc</SelectItem>
-                            <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
-                            <SelectItem value="AUD">AUD - Australian Dollar</SelectItem>
-                            <SelectItem value="SGD">SGD - Singapore Dollar</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+
               </div>
 
               <DialogFooter>
@@ -1179,40 +1146,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                     )}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <FormField
-                    control={form.control}
-                    name="currency"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Currency</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || "USD"}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select currency" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="USD">USD - US Dollar</SelectItem>
-                            <SelectItem value="EUR">EUR - Euro</SelectItem>
-                            <SelectItem value="GBP">GBP - British Pound</SelectItem>
-                            <SelectItem value="INR">INR - Indian Rupee</SelectItem>
-                            <SelectItem value="AED">AED - UAE Dirham</SelectItem>
-                            <SelectItem value="SAR">SAR - Saudi Riyal</SelectItem>
-                            <SelectItem value="BRL">BRL - Brazilian Real</SelectItem>
-                            <SelectItem value="JPY">JPY - Japanese Yen</SelectItem>
-                            <SelectItem value="CNY">CNY - Chinese Yuan</SelectItem>
-                            <SelectItem value="CHF">CHF - Swiss Franc</SelectItem>
-                            <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
-                            <SelectItem value="AUD">AUD - Australian Dollar</SelectItem>
-                            <SelectItem value="SGD">SGD - Singapore Dollar</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+
               </div>
 
               <DialogFooter>
