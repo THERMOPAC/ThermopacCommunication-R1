@@ -169,9 +169,8 @@ export function OffersContent() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) =>
       apiRequest('PATCH', `/api/sales-marketing/offers/${id}`, data),
-    onSuccess: () => {
+    onSuccess: (updatedOffer: any) => {
       toast({ title: "Offer updated", description: "Offer has been updated successfully" });
-      resetAndClose();
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
     },
     onError: (error: any) => {
