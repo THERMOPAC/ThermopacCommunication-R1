@@ -192,6 +192,28 @@ export default function CustomerManagement({ customers }: { customers: Customer[
   const [searchQuery, setSearchQuery] = useState("");
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
+  const [emailVerifyStatus, setEmailVerifyStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+  const [emailVerifyMessage, setEmailVerifyMessage] = useState("");
+
+  const verifyEmail = async (email: string) => {
+    if (!email || !email.includes('@')) {
+      setEmailVerifyStatus('idle');
+      return;
+    }
+    setEmailVerifyStatus('checking');
+    try {
+      const res = await apiRequest("POST", "/api/customers/verify-email", { email });
+      if (res.valid) {
+        setEmailVerifyStatus('valid');
+        setEmailVerifyMessage('Email domain verified');
+      } else {
+        setEmailVerifyStatus('invalid');
+        setEmailVerifyMessage(res.reason || 'Email verification failed');
+      }
+    } catch {
+      setEmailVerifyStatus('idle');
+    }
+  };
   
   // Define form
   const form = useForm<CustomerFormValues>({

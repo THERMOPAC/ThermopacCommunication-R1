@@ -1391,12 +1391,34 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
+  app.post('/api/customers/verify-email', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ valid: false, reason: 'Email is required' });
+      }
+      const { verifyEmailDomain } = await import('./email-verify');
+      const result = await verifyEmailDomain(email);
+      res.json(result);
+    } catch (error: any) {
+      res.json({ valid: true });
+    }
+  });
+
   app.post('/api/customers', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       // Check if the user has permission to create customers
       const managementRoles = ['Superuser', 'General Manager', 'Senior Manager', 'Manager'];
       if (!managementRoles.includes(req.user!.role)) {
         return res.status(403).json({ error: 'Not authorized to create customers' });
+      }
+
+      if (req.body.email) {
+        const { verifyEmailDomain } = await import('./email-verify');
+        const emailCheck = await verifyEmailDomain(req.body.email);
+        if (!emailCheck.valid) {
+          return res.status(400).json({ error: `Email verification failed: ${emailCheck.reason}` });
+        }
       }
       
       const customerData = insertCustomerSchema.parse({
@@ -1448,6 +1470,14 @@ export function setupProjectRoutes(app: express.Express) {
       const customer = await storage.getCustomer(customerId);
       if (!customer) {
         return res.status(404).json({ error: 'Customer not found' });
+      }
+
+      if (req.body.email && req.body.email !== customer.email) {
+        const { verifyEmailDomain } = await import('./email-verify');
+        const emailCheck = await verifyEmailDomain(req.body.email);
+        if (!emailCheck.valid) {
+          return res.status(400).json({ error: `Email verification failed: ${emailCheck.reason}` });
+        }
       }
       
       // Check if BP code is being changed and if it already exists
