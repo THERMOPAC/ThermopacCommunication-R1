@@ -97,15 +97,15 @@ export class OfferPdfGenerator {
     const logoPath = path.join(process.cwd(), 'client', 'public', 'assets', 'thermopac-logo.jpg');
     try {
       if (fs.existsSync(logoPath)) {
-        const logoWidth = 160;
-        const logoHeight = 45;
+        const logoWidth = 120;
+        const logoHeight = 34;
         const logoX = this.pageWidth - this.margin - logoWidth;
         this.doc.image(logoPath, logoX, this.margin, { width: logoWidth, fit: [logoWidth, logoHeight] });
       }
     } catch (e) {
     }
 
-    this.currentY = this.margin + 50;
+    this.currentY = this.margin + 40;
     this.drawLine(this.currentY, '#003366');
     this.currentY += 2;
     this.drawLine(this.currentY, '#003366');
