@@ -121,6 +121,9 @@ const customerSchema = z.object({
   billToAddress: z.string().min(1, "Billing Address is required"),
   shipToAddress: z.string().min(1, "Shipping Address is required"),
   cardType: z.string().min(1, "Card Type is required"),
+  glblLocNum: z.string().default("NA"),
+  uStateSupply: z.string().default("MH"),
+  uBpGstType: z.string().default("G"),
   continent: z.string().min(1, "Continent is required"),
   countryName: z.string().min(1, "Country is required"),
 });
@@ -150,6 +153,9 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       billToAddress: "",
       shipToAddress: "",
       cardType: "Customer",
+      glblLocNum: "NA",
+      uStateSupply: "MH",
+      uBpGstType: "G",
       continent: "",
       countryName: "",
     },
@@ -267,6 +273,9 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       billToAddress: customer.billToAddress || "",
       shipToAddress: customer.shipToAddress || "",
       cardType: (customer as any).cardType || "Customer",
+      glblLocNum: (customer as any).glblLocNum || "NA",
+      uStateSupply: (customer as any).uStateSupply || "MH",
+      uBpGstType: (customer as any).uBpGstType || "G",
       continent: customer.continent || "",
       countryName: customer.countryName || "",
     });
@@ -321,6 +330,9 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                 billToAddress: "",
                 shipToAddress: "",
                 cardType: "Customer",
+                glblLocNum: "NA",
+                uStateSupply: "MH",
+                uBpGstType: "G",
                 continent: "",
                 countryName: "",
               });
@@ -455,6 +467,48 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                           <SelectItem value="Lead">Lead</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="glblLocNum"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>GlblLocNum</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="uStateSupply"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State of Supply</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="uBpGstType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>BP GST Type</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -666,6 +720,48 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                           <SelectItem value="Lead">Lead</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="glblLocNum"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>GlblLocNum</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="uStateSupply"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State of Supply</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="uBpGstType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>BP GST Type</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
