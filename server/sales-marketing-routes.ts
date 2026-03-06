@@ -717,6 +717,17 @@ router.patch('/products/:id', ensureAuthenticated, async (req: Request, res: Res
     }
 
     const product = await storage.updateProduct(id, updateData);
+
+    if (updateData.unitPrice !== undefined) {
+      const allLinks = await storage.getAllProductChildren();
+      const parentIds = allLinks
+        .filter((link: any) => link.childProductId === id)
+        .map((link: any) => link.parentProductId);
+      for (const parentId of parentIds) {
+        await storage.recalculateParentPrice(parentId);
+      }
+    }
+
     res.json(product);
   } catch (error) {
     console.error('Error updating product:', error);
