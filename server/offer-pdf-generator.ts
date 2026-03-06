@@ -583,24 +583,19 @@ export class OfferPdfGenerator {
       .lineTo(this.pageWidth - this.margin, footerY)
       .stroke();
 
-    this.doc
-      .fillColor('#999999')
-      .fontSize(6.5)
-      .font('Helvetica')
-      .text(
-        'THERMOPAC | L 4, 405 The Summit Business Bay, Vile Parle (East), W E Highway, Mumbai India 400 057',
-        this.margin,
-        footerY + 5,
-        { width: this.contentWidth, align: 'center', lineBreak: false }
-      );
+    const line1 = 'THERMOPAC | L 4, 405 The Summit Business Bay, Vile Parle (East), W E Highway, Mumbai India 400 057';
+    const line2 = 'Tel: +91 22 2617 8080 to 84 | Fax: +91 22 2617 8084 | E-Mail: sales@thermopac.in';
 
-    this.doc
-      .text(
-        'Tel: +91 22 2617 8080 to 84 | Fax: +91 22 2617 8084 | E-Mail: sales@thermopac.in',
-        this.margin,
-        footerY + 14,
-        { width: this.contentWidth, align: 'center', lineBreak: false }
-      );
+    this.doc.fontSize(6.5).font('Helvetica').fillColor('#999999');
+    const w1 = this.doc.widthOfString(line1);
+    const w2 = this.doc.widthOfString(line2);
+    const x1 = this.margin + (this.contentWidth - w1) / 2;
+    const x2 = this.margin + (this.contentWidth - w2) / 2;
+
+    const savedY = (this.doc as any).y;
+    this.doc.text(line1, x1, footerY + 5, { lineBreak: false });
+    this.doc.text(line2, x2, footerY + 14, { lineBreak: false });
+    (this.doc as any).y = savedY;
   }
 
   private generatePartBuffer(drawFns: (() => void)[]): Promise<Buffer> {
