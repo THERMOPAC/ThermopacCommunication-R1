@@ -6,6 +6,7 @@ interface SapBPAddress {
   Street?: string;
   Block?: string;
   City?: string;
+  State?: string;
   Country?: string;
 }
 
@@ -135,12 +136,13 @@ class SapBPSyncService {
     return map[countryName] || undefined;
   }
 
-  private parseAddress(name: string, type: string, fullAddress: string, countryCode?: string): SapBPAddress {
+  private parseAddress(name: string, type: string, fullAddress: string, countryCode?: string, stateCode?: string): SapBPAddress {
     const lines = fullAddress.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const addr: SapBPAddress = {
       AddressName: name,
       AddressType: type,
       Country: countryCode,
+      State: stateCode || undefined,
     };
 
     if (lines.length === 1) {
@@ -211,12 +213,13 @@ class SapBPSyncService {
       result.ContactPerson = customer.contactPerson;
     }
 
+    const stateCode = customer.uStateSupply || undefined;
     const bpAddresses: SapBPAddress[] = [];
     if (customer.billToAddress) {
-      bpAddresses.push(this.parseAddress('Bill To', 'bo_BillTo', customer.billToAddress, countryCode));
+      bpAddresses.push(this.parseAddress('Bill To', 'bo_BillTo', customer.billToAddress, countryCode, stateCode));
     }
     if (customer.shipToAddress) {
-      bpAddresses.push(this.parseAddress('Ship To', 'bo_ShipTo', customer.shipToAddress, countryCode));
+      bpAddresses.push(this.parseAddress('Ship To', 'bo_ShipTo', customer.shipToAddress, countryCode, stateCode));
     }
     if (bpAddresses.length > 0) {
       result.BPAddresses = bpAddresses;
