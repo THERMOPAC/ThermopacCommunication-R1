@@ -557,7 +557,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
 
       {/* Create Customer Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[850px] max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[1100px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Customer</DialogTitle>
             <DialogDescription>
@@ -565,10 +565,10 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmitCreate)} className="space-y-5">
-              <div className="rounded-lg border p-4 space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmitCreate)} className="space-y-3">
+              <div className="rounded-lg border p-3 space-y-2">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Business Partner Info</h4>
-                <div className="grid grid-cols-[1fr_3fr] gap-3">
+                <div className="grid grid-cols-[1fr_3fr] gap-2">
                   <FormField
                     control={form.control}
                     name="bpCode"
@@ -599,9 +599,9 @@ export default function CustomerManagement({ customers }: { customers: Customer[
 
               </div>
 
-              <div className="rounded-lg border p-4 space-y-4">
+              <div className="rounded-lg border p-3 space-y-2">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Contact 1 (Primary)</h4>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-4 gap-2">
                   <FormField
                     control={form.control}
                     name="contactPerson"
@@ -656,7 +656,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   />
                 </div>
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mt-4">Contact 2 (Optional)</h4>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-4 gap-2">
                   <FormField
                     control={form.control}
                     name="contact2Name"
@@ -711,7 +711,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   />
                 </div>
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mt-4">Contact 3 (Optional)</h4>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-4 gap-2">
                   <FormField
                     control={form.control}
                     name="contact3Name"
@@ -767,9 +767,9 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                 </div>
               </div>
 
-              <div className="rounded-lg border p-4 space-y-4">
+              <div className="rounded-lg border p-3 space-y-2">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Address & Location</h4>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   <FormField
                     control={form.control}
                     name="billToAddress"
@@ -802,7 +802,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                     )}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   <FormField
                     control={form.control}
                     name="countryName"
@@ -839,7 +839,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                     )}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   <FormField
                     control={form.control}
                     name="currency"
@@ -897,7 +897,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
 
       {/* Edit Customer Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[850px] max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[1100px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Customer</DialogTitle>
             <DialogDescription>
@@ -905,10 +905,10 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmitEdit)} className="space-y-5">
-              <div className="rounded-lg border p-4 space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmitEdit)} className="space-y-3">
+              <div className="rounded-lg border p-3 space-y-2">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Business Partner Info</h4>
-                <div className="grid grid-cols-[1fr_3fr] gap-3">
+                <div className="grid grid-cols-[1fr_3fr] gap-2">
                   <FormField
                     control={form.control}
                     name="bpCode"
@@ -939,9 +939,9 @@ export default function CustomerManagement({ customers }: { customers: Customer[
 
               </div>
 
-              <div className="rounded-lg border p-4 space-y-4">
+              <div className="rounded-lg border p-3 space-y-2">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Contact 1 (Primary)</h4>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-4 gap-2">
                   <FormField
                     control={form.control}
                     name="contactPerson"
@@ -996,7 +996,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   />
                 </div>
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mt-4">Contact 2 (Optional)</h4>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-4 gap-2">
                   <FormField
                     control={form.control}
                     name="contact2Name"
@@ -1051,7 +1051,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   />
                 </div>
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mt-4">Contact 3 (Optional)</h4>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-4 gap-2">
                   <FormField
                     control={form.control}
                     name="contact3Name"
@@ -1107,9 +1107,9 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                 </div>
               </div>
 
-              <div className="rounded-lg border p-4 space-y-4">
+              <div className="rounded-lg border p-3 space-y-2">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Address & Location</h4>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   <FormField
                     control={form.control}
                     name="billToAddress"
@@ -1142,7 +1142,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                     )}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   <FormField
                     control={form.control}
                     name="countryName"
@@ -1179,7 +1179,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                     )}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   <FormField
                     control={form.control}
                     name="currency"
