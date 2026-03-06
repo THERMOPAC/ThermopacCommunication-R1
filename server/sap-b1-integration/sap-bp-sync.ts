@@ -7,6 +7,7 @@ interface SapBPData {
   Cellular?: string;
   EmailAddress?: string;
   ContactPerson?: string;
+  ContactEmployees?: Array<{ Name: string; E_Mail?: string; Phone1?: string }>;
   BillToAddress?: string;
   ShipToAddress?: string;
   Country?: string;
@@ -141,9 +142,17 @@ class SapBPSyncService {
       CardType: cardTypeMap[customer.cardType] || 'cCustomer',
       Cellular: customer.phone1 || undefined,
       EmailAddress: customer.email || undefined,
-      ContactPerson: customer.contactPerson || undefined,
       Country: this.countryNameToCode(customer.countryName),
     };
+
+    if (customer.contactPerson) {
+      result.ContactEmployees = [{
+        Name: customer.contactPerson,
+        E_Mail: customer.email || undefined,
+        Phone1: customer.phone1 || undefined,
+      }];
+      result.ContactPerson = customer.contactPerson;
+    }
 
     const gln = customer.glblLocNum;
     if (gln && gln !== 'NA' && gln.trim() !== '') {
