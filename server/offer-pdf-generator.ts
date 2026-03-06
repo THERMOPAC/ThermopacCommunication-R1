@@ -270,10 +270,9 @@ export class OfferPdfGenerator {
 
     const colWidths = {
       sl: 25,
-      description: 210,
+      description: 250,
       price: 80,
       qty: 50,
-      tax: 40,
       amount: 90,
     };
 
@@ -288,7 +287,6 @@ export class OfferPdfGenerator {
       { label: 'ITEM DESCRIPTION', width: colWidths.description },
       { label: 'PRICE', width: colWidths.price },
       { label: 'QTY', width: colWidths.qty },
-      { label: 'TAX', width: colWidths.tax },
       { label: `AMOUNT ${this.data.currency}`, width: colWidths.amount },
     ];
 
@@ -369,11 +367,6 @@ export class OfferPdfGenerator {
         .text(`${parseFloat(item.quantity)} ${item.unit}`, colX + 4, this.currentY + 8, { width: colWidths.qty - 8, align: 'center' });
       colX += colWidths.qty;
 
-      const discPct = parseFloat(item.discountPercent || '0');
-      this.doc
-        .text(discPct > 0 ? `${discPct}%` : '-', colX + 4, this.currentY + 8, { width: colWidths.tax - 8, align: 'center' });
-      colX += colWidths.tax;
-
       this.doc
         .font(isSubItem ? 'Helvetica' : 'Helvetica-Bold')
         .text(this.formatNumber(item.totalPrice), colX + 4, this.currentY + 8, { width: colWidths.amount - 8, align: 'right' });
@@ -398,6 +391,19 @@ export class OfferPdfGenerator {
 
     this.currentY += 8;
 
+    const taxPct = parseFloat(this.data.taxPercent || '0');
+    if (taxPct > 0) {
+      this.doc
+        .fillColor('#333333')
+        .fontSize(9)
+        .font('Helvetica')
+        .text(`Tax (${taxPct}%):`, labelX, this.currentY, { width: 140, align: 'right' });
+      this.doc
+        .font('Helvetica')
+        .text(`+${this.data.currency} ${this.formatNumber(this.data.taxAmount)}`, valueX, this.currentY, { width: 100, align: 'right' });
+      this.currentY += 16;
+    }
+
     this.doc
       .fillColor('#333333')
       .fontSize(9)
@@ -418,18 +424,6 @@ export class OfferPdfGenerator {
         .fillColor('#CC0000')
         .font('Helvetica')
         .text(`-${this.data.currency} ${this.formatNumber(this.data.discountAmount)}`, valueX, this.currentY, { width: 100, align: 'right' });
-      this.currentY += 16;
-    }
-
-    const taxPct = parseFloat(this.data.taxPercent || '0');
-    if (taxPct > 0) {
-      this.doc
-        .fillColor('#333333')
-        .font('Helvetica')
-        .text(`Tax (${taxPct}%):`, labelX, this.currentY, { width: 140, align: 'right' });
-      this.doc
-        .font('Helvetica')
-        .text(`+${this.data.currency} ${this.formatNumber(this.data.taxAmount)}`, valueX, this.currentY, { width: 100, align: 'right' });
       this.currentY += 16;
     }
 
