@@ -115,13 +115,13 @@ const countries = Object.keys(countryToContinent).sort();
 const customerSchema = z.object({
   bpCode: z.string().min(1, "BP Code is required").max(50),
   bpName: z.string().min(1, "BP Name is required").max(100),
-  contactPerson: z.string().optional().nullable(),
-  email: z.string().email("Invalid email address").optional().nullable(),
-  phone1: z.string().optional().nullable(),
-  billToAddress: z.string().optional().nullable(),
-  shipToAddress: z.string().optional().nullable(),
+  contactPerson: z.string().min(1, "Contact Person is required"),
+  email: z.string().email("Invalid email address").min(1, "Email is required"),
+  phone1: z.string().min(1, "Phone is required"),
+  billToAddress: z.string().min(1, "Billing Address is required"),
+  shipToAddress: z.string().min(1, "Shipping Address is required"),
   continent: z.string().optional().nullable(),
-  countryName: z.string().optional().nullable(),
+  countryName: z.string().min(1, "Country is required"),
 });
 
 type CustomerFormValues = z.infer<typeof customerSchema>;
