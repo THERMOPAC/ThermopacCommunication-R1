@@ -383,7 +383,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             Import Customers
           </Button>
           <Button
-            onClick={() => {
+            onClick={async () => {
               form.reset({
                 bpCode: "",
                 bpName: "",
@@ -399,6 +399,14 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                 continent: "",
                 countryName: "",
               });
+              try {
+                const res = await apiRequest("GET", "/api/customers/next-bp-code");
+                if (res?.nextBpCode) {
+                  form.setValue('bpCode', res.nextBpCode);
+                }
+              } catch (e) {
+                console.error('Failed to fetch next BP code:', e);
+              }
               setIsCreateDialogOpen(true);
             }}
           >
@@ -505,7 +513,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <FormItem>
                         <FormLabel>BP Code *</FormLabel>
                         <FormControl>
-                          <Input placeholder="C00001" {...field} />
+                          <Input placeholder="C00001" {...field} readOnly disabled className="opacity-70 cursor-not-allowed" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

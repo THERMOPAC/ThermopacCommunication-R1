@@ -1344,6 +1344,27 @@ export function setupProjectRoutes(app: express.Express) {
   });
 
   // Customer Management Routes
+  app.get('/api/customers/next-bp-code', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const customers = await storage.getAllCustomers();
+      let maxNum = 10363;
+      for (const c of customers) {
+        if (c.bpCode) {
+          const match = c.bpCode.match(/^C(\d+)$/);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxNum) maxNum = num;
+          }
+        }
+      }
+      const nextCode = 'C' + String(maxNum + 1);
+      res.json({ nextBpCode: nextCode });
+    } catch (error) {
+      console.error('Error generating next BP code:', error);
+      res.status(500).json({ error: 'Failed to generate next BP code' });
+    }
+  });
+
   app.get('/api/customers', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const customers = await storage.getAllCustomers();
