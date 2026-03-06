@@ -407,7 +407,7 @@ export class OfferPdfGenerator {
         .font(isSubItem ? 'Helvetica' : 'Helvetica-Bold')
         .fontSize(isSubItem ? 7 : 8)
         .fillColor(isSubItem ? '#666666' : '#333333')
-        .text((isSubItem ? '↳ ' : '') + item.description, colX + 4 + descIndent, this.currentY + 6, { width: descWidth });
+        .text((isSubItem ? '- ' : '') + item.description, colX + 4 + descIndent, this.currentY + 6, { width: descWidth });
       if (item.productCode) {
         this.doc
           .font('Helvetica')
