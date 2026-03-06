@@ -836,10 +836,10 @@ export function OffersContent() {
                           <TableRow>
                             <TableHead className="w-[30px] px-0 py-1 h-8">#</TableHead>
                             <TableHead className="px-0 py-1 h-8">Description</TableHead>
-                            <TableHead className="w-[80px] px-0 py-1 h-8">Unit</TableHead>
-                            <TableHead className="w-[110px] px-0 py-1 h-8">Qty</TableHead>
-                            <TableHead className="w-[140px] px-0 py-1 h-8">Unit Price</TableHead>
-                            <TableHead className="w-[100px] px-0 py-1 h-8">Disc %</TableHead>
+                            <TableHead className="w-[60px] px-1 py-1 h-8">Unit</TableHead>
+                            <TableHead className="w-[80px] px-1 py-1 h-8">Qty</TableHead>
+                            <TableHead className="w-[100px] px-1 py-1 h-8">Unit Price</TableHead>
+                            <TableHead className="w-[70px] px-1 py-1 h-8">Disc %</TableHead>
                             <TableHead className="w-[100px] px-0 py-1 h-8 text-right">Line Total</TableHead>
                             <TableHead className="w-[30px] px-0 py-1 h-8"></TableHead>
                           </TableRow>
@@ -883,7 +883,7 @@ export function OffersContent() {
                                     )}
                                   </div>
                                 </TableCell>
-                                <TableCell className="px-0 py-0.5">
+                                <TableCell className="px-1 py-0.5">
                                   <select
                                     {...form.register(`items.${index}.unit`)}
                                     className="h-7 w-full text-xs border rounded pl-0 px-0 py-0"
@@ -891,21 +891,21 @@ export function OffersContent() {
                                     {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
                                   </select>
                                 </TableCell>
-                                <TableCell className="px-0 py-0.5">
+                                <TableCell className="px-1 py-0.5">
                                   <Input
                                     value={item?.quantity || ""}
                                     onChange={(e) => form.setValue(`items.${index}.quantity`, e.target.value, { shouldDirty: true })}
-                                    className="h-7 text-xs text-right pl-0 px-0 py-0" type="number" step="0.001"
+                                    className="h-7 text-xs text-right pl-0 px-0 py-0" type="number" step="0.01"
                                   />
                                 </TableCell>
-                                <TableCell className="px-0 py-0.5">
+                                <TableCell className="px-1 py-0.5">
                                   <Input
                                     value={item?.unitPrice || ""}
                                     onChange={(e) => form.setValue(`items.${index}.unitPrice`, e.target.value, { shouldDirty: true })}
                                     className="h-7 text-xs text-right pl-0 px-0 py-0" type="number" step="0.01"
                                   />
                                 </TableCell>
-                                <TableCell className="px-0 py-0.5">
+                                <TableCell className="px-1 py-0.5">
                                   <Input
                                     value={item?.discountPercent || ""}
                                     onChange={(e) => form.setValue(`items.${index}.discountPercent`, e.target.value, { shouldDirty: true })}
