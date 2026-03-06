@@ -105,7 +105,7 @@ export class OfferPdfGenerator {
     } catch (e) {
     }
 
-    this.currentY = this.margin + 25;
+    this.currentY = this.margin + 40;
     this.drawLine(this.currentY, '#003366');
     this.currentY += 2;
     this.drawLine(this.currentY, '#003366');
