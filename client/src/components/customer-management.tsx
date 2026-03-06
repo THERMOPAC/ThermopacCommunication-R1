@@ -120,6 +120,7 @@ const customerSchema = z.object({
   phone1: z.string().min(1, "Phone is required"),
   billToAddress: z.string().min(1, "Billing Address is required"),
   shipToAddress: z.string().min(1, "Shipping Address is required"),
+  cardType: z.string().min(1, "Card Type is required"),
   continent: z.string().min(1, "Continent is required"),
   countryName: z.string().min(1, "Country is required"),
 });
@@ -148,6 +149,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       phone1: "",
       billToAddress: "",
       shipToAddress: "",
+      cardType: "Customer",
       continent: "",
       countryName: "",
     },
@@ -264,6 +266,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       phone1: (customer as any).phone1 || "",
       billToAddress: customer.billToAddress || "",
       shipToAddress: customer.shipToAddress || "",
+      cardType: (customer as any).cardType || "Customer",
       continent: customer.continent || "",
       countryName: customer.countryName || "",
     });
@@ -317,6 +320,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                 phone1: "",
                 billToAddress: "",
                 shipToAddress: "",
+                cardType: "Customer",
                 continent: "",
                 countryName: "",
               });
@@ -406,7 +410,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmitCreate)} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="bpCode"
@@ -416,9 +420,6 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <FormControl>
                         <Input placeholder="e.g., C00001" {...field} />
                       </FormControl>
-                      <FormDescription>
-                        Unique business partner code
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -432,6 +433,28 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <FormControl>
                         <Input placeholder="e.g., ABC Industries Ltd." {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="cardType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Card Type *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || "Customer"}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Customer">Customer</SelectItem>
+                          <SelectItem value="Supplier">Supplier</SelectItem>
+                          <SelectItem value="Lead">Lead</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -592,7 +615,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmitEdit)} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="bpCode"
@@ -608,9 +631,6 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                           className="opacity-70 cursor-not-allowed"
                         />
                       </FormControl>
-                      <FormDescription>
-                        BP Code cannot be modified after creation
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -624,6 +644,28 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <FormControl>
                         <Input placeholder="e.g., ABC Industries Ltd." {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="cardType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Card Type *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || "Customer"}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Customer">Customer</SelectItem>
+                          <SelectItem value="Supplier">Supplier</SelectItem>
+                          <SelectItem value="Lead">Lead</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
