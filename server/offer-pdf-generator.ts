@@ -52,6 +52,7 @@ export class OfferPdfGenerator {
     this.doc = new PDFDocument({
       size: 'A4',
       margins: { top: 50, bottom: 50, left: 50, right: 50 },
+      bufferPages: true,
       info: {
         Title: `Offer ${data.offerNumber}`,
         Author: 'THERMOPAC',
@@ -77,7 +78,6 @@ export class OfferPdfGenerator {
     if (this.currentY + requiredSpace > this.pageHeight - this.margin - 40) {
       this.doc.addPage();
       this.currentY = this.margin;
-      this.drawPageFooter();
     }
   }
 
@@ -648,7 +648,12 @@ export class OfferPdfGenerator {
     this.drawTotals();
     this.drawTerms();
     this.drawSignature();
-    this.drawPageFooter();
+
+    const pageRange = this.doc.bufferedPageRange();
+    for (let i = 0; i < pageRange.count; i++) {
+      this.doc.switchToPage(i);
+      this.drawPageFooter();
+    }
 
     this.doc.end();
   }
