@@ -99,13 +99,13 @@ export class OfferPdfGenerator {
       if (fs.existsSync(logoPath)) {
         const logoWidth = 220;
         const logoHeight = 60;
-        const logoX = this.pageWidth - this.margin - logoWidth + 10;
-        this.doc.image(logoPath, logoX, this.currentY, { width: logoWidth, height: logoHeight, fit: [logoWidth, logoHeight] });
+        const logoX = this.pageWidth - this.margin - logoWidth;
+        this.doc.image(logoPath, logoX, this.margin, { width: logoWidth, fit: [logoWidth, logoHeight] });
       }
     } catch (e) {
     }
 
-    this.currentY += 55;
+    this.currentY = this.margin + 65;
     this.drawLine(this.currentY, '#003366');
     this.currentY += 2;
     this.drawLine(this.currentY, '#003366');
