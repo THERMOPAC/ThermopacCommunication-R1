@@ -777,7 +777,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <FormItem>
                         <FormLabel>Billing Address *</FormLabel>
                         <FormControl>
-                          <Textarea placeholder="e.g., 123 Business St, Mumbai" rows={3} {...field} />
+                          <Textarea placeholder="e.g., 123 Business St, Mumbai" rows={5} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -795,7 +795,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                           </Button>
                         </FormLabel>
                         <FormControl>
-                          <Textarea placeholder="e.g., 123 Business St, Mumbai" rows={3} {...field} />
+                          <Textarea placeholder="e.g., 123 Business St, Mumbai" rows={5} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -1084,7 +1084,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <FormItem>
                         <FormLabel>Billing Address *</FormLabel>
                         <FormControl>
-                          <Textarea placeholder="e.g., 123 Business St, Mumbai" rows={3} {...field} />
+                          <Textarea placeholder="e.g., 123 Business St, Mumbai" rows={5} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -1102,7 +1102,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                           </Button>
                         </FormLabel>
                         <FormControl>
-                          <Textarea placeholder="e.g., 123 Business St, Mumbai" rows={3} {...field} />
+                          <Textarea placeholder="e.g., 123 Business St, Mumbai" rows={5} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
