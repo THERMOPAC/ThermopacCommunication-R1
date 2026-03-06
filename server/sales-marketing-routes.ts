@@ -1045,18 +1045,51 @@ export function setupSalesMarketingRoutes(app: Express) {
       const offerNumber = await storage.getNextOfferNumber();
       if (offerData.validUntil) {
         offerData.validUntil = new Date(offerData.validUntil);
+      } else {
+        delete offerData.validUntil;
       }
       const offer = await storage.createOffer({
-        ...offerData,
         offerNumber,
+        customerId: offerData.customerId || null,
+        customerName: offerData.customerName,
+        customerEmail: offerData.customerEmail || null,
+        customerAddress: offerData.customerAddress || null,
+        contactPerson: offerData.contactPerson || null,
+        subject: offerData.subject,
+        currency: offerData.currency || 'USD',
+        subtotal: offerData.subtotal || '0',
+        discountPercent: offerData.discountPercent || '0',
+        discountAmount: offerData.discountAmount || '0',
+        taxPercent: offerData.taxPercent || '0',
+        taxAmount: offerData.taxAmount || '0',
+        totalAmount: offerData.totalAmount || '0',
+        revision: 0,
+        status: 'Draft',
+        validUntil: offerData.validUntil || null,
+        paymentTerms: offerData.paymentTerms || null,
+        deliveryTerms: offerData.deliveryTerms || null,
+        notes: offerData.notes || null,
+        termsAndConditions: offerData.termsAndConditions || null,
+        language: offerData.language || 'English',
         createdBy: user.id,
       });
 
       if (items && Array.isArray(items)) {
         for (let i = 0; i < items.length; i++) {
+          const item = items[i];
           await storage.createOfferItem({
-            ...items[i],
             offerId: offer.id,
+            productId: item.productId || null,
+            productCode: item.productCode || null,
+            description: item.description,
+            unit: item.unit,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discountPercent: item.discountPercent || '0',
+            totalPrice: item.totalPrice,
+            hsnSacCode: item.hsnSacCode || null,
+            isSubItem: item.isSubItem || false,
+            parentItemId: item.parentItemId || null,
             sortOrder: i,
           });
         }
@@ -1066,7 +1099,8 @@ export function setupSalesMarketingRoutes(app: Express) {
       res.status(201).json({ ...offer, items: savedItems });
     } catch (error) {
       console.error('Error creating offer:', error);
-      res.status(500).json({ error: 'Failed to create offer' });
+      const errMsg = error instanceof Error ? error.message : 'Failed to create offer';
+      res.status(500).json({ error: errMsg });
     }
   });
 
@@ -1077,6 +1111,11 @@ export function setupSalesMarketingRoutes(app: Express) {
       const { items, ...offerData } = req.body;
       if (offerData.validUntil) {
         offerData.validUntil = new Date(offerData.validUntil);
+      } else {
+        delete offerData.validUntil;
+      }
+      if (offerData.customerId === null || offerData.customerId === undefined) {
+        delete offerData.customerId;
       }
 
       const existingOffer = await storage.getOfferById(id);
@@ -1093,9 +1132,20 @@ export function setupSalesMarketingRoutes(app: Express) {
           await storage.deleteOfferItem(existing.id);
         }
         for (let i = 0; i < items.length; i++) {
+          const item = items[i];
           await storage.createOfferItem({
-            ...items[i],
             offerId: id,
+            productId: item.productId || null,
+            productCode: item.productCode || null,
+            description: item.description,
+            unit: item.unit,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discountPercent: item.discountPercent || '0',
+            totalPrice: item.totalPrice,
+            hsnSacCode: item.hsnSacCode || null,
+            isSubItem: item.isSubItem || false,
+            parentItemId: item.parentItemId || null,
             sortOrder: i,
           });
         }
@@ -1105,7 +1155,8 @@ export function setupSalesMarketingRoutes(app: Express) {
       res.json({ ...offer, items: savedItems });
     } catch (error) {
       console.error('Error updating offer:', error);
-      res.status(500).json({ error: 'Failed to update offer' });
+      const errMsg = error instanceof Error ? error.message : 'Failed to update offer';
+      res.status(500).json({ error: errMsg });
     }
   });
 
