@@ -368,22 +368,32 @@ export default function CustomerManagement({ customers }: { customers: Customer[
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>BP Code</TableHead>
+                    <TableHead className="w-[90px]">BP Code</TableHead>
                     <TableHead>BP Name</TableHead>
+                    <TableHead className="w-[80px]">Card Type</TableHead>
                     <TableHead>Contact Person</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
                     <TableHead>Country</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
+                    <TableHead>Continent</TableHead>
+                    <TableHead className="w-[80px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredCustomers.map((customer) => (
                     <TableRow key={customer.id}>
-                      <TableCell className="font-medium">{customer.bpCode}</TableCell>
-                      <TableCell>{customer.bpName}</TableCell>
+                      <TableCell className="font-medium font-mono text-xs">{customer.bpCode}</TableCell>
+                      <TableCell className="font-medium">{customer.bpName}</TableCell>
+                      <TableCell>
+                        <Badge variant={(customer as any).cardType === "Supplier" ? "secondary" : (customer as any).cardType === "Lead" ? "outline" : "default"} className="text-xs">
+                          {(customer as any).cardType || "Customer"}
+                        </Badge>
+                      </TableCell>
                       <TableCell>{customer.contactPerson || "-"}</TableCell>
-                      <TableCell>{customer.email || "-"}</TableCell>
+                      <TableCell className="text-xs">{customer.email || "-"}</TableCell>
+                      <TableCell className="text-xs">{(customer as any).phone1 || "-"}</TableCell>
                       <TableCell>{customer.countryName || "-"}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{customer.continent || "-"}</TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
                           <Button
@@ -413,7 +423,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
 
       {/* Create Customer Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[550px] max-h-[80vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Customer</DialogTitle>
             <DialogDescription>
@@ -421,225 +431,223 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmitCreate)} className="space-y-6">
-              <div className="grid grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="bpCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>BP Code *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., C00001" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="bpName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>BP Name *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., ABC Industries Ltd." {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="cardType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Card Type *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || "Customer"}>
+            <form onSubmit={form.handleSubmit(onSubmitCreate)} className="space-y-5">
+              <div className="rounded-lg border p-4 space-y-4">
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Business Partner Info</h4>
+                <div className="grid grid-cols-4 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="bpCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>BP Code *</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
+                          <Input placeholder="e.g., C00001" {...field} />
                         </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Customer">Customer</SelectItem>
-                          <SelectItem value="Supplier">Supplier</SelectItem>
-                          <SelectItem value="Lead">Lead</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="glblLocNum"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>GlblLocNum</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="uStateSupply"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>State of Supply</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="uBpGstType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>BP GST Type</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="contactPerson"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Contact Person *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., John Smith" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email *</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="email"
-                          placeholder="e.g., contact@example.com"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="phone1"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., +91 22 2617 8080" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Address fields */}
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="billToAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Billing Address *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., 123 Business St, Mumbai" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="shipToAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center justify-between">
-                        Shipping Address *
-                        <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => form.setValue('shipToAddress', form.getValues('billToAddress') || '')}>
-                          Copy from Billing
-                        </Button>
-                      </FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., 123 Business St, Mumbai" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="countryName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Country *</FormLabel>
-                      <Select onValueChange={(val) => { field.onChange(val); const cont = countryToContinent[val]; if (cont) form.setValue('continent', cont); }} value={field.value || ""}>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="bpName"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2">
+                        <FormLabel>BP Name *</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select country" />
-                          </SelectTrigger>
+                          <Input placeholder="e.g., ABC Industries Ltd." {...field} />
                         </FormControl>
-                        <SelectContent className="max-h-60">
-                          {countries.map((c) => (
-                            <SelectItem key={c} value={c}>{c}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="continent"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Continent *</FormLabel>
-                      <FormControl>
-                        <Input {...field} value={field.value || ""} readOnly className="bg-muted" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="cardType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Card Type *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || "Customer"}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Customer">Customer</SelectItem>
+                            <SelectItem value="Supplier">Supplier</SelectItem>
+                            <SelectItem value="Lead">Lead</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="glblLocNum"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>GlblLocNum</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="uStateSupply"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>State of Supply</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="uBpGstType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>BP GST Type</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-lg border p-4 space-y-4">
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Contact Details</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="contactPerson"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contact Person *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., John Smith" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email *</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="e.g., contact@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="phone1"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., +91 22 2617 8080" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-lg border p-4 space-y-4">
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Address & Location</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="billToAddress"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Billing Address *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., 123 Business St, Mumbai" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="shipToAddress"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center justify-between">
+                          Shipping Address *
+                          <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => form.setValue('shipToAddress', form.getValues('billToAddress') || '')}>
+                            Copy from Billing
+                          </Button>
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., 123 Business St, Mumbai" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="countryName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Country *</FormLabel>
+                        <Select onValueChange={(val) => { field.onChange(val); const cont = countryToContinent[val]; if (cont) form.setValue('continent', cont); }} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select country" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="max-h-60">
+                            {countries.map((c) => (
+                              <SelectItem key={c} value={c}>{c}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="continent"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Continent *</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} readOnly className="bg-muted" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
 
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsCreateDialogOpen(false)}
-                >
+                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   Cancel
                 </Button>
                 <Button type="submit" disabled={createMutation.isPending}>
@@ -660,7 +668,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
 
       {/* Edit Customer Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[550px] max-h-[80vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Customer</DialogTitle>
             <DialogDescription>
@@ -668,231 +676,223 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmitEdit)} className="space-y-6">
-              <div className="grid grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="bpCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>BP Code *</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="e.g., C00001" 
-                          {...field} 
-                          readOnly={true}
-                          disabled={true}
-                          className="opacity-70 cursor-not-allowed"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="bpName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>BP Name *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., ABC Industries Ltd." {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="cardType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Card Type *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || "Customer"}>
+            <form onSubmit={form.handleSubmit(onSubmitEdit)} className="space-y-5">
+              <div className="rounded-lg border p-4 space-y-4">
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Business Partner Info</h4>
+                <div className="grid grid-cols-4 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="bpCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>BP Code *</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
+                          <Input placeholder="e.g., C00001" {...field} readOnly={true} disabled={true} className="opacity-70 cursor-not-allowed" />
                         </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Customer">Customer</SelectItem>
-                          <SelectItem value="Supplier">Supplier</SelectItem>
-                          <SelectItem value="Lead">Lead</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="glblLocNum"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>GlblLocNum</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="uStateSupply"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>State of Supply</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="uBpGstType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>BP GST Type</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="contactPerson"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Contact Person *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., John Smith" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email *</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="email"
-                          placeholder="e.g., contact@example.com"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="phone1"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., +91 22 2617 8080" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Address fields */}
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="billToAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Billing Address *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., 123 Business St, Mumbai" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="shipToAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center justify-between">
-                        Shipping Address *
-                        <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => form.setValue('shipToAddress', form.getValues('billToAddress') || '')}>
-                          Copy from Billing
-                        </Button>
-                      </FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., 123 Business St, Mumbai" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="countryName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Country *</FormLabel>
-                      <Select onValueChange={(val) => { field.onChange(val); const cont = countryToContinent[val]; if (cont) form.setValue('continent', cont); }} value={field.value || ""}>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="bpName"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2">
+                        <FormLabel>BP Name *</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select country" />
-                          </SelectTrigger>
+                          <Input placeholder="e.g., ABC Industries Ltd." {...field} />
                         </FormControl>
-                        <SelectContent className="max-h-60">
-                          {countries.map((c) => (
-                            <SelectItem key={c} value={c}>{c}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="continent"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Continent *</FormLabel>
-                      <FormControl>
-                        <Input {...field} value={field.value || ""} readOnly className="bg-muted" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="cardType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Card Type *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || "Customer"}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Customer">Customer</SelectItem>
+                            <SelectItem value="Supplier">Supplier</SelectItem>
+                            <SelectItem value="Lead">Lead</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="glblLocNum"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>GlblLocNum</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="uStateSupply"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>State of Supply</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="uBpGstType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>BP GST Type</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-lg border p-4 space-y-4">
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Contact Details</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="contactPerson"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contact Person *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., John Smith" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email *</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="e.g., contact@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="phone1"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., +91 22 2617 8080" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-lg border p-4 space-y-4">
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Address & Location</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="billToAddress"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Billing Address *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., 123 Business St, Mumbai" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="shipToAddress"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center justify-between">
+                          Shipping Address *
+                          <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => form.setValue('shipToAddress', form.getValues('billToAddress') || '')}>
+                            Copy from Billing
+                          </Button>
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., 123 Business St, Mumbai" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="countryName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Country *</FormLabel>
+                        <Select onValueChange={(val) => { field.onChange(val); const cont = countryToContinent[val]; if (cont) form.setValue('continent', cont); }} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select country" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="max-h-60">
+                            {countries.map((c) => (
+                              <SelectItem key={c} value={c}>{c}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="continent"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Continent *</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} readOnly className="bg-muted" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
 
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsEditDialogOpen(false)}
-                >
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   Cancel
                 </Button>
                 <Button type="submit" disabled={updateMutation.isPending}>
