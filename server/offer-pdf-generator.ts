@@ -304,16 +304,24 @@ export class OfferPdfGenerator {
     this.currentY = headerY + 22;
 
     let slNo = 0;
-    const mainItems = this.data.items.filter(i => !i.isSubItem);
+    let rowIndex = 0;
 
-    for (const item of mainItems) {
-      slNo++;
+    for (const item of this.data.items) {
+      if (!item.isSubItem) slNo++;
+      rowIndex++;
       this.checkPageBreak(40);
 
-      const descHeight = this.doc.heightOfString(item.description, { width: colWidths.description - 8, fontSize: 8 });
-      const rowHeight = Math.max(30, descHeight + 12);
+      const isSubItem = item.isSubItem;
+      const descIndent = isSubItem ? 12 : 0;
+      const descWidth = colWidths.description - 8 - descIndent;
+      const descHeight = this.doc.heightOfString(item.description, { width: descWidth, fontSize: isSubItem ? 7 : 8 });
+      const rowHeight = Math.max(isSubItem ? 22 : 30, descHeight + 12);
 
-      if (slNo % 2 === 0) {
+      if (isSubItem) {
+        this.doc
+          .rect(this.margin, this.currentY, this.contentWidth, rowHeight)
+          .fill('#FAFAFA');
+      } else if (rowIndex % 2 === 0) {
         this.doc
           .rect(this.margin, this.currentY, this.contentWidth, rowHeight)
           .fill('#F5F8FC');
@@ -327,30 +335,33 @@ export class OfferPdfGenerator {
 
       colX = this.margin;
 
-      this.doc
-        .fillColor('#333333')
-        .fontSize(8)
-        .font('Helvetica')
-        .text(String(slNo), colX + 4, this.currentY + 8, { width: colWidths.sl - 8, align: 'center' });
+      if (!isSubItem) {
+        this.doc
+          .fillColor('#333333')
+          .fontSize(8)
+          .font('Helvetica')
+          .text(String(slNo), colX + 4, this.currentY + 8, { width: colWidths.sl - 8, align: 'center' });
+      }
       colX += colWidths.sl;
 
       this.doc
-        .font('Helvetica-Bold')
-        .fontSize(8)
-        .text(item.description, colX + 4, this.currentY + 6, { width: colWidths.description - 8 });
+        .font(isSubItem ? 'Helvetica' : 'Helvetica-Bold')
+        .fontSize(isSubItem ? 7 : 8)
+        .fillColor(isSubItem ? '#666666' : '#333333')
+        .text((isSubItem ? '↳ ' : '') + item.description, colX + 4 + descIndent, this.currentY + 6, { width: descWidth });
       if (item.productCode) {
         this.doc
           .font('Helvetica')
           .fontSize(6.5)
           .fillColor('#888888')
-          .text(`Code: ${item.productCode}`, colX + 4, this.currentY + 6 + descHeight + 1, { width: colWidths.description - 8 });
+          .text(`Code: ${item.productCode}`, colX + 4 + descIndent, this.currentY + 6 + descHeight + 1, { width: descWidth });
       }
       colX += colWidths.description;
 
       this.doc
-        .fillColor('#333333')
+        .fillColor(isSubItem ? '#666666' : '#333333')
         .font('Helvetica')
-        .fontSize(8)
+        .fontSize(isSubItem ? 7 : 8)
         .text(this.formatNumber(item.unitPrice), colX + 4, this.currentY + 8, { width: colWidths.price - 8, align: 'right' });
       colX += colWidths.price;
 
@@ -364,12 +375,10 @@ export class OfferPdfGenerator {
       colX += colWidths.tax;
 
       this.doc
-        .font('Helvetica-Bold')
+        .font(isSubItem ? 'Helvetica' : 'Helvetica-Bold')
         .text(this.formatNumber(item.totalPrice), colX + 4, this.currentY + 8, { width: colWidths.amount - 8, align: 'right' });
 
       this.currentY += rowHeight;
-
-      const subItems = this.data.items.filter(si => si.isSubItem);
     }
 
     this.currentY += 5;

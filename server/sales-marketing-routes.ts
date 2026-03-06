@@ -1146,7 +1146,9 @@ export function setupSalesMarketingRoutes(app: Express) {
       if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
       const offer = await storage.getOfferById(id);
       if (!offer) return res.status(404).json({ error: 'Offer not found' });
-      const items = await storage.getOfferItems(id);
+      const allItems = await storage.getOfferItems(id);
+      const priceMode = (req.query.priceMode as string) || 'combined';
+      const items = priceMode === 'combined' ? allItems.filter((i: any) => !i.isSubItem) : allItems;
 
       if (offer.status === 'Draft') {
         await storage.updateOffer(id, { status: 'Sent' });

@@ -78,6 +78,7 @@ export function OffersContent() {
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isProductPickerOpen, setIsProductPickerOpen] = useState(false);
   const [productPickerSearch, setProductPickerSearch] = useState("");
+  const [pdfDownloadOfferId, setPdfDownloadOfferId] = useState<number | null>(null);
 
   const { data: offers = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/sales-marketing/offers'],
@@ -446,6 +447,12 @@ export function OffersContent() {
     }
   };
 
+  const handleDownloadPdf = (offerId: number, priceMode: 'combined' | 'breakup') => {
+    window.open(`/api/sales-marketing/offers/${offerId}/pdf?priceMode=${priceMode}`, '_blank');
+    queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
+    setPdfDownloadOfferId(null);
+  };
+
   const offersContent = (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -535,7 +542,7 @@ export function OffersContent() {
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditOffer(offer)} title="Edit">
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { window.open(`/api/sales-marketing/offers/${offer.id}/pdf`, '_blank'); queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] }); }} title="Download PDF">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => setPdfDownloadOfferId(offer.id)} title="Download PDF">
                             <Download className="h-4 w-4" />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDuplicate(offer)} title="Duplicate">
@@ -582,7 +589,7 @@ export function OffersContent() {
               <DialogTitle className="flex items-center gap-2">
                 Offer {viewingOffer?.offerNumber}
                 <Badge className={statusColors[viewingOffer?.status] || ""}>{viewingOffer?.status}</Badge>
-                <Button variant="outline" size="sm" className="ml-auto text-indigo-600" onClick={() => { window.open(`/api/sales-marketing/offers/${viewingOffer?.id}/pdf`, '_blank'); queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] }); }}>
+                <Button variant="outline" size="sm" className="ml-auto text-indigo-600" onClick={() => viewingOffer && setPdfDownloadOfferId(viewingOffer.id)}>
                   <Download className="mr-1 h-3 w-3" /> Download PDF
                 </Button>
               </DialogTitle>
@@ -985,10 +992,7 @@ export function OffersContent() {
                 <DialogFooter className="flex items-center gap-2">
                   <Button type="button" variant="outline" onClick={resetAndClose}>Cancel</Button>
                   {editingOffer && (
-                    <Button type="button" variant="secondary" onClick={() => {
-                      window.open(`/api/sales-marketing/offers/${editingOffer.id}/pdf`, '_blank');
-                      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
-                    }}>
+                    <Button type="button" variant="secondary" onClick={() => setPdfDownloadOfferId(editingOffer.id)}>
                       <Download className="mr-2 h-4 w-4" /> Download PDF
                     </Button>
                   )}
@@ -1066,6 +1070,28 @@ export function OffersContent() {
                   });
                 })()}
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={pdfDownloadOfferId !== null} onOpenChange={(open) => { if (!open) setPdfDownloadOfferId(null); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Download PDF</DialogTitle>
+              <DialogDescription>How would you like to show the pricing?</DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-3 py-2">
+              <Button variant="outline" className="justify-start h-auto py-3 px-4" onClick={() => pdfDownloadOfferId && handleDownloadPdf(pdfDownloadOfferId, 'combined')}>
+                <div className="text-left">
+                  <div className="font-medium">Combined Price</div>
+                  <div className="text-xs text-muted-foreground">Show only the main product with total price</div>
+                </div>
+              </Button>
+              <Button variant="outline" className="justify-start h-auto py-3 px-4" onClick={() => pdfDownloadOfferId && handleDownloadPdf(pdfDownloadOfferId, 'breakup')}>
+                <div className="text-left">
+                  <div className="font-medium">Breakup Price</div>
+                  <div className="text-xs text-muted-foreground">Show main product with sub-product details and individual prices</div>
+                </div>
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
