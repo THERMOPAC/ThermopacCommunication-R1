@@ -667,10 +667,11 @@ export class OfferPdfGenerator {
       const partDoc = new PDFDocument({
         size: 'A4',
         margins: { top: 50, bottom: 50, left: 50, right: 50 },
+        bufferPages: true,
       });
       const origDoc = this.doc;
       this.doc = partDoc;
-      this.currentY = 0;
+      this.currentY = this.margin;
 
       const chunks: Buffer[] = [];
       partDoc.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -685,6 +686,7 @@ export class OfferPdfGenerator {
 
       drawFns.forEach(fn => fn.call(this));
 
+      partDoc.flushPages();
       partDoc.end();
     });
   }
@@ -728,7 +730,7 @@ export class OfferPdfGenerator {
         this.drawSubject, this.drawDearLine,
       ]);
       const part2Bytes = await this.generatePartBuffer([
-        this.drawHeader, this.drawItemsTable, this.drawTotals,
+        this.drawItemsTable, this.drawTotals,
         this.drawTerms, this.drawSignature,
       ]);
 
