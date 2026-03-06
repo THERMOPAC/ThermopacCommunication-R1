@@ -1214,6 +1214,7 @@ export function setupSalesMarketingRoutes(app: Express) {
         customerAddress: offer.customerAddress || '',
         contactPerson: offer.contactPerson || '',
         subject: offer.subject,
+        language: (offer as any).language || 'English',
         currency: offer.currency,
         subtotal: offer.subtotal,
         discountPercent: offer.discountPercent || '0',
@@ -1258,7 +1259,7 @@ export function setupSalesMarketingRoutes(app: Express) {
       if (templatePath && fs.existsSync(templatePath)) {
         await generator.generateWithTemplate(res, templatePath);
       } else {
-        generator.generate(res);
+        await generator.generate(res);
       }
     } catch (error) {
       console.error('Error generating offer PDF:', error);

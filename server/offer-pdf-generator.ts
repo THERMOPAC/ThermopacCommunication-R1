@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { PDFDocument as PDFLibDocument } from 'pdf-lib';
 import * as fs from 'fs';
 import * as path from 'path';
+import OpenAI from 'openai';
 
 interface OfferPdfData {
   offerNumber: string;
@@ -13,6 +14,7 @@ interface OfferPdfData {
   customerAddress: string;
   contactPerson: string;
   subject: string;
+  language: string;
   currency: string;
   subtotal: string;
   discountPercent: string;
@@ -38,6 +40,82 @@ interface OfferPdfData {
   }>;
 }
 
+interface TranslatedStrings {
+  quotation: string;
+  quotationNo: string;
+  date: string;
+  validUntil: string;
+  to: string;
+  attn: string;
+  email: string;
+  sub: string;
+  dear: string;
+  dearSirMadam: string;
+  introText: string;
+  forThermopac: string;
+  turnkeyDivision: string;
+  marketingManager: string;
+  priceSchedule: string;
+  sl: string;
+  itemDescription: string;
+  price: string;
+  qty: string;
+  amount: string;
+  subtotal: string;
+  discount: string;
+  tax: string;
+  total: string;
+  termsOfPayment: string;
+  deliveryTerms: string;
+  validityOfOffer: string;
+  validityText: string;
+  remarks: string;
+  termsAndConditions: string;
+  closingLine: string;
+}
+
+const ENGLISH_STRINGS: TranslatedStrings = {
+  quotation: 'QUOTATION',
+  quotationNo: 'Quotation No:',
+  date: 'Date:',
+  validUntil: 'Valid Until:',
+  to: 'TO:',
+  attn: 'Attn:',
+  email: 'Email:',
+  sub: 'Sub.:',
+  dear: 'Dear',
+  dearSirMadam: 'Dear Sir/Madam,',
+  introText: `We are pleased to submit our offer for design, manufacturing, supply and commissioning offer.
+
+Thermopac is building the Re-refining plants and equipment's Since 1986, Thermopac has developed in-house technology for lower Capex and higher yields. We have the state of the art Manufacturing facility located at Rabale near Navi Mumbai. We manufacture all key equipment's like evaporator, distillation columns, etc. and forward integration for grease, lubricants, etc.
+
+We have constructed more than 35 Re-refining plants in 5 different Continents. in the last 14 years. All these Re-refinery plants manufacture environment-friendly re-refined plant lube oil.
+
+We build refineries with modular construction with a room to enhance the capacity. We take pride to mention that Thermopac is the only company that is building true turnkey re-refinery plants all over the world.
+
+Moreover, Thermopac expertise extends beyond the construction of re-refinery plants. The company offers a range of services, including technical support, training, and ongoing maintenance. This holistic approach ensures that clients can operate their plants efficiently and effectively, maximizing their investment and achieving long-term success. Thermopac dedication to customer satisfaction is evident in their commitment to providing top-notch service and support throughout the entire lifecycle of the plant.`,
+  forThermopac: 'For THERMOPAC',
+  turnkeyDivision: '(Turnkey Engineering Solution Division)',
+  marketingManager: 'Marketing Manager',
+  priceSchedule: 'PRICE SCHEDULE',
+  sl: 'SL.',
+  itemDescription: 'ITEM DESCRIPTION',
+  price: 'PRICE',
+  qty: 'QTY',
+  amount: 'AMOUNT',
+  subtotal: 'Subtotal:',
+  discount: 'Discount',
+  tax: 'Tax',
+  total: 'TOTAL:',
+  termsOfPayment: 'TERMS OF PAYMENT:',
+  deliveryTerms: 'DELIVERY TERMS:',
+  validityOfOffer: 'VALIDITY OF THE OFFER:',
+  validityText: 'This offer is valid until {date}. Thereafter, the validity is subject to our written confirmation.',
+  remarks: 'REMARKS:',
+  termsAndConditions: 'TERMS AND CONDITIONS:',
+  closingLine: 'We look forward to receiving your valued order.',
+};
+
 export class OfferPdfGenerator {
   private doc: PDFKit.PDFDocument;
   private pageWidth: number = 595.28;
@@ -46,6 +124,7 @@ export class OfferPdfGenerator {
   private contentWidth: number;
   private currentY: number = 0;
   private data: OfferPdfData;
+  private strings: TranslatedStrings = ENGLISH_STRINGS;
 
   constructor(data: OfferPdfData) {
     this.data = data;
@@ -60,6 +139,43 @@ export class OfferPdfGenerator {
         Subject: data.subject,
       },
     });
+  }
+
+  private async translateStrings(): Promise<void> {
+    const lang = this.data.language || 'English';
+    if (lang === 'English') return;
+
+    try {
+      const openai = new OpenAI();
+      const keysToTranslate: Record<string, string> = {};
+      for (const [key, value] of Object.entries(ENGLISH_STRINGS)) {
+        keysToTranslate[key] = value;
+      }
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a professional translator. Translate all the provided English strings to ${lang}. Keep company names like "THERMOPAC" unchanged. Keep placeholder tokens like {date} unchanged. Return a valid JSON object with the same keys and translated values. Do not add any explanation.`
+          },
+          {
+            role: 'user',
+            content: JSON.stringify(keysToTranslate)
+          }
+        ],
+        temperature: 0.2,
+        response_format: { type: 'json_object' },
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (content) {
+        const translated = JSON.parse(content);
+        this.strings = { ...ENGLISH_STRINGS, ...translated };
+      }
+    } catch (err) {
+      console.error('Translation failed, using English:', err);
+    }
   }
 
   private formatNumber(val: string | number): string {
@@ -120,13 +236,13 @@ export class OfferPdfGenerator {
       .fillColor('#003366')
       .fontSize(16)
       .font('Helvetica-Bold')
-      .text('QUOTATION', col1X, this.currentY);
+      .text(this.strings.quotation, col1X, this.currentY);
 
     this.doc
       .fillColor('#333333')
       .fontSize(9)
       .font('Helvetica-Bold')
-      .text('Quotation No:', col2X, this.currentY);
+      .text(this.strings.quotationNo, col2X, this.currentY);
     this.doc
       .font('Helvetica')
       .text(this.data.offerNumber + (this.data.revision > 0 ? ` Rev.${this.data.revision}` : ''), col2X + 80, this.currentY);
@@ -135,7 +251,7 @@ export class OfferPdfGenerator {
 
     this.doc
       .font('Helvetica-Bold')
-      .text('Date:', col2X, this.currentY);
+      .text(this.strings.date, col2X, this.currentY);
     this.doc
       .font('Helvetica')
       .text(this.formatDate(this.data.createdAt), col2X + 80, this.currentY);
@@ -144,7 +260,7 @@ export class OfferPdfGenerator {
 
     this.doc
       .font('Helvetica-Bold')
-      .text('Valid Until:', col2X, this.currentY);
+      .text(this.strings.validUntil, col2X, this.currentY);
     this.doc
       .font('Helvetica')
       .text(this.formatDate(this.data.validUntil), col2X + 80, this.currentY);
@@ -157,7 +273,7 @@ export class OfferPdfGenerator {
       .fillColor('#003366')
       .fontSize(10)
       .font('Helvetica-Bold')
-      .text('TO:', this.margin, this.currentY);
+      .text(this.strings.to, this.margin, this.currentY);
 
     this.currentY += 15;
 
@@ -173,7 +289,7 @@ export class OfferPdfGenerator {
       this.doc
         .fontSize(9)
         .font('Helvetica')
-        .text(`Attn: ${this.data.contactPerson}`, this.margin, this.currentY);
+        .text(`${this.strings.attn} ${this.data.contactPerson}`, this.margin, this.currentY);
       this.currentY += 12;
     }
 
@@ -192,7 +308,7 @@ export class OfferPdfGenerator {
       this.doc
         .fontSize(9)
         .font('Helvetica')
-        .text(`Email: ${this.data.customerEmail}`, this.margin, this.currentY);
+        .text(`${this.strings.email} ${this.data.customerEmail}`, this.margin, this.currentY);
       this.currentY += 12;
     }
 
@@ -204,7 +320,7 @@ export class OfferPdfGenerator {
       .fillColor('#003366')
       .fontSize(10)
       .font('Helvetica-Bold')
-      .text('Sub.:', this.margin, this.currentY);
+      .text(this.strings.sub, this.margin, this.currentY);
 
     this.currentY += 14;
 
@@ -222,8 +338,8 @@ export class OfferPdfGenerator {
 
   private drawDearLine(): void {
     const salutation = this.data.contactPerson
-      ? `Dear ${this.data.contactPerson},`
-      : 'Dear Sir/Madam,';
+      ? `${this.strings.dear} ${this.data.contactPerson},`
+      : this.strings.dearSirMadam;
 
     this.doc
       .fillColor('#333333')
@@ -233,15 +349,7 @@ export class OfferPdfGenerator {
 
     this.currentY += 16;
 
-    const introText = `We are pleased to submit our offer for design, manufacturing, supply and commissioning offer.
-
-Thermopac is building the Re-refining plants and equipment's Since 1986, Thermopac has developed in-house technology for lower Capex and higher yields. We have the state of the art Manufacturing facility located at Rabale near Navi Mumbai. We manufacture all key equipment's like evaporator, distillation columns, etc. and forward integration for grease, lubricants, etc.
-
-We have constructed more than 35 Re-refining plants in 5 different Continents. in the last 14 years. All these Re-refinery plants manufacture environment-friendly re-refined plant lube oil.
-
-We build refineries with modular construction with a room to enhance the capacity. We take pride to mention that Thermopac is the only company that is building true turnkey re-refinery plants all over the world.
-
-Moreover, Thermopac expertise extends beyond the construction of re-refinery plants. The company offers a range of services, including technical support, training, and ongoing maintenance. This holistic approach ensures that clients can operate their plants efficiently and effectively, maximizing their investment and achieving long-term success. Thermopac dedication to customer satisfaction is evident in their commitment to providing top-notch service and support throughout the entire lifecycle of the plant.`;
+    const introText = this.strings.introText;
 
     this.doc
       .fontSize(9)
@@ -257,13 +365,13 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
     this.doc
       .fontSize(10)
       .font('Helvetica-Bold')
-      .text('For THERMOPAC', this.margin, this.currentY);
+      .text(this.strings.forThermopac, this.margin, this.currentY);
     this.currentY = this.doc.y + 2;
 
     this.doc
       .fontSize(9)
       .font('Helvetica')
-      .text('(Turnkey Engineering Solution Division)', this.margin, this.currentY);
+      .text(this.strings.turnkeyDivision, this.margin, this.currentY);
     this.currentY = this.doc.y + 20;
 
     this.doc
@@ -277,7 +385,7 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
     this.doc
       .fontSize(9)
       .font('Helvetica-Bold')
-      .text('Marketing Manager', this.margin, this.currentY);
+      .text(this.strings.marketingManager, this.margin, this.currentY);
     this.doc.font('Helvetica');
 
     this.currentY = this.doc.y + 10;
@@ -290,7 +398,7 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
       .fillColor('#003366')
       .fontSize(11)
       .font('Helvetica-Bold')
-      .text('PRICE SCHEDULE', this.margin, this.currentY);
+      .text(this.strings.priceSchedule, this.margin, this.currentY);
 
     this.currentY += 20;
 
@@ -309,11 +417,11 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
 
     let colX = this.margin;
     const headers = [
-      { label: 'SL.', width: colWidths.sl },
-      { label: 'ITEM DESCRIPTION', width: colWidths.description },
-      { label: 'PRICE', width: colWidths.price },
-      { label: 'QTY', width: colWidths.qty },
-      { label: `AMOUNT ${this.data.currency}`, width: colWidths.amount },
+      { label: this.strings.sl, width: colWidths.sl },
+      { label: this.strings.itemDescription, width: colWidths.description },
+      { label: this.strings.price, width: colWidths.price },
+      { label: this.strings.qty, width: colWidths.qty },
+      { label: `${this.strings.amount} ${this.data.currency}`, width: colWidths.amount },
     ];
 
     for (const h of headers) {
@@ -434,7 +542,7 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
       .fillColor('#333333')
       .fontSize(9)
       .font('Helvetica')
-      .text('Subtotal:', labelX, this.currentY, { width: 140, align: 'right' });
+      .text(this.strings.subtotal, labelX, this.currentY, { width: 140, align: 'right' });
     this.doc
       .font('Helvetica-Bold')
       .text(`${this.data.currency} ${this.formatNumber(this.data.subtotal)}`, valueX, this.currentY, { width: 100, align: 'right' });
@@ -445,7 +553,7 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
     if (discPct > 0) {
       this.doc
         .font('Helvetica')
-        .text(`Discount (${discPct}%):`, labelX, this.currentY, { width: 140, align: 'right' });
+        .text(`${this.strings.discount} (${discPct}%):`, labelX, this.currentY, { width: 140, align: 'right' });
       this.doc
         .fillColor('#CC0000')
         .font('Helvetica')
@@ -464,7 +572,7 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
       .fillColor('#FFFFFF')
       .fontSize(10)
       .font('Helvetica-Bold')
-      .text('TOTAL:', labelX + 5, this.currentY, { width: 135, align: 'right' });
+      .text(this.strings.total, labelX + 5, this.currentY, { width: 135, align: 'right' });
     this.doc
       .text(`${this.data.currency} ${this.formatNumber(this.data.totalAmount)}`, valueX, this.currentY, { width: 100, align: 'right' });
 
@@ -479,7 +587,7 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
         .fillColor('#003366')
         .fontSize(10)
         .font('Helvetica-Bold')
-        .text('TERMS OF PAYMENT:', this.margin, this.currentY);
+        .text(this.strings.termsOfPayment, this.margin, this.currentY);
       this.currentY += 14;
 
       this.doc
@@ -496,7 +604,7 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
         .fillColor('#003366')
         .fontSize(10)
         .font('Helvetica-Bold')
-        .text('DELIVERY TERMS:', this.margin, this.currentY);
+        .text(this.strings.deliveryTerms, this.margin, this.currentY);
       this.currentY += 14;
 
       this.doc
@@ -512,7 +620,7 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
       .fillColor('#003366')
       .fontSize(10)
       .font('Helvetica-Bold')
-      .text('VALIDITY OF THE OFFER:', this.margin, this.currentY);
+      .text(this.strings.validityOfOffer, this.margin, this.currentY);
     this.currentY += 14;
 
     this.doc
@@ -520,7 +628,7 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
       .fontSize(9)
       .font('Helvetica')
       .text(
-        `This offer is valid until ${this.formatDate(this.data.validUntil)}. Thereafter, the validity is subject to our written confirmation.`,
+        this.strings.validityText.replace('{date}', this.formatDate(this.data.validUntil)),
         this.margin,
         this.currentY,
         { width: this.contentWidth }
@@ -533,7 +641,7 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
         .fillColor('#003366')
         .fontSize(10)
         .font('Helvetica-Bold')
-        .text('REMARKS:', this.margin, this.currentY);
+        .text(this.strings.remarks, this.margin, this.currentY);
       this.currentY += 14;
 
       this.doc
@@ -550,7 +658,7 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
         .fillColor('#003366')
         .fontSize(10)
         .font('Helvetica-Bold')
-        .text('TERMS AND CONDITIONS:', this.margin, this.currentY);
+        .text(this.strings.termsAndConditions, this.margin, this.currentY);
       this.currentY += 14;
 
       this.doc
@@ -574,7 +682,7 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
       .fillColor('#333333')
       .fontSize(9)
       .font('Helvetica')
-      .text('We look forward to receiving your valued order.', this.margin, this.currentY);
+      .text(this.strings.closingLine, this.margin, this.currentY);
 
     this.currentY += 30;
 
@@ -582,12 +690,12 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
       .fillColor('#003366')
       .fontSize(10)
       .font('Helvetica-Bold')
-      .text('For THERMOPAC', this.margin, this.currentY);
+      .text(this.strings.forThermopac, this.margin, this.currentY);
 
     this.currentY += 12;
     this.doc
       .fontSize(9)
-      .text('(Turnkey Engineering Solution Division)', this.margin, this.currentY);
+      .text(this.strings.turnkeyDivision, this.margin, this.currentY);
 
     this.currentY += 40;
 
@@ -600,7 +708,7 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
     this.currentY += 14;
     this.doc
       .font('Helvetica-Bold')
-      .text('Marketing Manager', this.margin, this.currentY);
+      .text(this.strings.marketingManager, this.margin, this.currentY);
   }
 
   private drawPageFooter(): void {
@@ -654,7 +762,9 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
     });
   }
 
-  public generate(res: Response): void {
+  public async generate(res: Response): Promise<void> {
+    await this.translateStrings();
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
@@ -683,6 +793,7 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
   }
 
   public async generateWithTemplate(res: Response, templatePdfPath: string): Promise<void> {
+    await this.translateStrings();
     try {
       const templateBytes = fs.readFileSync(templatePdfPath);
       const templateDoc = await PDFLibDocument.load(templateBytes);
