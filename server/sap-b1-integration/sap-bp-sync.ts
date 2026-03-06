@@ -213,7 +213,7 @@ class SapBPSyncService {
       result.ContactPerson = customer.contactPerson;
     }
 
-    const stateCode = customer.uStateSupply || undefined;
+    const stateCode = (countryCode === 'IN' && customer.uStateSupply) ? customer.uStateSupply : undefined;
     const bpAddresses: SapBPAddress[] = [];
     if (customer.billToAddress) {
       bpAddresses.push(this.parseAddress('Bill To', 'bo_BillTo', customer.billToAddress, countryCode, stateCode));
@@ -230,14 +230,16 @@ class SapBPSyncService {
       result.GlblLocNum = gln;
     }
 
-    const stateSupply = customer.uStateSupply;
-    if (stateSupply && stateSupply.trim() !== '') {
-      result.U_StateSupply = stateSupply;
-    }
+    if (countryCode === 'IN') {
+      const stateSupply = customer.uStateSupply;
+      if (stateSupply && stateSupply.trim() !== '') {
+        result.U_StateSupply = stateSupply;
+      }
 
-    const gstType = customer.uBpGstType;
-    if (gstType && gstType.trim() !== '') {
-      result.U_BP_GST_Type = gstType;
+      const gstType = customer.uBpGstType;
+      if (gstType && gstType.trim() !== '') {
+        result.U_BP_GST_Type = gstType;
+      }
     }
 
     return result;
@@ -321,7 +323,7 @@ class SapBPSyncService {
 
         console.log(`⚠️ SAP BP Sync: Update failed for ${cardCode}: ${errorMsg}`);
 
-        if (errorMsg.includes('does not exist')) {
+        if (errorMsg.includes('does not exist') && !errorMsg.includes('Linked value') && !errorMsg.includes('BPAddresses')) {
           console.log(`⚠️ SAP BP Sync: BP ${cardCode} not found in SAP, creating instead`);
           return await this.createBusinessPartner(customer, _retryDepth + 1);
         }
