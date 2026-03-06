@@ -2,6 +2,7 @@ import PDFDocument from 'pdfkit';
 import { Response } from 'express';
 import { PDFDocument as PDFLibDocument } from 'pdf-lib';
 import * as fs from 'fs';
+import * as path from 'path';
 
 interface OfferPdfData {
   offerNumber: string;
@@ -93,31 +94,18 @@ export class OfferPdfGenerator {
   private drawHeader(): void {
     this.currentY = this.margin;
 
-    this.doc
-      .fillColor('#003366')
-      .fontSize(22)
-      .font('Helvetica-Bold')
-      .text('THERMOPAC', this.margin, this.currentY, { width: this.contentWidth });
+    const logoPath = path.join(process.cwd(), 'client', 'public', 'assets', 'thermopac-logo.jpg');
+    try {
+      if (fs.existsSync(logoPath)) {
+        const logoWidth = 180;
+        const logoHeight = 50;
+        const logoX = this.pageWidth - this.margin - logoWidth;
+        this.doc.image(logoPath, logoX, this.currentY, { width: logoWidth, height: logoHeight, fit: [logoWidth, logoHeight] });
+      }
+    } catch (e) {
+    }
 
-    this.currentY += 26;
-
-    this.doc
-      .fillColor('#666666')
-      .fontSize(8)
-      .font('Helvetica')
-      .text('Turnkey Engineering Solution Division', this.margin, this.currentY);
-
-    this.currentY += 12;
-
-    this.doc
-      .fontSize(7)
-      .fillColor('#888888')
-      .text('L 4, 405 The Summit Business Bay, Vile Parle (East), W E Highway, Mumbai India 400 057', this.margin, this.currentY);
-
-    this.currentY += 10;
-    this.doc.text('Tel: +91 22 2617 8080 to 84  |  Fax: +91 22 2617 8084  |  E-Mail: sales@thermopac.in', this.margin, this.currentY);
-
-    this.currentY += 16;
+    this.currentY += 55;
     this.drawLine(this.currentY, '#003366');
     this.currentY += 2;
     this.drawLine(this.currentY, '#003366');
