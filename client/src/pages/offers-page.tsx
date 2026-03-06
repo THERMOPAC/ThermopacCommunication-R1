@@ -866,7 +866,7 @@ export function OffersContent() {
                                   <Input
                                     value={item?.description || ""}
                                     onChange={(e) => form.setValue(`items.${index}.description`, e.target.value, { shouldDirty: true })}
-                                    className={`h-7 text-sm pl-0 ${isSubItem ? "!pl-6" : ""}`}
+                                    className={`h-7 text-sm pl-0 ${isSubItem ? "!pl-6" : "text-blue-600 font-medium"}`}
                                     placeholder="Item description"
                                   />
                                   <div className="flex items-center gap-1">
