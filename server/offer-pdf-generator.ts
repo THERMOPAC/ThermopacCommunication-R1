@@ -245,16 +245,26 @@ export class OfferPdfGenerator {
 
     this.currentY += 16;
 
+    const introText = `We are pleased to submit our offer for design, manufacturing, supply and commissioning offer.
+
+Thermopac is building the Re-refining plants and equipment's Since 1986, Thermopac has developed in-house technology for lower Capex and higher yields. We have the state of the art Manufacturing facility located at Rabale near Navi Mumbai. We manufacture all key equipment's like evaporator, distillation columns, etc. and forward integration for grease, lubricants, etc.
+
+We have constructed more than 35 Re-refining plants in 5 different Continents. in the last 14 years. All these Re-refinery plants manufacture environment-friendly re-refined plant lube oil.
+
+We build refineries with modular construction with a room to enhance the capacity. We take pride to mention that Thermopac is the only company that is building true turnkey re-refinery plants all over the world.
+
+Moreover, Thermopac expertise extends beyond the construction of re-refinery plants. The company offers a range of services, including technical support, training, and ongoing maintenance. This holistic approach ensures that clients can operate their plants efficiently and effectively, maximizing their investment and achieving long-term success. Thermopac dedication to customer satisfaction is evident in their commitment to providing top-notch service and support throughout the entire lifecycle of the plant.`;
+
     this.doc
       .fontSize(9)
       .text(
-        'We are pleased to submit our offer for design, manufacturing, supply and commissioning as per your requirement. Please find the details below:',
+        introText,
         this.margin,
         this.currentY,
-        { width: this.contentWidth }
+        { width: this.contentWidth, lineGap: 3 }
       );
 
-    this.currentY += 30;
+    this.currentY = this.doc.y + 10;
   }
 
   private drawItemsTable(): void {
