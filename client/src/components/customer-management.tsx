@@ -533,47 +533,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                     )}
                   />
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <FormField
-                    control={form.control}
-                    name="glblLocNum"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>GlblLocNum</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly disabled className="opacity-70 cursor-not-allowed" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="uStateSupply"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>State of Supply</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly disabled className="opacity-70 cursor-not-allowed" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="uBpGstType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>BP GST Type</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly disabled className="opacity-70 cursor-not-allowed" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+
               </div>
 
               <div className="rounded-lg border p-4 space-y-4">
@@ -756,47 +716,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                     )}
                   />
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <FormField
-                    control={form.control}
-                    name="glblLocNum"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>GlblLocNum</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly disabled className="opacity-70 cursor-not-allowed" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="uStateSupply"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>State of Supply</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly disabled className="opacity-70 cursor-not-allowed" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="uBpGstType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>BP GST Type</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly disabled className="opacity-70 cursor-not-allowed" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+
               </div>
 
               <div className="rounded-lg border p-4 space-y-4">
