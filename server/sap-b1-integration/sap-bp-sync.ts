@@ -253,15 +253,21 @@ class SapBPSyncService {
     }
   }
 
-  async createBusinessPartner(customer: any): Promise<{ success: boolean; error?: string }> {
+  async createBusinessPartner(customer: any, _retryDepth = 0): Promise<{ success: boolean; error?: string }> {
     try {
+      if (_retryDepth > 1) {
+        const msg = `SAP BP Sync: Max retry depth reached for ${customer.bpCode}, aborting`;
+        console.error(`❌ ${msg}`);
+        return { success: false, error: msg };
+      }
+
       const bpData = this.mapCustomerToSapBP(customer);
       console.log(`📤 SAP BP Sync: Creating BP ${bpData.CardCode} - ${bpData.CardName}`);
 
       const exists = await this.checkBPExists(bpData.CardCode);
       if (exists) {
         console.log(`⚠️ SAP BP Sync: BP ${bpData.CardCode} already exists, updating instead`);
-        return await this.updateBusinessPartner(customer);
+        return await this.updateBusinessPartner(customer, _retryDepth + 1);
       }
 
       const response = await this.makeRequest('POST', '/b1s/v1/BusinessPartners', bpData);
@@ -284,8 +290,14 @@ class SapBPSyncService {
     }
   }
 
-  async updateBusinessPartner(customer: any): Promise<{ success: boolean; error?: string }> {
+  async updateBusinessPartner(customer: any, _retryDepth = 0): Promise<{ success: boolean; error?: string }> {
     try {
+      if (_retryDepth > 1) {
+        const msg = `SAP BP Sync: Max retry depth reached for ${customer.bpCode}, aborting`;
+        console.error(`❌ ${msg}`);
+        return { success: false, error: msg };
+      }
+
       const bpData = this.mapCustomerToSapBP(customer);
       const cardCode = bpData.CardCode;
       delete (bpData as any).CardCode;
@@ -293,6 +305,7 @@ class SapBPSyncService {
       delete (bpData as any).ContactEmployees;
 
       console.log(`📤 SAP BP Sync: Updating BP ${cardCode}`);
+      console.log(`📦 SAP BP Sync: Update payload:`, JSON.stringify(bpData, null, 2));
 
       const response = await this.makeRequest('PATCH', `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')`, bpData);
 
@@ -306,9 +319,11 @@ class SapBPSyncService {
           errorMsg = errorBody?.error?.message?.value || errorMsg;
         } catch {}
 
+        console.log(`⚠️ SAP BP Sync: Update failed for ${cardCode}: ${errorMsg}`);
+
         if (errorMsg.includes('does not exist')) {
           console.log(`⚠️ SAP BP Sync: BP ${cardCode} not found in SAP, creating instead`);
-          return await this.createBusinessPartner(customer);
+          return await this.createBusinessPartner(customer, _retryDepth + 1);
         }
 
         console.error(`❌ SAP BP Sync: Failed to update BP ${cardCode}: ${errorMsg}`);
