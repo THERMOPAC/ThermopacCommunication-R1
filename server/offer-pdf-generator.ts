@@ -264,6 +264,34 @@ Moreover, Thermopac expertise extends beyond the construction of re-refinery pla
         { width: this.contentWidth, lineGap: 3 }
       );
 
+    this.currentY = this.doc.y + 30;
+
+    this.doc
+      .fontSize(10)
+      .font('Helvetica-Bold')
+      .text('For THERMOPAC', this.margin, this.currentY);
+    this.currentY = this.doc.y + 2;
+
+    this.doc
+      .fontSize(9)
+      .font('Helvetica')
+      .text('(Turnkey Engineering Solution Division)', this.margin, this.currentY);
+    this.currentY = this.doc.y + 20;
+
+    this.doc
+      .moveTo(this.margin, this.currentY)
+      .lineTo(this.margin + 200, this.currentY)
+      .strokeColor('#333333')
+      .lineWidth(0.8)
+      .stroke();
+    this.currentY += 6;
+
+    this.doc
+      .fontSize(9)
+      .font('Helvetica-Bold')
+      .text('Marketing Manager', this.margin, this.currentY);
+    this.doc.font('Helvetica');
+
     this.currentY = this.doc.y + 10;
   }
 
