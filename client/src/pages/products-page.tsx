@@ -24,7 +24,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { Product, ProductAttributeOption } from "@shared/schema";
-import { OffersContent } from "@/pages/offers-page";
 
 const unitOptions = ["pcs", "kg", "m", "ltr", "hours", "set", "lot", "nos"] as const;
 
