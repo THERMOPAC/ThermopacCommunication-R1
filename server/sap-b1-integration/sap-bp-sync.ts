@@ -233,6 +233,12 @@ class SapBPSyncService {
           const errorBody = JSON.parse(response.body);
           errorMsg = errorBody?.error?.message?.value || errorMsg;
         } catch {}
+
+        if (errorMsg.includes('does not exist')) {
+          console.log(`⚠️ SAP BP Sync: BP ${cardCode} not found in SAP, creating instead`);
+          return await this.createBusinessPartner(customer);
+        }
+
         console.error(`❌ SAP BP Sync: Failed to update BP ${cardCode}: ${errorMsg}`);
         return { success: false, error: errorMsg };
       }
