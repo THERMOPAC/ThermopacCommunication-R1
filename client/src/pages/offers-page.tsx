@@ -671,17 +671,15 @@ export function OffersContent() {
             </DialogHeader>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                {/* Customer Section */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Customer Details</h3>
-
-                  <div className="space-y-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+                <div className="rounded-lg border p-2 px-3 space-y-1">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Customer Details</h3>
+                  <div className="grid grid-cols-4 gap-2">
                     <div>
-                      <Label>Select Customer</Label>
+                      <Label className="text-xs">Select Customer</Label>
                       <Select onValueChange={handleSelectCustomer}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Search and select customer..." />
+                          <SelectValue placeholder="Search customer..." />
                         </SelectTrigger>
                         <SelectContent>
                           {customers.map((c: any) => (
@@ -692,62 +690,54 @@ export function OffersContent() {
                         </SelectContent>
                       </Select>
                     </div>
-
                     <FormField control={form.control} name="customerName" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Customer Name <span className="text-destructive">*</span></FormLabel>
+                        <FormLabel>Customer Name *</FormLabel>
                         <FormControl><Input {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <FormField control={form.control} name="contactPerson" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Contact Person</FormLabel>
-                          <FormControl><Input {...field} /></FormControl>
-                        </FormItem>
-                      )} />
-                      <FormField control={form.control} name="customerEmail" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl><Input {...field} type="email" /></FormControl>
-                        </FormItem>
-                      )} />
-                    </div>
-
-                    <FormField control={form.control} name="customerAddress" render={({ field }) => (
+                    <FormField control={form.control} name="contactPerson" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Address</FormLabel>
-                        <FormControl><Textarea {...field} rows={2} /></FormControl>
+                        <FormLabel>Contact Person</FormLabel>
+                        <FormControl><Input {...field} /></FormControl>
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="customerEmail" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl><Input {...field} type="email" /></FormControl>
                       </FormItem>
                     )} />
                   </div>
+                  <FormField control={form.control} name="customerAddress" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Address</FormLabel>
+                      <FormControl><Textarea {...field} rows={1} /></FormControl>
+                    </FormItem>
+                  )} />
                 </div>
 
-                {/* Offer Details */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Offer Details</h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="col-span-2">
-                      <FormField control={form.control} name="subject" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Subject <span className="text-destructive">*</span></FormLabel>
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger></FormControl>
-                            <SelectContent>
-                              <SelectItem value="Used Engine Oil Refinery Fully Automated PLC SCADA Control">Used Engine Oil Refinery Fully Automated PLC SCADA Control</SelectItem>
-                              <SelectItem value="Continuous Polishing System By Regenerative Adsorption">Continuous Polishing System By Regenerative Adsorption</SelectItem>
-                              <SelectItem value="Spares for Refinery Equipment">Spares for Refinery Equipment</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                    </div>
+                <div className="rounded-lg border p-2 px-3 space-y-1">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Offer Details</h3>
+                  <div className="grid grid-cols-[2fr_1fr] gap-2">
+                    <FormField control={form.control} name="subject" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Subject *</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            <SelectItem value="Used Engine Oil Refinery Fully Automated PLC SCADA Control">Used Engine Oil Refinery Fully Automated PLC SCADA Control</SelectItem>
+                            <SelectItem value="Continuous Polishing System By Regenerative Adsorption">Continuous Polishing System By Regenerative Adsorption</SelectItem>
+                            <SelectItem value="Spares for Refinery Equipment">Spares for Refinery Equipment</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
                     <FormField control={form.control} name="language" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Language <span className="text-destructive">*</span></FormLabel>
+                        <FormLabel>Language *</FormLabel>
                         <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Select language" /></SelectTrigger></FormControl>
                           <SelectContent>
@@ -763,12 +753,10 @@ export function OffersContent() {
                       </FormItem>
                     )} />
                   </div>
-
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-5 gap-2">
                     <FormField control={form.control} name="currency" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Currency <span className="text-destructive">*</span></FormLabel>
+                        <FormLabel>Currency *</FormLabel>
                         <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                           <SelectContent>
@@ -792,7 +780,7 @@ export function OffersContent() {
                       <FormItem>
                         <FormLabel>Payment Terms</FormLabel>
                         <Select value={field.value || ""} onValueChange={field.onChange}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Select payment terms" /></SelectTrigger></FormControl>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select terms" /></SelectTrigger></FormControl>
                           <SelectContent>
                             <SelectItem value="40% Advance with PO, 60% against readiness">40% Advance with PO, 60% against readiness</SelectItem>
                             <SelectItem value="50% Advance with PO, 50% against readiness">50% Advance with PO, 50% against readiness</SelectItem>
@@ -804,29 +792,29 @@ export function OffersContent() {
                         </Select>
                       </FormItem>
                     )} />
+                    <div className="col-span-2">
+                      <FormField control={form.control} name="deliveryTerms" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Delivery Terms</FormLabel>
+                          <Select value={field.value || ""} onValueChange={field.onChange}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Select delivery terms" /></SelectTrigger></FormControl>
+                            <SelectContent>
+                              <SelectItem value="Ex-Works Mumbai Factory">Ex-Works Mumbai Factory</SelectItem>
+                              <SelectItem value="FOB Mumbai Port">FOB Mumbai Port</SelectItem>
+                              <SelectItem value="CIF Destination Port">CIF Destination Port</SelectItem>
+                              <SelectItem value="DDP Destination">DDP Destination</SelectItem>
+                              <SelectItem value="5-6 Months for shipment, 1.5 Months shipping, 1 Month commissioning">5-6 Months shipment + 1.5 Months shipping + 1 Month commissioning</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} />
+                    </div>
                   </div>
-
-                  <FormField control={form.control} name="deliveryTerms" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Delivery Terms</FormLabel>
-                      <Select value={field.value || ""} onValueChange={field.onChange}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select delivery terms" /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          <SelectItem value="Ex-Works Mumbai Factory">Ex-Works Mumbai Factory</SelectItem>
-                          <SelectItem value="FOB Mumbai Port">FOB Mumbai Port</SelectItem>
-                          <SelectItem value="CIF Destination Port">CIF Destination Port</SelectItem>
-                          <SelectItem value="DDP Destination">DDP Destination</SelectItem>
-                          <SelectItem value="5-6 Months for shipment, 1.5 Months shipping, 1 Month commissioning">5-6 Months shipment + 1.5 Months shipping + 1 Month commissioning</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )} />
                 </div>
 
-                {/* Line Items */}
-                <div className="space-y-4">
+                <div className="rounded-lg border p-2 px-3 space-y-1">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Line Items</h3>
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Line Items</h3>
                     <div className="flex gap-2">
                       <Button type="button" variant="outline" size="sm" onClick={() => { setProductPickerSearch(""); setIsProductPickerOpen(true); }}>
                         <Package className="mr-1 h-3 w-3" /> Add from Products
@@ -838,8 +826,8 @@ export function OffersContent() {
                   </div>
 
                   {fields.length === 0 ? (
-                    <div className="border rounded-md p-6 text-center text-muted-foreground">
-                      <p>No items added yet. Select a product from the dropdown or add a custom item.</p>
+                    <div className="border rounded-md p-3 text-center text-muted-foreground text-sm">
+                      <p>No items added yet. Add from Products or Custom Item.</p>
                     </div>
                   ) : (
                     <div className="border rounded-md overflow-x-auto">
@@ -970,21 +958,22 @@ export function OffersContent() {
                   </div>
                 )}
 
-                {/* Notes & Terms */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Notes & Terms</h3>
-                  <FormField control={form.control} name="notes" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notes</FormLabel>
-                      <FormControl><Textarea {...field} rows={2} placeholder="Internal notes or special instructions" /></FormControl>
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="termsAndConditions" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Terms & Conditions</FormLabel>
-                      <FormControl><Textarea {...field} rows={3} placeholder="Standard terms and conditions" /></FormControl>
-                    </FormItem>
-                  )} />
+                <div className="rounded-lg border p-2 px-3 space-y-1">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes & Terms</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <FormField control={form.control} name="notes" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Notes</FormLabel>
+                        <FormControl><Textarea {...field} rows={2} placeholder="Internal notes or special instructions" /></FormControl>
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="termsAndConditions" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Terms & Conditions</FormLabel>
+                        <FormControl><Textarea {...field} rows={2} placeholder="Standard terms and conditions" /></FormControl>
+                      </FormItem>
+                    )} />
+                  </div>
                 </div>
 
                 <DialogFooter className="flex items-center gap-2">
