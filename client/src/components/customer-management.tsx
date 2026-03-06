@@ -43,6 +43,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import {
   PlusCircle,
   Pencil,
@@ -121,7 +122,7 @@ const customerSchema = z.object({
   phone1: z.string().min(1, "Phone is required"),
   billToAddress: z.string().min(1, "Billing Address is required"),
   shipToAddress: z.string().min(1, "Shipping Address is required"),
-  cardType: z.string().min(1, "Card Type is required"),
+  cardType: z.string().default("C"),
   glblLocNum: z.string().default("NA"),
   uStateSupply: z.string().default("MH"),
   uBpGstType: z.string().default("G"),
@@ -153,7 +154,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       phone1: "",
       billToAddress: "",
       shipToAddress: "",
-      cardType: "Customer",
+      cardType: "C",
       glblLocNum: "NA",
       uStateSupply: "MH",
       uBpGstType: "G",
@@ -273,7 +274,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       phone1: (customer as any).phone1 || "",
       billToAddress: customer.billToAddress || "",
       shipToAddress: customer.shipToAddress || "",
-      cardType: (customer as any).cardType || "Customer",
+      cardType: (customer as any).cardType || "C",
       glblLocNum: (customer as any).glblLocNum || "NA",
       uStateSupply: (customer as any).uStateSupply || "MH",
       uBpGstType: (customer as any).uBpGstType || "G",
@@ -330,7 +331,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                 phone1: "",
                 billToAddress: "",
                 shipToAddress: "",
-                cardType: "Customer",
+                cardType: "C",
                 glblLocNum: "NA",
                 uStateSupply: "MH",
                 uBpGstType: "G",
@@ -386,8 +387,8 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <TableCell className="font-medium font-mono text-xs">{customer.bpCode}</TableCell>
                       <TableCell className="font-medium">{customer.bpName}</TableCell>
                       <TableCell>
-                        <Badge variant={(customer as any).cardType === "Supplier" ? "secondary" : (customer as any).cardType === "Lead" ? "outline" : "default"} className="text-xs">
-                          {(customer as any).cardType || "Customer"}
+                        <Badge variant={(customer as any).cardType === "S" ? "secondary" : (customer as any).cardType === "L" ? "outline" : "default"} className="text-xs">
+                          {(customer as any).cardType === "S" ? "Supplier" : (customer as any).cardType === "L" ? "Lead" : "Customer"}
                         </Badge>
                       </TableCell>
                       <TableCell>{customer.contactPerson || "-"}</TableCell>
@@ -424,7 +425,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
 
       {/* Create Customer Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[850px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Customer</DialogTitle>
             <DialogDescription>
@@ -435,7 +436,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             <form onSubmit={form.handleSubmit(onSubmitCreate)} className="space-y-5">
               <div className="rounded-lg border p-4 space-y-4">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Business Partner Info</h4>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name="bpCode"
@@ -453,33 +454,11 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                     control={form.control}
                     name="bpName"
                     render={({ field }) => (
-                      <FormItem className="col-span-2">
+                      <FormItem>
                         <FormLabel>BP Name *</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g., ABC Industries Ltd." {...field} />
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="cardType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Card Type *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || "Customer"}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Customer">Customer</SelectItem>
-                            <SelectItem value="Supplier">Supplier</SelectItem>
-                            <SelectItem value="Lead">Lead</SelectItem>
-                          </SelectContent>
-                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -583,7 +562,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <FormItem>
                         <FormLabel>Billing Address *</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., 123 Business St, Mumbai" {...field} />
+                          <Textarea placeholder="e.g., 123 Business St, Mumbai" rows={3} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -601,7 +580,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                           </Button>
                         </FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., 123 Business St, Mumbai" {...field} />
+                          <Textarea placeholder="e.g., 123 Business St, Mumbai" rows={3} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -669,7 +648,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
 
       {/* Edit Customer Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[850px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Customer</DialogTitle>
             <DialogDescription>
@@ -680,7 +659,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             <form onSubmit={form.handleSubmit(onSubmitEdit)} className="space-y-5">
               <div className="rounded-lg border p-4 space-y-4">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Business Partner Info</h4>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name="bpCode"
@@ -698,33 +677,11 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                     control={form.control}
                     name="bpName"
                     render={({ field }) => (
-                      <FormItem className="col-span-2">
+                      <FormItem>
                         <FormLabel>BP Name *</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g., ABC Industries Ltd." {...field} />
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="cardType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Card Type *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || "Customer"}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Customer">Customer</SelectItem>
-                            <SelectItem value="Supplier">Supplier</SelectItem>
-                            <SelectItem value="Lead">Lead</SelectItem>
-                          </SelectContent>
-                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -828,7 +785,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <FormItem>
                         <FormLabel>Billing Address *</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., 123 Business St, Mumbai" {...field} />
+                          <Textarea placeholder="e.g., 123 Business St, Mumbai" rows={3} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -846,7 +803,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                           </Button>
                         </FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., 123 Business St, Mumbai" {...field} />
+                          <Textarea placeholder="e.g., 123 Business St, Mumbai" rows={3} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

@@ -1433,7 +1433,7 @@ export const customers = pgTable('customers', {
   contactPerson: text('contact_person'),
   email: text('email'),
   phone1: text('phone1'),
-  cardType: text('card_type').default('Customer'),
+  cardType: text('card_type').default('C'),
   glblLocNum: text('glbl_loc_num').default('NA'),
   uStateSupply: text('u_state_supply').default('MH'),
   uBpGstType: text('u_bp_gst_type').default('G'),
