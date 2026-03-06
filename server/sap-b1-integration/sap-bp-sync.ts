@@ -16,7 +16,7 @@ interface SapBPData {
   Cellular?: string;
   EmailAddress?: string;
   ContactPerson?: string;
-  ContactEmployees?: Array<{ Name: string; E_Mail?: string; Phone1?: string }>;
+  ContactEmployees?: Array<{ Name: string; Position?: string; E_Mail?: string; Phone1?: string }>;
   BPAddresses?: SapBPAddress[];
   Country?: string;
   Currency?: string;
@@ -184,11 +184,30 @@ class SapBPSyncService {
     };
 
     if (customer.contactPerson) {
-      result.ContactEmployees = [{
+      const contacts: Array<{ Name: string; Position?: string; E_Mail?: string; Phone1?: string }> = [];
+      contacts.push({
         Name: customer.contactPerson,
+        Position: customer.contactPosition || undefined,
         E_Mail: customer.email || undefined,
         Phone1: customer.phone1 || undefined,
-      }];
+      });
+      if (customer.contact2Name) {
+        contacts.push({
+          Name: customer.contact2Name,
+          Position: customer.contact2Position || undefined,
+          E_Mail: customer.contact2Email || undefined,
+          Phone1: customer.contact2Phone || undefined,
+        });
+      }
+      if (customer.contact3Name) {
+        contacts.push({
+          Name: customer.contact3Name,
+          Position: customer.contact3Position || undefined,
+          E_Mail: customer.contact3Email || undefined,
+          Phone1: customer.contact3Phone || undefined,
+        });
+      }
+      result.ContactEmployees = contacts;
       result.ContactPerson = customer.contactPerson;
     }
 

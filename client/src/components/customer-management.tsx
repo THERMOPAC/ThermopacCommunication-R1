@@ -167,8 +167,17 @@ const customerSchema = z.object({
   bpCode: z.string().min(1, "BP Code is required").max(50),
   bpName: z.string().min(1, "BP Name is required").max(100),
   contactPerson: z.string().min(1, "Contact Person is required"),
+  contactPosition: z.string().optional(),
   email: z.string().email("Invalid email address").min(1, "Email is required"),
   phone1: z.string().min(1, "Cellular is required"),
+  contact2Name: z.string().optional(),
+  contact2Position: z.string().optional(),
+  contact2Email: z.string().optional(),
+  contact2Phone: z.string().optional(),
+  contact3Name: z.string().optional(),
+  contact3Position: z.string().optional(),
+  contact3Email: z.string().optional(),
+  contact3Phone: z.string().optional(),
   billToAddress: z.string().min(1, "Billing Address is required"),
   shipToAddress: z.string().min(1, "Shipping Address is required"),
   cardType: z.string().default("C"),
@@ -222,8 +231,17 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       bpCode: "",
       bpName: "",
       contactPerson: "",
+      contactPosition: "",
       email: "",
       phone1: "",
+      contact2Name: "",
+      contact2Position: "",
+      contact2Email: "",
+      contact2Phone: "",
+      contact3Name: "",
+      contact3Position: "",
+      contact3Email: "",
+      contact3Phone: "",
       billToAddress: "",
       shipToAddress: "",
       cardType: "C",
@@ -355,8 +373,17 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       bpCode: customer.bpCode,
       bpName: customer.bpName,
       contactPerson: customer.contactPerson || "",
+      contactPosition: (customer as any).contactPosition || "",
       email: customer.email || "",
       phone1: (customer as any).phone1 || "",
+      contact2Name: (customer as any).contact2Name || "",
+      contact2Position: (customer as any).contact2Position || "",
+      contact2Email: (customer as any).contact2Email || "",
+      contact2Phone: (customer as any).contact2Phone || "",
+      contact3Name: (customer as any).contact3Name || "",
+      contact3Position: (customer as any).contact3Position || "",
+      contact3Email: (customer as any).contact3Email || "",
+      contact3Phone: (customer as any).contact3Phone || "",
       billToAddress: customer.billToAddress || "",
       shipToAddress: customer.shipToAddress || "",
       cardType: (customer as any).cardType || "C",
@@ -413,8 +440,17 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                 bpCode: "",
                 bpName: "",
                 contactPerson: "",
+                contactPosition: "",
                 email: "",
                 phone1: "",
+                contact2Name: "",
+                contact2Position: "",
+                contact2Email: "",
+                contact2Phone: "",
+                contact3Name: "",
+                contact3Position: "",
+                contact3Email: "",
+                contact3Phone: "",
                 billToAddress: "",
                 shipToAddress: "",
                 cardType: "C",
@@ -425,6 +461,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                 continent: "",
                 countryName: "",
               });
+              setEmailVerifyStatus('idle');
               try {
                 const res = await apiRequest("GET", "/api/customers/next-bp-code");
                 if (res?.nextBpCode) {
@@ -563,8 +600,8 @@ export default function CustomerManagement({ customers }: { customers: Customer[
               </div>
 
               <div className="rounded-lg border p-4 space-y-4">
-                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Contact Details</h4>
-                <div className="grid grid-cols-3 gap-3">
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Contact 1 (Primary)</h4>
+                <div className="grid grid-cols-4 gap-3">
                   <FormField
                     control={form.control}
                     name="contactPerson"
@@ -573,6 +610,19 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                         <FormLabel>Contact Person *</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g., John Smith" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contactPosition"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Position</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Managing Director" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -599,6 +649,116 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                         <FormLabel>Cellular *</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g., +91 98211 37879" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mt-4">Contact 2 (Optional)</h4>
+                <div className="grid grid-cols-4 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="contact2Name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contact Person</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Jane Doe" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contact2Position"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Position</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Purchase Manager" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contact2Email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="e.g., jane@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contact2Phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cellular</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., +91 98765 43210" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mt-4">Contact 3 (Optional)</h4>
+                <div className="grid grid-cols-4 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="contact3Name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contact Person</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Bob Wilson" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contact3Position"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Position</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Technical Head" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contact3Email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="e.g., bob@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contact3Phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cellular</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., +44 7911 123456" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -780,8 +940,8 @@ export default function CustomerManagement({ customers }: { customers: Customer[
               </div>
 
               <div className="rounded-lg border p-4 space-y-4">
-                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Contact Details</h4>
-                <div className="grid grid-cols-3 gap-3">
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Contact 1 (Primary)</h4>
+                <div className="grid grid-cols-4 gap-3">
                   <FormField
                     control={form.control}
                     name="contactPerson"
@@ -790,6 +950,19 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                         <FormLabel>Contact Person *</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g., John Smith" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contactPosition"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Position</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Managing Director" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -816,6 +989,116 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                         <FormLabel>Cellular *</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g., +91 98211 37879" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mt-4">Contact 2 (Optional)</h4>
+                <div className="grid grid-cols-4 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="contact2Name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contact Person</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Jane Doe" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contact2Position"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Position</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Purchase Manager" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contact2Email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="e.g., jane@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contact2Phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cellular</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., +91 98765 43210" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mt-4">Contact 3 (Optional)</h4>
+                <div className="grid grid-cols-4 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="contact3Name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contact Person</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Bob Wilson" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contact3Position"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Position</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Technical Head" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contact3Email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="e.g., bob@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contact3Phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cellular</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., +44 7911 123456" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
