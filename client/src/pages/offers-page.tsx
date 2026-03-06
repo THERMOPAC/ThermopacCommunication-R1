@@ -753,7 +753,7 @@ export function OffersContent() {
                       </FormItem>
                     )} />
                   </div>
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="grid grid-cols-[80px_130px_1fr_1fr] gap-2">
                     <FormField control={form.control} name="currency" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Currency *</FormLabel>
@@ -792,23 +792,21 @@ export function OffersContent() {
                         </Select>
                       </FormItem>
                     )} />
-                    <div className="col-span-2">
-                      <FormField control={form.control} name="deliveryTerms" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Delivery Terms</FormLabel>
-                          <Select value={field.value || ""} onValueChange={field.onChange}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Select delivery terms" /></SelectTrigger></FormControl>
-                            <SelectContent>
-                              <SelectItem value="Ex-Works Mumbai Factory">Ex-Works Mumbai Factory</SelectItem>
-                              <SelectItem value="FOB Mumbai Port">FOB Mumbai Port</SelectItem>
-                              <SelectItem value="CIF Destination Port">CIF Destination Port</SelectItem>
-                              <SelectItem value="DDP Destination">DDP Destination</SelectItem>
-                              <SelectItem value="5-6 Months for shipment, 1.5 Months shipping, 1 Month commissioning">5-6 Months shipment + 1.5 Months shipping + 1 Month commissioning</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormItem>
-                      )} />
-                    </div>
+                    <FormField control={form.control} name="deliveryTerms" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Delivery Terms</FormLabel>
+                        <Select value={field.value || ""} onValueChange={field.onChange}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select delivery terms" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            <SelectItem value="Ex-Works Mumbai Factory">Ex-Works Mumbai Factory</SelectItem>
+                            <SelectItem value="FOB Mumbai Port">FOB Mumbai Port</SelectItem>
+                            <SelectItem value="CIF Destination Port">CIF Destination Port</SelectItem>
+                            <SelectItem value="DDP Destination">DDP Destination</SelectItem>
+                            <SelectItem value="5-6 Months for shipment, 1.5 Months shipping, 1 Month commissioning">5-6 Months shipment + 1.5 Months shipping + 1 Month commissioning</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    )} />
                   </div>
                 </div>
 
