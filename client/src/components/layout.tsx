@@ -263,14 +263,14 @@ function Layout({ children }: LayoutProps) {
       isOpen: isSalesAndMarketingMenuOpen,
       toggle: () => setIsSalesAndMarketingMenuOpen(!isSalesAndMarketingMenuOpen),
       children: [
-        { icon: Users, label: "Customers", href: "/customers" },
+        { icon: BarChart4, label: "Marketing Dashboard", href: "/marketing-dashboard" },
+        { icon: TrendingUp, label: "Campaigns", href: "/campaigns" },
         { icon: Search, label: "Lead Generation", href: "/lead-generation" },
+        { icon: Users, label: "Customers", href: "/customers" },
         { icon: UsersRound, label: "Leads", href: "/leads" },
         { icon: Package, label: "Products", href: "/products" },
         { icon: FileText, label: "Offer Templates", href: "/offer-templates" },
         { icon: FileText, label: "Offers / Quotations", href: "/offers" },
-        { icon: BarChart4, label: "Marketing Dashboard", href: "/marketing-dashboard" },
-        { icon: TrendingUp, label: "Campaigns", href: "/campaigns" },
         { icon: Wrench, label: "Marketing Tools", href: "/marketing-tools" }
       ]
     }] : []),
