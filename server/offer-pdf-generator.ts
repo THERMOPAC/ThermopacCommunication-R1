@@ -719,7 +719,7 @@ export class OfferPdfGenerator {
     this.doc.end();
   }
 
-  public async generateWithTemplate(res: Response, templatePdfPath: string): Promise<void> {
+  public async generateWithTemplate(res: Response, templatePdfPath: string, pageRange?: { startPage?: number | null; endPage?: number | null }): Promise<void> {
     try {
       const templateBytes = fs.readFileSync(templatePdfPath);
       const templateDoc = await PDFLibDocument.load(templateBytes);
@@ -740,7 +740,12 @@ export class OfferPdfGenerator {
       const p1Pages = await mergedPdf.copyPages(part1Doc, part1Doc.getPageIndices());
       p1Pages.forEach((page) => mergedPdf.addPage(page));
 
-      const tplPages = await mergedPdf.copyPages(templateDoc, templateDoc.getPageIndices());
+      const totalTemplatePages = templateDoc.getPageCount();
+      const start = Math.max(0, (pageRange?.startPage || 1) - 1);
+      const end = Math.min(totalTemplatePages, pageRange?.endPage || totalTemplatePages);
+      const pageIndices = Array.from({ length: end - start }, (_, i) => start + i);
+
+      const tplPages = await mergedPdf.copyPages(templateDoc, pageIndices);
       tplPages.forEach((page) => mergedPdf.addPage(page));
 
       const p2Pages = await mergedPdf.copyPages(part2Doc, part2Doc.getPageIndices());

@@ -49,6 +49,8 @@ export default function OfferTemplatesPage() {
   const [formSubject, setFormSubject] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formLanguage, setFormLanguage] = useState("English");
+  const [formStartPage, setFormStartPage] = useState("");
+  const [formEndPage, setFormEndPage] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const { data: templates = [], isLoading } = useQuery<OfferTemplate[]>({
@@ -76,6 +78,8 @@ export default function OfferTemplatesPage() {
     setFormSubject("");
     setFormDescription("");
     setFormLanguage("English");
+    setFormStartPage("");
+    setFormEndPage("");
     setSelectedFile(null);
     setEditingTemplate(null);
     setIsFormOpen(false);
@@ -101,6 +105,8 @@ export default function OfferTemplatesPage() {
       formData.append('description', formDescription);
       formData.append('position', 'middle');
       formData.append('language', formLanguage);
+      if (formStartPage) formData.append('startPage', formStartPage);
+      if (formEndPage) formData.append('endPage', formEndPage);
 
       const res = await fetch('/api/sales-marketing/offer-templates', {
         method: 'POST',
@@ -130,6 +136,8 @@ export default function OfferTemplatesPage() {
         description: formDescription,
         position: 'middle',
         language: formLanguage,
+        startPage: formStartPage ? parseInt(formStartPage) : null,
+        endPage: formEndPage ? parseInt(formEndPage) : null,
       });
       toast({ title: "Template updated" });
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offer-templates'] });
@@ -165,6 +173,8 @@ export default function OfferTemplatesPage() {
     setFormSubject(template.subject);
     setFormDescription(template.description || "");
     setFormLanguage(template.language || "English");
+    setFormStartPage(template.startPage ? String(template.startPage) : "");
+    setFormEndPage(template.endPage ? String(template.endPage) : "");
     setIsFormOpen(true);
   };
 
@@ -245,6 +255,7 @@ export default function OfferTemplatesPage() {
                     <TableHead>File</TableHead>
                     <TableHead>Size</TableHead>
                     <TableHead>Language</TableHead>
+                    <TableHead>Pages</TableHead>
                     <TableHead>Active</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -275,6 +286,11 @@ export default function OfferTemplatesPage() {
                       <TableCell className="text-sm">{formatFileSize(template.fileSize)}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs">{template.language || "English"}</Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {template.startPage || template.endPage
+                          ? `${template.startPage || 1} - ${template.endPage || 'end'}`
+                          : 'All'}
                       </TableCell>
                       <TableCell>
                         <Switch
@@ -356,6 +372,18 @@ export default function OfferTemplatesPage() {
               <div>
                 <Label>Description</Label>
                 <Textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder="Optional description" rows={2} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Start Page</Label>
+                  <Input type="number" min="1" value={formStartPage} onChange={(e) => setFormStartPage(e.target.value)} placeholder="Default: 1" />
+                  <p className="text-xs text-muted-foreground mt-1">First page to include from template</p>
+                </div>
+                <div>
+                  <Label>End Page</Label>
+                  <Input type="number" min="1" value={formEndPage} onChange={(e) => setFormEndPage(e.target.value)} placeholder="Default: last page" />
+                  <p className="text-xs text-muted-foreground mt-1">Last page to include from template</p>
+                </div>
               </div>
               {!editingTemplate && (
                 <div>

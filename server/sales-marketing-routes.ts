@@ -925,7 +925,7 @@ export function setupSalesMarketingRoutes(app: Express) {
   router.post('/offer-templates', ensureAuthenticated, templateUpload.single('template'), async (req: Request, res: Response) => {
     try {
       if (!req.file) return res.status(400).json({ error: 'No PDF file uploaded' });
-      const { name, subject, description, position, language } = req.body;
+      const { name, subject, description, position, language, startPage, endPage } = req.body;
       if (!name || !subject) return res.status(400).json({ error: 'Name and subject are required' });
 
       const [template] = await db.insert(offerTemplates).values({
@@ -937,6 +937,8 @@ export function setupSalesMarketingRoutes(app: Express) {
         fileSize: req.file.size,
         position: position || 'after',
         language: language || 'English',
+        startPage: startPage ? parseInt(startPage) : null,
+        endPage: endPage ? parseInt(endPage) : null,
         isActive: true,
         createdBy: (req.user as any)?.id || null,
       }).returning();
@@ -952,7 +954,7 @@ export function setupSalesMarketingRoutes(app: Express) {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
-      const { name, subject, description, position, language, isActive } = req.body;
+      const { name, subject, description, position, language, isActive, startPage, endPage } = req.body;
       const updateData: any = { updatedAt: new Date() };
       if (name !== undefined) updateData.name = name;
       if (subject !== undefined) updateData.subject = subject;
@@ -960,6 +962,8 @@ export function setupSalesMarketingRoutes(app: Express) {
       if (position !== undefined) updateData.position = position;
       if (language !== undefined) updateData.language = language;
       if (isActive !== undefined) updateData.isActive = isActive;
+      if (startPage !== undefined) updateData.startPage = startPage;
+      if (endPage !== undefined) updateData.endPage = endPage;
 
       const [template] = await db.update(offerTemplates).set(updateData).where(eq(offerTemplates.id, id)).returning();
       if (!template) return res.status(404).json({ error: 'Template not found' });
@@ -1272,6 +1276,7 @@ export function setupSalesMarketingRoutes(app: Express) {
       });
 
       let templatePath = offer.templatePdfPath;
+      let templatePageRange: { startPage?: number | null; endPage?: number | null } = {};
 
       if (!templatePath || !fs.existsSync(templatePath)) {
         const offerLang = (offer as any).language || 'English';
@@ -1284,11 +1289,12 @@ export function setupSalesMarketingRoutes(app: Express) {
         ).limit(1);
         if (autoTemplate && fs.existsSync(autoTemplate.filePath)) {
           templatePath = autoTemplate.filePath;
+          templatePageRange = { startPage: autoTemplate.startPage, endPage: autoTemplate.endPage };
         }
       }
 
       if (templatePath && fs.existsSync(templatePath)) {
-        await generator.generateWithTemplate(res, templatePath);
+        await generator.generateWithTemplate(res, templatePath, templatePageRange);
       } else {
         await generator.generate(res);
       }

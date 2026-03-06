@@ -8681,6 +8681,8 @@ export const offerTemplates = pgTable('offer_templates', {
   position: text('position').default('after').notNull(),
   language: text('language').default('English').notNull(),
   isActive: boolean('is_active').default(true).notNull(),
+  startPage: integer('start_page'),
+  endPage: integer('end_page'),
   createdBy: integer('created_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
