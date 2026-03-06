@@ -439,11 +439,11 @@ export class OfferPdfGenerator {
     this.doc
       .text(`${this.data.currency} ${this.formatNumber(this.data.totalAmount)}`, valueX, this.currentY, { width: 100, align: 'right' });
 
-    this.currentY += 30;
+    this.currentY += 20;
   }
 
   private drawTerms(): void {
-    this.checkPageBreak(200);
+    this.checkPageBreak(60);
 
     if (this.data.paymentTerms) {
       this.doc
@@ -534,9 +534,9 @@ export class OfferPdfGenerator {
   }
 
   private drawSignature(): void {
-    this.checkPageBreak(120);
+    this.checkPageBreak(80);
 
-    this.currentY += 20;
+    this.currentY += 10;
 
     this.drawLine(this.currentY, '#CCCCCC');
     this.currentY += 20;
