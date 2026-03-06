@@ -866,7 +866,7 @@ export function OffersContent() {
                                   <Input
                                     value={item?.description || ""}
                                     onChange={(e) => form.setValue(`items.${index}.description`, e.target.value, { shouldDirty: true })}
-                                    className={`h-7 text-sm ${isSubItem ? "pl-6" : ""}`}
+                                    className={`h-7 text-sm pl-0 ${isSubItem ? "!pl-6" : ""}`}
                                     placeholder="Item description"
                                   />
                                   <div className="flex items-center gap-1">
@@ -886,7 +886,7 @@ export function OffersContent() {
                                 <TableCell className="px-0 py-0.5">
                                   <select
                                     {...form.register(`items.${index}.unit`)}
-                                    className="h-7 w-full text-xs border rounded px-1 py-0"
+                                    className="h-7 w-full text-xs border rounded pl-0 px-0 py-0"
                                   >
                                     {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
                                   </select>
@@ -895,21 +895,21 @@ export function OffersContent() {
                                   <Input
                                     value={item?.quantity || ""}
                                     onChange={(e) => form.setValue(`items.${index}.quantity`, e.target.value, { shouldDirty: true })}
-                                    className="h-7 text-xs text-right px-1 py-0" type="number" step="0.001"
+                                    className="h-7 text-xs text-right pl-0 px-0 py-0" type="number" step="0.001"
                                   />
                                 </TableCell>
                                 <TableCell className="px-0 py-0.5">
                                   <Input
                                     value={item?.unitPrice || ""}
                                     onChange={(e) => form.setValue(`items.${index}.unitPrice`, e.target.value, { shouldDirty: true })}
-                                    className="h-7 text-xs text-right px-1 py-0" type="number" step="0.01"
+                                    className="h-7 text-xs text-right pl-0 px-0 py-0" type="number" step="0.01"
                                   />
                                 </TableCell>
                                 <TableCell className="px-0 py-0.5">
                                   <Input
                                     value={item?.discountPercent || ""}
                                     onChange={(e) => form.setValue(`items.${index}.discountPercent`, e.target.value, { shouldDirty: true })}
-                                    className="h-7 text-xs text-right px-1 py-0" type="number" step="0.01"
+                                    className="h-7 text-xs text-right pl-0 px-0 py-0" type="number" step="0.01"
                                   />
                                 </TableCell>
                                 <TableCell className={`text-right font-medium text-xs px-0 py-0.5 ${isSubItem ? "text-muted-foreground" : ""}`}>
