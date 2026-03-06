@@ -839,7 +839,7 @@ export function OffersContent() {
                             <TableHead className="w-[60px] px-1 py-1 h-8">Unit</TableHead>
                             <TableHead className="w-[80px] px-1 py-1 h-8">Qty</TableHead>
                             <TableHead className="w-[100px] px-1 py-1 h-8">Unit Price</TableHead>
-                            <TableHead className="w-[70px] px-1 py-1 h-8">Disc %</TableHead>
+                            <TableHead className="w-[55px] px-1 py-1 h-8">Disc %</TableHead>
                             <TableHead className="w-[100px] px-0 py-1 h-8 text-right">Line Total</TableHead>
                             <TableHead className="w-[30px] px-0 py-1 h-8"></TableHead>
                           </TableRow>
@@ -893,8 +893,9 @@ export function OffersContent() {
                                 </TableCell>
                                 <TableCell className="px-1 py-0.5">
                                   <Input
-                                    value={item?.quantity || ""}
+                                    value={item?.quantity ? parseFloat(item.quantity).toFixed(2) : ""}
                                     onChange={(e) => form.setValue(`items.${index}.quantity`, e.target.value, { shouldDirty: true })}
+                                    onBlur={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) form.setValue(`items.${index}.quantity`, v.toFixed(2), { shouldDirty: true }); }}
                                     className="h-7 text-xs text-right pl-0 px-0 py-0" type="number" step="0.01"
                                   />
                                 </TableCell>
