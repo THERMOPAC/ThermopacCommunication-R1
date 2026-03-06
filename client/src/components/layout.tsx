@@ -86,7 +86,8 @@ function Layout({ children }: LayoutProps) {
   useHeartbeat({ interval: 30000 }); // Send heartbeat every 30 seconds
 
   // Check if we're on any sales and marketing related page
-  const isOnSalesAndMarketingPage = location === '/lead-generation' ||
+  const isOnSalesAndMarketingPage = location === '/customers' ||
+                                  location === '/lead-generation' ||
                                   location === '/leads' ||
                                   location === '/products' ||
                                   location === '/offer-templates' ||
@@ -97,7 +98,6 @@ function Layout({ children }: LayoutProps) {
   
   // Check if we're on any project-related page
   const isOnProjectsPage = location.startsWith('/project') || 
-                         location === '/customers' || 
                          location === '/item-master';
   
   // Check if we're on any procurement-related page
@@ -263,6 +263,7 @@ function Layout({ children }: LayoutProps) {
       isOpen: isSalesAndMarketingMenuOpen,
       toggle: () => setIsSalesAndMarketingMenuOpen(!isSalesAndMarketingMenuOpen),
       children: [
+        { icon: Users, label: "Customers", href: "/customers" },
         { icon: Search, label: "Lead Generation", href: "/lead-generation" },
         { icon: UsersRound, label: "Leads", href: "/leads" },
         { icon: Package, label: "Products", href: "/products" },
@@ -303,7 +304,6 @@ function Layout({ children }: LayoutProps) {
       children: [
         { icon: BarChart4, label: "Project Dashboard", href: "/project-dashboard" },
         { icon: Briefcase, label: "Projects", href: "/projects" },
-        { icon: Users, label: "Customers", href: "/customers" },
         { icon: TrendingUp, label: "Item Master", href: "/item-master" },
         { icon: Palette, label: "Design Tools", href: "/design-tools" }
       ]
