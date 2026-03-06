@@ -837,9 +837,9 @@ export function OffersContent() {
                             <TableHead className="w-[40px]">#</TableHead>
                             <TableHead>Description</TableHead>
                             <TableHead className="w-[80px]">Unit</TableHead>
-                            <TableHead className="w-[80px]">Qty</TableHead>
-                            <TableHead className="w-[100px]">Unit Price</TableHead>
-                            <TableHead className="w-[70px]">Disc %</TableHead>
+                            <TableHead className="w-[110px]">Qty</TableHead>
+                            <TableHead className="w-[140px]">Unit Price</TableHead>
+                            <TableHead className="w-[100px]">Disc %</TableHead>
                             <TableHead className="w-[100px] text-right">Line Total</TableHead>
                             <TableHead className="w-[40px]"></TableHead>
                           </TableRow>
