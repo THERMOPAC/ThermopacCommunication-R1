@@ -154,8 +154,7 @@ export function OffersContent() {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest('POST', '/api/sales-marketing/offers', data);
-      return res.json();
+      return await apiRequest('POST', '/api/sales-marketing/offers', data);
     },
     onSuccess: (savedOffer: any) => {
       toast({ title: "Offer created", description: "Offer has been created successfully. You can now download the PDF." });
