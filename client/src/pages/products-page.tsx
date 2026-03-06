@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, Fragment } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Plus, Pencil, Trash2, MoreHorizontal, Search, Settings, Package,
-  Loader2, X, Filter, ChevronRight, ChevronDown, GitBranch
+  Loader2, X, Filter, ChevronRight, ChevronDown, GitBranch, ArrowUp, ArrowDown
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -109,14 +109,15 @@ export default function ProductsPage() {
   const categories = ["Finish Goods", "Bought-Out Items", "Raw Materials", "Consumables"];
 
   const childProductsMap = useMemo(() => {
-    const map = new Map<number, Array<Product & { quantity: number }>>();
+    const map = new Map<number, Array<Product & { quantity: number; sortOrder: number }>>();
     productChildLinks.forEach((link: any) => {
       const child = products.find(p => p.id === link.childProductId);
       if (child) {
         if (!map.has(link.parentProductId)) map.set(link.parentProductId, []);
-        map.get(link.parentProductId)!.push({ ...child, quantity: link.quantity || 1 });
+        map.get(link.parentProductId)!.push({ ...child, quantity: link.quantity || 1, sortOrder: link.sortOrder ?? 0 });
       }
     });
+    map.forEach((children) => children.sort((a, b) => a.sortOrder - b.sortOrder));
     return map;
   }, [products, productChildLinks]);
 
@@ -361,6 +362,27 @@ export default function ProductsPage() {
       toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to remove sub-product", variant: "destructive" });
     },
   });
+
+  const reorderChildrenMutation = useMutation({
+    mutationFn: async ({ parentId, childIds }: { parentId: number; childIds: number[] }) => {
+      return apiRequest('PATCH', `/api/sales-marketing/products/${parentId}/children/reorder`, { childIds });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/product-children'] });
+    },
+  });
+
+  const moveChild = (parentId: number, childId: number, direction: 'up' | 'down') => {
+    const children = childProductsMap.get(parentId) || [];
+    const idx = children.findIndex(c => c.id === childId);
+    if (idx < 0) return;
+    if (direction === 'up' && idx === 0) return;
+    if (direction === 'down' && idx === children.length - 1) return;
+    const newOrder = children.map(c => c.id);
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    [newOrder[idx], newOrder[swapIdx]] = [newOrder[swapIdx], newOrder[idx]];
+    reorderChildrenMutation.mutate({ parentId, childIds: newOrder });
+  };
 
   const handleOpenCreateProduct = () => {
     setEditingProduct(null);
@@ -679,6 +701,13 @@ export default function ProductsPage() {
                                   </Badge>
                                 </TableCell>
                                 <TableCell>
+                                  <div className="flex items-center gap-0.5">
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => moveChild(product.id, child.id, 'up')} disabled={children.indexOf(child) === 0}>
+                                      <ArrowUp className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => moveChild(product.id, child.id, 'down')} disabled={children.indexOf(child) === children.length - 1}>
+                                      <ArrowDown className="h-3 w-3" />
+                                    </Button>
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -701,6 +730,7 @@ export default function ProductsPage() {
                                       </DropdownMenuItem>
                                     </DropdownMenuContent>
                                   </DropdownMenu>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             ))}

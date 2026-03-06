@@ -1,7 +1,7 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import { storage } from './storage';
 import { z } from 'zod';
-import { insertLeadSchema, tankPrices, plantCosts, insertProductAttributeOptionSchema, insertProductSchema, offers, offerTemplates } from '@shared/schema';
+import { insertLeadSchema, tankPrices, plantCosts, insertProductAttributeOptionSchema, insertProductSchema, offers, offerTemplates, productChildren as productChildrenTable } from '@shared/schema';
 import { db } from './db';
 import { eq, and } from 'drizzle-orm';
 import { OfferPdfGenerator } from './offer-pdf-generator';
@@ -843,6 +843,27 @@ export function setupSalesMarketingRoutes(app: Express) {
     } catch (error) {
       console.error('Error adding product child:', error);
       res.status(500).json({ error: 'Failed to add product child' });
+    }
+  });
+
+  router.patch('/products/:parentId/children/reorder', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const parentId = parseInt(req.params.parentId);
+      if (isNaN(parentId)) return res.status(400).json({ error: 'Invalid parent ID' });
+      const { childIds } = req.body;
+      if (!Array.isArray(childIds)) return res.status(400).json({ error: 'childIds must be an array' });
+      for (let i = 0; i < childIds.length; i++) {
+        await db.update(productChildrenTable)
+          .set({ sortOrder: i })
+          .where(and(
+            eq(productChildrenTable.parentProductId, parentId),
+            eq(productChildrenTable.childProductId, childIds[i])
+          ));
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error reordering children:', error);
+      res.status(500).json({ error: 'Failed to reorder' });
     }
   });
 
