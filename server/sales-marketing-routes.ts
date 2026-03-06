@@ -1214,7 +1214,6 @@ export function setupSalesMarketingRoutes(app: Express) {
         customerAddress: offer.customerAddress || '',
         contactPerson: offer.contactPerson || '',
         subject: offer.subject,
-        language: (offer as any).language || 'English',
         currency: offer.currency,
         subtotal: offer.subtotal,
         discountPercent: offer.discountPercent || '0',

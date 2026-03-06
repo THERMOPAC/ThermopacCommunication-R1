@@ -3,7 +3,6 @@ import { Response } from 'express';
 import { PDFDocument as PDFLibDocument } from 'pdf-lib';
 import * as fs from 'fs';
 import * as path from 'path';
-import OpenAI from 'openai';
 
 interface OfferPdfData {
   offerNumber: string;
@@ -14,7 +13,6 @@ interface OfferPdfData {
   customerAddress: string;
   contactPerson: string;
   subject: string;
-  language: string;
   currency: string;
   subtotal: string;
   discountPercent: string;
@@ -40,41 +38,7 @@ interface OfferPdfData {
   }>;
 }
 
-interface TranslatedStrings {
-  quotation: string;
-  quotationNo: string;
-  date: string;
-  validUntil: string;
-  to: string;
-  attn: string;
-  email: string;
-  sub: string;
-  dear: string;
-  dearSirMadam: string;
-  introText: string;
-  forThermopac: string;
-  turnkeyDivision: string;
-  marketingManager: string;
-  priceSchedule: string;
-  sl: string;
-  itemDescription: string;
-  price: string;
-  qty: string;
-  amount: string;
-  subtotal: string;
-  discount: string;
-  tax: string;
-  total: string;
-  termsOfPayment: string;
-  deliveryTerms: string;
-  validityOfOffer: string;
-  validityText: string;
-  remarks: string;
-  termsAndConditions: string;
-  closingLine: string;
-}
-
-const ENGLISH_STRINGS: TranslatedStrings = {
+const ENGLISH_STRINGS = {
   quotation: 'QUOTATION',
   quotationNo: 'Quotation No:',
   date: 'Date:',
@@ -124,7 +88,7 @@ export class OfferPdfGenerator {
   private contentWidth: number;
   private currentY: number = 0;
   private data: OfferPdfData;
-  private strings: TranslatedStrings = ENGLISH_STRINGS;
+  private strings = ENGLISH_STRINGS;
 
   constructor(data: OfferPdfData) {
     this.data = data;
@@ -139,43 +103,6 @@ export class OfferPdfGenerator {
         Subject: data.subject,
       },
     });
-  }
-
-  private async translateStrings(): Promise<void> {
-    const lang = this.data.language || 'English';
-    if (lang === 'English') return;
-
-    try {
-      const openai = new OpenAI();
-      const keysToTranslate: Record<string, string> = {};
-      for (const [key, value] of Object.entries(ENGLISH_STRINGS)) {
-        keysToTranslate[key] = value;
-      }
-
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a professional translator. Translate all the provided English strings to ${lang}. Keep company names like "THERMOPAC" unchanged. Keep placeholder tokens like {date} unchanged. Return a valid JSON object with the same keys and translated values. Do not add any explanation.`
-          },
-          {
-            role: 'user',
-            content: JSON.stringify(keysToTranslate)
-          }
-        ],
-        temperature: 0.2,
-        response_format: { type: 'json_object' },
-      });
-
-      const content = response.choices[0]?.message?.content;
-      if (content) {
-        const translated = JSON.parse(content);
-        this.strings = { ...ENGLISH_STRINGS, ...translated };
-      }
-    } catch (err) {
-      console.error('Translation failed, using English:', err);
-    }
   }
 
   private formatNumber(val: string | number): string {
@@ -763,8 +690,6 @@ export class OfferPdfGenerator {
   }
 
   public async generate(res: Response): Promise<void> {
-    await this.translateStrings();
-
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
@@ -793,7 +718,6 @@ export class OfferPdfGenerator {
   }
 
   public async generateWithTemplate(res: Response, templatePdfPath: string): Promise<void> {
-    await this.translateStrings();
     try {
       const templateBytes = fs.readFileSync(templatePdfPath);
       const templateDoc = await PDFLibDocument.load(templateBytes);
