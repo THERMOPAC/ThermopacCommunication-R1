@@ -855,14 +855,14 @@ export function OffersContent() {
                             const hasChildren = !isSubItem && (watchItems || []).some(wi => wi.isSubItem && wi.parentItemIndex === index);
                             return (
                               <TableRow key={field.id} className={isSubItem ? "bg-muted/30" : ""}>
-                                <TableCell className="text-muted-foreground px-1 py-1">
+                                <TableCell className="text-muted-foreground px-1 py-0.5">
                                   {isSubItem ? (
                                     <span className="text-muted-foreground ml-1">└</span>
                                   ) : (
                                     index + 1 - (watchItems || []).slice(0, index).filter(wi => wi.isSubItem).length
                                   )}
                                 </TableCell>
-                                <TableCell className="px-1 py-1">
+                                <TableCell className="px-1 py-0.5">
                                   <Input
                                     value={item?.description || ""}
                                     onChange={(e) => form.setValue(`items.${index}.description`, e.target.value, { shouldDirty: true })}
@@ -883,39 +883,39 @@ export function OffersContent() {
                                     )}
                                   </div>
                                 </TableCell>
-                                <TableCell className="px-1 py-1">
+                                <TableCell className="px-1 py-0.5">
                                   <select
                                     {...form.register(`items.${index}.unit`)}
-                                    className="h-7 w-full text-sm border rounded px-1"
+                                    className="h-7 w-full text-xs border rounded px-1 py-0"
                                   >
                                     {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
                                   </select>
                                 </TableCell>
-                                <TableCell className="px-1 py-1">
+                                <TableCell className="px-1 py-0.5">
                                   <Input
                                     value={item?.quantity || ""}
                                     onChange={(e) => form.setValue(`items.${index}.quantity`, e.target.value, { shouldDirty: true })}
-                                    className="h-7 text-sm text-right" type="number" step="0.001"
+                                    className="h-7 text-xs text-right px-1 py-0" type="number" step="0.001"
                                   />
                                 </TableCell>
-                                <TableCell className="px-1 py-1">
+                                <TableCell className="px-1 py-0.5">
                                   <Input
                                     value={item?.unitPrice || ""}
                                     onChange={(e) => form.setValue(`items.${index}.unitPrice`, e.target.value, { shouldDirty: true })}
-                                    className="h-7 text-sm text-right" type="number" step="0.01"
+                                    className="h-7 text-xs text-right px-1 py-0" type="number" step="0.01"
                                   />
                                 </TableCell>
-                                <TableCell className="px-1 py-1">
+                                <TableCell className="px-1 py-0.5">
                                   <Input
                                     value={item?.discountPercent || ""}
                                     onChange={(e) => form.setValue(`items.${index}.discountPercent`, e.target.value, { shouldDirty: true })}
-                                    className="h-7 text-sm text-right" type="number" step="0.01"
+                                    className="h-7 text-xs text-right px-1 py-0" type="number" step="0.01"
                                   />
                                 </TableCell>
-                                <TableCell className={`text-right font-medium text-sm px-1 py-1 ${isSubItem ? "text-muted-foreground" : ""}`}>
+                                <TableCell className={`text-right font-medium text-xs px-1 py-0.5 ${isSubItem ? "text-muted-foreground" : ""}`}>
                                   {lineTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </TableCell>
-                                <TableCell className="px-1 py-1">
+                                <TableCell className="px-1 py-0.5">
                                   <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemoveItem(index)}>
                                     {isSubItem ? <X className="h-3 w-3" /> : <Trash2 className="h-3 w-3" />}
                                   </Button>
