@@ -591,7 +591,7 @@ export class OfferPdfGenerator {
         'THERMOPAC | L 4, 405 The Summit Business Bay, Vile Parle (East), W E Highway, Mumbai India 400 057',
         this.margin,
         footerY + 5,
-        { width: this.contentWidth, align: 'center' }
+        { width: this.contentWidth, align: 'center', lineBreak: false }
       );
 
     this.doc
@@ -599,7 +599,7 @@ export class OfferPdfGenerator {
         'Tel: +91 22 2617 8080 to 84 | Fax: +91 22 2617 8084 | E-Mail: sales@thermopac.in',
         this.margin,
         footerY + 14,
-        { width: this.contentWidth, align: 'center' }
+        { width: this.contentWidth, align: 'center', lineBreak: false }
       );
   }
 
