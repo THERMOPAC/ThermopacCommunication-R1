@@ -61,31 +61,55 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const countries = [
-  "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Argentina", "Armenia", "Australia",
-  "Austria", "Azerbaijan", "Bahrain", "Bangladesh", "Belarus", "Belgium", "Benin", "Bhutan",
-  "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso",
-  "Burundi", "Cambodia", "Cameroon", "Canada", "Central African Republic", "Chad", "Chile",
-  "China", "Colombia", "Comoros", "Congo", "Costa Rica", "Croatia", "Cuba", "Cyprus",
-  "Czech Republic", "Denmark", "Djibouti", "Dominican Republic", "Ecuador", "Egypt",
-  "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia", "Fiji",
-  "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Guatemala",
-  "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras", "Hungary", "Iceland", "India",
-  "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Ivory Coast", "Jamaica", "Japan",
-  "Jordan", "Kazakhstan", "Kenya", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon",
-  "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Madagascar",
-  "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Mauritania", "Mauritius", "Mexico",
-  "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar", "Namibia",
-  "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea",
-  "North Macedonia", "Norway", "Oman", "Pakistan", "Palestine", "Panama", "Papua New Guinea",
-  "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia",
-  "Rwanda", "Saudi Arabia", "Senegal", "Serbia", "Sierra Leone", "Singapore", "Slovakia",
-  "Slovenia", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka",
-  "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Taiwan", "Tajikistan", "Tanzania",
-  "Thailand", "Togo", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Uganda",
-  "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Uruguay", "Uzbekistan",
-  "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"
-];
+const countryToContinent: Record<string, string> = {
+  "Afghanistan": "Asia", "Albania": "Europe", "Algeria": "Africa", "Andorra": "Europe",
+  "Angola": "Africa", "Argentina": "South America", "Armenia": "Asia", "Australia": "Oceania",
+  "Austria": "Europe", "Azerbaijan": "Asia", "Bahrain": "Asia", "Bangladesh": "Asia",
+  "Belarus": "Europe", "Belgium": "Europe", "Benin": "Africa", "Bhutan": "Asia",
+  "Bolivia": "South America", "Bosnia and Herzegovina": "Europe", "Botswana": "Africa",
+  "Brazil": "South America", "Brunei": "Asia", "Bulgaria": "Europe", "Burkina Faso": "Africa",
+  "Burundi": "Africa", "Cambodia": "Asia", "Cameroon": "Africa", "Canada": "North America",
+  "Central African Republic": "Africa", "Chad": "Africa", "Chile": "South America",
+  "China": "Asia", "Colombia": "South America", "Comoros": "Africa", "Congo": "Africa",
+  "Costa Rica": "North America", "Croatia": "Europe", "Cuba": "North America", "Cyprus": "Europe",
+  "Czech Republic": "Europe", "Denmark": "Europe", "Djibouti": "Africa",
+  "Dominican Republic": "North America", "Ecuador": "South America", "Egypt": "Africa",
+  "El Salvador": "North America", "Equatorial Guinea": "Africa", "Eritrea": "Africa",
+  "Estonia": "Europe", "Eswatini": "Africa", "Ethiopia": "Africa", "Fiji": "Oceania",
+  "Finland": "Europe", "France": "Europe", "Gabon": "Africa", "Gambia": "Africa",
+  "Georgia": "Asia", "Germany": "Europe", "Ghana": "Africa", "Greece": "Europe",
+  "Guatemala": "North America", "Guinea": "Africa", "Guinea-Bissau": "Africa",
+  "Guyana": "South America", "Haiti": "North America", "Honduras": "North America",
+  "Hungary": "Europe", "Iceland": "Europe", "India": "Asia", "Indonesia": "Asia",
+  "Iran": "Asia", "Iraq": "Asia", "Ireland": "Europe", "Israel": "Asia", "Italy": "Europe",
+  "Ivory Coast": "Africa", "Jamaica": "North America", "Japan": "Asia", "Jordan": "Asia",
+  "Kazakhstan": "Asia", "Kenya": "Africa", "Kuwait": "Asia", "Kyrgyzstan": "Asia",
+  "Laos": "Asia", "Latvia": "Europe", "Lebanon": "Asia", "Lesotho": "Africa",
+  "Liberia": "Africa", "Libya": "Africa", "Liechtenstein": "Europe", "Lithuania": "Europe",
+  "Luxembourg": "Europe", "Madagascar": "Africa", "Malawi": "Africa", "Malaysia": "Asia",
+  "Maldives": "Asia", "Mali": "Africa", "Malta": "Europe", "Mauritania": "Africa",
+  "Mauritius": "Africa", "Mexico": "North America", "Moldova": "Europe", "Monaco": "Europe",
+  "Mongolia": "Asia", "Montenegro": "Europe", "Morocco": "Africa", "Mozambique": "Africa",
+  "Myanmar": "Asia", "Namibia": "Africa", "Nepal": "Asia", "Netherlands": "Europe",
+  "New Zealand": "Oceania", "Nicaragua": "North America", "Niger": "Africa", "Nigeria": "Africa",
+  "North Korea": "Asia", "North Macedonia": "Europe", "Norway": "Europe", "Oman": "Asia",
+  "Pakistan": "Asia", "Palestine": "Asia", "Panama": "North America",
+  "Papua New Guinea": "Oceania", "Paraguay": "South America", "Peru": "South America",
+  "Philippines": "Asia", "Poland": "Europe", "Portugal": "Europe", "Qatar": "Asia",
+  "Romania": "Europe", "Russia": "Europe", "Rwanda": "Africa", "Saudi Arabia": "Asia",
+  "Senegal": "Africa", "Serbia": "Europe", "Sierra Leone": "Africa", "Singapore": "Asia",
+  "Slovakia": "Europe", "Slovenia": "Europe", "Somalia": "Africa", "South Africa": "Africa",
+  "South Korea": "Asia", "South Sudan": "Africa", "Spain": "Europe", "Sri Lanka": "Asia",
+  "Sudan": "Africa", "Suriname": "South America", "Sweden": "Europe", "Switzerland": "Europe",
+  "Syria": "Asia", "Taiwan": "Asia", "Tajikistan": "Asia", "Tanzania": "Africa",
+  "Thailand": "Asia", "Togo": "Africa", "Trinidad and Tobago": "North America",
+  "Tunisia": "Africa", "Turkey": "Europe", "Turkmenistan": "Asia", "Uganda": "Africa",
+  "Ukraine": "Europe", "United Arab Emirates": "Asia", "United Kingdom": "Europe",
+  "United States": "North America", "Uruguay": "South America", "Uzbekistan": "Asia",
+  "Venezuela": "South America", "Vietnam": "Asia", "Yemen": "Asia", "Zambia": "Africa",
+  "Zimbabwe": "Africa"
+};
+const countries = Object.keys(countryToContinent).sort();
 
 // Create a schema for customer validation
 const customerSchema = z.object({
@@ -476,40 +500,11 @@ export default function CustomerManagement({ customers }: { customers: Customer[
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="continent"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Continent</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select continent" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Asia">Asia</SelectItem>
-                          <SelectItem value="Africa">Africa</SelectItem>
-                          <SelectItem value="Europe">Europe</SelectItem>
-                          <SelectItem value="North America">North America</SelectItem>
-                          <SelectItem value="South America">South America</SelectItem>
-                          <SelectItem value="Australia">Australia</SelectItem>
-                          <SelectItem value="Antarctica">Antarctica</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
                   name="countryName"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Country</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select onValueChange={(val) => { field.onChange(val); const cont = countryToContinent[val]; if (cont) form.setValue('continent', cont); }} value={field.value || ""}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select country" />
@@ -521,6 +516,19 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="continent"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Continent</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value || ""} readOnly className="bg-muted" />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -666,40 +674,11 @@ export default function CustomerManagement({ customers }: { customers: Customer[
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="continent"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Continent</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select continent" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Asia">Asia</SelectItem>
-                          <SelectItem value="Africa">Africa</SelectItem>
-                          <SelectItem value="Europe">Europe</SelectItem>
-                          <SelectItem value="North America">North America</SelectItem>
-                          <SelectItem value="South America">South America</SelectItem>
-                          <SelectItem value="Australia">Australia</SelectItem>
-                          <SelectItem value="Antarctica">Antarctica</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
                   name="countryName"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Country</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select onValueChange={(val) => { field.onChange(val); const cont = countryToContinent[val]; if (cont) form.setValue('continent', cont); }} value={field.value || ""}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select country" />
@@ -711,6 +690,19 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="continent"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Continent</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value || ""} readOnly className="bg-muted" />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
