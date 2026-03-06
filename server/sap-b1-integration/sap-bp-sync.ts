@@ -86,11 +86,53 @@ class SapBPSyncService {
     return response;
   }
 
+  private countryNameToCode(countryName: string): string | undefined {
+    const map: Record<string, string> = {
+      'Afghanistan': 'AF', 'Albania': 'AL', 'Algeria': 'DZ', 'Angola': 'AO', 'Argentina': 'AR',
+      'Armenia': 'AM', 'Australia': 'AU', 'Austria': 'AT', 'Azerbaijan': 'AZ', 'Bahrain': 'BH',
+      'Bangladesh': 'BD', 'Belarus': 'BY', 'Belgium': 'BE', 'Benin': 'BJ', 'Bolivia': 'BO',
+      'Bosnia and Herzegovina': 'BA', 'Botswana': 'BW', 'Brazil': 'BR', 'Brunei': 'BN',
+      'Bulgaria': 'BG', 'Burkina Faso': 'BF', 'Cameroon': 'CM', 'Canada': 'CA', 'Chad': 'TD',
+      'Chile': 'CL', 'China': 'CN', 'Colombia': 'CO', 'Congo': 'CG', 'Costa Rica': 'CR',
+      'Croatia': 'HR', 'Cuba': 'CU', 'Cyprus': 'CY', 'Czech Republic': 'CZ', 'Czechia': 'CZ',
+      'Denmark': 'DK', 'Ecuador': 'EC', 'Egypt': 'EG', 'El Salvador': 'SV', 'Estonia': 'EE',
+      'Ethiopia': 'ET', 'Finland': 'FI', 'France': 'FR', 'Gabon': 'GA', 'Georgia': 'GE',
+      'Germany': 'DE', 'Ghana': 'GH', 'Greece': 'GR', 'Guatemala': 'GT', 'Guinea': 'GN',
+      'Honduras': 'HN', 'Hong Kong': 'HK', 'Hungary': 'HU', 'Iceland': 'IS', 'India': 'IN',
+      'Indonesia': 'ID', 'Iran': 'IR', 'Iraq': 'IQ', 'Ireland': 'IE', 'Israel': 'IL',
+      'Italy': 'IT', 'Ivory Coast': 'CI', "Cote d'Ivoire": 'CI', 'Jamaica': 'JM', 'Japan': 'JP',
+      'Jordan': 'JO', 'Kazakhstan': 'KZ', 'Kenya': 'KE', 'Kuwait': 'KW', 'Kyrgyzstan': 'KG',
+      'Latvia': 'LV', 'Lebanon': 'LB', 'Libya': 'LY', 'Lithuania': 'LT', 'Luxembourg': 'LU',
+      'Madagascar': 'MG', 'Malawi': 'MW', 'Malaysia': 'MY', 'Mali': 'ML', 'Malta': 'MT',
+      'Mauritania': 'MR', 'Mauritius': 'MU', 'Mexico': 'MX', 'Moldova': 'MD', 'Mongolia': 'MN',
+      'Montenegro': 'ME', 'Morocco': 'MA', 'Mozambique': 'MZ', 'Myanmar': 'MM', 'Namibia': 'NA',
+      'Nepal': 'NP', 'Netherlands': 'NL', 'New Zealand': 'NZ', 'Nicaragua': 'NI', 'Niger': 'NE',
+      'Nigeria': 'NG', 'North Macedonia': 'MK', 'Norway': 'NO', 'Oman': 'OM', 'Pakistan': 'PK',
+      'Palestine': 'PS', 'Panama': 'PA', 'Paraguay': 'PY', 'Peru': 'PE', 'Philippines': 'PH',
+      'Poland': 'PL', 'Portugal': 'PT', 'Qatar': 'QA', 'Romania': 'RO', 'Russia': 'RU',
+      'Rwanda': 'RW', 'Saudi Arabia': 'SA', 'Senegal': 'SN', 'Serbia': 'RS', 'Sierra Leone': 'SL',
+      'Singapore': 'SG', 'Slovakia': 'SK', 'Slovenia': 'SI', 'Somalia': 'SO', 'South Africa': 'ZA',
+      'South Korea': 'KR', 'Spain': 'ES', 'Sri Lanka': 'LK', 'Sudan': 'SD', 'Sweden': 'SE',
+      'Switzerland': 'CH', 'Syria': 'SY', 'Taiwan': 'TW', 'Tanzania': 'TZ', 'Thailand': 'TH',
+      'Togo': 'TG', 'Trinidad and Tobago': 'TT', 'Tunisia': 'TN', 'Turkey': 'TR', 'Turkmenistan': 'TM',
+      'UAE': 'AE', 'United Arab Emirates': 'AE', 'Uganda': 'UG', 'Ukraine': 'UA',
+      'United Kingdom': 'GB', 'UK': 'GB', 'United States': 'US', 'USA': 'US',
+      'Uruguay': 'UY', 'Uzbekistan': 'UZ', 'Venezuela': 'VE', 'Vietnam': 'VN',
+      'Yemen': 'YE', 'Zambia': 'ZM', 'Zimbabwe': 'ZW',
+    };
+    if (!countryName) return undefined;
+    if (countryName.length === 2) return countryName.toUpperCase();
+    return map[countryName] || undefined;
+  }
+
   private mapCustomerToSapBP(customer: any): SapBPData {
     const cardTypeMap: Record<string, string> = {
       'C': 'cCustomer',
       'S': 'cSupplier',
-      'L': 'cLid'
+      'L': 'cLid',
+      'Customer': 'cCustomer',
+      'Supplier': 'cSupplier',
+      'Lead': 'cLid',
     };
 
     return {
@@ -100,7 +142,7 @@ class SapBPSyncService {
       Phone1: customer.phone1 || undefined,
       EmailAddress: customer.email || undefined,
       ContactPerson: customer.contactPerson || undefined,
-      Country: customer.countryName || undefined,
+      Country: this.countryNameToCode(customer.countryName),
       GlblLocNum: customer.glblLocNum || 'NA',
       U_StateSupply: customer.uStateSupply || 'MH',
       U_BP_GST_Type: customer.uBpGstType || 'G',
