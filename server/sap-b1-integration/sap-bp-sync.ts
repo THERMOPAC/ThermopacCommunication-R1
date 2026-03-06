@@ -4,6 +4,8 @@ interface SapBPAddress {
   AddressName: string;
   AddressType: string;
   Street?: string;
+  Block?: string;
+  City?: string;
   Country?: string;
 }
 
@@ -133,6 +135,32 @@ class SapBPSyncService {
     return map[countryName] || undefined;
   }
 
+  private parseAddress(name: string, type: string, fullAddress: string, countryCode?: string): SapBPAddress {
+    const lines = fullAddress.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const addr: SapBPAddress = {
+      AddressName: name,
+      AddressType: type,
+      Country: countryCode,
+    };
+
+    if (lines.length === 1) {
+      addr.Street = lines[0].substring(0, 100);
+    } else if (lines.length === 2) {
+      addr.Street = lines[0].substring(0, 100);
+      addr.City = lines[1].substring(0, 100);
+    } else if (lines.length === 3) {
+      addr.Street = lines[0].substring(0, 100);
+      addr.Block = lines[1].substring(0, 100);
+      addr.City = lines[2].substring(0, 100);
+    } else {
+      addr.Street = lines.slice(0, 2).join(', ').substring(0, 100);
+      addr.Block = lines.slice(2, -1).join(', ').substring(0, 100);
+      addr.City = lines[lines.length - 1].substring(0, 100);
+    }
+
+    return addr;
+  }
+
   private mapCustomerToSapBP(customer: any): SapBPData {
     const cardTypeMap: Record<string, string> = {
       'C': 'cCustomer',
@@ -166,20 +194,10 @@ class SapBPSyncService {
 
     const bpAddresses: SapBPAddress[] = [];
     if (customer.billToAddress) {
-      bpAddresses.push({
-        AddressName: 'Bill To',
-        AddressType: 'bo_BillTo',
-        Street: customer.billToAddress,
-        Country: countryCode,
-      });
+      bpAddresses.push(this.parseAddress('Bill To', 'bo_BillTo', customer.billToAddress, countryCode));
     }
     if (customer.shipToAddress) {
-      bpAddresses.push({
-        AddressName: 'Ship To',
-        AddressType: 'bo_ShipTo',
-        Street: customer.shipToAddress,
-        Country: countryCode,
-      });
+      bpAddresses.push(this.parseAddress('Ship To', 'bo_ShipTo', customer.shipToAddress, countryCode));
     }
     if (bpAddresses.length > 0) {
       result.BPAddresses = bpAddresses;
