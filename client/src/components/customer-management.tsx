@@ -119,7 +119,7 @@ const customerSchema = z.object({
   bpName: z.string().min(1, "BP Name is required").max(100),
   contactPerson: z.string().min(1, "Contact Person is required"),
   email: z.string().email("Invalid email address").min(1, "Email is required"),
-  phone1: z.string().min(1, "Phone is required"),
+  phone1: z.string().min(1, "Cellular is required"),
   billToAddress: z.string().min(1, "Billing Address is required"),
   shipToAddress: z.string().min(1, "Shipping Address is required"),
   cardType: z.string().default("C"),
@@ -382,12 +382,12 @@ export default function CustomerManagement({ customers }: { customers: Customer[
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[90px]">BP Code</TableHead>
-                    <TableHead>BP Name</TableHead>
+                    <TableHead className="w-[75px]">BP Code</TableHead>
+                    <TableHead className="min-w-[250px]">BP Name</TableHead>
                     <TableHead className="w-[80px]">Card Type</TableHead>
                     <TableHead>Contact Person</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
+                    <TableHead>Cellular</TableHead>
                     <TableHead>Country</TableHead>
                     <TableHead>Continent</TableHead>
                     <TableHead className="w-[80px]">Actions</TableHead>
@@ -448,7 +448,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             <form onSubmit={form.handleSubmit(onSubmitCreate)} className="space-y-5">
               <div className="rounded-lg border p-4 space-y-4">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Business Partner Info</h4>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-[1fr_3fr] gap-3">
                   <FormField
                     control={form.control}
                     name="bpCode"
@@ -456,7 +456,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <FormItem>
                         <FormLabel>BP Code *</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., C00001" {...field} />
+                          <Input placeholder="C00001" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -553,9 +553,9 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                     name="phone1"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Phone *</FormLabel>
+                        <FormLabel>Cellular *</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., +91 22 2617 8080" {...field} />
+                          <Input placeholder="e.g., +91 98211 37879" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -671,7 +671,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             <form onSubmit={form.handleSubmit(onSubmitEdit)} className="space-y-5">
               <div className="rounded-lg border p-4 space-y-4">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Business Partner Info</h4>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-[1fr_3fr] gap-3">
                   <FormField
                     control={form.control}
                     name="bpCode"
@@ -679,7 +679,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <FormItem>
                         <FormLabel>BP Code *</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., C00001" {...field} readOnly={true} disabled={true} className="opacity-70 cursor-not-allowed" />
+                          <Input placeholder="C00001" {...field} readOnly={true} disabled={true} className="opacity-70 cursor-not-allowed" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -776,9 +776,9 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                     name="phone1"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Phone *</FormLabel>
+                        <FormLabel>Cellular *</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., +91 22 2617 8080" {...field} />
+                          <Input placeholder="e.g., +91 98211 37879" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

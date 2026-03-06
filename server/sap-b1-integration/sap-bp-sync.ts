@@ -4,7 +4,7 @@ interface SapBPData {
   CardCode: string;
   CardName: string;
   CardType: string;
-  Phone1?: string;
+  Cellular?: string;
   EmailAddress?: string;
   ContactPerson?: string;
   BillToAddress?: string;
@@ -139,7 +139,7 @@ class SapBPSyncService {
       CardCode: customer.bpCode,
       CardName: customer.bpName,
       CardType: cardTypeMap[customer.cardType] || 'cCustomer',
-      Phone1: customer.phone1 || undefined,
+      Cellular: customer.phone1 || undefined,
       EmailAddress: customer.email || undefined,
       ContactPerson: customer.contactPerson || undefined,
       Country: this.countryNameToCode(customer.countryName),
