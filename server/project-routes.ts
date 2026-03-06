@@ -1393,7 +1393,20 @@ export function setupProjectRoutes(app: express.Express) {
       }
       
       const customer = await storage.createCustomer(customerData);
-      res.status(201).json(customer);
+      
+      try {
+        const { sapBPSyncService } = await import('./sap-b1-integration/sap-bp-sync');
+        const sapResult = await sapBPSyncService.createBusinessPartner(customer);
+        if (sapResult.success) {
+          console.log(`✅ Customer ${customer.bpCode} synced to SAP B1`);
+        } else {
+          console.warn(`⚠️ Customer ${customer.bpCode} created locally but SAP sync failed: ${sapResult.error}`);
+        }
+        res.status(201).json({ ...customer, sapSyncStatus: sapResult.success ? 'synced' : 'failed', sapSyncError: sapResult.error });
+      } catch (sapError: any) {
+        console.warn(`⚠️ SAP sync skipped for ${customer.bpCode}: ${sapError.message}`);
+        res.status(201).json({ ...customer, sapSyncStatus: 'skipped', sapSyncError: sapError.message });
+      }
     } catch (error) {
       console.error('Error creating customer:', error);
       res.status(400).json({ error: 'Failed to create customer', details: error.message });
@@ -1431,7 +1444,20 @@ export function setupProjectRoutes(app: express.Express) {
       };
       
       const updatedCustomer = await storage.updateCustomer(customerId, updateData);
-      res.json(updatedCustomer);
+      
+      try {
+        const { sapBPSyncService } = await import('./sap-b1-integration/sap-bp-sync');
+        const sapResult = await sapBPSyncService.updateBusinessPartner(updatedCustomer);
+        if (sapResult.success) {
+          console.log(`✅ Customer ${updatedCustomer.bpCode} updated in SAP B1`);
+        } else {
+          console.warn(`⚠️ Customer ${updatedCustomer.bpCode} updated locally but SAP sync failed: ${sapResult.error}`);
+        }
+        res.json({ ...updatedCustomer, sapSyncStatus: sapResult.success ? 'synced' : 'failed', sapSyncError: sapResult.error });
+      } catch (sapError: any) {
+        console.warn(`⚠️ SAP sync skipped for ${updatedCustomer.bpCode}: ${sapError.message}`);
+        res.json({ ...updatedCustomer, sapSyncStatus: 'skipped', sapSyncError: sapError.message });
+      }
     } catch (error) {
       console.error(`Error updating customer ${req.params.id}:`, error);
       res.status(400).json({ error: 'Failed to update customer', details: error.message });

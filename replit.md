@@ -33,7 +33,7 @@ All file metadata must be retrieved from Google Cloud Storage (GCS) only. Upload
 - **Business Intelligence**: An LLM Prompt Engine for analytics across modules.
 - **Travel Management**: Business trip and visa management.
 - **Design Management**: Drawing Registry for version control, CAD file management, review/approval workflows, and drawing transmittals.
-- **SAP B1 Integration**: Full integration for Purchase Module, including dashboard, quotations, orders, goods receipt, and invoices, with real-time sync, historical data access, and robust error handling.
+- **SAP B1 Integration**: Full integration for Purchase Module, including dashboard, quotations, orders, goods receipt, and invoices, with real-time sync, historical data access, and robust error handling. Customer/Business Partner sync: creating or updating a customer automatically pushes the Business Partner to SAP B1 Service Layer (`/b1s/v1/BusinessPartners`) using auto-login with env credentials. Sync service at `server/sap-b1-integration/sap-bp-sync.ts`.
 - **Email Management System**: AI-powered Gmail integration with intelligent priority classification (P0-P3), hybrid approach combining hard rules and GPT-4o-mini analysis. Features include mandatory P0 assignment for Income Tax/GST communications and resignation emails, parallel email processing (5 concurrent workers), real-time sync progress tracking, full HTML email display, AI-powered analysis, multi-style reply generation, compose functionality, automatic signature population, and bulk email management actions. System syncs only unread emails from Gmail for optimal performance.
 - **API Security**: Measures against SQL injection, XSS, proper authentication middleware, and secure credential management.
 

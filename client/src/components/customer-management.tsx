@@ -169,11 +169,17 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       // Set parseJson to true so apiRequest will handle the JSON parsing
       return await apiRequest("POST", "/api/customers", data);
     },
-    onSuccess: () => {
+    onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      const sapStatus = response?.sapSyncStatus;
       toast({
         title: "Customer created",
-        description: "The customer has been created successfully.",
+        description: sapStatus === 'synced' 
+          ? "Customer created and synced to SAP B1 successfully." 
+          : sapStatus === 'failed'
+          ? `Customer created locally. SAP sync failed: ${response?.sapSyncError || 'Unknown error'}`
+          : "Customer created locally. SAP sync was skipped.",
+        variant: sapStatus === 'failed' ? "destructive" : "default",
       });
       setIsCreateDialogOpen(false);
       form.reset();
@@ -193,11 +199,17 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       // Set parseJson to true so apiRequest will handle the JSON parsing
       return await apiRequest("PUT", `/api/customers/${id}`, data);
     },
-    onSuccess: () => {
+    onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      const sapStatus = response?.sapSyncStatus;
       toast({
         title: "Customer updated",
-        description: "The customer has been updated successfully.",
+        description: sapStatus === 'synced' 
+          ? "Customer updated and synced to SAP B1 successfully." 
+          : sapStatus === 'failed'
+          ? `Customer updated locally. SAP sync failed: ${response?.sapSyncError || 'Unknown error'}`
+          : "Customer updated locally. SAP sync was skipped.",
+        variant: sapStatus === 'failed' ? "destructive" : "default",
       });
       setIsEditDialogOpen(false);
       setEditingCustomer(null);
