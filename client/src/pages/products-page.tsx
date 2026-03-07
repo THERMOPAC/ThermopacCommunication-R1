@@ -70,6 +70,10 @@ export default function ProductsPage() {
   const [descriptionFilter, setDescriptionFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [familyFilter, setFamilyFilter] = useState<string>("all");
+  const [prop1Filter, setProp1Filter] = useState<string>("all");
+  const [prop2Filter, setProp2Filter] = useState<string>("all");
+  const [prop3Filter, setProp3Filter] = useState<string>("all");
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [isAttributeDialogOpen, setIsAttributeDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -137,7 +141,11 @@ export default function ProductsPage() {
       const matchesStatus = statusFilter === "all" ||
         (statusFilter === "active" && p.isActive) ||
         (statusFilter === "inactive" && !p.isActive);
-      return matchesSearch && matchesCode && matchesDescription && matchesCategory && matchesStatus;
+      const matchesFamily = familyFilter === "all" || p.itemFamily === familyFilter;
+      const matchesProp1 = prop1Filter === "all" || p.itemProperty1 === prop1Filter;
+      const matchesProp2 = prop2Filter === "all" || p.itemProperty2 === prop2Filter;
+      const matchesProp3 = prop3Filter === "all" || p.itemProperty3 === prop3Filter;
+      return matchesSearch && matchesCode && matchesDescription && matchesCategory && matchesStatus && matchesFamily && matchesProp1 && matchesProp2 && matchesProp3;
     }).sort((a, b) => {
       const familyCompare = a.itemFamily.localeCompare(b.itemFamily);
       if (familyCompare !== 0) return familyCompare;
@@ -147,7 +155,7 @@ export default function ProductsPage() {
       if (prop2Compare !== 0) return prop2Compare;
       return a.itemProperty3.localeCompare(b.itemProperty3);
     });
-  }, [products, childProductsMap, searchQuery, codeFilter, descriptionFilter, categoryFilter, statusFilter]);
+  }, [products, childProductsMap, searchQuery, codeFilter, descriptionFilter, categoryFilter, statusFilter, familyFilter, prop1Filter, prop2Filter, prop3Filter]);
 
   const toggleExpand = (productId: number) => {
     setExpandedProducts((prev) => {
@@ -589,6 +597,75 @@ export default function ProductsPage() {
                   <Plus className="mr-2 h-4 w-4" /> Add Product
                 </Button>
               </div>
+              <div className="flex gap-2 flex-wrap items-center">
+                <Select value={familyFilter} onValueChange={(val) => { setFamilyFilter(val); setProp1Filter("all"); setProp2Filter("all"); setProp3Filter("all"); }}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Item Family" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Families</SelectItem>
+                    {familyOptions.sort((a, b) => a.label.localeCompare(b.label)).map((opt) => (
+                      <SelectItem key={opt.id} value={opt.code}>{opt.code} - {opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={prop1Filter} onValueChange={(val) => { setProp1Filter(val); setProp2Filter("all"); setProp3Filter("all"); }}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Property 1" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Property 1</SelectItem>
+                    {allProperty1Options
+                      .filter((o) => familyFilter === "all" || familyOptions.find(f => f.code === familyFilter)?.id === o.parentId)
+                      .sort((a, b) => a.label.localeCompare(b.label))
+                      .map((opt) => (
+                        <SelectItem key={opt.id} value={opt.code}>{opt.code} - {opt.label}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <Select value={prop2Filter} onValueChange={(val) => { setProp2Filter(val); setProp3Filter("all"); }}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Property 2" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Property 2</SelectItem>
+                    {allProperty2Options
+                      .filter((o) => {
+                        if (prop1Filter !== "all") return allProperty1Options.find(p => p.code === prop1Filter)?.id === o.parentId;
+                        if (familyFilter !== "all") {
+                          const familyId = familyOptions.find(f => f.code === familyFilter)?.id;
+                          const prop1Ids = allProperty1Options.filter(p => p.parentId === familyId).map(p => p.id);
+                          return o.parentId && prop1Ids.includes(o.parentId);
+                        }
+                        return true;
+                      })
+                      .sort((a, b) => a.label.localeCompare(b.label))
+                      .map((opt) => (
+                        <SelectItem key={opt.id} value={opt.code}>{opt.code} - {opt.label}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <Select value={prop3Filter} onValueChange={setProp3Filter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Property 3" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Property 3</SelectItem>
+                    {[...new Set(products
+                      .filter((p) => {
+                        if (familyFilter !== "all" && p.itemFamily !== familyFilter) return false;
+                        if (prop1Filter !== "all" && p.itemProperty1 !== prop1Filter) return false;
+                        if (prop2Filter !== "all" && p.itemProperty2 !== prop2Filter) return false;
+                        return true;
+                      })
+                      .map(p => p.itemProperty3))]
+                      .sort((a, b) => a.localeCompare(b))
+                      .map((val) => (
+                        <SelectItem key={val} value={val}>{val}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <Card>
@@ -604,7 +681,7 @@ export default function ProductsPage() {
                     <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
                     <p className="text-lg font-medium">No products found</p>
                     <p className="text-sm">
-                      {codeFilter || descriptionFilter || categoryFilter !== "all" || statusFilter !== "all"
+                      {codeFilter || descriptionFilter || categoryFilter !== "all" || statusFilter !== "all" || familyFilter !== "all" || prop1Filter !== "all" || prop2Filter !== "all" || prop3Filter !== "all"
                         ? "Try adjusting your search or filters"
                         : "Get started by adding your first product"}
                     </p>
