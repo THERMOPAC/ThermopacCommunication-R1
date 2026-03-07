@@ -76,6 +76,7 @@ export default function ProductsPage() {
   const [editingAttribute, setEditingAttribute] = useState<ProductAttributeOption | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [activeAttributeTab, setActiveAttributeTab] = useState("item_family");
+  const [attrFamilyFilter, setAttrFamilyFilter] = useState<string>("all");
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
   const [isSubProductPickerOpen, setIsSubProductPickerOpen] = useState(false);
   const [linkingParentProduct, setLinkingParentProduct] = useState<Product | null>(null);
@@ -437,6 +438,7 @@ export default function ProductsPage() {
   const handleOpenCreateAttribute = () => {
     setEditingAttribute(null);
     attributeForm.reset({ attributeType: activeAttributeTab, code: "", label: "", sortOrder: 0, isActive: true });
+    setAttrFamilyFilter("all");
     setIsAttributeDialogOpen(true);
   };
 
@@ -1169,7 +1171,7 @@ export default function ProductsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Attribute Type</FormLabel>
-                      <Select value={field.value} onValueChange={(val) => { field.onChange(val); attributeForm.setValue('parentId', null); }} disabled={!!editingAttribute}>
+                      <Select value={field.value} onValueChange={(val) => { field.onChange(val); attributeForm.setValue('parentId', null); setAttrFamilyFilter("all"); }} disabled={!!editingAttribute}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue />
@@ -1217,42 +1219,67 @@ export default function ProductsPage() {
                 )}
 
                 {attributeForm.watch("attributeType") === "property_2" && (
-                  <FormField
-                    control={attributeForm.control}
-                    name="parentId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Property 1 <span className="text-destructive">*</span></FormLabel>
-                        <Select
-                          value={field.value?.toString() ?? ""}
-                          onValueChange={(val) => field.onChange(parseInt(val))}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Property 1" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {allProperty1Options.sort((a, b) => {
-                              const parentA = familyOptions.find(f => f.id === a.parentId);
-                              const parentB = familyOptions.find(f => f.id === b.parentId);
-                              const familyCompare = (parentA?.label ?? "").localeCompare(parentB?.label ?? "");
-                              if (familyCompare !== 0) return familyCompare;
-                              return a.label.localeCompare(b.label);
-                            }).map((opt) => {
-                              const parentFamily = familyOptions.find(f => f.id === opt.parentId);
-                              return (
-                                <SelectItem key={opt.id} value={opt.id.toString()}>
-                                  {parentFamily ? `${parentFamily.code}-` : ""}{opt.code} - {opt.label}{parentFamily ? ` (${parentFamily.label})` : ""}
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <>
+                    <FormItem>
+                      <FormLabel>Filter by Item Family</FormLabel>
+                      <Select
+                        value={attrFamilyFilter}
+                        onValueChange={(val) => { setAttrFamilyFilter(val); attributeForm.setValue('parentId', null); }}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="All Families" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="all">All Families</SelectItem>
+                          {familyOptions.sort((a, b) => a.label.localeCompare(b.label)).map((opt) => (
+                            <SelectItem key={opt.id} value={opt.id.toString()}>
+                              {opt.code} - {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                    <FormField
+                      control={attributeForm.control}
+                      name="parentId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Property 1 <span className="text-destructive">*</span></FormLabel>
+                          <Select
+                            value={field.value?.toString() ?? ""}
+                            onValueChange={(val) => field.onChange(parseInt(val))}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select Property 1" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {allProperty1Options
+                                .filter((o) => attrFamilyFilter === "all" || o.parentId?.toString() === attrFamilyFilter)
+                                .sort((a, b) => {
+                                  const parentA = familyOptions.find(f => f.id === a.parentId);
+                                  const parentB = familyOptions.find(f => f.id === b.parentId);
+                                  const familyCompare = (parentA?.label ?? "").localeCompare(parentB?.label ?? "");
+                                  if (familyCompare !== 0) return familyCompare;
+                                  return a.label.localeCompare(b.label);
+                                }).map((opt) => {
+                                  const parentFamily = familyOptions.find(f => f.id === opt.parentId);
+                                  return (
+                                    <SelectItem key={opt.id} value={opt.id.toString()}>
+                                      {parentFamily ? `${parentFamily.code}-` : ""}{opt.code} - {opt.label}{parentFamily ? ` (${parentFamily.label})` : ""}
+                                    </SelectItem>
+                                  );
+                                })}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
                 )}
 
                 <FormField
