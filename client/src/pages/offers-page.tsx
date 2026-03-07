@@ -1060,7 +1060,7 @@ export function OffersContent() {
           </DialogContent>
         </Dialog>
         <Dialog open={pdfDownloadOfferId !== null} onOpenChange={(open) => { if (!open) setPdfDownloadOfferId(null); }}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Download PDF</DialogTitle>
               <DialogDescription>How would you like to show the pricing?</DialogDescription>
