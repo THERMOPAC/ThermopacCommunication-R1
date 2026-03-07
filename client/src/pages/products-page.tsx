@@ -88,6 +88,7 @@ export default function ProductsPage() {
   const [linkingParentProduct, setLinkingParentProduct] = useState<Product | null>(null);
   const [subProductSearch, setSubProductSearch] = useState("");
   const [subProductProp3Filter, setSubProductProp3Filter] = useState<string>("all");
+  const [recentlyLinkedIds, setRecentlyLinkedIds] = useState<Set<number>>(new Set());
 
   const { data: products = [], isLoading: isLoadingProducts } = useQuery<Product[]>({
     queryKey: ['/api/sales-marketing/products'],
@@ -334,11 +335,9 @@ export default function ProductsPage() {
     mutationFn: async ({ parentId, childProductId, quantity }: { parentId: number; childProductId: number; quantity?: number }) => {
       return apiRequest('POST', `/api/sales-marketing/products/${parentId}/children`, { childProductId, quantity: quantity || 1 });
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       toast({ title: "Sub-product linked", description: "Sub-product has been added successfully" });
-      setIsSubProductPickerOpen(false);
-      setLinkingParentProduct(null);
-      setSubProductSearch("");
+      setRecentlyLinkedIds(prev => new Set(prev).add(variables.childProductId));
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/product-children'] });
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/products'] });
     },
@@ -1499,7 +1498,7 @@ export default function ProductsPage() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={isSubProductPickerOpen} onOpenChange={(open) => { if (!open) { setIsSubProductPickerOpen(false); setLinkingParentProduct(null); setSubProductSearch(""); setSubProductProp3Filter("all"); } }}>
+        <Dialog open={isSubProductPickerOpen} onOpenChange={(open) => { if (!open) { setIsSubProductPickerOpen(false); setLinkingParentProduct(null); setSubProductSearch(""); setSubProductProp3Filter("all"); setRecentlyLinkedIds(new Set()); } }}>
           <DialogContent className="max-w-5xl max-h-[80vh]">
             <DialogHeader>
               <DialogTitle>Link Sub-Product</DialogTitle>
@@ -1545,6 +1544,7 @@ export default function ProductsPage() {
                   const availableProducts = products.filter(p => {
                     if (linkingParentProduct && p.id === linkingParentProduct.id) return false;
                     if (existingChildIds.includes(p.id)) return false;
+                    if (recentlyLinkedIds.has(p.id)) return false;
                     if (linkingParentProduct && p.itemFamily !== linkingParentProduct.itemFamily) return false;
                     if (subProductProp3Filter !== "all" && p.itemProperty3 !== subProductProp3Filter) return false;
                     if (!subProductSearch) return true;
