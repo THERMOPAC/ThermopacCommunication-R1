@@ -77,6 +77,8 @@ export default function ProductsPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [activeAttributeTab, setActiveAttributeTab] = useState("item_family");
   const [attrFamilyFilter, setAttrFamilyFilter] = useState<string>("all");
+  const [tableFamilyFilter, setTableFamilyFilter] = useState<string>("all");
+  const [tableProp1Filter, setTableProp1Filter] = useState<string>("all");
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
   const [isSubProductPickerOpen, setIsSubProductPickerOpen] = useState(false);
   const [linkingParentProduct, setLinkingParentProduct] = useState<Product | null>(null);
@@ -497,8 +499,23 @@ export default function ProductsPage() {
   };
 
   const currentAttributeOptions = useMemo(() => {
-    return attributeOptions.filter((o) => o.attributeType === activeAttributeTab);
-  }, [attributeOptions, activeAttributeTab]);
+    let filtered = attributeOptions.filter((o) => o.attributeType === activeAttributeTab);
+    if (activeAttributeTab === "property_1" && tableFamilyFilter !== "all") {
+      filtered = filtered.filter((o) => o.parentId?.toString() === tableFamilyFilter);
+    }
+    if (activeAttributeTab === "property_2") {
+      if (tableFamilyFilter !== "all") {
+        const prop1IdsForFamily = allProperty1Options
+          .filter((p) => p.parentId?.toString() === tableFamilyFilter)
+          .map((p) => p.id);
+        filtered = filtered.filter((o) => o.parentId && prop1IdsForFamily.includes(o.parentId));
+      }
+      if (tableProp1Filter !== "all") {
+        filtered = filtered.filter((o) => o.parentId?.toString() === tableProp1Filter);
+      }
+    }
+    return filtered;
+  }, [attributeOptions, activeAttributeTab, tableFamilyFilter, tableProp1Filter, allProperty1Options]);
 
   const attributeTypeLabels: Record<string, string> = {
     item_family: "Item Family",
@@ -757,12 +774,52 @@ export default function ProductsPage() {
                 </Button>
               </CardHeader>
               <CardContent>
-                <Tabs value={activeAttributeTab} onValueChange={setActiveAttributeTab}>
+                <Tabs value={activeAttributeTab} onValueChange={(val) => { setActiveAttributeTab(val); setTableFamilyFilter("all"); setTableProp1Filter("all"); }}>
                   <TabsList className="mb-4">
                     <TabsTrigger value="item_family">Item Family</TabsTrigger>
                     <TabsTrigger value="property_1">Property 1</TabsTrigger>
                     <TabsTrigger value="property_2">Property 2</TabsTrigger>
                   </TabsList>
+
+                  {(activeAttributeTab === "property_1" || activeAttributeTab === "property_2") && (
+                    <div className="flex gap-3 mb-4">
+                      <div className="w-64">
+                        <Select value={tableFamilyFilter} onValueChange={(val) => { setTableFamilyFilter(val); setTableProp1Filter("all"); }}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Filter by Item Family" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Item Families</SelectItem>
+                            {familyOptions.sort((a, b) => a.label.localeCompare(b.label)).map((opt) => (
+                              <SelectItem key={opt.id} value={opt.id.toString()}>
+                                {opt.code} - {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {activeAttributeTab === "property_2" && (
+                        <div className="w-64">
+                          <Select value={tableProp1Filter} onValueChange={setTableProp1Filter}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Filter by Property 1" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Property 1</SelectItem>
+                              {allProperty1Options
+                                .filter((o) => tableFamilyFilter === "all" || o.parentId?.toString() === tableFamilyFilter)
+                                .sort((a, b) => a.label.localeCompare(b.label))
+                                .map((opt) => (
+                                  <SelectItem key={opt.id} value={opt.id.toString()}>
+                                    {opt.code} - {opt.label}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {["item_family", "property_1", "property_2"].map((tabVal) => (
                     <TabsContent key={tabVal} value={tabVal}>
