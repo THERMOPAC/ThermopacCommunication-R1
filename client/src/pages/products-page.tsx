@@ -87,6 +87,7 @@ export default function ProductsPage() {
   const [isSubProductPickerOpen, setIsSubProductPickerOpen] = useState(false);
   const [linkingParentProduct, setLinkingParentProduct] = useState<Product | null>(null);
   const [subProductSearch, setSubProductSearch] = useState("");
+  const [subProductProp3Filter, setSubProductProp3Filter] = useState<string>("all");
 
   const { data: products = [], isLoading: isLoadingProducts } = useQuery<Product[]>({
     queryKey: ['/api/sales-marketing/products'],
@@ -1498,7 +1499,7 @@ export default function ProductsPage() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={isSubProductPickerOpen} onOpenChange={(open) => { if (!open) { setIsSubProductPickerOpen(false); setLinkingParentProduct(null); setSubProductSearch(""); } }}>
+        <Dialog open={isSubProductPickerOpen} onOpenChange={(open) => { if (!open) { setIsSubProductPickerOpen(false); setLinkingParentProduct(null); setSubProductSearch(""); setSubProductProp3Filter("all"); } }}>
           <DialogContent className="max-w-5xl max-h-[80vh]">
             <DialogHeader>
               <DialogTitle>Link Sub-Product</DialogTitle>
@@ -1507,14 +1508,34 @@ export default function ProductsPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search products by code or description..."
-                  value={subProductSearch}
-                  onChange={(e) => setSubProductSearch(e.target.value)}
-                  className="pl-9"
-                />
+              <div className="flex gap-2 items-center">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search products by code or description..."
+                    value={subProductSearch}
+                    onChange={(e) => setSubProductSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <Select value={subProductProp3Filter} onValueChange={setSubProductProp3Filter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Property 3" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Property 3</SelectItem>
+                    {(() => {
+                      const familyCode = linkingParentProduct?.itemFamily;
+                      const vals = [...new Set(products
+                        .filter(p => !familyCode || p.itemFamily === familyCode)
+                        .map(p => p.itemProperty3))]
+                        .sort((a, b) => a.localeCompare(b));
+                      return vals.map(v => (
+                        <SelectItem key={v} value={v}>{v}</SelectItem>
+                      ));
+                    })()}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="max-h-[400px] overflow-y-auto border rounded-md">
                 {(() => {
@@ -1525,6 +1546,7 @@ export default function ProductsPage() {
                     if (linkingParentProduct && p.id === linkingParentProduct.id) return false;
                     if (existingChildIds.includes(p.id)) return false;
                     if (linkingParentProduct && p.itemFamily !== linkingParentProduct.itemFamily) return false;
+                    if (subProductProp3Filter !== "all" && p.itemProperty3 !== subProductProp3Filter) return false;
                     if (!subProductSearch) return true;
                     return p.productCode.toLowerCase().includes(subProductSearch.toLowerCase()) ||
                       p.description.toLowerCase().includes(subProductSearch.toLowerCase());
