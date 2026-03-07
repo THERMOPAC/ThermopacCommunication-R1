@@ -1235,7 +1235,7 @@ export function setupSalesMarketingRoutes(app: Express) {
       if (!offer) return res.status(404).json({ error: 'Offer not found' });
       const allItems = await storage.getOfferItems(id);
       const priceMode = (req.query.priceMode as string) || 'combined';
-      const items = priceMode === 'combined' ? allItems.filter((i: any) => !i.isSubItem) : allItems;
+      const items = allItems;
 
       if (offer.status === 'Draft') {
         await storage.updateOffer(id, { status: 'Sent' });
@@ -1273,7 +1273,7 @@ export function setupSalesMarketingRoutes(app: Express) {
           hsnSacCode: item.hsnSacCode || '',
           isSubItem: item.isSubItem || false,
         })),
-      });
+      }, { priceMode: priceMode as 'combined' | 'breakup' });
 
       let templatePath = offer.templatePdfPath;
       let templatePageRange: { startPage?: number | null; endPage?: number | null } = {};

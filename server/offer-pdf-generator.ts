@@ -89,9 +89,11 @@ export class OfferPdfGenerator {
   private currentY: number = 0;
   private data: OfferPdfData;
   private strings = ENGLISH_STRINGS;
+  private priceMode: 'combined' | 'breakup' = 'breakup';
 
-  constructor(data: OfferPdfData) {
+  constructor(data: OfferPdfData, options?: { priceMode?: 'combined' | 'breakup' }) {
     this.data = data;
+    this.priceMode = options?.priceMode || 'breakup';
     this.contentWidth = this.pageWidth - 2 * this.margin;
     this.doc = new PDFDocument({
       size: 'A4',
@@ -417,20 +419,22 @@ export class OfferPdfGenerator {
       }
       colX += colWidths.description;
 
+      const hideSubItemPrices = isSubItem && this.priceMode === 'combined';
+
       this.doc
         .fillColor(isSubItem ? '#666666' : '#333333')
         .font('Helvetica')
         .fontSize(isSubItem ? 7 : 8)
-        .text(this.formatNumber(item.unitPrice), colX + 4, this.currentY + 8, { width: colWidths.price - 8, align: 'right' });
+        .text(hideSubItemPrices ? '' : this.formatNumber(item.unitPrice), colX + 4, this.currentY + 8, { width: colWidths.price - 8, align: 'right' });
       colX += colWidths.price;
 
       this.doc
-        .text(`${parseFloat(item.quantity)} ${item.unit}`, colX + 4, this.currentY + 8, { width: colWidths.qty - 8, align: 'center' });
+        .text(hideSubItemPrices ? '' : `${parseFloat(item.quantity)} ${item.unit}`, colX + 4, this.currentY + 8, { width: colWidths.qty - 8, align: 'center' });
       colX += colWidths.qty;
 
       this.doc
         .font(isSubItem ? 'Helvetica' : 'Helvetica-Bold')
-        .text(this.formatNumber(item.totalPrice), colX + 4, this.currentY + 8, { width: colWidths.amount - 8, align: 'right' });
+        .text(hideSubItemPrices ? '' : this.formatNumber(item.totalPrice), colX + 4, this.currentY + 8, { width: colWidths.amount - 8, align: 'right' });
 
       this.currentY += rowHeight;
     }

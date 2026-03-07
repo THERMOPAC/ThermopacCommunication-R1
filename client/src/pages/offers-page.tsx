@@ -1069,7 +1069,7 @@ export function OffersContent() {
               <Button variant="outline" className="justify-start h-auto py-3 px-4" onClick={() => pdfDownloadOfferId && handleDownloadPdf(pdfDownloadOfferId, 'combined')}>
                 <div className="text-left">
                   <div className="font-medium">Combined Price</div>
-                  <div className="text-xs text-muted-foreground">Show only the main product with total price</div>
+                  <div className="text-xs text-muted-foreground">List all sub-products but show only the main product total price</div>
                 </div>
               </Button>
               <Button variant="outline" className="justify-start h-auto py-3 px-4" onClick={() => pdfDownloadOfferId && handleDownloadPdf(pdfDownloadOfferId, 'breakup')}>
