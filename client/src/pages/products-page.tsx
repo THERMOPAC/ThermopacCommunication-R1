@@ -1523,16 +1523,11 @@ export default function ProductsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Property 3</SelectItem>
-                    {(() => {
-                      const familyCode = linkingParentProduct?.itemFamily;
-                      const vals = [...new Set(products
-                        .filter(p => !familyCode || p.itemFamily === familyCode)
-                        .map(p => p.itemProperty3))]
-                        .sort((a, b) => a.localeCompare(b));
-                      return vals.map(v => (
+                    {[...new Set(products.map(p => p.itemProperty3))]
+                      .sort((a, b) => a.localeCompare(b))
+                      .map(v => (
                         <SelectItem key={v} value={v}>{v}</SelectItem>
-                      ));
-                    })()}
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -1545,7 +1540,6 @@ export default function ProductsPage() {
                     if (linkingParentProduct && p.id === linkingParentProduct.id) return false;
                     if (existingChildIds.includes(p.id)) return false;
                     if (recentlyLinkedIds.has(p.id)) return false;
-                    if (linkingParentProduct && p.itemFamily !== linkingParentProduct.itemFamily) return false;
                     if (subProductProp3Filter !== "all" && p.itemProperty3 !== subProductProp3Filter) return false;
                     if (!subProductSearch) return true;
                     return p.productCode.toLowerCase().includes(subProductSearch.toLowerCase()) ||
