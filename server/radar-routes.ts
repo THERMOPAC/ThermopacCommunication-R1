@@ -68,6 +68,16 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'base oil re-refining facility regulatory filing',
       'waste oil treatment plant operating license',
     ],
+    trade_flow: [
+      'import waste oil HS 2710.91 customs data',
+      'export re-refined base oil HS 2710.19 shipment',
+      'import used lubricating oil HS 271099 importer',
+      'export recycled base oil trade data',
+      'waste oil importer exporter customs records',
+      'used lubricant oil import export company',
+      're-refined base oil export shipment data',
+      'waste petroleum oil HS 2710 trade flow',
+    ],
     project_signal: [
       'waste oil recycling tender',
       'oil recycling plant construction',
@@ -110,6 +120,13 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'autorización gestión aceite usado residuo peligroso',
       'registro gestor residuos aceite lubricante usado',
     ],
+    trade_flow: [
+      'importador aceite usado HS 2710 datos aduanas',
+      'exportador aceite base reciclado comercio',
+      'importación aceite lubricante usado empresa',
+      'exportación aceite base re-refinado datos comerciales',
+      'empresa importadora exportadora aceite residual',
+    ],
     project_signal: [
       'licitación reciclaje aceite usado',
       'construcción planta reciclaje aceite',
@@ -150,6 +167,14 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'cadastro técnico federal IBAMA óleo usado',
       'licença operação unidade rerrefino',
     ],
+    trade_flow: [
+      'importador óleo usado HS 2710 dados alfândega',
+      'exportador óleo base reciclado comércio exterior',
+      'importação óleo lubrificante usado empresa',
+      'exportação óleo base re-refinado dados comerciais',
+      'empresa importadora exportadora óleo residual',
+      'balança comercial óleo usado re-refinado',
+    ],
     project_signal: [
       'licitação reciclagem óleo usado',
       'construção planta reciclagem óleo',
@@ -188,6 +213,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'BImSchG Genehmigung Altöl Recycling',
       'Entsorgungsfachbetrieb Altöl Zertifikat',
     ],
+    trade_flow: [
+      'Importeur Altöl HS 2710 Zolldaten',
+      'Exporteur regeneriertes Grundöl Handelsdaten',
+      'Import Altöl Schmierstoff Unternehmen',
+      'Export recyceltes Basisöl Außenhandel',
+    ],
     project_signal: [
       'Altöl Recycling Ausschreibung',
       'Altöl Anlage Genehmigung',
@@ -222,6 +253,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'agrément préfectoral collecte huile usagée',
       'déclaration ICPE traitement huile usagée',
       'certificat conformité recyclage huile usagée',
+    ],
+    trade_flow: [
+      'importateur huile usagée HS 2710 données douanes',
+      'exportateur huile base régénérée commerce',
+      'importation huile lubrifiant usagée entreprise',
+      'exportation huile base recyclée données commerciales',
     ],
     project_signal: [
       'appel offre recyclage huile usagée',
@@ -258,6 +295,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'atık yağ toplama izin belgesi',
       'çevre bakanlığı atık yağ lisansı',
     ],
+    trade_flow: [
+      'atık yağ ithalatçı HS 2710 gümrük verileri',
+      'rejenerasyonlu baz yağ ihracatçı ticaret',
+      'atık madeni yağ ithalat ihracat şirketi',
+      'geri dönüştürülmüş baz yağ ihracat verileri',
+    ],
     project_signal: [
       'atık yağ geri dönüşüm ihalesi',
       'atık yağ tesisi izni',
@@ -290,6 +333,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'izin pengelolaan limbah B3 oli bekas',
       'sertifikat pengelolaan limbah minyak bekas',
       'dokumen AMDAL pengolahan oli bekas',
+    ],
+    trade_flow: [
+      'importir oli bekas HS 2710 data bea cukai',
+      'eksportir base oil daur ulang perdagangan',
+      'impor ekspor oli bekas perusahaan',
+      'data perdagangan base oil re-refining',
     ],
     project_signal: [
       'tender daur ulang oli bekas',
@@ -325,6 +374,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       '废油处理企业资质证书',
       '危险废物综合经营许可证 废油',
     ],
+    trade_flow: [
+      '废油进口商 HS 2710 海关数据',
+      '再生基础油出口商 贸易数据',
+      '废润滑油进出口企业',
+      '再生基础油出口贸易流向',
+    ],
     project_signal: [
       '废油回收招标',
       '废油处理许可证',
@@ -357,6 +412,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'разрешение на переработку отработанных масел',
       'экологическая экспертиза завод регенерации масел',
       'лицензия опасные отходы отработанное масло',
+    ],
+    trade_flow: [
+      'импортер отработанного масла HS 2710 таможенные данные',
+      'экспортер регенерированного базового масла торговля',
+      'импорт экспорт отработанного масла компания',
+      'торговые потоки базового масла переработка',
     ],
     project_signal: [
       'тендер переработка отработанного масла',
@@ -391,6 +452,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       '特別管理産業廃棄物 廃油 許可',
       '廃油再生施設 環境アセスメント',
     ],
+    trade_flow: [
+      '廃油輸入業者 HS 2710 通関データ',
+      '再生基油輸出業者 貿易データ',
+      '廃潤滑油輸入輸出企業',
+      '再生基油貿易フロー',
+    ],
     project_signal: [
       '廃油リサイクル入札',
       '廃油処理施設許可',
@@ -423,6 +490,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'تصريح جمع ونقل الزيوت المستعملة',
       'شهادة امتثال بيئي معالجة الزيوت',
     ],
+    trade_flow: [
+      'مستورد زيوت مستعملة HS 2710 بيانات جمركية',
+      'مصدر زيت أساسي معاد تكريره تجارة',
+      'استيراد تصدير زيوت مستعملة شركة',
+      'بيانات تجارية زيت أساسي معاد تدويره',
+    ],
     project_signal: [
       'مناقصة إعادة تدوير الزيوت',
       'ترخيص مصنع إعادة تدوير الزيوت',
@@ -452,6 +525,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'खतरनाक अपशिष्ट लाइसेंस प्रयुक्त तेल',
       'CPCB प्राधिकरण अपशिष्ट तेल पुनर्चक्रण',
       'राज्य प्रदूषण नियंत्रण बोर्ड अपशिष्ट तेल अनुमति',
+    ],
+    trade_flow: [
+      'अपशिष्ट तेल आयातक HS 2710 सीमा शुल्क डेटा',
+      'पुनर्चक्रित बेस ऑयल निर्यातक व्यापार',
+      'प्रयुक्त तेल आयात निर्यात कंपनी',
+      'बेस ऑयल व्यापार प्रवाह डेटा',
     ],
   },
   vi: {
@@ -559,7 +638,7 @@ function getScoreBand(score: number): string {
 
 function generateSearchQueries(country: string, isoCode: string, language: string): { query: string; language: string; family: string }[] {
   const queries: { query: string; language: string; family: string }[] = [];
-  const families = ['company_discovery', 'recycler_discovery', 'base_oil_sellers', 'regulatory_docs', 'project_signal'];
+  const families = ['company_discovery', 'recycler_discovery', 'base_oil_sellers', 'regulatory_docs', 'trade_flow', 'project_signal'];
 
   for (const family of families) {
     const enQueries = MULTILINGUAL_QUERIES.en?.[family] || [];
@@ -705,6 +784,7 @@ CRITICAL CLASSIFICATION RULES:
 6. Set ALL score estimates (feedstock, capital, strategic, contactability) to 0 for "not_relevant" companies.
 7. REGULATORY DOCUMENT SIGNALS: If the source is an SDS (Safety Data Sheet), TDS (Technical Data Sheet), environmental permit, hazardous waste license, or regulatory filing, extract the COMPANY that issued/owns the document — these are extremely high-value signals. The company name, facility location, product details, and contact info are usually embedded in these documents. Set classification_confidence to 0.95+ for companies found via regulatory documents.
 8. If a URL points to a PDF document (SDS, TDS, permit, license), analyze the title and snippet carefully — they typically contain the issuing company name and product type. The company that published the SDS/TDS is the one to classify.
+9. TRADE FLOW SIGNALS: If the source contains import/export customs data, trade records, HS code 2710 shipments, or bill-of-lading data, extract the IMPORTER and EXPORTER company names. Companies importing waste oil or exporting re-refined base oil are very likely plant operators or major traders connected to re-refining plants. Set is_likely_epc_target=true for companies importing large volumes of waste oil (they likely need processing capacity).
 
 Respond with JSON:
 {
