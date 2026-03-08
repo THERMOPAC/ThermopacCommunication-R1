@@ -54,7 +54,8 @@ import {
   Brain,
   ShoppingCart,
   Package,
-  Search
+  Search,
+  Radar
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -265,6 +266,7 @@ function Layout({ children }: LayoutProps) {
       children: [
         { icon: BarChart4, label: "Marketing Dashboard", href: "/marketing-dashboard" },
         { icon: TrendingUp, label: "Campaigns", href: "/campaigns" },
+        { icon: Radar, label: "Opportunity Radar", href: "/radar" },
         { icon: Search, label: "Lead Generation", href: "/lead-generation" },
         { icon: UsersRound, label: "Leads", href: "/leads" },
         { icon: Users, label: "Customers", href: "/customers" },

@@ -42,6 +42,7 @@ import MaterialIdentificationEditPage from "@/pages/material-identification-edit
 import SpecialFixesPage from "@/pages/special-fixes-page";
 
 // Sales and Marketing pages
+import RadarPage from "@/pages/radar-page";
 import LeadGenerationPage from "@/pages/lead-generation-page";
 import LeadsPage from "@/pages/leads-page";
 import ProductsPage from "@/pages/products-page";
@@ -197,6 +198,7 @@ function Router() {
       <ProtectedRoute path="/recurring-tasks" component={RecurringTasksPage} />
 
       {/* Sales and Marketing Routes */}
+      <ProtectedRoute path="/radar" component={RadarPage} />
       <ProtectedRoute path="/lead-generation" component={LeadGenerationPage} />
       <ProtectedRoute path="/leads" component={LeadsPage} />
       <ProtectedRoute path="/products" component={ProductsPage} />

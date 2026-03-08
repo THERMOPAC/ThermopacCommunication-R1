@@ -1,0 +1,1403 @@
+import { Router, Request, Response } from "express";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
+import OpenAI from "openai";
+import crypto from "crypto";
+
+const router = Router();
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const GOOGLE_API_KEY = process.env.GOOGLE_CUSTOM_SEARCH_API_KEY;
+const SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
+const GOOGLE_SEARCH_URL = 'https://www.googleapis.com/customsearch/v1';
+
+const SCORING_WEIGHTS = {
+  feedstock_access: 25,
+  capital_capability: 20,
+  strategic_fit: 20,
+  project_signal_strength: 20,
+  geography: 10,
+  contactability: 5,
+};
+
+const COMPANY_TYPES = [
+  'used_oil_collector', 'waste_oil_recycler', 're_refiner', 'waste_management_company',
+  'lubricant_company', 'base_oil_company', 'industrial_recycler', 'hazardous_waste_company',
+  'trader_only', 'not_relevant', 'unclear'
+] as const;
+
+const PROJECT_TYPES = [
+  'tender', 'permit_stage', 'expansion', 'new_plant', 'upgrade_modernization',
+  'investment_signal', 'partnership_signal', 'weak_signal'
+] as const;
+
+const CONTACT_TYPES = [
+  'generic', 'sales', 'projects', 'procurement', 'management', 'technical', 'plant', 'unknown'
+] as const;
+
+const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
+  en: {
+    company_discovery: [
+      'used oil recycling company',
+      'waste oil recycling plant',
+      'used oil collector',
+      're-refined base oil company',
+      'waste oil processing facility',
+    ],
+    recycler_discovery: [
+      'waste oil recycler',
+      'used oil regeneration',
+      'lubricant regeneration company',
+      'oil re-refining plant',
+      'hazardous waste oil treatment',
+    ],
+    project_signal: [
+      'waste oil recycling tender',
+      'oil recycling plant construction',
+      'waste oil recycling permit',
+      'oil regeneration plant expansion',
+      'circular economy waste oil project',
+    ],
+  },
+  es: {
+    company_discovery: [
+      'empresa reciclaje aceite usado',
+      'planta reciclaje aceite usado',
+      'recolección aceite usado',
+      'aceite base re-refinado',
+      'procesamiento aceite residual',
+    ],
+    recycler_discovery: [
+      'reciclador aceite residual',
+      'regeneración aceite usado',
+      'regeneración lubricantes',
+      'planta re-refinación aceite',
+      'tratamiento aceite peligroso',
+    ],
+    project_signal: [
+      'licitación reciclaje aceite usado',
+      'construcción planta reciclaje aceite',
+      'permiso reciclaje aceite residual',
+    ],
+  },
+  pt: {
+    company_discovery: [
+      'empresa reciclagem óleo usado',
+      'planta reciclagem óleo usado',
+      'coleta óleo usado',
+      'óleo base re-refinado',
+      'processamento óleo residual',
+    ],
+    recycler_discovery: [
+      'reciclador óleo residual',
+      'regeneração óleo usado',
+      'regeneração lubrificantes',
+      'planta re-refino óleo',
+    ],
+    project_signal: [
+      'licitação reciclagem óleo usado',
+      'construção planta reciclagem óleo',
+    ],
+  },
+  de: {
+    company_discovery: [
+      'Altöl Recycling Unternehmen',
+      'Altöl Aufbereitung Anlage',
+      'Altöl Sammlung',
+      'Basisöl Aufbereitung',
+      'Altöl Verarbeitung',
+    ],
+    recycler_discovery: [
+      'Altöl Recycler',
+      'Altöl Regeneration',
+      'Schmierstoff Regeneration',
+      'Altöl Raffinerie',
+    ],
+    project_signal: [
+      'Altöl Recycling Ausschreibung',
+      'Altöl Anlage Genehmigung',
+    ],
+  },
+  fr: {
+    company_discovery: [
+      'entreprise recyclage huile usagée',
+      'installation recyclage huile usagée',
+      'collecte huile usagée',
+      'huile de base re-raffinée',
+      'traitement huile usagée',
+    ],
+    recycler_discovery: [
+      'recycleur huile usagée',
+      'régénération huile usagée',
+      'régénération lubrifiants',
+    ],
+    project_signal: [
+      'appel offre recyclage huile usagée',
+      'permis recyclage huile usagée',
+    ],
+  },
+  tr: {
+    company_discovery: [
+      'atık yağ geri dönüşüm şirketi',
+      'atık yağ geri kazanım tesisi',
+      'atık yağ toplama',
+      'baz yağ geri kazanım',
+      'atık yağ işleme',
+    ],
+    recycler_discovery: [
+      'atık yağ geri dönüşüm',
+      'atık yağ rejenerasyon',
+      'madeni yağ geri kazanım',
+    ],
+    project_signal: [
+      'atık yağ geri dönüşüm ihalesi',
+      'atık yağ tesisi izni',
+    ],
+  },
+  id: {
+    company_discovery: [
+      'perusahaan daur ulang oli bekas',
+      'pabrik daur ulang oli bekas',
+      'pengumpulan oli bekas',
+      'pengolahan oli bekas',
+    ],
+    recycler_discovery: [
+      'daur ulang oli bekas',
+      'regenerasi oli bekas',
+      'pengolahan limbah minyak',
+    ],
+    project_signal: [
+      'tender daur ulang oli bekas',
+      'izin pabrik daur ulang oli',
+    ],
+  },
+  zh: {
+    company_discovery: [
+      '废油回收公司',
+      '废润滑油再生工厂',
+      '废油收集',
+      '基础油再生',
+      '废油处理',
+    ],
+    recycler_discovery: [
+      '废油再生',
+      '润滑油再生',
+      '废机油回收',
+    ],
+    project_signal: [
+      '废油回收招标',
+      '废油处理许可证',
+    ],
+  },
+  ru: {
+    company_discovery: [
+      'компания переработки отработанного масла',
+      'завод регенерации масел',
+      'сбор отработанного масла',
+      'базовое масло регенерация',
+    ],
+    recycler_discovery: [
+      'переработка отработанного масла',
+      'регенерация масел',
+      'утилизация отработанного масла',
+    ],
+    project_signal: [
+      'тендер переработка отработанного масла',
+      'разрешение переработка масел',
+    ],
+  },
+  ja: {
+    company_discovery: [
+      '廃油リサイクル会社',
+      '廃油再生工場',
+      '廃油回収',
+      '基油再生',
+    ],
+    recycler_discovery: [
+      '廃油リサイクル',
+      '潤滑油再生',
+      '廃油処理',
+    ],
+    project_signal: [
+      '廃油リサイクル入札',
+    ],
+  },
+  ar: {
+    company_discovery: [
+      'شركة إعادة تدوير الزيوت المستعملة',
+      'مصنع إعادة تدوير الزيوت',
+      'جمع الزيوت المستعملة',
+      'تكرير الزيوت الأساسية',
+    ],
+    recycler_discovery: [
+      'إعادة تدوير الزيوت المستعملة',
+      'تجديد الزيوت',
+      'معالجة الزيوت المستعملة',
+    ],
+    project_signal: [
+      'مناقصة إعادة تدوير الزيوت',
+    ],
+  },
+  hi: {
+    company_discovery: [
+      'प्रयुक्त तेल पुनर्चक्रण कंपनी',
+      'अपशिष्ट तेल पुनर्चक्रण संयंत्र',
+      'प्रयुक्त तेल संग्रह',
+    ],
+    recycler_discovery: [
+      'अपशिष्ट तेल पुनर्चक्रण',
+      'स्नेहक पुनर्जनन',
+    ],
+  },
+  vi: {
+    company_discovery: [
+      'công ty tái chế dầu thải',
+      'nhà máy tái chế dầu thải',
+      'thu gom dầu thải',
+    ],
+    recycler_discovery: [
+      'tái chế dầu thải',
+      'tái sinh dầu nhớt',
+    ],
+  },
+  nl: {
+    company_discovery: [
+      'afgewerkte olie recycling bedrijf',
+      'afgewerkte olie verwerking',
+    ],
+  },
+  it: {
+    company_discovery: [
+      'azienda riciclo olio usato',
+      'impianto riciclo olio usato',
+    ],
+  },
+  fa: {
+    company_discovery: [
+      'شرکت بازیافت روغن مستعمل',
+      'کارخانه بازیافت روغن',
+    ],
+  },
+};
+
+const COUNTRY_LANGUAGE_MAP: Record<string, string> = {
+  IN: 'hi', AE: 'ar', SA: 'ar', NG: 'en', ID: 'id', TR: 'tr', VN: 'vi',
+  ZA: 'en', BR: 'pt', MX: 'es', DE: 'de', CN: 'zh', JP: 'ja', RU: 'ru',
+  ES: 'es', FR: 'fr', US: 'en', GB: 'en', AU: 'en', CA: 'en', EG: 'ar',
+  KE: 'en', IR: 'fa', IQ: 'ar', KW: 'ar', QA: 'ar', BH: 'ar', OM: 'ar',
+  NL: 'nl', IT: 'it',
+};
+
+function generateDomainFingerprint(name: string, domain: string): string {
+  const normalized = `${(name || '').toLowerCase().trim()}|${(domain || '').toLowerCase().trim()}`;
+  return crypto.createHash('sha256').update(normalized).digest('hex').substring(0, 64);
+}
+
+function extractDomain(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
+
+function getScoreBand(score: number): string {
+  if (score >= 90) return 'hot';
+  if (score >= 75) return 'strong';
+  if (score >= 60) return 'qualified';
+  if (score >= 40) return 'watchlist';
+  return 'low';
+}
+
+function generateSearchQueries(country: string, isoCode: string, language: string): { query: string; language: string; family: string }[] {
+  const queries: { query: string; language: string; family: string }[] = [];
+  const families = ['company_discovery', 'recycler_discovery', 'project_signal'];
+
+  for (const family of families) {
+    const enQueries = MULTILINGUAL_QUERIES.en?.[family] || [];
+    for (const q of enQueries.slice(0, 3)) {
+      queries.push({ query: `${q} ${country}`, language: 'en', family });
+    }
+
+    if (language !== 'en') {
+      const localQueries = MULTILINGUAL_QUERIES[language]?.[family] || [];
+      for (const q of localQueries.slice(0, 3)) {
+        queries.push({ query: `${q} ${country}`, language, family });
+      }
+    }
+  }
+
+  return queries;
+}
+
+async function executeGoogleSearch(query: string, countryCode?: string): Promise<any> {
+  if (!GOOGLE_API_KEY || !SEARCH_ENGINE_ID) {
+    throw new Error('Google Custom Search API not configured');
+  }
+
+  const params = new URLSearchParams({
+    key: GOOGLE_API_KEY,
+    cx: SEARCH_ENGINE_ID,
+    q: query + ' -job -employment -filetype:pdf -manual -handbook',
+    num: '10',
+  });
+
+  if (countryCode && countryCode !== 'all') {
+    params.set('cr', `country${countryCode}`);
+  }
+
+  const response = await fetch(`${GOOGLE_SEARCH_URL}?${params}`);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Google API error: ${response.status} - ${errorText}`);
+  }
+  return response.json();
+}
+
+async function crawlPage(url: string): Promise<{
+  success: boolean;
+  title: string;
+  metaDescription: string;
+  visibleText: string;
+  emails: string[];
+  phones: string[];
+  addresses: string[];
+  language: string;
+  httpStatus: number;
+  error?: string;
+}> {
+  const result = {
+    success: false, title: '', metaDescription: '', visibleText: '',
+    emails: [] as string[], phones: [] as string[], addresses: [] as string[],
+    language: 'en', httpStatus: 0, error: undefined as string | undefined,
+  };
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; ThermopacRadar/1.0; +https://thermopac.in)',
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+    });
+    clearTimeout(timeout);
+
+    result.httpStatus = response.status;
+    if (!response.ok) {
+      result.error = `HTTP ${response.status}`;
+      return result;
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('text/html') && !contentType.includes('application/xhtml')) {
+      result.error = 'Not HTML content';
+      return result;
+    }
+
+    const html = await response.text();
+    const maxLen = 100000;
+    const truncatedHtml = html.length > maxLen ? html.substring(0, maxLen) : html;
+
+    const titleMatch = truncatedHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    result.title = titleMatch ? titleMatch[1].trim().substring(0, 500) : '';
+
+    const metaMatch = truncatedHtml.match(/<meta[^>]*name=["']description["'][^>]*content=["']([\s\S]*?)["']/i);
+    result.metaDescription = metaMatch ? metaMatch[1].trim().substring(0, 1000) : '';
+
+    let text = truncatedHtml
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    result.visibleText = text.substring(0, 10000);
+
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    const emails = (truncatedHtml.match(emailRegex) || []).filter(e =>
+      !e.includes('example.') && !e.includes('sentry') && !e.includes('wixpress') && !e.endsWith('.png') && !e.endsWith('.jpg')
+    );
+    result.emails = [...new Set(emails)].slice(0, 10);
+
+    const phoneRegex = /(?:\+?\d{1,4}[-.\s]?)?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}/g;
+    const phones = (text.match(phoneRegex) || []).filter(p => p.replace(/\D/g, '').length >= 7 && p.replace(/\D/g, '').length <= 15);
+    result.phones = [...new Set(phones)].slice(0, 10);
+
+    const langMatch = truncatedHtml.match(/<html[^>]*lang=["']([a-z]{2})/i);
+    result.language = langMatch ? langMatch[1] : 'en';
+
+    result.success = true;
+  } catch (error: any) {
+    result.error = error.message || 'Crawl failed';
+  }
+  return result;
+}
+
+async function classifyCompanyWithAI(
+  title: string, snippet: string, url: string, crawledContent?: string
+): Promise<any> {
+  try {
+    const prompt = `You are an expert B2B analyst specializing in waste oil recycling and re-refining industry.
+
+Analyze this company/result and classify it. The text may be in any language - translate if necessary.
+
+Title: ${title}
+URL: ${url}
+Snippet: ${snippet}
+${crawledContent ? `Website Content (excerpt): ${crawledContent.substring(0, 3000)}` : ''}
+
+Respond with JSON:
+{
+  "company_name": "extracted company name",
+  "company_type": "one of: used_oil_collector, waste_oil_recycler, re_refiner, waste_management_company, lubricant_company, base_oil_company, industrial_recycler, hazardous_waste_company, trader_only, not_relevant, unclear",
+  "company_summary": "2-3 sentence summary of what this company does",
+  "classification_evidence": "specific text evidence supporting classification",
+  "classification_confidence": 0.0 to 1.0,
+  "handles_waste_oil": true/false,
+  "is_plant_opportunity": true/false,
+  "is_existing_rerefiner": true/false,
+  "is_collector_only": true/false,
+  "is_likely_epc_target": true/false,
+  "country": "detected country name",
+  "iso_code": "2-letter ISO code",
+  "feedstock_access_estimate": 0-100,
+  "capital_capability_estimate": 0-100,
+  "strategic_fit_estimate": 0-100,
+  "contactability_estimate": 0-100,
+  "urgency": "low/medium/high/critical",
+  "project_signals": [{"type": "tender|permit_stage|expansion|new_plant|upgrade_modernization|investment_signal|partnership_signal|weak_signal", "summary": "...", "evidence": "...", "confidence": 0.0-1.0}]
+}`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are an expert waste oil recycling industry analyst. Always respond with valid JSON. Be strict in classification - only classify as relevant if there is clear evidence." },
+        { role: "user", content: prompt }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.2,
+    });
+
+    return JSON.parse(response.choices[0].message.content || '{}');
+  } catch (error) {
+    console.error('AI classification error:', error);
+    return {
+      company_name: title,
+      company_type: 'unclear',
+      company_summary: snippet,
+      classification_evidence: 'AI classification unavailable',
+      classification_confidence: 0.1,
+      handles_waste_oil: false,
+      is_plant_opportunity: false,
+      is_existing_rerefiner: false,
+      is_collector_only: false,
+      is_likely_epc_target: false,
+      feedstock_access_estimate: 0,
+      capital_capability_estimate: 0,
+      strategic_fit_estimate: 0,
+      contactability_estimate: 0,
+      urgency: 'low',
+      project_signals: [],
+    };
+  }
+}
+
+function calculateOpportunityScore(data: any, hasContacts: boolean, hasProjects: boolean): {
+  final: number;
+  components: Record<string, number>;
+  band: string;
+  explanation: string;
+} {
+  const feedstock = Math.min(Number(data.feedstock_access_estimate) || 0, 100);
+  const capital = Math.min(Number(data.capital_capability_estimate) || 0, 100);
+  const strategic = Math.min(Number(data.strategic_fit_estimate) || 0, 100);
+  const projectSignal = hasProjects ? 70 : (data.is_plant_opportunity ? 50 : 10);
+  const geography = data.iso_code && ['IN', 'AE', 'SA', 'NG', 'ID', 'TR', 'BR', 'MX'].includes(data.iso_code) ? 80 : 40;
+  const contactability = hasContacts ? 80 : (Number(data.contactability_estimate) || 0);
+
+  const final = Math.round(
+    (feedstock * SCORING_WEIGHTS.feedstock_access +
+     capital * SCORING_WEIGHTS.capital_capability +
+     strategic * SCORING_WEIGHTS.strategic_fit +
+     projectSignal * SCORING_WEIGHTS.project_signal_strength +
+     geography * SCORING_WEIGHTS.geography +
+     contactability * SCORING_WEIGHTS.contactability) / 100
+  );
+
+  const components = {
+    feedstock_access: feedstock,
+    capital_capability: capital,
+    strategic_fit: strategic,
+    project_signal: projectSignal,
+    geography: geography,
+    contactability: contactability,
+  };
+
+  const band = getScoreBand(final);
+  const parts: string[] = [];
+  if (feedstock > 50) parts.push(`Strong feedstock access (${feedstock})`);
+  if (capital > 50) parts.push(`Good capital capability (${capital})`);
+  if (strategic > 50) parts.push(`Strategic fit (${strategic})`);
+  if (hasProjects) parts.push('Active project signals detected');
+  if (hasContacts) parts.push('Contact information available');
+
+  return { final, components, band, explanation: parts.join('. ') || 'Low opportunity indicators.' };
+}
+
+async function checkDuplicate(companyName: string, domain: string, country?: string): Promise<{ isDuplicate: boolean; duplicateOfId?: number; groupId?: string }> {
+  try {
+    if (domain) {
+      const domainCheck = await db.execute(sql`
+        SELECT id, duplicate_group_id FROM radar_companies WHERE root_domain = ${domain} LIMIT 1
+      `);
+      if (domainCheck.rows.length > 0) {
+        return { isDuplicate: true, duplicateOfId: Number(domainCheck.rows[0].id), groupId: domainCheck.rows[0].duplicate_group_id as string };
+      }
+    }
+
+    if (companyName) {
+      const normalized = companyName.toLowerCase().trim()
+        .replace(/\b(ltd|llc|inc|corp|co|gmbh|sa|srl|pvt|private|limited|company)\b\.?/gi, '')
+        .replace(/[^a-z0-9\s]/g, '')
+        .trim();
+      if (normalized.length > 3) {
+        const nameCheck = await db.execute(sql`
+          SELECT id, duplicate_group_id FROM radar_companies
+          WHERE LOWER(canonical_name) LIKE ${'%' + normalized.substring(0, 20) + '%'}
+          AND (country = ${country || ''} OR ${!country})
+          LIMIT 1
+        `);
+        if (nameCheck.rows.length > 0) {
+          return { isDuplicate: true, duplicateOfId: Number(nameCheck.rows[0].id), groupId: nameCheck.rows[0].duplicate_group_id as string };
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Dedup check error:', error);
+  }
+  return { isDuplicate: false };
+}
+
+async function createAlert(alertType: string, priority: string, title: string, message: string, companyId?: number, projectId?: number, country?: string, sourceUrl?: string) {
+  try {
+    await db.execute(sql`
+      INSERT INTO radar_alerts (alert_type, priority, company_id, project_id, country, title, message, source_url)
+      VALUES (${alertType}, ${priority}, ${companyId || null}, ${projectId || null}, ${country || null}, ${title}, ${message}, ${sourceUrl || null})
+    `);
+  } catch (error) {
+    console.error('Alert creation error:', error);
+  }
+}
+
+async function updateCountryIntelligence(isoCode: string) {
+  try {
+    const stats = await db.execute(sql`
+      SELECT
+        COUNT(*) FILTER (WHERE company_type != 'not_relevant' AND company_type != 'unclear') as relevant,
+        COUNT(*) FILTER (WHERE opportunity_score >= 75) as hot
+      FROM radar_companies WHERE iso_code = ${isoCode}
+    `);
+    const projectStats = await db.execute(sql`
+      SELECT COUNT(*) as cnt FROM radar_projects WHERE iso_code = ${isoCode}
+    `);
+
+    const relevant = Number(stats.rows[0]?.relevant) || 0;
+    const hot = Number(stats.rows[0]?.hot) || 0;
+    const projects = Number(projectStats.rows[0]?.cnt) || 0;
+    const score = Math.min(relevant * 5 + hot * 15 + projects * 10, 100);
+
+    await db.execute(sql`
+      UPDATE radar_country_intelligence
+      SET relevant_company_count = ${relevant},
+          hot_opportunity_count = ${hot},
+          project_count = ${projects},
+          opportunity_score = ${score},
+          updated_at = NOW()
+      WHERE iso_code = ${isoCode}
+    `);
+  } catch (error) {
+    console.error('Country intelligence update error:', error);
+  }
+}
+
+async function processDiscoveryResult(
+  userId: number, searchJobId: number, searchResultId: number,
+  title: string, snippet: string, url: string, country: string, isoCode: string
+) {
+  try {
+    const domain = extractDomain(url);
+    const link = (url || '').toLowerCase();
+    if (link.endsWith('.pdf') || link.includes('/manual') || link.includes('/handbook')) return;
+
+    const dupCheck = await checkDuplicate(title, domain, country);
+    if (dupCheck.isDuplicate) {
+      await db.execute(sql`UPDATE radar_search_results SET processed = TRUE WHERE id = ${searchResultId}`);
+      return;
+    }
+
+    const pagesToCrawl = ['/', '/about', '/contact', '/services', '/products'];
+    const baseUrl = `https://${domain}`;
+    let allContent = '';
+    let allEmails: string[] = [];
+    let allPhones: string[] = [];
+    let primaryTitle = title;
+    let primaryMeta = '';
+
+    const companyResult = await db.execute(sql`
+      INSERT INTO radar_companies (canonical_name, country, iso_code, website, root_domain, user_id, status)
+      VALUES (${title}, ${country}, ${isoCode}, ${url}, ${domain}, ${userId}, 'processing')
+      RETURNING id
+    `);
+    const companyId = Number(companyResult.rows[0].id);
+
+    for (const page of pagesToCrawl) {
+      const pageUrl = page === '/' ? baseUrl : `${baseUrl}${page}`;
+      try {
+        const crawlResult = await crawlPage(pageUrl);
+        await db.execute(sql`
+          INSERT INTO radar_company_pages (company_id, url, page_type, title, meta_description, visible_text,
+            detected_language, page_language, detected_emails_json, detected_phones_json, http_status, crawl_status, crawled_at)
+          VALUES (${companyId}, ${pageUrl}, ${page.replace('/', '') || 'homepage'}, ${crawlResult.title}, ${crawlResult.metaDescription},
+            ${crawlResult.visibleText}, ${crawlResult.language}, ${crawlResult.language},
+            ${JSON.stringify(crawlResult.emails)}, ${JSON.stringify(crawlResult.phones)},
+            ${crawlResult.httpStatus}, ${crawlResult.success ? 'completed' : 'failed'}, NOW())
+        `);
+
+        if (crawlResult.success) {
+          allContent += ` ${crawlResult.visibleText}`;
+          allEmails.push(...crawlResult.emails);
+          allPhones.push(...crawlResult.phones);
+          if (page === '/') {
+            primaryTitle = crawlResult.title || title;
+            primaryMeta = crawlResult.metaDescription;
+          }
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      } catch (err) {
+        console.error(`Crawl error for ${pageUrl}:`, err);
+      }
+    }
+
+    allEmails = [...new Set(allEmails)];
+    allPhones = [...new Set(allPhones)];
+
+    const aiResult = await classifyCompanyWithAI(
+      primaryTitle, snippet || primaryMeta, url,
+      allContent.substring(0, 5000)
+    );
+
+    for (const email of allEmails) {
+      const contactType = email.includes('info@') || email.includes('contact@') ? 'generic' :
+        email.includes('sales') ? 'sales' : email.includes('project') ? 'projects' : 'unknown';
+      await db.execute(sql`
+        INSERT INTO radar_contacts (company_id, email, contact_type, source_url, confidence)
+        VALUES (${companyId}, ${email}, ${contactType}, ${url}, ${0.6})
+      `);
+    }
+    for (const phone of allPhones) {
+      await db.execute(sql`
+        INSERT INTO radar_contacts (company_id, phone, contact_type, source_url, confidence)
+        VALUES (${companyId}, ${phone}, 'generic', ${url}, ${0.5})
+      `);
+    }
+
+    const hasContacts = allEmails.length > 0 || allPhones.length > 0;
+    const hasProjects = (aiResult.project_signals || []).length > 0;
+    const scoring = calculateOpportunityScore(aiResult, hasContacts, hasProjects);
+
+    const groupId = generateDomainFingerprint(aiResult.company_name || title, domain);
+
+    await db.execute(sql`
+      UPDATE radar_companies SET
+        canonical_name = ${aiResult.company_name || title},
+        company_type = ${aiResult.company_type || 'unclear'},
+        company_summary = ${aiResult.company_summary || ''},
+        likely_feedstock_access = ${Number(aiResult.feedstock_access_estimate) || 0},
+        likely_capital_capability = ${Number(aiResult.capital_capability_estimate) || 0},
+        likely_strategic_fit = ${Number(aiResult.strategic_fit_estimate) || 0},
+        opportunity_score = ${scoring.final},
+        overall_confidence = ${Number(aiResult.classification_confidence) || 0},
+        classification_confidence = ${Number(aiResult.classification_confidence) || 0},
+        contact_confidence = ${hasContacts ? 0.7 : 0.1},
+        score_band = ${scoring.band},
+        ai_reasoning_summary = ${scoring.explanation},
+        evidence_summary = ${aiResult.classification_evidence || ''},
+        handles_waste_oil = ${aiResult.handles_waste_oil || false},
+        is_plant_opportunity = ${aiResult.is_plant_opportunity || false},
+        is_existing_rerefiner = ${aiResult.is_existing_rerefiner || false},
+        is_collector_only = ${aiResult.is_collector_only || false},
+        is_likely_epc_target = ${aiResult.is_likely_epc_target || false},
+        duplicate_group_id = ${groupId},
+        status = 'classified',
+        updated_at = NOW()
+      WHERE id = ${companyId}
+    `);
+
+    await db.execute(sql`
+      INSERT INTO radar_scores (company_id, feedstock_access_score, capital_capability_score, strategic_fit_score,
+        project_signal_score, geography_score, contactability_score, final_score, score_band, explanation)
+      VALUES (${companyId}, ${scoring.components.feedstock_access}, ${scoring.components.capital_capability},
+        ${scoring.components.strategic_fit}, ${scoring.components.project_signal},
+        ${scoring.components.geography}, ${scoring.components.contactability},
+        ${scoring.final}, ${scoring.band}, ${scoring.explanation})
+    `);
+
+    await db.execute(sql`
+      INSERT INTO radar_sources (source_type, source_name, title, source_url, domain, country, iso_code, raw_snippet, search_job_id)
+      VALUES ('search_result', ${domain}, ${title}, ${url}, ${domain}, ${country}, ${isoCode}, ${snippet || ''}, ${searchJobId})
+    `);
+
+    for (const signal of (aiResult.project_signals || [])) {
+      if (signal.confidence > 0.3) {
+        const projectResult = await db.execute(sql`
+          INSERT INTO radar_projects (company_id, country, iso_code, project_name, project_type, project_summary,
+            source_url, evidence_text, urgency, project_confidence, status)
+          VALUES (${companyId}, ${country}, ${isoCode}, ${signal.summary || 'Detected signal'}, ${signal.type || 'weak_signal'},
+            ${signal.summary || ''}, ${url}, ${signal.evidence || ''}, ${aiResult.urgency || 'medium'},
+            ${Number(signal.confidence) || 0}, 'new')
+          RETURNING id
+        `);
+
+        if (Number(signal.confidence) > 0.7) {
+          await createAlert('new_project_signal', 'high',
+            `Project signal: ${signal.type} - ${aiResult.company_name || title}`,
+            signal.summary || '', companyId, Number(projectResult.rows[0]?.id), country, url);
+        }
+      }
+    }
+
+    if (scoring.final >= 75) {
+      await createAlert('score_threshold', 'high',
+        `Hot opportunity: ${aiResult.company_name || title} (Score: ${scoring.final})`,
+        `${scoring.band} opportunity in ${country}. ${scoring.explanation}`,
+        companyId, undefined, country, url);
+    }
+
+    await db.execute(sql`UPDATE radar_search_results SET processed = TRUE WHERE id = ${searchResultId}`);
+    await updateCountryIntelligence(isoCode);
+
+  } catch (error) {
+    console.error(`Error processing result:`, error);
+  }
+}
+
+async function runDiscoveryJob(userId: number, country: string, isoCode: string, language: string) {
+  const queries = generateSearchQueries(country, isoCode, language);
+  console.log(`Starting discovery for ${country} (${isoCode}) - ${queries.length} queries`);
+
+  let totalResults = 0;
+
+  for (const q of queries) {
+    try {
+      const jobResult = await db.execute(sql`
+        INSERT INTO radar_search_jobs (country, iso_code, language, query, query_family, source_class, status, user_id, started_at)
+        VALUES (${country}, ${isoCode}, ${q.language}, ${q.query}, ${q.family}, 'search_result', 'running', ${userId}, NOW())
+        RETURNING id
+      `);
+      const jobId = Number(jobResult.rows[0].id);
+
+      try {
+        const searchData = await executeGoogleSearch(q.query, isoCode);
+        const items = searchData.items || [];
+
+        let count = 0;
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          if (!item.link || item.link.toLowerCase().endsWith('.pdf')) continue;
+
+          const fingerprint = crypto.createHash('sha256').update(`${item.title}|${item.link}`).digest('hex').substring(0, 64);
+
+          try {
+            const existing = await db.execute(sql`
+              SELECT id FROM radar_search_results WHERE content_fingerprint = ${fingerprint} LIMIT 1
+            `);
+            if (existing.rows.length > 0) continue;
+
+            const srResult = await db.execute(sql`
+              INSERT INTO radar_search_results (search_job_id, title, url, snippet, domain, rank, content_fingerprint)
+              VALUES (${jobId}, ${item.title || ''}, ${item.link}, ${item.snippet || ''}, ${extractDomain(item.link)}, ${i + 1}, ${fingerprint})
+              RETURNING id
+            `);
+            count++;
+            totalResults++;
+
+            processDiscoveryResult(userId, jobId, Number(srResult.rows[0].id),
+              item.title || '', item.snippet || '', item.link, country, isoCode
+            ).catch(err => console.error('Background process error:', err));
+
+          } catch (err: any) {
+            if (err.code === '23505') continue;
+            console.error('Store result error:', err);
+          }
+        }
+
+        await db.execute(sql`
+          UPDATE radar_search_jobs SET status = 'completed', results_count = ${count}, completed_at = NOW()
+          WHERE id = ${jobId}
+        `);
+      } catch (searchError: any) {
+        await db.execute(sql`
+          UPDATE radar_search_jobs SET status = 'failed', error_message = ${searchError.message || 'Search failed'}, completed_at = NOW()
+          WHERE id = ${jobId}
+        `);
+        console.error(`Search failed for query "${q.query}":`, searchError.message);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } catch (error) {
+      console.error(`Job creation error for query "${q.query}":`, error);
+    }
+  }
+
+  if (totalResults > 0) {
+    await createAlert('new_company_priority_country', 'info',
+      `Discovery complete: ${country}`,
+      `Found ${totalResults} new results for ${country}`,
+      undefined, undefined, country);
+  }
+
+  console.log(`Discovery for ${country} complete: ${totalResults} total results from ${queries.length} queries`);
+}
+
+// ========== API ROUTES ==========
+
+router.post('/discovery/start', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    const { country, isoCode } = req.body;
+    if (!country || !isoCode) {
+      return res.status(400).json({ success: false, error: 'Country and ISO code required' });
+    }
+
+    const language = COUNTRY_LANGUAGE_MAP[isoCode] || 'en';
+
+    runDiscoveryJob(userId, country, isoCode, language).catch(err => {
+      console.error('Discovery job error:', err);
+    });
+
+    res.json({ success: true, message: `Discovery started for ${country}`, language });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/overview', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    const companies = await db.execute(sql`
+      SELECT COUNT(*) as total,
+        COUNT(*) FILTER (WHERE company_type != 'not_relevant' AND company_type != 'unclear') as relevant,
+        COUNT(*) FILTER (WHERE score_band = 'hot') as hot,
+        COUNT(*) FILTER (WHERE score_band = 'strong') as strong,
+        COUNT(*) FILTER (WHERE score_band = 'qualified') as qualified,
+        COUNT(*) FILTER (WHERE score_band = 'watchlist') as watchlist,
+        COUNT(*) FILTER (WHERE promoted_to_crm = TRUE) as promoted
+      FROM radar_companies
+    `);
+
+    const projects = await db.execute(sql`SELECT COUNT(*) as total FROM radar_projects`);
+    const contacts = await db.execute(sql`SELECT COUNT(*) as total FROM radar_contacts`);
+    const alerts = await db.execute(sql`SELECT COUNT(*) as total FROM radar_alerts WHERE status = 'new'`);
+
+    const topCountries = await db.execute(sql`
+      SELECT country, iso_code, relevant_company_count, project_count, hot_opportunity_count, opportunity_score, priority
+      FROM radar_country_intelligence
+      WHERE relevant_company_count > 0
+      ORDER BY opportunity_score DESC
+      LIMIT 10
+    `);
+
+    const recentAlerts = await db.execute(sql`
+      SELECT ra.*, rc.canonical_name as company_name
+      FROM radar_alerts ra
+      LEFT JOIN radar_companies rc ON ra.company_id = rc.id
+      WHERE ra.status = 'new'
+      ORDER BY ra.created_at DESC
+      LIMIT 10
+    `);
+
+    const scoreBands = await db.execute(sql`
+      SELECT score_band, COUNT(*) as count FROM radar_companies
+      WHERE company_type != 'not_relevant' AND company_type != 'unclear'
+      GROUP BY score_band
+    `);
+
+    const companyTypes = await db.execute(sql`
+      SELECT company_type, COUNT(*) as count FROM radar_companies
+      WHERE company_type != 'not_relevant' AND company_type != 'unclear'
+      GROUP BY company_type ORDER BY count DESC
+    `);
+
+    res.json({
+      success: true,
+      stats: {
+        totalCompanies: Number(companies.rows[0]?.total) || 0,
+        relevantCompanies: Number(companies.rows[0]?.relevant) || 0,
+        hotOpportunities: Number(companies.rows[0]?.hot) || 0,
+        strongOpportunities: Number(companies.rows[0]?.strong) || 0,
+        qualifiedOpportunities: Number(companies.rows[0]?.qualified) || 0,
+        watchlistCompanies: Number(companies.rows[0]?.watchlist) || 0,
+        promotedToCRM: Number(companies.rows[0]?.promoted) || 0,
+        totalProjects: Number(projects.rows[0]?.total) || 0,
+        totalContacts: Number(contacts.rows[0]?.total) || 0,
+        pendingAlerts: Number(alerts.rows[0]?.total) || 0,
+      },
+      topCountries: topCountries.rows,
+      recentAlerts: recentAlerts.rows,
+      scoreBands: scoreBands.rows,
+      companyTypes: companyTypes.rows,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/companies', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    const { country, companyType, scoreBand, minScore, search } = req.query;
+
+    let query = `
+      SELECT rc.*, 
+        (SELECT COUNT(*) FROM radar_contacts WHERE company_id = rc.id) as contact_count,
+        (SELECT COUNT(*) FROM radar_projects WHERE company_id = rc.id) as project_count,
+        (SELECT COUNT(*) FROM radar_company_pages WHERE company_id = rc.id AND crawl_status = 'completed') as pages_crawled
+      FROM radar_companies rc
+      WHERE 1=1
+    `;
+    const conditions: string[] = [];
+
+    if (country) conditions.push(`rc.iso_code = '${(country as string).replace(/'/g, "''")}'`);
+    if (companyType) conditions.push(`rc.company_type = '${(companyType as string).replace(/'/g, "''")}'`);
+    if (scoreBand) conditions.push(`rc.score_band = '${(scoreBand as string).replace(/'/g, "''")}'`);
+    if (minScore) conditions.push(`rc.opportunity_score >= ${parseFloat(minScore as string) || 0}`);
+    if (search) conditions.push(`(rc.canonical_name ILIKE '%${(search as string).replace(/'/g, "''")}%' OR rc.root_domain ILIKE '%${(search as string).replace(/'/g, "''")}%')`);
+
+    conditions.push(`rc.company_type != 'not_relevant'`);
+
+    if (conditions.length > 0) {
+      query += ` AND ${conditions.join(' AND ')}`;
+    }
+
+    query += ` ORDER BY rc.opportunity_score DESC, rc.created_at DESC LIMIT 200`;
+
+    const result = await db.execute(sql.raw(query));
+
+    res.json({
+      success: true,
+      companies: result.rows.map(row => ({
+        ...row,
+        id: Number(row.id),
+        opportunity_score: Number(row.opportunity_score),
+        overall_confidence: Number(row.overall_confidence),
+        classification_confidence: Number(row.classification_confidence),
+        contact_count: Number(row.contact_count),
+        project_count: Number(row.project_count),
+        pages_crawled: Number(row.pages_crawled),
+      })),
+      count: result.rows.length,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/companies/:id', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    const companyId = parseInt(req.params.id);
+
+    const company = await db.execute(sql`SELECT * FROM radar_companies WHERE id = ${companyId}`);
+    if (company.rows.length === 0) return res.status(404).json({ success: false, error: 'Company not found' });
+
+    const pages = await db.execute(sql`SELECT * FROM radar_company_pages WHERE company_id = ${companyId} ORDER BY crawled_at DESC`);
+    const contacts = await db.execute(sql`SELECT * FROM radar_contacts WHERE company_id = ${companyId}`);
+    const projects = await db.execute(sql`SELECT * FROM radar_projects WHERE company_id = ${companyId}`);
+    const scores = await db.execute(sql`SELECT * FROM radar_scores WHERE company_id = ${companyId} ORDER BY created_at DESC LIMIT 1`);
+    const sources = await db.execute(sql`SELECT * FROM radar_sources WHERE domain = ${company.rows[0].root_domain} ORDER BY discovered_at DESC`);
+    const relationships = await db.execute(sql`
+      SELECT * FROM radar_relationships
+      WHERE (from_entity_type = 'company' AND from_entity_id = ${companyId})
+         OR (to_entity_type = 'company' AND to_entity_id = ${companyId})
+    `);
+
+    res.json({
+      success: true,
+      company: { ...company.rows[0], id: companyId, opportunity_score: Number(company.rows[0].opportunity_score) },
+      pages: pages.rows,
+      contacts: contacts.rows,
+      projects: projects.rows,
+      score: scores.rows[0] || null,
+      sources: sources.rows,
+      relationships: relationships.rows,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/projects', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    const { country, projectType, minConfidence } = req.query;
+
+    let conditions = '';
+    if (country) conditions += ` AND rp.iso_code = '${(country as string).replace(/'/g, "''")}'`;
+    if (projectType) conditions += ` AND rp.project_type = '${(projectType as string).replace(/'/g, "''")}'`;
+    if (minConfidence) conditions += ` AND rp.project_confidence >= ${parseFloat(minConfidence as string) || 0}`;
+
+    const result = await db.execute(sql.raw(`
+      SELECT rp.*, rc.canonical_name as company_name, rc.root_domain, rc.opportunity_score as company_score
+      FROM radar_projects rp
+      LEFT JOIN radar_companies rc ON rp.company_id = rc.id
+      WHERE 1=1 ${conditions}
+      ORDER BY rp.project_confidence DESC, rp.discovered_at DESC
+      LIMIT 200
+    `));
+
+    res.json({ success: true, projects: result.rows, count: result.rows.length });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/contacts', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    const result = await db.execute(sql`
+      SELECT rc.*, rco.canonical_name as company_name, rco.root_domain, rco.opportunity_score as company_score
+      FROM radar_contacts rc
+      LEFT JOIN radar_companies rco ON rc.company_id = rco.id
+      ORDER BY rc.confidence DESC, rc.created_at DESC
+      LIMIT 500
+    `);
+
+    res.json({ success: true, contacts: result.rows, count: result.rows.length });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/countries', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    const result = await db.execute(sql`
+      SELECT * FROM radar_country_intelligence ORDER BY
+        CASE priority WHEN 'priority' THEN 1 WHEN 'active' THEN 2 WHEN 'watchlist' THEN 3 WHEN 'paused' THEN 4 END,
+        opportunity_score DESC
+    `);
+
+    res.json({ success: true, countries: result.rows, count: result.rows.length });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.put('/countries/:isoCode/priority', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    const { isoCode } = req.params;
+    const { priority } = req.body;
+
+    if (!['priority', 'active', 'watchlist', 'paused'].includes(priority)) {
+      return res.status(400).json({ success: false, error: 'Invalid priority' });
+    }
+
+    await db.execute(sql`
+      UPDATE radar_country_intelligence SET priority = ${priority}, updated_at = NOW()
+      WHERE iso_code = ${isoCode}
+    `);
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/alerts', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    const { priority, status: alertStatus } = req.query;
+
+    let conditions = '';
+    if (priority) conditions += ` AND ra.priority = '${(priority as string).replace(/'/g, "''")}'`;
+    if (alertStatus) conditions += ` AND ra.status = '${(alertStatus as string).replace(/'/g, "''")}'`;
+
+    const result = await db.execute(sql.raw(`
+      SELECT ra.*, rc.canonical_name as company_name
+      FROM radar_alerts ra
+      LEFT JOIN radar_companies rc ON ra.company_id = rc.id
+      WHERE 1=1 ${conditions}
+      ORDER BY
+        CASE ra.priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'watch' THEN 3 WHEN 'info' THEN 4 END,
+        ra.created_at DESC
+      LIMIT 200
+    `));
+
+    res.json({ success: true, alerts: result.rows, count: result.rows.length });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.put('/alerts/:id/dismiss', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    await db.execute(sql`UPDATE radar_alerts SET status = 'dismissed' WHERE id = ${parseInt(req.params.id)}`);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/discovery/jobs', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    const result = await db.execute(sql`
+      SELECT * FROM radar_search_jobs
+      ORDER BY created_at DESC
+      LIMIT 100
+    `);
+
+    res.json({ success: true, jobs: result.rows, count: result.rows.length });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/discovery/status/:country', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    const { country } = req.params;
+
+    const jobs = await db.execute(sql`
+      SELECT status, COUNT(*) as cnt FROM radar_search_jobs
+      WHERE country = ${country}
+      GROUP BY status
+    `);
+
+    const total = await db.execute(sql`
+      SELECT COUNT(*) as total FROM radar_search_jobs WHERE country = ${country}
+    `);
+
+    const completed = jobs.rows.find((r: any) => r.status === 'completed');
+    const running = jobs.rows.find((r: any) => r.status === 'running');
+    const failed = jobs.rows.find((r: any) => r.status === 'failed');
+
+    res.json({
+      success: true,
+      country,
+      totalJobs: Number(total.rows[0]?.total) || 0,
+      completedJobs: Number(completed?.cnt) || 0,
+      runningJobs: Number(running?.cnt) || 0,
+      failedJobs: Number(failed?.cnt) || 0,
+      isRunning: (Number(running?.cnt) || 0) > 0,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.post('/companies/:id/promote', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    const companyId = parseInt(req.params.id);
+
+    const company = await db.execute(sql`SELECT * FROM radar_companies WHERE id = ${companyId}`);
+    if (company.rows.length === 0) return res.status(404).json({ success: false, error: 'Company not found' });
+
+    const comp = company.rows[0];
+    if (comp.promoted_to_crm) {
+      return res.status(400).json({ success: false, error: 'Already promoted to CRM' });
+    }
+
+    const contacts = await db.execute(sql`SELECT * FROM radar_contacts WHERE company_id = ${companyId} LIMIT 5`);
+    const primaryContact = contacts.rows[0] || {};
+
+    try {
+      const outreachPrompt = `Generate a brief CRM promotion summary for this waste oil recycling company:
+Company: ${comp.canonical_name}
+Type: ${comp.company_type}
+Country: ${comp.country}
+Summary: ${comp.company_summary}
+Score: ${comp.opportunity_score}/100 (${comp.score_band})
+Evidence: ${comp.evidence_summary}
+
+Respond with JSON: {"why_relevant": "...", "outreach_angle": "...", "suggested_contact_type": "...", "draft_outreach_note": "..."}`;
+
+      const aiResponse = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: "Generate CRM promotion notes. Respond with JSON only." },
+          { role: "user", content: outreachPrompt }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.3,
+      });
+      const outreach = JSON.parse(aiResponse.choices[0].message.content || '{}');
+
+      const leadResult = await db.execute(sql`
+        INSERT INTO leads (company_name, contact_name, contact_email, contact_phone, website, country, industry, notes, requirements)
+        VALUES (${comp.canonical_name}, ${primaryContact.name || null}, ${primaryContact.email || null},
+          ${primaryContact.phone || null}, ${comp.website}, ${comp.country}, ${'Oil & Gas / Recycling'},
+          ${outreach.why_relevant || comp.company_summary}, ${outreach.outreach_angle || ''})
+        RETURNING id
+      `);
+
+      await db.execute(sql`
+        UPDATE radar_companies SET promoted_to_crm = TRUE, promoted_lead_id = ${Number(leadResult.rows[0]?.id)}, updated_at = NOW()
+        WHERE id = ${companyId}
+      `);
+
+      res.json({
+        success: true,
+        leadId: Number(leadResult.rows[0]?.id),
+        outreach,
+      });
+    } catch (promoteError: any) {
+      res.status(500).json({ success: false, error: 'Promotion failed: ' + promoteError.message });
+    }
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/export/companies', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    const result = await db.execute(sql`
+      SELECT rc.*,
+        (SELECT COUNT(*) FROM radar_contacts WHERE company_id = rc.id) as contact_count,
+        (SELECT COUNT(*) FROM radar_projects WHERE company_id = rc.id) as project_count
+      FROM radar_companies rc
+      WHERE rc.company_type != 'not_relevant'
+      ORDER BY rc.opportunity_score DESC
+    `);
+
+    const headers = ['Company Name','Type','Country','Website','Score','Band','Confidence','Summary','Evidence','Waste Oil','Plant Opportunity','EPC Target','Contacts','Projects','Status'];
+    const rows = [headers.join(',')];
+
+    for (const row of result.rows) {
+      const values = [
+        `"${(row.canonical_name || '').toString().replace(/"/g, '""')}"`,
+        row.company_type,
+        row.country,
+        row.website,
+        row.opportunity_score,
+        row.score_band,
+        row.overall_confidence,
+        `"${(row.company_summary || '').toString().replace(/"/g, '""').substring(0, 200)}"`,
+        `"${(row.evidence_summary || '').toString().replace(/"/g, '""').substring(0, 200)}"`,
+        row.handles_waste_oil ? 'Yes' : 'No',
+        row.is_plant_opportunity ? 'Yes' : 'No',
+        row.is_likely_epc_target ? 'Yes' : 'No',
+        row.contact_count,
+        row.project_count,
+        row.status,
+      ];
+      rows.push(values.join(','));
+    }
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="radar_companies_export.csv"');
+    res.send(rows.join('\n'));
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/export/projects', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    const result = await db.execute(sql`
+      SELECT rp.*, rc.canonical_name as company_name
+      FROM radar_projects rp
+      LEFT JOIN radar_companies rc ON rp.company_id = rc.id
+      ORDER BY rp.project_confidence DESC
+    `);
+
+    const headers = ['Project Name','Type','Company','Country','Summary','Evidence','Urgency','Confidence','Score','Status'];
+    const rows = [headers.join(',')];
+    for (const row of result.rows) {
+      rows.push([
+        `"${(row.project_name || '').toString().replace(/"/g, '""')}"`,
+        row.project_type, `"${(row.company_name || '').toString().replace(/"/g, '""')}"`,
+        row.country, `"${(row.project_summary || '').toString().replace(/"/g, '""').substring(0, 200)}"`,
+        `"${(row.evidence_text || '').toString().replace(/"/g, '""').substring(0, 200)}"`,
+        row.urgency, row.project_confidence, row.opportunity_score, row.status
+      ].join(','));
+    }
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="radar_projects_export.csv"');
+    res.send(rows.join('\n'));
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/export/contacts', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    const result = await db.execute(sql`
+      SELECT rc.*, rco.canonical_name as company_name, rco.country
+      FROM radar_contacts rc
+      LEFT JOIN radar_companies rco ON rc.company_id = rco.id
+      ORDER BY rc.confidence DESC
+    `);
+
+    const headers = ['Name','Title','Email','Phone','Type','Company','Country','Confidence','Source URL'];
+    const rows = [headers.join(',')];
+    for (const row of result.rows) {
+      rows.push([
+        `"${(row.name || '').toString().replace(/"/g, '""')}"`, `"${(row.title || '').toString().replace(/"/g, '""')}"`,
+        row.email, row.phone, row.contact_type, `"${(row.company_name || '').toString().replace(/"/g, '""')}"`,
+        row.country, row.confidence, row.source_url
+      ].join(','));
+    }
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="radar_contacts_export.csv"');
+    res.send(rows.join('\n'));
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+export default router;
