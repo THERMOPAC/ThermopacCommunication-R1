@@ -255,7 +255,7 @@ export default function LeadGenerationPage() {
   });
 
   const { data: processingStatus } = useQuery({
-    queryKey: ['/api/lead-generation/processing-status', activeSearchId],
+    queryKey: [`/api/lead-generation/processing-status/${activeSearchId}`],
     enabled: !!activeSearchId,
     refetchInterval: (query) => {
       const data = query.state.data as any;
@@ -265,14 +265,14 @@ export default function LeadGenerationPage() {
 
   useEffect(() => {
     if ((processingStatus as any)?.isComplete && activeSearchId) {
-      queryClient.invalidateQueries({ queryKey: ['/api/lead-generation/processed-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/lead-generation/processed-leads?minScore=0'] });
       queryClient.invalidateQueries({ queryKey: ['/api/lead-generation/search-history'] });
       toast({ title: "AI Processing Complete", description: `${(processingStatus as any).processed} leads analyzed, ${(processingStatus as any).highScoreLeads} high-quality leads found.` });
     }
   }, [(processingStatus as any)?.isComplete]);
 
   const { data: processedLeadsData, isLoading: leadsLoading } = useQuery({
-    queryKey: ['/api/lead-generation/processed-leads', { minScore: 0 }],
+    queryKey: ['/api/lead-generation/processed-leads?minScore=0'],
   });
 
   const { data: searchHistoryData, isLoading: historyLoading } = useQuery({
@@ -287,7 +287,7 @@ export default function LeadGenerationPage() {
       toast({ title: "Lead Promoted", description: "Lead added to your leads database for follow-up" });
       setIsPromoteDialogOpen(false);
       setPromotionNotes('');
-      queryClient.invalidateQueries({ queryKey: ['/api/lead-generation/processed-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/lead-generation/processed-leads?minScore=0'] });
     },
     onError: (error: any) => {
       toast({ title: "Promotion Failed", description: error.message || "Failed to promote lead", variant: "destructive" });
@@ -372,7 +372,7 @@ export default function LeadGenerationPage() {
           </Alert>
         )}
 
-        {activeSearchId && !(processingStatus as any)?.isComplete && (
+        {activeSearchId && processingStatus !== undefined && !(processingStatus as any)?.isComplete && (
           <Alert className="mb-6 border-blue-200 bg-blue-50">
             <Loader2 className="h-4 w-4 animate-spin" />
             <AlertTitle>AI Processing in Progress</AlertTitle>
@@ -380,7 +380,7 @@ export default function LeadGenerationPage() {
               <span>Crawling websites and analyzing leads with AI...</span>
               <Progress value={(processingStatus as any)?.progress || 0} className="w-32" />
               <span className="text-sm text-blue-600">
-                {(processingStatus as any)?.processed || 0} / {Math.min((processingStatus as any)?.total || 10, 10)} processed
+                {(processingStatus as any)?.processed || 0} / {(processingStatus as any)?.rawCount || 0} processed
               </span>
             </AlertDescription>
           </Alert>
@@ -706,7 +706,7 @@ export default function LeadGenerationPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/lead-generation/processed-leads'] })}
+                      onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/lead-generation/processed-leads?minScore=0'] })}
                     >
                       <RefreshCw className="h-4 w-4 mr-1" />Refresh
                     </Button>

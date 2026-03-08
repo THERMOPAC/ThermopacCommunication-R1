@@ -795,13 +795,21 @@ router.get('/processing-status/:searchId', async (req, res) => {
     const total = Number(search.total_results) || 0;
     const processed = Number(search.processed_results) || 0;
 
+    const actualItems = await db.execute(sql`
+      SELECT COUNT(*) as cnt FROM lead_raw_results WHERE search_id = ${parseInt(searchId)}
+    `);
+    const rawCount = Number(actualItems.rows[0].cnt) || 0;
+
+    const isComplete = rawCount === 0 || processed > 0;
+
     res.json({
       success: true,
       total,
       processed,
+      rawCount,
       highScoreLeads: Number(search.high_score_leads) || 0,
-      isComplete: processed > 0,
-      progress: total > 0 ? Math.round((processed / Math.min(total, 10)) * 100) : 0
+      isComplete,
+      progress: rawCount > 0 ? Math.round((processed / rawCount) * 100) : 100
     });
   } catch (error) {
     console.error('Error checking processing status:', error);
