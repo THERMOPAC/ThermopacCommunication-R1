@@ -804,7 +804,7 @@ async function executeGoogleSearch(query: string, countryCode?: string, startInd
     throw new Error('Google Custom Search API not configured');
   }
 
-  const exclusions = ' -job -employment -manual -handbook -recipe -cooking -"olive oil" -"coconut oil" -"palm oil" -"essential oil" -"hair oil" -"skin oil" -skincare -cosmetic -beauty -perfume -"clay bar" -"real estate" -"legal tender" -"oil painting" -"crude oil futures" -wikipedia -linkedin -youtube -amazon';
+  const exclusions = ' -job -employment -manual -handbook -recipe -cooking -"olive oil" -"coconut oil" -"palm oil" -"essential oil" -"hair oil" -"skin oil" -skincare -cosmetic -beauty -perfume -"clay bar" -"real estate" -"legal tender" -"oil painting" -"crude oil futures" -wikipedia -linkedin -youtube -amazon -"tyre recycling" -"tire recycling" -"battery recycling" -"plastic recycling" -"metal recycling" -"e-waste" -"pharmaceutical" -"nuclear" -"art supplies" -"oil spill" -"ship recycling" -museum -gallery -auction -"food waste" -"garden waste"';
 
   const params = new URLSearchParams({
     key: GOOGLE_API_KEY,
@@ -1050,34 +1050,39 @@ Respond with JSON:
 
 function isLikelyDirectoryPage(title: string, snippet: string, url: string): boolean {
   const text = `${title} ${snippet} ${url}`.toLowerCase();
+  const titleLC = title.toLowerCase();
+  const urlLC = url.toLowerCase();
+
   const directorySignals = [
     'member', 'directory', 'list of', 'our members', 'exhibitor list',
-    'participant list', 'company directory', 'registered',
-    'approved list', 'licensed', 'certified companies', '/members',
-    '/directory', '/exhibitors', '/participants',
-    'miembros', 'directorio', 'lista de', 'membros', 'diretório',
-    'mitglieder', 'verzeichnis', 'membres', 'annuaire',
-    'üyeler', 'anggota', 'daftar', '会员', '名录', '一覧', '名簿',
-    'участники', 'каталог', 'реестр', 'أعضاء', 'دليل', 'قائمة',
+    'company directory', '/members', '/directory', '/exhibitors',
+    'miembros', 'directorio', 'membros', 'mitglieder', 'membres',
+    'üyeler', 'anggota', '会员', '名录', '一覧', 'участники', 'каталог', 'أعضاء',
   ];
-  const directoryHits = directorySignals.filter(s => text.includes(s));
 
-  const industryContext = [
-    'oil', 'recycl', 'refin', 'waste', 'lubricant', 'base oil', 'regenerat',
-    'geir', 'rerefin', 're-refin', 'association', 'ukla', 'carrier', 'broker',
-    'aceite', 'óleo', 'altöl', 'huile', 'yağ', 'oli', 'масло', '油', 'زيت',
+  const oilIndustryTerms = [
+    'oil', 'lubricant', 'base oil', 'waste oil', 'used oil', 'petroleum',
+    'refin', 're-refin', 'rerefin', 'recycl oil', 'oil recycl',
+    'geir', 'ukla', 'ora ', 'oil association',
+    'aceite', 'óleo', 'altöl', 'huile', 'yağ', 'масло', '油', 'زيت',
   ];
-  const industryHits = industryContext.filter(s => text.includes(s));
 
-  if (directoryHits.length >= 1 && industryHits.length >= 1) return true;
+  const hasDirectorySignal = directorySignals.some(s => text.includes(s));
+  const hasOilContext = oilIndustryTerms.some(s => text.includes(s));
 
-  const highConfidencePatterns = [
-    'geir-rerefining.org', 'geir', 'members directory', 'member companies',
-    'exhibitor directory', 'exhibitor list', 'approved carriers',
-    'registered waste', 'licensed facilities', 'companies from',
-    're-refining companies', 'oil recycl', 'member list',
+  if (!hasDirectorySignal) return false;
+  if (!hasOilContext) return false;
+
+  const antiDirectoryTerms = [
+    'tyre', 'tire', 'pharmaceutical', 'pharma', 'art suppli', 'painting',
+    'cosmetic', 'skincare', 'beauty', 'fashion', 'food', 'plastic',
+    'nuclear', 'radioactive', 'shipping', 'shipbreak', 'maritime spill',
+    'cannabis', 'cbd', 'steel', 'construction', 'property', 'real estate',
+    'banking', 'finance', 'insurance', 'automotive parts', 'car parts',
   ];
-  return highConfidencePatterns.filter(p => text.includes(p)).length >= 1;
+  if (antiDirectoryTerms.some(t => titleLC.includes(t) || urlLC.includes(t))) return false;
+
+  return true;
 }
 
 function calculateOpportunityScore(data: any, hasContacts: boolean, hasProjects: boolean): {
@@ -1257,6 +1262,12 @@ async function processDiscoveryResult(
       'investopedia.com', 'statista.com', 'worldometers.info',
       'bankofengland.co.uk', 'ecb.europa.eu', 'federalreserve.gov', 'bis.org',
       'bidstats.uk', 'contractsfinder.service.gov.uk', 'ted.europa.eu',
+      'bbc.co.uk', 'bbc.com', 'parliament.uk', 'hansard.parliament.uk',
+      'imo.org', 'cam.ac.uk', 'ox.ac.uk', 'imperial.ac.uk', 'ucl.ac.uk',
+      'artuk.org', 'nationalarchives.gov.uk', 'spri.cam.ac.uk',
+      'technavio.com', 'mordorintelligence.com', 'grandviewresearch.com',
+      'lbma.org.uk', 'worldnuclear.org', 'onr.org.uk',
+      'tyrerecovery.org.uk', 'bpf.co.uk', 'ciwm.co.uk', 'sps.nhs.uk',
     ]);
     const skipDomainParts = sourceDomain.split('.');
     const mainDomain = skipDomainParts.length >= 2 ? skipDomainParts.slice(-2).join('.') : sourceDomain;
@@ -1300,6 +1311,14 @@ async function processDiscoveryResult(
       'steel construction', 'building construction', 'road construction',
       'food recycling', 'plastic recycling', 'paper recycling', 'glass recycling', 'textile recycling',
       'real estate', 'property for sale', 'apartment', 'villa for rent',
+      'tyre recycl', 'tire recycl', 'battery recycl', 'e-waste', 'electronic waste',
+      'nuclear waste', 'radioactive', 'pharmaceutical waste', 'medical waste',
+      'art supplies', 'art painting', 'watercolour', 'acrylic paint',
+      'oil spill response', 'spill cleanup', 'spill containment',
+      'metal recycling', 'scrap metal', 'steel recycling', 'aluminium recycling',
+      'ship recycling', 'shipbreaking', 'ship demolition',
+      'vacuum pump', 'compressor', 'hydraulic equipment',
+      'natural history', 'museum', 'gallery', 'auction',
     ];
     const antiHits = ANTI_KEYWORDS.filter(ak => combinedText.includes(ak));
     if (antiHits.length > 0 && relevanceHits.length <= 1) {
@@ -1312,11 +1331,28 @@ async function processDiscoveryResult(
       console.log(`[Radar] DIRECTORY PAGE detected: "${title.substring(0, 80)}" — extracting multiple companies`);
       const dirCrawl = await crawlPage(url);
       if (dirCrawl.success && dirCrawl.visibleText.length > 200) {
+        const dirOilSignals = ['oil', 'lubricant', 'refin', 'recycl', 'waste', 'petroleum', 'base oil'];
+        const dirContentLC = dirCrawl.visibleText.toLowerCase();
+        const dirOilScore = dirOilSignals.filter(s => dirContentLC.includes(s)).length;
+        if (dirOilScore < 2) {
+          console.log(`[Radar] DIRECTORY SKIP: "${title.substring(0, 60)}" — crawled content not oil-relevant (score ${dirOilScore})`);
+          await db.execute(sql`UPDATE radar_search_results SET processed = TRUE WHERE id = ${searchResultId}`);
+          return;
+        }
         try {
           const dirIntel = await extractIntelligenceLeads(dirCrawl.visibleText.substring(0, 4000), title, url, country);
-          for (const dUrl of dirIntel.directory_urls) { discoveredDirectoryUrls.add(dUrl); console.log(`[Radar] INTELLIGENCE from directory: Linked directory → ${dUrl}`); }
-          for (const q of dirIntel.follow_up_queries) { discoveredFollowUpQueries.push(q); }
-          for (const assoc of dirIntel.association_names) { discoveredFollowUpQueries.push(`"${assoc}" members list oil recycling`); console.log(`[Radar] INTELLIGENCE from directory: Association → ${assoc}`); }
+          for (const dUrl of dirIntel.directory_urls) {
+            const dLC = dUrl.toLowerCase();
+            if (dirOilSignals.some(s => dLC.includes(s)) || dLC.includes('member') || dLC.includes('directory')) {
+              discoveredDirectoryUrls.add(dUrl); console.log(`[Radar] INTELLIGENCE from directory: Linked directory → ${dUrl}`);
+            }
+          }
+          for (const assoc of dirIntel.association_names) {
+            const aLC = assoc.toLowerCase();
+            if (dirOilSignals.some(s => aLC.includes(s)) || aLC.includes('lubric')) {
+              discoveredFollowUpQueries.push(`"${assoc}" members list`); console.log(`[Radar] INTELLIGENCE from directory: Oil association → ${assoc}`);
+            }
+          }
         } catch (e) {}
         const companies = await extractCompaniesFromDirectory(title, snippet, url, dirCrawl.visibleText);
         console.log(`[Radar] Directory yielded ${companies.length} companies from: ${url}`);
@@ -1486,30 +1522,43 @@ async function processDiscoveryResult(
     allEmails = [...new Set(allEmails)];
     allPhones = [...new Set(allPhones)];
 
-    if (allContent.length > 500) {
+    const oilIndustrySignals = ['oil', 'lubricant', 'base oil', 'waste oil', 'used oil', 'refin', 're-refin', 'rerefin', 'recycl', 'regenerat', 'petroleum'];
+    const contentLC = allContent.toLowerCase();
+    const oilRelevanceScore = oilIndustrySignals.filter(s => contentLC.includes(s)).length;
+
+    if (allContent.length > 500 && oilRelevanceScore >= 3) {
       try {
         const intel = await extractIntelligenceLeads(allContent.substring(0, 4000), primaryTitle, url, country);
         for (const dirUrl of intel.directory_urls) {
-          if (!discoveredDirectoryUrls.has(dirUrl)) {
+          const dirLC = dirUrl.toLowerCase();
+          const dirRelevant = oilIndustrySignals.some(s => dirLC.includes(s)) || dirLC.includes('member') || dirLC.includes('directory');
+          if (dirRelevant && !discoveredDirectoryUrls.has(dirUrl)) {
             discoveredDirectoryUrls.add(dirUrl);
             console.log(`[Radar] INTELLIGENCE: Discovered directory URL → ${dirUrl}`);
           }
         }
         for (const q of intel.follow_up_queries) {
-          discoveredFollowUpQueries.push(q);
-          console.log(`[Radar] INTELLIGENCE: Follow-up query → "${q.substring(0, 60)}"`);
+          const qLC = q.toLowerCase();
+          if (oilIndustrySignals.some(s => qLC.includes(s))) {
+            discoveredFollowUpQueries.push(q);
+            console.log(`[Radar] INTELLIGENCE: Follow-up query → "${q.substring(0, 60)}"`);
+          }
         }
-        if (intel.association_names.length > 0) {
-          for (const assoc of intel.association_names) {
-            const assocQuery = `"${assoc}" members list waste oil recycling`;
-            discoveredFollowUpQueries.push(assocQuery);
-            console.log(`[Radar] INTELLIGENCE: Association discovered → ${assoc} — queued search`);
+        for (const assoc of intel.association_names) {
+          const assocLC = assoc.toLowerCase();
+          const isOilRelevant = oilIndustrySignals.some(s => assocLC.includes(s)) || assocLC.includes('lubric') || assocLC.includes('fuel') || assocLC.includes('geir') || assocLC.includes('ora');
+          if (isOilRelevant) {
+            discoveredFollowUpQueries.push(`"${assoc}" members list`);
+            console.log(`[Radar] INTELLIGENCE: Oil-relevant association → ${assoc} — queued search`);
           }
         }
         for (const compName of intel.competitor_names) {
-          const compQuery = `"${compName}" waste oil recycling`;
-          discoveredFollowUpQueries.push(compQuery);
-          console.log(`[Radar] INTELLIGENCE: Competitor mentioned → ${compName} — queued search`);
+          const nameLC = compName.toLowerCase();
+          const isOilComp = oilIndustrySignals.some(s => nameLC.includes(s)) || nameLC.includes('fuel') || nameLC.includes('lubric');
+          if (isOilComp) {
+            discoveredFollowUpQueries.push(`"${compName}" waste oil`);
+            console.log(`[Radar] INTELLIGENCE: Oil-relevant competitor → ${compName} — queued search`);
+          }
         }
       } catch (intelErr) {
         console.log(`[Radar] Intelligence extraction skipped for ${url}`);
@@ -1734,25 +1783,30 @@ async function runAdaptiveFollowUp(userId: number, country: string, isoCode: str
 
     if (companyContext.length > 10) {
       try {
-        const followUpPrompt = `You are an expert at finding waste oil recycling and re-refining companies globally.
+        const followUpPrompt = `You are an expert at finding waste oil recycling and re-refining companies.
 
-We have just run a discovery for ${country} and found these companies so far:
-${companyContext}
+Country: ${country}
+Companies found so far: ${companyContext}
 
-Based on this context, generate 6-8 HIGHLY TARGETED Google search queries that would find ADDITIONAL companies we might have MISSED. Think about:
-1. Industry associations that list members (search for "[association name] members" or "[association] member list")
-2. Environmental regulatory registries that list licensed waste oil handlers
-3. Specific company types not well represented (re-refiners, base oil producers, feedstock suppliers)
-4. Regional/local directories or business registers for this country
-5. Trade publications or conference exhibitor lists
-6. Supply chain connections — who supplies to or buys from the companies we found?
+Generate 8-10 HIGHLY SPECIFIC Google search queries to find ADDITIONAL waste oil / used oil / base oil companies we MISSED.
 
-CRITICAL: Queries should be specific enough to find real company pages, NOT general articles.
-Do NOT include generic queries like "waste oil recycling companies" — those were already searched.
-Focus on ANGLES we haven't tried yet.
+RULES:
+- Every query MUST contain at least one of: "waste oil", "used oil", "base oil", "re-refin", "oil recycl", "lubricant recycl"
+- DO NOT generate generic queries like "waste oil recycling companies ${country}" — those were already searched
+- DO NOT generate queries about associations, regulations, or policies — focus on COMPANY discovery
+- Target SPECIFIC niches and angles:
+  * Site-specific searches: site:ora.org.uk, site:ukla.org.uk, site:geir-rerefining.org
+  * Named company searches: "${(existingCompanies.rows[0] as any)?.canonical_name || 'company'}" competitor waste oil
+  * Region-specific: "waste oil collection [specific city/region in ${country}]"
+  * Supply chain: "waste oil supplier to" OR "base oil buyer" ${country}
+  * Permit/license registries: "waste oil permit holder" OR "oil recycling license" ${country}
+  * News/acquisitions: "acquires waste oil" OR "new oil re-refinery" ${country}
+  * Trade show exhibitors: "IFAT exhibitor waste oil" OR "Ecomondo exhibitor base oil"
+  * LinkedIn style: "waste oil re-refinery" "${country}" -linkedin
 
-Respond with JSON:
-{ "queries": ["query1", "query2", ...] }`;
+IMPORTANT: Each query should explore a DIFFERENT angle. No two queries should be semantically similar.
+
+Respond with JSON: { "queries": ["query1", "query2", ...] }`;
 
         const followUpResponse = await openai.chat.completions.create({
           model: "gpt-4o",
@@ -1774,8 +1828,23 @@ Respond with JSON:
       }
     }
 
-    const uniqueFollowUps = [...new Set(allFollowUps)].slice(0, 10);
-    console.log(`[Radar] Running ${uniqueFollowUps.length} adaptive follow-up queries for ${country}`);
+    const oilTerms = ['oil', 'lubricant', 'refin', 'base oil', 'petroleum', 'grease'];
+    const oilRelevantFollowUps = allFollowUps.filter(q => {
+      const qLC = q.toLowerCase();
+      return oilTerms.some(t => qLC.includes(t));
+    });
+    
+    const seen = new Set<string>();
+    const deduped: string[] = [];
+    for (const q of oilRelevantFollowUps) {
+      const normalized = q.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        deduped.push(q);
+      }
+    }
+    const uniqueFollowUps = deduped.slice(0, 12);
+    console.log(`[Radar] Running ${uniqueFollowUps.length} adaptive follow-up queries for ${country} (filtered from ${allFollowUps.length} total)`);
 
     for (const query of uniqueFollowUps) {
       try {
