@@ -1078,6 +1078,11 @@ async function processDiscoveryResult(
       'lubricantexpo.com', 'adipec.com', 'tradekey.com', 'indiamart.com',
       'made-in-china.com', 'globalsources.com', 'thomasnet.com',
       'bayut.com', 'propertyfinder.ae', 'dubizzle.com',
+      'steelconstruction.info', 'constructiondive.com', 'construction.com',
+      'recyclingtoday.com', 'waste360.com', 'wastedive.com',
+      'sciencedirect.com', 'researchgate.net', 'academia.edu', 'springer.com',
+      'wiley.com', 'elsevier.com', 'nature.com', 'mdpi.com',
+      'investopedia.com', 'statista.com', 'worldometers.info',
     ]);
     const skipDomainParts = sourceDomain.split('.');
     const mainDomain = skipDomainParts.length >= 2 ? skipDomainParts.slice(-2).join('.') : sourceDomain;
