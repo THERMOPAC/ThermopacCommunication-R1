@@ -916,7 +916,11 @@ async function crawlPage(url: string): Promise<{
       'example.', 'sentry', 'wixpress', 'cloudflare', 'googleapis',
       'webpack', 'schema.org', 'w3.org', 'mozilla.org',
       'noreply', 'no-reply', 'mailer-daemon', 'postmaster',
-      'unsubscribe', 'bounce',
+      'unsubscribe', 'bounce', 'test@', 'admin@localhost',
+      '@doe.com', '@example.com', '@test.com', '@email.com',
+      '@placeholder', '@fake', '@dummy', '@sample',
+      'user@', 'name@domain', 'email@domain', 'your@email',
+      '@sentry.io', '@github.com', '@google.com', '@facebook.com',
     ];
     const emails = (truncatedHtml.match(emailRegex) || []).filter(e => {
       if (e.endsWith('.png') || e.endsWith('.jpg') || e.endsWith('.svg') || e.endsWith('.gif') || e.endsWith('.css') || e.endsWith('.js')) return false;
@@ -929,16 +933,22 @@ async function crawlPage(url: string): Promise<{
     const phoneRegex = /(?:\+\d{1,4}[-.\s]?)?\(?\d{2,5}\)?[-.\s]?\d{2,5}[-.\s]?\d{2,8}/g;
     const rawPhones = (text.match(phoneRegex) || []);
     const phones = rawPhones.filter(p => {
-      const digitsOnly = p.replace(/\D/g, '');
+      const trimmed = p.trim();
+      const digitsOnly = trimmed.replace(/\D/g, '');
       if (digitsOnly.length < 7 || digitsOnly.length > 15) return false;
-      if (p.includes('.') && !p.startsWith('+')) return false;
-      if (/^\d{4}[-–]\d{4}$/.test(p.trim())) return false;
-      if (/^\d{1,3}\.\d/.test(p.trim())) return false;
-      if (/^\d{5,9}$/.test(digitsOnly) && !p.includes(' ') && !p.includes('-') && !p.includes('(')) return false;
-      const startsWithPlus = p.trim().startsWith('+');
-      const hasAreaCode = /\(\d{2,5}\)/.test(p);
-      const hasSpacesOrDashes = /\d[-\s]\d/.test(p);
-      if (!startsWithPlus && !hasAreaCode && !hasSpacesOrDashes) return false;
+      if (trimmed.includes('.')) return false;
+      if (/^\d{4}[-–]\d{2,4}$/.test(trimmed)) return false;
+      if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return false;
+      if (/^\d{6}-\d{2}$/.test(trimmed)) return false;
+      if (/^\d{5,6}-\d{2,3}$/.test(trimmed)) return false;
+      if (/^\d{3,8}$/.test(trimmed)) return false;
+      if (/^20\d{2}[\s-]/.test(trimmed) || /^19\d{2}[\s-]/.test(trimmed)) return false;
+      const startsWithPlus = trimmed.startsWith('+');
+      const hasParenArea = /\(\d{2,5}\)/.test(trimmed);
+      const hasStdFormat = /^0\d{2,4}\s?\d{3,4}\s?\d{3,5}$/.test(trimmed);
+      const hasIntlFormat = /^\+\d{1,4}[\s-]/.test(trimmed);
+      if (!startsWithPlus && !hasParenArea && !hasStdFormat && !hasIntlFormat) return false;
+      if (/\s\d{1,2}$/.test(trimmed) && !startsWithPlus) return false;
       return true;
     });
     result.phones = [...new Set(phones)].slice(0, 10);
@@ -967,16 +977,18 @@ Snippet: ${snippet}
 ${crawledContent ? `Website Content (excerpt): ${crawledContent.substring(0, 3000)}` : ''}
 
 CRITICAL CLASSIFICATION RULES:
-1. "company_name" must be the OFFICIAL company name in its original casing (e.g. "LWART" not "Lwart", "AVISTA OIL" not "Avista Oil"). Use UPPERCASE if the company brand is uppercase.
+1. "company_name" must be the OFFICIAL company name in its original casing (e.g. "LWART" not "Lwart", "AVISTA OIL" not "Avista Oil"). Use UPPERCASE if the company brand is uppercase. NEVER use page titles as company names — strip suffixes like ": Home", " - Homepage", " | Official Site", " - Home Page". If you cannot determine the actual company name, set company_type to "not_relevant".
 2. "company_website" must be the company's OWN website URL (e.g. "https://lwart.com.br"), NOT the news article or source URL. If the source is a news article about a company, extract the actual company domain. Return null if unknown.
 3. Boolean flags MUST be consistent with company_type: if company_type is "re_refiner" then is_existing_rerefiner MUST be true and handles_waste_oil MUST be true. If company_type is "used_oil_collector" then is_collector_only MUST be true and handles_waste_oil MUST be true. If company_type is "waste_oil_recycler" then handles_waste_oil MUST be true.
 4. ONLY classify as relevant (waste_oil_recycler, re_refiner, used_oil_collector, etc.) if the company deals with PETROLEUM-BASED oils — lubricant oil, motor oil, hydraulic oil, transformer oil, industrial oil. Companies that ONLY deal with cooking oil / vegetable oil / edible oil recycling must be classified as "not_relevant" because they are NOT in the waste oil re-refining industry.
 5. Large corporations not primarily in the waste oil business (automotive OEMs, oil majors, commodity traders, retailers, banks, government agencies) should be classified as "not_relevant" unless they have a specific waste oil recycling division.
-6. Set ALL score estimates (feedstock, capital, strategic, contactability) to 0 for "not_relevant" companies.
-7. REGULATORY DOCUMENT SIGNALS: If the source is an SDS (Safety Data Sheet), TDS (Technical Data Sheet), environmental permit, hazardous waste license, or regulatory filing, extract the COMPANY that issued/owns the document — these are extremely high-value signals. The company name, facility location, product details, and contact info are usually embedded in these documents. Set classification_confidence to 0.95+ for companies found via regulatory documents.
-8. If a URL points to a PDF document (SDS, TDS, permit, license), analyze the title and snippet carefully — they typically contain the issuing company name and product type. The company that published the SDS/TDS is the one to classify.
-9. TRADE FLOW SIGNALS: If the source contains import/export customs data, trade records, HS code 2710 shipments, or bill-of-lading data, extract the IMPORTER and EXPORTER company names. Companies importing waste oil or exporting re-refined base oil are very likely plant operators or major traders connected to re-refining plants. Set is_likely_epc_target=true for companies importing large volumes of waste oil (they likely need processing capacity).
-10. TRADE SHOW SIGNALS: If the source is a trade show exhibitor directory or conference participant list (IFAT, Ecomondo, Pollutec, UNITI, ICIS, Lubricant Expo, ADIPEC, etc.), the companies listed are pre-qualified industry participants. Extract their names, descriptions, and booth/stand info. These are high-confidence leads — set classification_confidence to 0.90+ for exhibitors at relevant industry events.
+6. GENERAL WASTE MANAGEMENT COMPANIES that merely collect or accept oil as one of many waste types (skip hire, general recycling, hazardous waste removal, data destruction, commercial waste) must be classified as "waste_management_company" with LOW scores (feedstock <20, capital <15, strategic <15). Only classify as "waste_oil_recycler" or "re_refiner" if the company PRIMARILY focuses on oil recycling/re-refining as its core business.
+7. If the source is an article/news page (not a company website), extract the ACTUAL company mentioned in the article. If the article discusses multiple companies or is general industry news, classify as "not_relevant" with company_name set to the article's subject company if identifiable.
+8. Set ALL score estimates (feedstock, capital, strategic, contactability) to 0 for "not_relevant" companies.
+9. REGULATORY DOCUMENT SIGNALS: If the source is an SDS (Safety Data Sheet), TDS (Technical Data Sheet), environmental permit, hazardous waste license, or regulatory filing, extract the COMPANY that issued/owns the document — these are extremely high-value signals. The company name, facility location, product details, and contact info are usually embedded in these documents. Set classification_confidence to 0.95+ for companies found via regulatory documents.
+10. If a URL points to a PDF document (SDS, TDS, permit, license), analyze the title and snippet carefully — they typically contain the issuing company name and product type. The company that published the SDS/TDS is the one to classify.
+11. TRADE FLOW SIGNALS: If the source contains import/export customs data, trade records, HS code 2710 shipments, or bill-of-lading data, extract the IMPORTER and EXPORTER company names. Companies importing waste oil or exporting re-refined base oil are very likely plant operators or major traders connected to re-refining plants. Set is_likely_epc_target=true for companies importing large volumes of waste oil (they likely need processing capacity).
+12. TRADE SHOW SIGNALS: If the source is a trade show exhibitor directory or conference participant list (IFAT, Ecomondo, Pollutec, UNITI, ICIS, Lubricant Expo, ADIPEC, etc.), the companies listed are pre-qualified industry participants. Extract their names, descriptions, and booth/stand info. These are high-confidence leads — set classification_confidence to 0.90+ for exhibitors at relevant industry events.
 
 Respond with JSON:
 {
@@ -1198,7 +1210,7 @@ async function checkDuplicate(companyName: string, domain: string, country?: str
   try {
     if (domain && !isNewsOrMediaDomain(domain)) {
       const domainCheck = await db.execute(sql`
-        SELECT id, duplicate_group_id FROM radar_companies WHERE root_domain = ${domain} LIMIT 1
+        SELECT id, duplicate_group_id FROM radar_companies WHERE LOWER(root_domain) = ${domain.toLowerCase()} LIMIT 1
       `);
       if (domainCheck.rows.length > 0) {
         return { isDuplicate: true, duplicateOfId: Number(domainCheck.rows[0].id), groupId: domainCheck.rows[0].duplicate_group_id as string };
@@ -1207,18 +1219,19 @@ async function checkDuplicate(companyName: string, domain: string, country?: str
 
     if (companyName) {
       const normalized = companyName.toLowerCase().trim()
-        .replace(/\b(ltd|llc|inc|corp|co|gmbh|sa|srl|pvt|private|limited|company|soluções|ambientais|solucoes|do brasil|brazil)\b\.?/gi, '')
+        .replace(/\b(ltd|llc|inc|corp|co|gmbh|sa|srl|pvt|private|limited|company|group|plc|soluções|ambientais|solucoes|do brasil|brazil|services|solutions|uk|international)\b\.?/gi, '')
         .replace(/[^a-z0-9\s]/g, '')
         .replace(/\s+/g, ' ')
         .trim();
-      if (normalized.length > 3) {
+      if (normalized.length > 2) {
         const nameCheck = await db.execute(sql`
-          SELECT id, duplicate_group_id FROM radar_companies
-          WHERE LOWER(REGEXP_REPLACE(canonical_name, '[^a-zA-Z0-9 ]', '', 'g')) LIKE ${'%' + normalized.substring(0, 20) + '%'}
+          SELECT id, duplicate_group_id, canonical_name FROM radar_companies
+          WHERE LOWER(REGEXP_REPLACE(canonical_name, '[^a-zA-Z0-9 ]', '', 'g')) LIKE ${'%' + normalized.substring(0, 25) + '%'}
           AND (country = ${country || ''} OR ${!country})
           LIMIT 1
         `);
         if (nameCheck.rows.length > 0) {
+          console.log(`[Radar] DUPLICATE detected: "${companyName}" matches existing "${(nameCheck.rows[0] as any).canonical_name}"`);
           return { isDuplicate: true, duplicateOfId: Number(nameCheck.rows[0].id), groupId: nameCheck.rows[0].duplicate_group_id as string };
         }
       }
@@ -1667,7 +1680,12 @@ async function processDiscoveryResult(
 
     const groupId = generateDomainFingerprint(aiResult.company_name || title, companyDomain);
 
-    const companyName = aiResult.company_name || title;
+    let companyName = (aiResult.company_name || title)
+      .replace(/\s*[-–|:]\s*(Home|Homepage|Official Site|Official Website|Home Page|Welcome|About Us|Contact Us|Services)$/i, '')
+      .replace(/\s*\|\s*.*$/, '')
+      .replace(/\s*[-–]\s*(British|UK|United Kingdom|England|Scotland|Wales)$/i, '')
+      .trim();
+    if (companyName.length > 80) companyName = companyName.substring(0, 80).trim();
     const invalidNames = ['unknown', 'unclear', 'n/a', 'none', 'not found', 'not available', 'unnamed', 'descargar', 'download'];
     if (invalidNames.includes(companyName.toLowerCase().trim()) || companyName.length < 3) {
       console.log(`[Radar] Skipping result with invalid company name: "${companyName}"`);
