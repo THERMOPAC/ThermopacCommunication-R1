@@ -850,7 +850,7 @@ async function processDiscoveryResult(
 
     await db.execute(sql`
       INSERT INTO radar_sources (source_type, source_name, title, source_url, domain, country, iso_code, raw_snippet, search_job_id)
-      VALUES ('search_result', ${domain}, ${title}, ${url}, ${domain}, ${country}, ${isoCode}, ${snippet || ''}, ${searchJobId})
+      VALUES ('search_result', ${companyDomain}, ${title}, ${url}, ${companyDomain}, ${country}, ${isoCode}, ${snippet || ''}, ${searchJobId})
     `);
 
     for (const signal of (aiResult.project_signals || [])) {
