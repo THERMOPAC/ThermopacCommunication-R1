@@ -1960,14 +1960,24 @@ async function runDiscoveryJob(userId: number, country: string, isoCode: string,
 
   let totalResults = 0;
 
-  const deepSearchFamilies = new Set(['company_discovery', 'recycler_discovery', 'base_oil_sellers', 'directory_mining']);
+  const searchDepthByFamily: Record<string, number[]> = {
+    company_discovery: [1, 11, 21],
+    recycler_discovery: [1, 11, 21],
+    base_oil_sellers: [1, 11, 21],
+    directory_mining: [1, 11, 21],
+    regulatory_docs: [1, 11],
+    trade_flow: [1, 11],
+    tradeshow_discovery: [1, 11],
+    project_signal: [1, 11],
+  };
 
   for (const q of queries) {
     try {
-      const pagesToSearch = deepSearchFamilies.has(q.family) ? [1, 11] : [1];
+      const pagesToSearch = searchDepthByFamily[q.family] || [1];
 
       for (const startIdx of pagesToSearch) {
-        const pageLabel = startIdx === 1 ? '' : ' [page 2]';
+        const pageNum = Math.floor((startIdx - 1) / 10) + 1;
+        const pageLabel = startIdx === 1 ? '' : ` [page ${pageNum}]`;
         const jobResult = await db.execute(sql`
           INSERT INTO radar_search_jobs (country, iso_code, language, query, query_family, source_class, status, user_id, started_at)
           VALUES (${country}, ${isoCode}, ${q.language}, ${q.query + pageLabel}, ${q.family}, 'search_result', 'running', ${userId}, NOW())
